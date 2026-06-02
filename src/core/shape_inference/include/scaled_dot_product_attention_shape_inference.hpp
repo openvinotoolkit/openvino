@@ -34,8 +34,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     size_t kv_num_heads_factor = 1;
     if ((n_dims_rank.is_static() && key_rank.is_static()) && (n_dims_rank.get_length() == key_rank.get_length())) {
         const auto& last_dim = *(n_dims.end() - 1);
-        const auto& key_dim = (key_rank.is_static() && key_rank.get_length() >= 3) ? *(key.end() - 3) : ov::Dimension(1);
-        if (last_dim.is_static() && key_dim.is_static()) {
+        const auto& key_dim =
+            (key_rank.is_static() && key_rank.get_length() >= 3) ? *(key.end() - 3) : ov::Dimension(1);
+        if (last_dim.is_static() && key_dim.is_static() && key_dim.get_length() != 0) {
             kv_num_heads_factor = last_dim.get_length() / key_dim.get_length();
         }
     }
@@ -54,14 +55,13 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     if (key_rank.is_static()) {
         if (kv_num_heads_factor > 1) {
             key_input_correctness = key_rank.get_length() >= 3 && DimType::merge(e_dim, e_dim, *(key.end() - 1));
-        }
-        else {
+        }else {
             key_input_correctness =
                 key_rank.get_length() >= 3 &&
                 TRShape::broadcast_merge_into(n_dims,
-                    TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
-                    AutoBroadcastType::NUMPY) &&
-                DimType::merge(e_dim, e_dim, *(key.end() - 1));
+                                              TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
+                                              AutoBroadcastType::NUMPY) &&
+                                              DimType::merge(e_dim, e_dim, *(key.end() - 1));
         }
 
         NODE_SHAPE_INFER_CHECK(op,
@@ -82,9 +82,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
             value_input_correctness =
                 value_rank.get_length() >= 3 &&
                 TRShape::broadcast_merge_into(n_dims,
-                    TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
-                    AutoBroadcastType::NUMPY) &&
-                DimType::merge(s_dim, s_dim, *(value.end() - 2));
+                                              TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
+                                              AutoBroadcastType::NUMPY) &&
+                                              DimType::merge(s_dim, s_dim, *(value.end() - 2));
         }
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
