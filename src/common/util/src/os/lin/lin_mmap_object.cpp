@@ -173,7 +173,10 @@ public:
     }
 };
 
-std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path,
+                                               size_t offset,
+                                               size_t size,
+                                               bool /* no_placeholder */) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path, offset, size);
     return holder;
