@@ -233,28 +233,42 @@ void PluginPropertyManager::registerPluginProperties() const {
     try_register_simple_property<CREATE_EXECUTOR>(_config, _properties, ov::intel_npu::create_executor);
     try_register_simple_property<DYNAMIC_SHAPE_TO_STATIC>(_config, _properties, ov::intel_npu::dynamic_shape_to_static);
     try_register_simple_property<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type);
-    try_register_simple_property<BACKEND_COMPILATION_PARAMS>(_config, _properties, ov::intel_npu::backend_compilation_params);
+    try_register_simple_property<BACKEND_COMPILATION_PARAMS>(_config,
+                                                             _properties,
+                                                             ov::intel_npu::backend_compilation_params);
     try_register_simple_property<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode);
     try_register_simple_property<TURBO>(_config, _properties, ov::intel_npu::turbo);
     try_register_simple_property<MODEL_PRIORITY>(_config, _properties, ov::hint::model_priority);
     try_register_simple_property<BYPASS_UMD_CACHING>(_config, _properties, ov::intel_npu::bypass_umd_caching);
     try_register_simple_property<DEFER_WEIGHTS_LOAD>(_config, _properties, ov::intel_npu::defer_weights_load);
-    try_register_simple_property<COMPILER_DYNAMIC_QUANTIZATION>(_config, _properties, ov::intel_npu::compiler_dynamic_quantization);
+    try_register_simple_property<COMPILER_DYNAMIC_QUANTIZATION>(_config,
+                                                                _properties,
+                                                                ov::intel_npu::compiler_dynamic_quantization);
     try_register_simple_property<QDQ_OPTIMIZATION>(_config, _properties, ov::intel_npu::qdq_optimization);
-    try_register_simple_property<QDQ_OPTIMIZATION_AGGRESSIVE>(_config, _properties, ov::intel_npu::qdq_optimization_aggressive);
+    try_register_simple_property<QDQ_OPTIMIZATION_AGGRESSIVE>(_config,
+                                                              _properties,
+                                                              ov::intel_npu::qdq_optimization_aggressive);
     try_register_simple_property<DISABLE_VERSION_CHECK>(_config, _properties, ov::intel_npu::disable_version_check);
     try_register_simple_property<EXPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::export_raw_blob);
     try_register_simple_property<IMPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::import_raw_blob);
-    try_register_simple_property<BATCH_COMPILER_MODE_SETTINGS>(_config, _properties, ov::intel_npu::batch_compiler_mode_settings);
+    try_register_simple_property<BATCH_COMPILER_MODE_SETTINGS>(_config,
+                                                               _properties,
+                                                               ov::intel_npu::batch_compiler_mode_settings);
     OPENVINO_SUPPRESS_DEPRECATED_START
     try_register_simple_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning);
     OPENVINO_SUPPRESS_DEPRECATED_END
     try_register_simple_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type);
     try_register_simple_property<ENABLE_WEIGHTLESS>(_config, _properties, ov::enable_weightless);
-    try_register_simple_property<SEPARATE_WEIGHTS_VERSION>(_config, _properties, ov::intel_npu::separate_weights_version);
-    try_register_simple_property<MODEL_SERIALIZER_VERSION>(_config, _properties, ov::intel_npu::model_serializer_version);
+    try_register_simple_property<SEPARATE_WEIGHTS_VERSION>(_config,
+                                                           _properties,
+                                                           ov::intel_npu::separate_weights_version);
+    try_register_simple_property<MODEL_SERIALIZER_VERSION>(_config,
+                                                           _properties,
+                                                           ov::intel_npu::model_serializer_version);
     try_register_simple_property<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for);
-    try_register_simple_property<DISABLE_IDLE_MEMORY_PRUNING>(_config, _properties, ov::intel_npu::disable_idle_memory_prunning);
+    try_register_simple_property<DISABLE_IDLE_MEMORY_PRUNING>(_config,
+                                                              _properties,
+                                                              ov::intel_npu::disable_idle_memory_prunning);
     try_register_simple_property<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue);
 
     try_register_customfunc_property(_config, _properties, ov::intel_npu::stepping, [&](const Config& config) {
@@ -280,14 +294,18 @@ void PluginPropertyManager::registerPluginProperties() const {
         return config.get<MAX_TILES>();
     });
 
-    try_register_varpub_property<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, ov::intel_npu::run_inferences_sequentially, [&] {
-        if (_backend && _backend->getInitStructs()) {
-            if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
-                return true;
+    try_register_varpub_property<RUN_INFERENCES_SEQUENTIALLY>(
+        _config,
+        _properties,
+        ov::intel_npu::run_inferences_sequentially,
+        [&] {
+            if (_backend && _backend->getInitStructs()) {
+                if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+                    return true;
+                }
             }
-        }
-        return false;
-    }());
+            return false;
+        }());
     try_register_custom_property(_config,
                                  _properties,
                                  ov::compatibility_check,
@@ -304,13 +322,9 @@ void PluginPropertyManager::registerPluginProperties() const {
                                  [](const Config&) {
                                      return ov::EncryptionCallbacks{nullptr, nullptr};
                                  });
-    force_register_custom_property(_properties,
-                                   ov::hint::model,
-                                   true,
-                                   ov::PropertyMutability::RO,
-                                   [](const Config&) {
-                                       return std::shared_ptr<const ov::Model>(nullptr);
-                                   });
+    force_register_custom_property(_properties, ov::hint::model, true, ov::PropertyMutability::RO, [](const Config&) {
+        return std::shared_ptr<const ov::Model>(nullptr);
+    });
 
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
@@ -366,19 +380,22 @@ void PluginPropertyManager::registerPluginProperties() const {
         register_simple_metric(_properties, ov::intel_npu::backend_name, false, [&](const Config&) {
             return _metrics->GetBackendName();
         });
-        register_custom_metric(_properties, ov::device::architecture,
+        register_custom_metric(_properties,
+                               ov::device::architecture,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetDeviceArchitecture(specifiedDeviceName);
                                });
-        register_custom_metric(_properties, ov::device::full_name,
+        register_custom_metric(_properties,
+                               ov::device::full_name,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetFullDeviceName(specifiedDeviceName);
                                });
-        register_custom_metric(_properties, ov::device::luid,
+        register_custom_metric(_properties,
+                               ov::device::luid,
                                _backend == nullptr ? false : _backend->isLUIDExtSupported(),
                                [&](const Config& config) {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
@@ -677,10 +694,10 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     auto deviceId = _config.get<DEVICE_ID>();
     auto device = utils::getDeviceById(_backend, deviceId);
 
-    auto compilationPlatform = utils::getCompilationPlatform(
-        _config.get<PLATFORM>(),
-        device == nullptr ? std::move(deviceId) : device->getName(),
-        _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+    auto compilationPlatform =
+        utils::getCompilationPlatform(_config.get<PLATFORM>(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
     try {
@@ -735,8 +752,9 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
             const auto optionMode = updatedConfig.getOpt(key).mode();
 
             if (optionMode == OptionMode::CompileTime) {
-                logger.info("Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
-                            key.c_str());
+                logger.info(
+                    "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
+                    key.c_str());
                 continue;
             }
 
@@ -762,14 +780,15 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
 
 FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties,
                                                                    const ICompilerAdapter* compiler) const {
-    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] = [&]() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config,
-                               _compilerConfigsFilteredByCompiler,
-                               _currentlyUsedCompiler,
-                               _currentlyUsedPlatform,
-                               _logger);
-    }();
+    auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
+        [&]() {
+            std::lock_guard<std::mutex> lock(_mutex);
+            return std::make_tuple(_config,
+                                   _compilerConfigsFilteredByCompiler,
+                                   _currentlyUsedCompiler,
+                                   _currentlyUsedPlatform,
+                                   _logger);
+        }();
 
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(logger);
@@ -889,9 +908,8 @@ ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerTypeForCompa
     return _compilerForCompatibilityCheck;
 }
 
-ov::CompatibilityCheck PluginPropertyManager::validateCompatibilityDescriptor(
-    ov::intel_npu::CompilerType compilerType,
-    const ov::AnyMap& arguments) const {
+ov::CompatibilityCheck PluginPropertyManager::validateCompatibilityDescriptor(ov::intel_npu::CompilerType compilerType,
+                                                                              const ov::AnyMap& arguments) const {
     if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
