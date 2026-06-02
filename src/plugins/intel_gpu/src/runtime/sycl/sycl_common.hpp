@@ -80,10 +80,10 @@ public:
 
     template<typename T>
     ::sycl::event enqueue_fill_mem(::sycl::queue& queue, void* dst_ptr, const T& pattern,
-                                   size_t count) const {
+                                   size_t count, const std::vector<::sycl::event>& depEvents = {}) const {
         if (!_use_usm)
             throw std::runtime_error("[CLDNN] USM is not enabled");
-        return queue.fill(dst_ptr, pattern, count);
+        return queue.fill(dst_ptr, pattern, count, depEvents);
     }
 
     ::sycl::usm::alloc get_usm_allocation_type(const void* usm_ptr) const {

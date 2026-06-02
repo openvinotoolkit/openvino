@@ -394,14 +394,15 @@ void gpu_usm::unlock(const stream& /* stream */) {
     }
 }
 
-event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
+event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip gpu_usm::fill for 0 size tensor" << std::endl;
         return nullptr;
     }
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     try {
-        auto ev  = sycl_stream.get_usm_helper().enqueue_fill_mem(sycl_stream.get_sycl_queue(), _buffer.get(), pattern, _bytes_count);
+        auto sycl_dep_events = utils::get_sycl_events(dep_events);
+        auto ev  = sycl_stream.get_usm_helper().enqueue_fill_mem(sycl_stream.get_sycl_queue(), _buffer.get(), pattern, _bytes_count, sycl_dep_events);
 
         if (blocking) {
             ev.wait_and_throw();
@@ -414,8 +415,8 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
     }
 }
 
-event::ptr gpu_usm::fill(stream& stream, bool blocking) {
-    return fill(stream, 0, blocking);
+event::ptr gpu_usm::fill(stream& stream, const std::vector<event::ptr>& dep_events, bool blocking) {
+    return fill(stream, 0, dep_events, blocking);
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
