@@ -43,7 +43,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                        const FilteredConfig& config,
                                                        const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
-    OPENVINO_ASSERT(blobWriter);
+    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
@@ -113,7 +113,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                          const FilteredConfig& config,
                                                          const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
-    OPENVINO_ASSERT(blobWriter);
+    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {

@@ -14,7 +14,11 @@ constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
 size_t move_cursor_with_bound_checking(const size_t destination, const size_t npu_region_size) {
-    OPENVINO_ASSERT(destination <= npu_region_size);
+    OPENVINO_ASSERT(destination <= npu_region_size,
+                    "Attempted to move the cursor beyond the NPU region. Destination: ",
+                    destination,
+                    ". Limit: ",
+                    npu_region_size);
     return destination;
 }
 
@@ -34,24 +38,28 @@ BlobReaderInterface::BlobReaderInterface(
       m_section_end(section_start + section_length),
       m_plugin_capabilities(plugin_capabilities),
       m_logger("BlobReaderInterface", Logger::global().level()) {
-    OPENVINO_ASSERT(section_start + section_length <= npu_region_size);
+    OPENVINO_ASSERT(m_section_end <= npu_region_size,
+                    "The end of a section surpasses the registered NPU region boundaries. Section end position: ",
+                    m_section_end,
+                    ". Limit: ",
+                    npu_region_size);
 }
 
 void BlobReaderInterface::copy_data_from_source(char* destination, const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor <= m_section_end);
+    OPENVINO_ASSERT(m_cursor <= m_section_end, "A section reader attempted to read beyond its own boundaries");
     std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
 }
 
 const void* BlobReaderInterface::interpret_data_from_source(const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor <= m_section_end);
+    OPENVINO_ASSERT(m_cursor <= m_section_end, "A section reader attempted to read beyond its own boundaries");
     return reinterpret_cast<const void*>(m_source.get().data<char>() + m_cursor - size);
 }
 
 ov::Tensor BlobReaderInterface::get_roi_tensor(const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor <= m_section_end);
+    OPENVINO_ASSERT(m_cursor <= m_section_end, "A section reader attempted to read beyond its own boundaries");
     return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
 }
 
@@ -61,7 +69,8 @@ size_t BlobReaderInterface::get_offset_relative_to_current_section() const {
 
 void BlobReaderInterface::move_cursor_relative_to_current_section(const size_t offset) {
     m_cursor = m_section_start + offset;
-    OPENVINO_ASSERT(m_cursor <= m_section_end);
+    OPENVINO_ASSERT(m_cursor <= m_section_end,
+                    "A section reader attempted to move the cursor beyond its own boundaries");
 }
 
 size_t BlobReaderInterface::get_offset_relative_to_npu_region() const {
@@ -69,7 +78,8 @@ size_t BlobReaderInterface::get_offset_relative_to_npu_region() const {
 }
 
 void BlobReaderInterface::move_cursor_relative_to_npu_region(const size_t offset) {
-    OPENVINO_ASSERT(offset >= m_section_start && offset <= m_section_end);
+    OPENVINO_ASSERT(offset >= m_section_start && offset <= m_section_end,
+                    "A section reader attempted to move the cursor beyond its own boundaries");
     m_cursor = offset;
 }
 
@@ -139,7 +149,13 @@ void BlobReader::read(const ov::Tensor& source,
     uint64_t offsets_table_location;
     uint64_t offsets_table_size;
 
-    OPENVINO_ASSERT(cursor + sizeof(offsets_table_location) + sizeof(offsets_table_size) <= npu_region_size);
+    const size_t where_the_region_of_persistent_format_starts =
+        cursor + sizeof(offsets_table_location) + sizeof(offsets_table_size);
+    OPENVINO_ASSERT(where_the_region_of_persistent_format_starts <= npu_region_size,
+                    "The parsed NPU region size is too small. Found: ",
+                    npu_region_size,
+                    ". Minimum required: ",
+                    where_the_region_of_persistent_format_starts);
     std::memcpy(reinterpret_cast<char*>(&offsets_table_location),
                 source.data<const char>() + cursor,
                 sizeof(offsets_table_location));
@@ -149,7 +165,6 @@ void BlobReader::read(const ov::Tensor& source,
                 sizeof(offsets_table_size));
     cursor = move_cursor_with_bound_checking(cursor + sizeof(offsets_table_size), npu_region_size);
 
-    const size_t where_the_region_of_persistent_format_starts = cursor;
     cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
 
     BlobReaderInterface interface(source, cursor, offsets_table_size, npu_region_size, plugin_capabilities);
@@ -214,7 +229,12 @@ void BlobReader::read(const ov::Tensor& source,
         cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);
     }
 
-    OPENVINO_ASSERT(number_of_sections_encountered == offsets_table.get_number_of_entries());
+    OPENVINO_ASSERT(
+        number_of_sections_encountered == offsets_table.get_number_of_entries(),
+        "The number of sections encountered doesn't match the number of offsets table entries. Sections encountered: ",
+        number_of_sections_encountered,
+        ". Offsets table entries: ",
+        offsets_table.get_number_of_entries());
 }
 
 size_t BlobReader::get_npu_region_size(std::istream& stream) {
@@ -222,11 +242,19 @@ size_t BlobReader::get_npu_region_size(std::istream& stream) {
 
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
     stream.read(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
-    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES,
+                    "Invalid magic bytes. Found: ",
+                    magic_bytes,
+                    ". Expected: ",
+                    MAGIC_BYTES);
 
     uint32_t format_version;
     stream.read(reinterpret_cast<char*>(&format_version), sizeof(format_version));
-    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION,
+                    "Invalid blob format version. Found: ",
+                    format_version,
+                    ". Expected: ",
+                    FORMAT_VERSION);
 
     uint64_t npu_region_size;
     stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
@@ -238,13 +266,21 @@ size_t BlobReader::get_npu_region_size(std::istream& stream) {
 size_t BlobReader::get_npu_region_size(const ov::Tensor& tensor) {
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
     std::memcpy(const_cast<char*>(magic_bytes.c_str()), tensor.data<const char>(), MAGIC_BYTES.size());
-    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES,
+                    "Invalid magic bytes. Found: ",
+                    magic_bytes,
+                    ". Expected: ",
+                    MAGIC_BYTES);
 
     uint32_t format_version;
     std::memcpy(reinterpret_cast<char*>(&format_version),
                 tensor.data<const char>() + MAGIC_BYTES.size(),
                 sizeof(format_version));
-    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION,
+                    "Invalid blob format version. Found: ",
+                    format_version,
+                    ". Expected: ",
+                    FORMAT_VERSION);
 
     uint64_t npu_region_size;
     std::memcpy(reinterpret_cast<char*>(&npu_region_size),

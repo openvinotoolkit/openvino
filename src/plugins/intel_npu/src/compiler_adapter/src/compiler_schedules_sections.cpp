@@ -45,10 +45,10 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::read");
 
-    // Skip the first padding
+    // Skip the first padding region
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
-    blob_reader.interpret_data_from_source(padding_size);
+    blob_reader.interpret_data_from_source(padding_size);  // moves the cursor
 
     return std::make_shared<ELFMainScheduleSection>(
         blob_reader.get_roi_tensor(blob_reader.get_section_length() - padding_size));
@@ -101,15 +101,31 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
 
+    const size_t section_length = blob_reader.get_section_length();
+
     uint64_t number_of_inits;
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
+    OPENVINO_ASSERT(
+        number_of_inits * sizeof(uint64_t) < section_length,
+        "The parsed number of init schedules is too big for the current section size. Number of init schedules: ",
+        number_of_inits,
+        ". Section length: ",
+        section_length);
 
+    size_t total_init_sizes = 0;
     std::vector<uint64_t> init_sizes;
     uint64_t value;
     while (number_of_inits--) {
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
         init_sizes.push_back(value);
+        total_init_sizes += value;
     }
+
+    OPENVINO_ASSERT(total_init_sizes < blob_reader.get_section_length(),
+                    "The sum of the parsed init schedule sizes is too big for the current section size. Sum: ",
+                    total_init_sizes,
+                    ". Section length: ",
+                    section_length);
 
     // Skip the first padding
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();

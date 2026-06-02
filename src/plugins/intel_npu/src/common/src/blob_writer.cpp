@@ -27,7 +27,7 @@ BlobWriterInterface::BlobWriterInterface(std::ostream& stream, const std::stream
       m_logger("BlobWriterInterface", Logger::global().level()) {}
 
 void BlobWriterInterface::write(const void* source, const size_t size) {
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"write\" operation");
     m_stream.get().write(reinterpret_cast<const char*>(source), size);
 }
 
@@ -38,37 +38,36 @@ void BlobWriterInterface::add_padding(const size_t size) {
 }
 
 std::streamoff BlobWriterInterface::get_offset_relative_to_current_section() const {
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"tell\" operation");
     return m_stream.get().tellp() - m_stream_current_section_start;
 }
 
 void BlobWriterInterface::move_cursor_relative_to_current_section(const size_t offset) {
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"seek\" operation");
     m_stream.get().seekp(m_stream_current_section_start + static_cast<std::streamoff>(offset));
     // This check will fail if the destination goes beyond the end of the stream
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream after \"seek\" operation");
 }
 
 std::streamoff BlobWriterInterface::get_offset_relative_to_npu_region() const {
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"tell\" operation");
     return m_stream.get().tellp() - m_stream_npu_region_start;
 }
 
 void BlobWriterInterface::move_cursor_relative_to_npu_region(const size_t offset) {
-    OPENVINO_ASSERT(m_stream.get().good());
-    OPENVINO_ASSERT(m_stream_current_section_start >= m_stream_npu_region_start);
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"seek\" operation");
+    OPENVINO_ASSERT(m_stream_current_section_start >= m_stream_npu_region_start,
+                    "Invalid section start. The beginning of a section should be placed within the stream region "
+                    "dedicated to the NPU plugin.");
     OPENVINO_ASSERT(offset >= static_cast<size_t>(m_stream_current_section_start - m_stream_npu_region_start),
-                    "A section writer has attempted a jump outside the boundaries of its own payload. Jump location: ",
-                    offset,
-                    ". Minimum allowed value: ",
-                    m_stream_current_section_start - m_stream_npu_region_start);
+                    "A section writer has attempted a jump outside the boundaries of its own payload");
     m_stream.get().seekp(m_stream_npu_region_start + static_cast<std::streamoff>(offset));
     // This check will fail if the destination goes beyond the end of the stream
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"seek\" operation");
 }
 
 void BlobWriterInterface::seek_to_the_end() {
-    OPENVINO_ASSERT(m_stream.get().good());
+    OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"seek to the end\" operation");
     m_stream.get().seekp(0, std::ios_base::end);
 }
 
@@ -83,15 +82,17 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     for (const SectionID& section_id : blob_reader->m_parsed_sections_order) {
         // The CRE & offsets table sections are added by the write() method after writing all registered sections
         // (jic the registered sections will alter the CRE/table). Therefore, these sections should be omitted here.
-        OPENVINO_ASSERT(section_id.type != PredefinedSectionType::OFFSETS_TABLE &&
-                        section_id.type != PredefinedSectionType::CRE);
+        OPENVINO_ASSERT(
+            section_id.type != PredefinedSectionType::OFFSETS_TABLE && section_id.type != PredefinedSectionType::CRE,
+            "By convention, the offsets table and CRE sections should not be found within the parsed sections order "
+            "attribute");
         register_section_from_blob_reader(blob_reader->retrieve_section(section_id));
     }
 }
 
 std::streamoff BlobWriter::get_offset_relative_to_npu_region(std::ostream& stream,
                                                              const std::streampos stream_npu_region_start) const {
-    OPENVINO_ASSERT(stream.good());
+    OPENVINO_ASSERT(stream.good(), "Invalid stream before \"tell\" operation");
     return stream.tellp() - stream_npu_region_start;
 }
 
@@ -148,7 +149,8 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
     // Update the next instance ID to be used.
     // Note: not sure if we really need to do this, since supposedly there won't be any other sections registered by
     // the plugin in this case. A blob that was imported should already contain all the sections it needs.
-    OPENVINO_ASSERT(section->get_section_type_instance().has_value());
+    OPENVINO_ASSERT(section->get_section_type_instance().has_value(),
+                    "Found a section parsed by a BlobReader object without an instance ID");
     const SectionTypeInstance candidate = section->get_section_type_instance().value() + 1;
     m_next_type_instance_id[section_type] =
         candidate > m_next_type_instance_id[section_type] ? candidate + 1 : m_next_type_instance_id[section_type];

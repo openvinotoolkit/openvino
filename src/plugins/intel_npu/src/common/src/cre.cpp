@@ -65,7 +65,7 @@ bool CRE::empty() const {
 }
 
 void CRE::advance_iterator(std::vector<Token>::const_iterator& expression_iterator) {
-    CRE_EVAL_ASSERT(expression_iterator != m_expression.end());
+    CRE_EVAL_ASSERT(expression_iterator != m_expression.end(), "The CRE ended unexpectedly");
     expression_iterator++;
 }
 
@@ -103,7 +103,9 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
     case OPEN:
         advance_iterator(expression_iterator);
         subexpression_result = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
-        CRE_EVAL_ASSERT(*expression_iterator == CLOSE);
+        CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
+                        "Expected a closed parrenthesis token during CRE evaluation. Received: ",
+                        *expression_iterator);
         advance_iterator(expression_iterator);
         return subexpression_result;
     case AND:
@@ -152,7 +154,8 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
 
     std::vector<Token>::const_iterator expression_iterator = m_expression.begin();
     const bool result = evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
-    CRE_EVAL_ASSERT(expression_iterator == m_expression.end());
+    CRE_EVAL_ASSERT(expression_iterator == m_expression.end(),
+                    "CRE evaluation ended before parsing the whole expression");
     return result;
 }
 
@@ -171,8 +174,16 @@ CRE CRESection::get_cre() const {
 std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::read");
 
-    size_t number_of_tokens = blob_reader.get_section_length() / sizeof(CRE::Token);
-    OPENVINO_ASSERT(number_of_tokens != 0);
+    const size_t section_length = blob_reader.get_section_length();
+    OPENVINO_ASSERT(section_length % sizeof(CRE::Token) == 0,
+                    "Received a CRE section length that is not divisible by the CRE token size. Section length: ",
+                    section_length,
+                    ". CRE token size: ",
+                    sizeof(CRE::Token));
+    size_t number_of_tokens = section_length / sizeof(CRE::Token);
+    OPENVINO_ASSERT(number_of_tokens != 0,
+                    "Read \"0\" as the number of CRE tokens. This value is invalid since at least one token (the CRE "
+                    "capability) is expected");
 
     std::vector<CRE::Token> tokens(number_of_tokens);
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));

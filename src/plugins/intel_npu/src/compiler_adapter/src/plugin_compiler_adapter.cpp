@@ -66,7 +66,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    OPENVINO_ASSERT(blobWriter);
+    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
@@ -116,7 +116,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                          const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
-    OPENVINO_ASSERT(blobWriter);
+    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
 
     FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {

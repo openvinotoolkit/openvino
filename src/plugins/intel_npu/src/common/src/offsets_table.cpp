@@ -13,8 +13,12 @@ namespace intel_npu {
 void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const uint64_t length) {
     // TODO maybe add some message when failing
     // "Section ID already existing in the table: printf(id)"
-    OPENVINO_ASSERT(!m_table.count(id));
-    OPENVINO_ASSERT(!m_reversed_table.count(offset));
+    OPENVINO_ASSERT(!m_table.count(id), "The section ID already exists within the table of offsets. ID: ", id);
+    OPENVINO_ASSERT(!m_reversed_table.count(offset),
+                    "The offset is already in-use within the table of offsets. Offset: ",
+                    offset,
+                    ". ID: ",
+                    id);
 
     m_table[id] = std::make_pair<>(offset, length);
     m_reversed_table[offset] = id;
@@ -80,8 +84,17 @@ OffsetsTable OffsetsTableSection::get_table() const {
 std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::read");
 
+    const size_t section_length = blob_reader.get_section_length();
+    const size_t entry_size = OffsetsTable::get_entry_size();
+    OPENVINO_ASSERT(
+        section_length % entry_size == 0,
+        "Received an offsets table section length that is not divisible by the table entry size. Section length: ",
+        section_length,
+        ". Table entry size: ",
+        entry_size);
+
+    size_t number_of_sections_in_table = section_length / entry_size;
     OffsetsTable offsets_table;
-    size_t number_of_sections_in_table = blob_reader.get_section_length() / offsets_table.get_entry_size();
     SectionType type;
     SectionTypeInstance type_instance;
     uint64_t offset;
