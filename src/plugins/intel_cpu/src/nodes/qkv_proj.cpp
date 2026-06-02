@@ -253,10 +253,13 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         const auto& dstStrides1 = m_node->getDstMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dstStrides2 = m_node->getDstMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int stride_src = srcStrides[1] * sizeof(T);
-        auto stride_dst_0 = dstStrides0[1];
-        auto stride_dst_1 = dstStrides1[1];
-        auto stride_dst_2 = dstStrides2[1];
+        // Use the row stride (second-to-last index) so this works for both
+        // rank-2 [B*S, H] (vLLM) and rank-3 [B, S, H] layouts.
+        const size_t row_idx = srcStrides.size() - 2;
+        int stride_src = srcStrides[row_idx] * sizeof(T);
+        auto stride_dst_0 = dstStrides0[dstStrides0.size() - 2];
+        auto stride_dst_1 = dstStrides1[dstStrides1.size() - 2];
+        auto stride_dst_2 = dstStrides2[dstStrides2.size() - 2];
 
         auto asym = true;
         for (int m = 0; m < M;) {
@@ -271,7 +274,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             if (m_node->m_config.quantized) {
                 // quantize psrc0 into m_quantized_act buffer
                 // per-token asym
-                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), srcStrides[1]);
+                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), srcStrides[row_idx]);
                 pA = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 strideA = m_quant_act.K;
             }
