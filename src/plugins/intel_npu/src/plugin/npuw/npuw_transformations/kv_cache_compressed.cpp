@@ -100,7 +100,8 @@ ov::OutputVector dynamic_quantize_linear(std::shared_ptr<ov::Node> input, size_t
 
 ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
                                             size_t reduction_axis,
-                                            const std::string& name_prefix) {
+                                            const std::string& name_prefix,
+                                            const ov::npuw::util::DynamicQuantStorageTypes& storage_types) {
     auto make_name = [&name_prefix](const std::string& suffix) {
         return name_prefix + "/" + suffix;
     };
@@ -131,13 +132,11 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     auto multiplyInput = std::make_shared<ov::op::v1::Multiply>(input, cst_255);
     multiplyInput->set_friendly_name(make_name("Multiply_input_255"));
 
-    // ONNX spec: zp = qmin - (minClamped / scale)
-    auto cst_qmin = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {-128.0f});
-    auto minDivScale = std::make_shared<ov::op::v1::Divide>(minClamped, multiplyScale);
-    minDivScale->set_friendly_name(make_name("Divide_min_by_scale"));
+    auto minNegated = std::make_shared<ov::op::v1::Subtract>(cst_zero, minClamped);
+    minNegated->set_friendly_name(make_name("Negate_min"));
 
-    auto zpFloat = std::make_shared<ov::op::v1::Subtract>(cst_qmin, minDivScale);
-    zpFloat->set_friendly_name(make_name("Subtract_zp"));
+    auto zpFloat = std::make_shared<ov::op::v1::Divide>(minNegated, multiplyScale);
+    zpFloat->set_friendly_name(make_name("Divide_min_by_scale"));
 
     auto divideSpan = std::make_shared<ov::op::v1::Divide>(multiplyInput, subtractSpan);
     divideSpan->set_friendly_name(make_name("Divide_span"));
@@ -148,22 +147,29 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     auto roundSpan = std::make_shared<ov::op::v5::Round>(divideSpan, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     roundSpan->set_friendly_name(make_name("Round_span"));
 
-    auto clampZp = std::make_shared<ov::op::v0::Clamp>(roundZp, -128.0, 127.0);
+    auto clampZp = std::make_shared<ov::op::v0::Clamp>(roundZp, 0.0, 255.0);
     clampZp->set_friendly_name(make_name("Clamp_zp"));
 
     auto addQuant = std::make_shared<ov::op::v1::Add>(roundSpan, clampZp);
     addQuant->set_friendly_name(make_name("Add_quant"));
 
-    auto clampOutput = std::make_shared<ov::op::v0::Clamp>(addQuant, -128.0, 127.0);
+    auto clampOutput = std::make_shared<ov::op::v0::Clamp>(addQuant, 0.0, 255.0);
     clampOutput->set_friendly_name(make_name("Clamp_output"));
 
-    auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, ov::element::i8);
+    auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, storage_types.zero_point_type);
     convertZp->set_friendly_name(make_name("Convert_zp"));
 
-    auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, ov::element::i8);
+    auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, storage_types.quantized_data_type);
     convertOutput->set_friendly_name(make_name("Convert_output"));
 
-    return {convertOutput->output(0), multiplyScale->output(0), convertZp->output(0)};
+    std::shared_ptr<ov::Node> scaleOutput = multiplyScale;
+    if (storage_types.scale_type != ov::element::f32) {
+        auto convertScale = std::make_shared<ov::op::v0::Convert>(multiplyScale, storage_types.scale_type);
+        convertScale->set_friendly_name(make_name("Convert_scale"));
+        scaleOutput = convertScale;
+    }
+
+    return {convertOutput->output(0), scaleOutput->output(0), convertZp->output(0)};
 }
 
 }  // anonymous namespace
@@ -218,6 +224,18 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         auto dq_ptr = node_to_output.at(dynamic_quantize).get_node_shared_ptr();
 
         auto dq_node = ov::as_type_ptr<ov::op::internal::DynamicQuantize>(dq_ptr);
+        const auto& attrs = dq_node->get_attrs();
+
+        if (attrs.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
+            attrs.quantization_dt != ov::element::i8) {
+            return false;
+        }
+
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
+            ov::npuw::util::DynamicQuantDecomposeMode::CompilerPatternI8,
+            false,
+            attrs.quantization_dt,
+            attrs.scale_dt);
 
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
@@ -230,7 +248,8 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
 
-        auto dq_results = dynamic_quantize_linear_v3(dq_input, reduction_axis, dq_ptr->get_friendly_name());
+        auto dq_results =
+            dynamic_quantize_linear_v3(dq_input, reduction_axis, dq_ptr->get_friendly_name(), storage_types);
 
         dq_ptr->output(0).replace(dq_results[0]);
         dq_ptr->output(1).replace(dq_results[1]);
@@ -437,8 +456,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             bool is_key,
             const KVCacheCompressionConfig& cfg) -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
         const std::string kv_name = cacheName(is_key);
-
         const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
+            ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
+            !is_asym,
+            cfg.quantization_dt);
 
         auto rank = dq_input.get_partial_shape().size();
         std::vector<uint64_t> shape_group_size(rank, 1);
@@ -452,7 +474,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         dq_config.group_sizes = shape_group_size;
 
         if (is_asym) {
-            dq_config.zp_dt = cfg.quantization_dt;  // zp same type as quantized data
+            dq_config.zp_dt = storage_types.zero_point_type;
         }
 
         auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, dq_config);
@@ -477,6 +499,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
                                     bool isKey,
                                     const KVCacheCompressionConfig& cfg) {
         const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
+        const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
+            ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
+            !is_asym,
+            cfg.quantization_dt);
 
         // TODO: adding back slash here kills partitioning - fix that
         auto make_dq_name = [&make_name, &node_name](auto base_name) {
@@ -500,9 +527,9 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         // reconstruct k and v caches intgeres values  to matmul using one of Dequantize approach
         // use zp on quant/dequant only in case od assym
         std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
-        if (cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric) {
+        if (is_asym) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-            auto zp = create_parameter_with_name(cfg.quantization_dt,
+            auto zp = create_parameter_with_name(storage_types.zero_point_type,
                                                  clear_embedding_index(start_node, isKey),
                                                  make_dq_param_name("zp"));
 
