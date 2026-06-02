@@ -24,6 +24,7 @@ constexpr size_t align_size_up(size_t size, size_t alignment) noexcept {
 /**
  * @brief Rounds @p size down to the nearest multiple of @p alignment.
  *
+ * @param size       Value to round down.
  * @param alignment  Alignment boundary. Must be a power of two and greater than zero.
  * @return Largest value <= @p size that is a multiple of @p alignment.
  */
@@ -75,8 +76,7 @@ void* aligned_alloc(size_t size, size_t alignment) noexcept;
 void aligned_free(void* ptr) noexcept;
 
 /**
- * @brief Returns true if the memory at @p data is backed by an mmap region
- * rather than a private heap (sbrk) allocation.
+ * @brief Checks if the memory at @p data was allocated via mmap (or the platform equivalent).
  *
  * On Windows, uses VirtualQuery: MEM_MAPPED regions (MapViewOfFile / MapViewOfFile3)
  * return true; MEM_PRIVATE regions (heap, VirtualAlloc) return false.
@@ -88,5 +88,32 @@ void aligned_free(void* ptr) noexcept;
  * @return true if the memory was allocated via mmap (or its platform equivalent).
  */
 bool is_mmap_memory(const void* data) noexcept;
+
+/**
+ * @brief Checks that the entire range [data, data + size) lies within a single file-backed
+ *        mmap region — i.e. is not split across independently allocated views.
+ *
+ * On Windows, the placeholder-based mmap creates the file-backed portion as a SINGLE view
+ * (one AllocationBase for the whole file content).  When the file size is not a multiple of
+ * 64 KB (the system allocation granularity), the VA range is extended with an anonymous
+ * pagefile-backed tail section that has a different AllocationBase.  A blob whose range
+ * [data, data+size) extends into this tail cannot be imported with
+ * ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT because the driver cannot access those bytes
+ * through the original file section.
+ *
+ * The AllocationBase discriminator also correctly handles subsequent eviction: hint_evict()
+ * unmaps and re-splits the single view into independently re-mapped pieces, each with a
+ * distinct AllocationBase.  After any eviction the check returns false, preventing
+ * a persistent import of a fragmented mapping.
+ *
+ * On Linux, mmap always produces a single contiguous file-backed region with no
+ * anonymous padding, so only the start pointer is checked.
+ *
+ * @param data  Start of the range to check.
+ * @param size  Length of the range in bytes. Must be > 0.
+ * @return true if [data, data + size) is entirely within one contiguous file-backed mmap
+ *         allocation (same AllocationBase at start and end, both MEM_MAPPED).
+ */
+bool is_single_mmap_region(const void* data, size_t size) noexcept;
 
 }  // namespace ov::util

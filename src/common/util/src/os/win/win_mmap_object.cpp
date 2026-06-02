@@ -59,27 +59,27 @@ size_t get_system_alloc_granularity() {
 
 class MapHolder;
 
-// Function pointers for Windows 10 1803+ placeholder memory API.
+// Function pointers for  Windows 10 1803+ placeholder memory APIs.
 // Using void* for MEM_EXTENDED_PARAMETER* since we always pass nullptr/0.
 using PFNVirtualAlloc2 = PVOID(WINAPI*)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, void*, ULONG);
 using PFNMapViewOfFile3 = PVOID(WINAPI*)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, void*, ULONG);
 using PFNUnmapViewOfFile2 = BOOL(WINAPI*)(HANDLE, PVOID, ULONG);
 
 /** @brief Helper class to load placeholder APIs dynamically and check availability at runtime. */
-struct PlaceholderAPI {
+struct PlaceholderApi {
     PFNVirtualAlloc2 m_virtual_alloc2{};
     PFNMapViewOfFile3 m_map_view_of_file3{};
     PFNUnmapViewOfFile2 m_unmap_view_of_file2{};
     bool m_available{};
 
-    static const PlaceholderAPI& instance() {
-        static const PlaceholderAPI s = load();
+    static const PlaceholderApi& instance() {
+        static const PlaceholderApi s = load();
         return s;
     }
 
 private:
-    static PlaceholderAPI load() {
-        PlaceholderAPI a;
+    static PlaceholderApi load() {
+        PlaceholderApi a;
         if (const HMODULE h = ::GetModuleHandleW(L"kernelbase.dll")) {
             a.m_virtual_alloc2 = reinterpret_cast<PFNVirtualAlloc2>(::GetProcAddress(h, "VirtualAlloc2"));
             a.m_map_view_of_file3 = reinterpret_cast<PFNMapViewOfFile3>(::GetProcAddress(h, "MapViewOfFile3"));
@@ -91,9 +91,10 @@ private:
 };
 
 // Replaces the placeholder at exactly `base` with a file section view starting at `offset`.
-// MapViewOfFile3 forwards the ULONG64 Offset directly to NtMapViewOfSectionEx which accepts
-// the full 64-bit range, so files larger than 2 GiB are handled correctly.
-static PVOID replace_placeholder(const PlaceholderAPI& api,
+// Note: MapViewOfFile3 truncates its ULONG64 Offset to LONG32 internally, so offsets >= 2^31
+// will fail with ERROR_ACCESS_DENIED. Files larger than 2 GiB require an NtMapViewOfSectionEx
+// call instead; this path is not yet implemented.
+static PVOID replace_placeholder(const PlaceholderApi& api,
                                  HANDLE section,
                                  HANDLE proc,
                                  char* base,
@@ -159,19 +160,15 @@ struct MmapVehRegistry {
      * @param h Pointer to the MapHolder to register (must remain valid until remove() is called)
      * @param base Base address of the MapHolder's VA reservation (used as map key)
      * @param total_va_size Total size of the VA reservation in bytes
-     * @return true if registered successfully (VEH is active); false if AddVectoredExceptionHandler failed.
      */
-    bool add(MapHolder* h, char* base, size_t total_va_size) {
+    void add(MapHolder* h, char* base, size_t total_va_size) {
         std::unique_lock lock(m_mtx);
+        const auto key = reinterpret_cast<uintptr_t>(base);
+        m_ranges[key] = Entry{h, base, total_va_size};
         if (!m_veh_handle) {
             // Register as first VEH so it runs before debugger/CRT handlers.
             m_veh_handle = ::AddVectoredExceptionHandler(1, MmapVehRegistry::veh);
-            if (!m_veh_handle) {
-                return false;
-            }
         }
-        m_ranges[reinterpret_cast<uintptr_t>(base)] = Entry{h, base, total_va_size};
-        return true;
     }
 
     /**
@@ -335,10 +332,20 @@ private:
 
     /**
      * @brief Evicts [evict_begin, evict_end) bytes within one already-queried mapped chunk [chunk_base, chunk_end).
-     * Unmaps the whole chunk as a placeholder, splits off the kept before/after pieces, remaps them,
-     * then splits the eviction range into individual 64 KiB placeholders so each fault remaps exactly one granule.
+     * Unmaps the whole chunk as a placeholder, splits off the kept before/after pieces, then remaps them.
      */
     void evict_chunk(HANDLE proc, char* chunk_base, char* chunk_end, char* evict_begin, char* evict_end) noexcept;
+
+    /**
+     * @brief Maps the file section in ≤1 GiB chunks into [base, base+actual_map_size) of an existing placeholder.
+     * On failure, fully cleans up (unmaps mapped chunks and frees all split VA) and returns an empty vector.
+     */
+    std::vector<char*> map_file_chunks(const PlaceholderApi& api,
+                                       HANDLE proc,
+                                       char* base,
+                                       size_t alloc_size,
+                                       size_t actual_map_size,
+                                       size_t aligned_offset);
 
     /**
      * @brief Creates a pagefile-backed anonymous section of tail_size bytes, copies tail_data_size file bytes
@@ -346,7 +353,7 @@ private:
      * @return HandleHolder for the anonymous section (valid = success).
      *         On failure, tail_placeholder is left as a placeholder for the caller to free.
      */
-    HandleHolder fill_anon_tail(const PlaceholderAPI& api,
+    HandleHolder fill_anon_tail(const PlaceholderApi& api,
                                 HANDLE proc,
                                 char* tail_placeholder,
                                 size_t tail_size,
@@ -367,11 +374,11 @@ private:
     size_t m_file_mapped_size{};   //!< bytes of VA backed by the file section (≤ m_total_va_size; tail is anonymous)
 
     /**
-     * @brief Guards VirtualQuery/Unmap/Map sequences in hint_evict, try_remap_slot, and the destructor.
-     * Plain (non-recursive): all three callers exclusively use kernel-mode Win32 calls while holding
-     * the lock, so the VEH cannot fire on the same thread and re-enter try_remap_slot.
+     * @brief Guards all Unmap/VirtualAlloc2 calls in hint_release and try_remap_slot.
+     * Must be recursive: hint_release may unmap a slot, then the VEH fires for an adjacent read on the same thread
+     * and calls try_remap_slot, which also needs the same mutex.
      */
-    std::mutex m_slot_mutex;
+    std::recursive_mutex m_slot_mutex;
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
@@ -383,8 +390,7 @@ LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
         ep->ExceptionRecord->ExceptionInformation[0] != 0) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
-    const auto fault_addr =
-        ep->ExceptionRecord->ExceptionInformation[1];  // ULONG_PTR == uintptr_t on all Windows targets
+    const auto fault_addr = static_cast<uintptr_t>(ep->ExceptionRecord->ExceptionInformation[1]);
     auto& reg = instance();
     std::shared_lock lock(reg.m_mtx);
     const Entry* e = reg.find(fault_addr);
@@ -394,7 +400,7 @@ LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
 MapHolder::~MapHolder() {
     if (m_view_base && m_total_va_size != 0) {
         // Placeholder path: unregister VEH, unmap all views, free all VA allocations.
-        const auto& api = PlaceholderAPI::instance();
+        const auto& api = PlaceholderApi::instance();
         const auto proc = GetCurrentProcess();
 
         // Unregister from VEH registry BEFORE unmapping so the VEH cannot
@@ -437,10 +443,11 @@ MapHolder::~MapHolder() {
 
 void MapHolder::set_id(HANDLE h, size_t offset, size_t size) {
     if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {
-        static_assert(sizeof(info.FileId) == sizeof(uint64_t[2]));
-        uint64_t fid[2];
-        std::memcpy(fid, &info.FileId, sizeof(fid));
-        m_id = util::u64_hash_combine(offset, {size, info.VolumeSerialNumber, fid[0], fid[1]});
+        static_assert(sizeof(info.FileId) == 16);
+        uint64_t fid_l, fid_r;
+        std::memcpy(&fid_l, &info.FileId, sizeof(fid_l));
+        std::memcpy(&fid_r, reinterpret_cast<const char*>(&info.FileId) + sizeof(fid_l), sizeof(fid_r));
+        m_id = util::u64_hash_combine(offset, {size, info.VolumeSerialNumber, fid_l, fid_r});
     } else if (BY_HANDLE_FILE_INFORMATION info; ::GetFileInformationByHandle(h, &info)) {
         // GetFileInformationByHandleEx/FileIdInfo is unavailable (network FS, ReFS, older FS).
         // Fall back to the legacy NTFS/FAT file index + volume serial, which are stable across separate opens of the
@@ -448,13 +455,61 @@ void MapHolder::set_id(HANDLE h, size_t offset, size_t size) {
         const uint64_t file_index = (static_cast<uint64_t>(info.nFileIndexHigh) << 32) | info.nFileIndexLow;
         m_id = util::u64_hash_combine(offset, {size, info.dwVolumeSerialNumber, file_index});
     } else {
-        // Last-resort fallback when no stable file identity metadata is available (e.g. exotic virtual filesystems).
-        // HANDLE values are process-local and change across opens, so weight sharing may not work in this case.
+        // Last-resort fallback when no stable file identity metadata is available
+        // (e.g. exotic virtual filesystems). HANDLE values are process-local and
+        // change across opens, so weight sharing may not work in this case.
         m_id = util::u64_hash_combine(offset, {size, std::hash<HANDLE>{}(h)});
     }
 }
 
-HandleHolder MapHolder::fill_anon_tail(const PlaceholderAPI& api,
+std::vector<char*> MapHolder::map_file_chunks(const PlaceholderApi& api,
+                                              HANDLE proc,
+                                              char* base,
+                                              size_t alloc_size,
+                                              size_t actual_map_size,
+                                              size_t aligned_offset) {
+    // 1 GiB per chunk: independently evictable/remappable via VEH, and stays below
+    // MapViewOfFile3's ~2 GiB signed-32-bit limit when NtMapViewOfSectionEx is absent.
+    constexpr size_t max_chunk = 1024 * 1024 * 1024;
+    std::vector<char*> mapped;
+
+    for (size_t pos = 0; pos < actual_map_size;) {
+        const size_t chunk = std::min(actual_map_size - pos, max_chunk);
+        // Split [base+pos, base+pos+chunk) from the remaining reservation.
+        // The residual [base+pos+chunk, base+alloc_size) is always non-empty because
+        // alloc_size > actual_map_size ensures dwSize < total allocation.
+        if (!::VirtualFree(base + pos, chunk, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER)) {
+            // Split failed: [base+pos, base+alloc_size) is still one unsplit allocation.
+            ::VirtualFree(base + pos, 0, MEM_RELEASE);
+            for (char* cb : mapped) {
+                api.m_unmap_view_of_file2(proc, cb, MEM_PRESERVE_PLACEHOLDER);
+                ::VirtualFree(cb, 0, MEM_RELEASE);
+            }
+            return {};
+        }
+        auto v = replace_placeholder(api,
+                                     m_handle.get(),
+                                     proc,
+                                     base + pos,
+                                     static_cast<ULONG64>(aligned_offset + pos),
+                                     chunk);
+        if (v != base + pos) {
+            // Map failed: split and residual are now two separate allocations.
+            ::VirtualFree(base + pos, 0, MEM_RELEASE);
+            ::VirtualFree(base + pos + chunk, 0, MEM_RELEASE);
+            for (char* cb : mapped) {
+                api.m_unmap_view_of_file2(proc, cb, MEM_PRESERVE_PLACEHOLDER);
+                ::VirtualFree(cb, 0, MEM_RELEASE);
+            }
+            return {};
+        }
+        mapped.push_back(base + pos);
+        pos += chunk;
+    }
+    return mapped;
+}
+
+HandleHolder MapHolder::fill_anon_tail(const PlaceholderApi& api,
                                        HANDLE proc,
                                        char* tail_placeholder,
                                        size_t tail_size,
@@ -486,20 +541,20 @@ HandleHolder MapHolder::fill_anon_tail(const PlaceholderAPI& api,
         ::UnmapViewOfFile(src);
     }
 
-    auto tv = api.m_map_view_of_file3(anon.get(),
-                                      proc,
-                                      tail_placeholder,
-                                      0,
-                                      tail_size,
-                                      MEM_REPLACE_PLACEHOLDER,
-                                      PAGE_READONLY,
-                                      nullptr,
-                                      0);
+    void* tv = api.m_map_view_of_file3(anon.get(),
+                                       proc,
+                                       tail_placeholder,
+                                       0,
+                                       tail_size,
+                                       MEM_REPLACE_PLACEHOLDER,
+                                       PAGE_READONLY,
+                                       nullptr,
+                                       0);
     return (tv != tail_placeholder) ? HandleHolder{} : std::move(anon);
 }
 
 bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size, size_t file_size) {
-    const auto& api = PlaceholderAPI::instance();
+    const auto& api = PlaceholderApi::instance();
     if (!api.m_available) {
         return false;
     }
@@ -520,8 +575,8 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
     const auto proc = GetCurrentProcess();
 
     // VirtualFree(MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER) requires dwSize < total reservation.
-    // Over-allocate by one granule: when tail_size == 0 the dummy granule is freed after the
-    // split; when tail_size > 0 it IS the tail placeholder.
+    // Always over-allocate by one granule: when tail_size == 0 it is freed immediately after the
+    // first split; when tail_size > 0 it IS the tail placeholder.
     const size_t alloc_size = actual_map_size + (tail_size > 0 ? tail_size : gran);
     auto base = static_cast<char*>(api.m_virtual_alloc2(proc,
                                                         nullptr,
@@ -534,21 +589,11 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
         return false;
     }
 
-    // Split [base, base+actual_map_size) from the residual placeholder so we can map just the file portion.
-    // The residual [base+actual_map_size, base+alloc_size) stays non-empty because alloc_size > actual_map_size.
-    if (!::VirtualFree(base, actual_map_size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER)) {
-        ::VirtualFree(base, 0, MEM_RELEASE);
-        return false;
-    }
-
-    // Map the entire file-backed portion as a SINGLE view — one AllocationBase for the whole file content.
-    // This makes the mapping compatible with NPU Level Zero zero-copy import (ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT)
-    // before any granule is evicted.
-    auto v =
-        replace_placeholder(api, m_handle.get(), proc, base, static_cast<ULONG64>(aligned_offset), actual_map_size);
-    if (v != base) {
-        ::VirtualFree(base, 0, MEM_RELEASE);
-        ::VirtualFree(base + actual_map_size, 0, MEM_RELEASE);
+    // Map the file section in ≤1 GiB chunks into [base, base+actual_map_size).
+    // Each chunk is independently evictable/remappable via VEH.
+    // map_file_chunks fully cleans up (unmaps and frees all VA) on failure.
+    auto mapped_chunks = map_file_chunks(api, proc, base, alloc_size, actual_map_size, aligned_offset);
+    if (mapped_chunks.empty()) {
         return false;
     }
 
@@ -559,8 +604,11 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
         HandleHolder anon =
             fill_anon_tail(api, proc, base + actual_map_size, tail_size, aligned_offset + actual_map_size, tail_data);
         if (!anon.valid()) {
-            api.m_unmap_view_of_file2(proc, base, MEM_PRESERVE_PLACEHOLDER);
-            ::VirtualFree(base, 0, MEM_RELEASE);
+            // Cleanup for tail-setup failures: unmap all file chunks and release the tail/dummy placeholder.
+            for (char* cb : mapped_chunks) {
+                api.m_unmap_view_of_file2(proc, cb, MEM_PRESERVE_PLACEHOLDER);
+                ::VirtualFree(cb, 0, MEM_RELEASE);
+            }
             ::VirtualFree(base + actual_map_size, 0, MEM_RELEASE);
             return false;
         }
@@ -570,21 +618,11 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
         ::VirtualFree(base + actual_map_size, 0, MEM_RELEASE);
     }
 
-    if (!MmapVehRegistry::instance().add(this, base, total_va_size)) {
-        // AddVectoredExceptionHandler failed — tear down placeholder and let caller fall back to legacy.
-        if (tail_size > 0) {
-            api.m_unmap_view_of_file2(proc, base + actual_map_size, MEM_PRESERVE_PLACEHOLDER);
-            ::VirtualFree(base + actual_map_size, 0, MEM_RELEASE);
-            m_anon_handle = HandleHolder{};
-        }
-        api.m_unmap_view_of_file2(proc, base, MEM_PRESERVE_PLACEHOLDER);
-        ::VirtualFree(base, 0, MEM_RELEASE);
-        return false;
-    }
     m_view_base = base;
     m_total_va_size = total_va_size;
     m_file_mapped_size = actual_map_size;
     m_data = base + head_pad;
+    MmapVehRegistry::instance().add(this, base, total_va_size);
     return true;
 }
 
@@ -652,8 +690,8 @@ void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t siz
 
     HandleHolder fh_holder{fh};
     setup(fh, offset, size);
-    // Keep the file handle alive so the section object can always resolve page faults back to the original file data,
-    // even if the caller deletes or renames the file.
+    // Keep the file handle alive so the section object can always resolve page faults
+    // back to the original file data, even if the caller deletes or renames the file.
     // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the mapping is alive.
     m_file_handle = std::move(fh_holder);
 }
@@ -681,16 +719,16 @@ void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
 }
 
 bool MapHolder::remap_placeholder(HANDLE proc, char* base, size_t size) {
-    const auto& api = PlaceholderAPI::instance();
+    const auto& api = PlaceholderApi::instance();
     const size_t va_offset = base - m_view_base;
-    const auto file_off = static_cast<ULONG64>(m_aligned_offset + va_offset);
+    const ULONG64 file_off = static_cast<ULONG64>(m_aligned_offset + va_offset);
 
-    const auto v = replace_placeholder(api, m_handle.get(), proc, base, file_off, size);
+    void* v = replace_placeholder(api, m_handle.get(), proc, base, file_off, size);
     return v == base;
 }
 
 bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
-    const auto& api = PlaceholderAPI::instance();
+    const auto& api = PlaceholderApi::instance();
     if (!api.m_available || !m_view_base || m_total_va_size == 0) {
         return false;
     }
@@ -743,7 +781,7 @@ bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
 std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t size) const noexcept {
     // Require placeholder path, API availability, and a live VEH (eviction without VEH
     // would leave inaccessible placeholders on the next access).
-    if (!m_view_base || m_total_va_size == 0 || !PlaceholderAPI::instance().m_available ||
+    if (!m_view_base || m_total_va_size == 0 || !PlaceholderApi::instance().m_available ||
         !MmapVehRegistry::instance().has_veh())
         return {};
 
@@ -764,12 +802,14 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
 
     const size_t va_end = std::min(head_pad + clamped_offset + effective_size, m_total_va_size);
 
-    // Outward gran-rounding: expand to cover all granules overlapping the requested range.
-    // The anonymous tail (m_anon_handle) is never evictable — cap at m_file_mapped_size.
+    // Outward gran-rounding: expand the eviction range to cover any partial granule.
+    // Safe with VEH: a fault on any byte in the granule triggers a full-granule remap.
+    // Cap at m_file_mapped_size so we never evict into the anonymous tail section
+    // (which uses m_anon_handle, not m_handle, and would be remapped incorrectly).
     const size_t safe_begin = util::align_size_down(va_begin_raw, gran);
     const size_t safe_end = std::min(util::align_size_up(va_end, gran), m_file_mapped_size);
     if (safe_begin >= safe_end)
-        return {};
+        return {};  // Range falls entirely within the anonymous tail — nothing to evict.
 
     return {m_view_base + safe_begin, m_view_base + safe_end};
 }
@@ -779,7 +819,7 @@ void MapHolder::evict_chunk(HANDLE proc,
                             char* chunk_end,
                             char* evict_begin,
                             char* evict_end) noexcept {
-    const auto& api = PlaceholderAPI::instance();
+    const auto& api = PlaceholderApi::instance();
     if (!api.m_unmap_view_of_file2(proc, chunk_base, MEM_PRESERVE_PLACEHOLDER))
         return;
 
@@ -798,13 +838,6 @@ void MapHolder::evict_chunk(HANDLE proc,
         ::VirtualFree(evict_begin,
                       static_cast<size_t>(evict_end - evict_begin),
                       MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
-    }
-
-    // Split the eviction range into individual 64 KiB placeholders so each VEH fault remaps exactly one granule
-    // instead of the whole evicted range at once.
-    const auto gran = util::get_system_alloc_granularity();
-    for (char* g = evict_begin; g + gran < evict_end; g += gran) {
-        ::VirtualFree(g, gran, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
     }
 
     // Remap the before/after pieces so they remain accessible.

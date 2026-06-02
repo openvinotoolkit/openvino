@@ -363,15 +363,31 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR seri
 }
 
 bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const {
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
-        !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 13)) {
+        std::cout << "canCpuVaBeImported - false: graph ext version " << ZE_MAJOR_VERSION(_graphExtVersion) << "."
+                  << ZE_MINOR_VERSION(_graphExtVersion) << " < 1.13" << std::endl;
         return false;
     }
 
-    // ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT requires the VA to be backed by an OS-managed memory section.
-    // On Windows this means MEM_MAPPED (MapViewOfFile/MapViewOfFile3); MEM_PRIVATE heap allocations are
-    // rejected by the driver with ZE_RESULT_ERROR_INVALID_ARGUMENT.
-    if (!ov::util::is_mmap_memory(data)) {
+    if (!utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
+        std::cout << "canCpuVaBeImported - false: data=" << data << " size=" << size
+                  << " not aligned to standard page size" << std::endl;
+        return false;
+    }
+
+    // ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT requires the entire blob range to be backed by a single
+    // file-mapped region. On Windows, the mmap VA reservation is padded to a 64 KB granularity
+    // boundary; the tail bytes (file_size → next 64 KB multiple) are filled by a separate
+    // anonymous pagefile-backed section with a distinct AllocationBase.  If the blob range
+    // [data, data+size) extends into that tail the driver rejects the import with
+    // ZE_RESULT_ERROR_INVALID_ARGUMENT.  After eviction via hint_evict() the single view is
+    // also split into independently re-mapped pieces with distinct AllocationBase values.
+    // is_single_mmap_region() detects both cases via VirtualQuery AllocationBase comparison.
+    if (!ov::util::is_single_mmap_region(data, size)) {
+        std::cout << "canCpuVaBeImported - false: blob range [data=" << data << ", size=" << size
+                  << ") is not a single contiguous file-backed mmap region"
+                     " (spans anonymous tail or evicted granule)"
+                  << std::endl;
         return false;
     }
 
@@ -381,12 +397,28 @@ bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const
         externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
         auto res = zeDeviceGetExternalMemoryProperties(_zeroInitStruct->getDevice(), &externalMemorydDesc);
-        if ((res != ZE_RESULT_SUCCESS) || ((externalMemorydDesc.memoryAllocationImportTypes &
-                                            ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
+        if (res != ZE_RESULT_SUCCESS) {
+            std::cout << "canCpuVaBeImported - false: zeDeviceGetExternalMemoryProperties failed"
+                         " with result 0x"
+                      << std::hex << uint64_t(res) << std::dec << std::endl;
             return false;
         }
+        if ((externalMemorydDesc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0) {
+            std::cout << "canCpuVaBeImported - false: device does not support"
+                         " ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION"
+                         " (memoryAllocationImportTypes=0x"
+                      << std::hex << uint64_t(externalMemorydDesc.memoryAllocationImportTypes) << std::dec << ")"
+                      << std::endl;
+            return false;
+        }
+        std::cout << "canCpuVaBeImported - ZE_MAKE_VERSION(1,13) device capability check passed"
+                     " (memoryAllocationImportTypes=0x"
+                  << std::hex << uint64_t(externalMemorydDesc.memoryAllocationImportTypes) << std::dec << ")"
+                  << std::endl;
     }
 
+    std::cout << "canCpuVaBeImported - true: blob data=" << data << " size=" << size
+              << " is eligible for ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT" << std::endl;
     return true;
 }
 

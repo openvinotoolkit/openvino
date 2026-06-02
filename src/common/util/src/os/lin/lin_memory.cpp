@@ -24,4 +24,10 @@ bool is_mmap_memory(const void* data) noexcept {
     return data != nullptr;
 }
 
+bool is_single_mmap_region(const void* data, size_t size) noexcept {
+    // Linux mmap always produces a single contiguous file-backed region with no anonymous
+    // padding tail; a non-null start pointer with non-zero size is sufficient.
+    return data != nullptr && size > 0;
+}
+
 }  // namespace ov::util
