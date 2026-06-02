@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/profiling.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -261,8 +262,8 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
-
     auto context = get_default_context(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -285,6 +286,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     context_impl->initialize();
 
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
+    GPU_DEBUG_SET_ACTIVE_LUID(context_impl->get_device().get_info().luid);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -390,6 +392,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     return import_model(model, { context, nullptr }, config);
 }
 
@@ -402,6 +405,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     context_impl->initialize();
 
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
+    GPU_DEBUG_SET_ACTIVE_LUID(context_impl->get_device().get_info().luid);
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.
     auto _orig_config = orig_config;
@@ -792,6 +796,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     const auto& device_info = context->get_device().get_info();
     auto config = m_configs_map.at(device_id);
     config.set_property(ov::intel_gpu::partial_build_program(true));
@@ -935,6 +940,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     const auto& device_info = context->get_device().get_info();
 
     auto closest_pow_of_2 = [] (double x) {
