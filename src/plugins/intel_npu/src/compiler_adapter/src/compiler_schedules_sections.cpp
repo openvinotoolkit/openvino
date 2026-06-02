@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/utils.hpp"
 
 namespace intel_npu {
@@ -19,6 +20,8 @@ ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
       m_main_schedule(main_schedule) {}
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
+
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
 
@@ -40,6 +43,8 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
 }
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::read");
+
     // Skip the first padding
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
@@ -58,6 +63,8 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_s
       m_init_schedules(std::move(init_schedules)) {}
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
+
     const uint64_t number_of_inits = m_weightless_graph->get_number_of_inits();
     writer.write(&number_of_inits, sizeof(number_of_inits));
 
@@ -92,6 +99,8 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
 }
 
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
+
     uint64_t number_of_inits;
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
 

@@ -7,6 +7,7 @@
 #include <iterator>
 
 #include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/itt.hpp"
 
 namespace {
 
@@ -176,6 +177,8 @@ void BlobWriter::write_section(std::ostream& stream,
 }
 
 void BlobWriter::write(std::ostream& stream) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobWriter::write");
+
     // Operate on this copy instead of the attribute. This is necessary to ensure write idempotency by keeping the
     // attributes unchanged.
     std::queue<std::shared_ptr<ISection>> registered_sections = m_registered_sections;

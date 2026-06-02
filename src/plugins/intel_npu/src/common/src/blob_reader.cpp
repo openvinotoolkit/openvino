@@ -4,6 +4,8 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 
+#include "intel_npu/common/itt.hpp"
+
 namespace {
 
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
@@ -116,6 +118,8 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
 
 void BlobReader::read(const ov::Tensor& source,
                       const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
+
     if (!m_parsed_sections.empty()) {
         m_logger.warning("The same BlobReader object was used to read a blob more than once. This operation is "
                          "supported, but it has little use. Disregard this message if this is a test that validates "

@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
+#include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {
 
@@ -14,6 +15,8 @@ BatchSizeSection::BatchSizeSection(const int64_t batch_size)
       m_batch_size(batch_size) {}
 
 void BatchSizeSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::write");
+
     writer.write(&m_batch_size, sizeof(m_batch_size));
 }
 
@@ -22,6 +25,8 @@ int64_t BatchSizeSection::get_batch_size() const {
 }
 
 std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::read");
+
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length == sizeof(int64_t),
                     "BatchSizeSection: incorrect section length ",

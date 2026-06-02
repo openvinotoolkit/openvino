@@ -9,6 +9,7 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/icapability.hpp"
+#include "intel_npu/common/itt.hpp"
 
 #define CRE_EVAL_ASSERT(...) \
     OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
@@ -158,6 +159,8 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
 CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionType::CRE), m_cre(cre) {}
 
 void CRESection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
+
     writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CRE::Token));
 }
 
@@ -166,6 +169,8 @@ CRE CRESection::get_cre() const {
 }
 
 std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::read");
+
     size_t number_of_tokens = blob_reader.get_section_length() / sizeof(CRE::Token);
     OPENVINO_ASSERT(number_of_tokens != 0);
 

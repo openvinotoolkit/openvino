@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
+#include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {
 
@@ -61,6 +62,8 @@ OffsetsTableSection::OffsetsTableSection(const OffsetsTable& offsets_table)
       m_offsets_table(offsets_table) {}
 
 void OffsetsTableSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::write");
+
     for (const auto& [key, value] : m_offsets_table.m_table) {
         // Section type ID, Section instanfce type ID, offset, length
         writer.write(&key.type, sizeof(key.type));
@@ -75,6 +78,8 @@ OffsetsTable OffsetsTableSection::get_table() const {
 }
 
 std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::read");
+
     OffsetsTable offsets_table;
     size_t number_of_sections_in_table = blob_reader.get_section_length() / offsets_table.get_entry_size();
     SectionType type;

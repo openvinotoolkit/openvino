@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
+#include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {
 
@@ -16,6 +17,8 @@ IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
       m_output_layouts(std::move(output_layouts)) {}
 
 void IOLayoutsSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");
+
     const uint64_t number_of_input_layouts = m_input_layouts.size();
     const uint64_t number_of_output_layouts = m_output_layouts.size();
     writer.write(&number_of_input_layouts, sizeof(number_of_input_layouts));
@@ -43,6 +46,8 @@ std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
 }
 
 std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::read");
+
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length >= 2 * sizeof(uint64_t),
                     "The length of the IOLayouts section is too small. Received: ",
