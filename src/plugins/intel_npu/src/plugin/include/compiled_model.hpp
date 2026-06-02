@@ -6,11 +6,11 @@
 
 #include <optional>
 
+#include "compiled_model_property_manager.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "properties.hpp"
 
 namespace intel_npu {
 
@@ -67,7 +67,7 @@ private:
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
-    std::unique_ptr<Properties> _propertiesManager;
+    std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
     std::shared_ptr<IGraph> _graph;
 
