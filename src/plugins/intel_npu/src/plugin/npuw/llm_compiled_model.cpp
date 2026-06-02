@@ -833,6 +833,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // A bidirectional encoder attends over the whole sequence at once; chunked prefill is
             // semantically invalid for it. Force a single whole-sequence forward.
             m_use_chunk_prefill = false;
+            // The encoder uses a learned absolute position table of size max_position_embeddings.
+            // The static sequence length must not exceed it, otherwise the position embedding
+            // (clamped to the table) won't broadcast against the token embedding and compilation
+            // fails. Clamp here so the default NPUW_LLM_MAX_PROMPT_LEN (which is sized for LLMs and
+            // is typically larger, e.g. 1024) does not break a 512-position BERT out of the box.
+            if (auto max_pos = ov::npuw::util::get_max_position_embeddings(kvcache_model)) {
+                if (max_prompt_len > *max_pos) {
+                    LOG_WARN("NPUW_LLM_MAX_PROMPT_LEN ("
+                             << max_prompt_len << ") exceeds the model's max_position_embeddings (" << *max_pos
+                             << "); clamping the static sequence length to " << *max_pos << ".");
+                    max_prompt_len = *max_pos;
+                }
+            }
             ov::npuw::util::PrepareEncoderEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
         } else {
             LOG_DEBUG("Text-embedding model rebuild");
