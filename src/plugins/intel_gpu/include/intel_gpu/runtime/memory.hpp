@@ -194,8 +194,8 @@ struct mem_lock {
     mem_lock& operator=(const mem_lock& other) = delete;
 
 #if defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL != 0
-    using iterator       = checked_array_iterator<T>;
-    using const_iterator = checked_array_iterator<const T>;
+    using iterator       = checked_array_iterator<T*>;
+    using const_iterator = checked_array_iterator<const T*>;
     iterator begin() & { return iterator(_ptr, size(), 0); }
     iterator end()   & { return iterator(_ptr, size(), size()); }
 #else

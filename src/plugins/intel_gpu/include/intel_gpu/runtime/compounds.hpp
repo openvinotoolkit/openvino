@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstddef>
 #include <iterator>
+#include <type_traits>
 #include <cstring>
 #include <string>
 #include <stdexcept>
@@ -24,120 +25,196 @@ namespace cldnn {
 
 /// @defgroup cpp_helpers Helpers
 /// @{
-
+//TODO - delete this class when c++20 in project and use std::span instead
 #if defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL != 0
-template <typename T>
+template <class _Ptr>
 class checked_array_iterator {
+private:
+    using _Pointee_type     = std::remove_pointer_t<_Ptr>;
+    static_assert(std::is_pointer_v<_Ptr> && std::is_object_v<_Pointee_type>,
+        "checked_array_iterator requires pointers to objects");
 public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type        = std::remove_cv_t<T>;
+    using value_type        = std::remove_cv_t<std::remove_pointer_t<_Ptr>>;
     using difference_type   = std::ptrdiff_t;
-    using pointer           = T*;
-    using reference         = T&;
+    using pointer           = _Ptr;
+    using reference         = std::remove_pointer_t<_Ptr>&;
+
+#if _HAS_CXX20
+    using iterator_concept = std::contiguous_iterator_tag;
+#endif // _HAS_CXX20
 
     checked_array_iterator() = default;
-    checked_array_iterator(T* data, std::size_t size, std::size_t index = 0) noexcept
+    
+    checked_array_iterator(const pointer data, const std::size_t size, const std::size_t index = 0) noexcept
         : _Myptr(data), _Mysize(size), _Myoff(index) {
         _STL_VERIFY(index <= size, "cldnn::checked_array_iterator out of range");
     }
 
-    // Implicit conversion iterator -> const_iterator, matching MSVC vector.
-    template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
-    checked_array_iterator(const checked_array_iterator<U>& other) noexcept
-        : _Myptr(other._Unwrapped_base()), _Mysize(other._Unwrapped_size()), _Myoff(other._Unwrapped_off()) {}
+    template <class _Ty = _Pointee_type, std::enable_if_t<!std::is_const_v<_Ty>, int> = 0>
+    constexpr operator checked_array_iterator<const _Ty*>() const noexcept {
+        return checked_array_iterator<const _Ty*>{_Myptr, _Mysize, _Myoff};
+    }
 
-    reference operator*() const noexcept {
+    _NODISCARD constexpr _Ptr base() const noexcept {
+        return _Myptr + _Myoff;
+    }
+
+    _NODISCARD constexpr reference operator*() const noexcept {
         _STL_VERIFY(_Myptr != nullptr, "cannot dereference value-initialized iterator");
         _STL_VERIFY(_Myoff < _Mysize, "cannot dereference end array iterator");
         return _Myptr[_Myoff];
     }
-    pointer operator->() const noexcept {
+
+    _NODISCARD constexpr pointer operator->() const noexcept {
         _STL_VERIFY(_Myptr != nullptr, "cannot dereference value-initialized iterator");
         _STL_VERIFY(_Myoff < _Mysize, "cannot dereference end array iterator");
         return _Myptr + _Myoff;
     }
-    reference operator[](difference_type n) const noexcept {
-        return *(*this + n);
-    }
 
-    checked_array_iterator& operator++() noexcept {
+    constexpr checked_array_iterator& operator++() noexcept {
         _STL_VERIFY(_Myptr != nullptr, "cannot increment value-initialized iterator");
         _STL_VERIFY(_Myoff < _Mysize, "cannot increment iterator past end");
         ++_Myoff;
         return *this;
     }
-    checked_array_iterator operator++(int) noexcept { auto tmp = *this; ++(*this); return tmp; }
 
-    checked_array_iterator& operator--() noexcept {
+    constexpr checked_array_iterator operator++(int) noexcept { 
+        auto tmp = *this; 
+        ++(*this); 
+        return tmp; 
+    }
+
+    constexpr checked_array_iterator& operator--() noexcept {
         _STL_VERIFY(_Myptr != nullptr, "cannot decrement value-initialized iterator");
         _STL_VERIFY(_Myoff != 0, "cannot decrement iterator before begin");
         --_Myoff;
         return *this;
     }
-    checked_array_iterator operator--(int) noexcept { auto tmp = *this; --(*this); return tmp; }
 
-    checked_array_iterator& operator+=(difference_type n) noexcept {
+    constexpr checked_array_iterator operator--(int) noexcept { 
+        auto tmp = *this; 
+        --(*this); 
+        return tmp; 
+    }
+
+    constexpr checked_array_iterator& operator+=(difference_type n) noexcept {
         _Verify_offset(n);
         _Myoff += static_cast<std::size_t>(n);
         return *this;
     }
-    checked_array_iterator& operator-=(difference_type n) noexcept { return *this += -n; }
 
-    friend checked_array_iterator operator+(checked_array_iterator it, difference_type n) noexcept { return it += n; }
-    friend checked_array_iterator operator+(difference_type n, checked_array_iterator it) noexcept { return it += n; }
-    friend checked_array_iterator operator-(checked_array_iterator it, difference_type n) noexcept { return it -= n; }
-    friend difference_type operator-(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return static_cast<difference_type>(a._Myoff) - static_cast<difference_type>(b._Myoff);
+    _NODISCARD constexpr checked_array_iterator operator+(const difference_type n) const noexcept { 
+        auto _Tmp = *this;
+        _Tmp += n;
+        return _Tmp;
     }
 
-    friend bool operator==(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return a._Myoff == b._Myoff;
+    _NODISCARD friend constexpr checked_array_iterator operator+(const difference_type n, const checked_array_iterator<_Ptr>& it) noexcept { 
+        return it + n; 
     }
-    friend bool operator!=(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return a._Myoff != b._Myoff;
+
+    constexpr checked_array_iterator& operator-=(const difference_type n) noexcept { 
+        return *this += -n; 
     }
-    friend bool operator<(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return a._Myoff < b._Myoff;
+
+    _NODISCARD constexpr checked_array_iterator operator-(const difference_type n) const noexcept { 
+        auto _Tmp = *this;
+        _Tmp -= n;
+        return _Tmp;
     }
-    friend bool operator>(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return a._Myoff > b._Myoff;
+
+    _NODISCARD constexpr difference_type operator-(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return static_cast<difference_type>(_Myoff) - static_cast<difference_type>(a._Myoff);
     }
-    friend bool operator<=(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return a._Myoff <= b._Myoff;
+
+    _NODISCARD constexpr reference operator[](const difference_type n) const noexcept {
+        return *(*this + n);
     }
-    friend bool operator>=(const checked_array_iterator& a, const checked_array_iterator& b) noexcept {
-        a._Compat(b);
-        return a._Myoff >= b._Myoff;
+
+    _NODISCARD constexpr bool operator==(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return _Myoff == a._Myoff;
     }
+
+#if _HAS_CXX20
+    _NODISCARD constexpr std::strong_ordering operator<=>(const checked_array_iterator& _Right) const noexcept {
+        _STL_VERIFY(_Myptr == _Right._Myptr && _Mysize == _Right._Mysize,
+            "cannot compare incompatible checked_array_iterators");
+        return _Myoff <=> _Right._Myoff;
+    }
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
+    _NODISCARD constexpr bool operator!=(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return _Myoff != a._Myoff;
+    }
+    _NODISCARD constexpr bool operator<(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return Myoff < a._Myoff;
+    }
+    _NODISCARD constexpr bool operator>(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return _Myoff > a._Myoff;
+    }
+    _NODISCARD constexpr bool operator<=(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return _Myoff <= a._Myoff;
+    }
+    _NODISCARD constexpr bool operator>=(const checked_array_iterator& a) const noexcept {
+        _Compat(a);
+        return _Myoff >= a._Myoff;
+    }
+#endif // ^^^ !_HAS_CXX20 ^^^
+    
 
     // MSVC-style unwrapping helpers used by the iterator->const_iterator ctor above.
-    T*          _Unwrapped_base() const noexcept { return _Myptr; }
+    pointer      _Unwrapped_base() const noexcept { return _Myptr; }
     std::size_t _Unwrapped_size() const noexcept { return _Mysize; }
     std::size_t _Unwrapped_off()  const noexcept { return _Myoff; }
 
-private:
-    void _Verify_offset(difference_type n) const noexcept {
+    friend constexpr void _Verify_range(
+        const checked_array_iterator& _First, const checked_array_iterator& _Last) noexcept {
+        _STL_VERIFY(_First._Myptr == _Last._Myptr && _First._Mysize == _Last._Mysize,
+            "mismatching checked_array_iterators");
+        _STL_VERIFY(_First._Myoff <= _Last._Myoff, "transposed checked_array_iterator range");
+    }
+
+    constexpr void _Verify_offset(const difference_type n) const noexcept {
         if (n < 0) {
             _STL_VERIFY(static_cast<std::size_t>(-n) <= _Myoff, "cannot seek array iterator before begin");
         } else if (n > 0) {
             _STL_VERIFY(static_cast<std::size_t>(n) <= _Mysize - _Myoff, "cannot seek array iterator after end");
         }
     }
+
+    using _Prevent_inheriting_unwrap = checked_array_iterator;
+
+    _NODISCARD constexpr _Ptr _Unwrapped() const noexcept {
+        return _Myptr + _Myoff;
+    }
+
+    constexpr void _Seek_to(_Ptr _It) noexcept {
+        _Myoff = static_cast<size_t>(_It - _Myptr);
+    }
+
+private:
     void _Compat(const checked_array_iterator& other) const noexcept {
         _STL_VERIFY(_Myptr == other._Myptr && _Mysize == other._Mysize,
                     "array iterators from different ranges are incompatible");
     }
 
-    T*          _Myptr  = nullptr;
+    pointer     _Myptr  = nullptr;
     std::size_t _Mysize = 0;
     std::size_t _Myoff  = 0;
 };
+
+template <class _Ptr>
+_NODISCARD constexpr checked_array_iterator<_Ptr> make_checked_array_iterator(
+    const _Ptr _Myptr, const size_t _Size, const size_t _Myoff = 0) noexcept {
+    return checked_array_iterator<_Ptr>(_Myptr, _Size, _Myoff);
+}
+
 #endif  // _ITERATOR_DEBUG_LEVEL
 
 template <typename T>
@@ -167,8 +244,8 @@ public:
     bool empty() const { return _size == 0; }
 
 #if defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL != 0
-    typedef checked_array_iterator<T>       iterator;
-    typedef checked_array_iterator<const T> const_iterator;
+    typedef checked_array_iterator<T*>       iterator;
+    typedef checked_array_iterator<const T*> const_iterator;
     iterator       begin()  const { return iterator(_data, _size, 0); }
     iterator       end()    const { return iterator(_data, _size, _size); }
     const_iterator cbegin() const { return const_iterator(_data, _size, 0); }
