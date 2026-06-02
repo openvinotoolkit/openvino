@@ -82,7 +82,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
         for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -118,7 +118,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
         for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -158,7 +158,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
         for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -194,7 +194,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
         for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -226,7 +226,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
         for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -267,7 +267,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
         for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -307,7 +307,7 @@ public:
         auto outputs = network.execute();
 
         auto output = outputs.at("tile").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> ref_data = { 1.f, 0.f,
                                         5.f, 1.5f,
@@ -414,7 +414,7 @@ TEST(tile_cpu_imp_test, disable_usm) {
     auto outputs = network->execute();
 
     auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
@@ -774,7 +774,7 @@ public:
         auto result = network->execute();
 
         auto out_mem = result.at(result_id).get_memory();
-        cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.output_tensor.count(), out_ptr.size());
 

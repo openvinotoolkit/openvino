@@ -83,7 +83,8 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 bool can_use_weightless_flow(const ::intel_npu::Config& config) {
-    return config.get<::intel_npu::NPUW_FOLD>() || config.get<::intel_npu::NPUW_CWAI>();
+    return config.get<::intel_npu::NPUW_FOLD>() || !config.get<::intel_npu::NPUW_FOLD_ONLY>().empty() ||
+           config.get<::intel_npu::NPUW_CWAI>();
 }
 
 bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
@@ -1950,6 +1951,21 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         return;  // MoE experts don't have a single model to dump
     }
 
+    // Dump MoE downstream model if present (the shape-reduced model passed to compile)
+    if (const auto* moe_downstream =
+            ov::npuw::moe::get_compiled_downstream(m_compiled_submodels[id].pipeline.context)) {
+        LOG_INFO("NOTE: Subgraph[" << id << "] has MoE downstream mechanism.");
+        if (moe_downstream->_model_to_compile) {
+            std::string downstream_model_name = format_subgraph_name(id, funcall) + "_moe_downstream.xml";
+            std::string downstream_model_dump_path = ov::util::path_join({dump_dir, downstream_model_name}).string();
+            ov::save_model(moe_downstream->_model_to_compile, downstream_model_dump_path);
+            LOG_INFO("Wrote " << downstream_model_dump_path);
+        } else {
+            LOG_WARN("MoE downstream model already compiled and cleared, cannot dump");
+        }
+        return;
+    }
+
     const auto model_to_dump = m_compiled_submodels[real_id].model;
     if (!model_to_dump) {
         LOG_WARN("Model is null, cannot dump Subgraph[" << id << "]");
@@ -2031,6 +2047,9 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
             } else {
                 base_subgraphs.push_back(base_name + ".xml");
             }
+        } else if (ov::npuw::moe::get_compiled_downstream(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
+            base_subgraphs.push_back(base_name + ".xml");
+            moe_subgraphs.push_back(base_name + "_moe_downstream.xml");
         } else {
             base_subgraphs.push_back(base_name + ".xml");
 
@@ -2407,6 +2426,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
+                          BIND(npuw::partitioning::fold_only, NPUW_FOLD_ONLY),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),

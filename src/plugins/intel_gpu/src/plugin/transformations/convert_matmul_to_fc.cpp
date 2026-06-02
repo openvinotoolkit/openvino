@@ -200,17 +200,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         }
 
         // Connect Convert to new input if needed
-        if (is_convert && transpose_node && !can_reuse_transpose) {
+        if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
             auto new_convert = convert->clone_with_new_inputs({fc_input_b});
             new_ops.push_back(new_convert);
             new_convert->validate_and_infer_types();
             fc_input_b = new_convert;
-        } else if (is_convert) {
-            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            convert->input(0).replace_source_output(fc_input_b);
-            convert->validate_and_infer_types();
-            fc_input_b = convert;
         }
 
         auto no_bias = std::make_shared<op::Placeholder>();

@@ -93,6 +93,7 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
+#include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
@@ -103,7 +104,6 @@
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
-#include "plugin/transformations/pa_kv_reorder_fusion.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
@@ -111,6 +111,7 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
+#include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
@@ -199,6 +200,7 @@
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -691,6 +693,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::RMSFusion>(false, true, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+        manager.register_pass<DisableFP16CompCumSumSinGen>();
+        // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
+        // when the same Sin was already marked above.
+        pass_config->set_callback<DisableFP16ComSinGenPatternForHiFiGAN>(
+            [](const_node_ptr& node) -> bool { return ov::fp16_compression_is_disabled(node); });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -840,12 +847,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         precision = (config.get_kv_cache_precision() == ov::element::i4) ? ov::element::i8 : ov::element::u8;
                     }
                 });
-            manager.register_pass<ov::intel_gpu::PaKVReorderFusion>(kv_cache_config.keyCacheQuantBychannel,
-                                                                    kv_cache_config.keyCacheDimOrder,
-                                                                    kv_cache_config.valueCacheDimOrder,
-                                                                    kv_cache_config.keyCachePrecision,
-                                                                    kv_cache_config.valueCachePrecision,
-                                                                    kv_cache_config.inferencePrecision);
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
@@ -1471,6 +1472,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
