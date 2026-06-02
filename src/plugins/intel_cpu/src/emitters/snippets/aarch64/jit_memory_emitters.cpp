@@ -170,11 +170,8 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
 }
 
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
-        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in, out);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
-    }
+    // TODO: gate
+    emit_isa<dnnl::impl::cpu::aarch64::asimd>(in, out);
 }
 
 template <cpu_isa_t isa>

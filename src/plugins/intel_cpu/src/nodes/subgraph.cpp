@@ -56,13 +56,26 @@
 #    include "cache/cache_entry.h"
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
+#    include "openvino/op/add.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "snippets/op/buffer.hpp"
+#    include "snippets/op/kernel.hpp"
+#    include "snippets/op/load.hpp"
+#    include "snippets/op/rank_normalization.hpp"
+#    include "snippets/op/reg_spill.hpp"
+#    include "snippets/op/reorder.hpp"
+#    include "snippets/op/reshape.hpp"
+#    include "snippets/op/result.hpp"
+#    include "snippets/op/store.hpp"
+#    include "snippets/op/vector_buffer.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
+#    include "transformations/snippets/common/op/load_convert.hpp"
+#    include "transformations/snippets/common/op/store_convert.hpp"
 #elif defined(OPENVINO_ARCH_RISCV64)
 #    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 
@@ -219,7 +232,17 @@ static _ov_dnnl_cpu_isa getHostIsa() {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
                                                                             : dnnl::impl::cpu::x64::avx2;
 #elif defined(OPENVINO_ARCH_ARM64)
-    return dnnl::impl::cpu::aarch64::asimd;
+    namespace aarch64 = dnnl::impl::cpu::aarch64;
+    if (aarch64::mayiuse(aarch64::sve_512)) {
+        return aarch64::sve_512;
+    }
+    if (aarch64::mayiuse(aarch64::sve_256)) {
+        return aarch64::sve_256;
+    }
+    if (aarch64::mayiuse(aarch64::sve_128)) {
+        return aarch64::sve_128;
+    }
+    return aarch64::asimd;
 #elif defined(OPENVINO_ARCH_RISCV64)
     OPENVINO_ASSERT(ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv),
                     "RISC-V Subgraph code generation requires vector ISA support");
@@ -861,6 +884,51 @@ void Subgraph::optimizeIR() {
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work
     // amount) needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts
     // in domain optimization.
+#if defined(OPENVINO_ARCH_ARM64)
+    const auto target_machine =
+        std::dynamic_pointer_cast<const aarch64::CPUTargetMachine>(subgraph->get_generator()->get_target_machine());
+    if (target_machine) {
+        const auto current_isa = target_machine->get_isa();
+        if (current_isa != dnnl::impl::cpu::aarch64::asimd) {
+            bool all_support_sve = true;
+            for (const auto& op : subgraph->body_ptr()->get_ordered_ops()) {
+                const auto& type_info = op->get_type_info();
+                if (target_machine->has(type_info)) {
+                    const bool op_supports_sve = ov::is_type_any_of<ov::op::v0::Parameter,
+                                                                    snippets::op::Result,
+                                                                    snippets::op::Buffer,
+                                                                    snippets::op::VectorBuffer,
+                                                                    snippets::op::RankNormalization,
+                                                                    snippets::op::Reshape,
+                                                                    snippets::op::Reorder,
+                                                                    snippets::op::LoopBegin,
+                                                                    snippets::op::LoopEnd,
+                                                                    snippets::op::KernelStatic,
+                                                                    snippets::op::KernelDynamic,
+                                                                    snippets::op::RegSpillBegin,
+                                                                    snippets::op::RegSpillEnd,
+                                                                    ov::op::v1::Add,
+                                                                    snippets::op::Load,
+                                                                    snippets::op::LoadReorder,
+                                                                    snippets::op::Store,
+                                                                    ov::intel_cpu::LoadConvertSaturation,
+                                                                    ov::intel_cpu::LoadConvertTruncation,
+                                                                    ov::intel_cpu::StoreConvertSaturation,
+                                                                    ov::intel_cpu::StoreConvertTruncation>(op);
+                    if (!op_supports_sve) {
+                        all_support_sve = false;
+                        break;
+                    }
+                }
+            }
+            if (!all_support_sve) {
+                subgraph->set_generator(std::make_shared<aarch64::CPUGenerator>(dnnl::impl::cpu::aarch64::asimd,
+                                                                                context->getSnippetsParamsCache()));
+            }
+        }
+    }
+#endif
+
     subgraph->control_flow_transformations(static_cast<size_t>(parallel_get_max_threads()),
                                            256,
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),

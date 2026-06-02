@@ -390,7 +390,7 @@ std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
 }
 
 bool CPUTargetMachine::is_supported() const {
-    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+    return dnnl::impl::cpu::aarch64::mayiuse(isa);
 }
 
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
@@ -407,6 +407,12 @@ size_t CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case dnnl::impl::cpu::aarch64::asimd:
         return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::vlen / sizeof(float);
+    case dnnl::impl::cpu::aarch64::sve_128:
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_128>::vlen / sizeof(float);
+    case dnnl::impl::cpu::aarch64::sve_256:
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_256>::vlen / sizeof(float);
+    case dnnl::impl::cpu::aarch64::sve_512:
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_512>::vlen / sizeof(float);
     default:
         OPENVINO_THROW("unknown isa ", isa);
     }
@@ -440,6 +446,12 @@ std::vector<snippets::Reg> CPUTargetMachine::get_vec_reg_pool() const {
         switch (isa) {
         case dnnl::impl::cpu::aarch64::asimd:
             return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::n_vregs;
+        case dnnl::impl::cpu::aarch64::sve_128:
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_128>::n_vregs;
+        case dnnl::impl::cpu::aarch64::sve_256:
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_256>::n_vregs;
+        case dnnl::impl::cpu::aarch64::sve_512:
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_512>::n_vregs;
         default:
             OPENVINO_THROW("unknown isa ", isa);
         }
