@@ -1416,9 +1416,7 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_RISCV64)
                    // These operations are not currently supported in the RISC-V snippets target machine.
                    || ov::is_type<const ov::op::v4::Swish>(n) ||
-                   ov::is_type_any_of<const ov::op::v0::Ceiling,
-                                      const ov::op::v1::Power,
-                                      const ov::intel_cpu::SwishNode>(n)
+                   ov::is_type_any_of<const ov::op::v0::Ceiling, const ov::intel_cpu::SwishNode>(n)
 #endif
                 ;
         };
