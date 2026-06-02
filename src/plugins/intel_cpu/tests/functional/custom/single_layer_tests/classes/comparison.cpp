@@ -83,6 +83,11 @@ std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonType
 #if defined(OPENVINO_ARCH_ARM64)
     return "jit";
 #endif
+#if defined(OPENVINO_ARCH_ARM) && defined(OV_CPU_WITH_ACL)
+    // TODO [171225] : On ARM there is ACL executor support which requires U8 on output.
+    //                 This requirement is not met in Eltwise CPU node - ref impl is used.
+    return modelType == ov::element::i32 ? "acl" : "ref";
+#endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         if (ov::intel_cpu::any_of(type, utils::ComparisonTypes::EQUAL,

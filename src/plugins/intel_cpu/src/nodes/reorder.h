@@ -21,6 +21,9 @@
 #include "openvino/core/node.hpp"
 #include "thread_pool_imp.hpp"
 
+#if defined(OPENVINO_ARCH_ARM)
+#    include "nodes/executors/transpose.hpp"
+#endif
 #if defined(OV_CPU_WITH_ACL)
 #    include <arm_compute/runtime/NEON/functions/NECopy.h>
 #    include <arm_compute/runtime/Tensor.h>
@@ -97,6 +100,11 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
+
+#if defined(OPENVINO_ARCH_ARM)
+    void prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);
+    TransposeExecutorPtr transposeExecutor;
+#endif
 
 #if defined(OV_CPU_WITH_ACL)
     bool prepareAclCopy(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);

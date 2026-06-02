@@ -92,7 +92,7 @@
 #    include "openvino/runtime/properties.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include <common/primitive_desc_iface.hpp>
 
 #    include "onednn/iml_type_mapper.h"
@@ -606,7 +606,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc,
                                                      dstMemDesc.get(),
                                                      eng.get(),
                                                      attr.get());
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
     // pretend the reorder is not available to use Convert node instead
     if (hasHardwareSupport(ov::element::f16) && (result != nullptr) &&

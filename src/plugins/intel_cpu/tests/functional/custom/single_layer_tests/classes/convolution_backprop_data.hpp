@@ -57,7 +57,7 @@ private:
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
-#if !defined(OPENVINO_ARCH_ARM64)
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
         fusingAddPerChannel
 #endif
 };

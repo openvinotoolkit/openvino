@@ -496,7 +496,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             if (hasHardwareSupport(ov::element::f16)) {
                 inferencePrecision = ov::element::f16;
             }

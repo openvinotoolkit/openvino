@@ -85,6 +85,9 @@ std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& typ
 #if defined(OPENVINO_ARCH_ARM64)
     return "jit";
 #endif
+#if defined(OPENVINO_ARCH_ARM)
+    return "ref";
+#endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         return "jit";

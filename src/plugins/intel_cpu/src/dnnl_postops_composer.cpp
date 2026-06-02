@@ -487,7 +487,7 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
     ov::element::Type binaryType = ov::element::f32;
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (outDataType == dnnl::memory::data_type::f16) {
         // ACL executor is not able to handle different precisions between convolution output and post op input
         // in this case original post op tensor is f32 even the model runs in f16 precision

@@ -369,7 +369,7 @@ macro(_ov_find_itt)
 endmacro()
 
 macro(_ov_find_intel_cpu_dependencies)
-    set(_OV_ENABLE_CPU_ACL "@DNNL_AARCH64_USE_ACL@")
+    set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
     if(_OV_ENABLE_CPU_ACL)
         set(_ov_in_install_tree "@PACKAGE_OPENVINO_LIB_DIR@")
         if(_ov_in_install_tree)

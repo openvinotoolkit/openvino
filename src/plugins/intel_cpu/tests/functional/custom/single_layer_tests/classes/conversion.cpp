@@ -74,7 +74,7 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
         return false;
 #endif
         // ACL does not support specific in-out precision pairs
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if ((inPrc == ov::element::i8 && outPrc == ov::element::u8) ||
         (inPrc == ov::element::u8 && outPrc == ov::element::i8) ||
         (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)) ||

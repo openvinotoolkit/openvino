@@ -227,7 +227,7 @@ endif()
 
 # build tree
 
-if(DNNL_AARCH64_USE_ACL)
+if(DNNL_USE_ACL)
     list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH;CMAKE_ARCHIVE_OUTPUT_DIRECTORY")
     set(FIND_ACL_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
 endif()

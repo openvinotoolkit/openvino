@@ -220,7 +220,7 @@
 #    include "transformations/utils/utils.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
@@ -262,6 +262,10 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_ARM)
+#    include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
@@ -549,7 +553,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     const auto precisions = get_convert_precisions();
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {};
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
@@ -672,6 +676,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceNoKeepDims);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceMultiAxis);
+    CPU_REGISTER_PASS_ARM32(manager, MishDecomposition);
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
@@ -908,7 +913,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     using namespace ov::pass::low_precision;
     ov::pass::Manager lptManager("CPU:LPT");
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
         {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
@@ -958,7 +963,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                                                 supportedPrecisions,
                                                 quantizationRestrictions,
                                                 LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     lowPrecPass->add_markup<AlignUnsupportedLPConvFQPrecision>();
 #endif
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);

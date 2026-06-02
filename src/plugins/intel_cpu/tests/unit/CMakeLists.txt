@@ -14,7 +14,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd5051)
 endif()
 
-if(NOT AARCH64)
+if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm)
 endif()

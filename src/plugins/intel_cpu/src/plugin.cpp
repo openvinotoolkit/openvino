@@ -75,7 +75,7 @@ static std::string getDeviceFullName() {
 #elif defined(OPENVINO_ARCH_RISCV64)
     // TODO: extract actual device name
     brand_string = "RISCV-64 CPU";
-#elif defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    if defined(__APPLE__) || defined(__MACOSX)
     {
         auto read_sysctl_str = [](const char* name) -> std::string {
@@ -607,7 +607,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-#if !(defined(__APPLE__) || defined(__MACOSX))
+#if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
             ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
@@ -677,6 +677,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
         return decltype(ov::device::architecture)::value_type{"intel64"};
 #elif defined(OPENVINO_ARCH_X86)
         return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
 #elif defined(OPENVINO_ARCH_ARM64)
         return decltype(ov::device::architecture)::value_type{"arm64"};
 #elif defined(OPENVINO_ARCH_RISCV64)
@@ -808,7 +810,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer&
 
 using namespace ov::intel_cpu;
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_arm_cpu_plugin"};
 #elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};

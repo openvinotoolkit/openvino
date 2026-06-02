@@ -9,7 +9,7 @@
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
 #    include "openvino/op/convert.hpp"
 #    include "openvino/op/fake_quantize.hpp"
 #    include "openvino/op/matmul.hpp"
@@ -21,7 +21,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
 namespace {
 
 std::shared_ptr<ov::Model> addInt8FQAndMatMul(const ov::ParameterVector& params,
@@ -99,7 +99,12 @@ void PoolingLayerCPUTest::SetUp() {
         selectedType = getPrimitiveType();
     }
     if (isInt8)
+#if defined(OPENVINO_ARCH_ARM)
+        // int8 pooling on arm32 is executed with fp32
+        selectedType = selectedType + "_f32";
+#else
         selectedType = selectedType + "_I8";
+#endif
     else
         selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
@@ -125,7 +130,7 @@ void PoolingLayerCPUTest::SetUp() {
     pooling->get_rt_info() = getCPUInfo();
 
 // On ARM architectures, attach FQ->MatMul after int8 AvgPool.
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (isInt8) {
         function = addInt8FQAndMatMul(params, pooling, inPrc, targetStaticShapes);
         return;
@@ -200,7 +205,7 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
     pooling->get_rt_info() = getCPUInfo();
 
 // On ARM architectures, attach FQ->MatMul after int8 Pooling
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (isInt8) {
         function = addInt8FQAndMatMul(params, pooling, inPrc, targetStaticShapes);
         return;
@@ -364,7 +369,7 @@ namespace Pooling {
 
 // The combination of parameters: NCHW + CEIL gives an accuracy problem in ACL AvgPool
 ov::op::RoundingType expectedAvgRoundingType(const ov::op::RoundingType ceil_type) {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     return ov::op::RoundingType::FLOOR;
 #else
     return ceil_type;
@@ -750,7 +755,7 @@ const std::vector<InputShape>& inputShapes4D_int8() {
 }
 
 const CPUSpecificParams& expectedCpuConfigAnyLayout() {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     static const CPUSpecificParams acl = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
     return acl;
 #else

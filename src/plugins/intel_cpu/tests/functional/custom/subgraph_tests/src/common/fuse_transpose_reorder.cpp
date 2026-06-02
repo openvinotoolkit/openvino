@@ -248,7 +248,7 @@ void FuseTransposeAndReorderTest3::create_model() {
 
 TEST_P(FuseTransposeAndReorderTest3, CompareWithRefs) {
     run();
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     //on ARM there is reorder instead of transpose
     check_transpose_count(0);
 #else

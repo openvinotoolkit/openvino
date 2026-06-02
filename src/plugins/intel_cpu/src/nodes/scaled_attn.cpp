@@ -44,7 +44,7 @@
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/core/type/float16.hpp"
 #endif
 
@@ -1571,7 +1571,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             // This unifies quantized (u8/u4) and raw paths through a single codec-generic pipeline.
             // temporary OV_TURBOQ_LEGACY_ATTN=1 reverts to the old per-type dispatch.
             // ARM SIMD abstraction not yet wired through mha_kv_cache — fall back to legacy.
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             const bool use_new_pipeline = false;
 #else
             static const bool force_legacy = std::getenv("OV_CPU_LEGACY_ATTN") != nullptr;
