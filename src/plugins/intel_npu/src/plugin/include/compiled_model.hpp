@@ -61,6 +61,9 @@ public:
     void release_memory() override;
 
 private:
+    ov::Any get_model_name_property() const;
+    ov::Any get_runtime_requirements_property() const;
+
     void configure_stream_executors();
 
     Logger _logger;

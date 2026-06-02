@@ -15,6 +15,12 @@ enum class PropertiesType { PLUGIN, COMPILED_MODEL };
 
 class Properties final {
 public:
+    struct CompiledModelContext {
+        std::function<ov::Any()> getModelName;
+        std::function<ov::Any()> getRuntimeRequirements;
+        std::function<bool()> hasRuntimeRequirements;
+    };
+
     /**
      * @brief Properties handler constructor
      * @param pType - type of object this handler gets attached to: PLUGIN or COMPILED_MODEL
@@ -24,7 +30,8 @@ public:
     Properties(const PropertiesType pType,
                const FilteredConfig& config,
                const std::shared_ptr<Metrics>& metrics = nullptr,
-               const ov::SoPtr<IEngineBackend>& backend = {nullptr});
+               const ov::SoPtr<IEngineBackend>& backend = {nullptr},
+               const std::shared_ptr<const CompiledModelContext>& compiledModelContext = nullptr);
 
     Properties(const Properties& other);
     Properties& operator=(const Properties& other) = delete;
@@ -76,6 +83,9 @@ public:
     ov::intel_npu::CompilerType determineCompilerTypeForCompatibilityCheck() const;
 
 private:
+    using PropertyGetter = std::function<ov::Any(const Config&)>;
+    using SupportPredicate = std::function<bool(const FilteredConfig&)>;
+
     struct CopyState {
         PropertiesType pType;
         FilteredConfig config;
@@ -86,9 +96,7 @@ private:
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
-        std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
-            properties;
-        std::vector<ov::PropertyName> supportedProperties;
+        std::shared_ptr<const CompiledModelContext> compiledModelContext;
     };
 
     explicit Properties(CopyState&& state);
@@ -97,6 +105,7 @@ private:
     FilteredConfig _config;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
+    std::shared_ptr<const CompiledModelContext> _compiledModelContext;
     Logger _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
@@ -108,14 +117,27 @@ private:
     // Boolean to signal that compatibility check was already filtered by compiler support
     bool _compatibilityCheckFiltered = false;
 
-    // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
+    // properties map: {name -> [support predicate, mutability, value getter]}
+    std::map<std::string, std::tuple<SupportPredicate, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
     // The compatibility_check property is supported only in case at least one of the compilers (CID or CIP) supports it
     // To avoid loading the compiler library and check the support when the property is registered, the check can
     // be performed at a later stage, when the property is actually queried.
     bool disable_compatibility_check_if_needed();
+
+    // Internal registration helpers used by macros to centralize common logic.
+    void registerProperty(const std::string& name,
+                          SupportPredicate predicate,
+                          ov::PropertyMutability mutability,
+                          const PropertyGetter& getter);
+
+    void registerConfigProperty(const std::string& name,
+                                const PropertyGetter& getter,
+                                std::optional<bool> visibilityOverride = std::nullopt,
+                                std::optional<ov::PropertyMutability> mutabilityOverride = std::nullopt,
+                                bool requireSetInConfig = false,
+                                bool forcePublicInCompiledModel = false);
 
     /**
      * @brief Checks whether a property was registered by its name
@@ -138,6 +160,7 @@ private:
     void registerProperties();
     void registerPluginProperties();
     void registerCompiledModelProperties();
+    void refreshSupportedProperties();
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
