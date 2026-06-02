@@ -85,12 +85,10 @@ static double throughput_mbs(size_t size_mb, long long ms) {
     return static_cast<double>(size_mb) * 1000.0 / static_cast<double>(ms);
 }
 
-// ─── Strategies ─────────────────────────────────────────────────────────────
-
-// Strategy: hint_populate (mmap, parallel prefault + fadvise hints)
-static void strategy_hint_populate(const std::filesystem::path& path, size_t file_size) {
+// Strategy: hint_prefetch (mmap, parallel prefault + fadvise hints)
+static void strategy_hint_prefetch(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_populate();
+    mapped->hint_prefetch();
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
     std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
@@ -132,13 +130,13 @@ static void strategy_ifstream_read(const std::filesystem::path& path, size_t /*f
     }
 }
 
-// Strategy: hint_populate with partial region
-static void strategy_hint_populate_partial(const std::filesystem::path& path,
+// Strategy: hint_prefetch with partial region
+static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
                                            size_t /*file_size*/,
                                            size_t offset,
                                            size_t size) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_populate(offset, size);
+    mapped->hint_prefetch(offset, size);
     const auto total_copy_size = std::min(size, mapped->size() - offset);
     // Copy in chunks to support large regions
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
@@ -179,10 +177,10 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
         files.push_back(tf);
     }
 
-    // Collect results: [file_idx] -> {hint_populate, no_prefault, ifstream}
+    // Collect results: [file_idx] -> {hint_prefetch, no_prefault, ifstream}
     struct Row {
         size_t mb;
-        long long t_hint_populate;
+        long long t_hint_prefetch;
         long long t_no_prefault;
         long long t_ifstream;
     };
@@ -191,9 +189,9 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
     for (const auto& tf : files) {
         Row r{};
         r.mb = tf.size_mb;
-        r.t_hint_populate = bench(
+        r.t_hint_prefetch = bench(
             [&]() {
-                strategy_hint_populate(tf.path, tf.size_bytes);
+                strategy_hint_prefetch(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
@@ -220,20 +218,20 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
 
     // Print latency table
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_populate", "no-prefault", "ifstream");
+    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_prefetch", "no-prefault", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
     for (const auto& r : results) {
-        printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mb, r.t_hint_populate, r.t_no_prefault, r.t_ifstream);
+        printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mb, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
     }
 
     // Print throughput table
     printf("\n--- Throughput (MB/s) ---\n");
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_populate", "no-prefault", "ifstream");
+    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_prefetch", "no-prefault", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
     for (const auto& r : results) {
         printf("%-10zu | %12.0f MB/s | %8.0f MB/s | %8.0f MB/s\n",
                r.mb,
-               throughput_mbs(r.mb, r.t_hint_populate),
+               throughput_mbs(r.mb, r.t_hint_prefetch),
                throughput_mbs(r.mb, r.t_no_prefault),
                throughput_mbs(r.mb, r.t_ifstream));
     }
@@ -267,7 +265,7 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
                 continue;
             results[si][oi] = bench(
                 [&]() {
-                    strategy_hint_populate_partial(file_path, file_size, off_bytes, sz_bytes);
+                    strategy_hint_prefetch_partial(file_path, file_size, off_bytes, sz_bytes);
                 },
                 file_path,
                 file_size,
@@ -277,7 +275,7 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
     }
 
     // Print: sizes as rows, offsets as columns
-    printf("\n--- partial prefault: hint_populate with offset ---\n");
+    printf("\n--- partial prefault: hint_prefetch with offset ---\n");
     printf("  %-14s", "size \\ offset");
     for (size_t off_mb : offsets_mb)
         printf(" | %7zu MB", off_mb);
