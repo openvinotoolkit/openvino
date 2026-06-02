@@ -293,14 +293,17 @@ void PluginPropertyManager::registerPluginProperties() const {
             }
             return false;
         }());
-    try_register_custom_property(_config,
-                                 _properties,
-                                 ov::compatibility_check,
-                                 true,
-                                 ov::PropertyMutability::RO,
-                                 [](const Config&) {
-                                     return false;
-                                 });
+    if (_config.isAvailable(ov::compatibility_check.name())) {
+        register_named_property_with_args(_properties,
+                                          ov::compatibility_check.name(),
+                                          true,
+                                          ov::PropertyMutability::RO,
+                                          [this](const Config&, const ov::AnyMap& arguments) {
+                                              return validateCompatibilityDescriptor(
+                                                  determineCompilerTypeForCompatibilityCheck(),
+                                                  arguments);
+                                          });
+    }
     try_register_custom_property(_config,
                                  _properties,
                                  ov::cache_encryption_callbacks,
@@ -614,8 +617,8 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
-        if (name == ov::compatibility_check.name()) {
-            return validateCompatibilityDescriptor(determineCompilerTypeForCompatibilityCheck(), arguments);
+        if (configIterator->second.getWithArgs) {
+            return configIterator->second.getWithArgs(_config, arguments);
         }
         if (configIterator->second.mutability == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());

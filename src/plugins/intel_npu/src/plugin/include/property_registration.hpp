@@ -20,13 +20,27 @@ struct PropertyDescriptor final {
     bool isPublic;
     ov::PropertyMutability mutability;
     std::function<ov::Any(const Config&)> get;
+    std::function<ov::Any(const Config&, const ov::AnyMap&)> getWithArgs;
 };
 
 using PropertyMap = std::map<std::string, PropertyDescriptor>;
 
 template <typename Getter>
 inline PropertyDescriptor make_property_descriptor(bool isPublic, ov::PropertyMutability mutability, Getter&& get) {
-    return PropertyDescriptor{isPublic, mutability, std::function<ov::Any(const Config&)>(std::forward<Getter>(get))};
+    return PropertyDescriptor{isPublic,
+                              mutability,
+                              std::function<ov::Any(const Config&)>(std::forward<Getter>(get)),
+                              {}};
+}
+
+template <typename Getter>
+inline PropertyDescriptor make_property_descriptor_with_args(bool isPublic,
+                                                             ov::PropertyMutability mutability,
+                                                             Getter&& get) {
+    return PropertyDescriptor{isPublic,
+                              mutability,
+                              {},
+                              std::function<ov::Any(const Config&, const ov::AnyMap&)>(std::forward<Getter>(get))};
 }
 
 template <typename Getter>
@@ -37,6 +51,16 @@ inline void register_named_property(PropertyMap& properties,
                                     Getter&& getter) {
     properties.emplace(std::move(propertyName),
                        make_property_descriptor(isPublic, mutability, std::forward<Getter>(getter)));
+}
+
+template <typename Getter>
+inline void register_named_property_with_args(PropertyMap& properties,
+                                              std::string propertyName,
+                                              bool isPublic,
+                                              ov::PropertyMutability mutability,
+                                              Getter&& getter) {
+    properties.emplace(std::move(propertyName),
+                       make_property_descriptor_with_args(isPublic, mutability, std::forward<Getter>(getter)));
 }
 
 template <typename GetterOrValue>
