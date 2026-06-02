@@ -21,6 +21,6 @@ namespace ov {
  * @param partial_shape Shape hint; a single dynamic dimension is resolved from mapped_memory->size().
  */
 OPENVINO_API Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
-                                  const element::Type& element_type,
-                                  const PartialShape& partial_shape);
+                                               const element::Type& element_type,
+                                               const PartialShape& partial_shape);
 }  // namespace ov
