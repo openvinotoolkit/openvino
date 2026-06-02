@@ -755,7 +755,13 @@ NetworkDebugHelper::~NetworkDebugHelper() {
 }
 
 void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_iter) const {
-    m_network.get_memory_pool().dump(m_network.get_id(), curr_iter, dump_path);
+    auto prog = m_network.get_program().get();
+    const auto& config = prog->get_config();
+
+    // Dump detailed entries in memory pool
+    if (config.get_dump_memory_pool() > 1)
+        m_network.get_memory_pool().dump(m_network.get_id(), curr_iter, dump_path);
+
     auto get_constants_mem_size = [&](allocation_type type) -> size_t {
         size_t mem_size = 0;
         for (auto& prim : m_network._primitives) {
@@ -776,6 +782,17 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
         }
         return mem_size;
     };
+    auto get_parameters_mem_size = [&]() -> size_t {
+        size_t mem_size = 0;
+        for (auto& prim : m_network._inputs) {
+            for (size_t i = 0; i < prim->outputs_memory_count(); i++) {
+                auto mem = prim->output_memory_ptr(i);
+                if (mem)
+                    mem_size += mem->size();
+            }
+        }
+        return mem_size;
+    };
     auto get_mb_size = [&](int64_t size) -> std::string {
         if (size == 0) return "0 MB";
         return std::to_string(static_cast<float>(size) / (1024 * 1024)) + " MB";
@@ -784,6 +801,7 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
     int64_t usm_device_const_mem_size   = get_constants_mem_size(allocation_type::usm_device);
     int64_t usm_host_var_mem_size       = get_variables_mem_size(allocation_type::usm_host);
     int64_t usm_device_var_mem_size     = get_variables_mem_size(allocation_type::usm_device);
+    int64_t param_mem_size              = get_parameters_mem_size();
     int64_t host_mem_size               = m_network.get_engine().get_used_device_memory(allocation_type::usm_host);
     int64_t device_mem_size             = m_network.get_engine().get_used_device_memory(allocation_type::usm_device);
     int64_t usm_host_mem_pool_size      = m_network.get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
@@ -794,16 +812,17 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
                                             - usm_device_const_mem_size - usm_device_var_mem_size;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
     GPU_DEBUG_COUT << "Memory statistics for (net_id:" << m_network.get_id() << ", iter:" << curr_iter << ")" << std::endl;
+    GPU_DEBUG_COUT << " * Parameter             : " << get_mb_size(param_mem_size)   << std::endl;
     GPU_DEBUG_COUT << " Total host mem size     : " << get_mb_size(host_mem_size)               << std::endl;
-    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_host_mem_pool_size)      << std::endl;
-    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_host_const_mem_size)     << std::endl;
-    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_host_var_mem_size)       << std::endl;
-    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_host_etc_size)           << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool @ host    : " << get_mb_size(usm_host_mem_pool_size)      << std::endl;
+    GPU_DEBUG_COUT << " * Constant @ host       : " << get_mb_size(usm_host_const_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * Variable @ host       : " << get_mb_size(usm_host_var_mem_size)       << std::endl;
+    GPU_DEBUG_COUT << " * ETC @ host            : " << get_mb_size(usm_host_etc_size)           << std::endl;
     GPU_DEBUG_COUT << " Total device mem size   : " << get_mb_size(device_mem_size)             << std::endl;
-    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_device_mem_pool_size)    << std::endl;
-    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_device_const_mem_size)   << std::endl;
-    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
-    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool @ device  : " << get_mb_size(usm_device_mem_pool_size)    << std::endl;
+    GPU_DEBUG_COUT << " * Constant @ device     : " << get_mb_size(usm_device_const_mem_size)   << std::endl;
+    GPU_DEBUG_COUT << " * Variable @ device     : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * ETC @ device          : " << get_mb_size(usm_device_etc_size)         << std::endl;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
 }
 

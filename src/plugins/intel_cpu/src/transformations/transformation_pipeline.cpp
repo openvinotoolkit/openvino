@@ -221,6 +221,7 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
@@ -980,6 +981,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&defaultPrecisions](const_node_ptr& node) -> bool {
+            return is_acl_int8_avg_pool_lpt_skipped(node, defaultPrecisions);
+        },
+        AvgPoolTransformation);
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {

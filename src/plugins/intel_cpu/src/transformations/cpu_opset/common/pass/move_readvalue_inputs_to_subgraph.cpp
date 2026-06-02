@@ -87,7 +87,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
 
             if (any_child_on_output_path) {
-                visited_path_to_output.insert(node);
+                visited_path_to_output.insert(std::shared_ptr<ov::Node>(node));
                 found_output = any_child_on_output_path;
             }
         };
@@ -113,11 +113,11 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
             if (found_output) {
                 inputs.emplace_back(node);
-                visited_path_to_output.insert(node);
+                visited_path_to_output.emplace(std::shared_ptr<ov::Node>(node));
                 return;
             }
 
-            visited_path_to_rv.insert(node);
+            visited_path_to_rv.emplace(std::shared_ptr<ov::Node>(node));
 
             // Cache to subgraph_nodes
             subgraph_nodes.emplace_back(node);
