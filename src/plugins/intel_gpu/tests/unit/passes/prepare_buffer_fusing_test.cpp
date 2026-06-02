@@ -1813,21 +1813,19 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
         ASSERT_NEAR(act2_ptr[i], 1.0f, 1e-3f) << "out_act2 mismatch at index " << i;
 }
 
-// Verifies that convolution is recognised as a safe-reader type in
+// Verifies that oneDNN convolution is recognised as a safe-reader type in
 // reads_padded_input_safely, so that implicit concat fusing still applies
-// when the shared predecessor has a conv as one of its non-concat users.
+// when the shared predecessor has an oneDNN conv as one of its non-concat users.
 //
 // Topology (shared_r has 3 users):
-//   shared_in(f32) → shared_r(f32→f16, oneDNN) ─┬→ concat ─→ out_concat
-//   other_in(f32)  → other_r(f32→f16)           ─┘
-//                                     └→ conv(bfyx, reads padded safely)  → out_conv
-//                                     └→ act1                             → out_act1
+//   shared_in(f32) → shared_r(f32→f16, b_fs_yx_fsv16, oneDNN) ─┬→ concat ─→ out_concat
+//   other_in(f32)  → other_r(f32→f16)                          ─┘
+//                                     └→ conv(b_fs_yx_fsv16, oneDNN, reads padded safely) → out_conv
+//                                     └→ act1                                              → out_act1
 //
-// Both conv and act1 are in reads_padded_input_safely, so the multi-user guard
-// allows fusing. shared_r is forced to oneDNN so the oneDNN predecessor path
-// is exercised. Conv is forced to format::bfyx so reorder_inputs does not
-// insert a format-conversion reorder between shared_r and conv (a reorder
-// would be outside reads_padded_input_safely and would incorrectly block fusing).
+// Both conv and act1 are in reads_padded_input_safely. shared_r and conv are both
+// forced to b_fs_yx_fsv16 so reorder_inputs finds no format mismatch and does not
+// insert an intermediate reorder — oneDNN conv reads directly from the padded buffer.
 TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -1852,13 +1850,15 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     topology.add(data("conv_w", weights_mem));
 
     // shared_r is the predecessor node that will have 3 users after fusing.
-    topology.add(reorder("shared_r", input_info("shared_in"), format::bfyx, data_types::f16));
-    topology.add(reorder("other_r",  input_info("other_in"),  format::bfyx, data_types::f16));
+    // Declared as b_fs_yx_fsv16 to match the oneDNN conv preferred input format,
+    // so reorder_inputs does not insert a format-conversion reorder in between.
+    topology.add(reorder("shared_r", input_info("shared_in"), format::b_fs_yx_fsv16, data_types::f16));
+    topology.add(reorder("other_r",  input_info("other_in"),  format::b_fs_yx_fsv16, data_types::f16));
 
     // User 1 of shared_r: feature-axis concat (the fusing candidate).
     topology.add(concatenation("concat", { input_info("shared_r"), input_info("other_r") }, 1));
-    // User 2 of shared_r: 1×1 identity conv with bfyx output (validates that conv
-    // reads from the padded buffer by logical coordinates, not raw offsets).
+    // User 2 of shared_r: 1×1 identity oneDNN conv — validates that oneDNN conv
+    // reads from the padded buffer by logical tensor coordinates, not raw byte offsets.
     topology.add(convolution("conv", input_info("shared_r"), "conv_w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     // User 3 of shared_r: activation (always safe).
     topology.add(activation("act1", input_info("shared_r"), activation_func::relu));
@@ -1870,13 +1870,12 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
-    // Force shared_r (predecessor) to oneDNN so the oneDNN fusing path is exercised.
-    // Force conv to bfyx so reorder_inputs does not insert a format-conversion reorder
-    // between shared_r (bfyx output) and conv; without this, the reorder would not be
-    // in reads_padded_input_safely and would incorrectly block fusing.
+    // Both shared_r and conv are forced to b_fs_yx_fsv16 + oneDNN. Since their
+    // formats already match, reorder_inputs inserts no intermediate reorder —
+    // oneDNN conv reads the padded buffer directly, exercising the safety guarantee.
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-        {"shared_r", ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn}},
-        {"conv",     ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::ocl}},
+        {"shared_r", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn}},
+        {"conv",     ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn}},
     }));
     network network(engine, topology, config);
 
