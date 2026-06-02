@@ -219,7 +219,7 @@ void dump_graph_init(std::ofstream& graph,
         std::ostringstream oss;
         if (ptr->is_type<dynamic_quantize>()) {
             auto dyn_quan = ptr->as<dynamic_quantize>().get_primitive();
-            oss << "\n" << "group_sizes: " << ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+            oss << "\n" << "group_sizes: " << ov::util::join<std::ostream>(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
             if (dyn_quan->attrs.precomputed_reduction) {
                 oss << "\n" << "precomputed_reduction_dt: " << dyn_quan->attrs.precomputed_reduction_dt;
             }

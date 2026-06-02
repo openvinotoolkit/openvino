@@ -1556,6 +1556,36 @@ void Snapshot::stripTag(const std::string& tag) {
     }
 }
 
+void Snapshot::fuseUnfolded() {
+    if (!m_ctx.fuse_unfolded) {
+        return;
+    }
+
+    LOG_INFO("Online partitioning: executing fuseUnfolded pass...");
+    LOG_BLOCK();
+
+    const std::set<std::string> fold_only_set(m_ctx.fold_only_tags.begin(), m_ctx.fold_only_tags.end());
+    size_t stripped = 0;
+
+    for (const auto& nh : m_graph->sorted()) {
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (!group->isFrozen() || !group->repeated()) {
+            continue;
+        }
+        const auto& tag = group->isolatedTag();
+        if (fold_only_set.count(tag) == 0) {
+            // This group is repeated but not destined for folding: release it so
+            // fuseRemnants can absorb it into adjacent non-folded subgraphs.
+            group->unfreeze();
+            group->setRepeated(nullptr);
+            ++stripped;
+        }
+    }
+
+    LOG_INFO("Stripped reptag from " << stripped << " non-fold-only repeated groups.");
+    LOG_INFO("DONE");
+}
+
 bool Snapshot::isRegularIOCase() const {
     LOG_INFO("Online partitioning: executing isRegularIOCase pass...");
     LOG_BLOCK();

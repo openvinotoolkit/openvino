@@ -34,8 +34,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "shape_inference/custom/transpose.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
