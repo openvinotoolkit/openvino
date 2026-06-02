@@ -4,6 +4,7 @@
 
 #include "llm_compiled_model_utils.hpp"
 
+#include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
@@ -43,4 +44,30 @@ bool ov::npuw::util::is_encoder_embedding_model(const std::shared_ptr<ov::Model>
         }
     }
     return has_sdpa;
+}
+
+std::optional<uint32_t> ov::npuw::util::get_max_position_embeddings(const std::shared_ptr<ov::Model>& model) {
+    // The position embedding is a Gather(weight[max_position_embeddings, hidden], position_ids).
+    // Find that Gather by name and read dim 0 of its data input (port 0), walking through any
+    // Convert/decompression nodes in between.
+    for (const auto& op : model->get_ops()) {
+        if (!ov::is_type<ov::op::v8::Gather>(op)) {
+            continue;
+        }
+        if (op->get_friendly_name().find("position_embeddings") == std::string::npos) {
+            continue;
+        }
+        auto src = op->input_value(0);  // the position-embedding weight (possibly behind Convert)
+        for (int hops = 0; hops < 4 && src.get_node(); ++hops) {
+            const auto& ps = src.get_partial_shape();
+            if (ps.rank().is_static() && ps.size() == 2 && ps[0].is_static()) {
+                return static_cast<uint32_t>(ps[0].get_length());
+            }
+            if (src.get_node()->get_input_size() == 0) {
+                break;
+            }
+            src = src.get_node()->input_value(0);
+        }
+    }
+    return std::nullopt;
 }
