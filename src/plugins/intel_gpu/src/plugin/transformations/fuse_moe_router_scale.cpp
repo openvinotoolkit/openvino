@@ -109,7 +109,7 @@ FuseMoERouterScale::FuseMoERouterScale() {
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "FuseMoEPerExpertScale");
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "FuseMoERouterScale");
     this->register_matcher(matcher, callback);
 }
 
