@@ -1855,8 +1855,9 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     topology.add(reorder("shared_r", input_info("shared_in"), format::b_fs_yx_fsv16, data_types::f16));
     topology.add(reorder("other_r",  input_info("other_in"),  format::b_fs_yx_fsv16, data_types::f16));
 
-    // User 1 of shared_r: feature-axis concat (the fusing candidate).
-    topology.add(concatenation("concat", { input_info("shared_r"), input_info("other_r") }, 1));
+    // User 1 of shared_r: feature-axis concat (the fusing candidate) — other_r first so
+    // shared_r lands in the second slot, making the padding layout more asymmetric.
+    topology.add(concatenation("concat", { input_info("other_r"), input_info("shared_r") }, 1));
     // User 2 of shared_r: 1×1 identity oneDNN conv — validates that oneDNN conv
     // reads from the padded buffer by logical tensor coordinates, not raw byte offsets.
     topology.add(convolution("conv", input_info("shared_r"), "conv_w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
@@ -1881,11 +1882,11 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
 
     auto input_memory  = engine.allocate_memory(in_layout);
     auto input_memory2 = engine.allocate_memory(in_layout2);
-    // Natural-number sequences (0, 1, 2 … N-1) so any buffer-overlap or aliasing bug
-    // produces a wrong value at a specific position rather than going unnoticed.
+    // Natural-number sequences — d1 starts at 0, d2 starts at 512 so the two halves of
+    // the concat output are unambiguously distinguishable; aliasing bugs produce clearly wrong values.
     const size_t N = 16 * 4 * 4;  // 256
     std::vector<float> d1(N), d2(N);
-    for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(i); }
+    for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(512 + i); }
     set_values(input_memory,  d1);
     set_values(input_memory2, d2);
 
@@ -1900,14 +1901,15 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     const auto& concat_node = network.get_primitive("concat")->get_node();
     ASSERT_TRUE(concat_node.can_be_optimized());
 
-    // out_concat: [shared_r(0..N-1) | other_r(0..N-1)] along feature axis.
+    // out_concat: [other_r(512..512+N-1) | shared_r(0..N-1)] along feature axis.
+    // (other_r is now the first concat input after the order swap)
     auto out_concat_mem = output.at("out_concat").get_memory();
     cldnn::mem_lock<float> concat_ptr(out_concat_mem, get_test_stream());
     ASSERT_EQ(concat_ptr.size(), 2 * N);
     for (size_t i = 0; i < N; i++)
-        ASSERT_NEAR(concat_ptr[i],     static_cast<float>(i), 1e-2f) << "out_concat first half mismatch at index " << i;
+        ASSERT_NEAR(concat_ptr[i],     static_cast<float>(512 + i), 1e-2f) << "out_concat first half mismatch at index " << i;
     for (size_t i = 0; i < N; i++)
-        ASSERT_NEAR(concat_ptr[N + i], static_cast<float>(i), 1e-2f) << "out_concat second half mismatch at index " << i;
+        ASSERT_NEAR(concat_ptr[N + i], static_cast<float>(i),       1e-2f) << "out_concat second half mismatch at index " << i;
 
     // out_conv: identity conv(shared_r) = 0..N-1 — confirms that conv reads from the
     // padded predecessor buffer by logical tensor coordinates, not raw byte offsets.
