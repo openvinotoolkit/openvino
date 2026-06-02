@@ -68,8 +68,7 @@ bool evaluate_node<ov::op::v17::GroupedMatMul>(std::shared_ptr<ov::Node> node,
     OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto op = ov::as_type_ptr<ov::op::v17::GroupedMatMul>(node);
-    const auto out_shapes =
-        ov::op::v17::shape_infer(op.get(), ov::util::get_tensors_partial_shapes(inputs));
+    const auto out_shapes = ov::op::v17::shape_infer(op.get(), ov::util::get_tensors_partial_shapes(inputs));
     const auto out_shape = out_shapes[0].to_shape();
     outputs[0].set_shape(out_shape);
 

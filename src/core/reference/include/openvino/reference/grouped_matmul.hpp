@@ -36,11 +36,7 @@ void simple_matmul_transposed_b(const T* A, const T* B, T* out, size_t M, size_t
 
 /// @brief 3D × 3D batched uniform groups (no offsets).
 template <typename T>
-void grouped_matmul_3d_3d(const T* mat_a,
-                           const T* mat_b,
-                           T* out,
-                           const Shape& mat_a_shape,
-                           const Shape& mat_b_shape) {
+void grouped_matmul_3d_3d(const T* mat_a, const T* mat_b, T* out, const Shape& mat_a_shape, const Shape& mat_b_shape) {
     const size_t G = mat_a_shape[0];
     const size_t M = mat_a_shape[1];
     const size_t K = mat_a_shape[2];
@@ -63,11 +59,11 @@ void grouped_matmul_3d_3d(const T* mat_a,
 /// @brief 2D × 3D MoE forward pass with offsets.
 template <typename T, typename TIdx>
 void grouped_matmul_2d_3d(const T* mat_a,
-                           const T* mat_b,
-                           const TIdx* offsets,
-                           T* out,
-                           const Shape& mat_a_shape,
-                           const Shape& mat_b_shape) {
+                          const T* mat_b,
+                          const TIdx* offsets,
+                          T* out,
+                          const Shape& mat_a_shape,
+                          const Shape& mat_b_shape) {
     const size_t total_rows = mat_a_shape[0];
     const size_t K = mat_a_shape[1];
     const size_t G = mat_b_shape[0];
@@ -95,12 +91,12 @@ void grouped_matmul_2d_3d(const T* mat_a,
 /// @brief 2D × 2D MoE weight gradient with offsets.
 template <typename T, typename TIdx>
 void grouped_matmul_2d_2d(const T* mat_a,
-                           const T* mat_b,
-                           const TIdx* offsets,
-                           T* out,
-                           const Shape& mat_a_shape,
-                           const Shape& mat_b_shape,
-                           size_t num_groups) {
+                          const T* mat_b,
+                          const TIdx* offsets,
+                          T* out,
+                          const Shape& mat_a_shape,
+                          const Shape& mat_b_shape,
+                          size_t num_groups) {
     const size_t K = mat_a_shape[0];
     const size_t total_tokens = mat_a_shape[1];
     const size_t N = mat_b_shape[0];  // mat_b is [N, total_tokens]
