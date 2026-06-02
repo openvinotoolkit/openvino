@@ -29,7 +29,7 @@ std::string EltwiseLayerCPUTest::getTestCaseName(const testing::TestParamInfo<El
                                                               basicParamsSet, 0));
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
-        result << "_enforceSnippets=" << enforceSnippets;
+    result << "_enforceSnippets=" << enforceSnippets;
 
     return result.str();
 }
@@ -312,7 +312,7 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
             (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-            (eltwiseType == utils::EltwiseTypes::POWER) ||
+            (enforceSnippets && eltwise_type == utils::EltwiseTypes::POWER) ||
             (eltwiseType == utils::EltwiseTypes::MOD) ||
             (eltwiseType == utils::EltwiseTypes::FLOOR_MOD) ||
             (eltwiseType == utils::EltwiseTypes::SQUARED_DIFF)) {
