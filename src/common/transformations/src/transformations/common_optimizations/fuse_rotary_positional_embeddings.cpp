@@ -1432,30 +1432,77 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             return false;
         }
 
+        // The llama.cpp NORMAL RoPE reads interleaved lanes (even = x[0::2], odd = x[1::2]) but writes
+        // a half-split output ([first... | second...]). The RoPE op's two rotation modes are fixed
+        // read==write: is_interleaved=true rotates interleaved->interleaved, false rotates
+        // half-split->half-split. Neither matches "interleaved-in, half-split-out", so we re-pack x to
+        // half-split layout up front and run the op in half-split mode. Setting cos_sin_ndims ==
+        // rotary_ndims/2 puts the kernel's cos/sin table offset at 0, so it multiplies the same
+        // half-length table against both output halves -- matching the unfused math:
+        //   out[k]      = x_low[k]*cos[k] - x_high[k]*sin[k]   (= even*cos - odd*sin = first)
+        //   out[half+k] = x_high[k]*cos[k] + x_low[k]*sin[k]   (= odd*cos  + even*sin = second)
+        // The RoPE op expects rank-4 inputs with x as [B, H, L, S] and cos/sin as [B, 1, L, half];
+        // we're matching a rank-3 x ([L, H, S]) and rank-4 cos/sin ([1, L, 1, half]).
+        const auto x_pshape = pattern_map.at(x).get_partial_shape();
+        const auto cos_pshape = pattern_map.at(t_cos).get_partial_shape();
+        if (!x_pshape.rank().is_static() || x_pshape.rank().get_length() != 3 ||
+            !cos_pshape.rank().is_static() || cos_pshape.rank().get_length() != 4) {
+            return false;
+        }
+
+        // Re-pack x from interleaved [.., even0,odd0,even1,odd1,..] to half-split [.., even.. | odd..]
+        // with explicit Gather indices on the last axis. (A step-2 Slice would express the same thing
+        // more compactly but is not reliable across plugin Slice implementations.)
+        const int64_t ndims = 2 * half_ndims_val;
+        std::vector<int64_t> even_idx(static_cast<size_t>(half_ndims_val));
+        std::vector<int64_t> odd_idx(static_cast<size_t>(half_ndims_val));
+        for (int64_t k = 0; k < half_ndims_val; ++k) {
+            even_idx[static_cast<size_t>(k)] = 2 * k;
+            odd_idx[static_cast<size_t>(k)] = 2 * k + 1;
+        }
+        auto gather_axis = v0::Constant::create(ov::element::i64, {}, {-1});
+        auto even = std::make_shared<v8::Gather>(
+            pattern_map.at(x),
+            v0::Constant::create(ov::element::i64, {static_cast<size_t>(half_ndims_val)}, even_idx),
+            gather_axis);
+        auto odd = std::make_shared<v8::Gather>(
+            pattern_map.at(x),
+            v0::Constant::create(ov::element::i64, {static_cast<size_t>(half_ndims_val)}, odd_idx),
+            gather_axis);
+        auto x_hs = std::make_shared<v0::Concat>(OutputVector{even, odd}, -1);  // [L, H, S] half-split
+
+        // Lift x to rank-4 and transpose to [1, H, L, S] (the input layout RoPE expects). The Transpose
+        // is folded into the RoPE op by RoPEFusionPreprocess via config.input_trans0213.
+        auto x_unsq = std::make_shared<v0::Unsqueeze>(x_hs, v0::Constant::create(ov::element::i64, {1}, {0}));
+        auto x_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
+        ov::Output<ov::Node> x_value = std::make_shared<v1::Transpose>(x_unsq, x_perm);
+
+        // cos/sin: [1, L, 1, half] -> Transpose(0,2,1,3) -> [1, 1, L, half]. No repeat-interleave: the
+        // half-split mode reuses the same half-length table for both halves.
+        auto cos_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
+        auto cos_t = std::make_shared<v1::Transpose>(pattern_map.at(t_cos), cos_perm);
+        auto sin_t = std::make_shared<v1::Transpose>(pattern_map.at(t_sin), cos_perm);
+
         ov::op::internal::RoPE::Config config;
-        config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims_val);
-        // The matched slices are step-2 (even/odd lanes), i.e. GPT-J interleaved rotation, so the
-        // fused op must run in interleaved mode. Verified bit-exact against the unfused graph.
-        config.is_interleaved = true;
-
-        const auto x_value = pattern_map.at(x);
-
-        // Feed RoPE a rank-4 [seq, head_cnt, 1, head_size] input by inserting a singleton axis before
-        // the last dim, matching the rank-4 layout the other RoPE fusions produce. This keeps head_size
-        // as the innermost dimension, which plugins rely on for an efficient RoPE implementation. Pure
-        // reshape, no data movement.
-        auto singleton_shape = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, 1, -1});
-        auto x_expanded = std::make_shared<v1::Reshape>(x_value, singleton_shape, true);  // special_zero
+        config.rotary_ndims = static_cast<size_t>(ndims);
+        config.is_interleaved = false;
+        // cos/sin are half-length (rotary_ndims/2); declaring cos_sin_ndims pins the kernel's table
+        // offset to 0 so the same half-length table is reused for both output halves (matches the
+        // unfused math out[half+k] = odd*cos[k] + even*sin[k]). Leaving cos_sin_ndims=0 would make the
+        // kernel index past the table for the second half and corrupt the odd-lane outputs.
+        config.cos_sin_ndims = static_cast<size_t>(half_ndims_val);
 
         OutputVector new_args;
-        new_args.push_back(x_expanded);
-        new_args.push_back(pattern_map.at(t_cos));
-        new_args.push_back(pattern_map.at(t_sin));
+        new_args.push_back(x_value);
+        new_args.push_back(cos_t);
+        new_args.push_back(sin_t);
 
         auto rope_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
-        // RoPE keeps the singleton-expanded rank-4 shape; reuse root's reshape target to restore the
-        // layout downstream consumers expect (e.g. KV-cache concat wants [B, L, H, S]).
-        auto new_node = std::make_shared<v1::Reshape>(rope_node, root->input_value(1), false);
+        // RoPE output is [1, H, L, S]; transpose back to [1, L, H, S] so the root Reshape target
+        // ([1, -1, head_cnt, head_size]) restores the layout downstream consumers expect.
+        auto out_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
+        auto rope_t = std::make_shared<v1::Transpose>(rope_node, out_perm);
+        auto new_node = std::make_shared<v1::Reshape>(rope_t, root->input_value(1), false);
         new_node->set_friendly_name(root->get_friendly_name());
 
         ov::NodeVector rt_from{pattern_map.at(mul_low_cos).get_node_shared_ptr(),
