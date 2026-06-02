@@ -426,12 +426,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    // Set to true once a sliding_attention layer matching the gptoss_gemma3 pattern is found
-    // alongside a token_type_ids model input - the combination that uniquely identifies Gemma3
-    // since pattern for full attention mask in Gemma3 is different than sliding window
-    // it has to be persistent in the callback, so shared_ptr is used
-    auto has_token_type_ids = std::make_shared<bool>(false);
-
     ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
@@ -609,9 +603,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
-            // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
-            // gpt-oss shares this sliding window pattern but has no token_type_ids.
-            *has_token_type_ids = static_cast<bool>(pa_params.get("token_type_ids"));
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -740,7 +731,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
-        if (*has_token_type_ids) {
+        // Meant to be used for Gemma family models with bidirectional image attention. If the condition is met for
+        // other models (ex. BERT) it's probably unintended behavior, as token_type_ids has been historically used
+        // in different contexts.
+        if (pa_params.exists("token_type_ids")) {
             std::shared_ptr<ov::Node> token_type_ids = pa_params["token_type_ids"];
             if (token_type_ids->get_element_type() != element::i32) {
                 token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
