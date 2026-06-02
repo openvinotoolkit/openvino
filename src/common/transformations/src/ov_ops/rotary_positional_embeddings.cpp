@@ -92,7 +92,9 @@ bool RoPE::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("input_trans0213", m_config.input_trans0213);
     visitor.on_attribute("output_trans0213", m_config.output_trans0213);
     visitor.on_attribute("is_interleaved", m_config.is_interleaved);
+    visitor.on_attribute("interleaved_input", m_config.interleaved_input);
     visitor.on_attribute("rotary_ndims", m_config.rotary_ndims);
+    visitor.on_attribute("cos_sin_ndims", m_config.cos_sin_ndims);
     visitor.on_attribute("is_chatglm", m_config.is_chatglm);
     visitor.on_attribute("support_2d_rope", m_config.support_2d_rope);
     visitor.on_attribute("support_3d_rope", m_config.support_3d_rope);

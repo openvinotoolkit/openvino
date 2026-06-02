@@ -1127,6 +1127,9 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionLtxVideo);
+    // The LlamaCpp fusion emits config.interleaved_input, a GPU-only kernel mode (interleaved read +
+    // half-split write). The CPU RoPE executor has no such mode, so keep the unfused graph on CPU.
+    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionLlamaCpp);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)

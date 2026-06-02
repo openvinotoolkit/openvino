@@ -102,6 +102,11 @@ protected:
             jit.make("RotateInterleaved", true);
         } else {
             jit.make("RotateHalf", true);
+            if (desc->config.interleaved_input) {
+                // RotateHalf with interleaved reads: same half-split output (and thus same dispatch),
+                // but the input lanes are gathered even/odd inside the kernel.
+                jit.make("INTERLEAVED_INPUT", true);
+            }
             if (get_vec_size(params) == 1) {
                 jit.make("REVERSED_GWS", true);
             }

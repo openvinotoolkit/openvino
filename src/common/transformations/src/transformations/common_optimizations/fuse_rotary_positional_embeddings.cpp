@@ -1335,9 +1335,9 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     //   even/odd = Slice(x, {0,1}, end, step=2, axis=-1)
     //   stack    = Concat(Unsqueeze((even*cos - odd*sin), -2), Unsqueeze((even*sin + odd*cos), -2), -2)
     //   out      = Reshape(stack, [1, -1, head_cnt, head_size])
-    // Step-2 slices => config.is_interleaved=true (verified bit-exact). Slice begin/end/step are left
-    // unconstrained below; pattern vars x_low/x_high carry the even/odd lanes. Stateless emits a
-    // different 5D-stack topology and is intentionally not matched.
+    // The interleaved read + half-split write is mapped to config.interleaved_input in the callback (see
+    // there). Slice begin/end/step are left unconstrained below; pattern vars x_low/x_high carry the
+    // even/odd lanes. Stateless emits a different 5D-stack topology and is intentionally not matched.
     auto x = pattern::any_input(pattern::rank_equals(3));
     auto t_cos = pattern::any_input();
     auto t_sin = pattern::any_input();
@@ -1432,53 +1432,27 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             return false;
         }
 
-        // The llama.cpp NORMAL RoPE reads interleaved lanes (even = x[0::2], odd = x[1::2]) but writes
-        // a half-split output ([first... | second...]). The RoPE op's two rotation modes are fixed
-        // read==write: is_interleaved=true rotates interleaved->interleaved, false rotates
-        // half-split->half-split. Neither matches "interleaved-in, half-split-out", so we re-pack x to
-        // half-split layout up front and run the op in half-split mode. Setting cos_sin_ndims ==
-        // rotary_ndims/2 puts the kernel's cos/sin table offset at 0, so it multiplies the same
-        // half-length table against both output halves -- matching the unfused math:
-        //   out[k]      = x_low[k]*cos[k] - x_high[k]*sin[k]   (= even*cos - odd*sin = first)
-        //   out[half+k] = x_high[k]*cos[k] + x_low[k]*sin[k]   (= odd*cos  + even*sin = second)
-        // The RoPE op expects rank-4 inputs with x as [B, H, L, S] and cos/sin as [B, 1, L, half];
-        // we're matching a rank-3 x ([L, H, S]) and rank-4 cos/sin ([1, L, 1, half]).
+        // llama.cpp NORMAL RoPE reads interleaved lanes (even = x[0::2], odd = x[1::2]) but writes a
+        // half-split output. The RoPE op's interleaved_input mode reproduces exactly that: it reads the
+        // even/odd lanes inside the kernel and writes half-split, so no even/odd gather is needed in the
+        // graph. We only adapt the rank/layout: the op wants rank-4 x [B, H, L, S] and cos/sin
+        // [B, 1, L, half]; here x is rank-3 [L, H, S] and cos/sin rank-4 [1, L, 1, half].
         const auto x_pshape = pattern_map.at(x).get_partial_shape();
         const auto cos_pshape = pattern_map.at(t_cos).get_partial_shape();
-        if (!x_pshape.rank().is_static() || x_pshape.rank().get_length() != 3 ||
-            !cos_pshape.rank().is_static() || cos_pshape.rank().get_length() != 4) {
+        if (!x_pshape.rank().is_static() || x_pshape.rank().get_length() != 3 || !cos_pshape.rank().is_static() ||
+            cos_pshape.rank().get_length() != 4) {
             return false;
         }
 
-        // Re-pack x from interleaved [.., even0,odd0,even1,odd1,..] to half-split [.., even.. | odd..]
-        // with explicit Gather indices on the last axis. (A step-2 Slice would express the same thing
-        // more compactly but is not reliable across plugin Slice implementations.)
+        // x: [L, H, S] -> Unsqueeze(0) -> [1, L, H, S] -> Transpose(0,2,1,3) -> [1, H, L, S]. The
+        // Transpose is later folded into the op by RoPEFusionPreprocess (config.input_trans0213).
         const int64_t ndims = 2 * half_ndims_val;
-        std::vector<int64_t> even_idx(static_cast<size_t>(half_ndims_val));
-        std::vector<int64_t> odd_idx(static_cast<size_t>(half_ndims_val));
-        for (int64_t k = 0; k < half_ndims_val; ++k) {
-            even_idx[static_cast<size_t>(k)] = 2 * k;
-            odd_idx[static_cast<size_t>(k)] = 2 * k + 1;
-        }
-        auto gather_axis = v0::Constant::create(ov::element::i64, {}, {-1});
-        auto even = std::make_shared<v8::Gather>(
-            pattern_map.at(x),
-            v0::Constant::create(ov::element::i64, {static_cast<size_t>(half_ndims_val)}, even_idx),
-            gather_axis);
-        auto odd = std::make_shared<v8::Gather>(
-            pattern_map.at(x),
-            v0::Constant::create(ov::element::i64, {static_cast<size_t>(half_ndims_val)}, odd_idx),
-            gather_axis);
-        auto x_hs = std::make_shared<v0::Concat>(OutputVector{even, odd}, -1);  // [L, H, S] half-split
-
-        // Lift x to rank-4 and transpose to [1, H, L, S] (the input layout RoPE expects). The Transpose
-        // is folded into the RoPE op by RoPEFusionPreprocess via config.input_trans0213.
-        auto x_unsq = std::make_shared<v0::Unsqueeze>(x_hs, v0::Constant::create(ov::element::i64, {1}, {0}));
+        auto x_unsq =
+            std::make_shared<v0::Unsqueeze>(pattern_map.at(x), v0::Constant::create(ov::element::i64, {1}, {0}));
         auto x_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
         ov::Output<ov::Node> x_value = std::make_shared<v1::Transpose>(x_unsq, x_perm);
 
-        // cos/sin: [1, L, 1, half] -> Transpose(0,2,1,3) -> [1, 1, L, half]. No repeat-interleave: the
-        // half-split mode reuses the same half-length table for both halves.
+        // cos/sin: [1, L, 1, half] -> Transpose(0,2,1,3) -> [1, 1, L, half].
         auto cos_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
         auto cos_t = std::make_shared<v1::Transpose>(pattern_map.at(t_cos), cos_perm);
         auto sin_t = std::make_shared<v1::Transpose>(pattern_map.at(t_sin), cos_perm);
@@ -1486,10 +1460,10 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         ov::op::internal::RoPE::Config config;
         config.rotary_ndims = static_cast<size_t>(ndims);
         config.is_interleaved = false;
-        // cos/sin are half-length (rotary_ndims/2); declaring cos_sin_ndims pins the kernel's table
-        // offset to 0 so the same half-length table is reused for both output halves (matches the
-        // unfused math out[half+k] = odd*cos[k] + even*sin[k]). Leaving cos_sin_ndims=0 would make the
-        // kernel index past the table for the second half and corrupt the odd-lane outputs.
+        config.interleaved_input = true;
+        // cos/sin are half-length. cos_sin_ndims == rotary_ndims/2 pins the kernel's table offset to 0
+        // so the same half-length table feeds both output halves (out[k] = even*cos - odd*sin,
+        // out[half+k] = odd*cos + even*sin). Leaving it 0 reads past the table on the second half.
         config.cos_sin_ndims = static_cast<size_t>(half_ndims_val);
 
         OutputVector new_args;
@@ -1498,8 +1472,8 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         new_args.push_back(sin_t);
 
         auto rope_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
-        // RoPE output is [1, H, L, S]; transpose back to [1, L, H, S] so the root Reshape target
-        // ([1, -1, head_cnt, head_size]) restores the layout downstream consumers expect.
+        // RoPE output [1, H, L, S] -> Transpose back to [1, L, H, S] so the root Reshape restores the
+        // layout downstream consumers expect.
         auto out_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
         auto rope_t = std::make_shared<v1::Transpose>(rope_node, out_perm);
         auto new_node = std::make_shared<v1::Reshape>(rope_t, root->input_value(1), false);

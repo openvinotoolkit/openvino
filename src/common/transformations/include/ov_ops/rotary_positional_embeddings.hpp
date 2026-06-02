@@ -23,18 +23,19 @@ public:
     struct Config {
         size_t slice_start = 0;  // slice inner-most dimensions of input
         size_t slice_stop = 0;
-        bool input_trans0213 = false;   // transpose input dim 1&2
-        bool output_trans0213 = false;  // implies trans0213 happens after RoPE
-        bool is_interleaved = false;    // coordinates are interleaved
-        size_t rotary_ndims = 0;        // dimensions to be embedded (d in the description)
-        bool is_chatglm = false;        // chatglm is special which overrides other setting
-        bool support_2d_rope = false;   // 2d rope mode, Support 2 dimentional rope which is independant of batch and
-                                        // each head. change input order to [batch, head_cnt, 4608] to support 2d rope
-        bool is_qwen = false;           // Qwen is special which overrides other setting
-        bool use_rope_cache = false;    // use precomputed RoPE cache for trigonometric values (cosine and sine)
-        bool support_3d_rope = false;   // use same logic as RoPEFusionGPTNEOX(4), used by gpu plugin
-        bool is_ltx_video = false;      // ltx-video specific 3D spatial-temporal RoPE
-        size_t cos_sin_ndims = 0;       // last dimension of con/sin table
+        bool input_trans0213 = false;    // transpose input dim 1&2
+        bool output_trans0213 = false;   // implies trans0213 happens after RoPE
+        bool is_interleaved = false;     // coordinates are interleaved
+        bool interleaved_input = false;  // read interleaved lanes but write half-split (llama.cpp NORMAL RoPE)
+        size_t rotary_ndims = 0;         // dimensions to be embedded (d in the description)
+        bool is_chatglm = false;         // chatglm is special which overrides other setting
+        bool support_2d_rope = false;    // 2d rope mode, Support 2 dimentional rope which is independant of batch and
+                                         // each head. change input order to [batch, head_cnt, 4608] to support 2d rope
+        bool is_qwen = false;            // Qwen is special which overrides other setting
+        bool use_rope_cache = false;     // use precomputed RoPE cache for trigonometric values (cosine and sine)
+        bool support_3d_rope = false;    // use same logic as RoPEFusionGPTNEOX(4), used by gpu plugin
+        bool is_ltx_video = false;       // ltx-video specific 3D spatial-temporal RoPE
+        size_t cos_sin_ndims = 0;        // last dimension of con/sin table
         size_t head_cnt = 0;
         size_t head_size = 0;
         int gather_position_arg_id =
