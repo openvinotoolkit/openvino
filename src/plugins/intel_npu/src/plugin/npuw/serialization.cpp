@@ -81,11 +81,13 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+    stream & var.params & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
+        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
