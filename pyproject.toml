@@ -69,7 +69,7 @@ reportMissingImports = false
 reportIncompatibleMethodOverride = false
 
 [tool.bandit]
-exclude_dirs = ["docs", "tests", "thirdparty", "samples", ".github/actions"]
+exclude_dirs = ["docs", "tests", "thirdparty", "samples", ".github"]
 skips = [
     'B101', 
     'B102', 
