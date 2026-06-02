@@ -125,6 +125,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
         elseif(GPU_RUNTIME STREQUAL "OCL")
             set(ONEDNN_GPU_RT "OCL")
             set(ONEDNN_ENABLE_LTO ${ENABLE_LTO})
+        elseif(GPU_RUNTIME STREQUAL "SYCL")
+            set(ONEDNN_GPU_RT "SYCL")
+            set(ONEDNN_ENABLE_LTO ${ENABLE_LTO})
         endif()
 
         ExternalProject_Add(onednn_gpu_build

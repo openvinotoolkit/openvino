@@ -20,6 +20,7 @@ public:
     ze_engine(const device::ptr dev, runtime_types runtime_type);
     engine_types type() const override { return engine_types::ze; };
     runtime_types runtime_type() const override { return runtime_types::ze; };
+    backend_types backend_type() const override { return backend_types::ze; };
 
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
