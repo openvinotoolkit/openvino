@@ -54,7 +54,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& value_rank = value.rank();
     if (value_rank.is_static()) {
         const bool& value_input_correctness =
-            key_rank.get_length() >= 3 && DimType::merge(e_dim, e_dim, *(key.end() - 1));
+            key_rank.get_length() >= 3 && DimType::merge(s_dim, s_dim, *(value.end() - 2));
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                value_input_correctness,
