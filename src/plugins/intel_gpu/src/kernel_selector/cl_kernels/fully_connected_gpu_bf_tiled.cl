@@ -1278,8 +1278,10 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            // Keep zero-point correction in fp32. Storing this value in int truncates
+                            // the activation_sum term and diverges from the per-token path below.
+                            float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(modified_calc_buff * (float)ds * (float)de_quantize_scale[bi]);
                         #else
                             // Compose DQ and decompression scales before applying them to the accumulator.
                             // This reduces fp16 intermediate overflow risk on the f16 scale path, but it is not
@@ -1312,8 +1314,10 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            ACCUM_DQ_TYPE modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            // Keep zero-point correction in fp32. Storing this value in int truncates
+                            // the activation_sum term and diverges from the per-token path below.
+                            float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(modified_calc_buff * (float)ds * (float)de_quantize_scale[bi]);
                         #else
                             // Compose DQ and decompression scales before applying them to the accumulator.
                             // This reduces fp16 intermediate overflow risk on the f16 scale path, but it is not
