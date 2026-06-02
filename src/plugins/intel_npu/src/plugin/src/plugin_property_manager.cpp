@@ -739,9 +739,9 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
             const auto optionMode = updatedConfig.getOpt(key).mode();
 
             if (optionMode == OptionMode::CompileTime) {
-                logger.info("Config key '%s' is recognized as a compiler option, will not be used for current "
-                            "configuration.",
-                            key.c_str());
+                logger.info(
+                    "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
+                    key.c_str());
                 continue;
             }
 
