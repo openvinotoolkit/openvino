@@ -116,7 +116,7 @@ std::string DynamicMemRefType::toString() {
     return stream.str();
 }
 
-void DynamicMemRefType::setArgumentProperties(uint32_t argi,
+void DynamicArguments::setArgumentProperties(uint32_t argi,
                                            const void* argv,
                                            const ov::Shape& sizes,
                                            const std::vector<size_t>& strides) {
