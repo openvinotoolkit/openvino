@@ -15,7 +15,8 @@
 #include <vector>
 
 #include "logging.hpp"
-#include "openvino/openvino.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace npuw {

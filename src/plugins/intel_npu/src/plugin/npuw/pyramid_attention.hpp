@@ -13,6 +13,11 @@
 #include <unordered_set>
 
 #include "attention.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "sdpa_utils.hpp"
 
 namespace ov {
@@ -73,8 +78,11 @@ struct PyramidValidationResult {
     // Validation helper
     bool is_valid() const {
         if (is_block_split) {
-            // Block mode: dim maps are intentionally empty; only sizes must be sane.
-            return query_length > 0 && full_context_length > 0 && full_context_length >= query_length;
+            // Block mode: dim maps are intentionally empty.
+            // Zero-block case is valid (e.g. first chunk has no past), but K/V block lists
+            // must stay aligned.
+            return query_length > 0 && full_context_length > 0 && full_context_length >= query_length &&
+                   past_key_block_global_param_indices.size() == past_value_block_global_param_indices.size();
         }
         return query_length > 0 && full_context_length > 0 && full_context_length >= query_length &&
                !past_key_sequence_dims.empty() && !past_value_sequence_dims.empty();
