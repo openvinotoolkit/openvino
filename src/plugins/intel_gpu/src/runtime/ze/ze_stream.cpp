@@ -23,10 +23,6 @@
 #include "compute_runtime/ze_stypes.h"
 
 #include <cassert>
-#include <cstdlib>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 #include <memory>
