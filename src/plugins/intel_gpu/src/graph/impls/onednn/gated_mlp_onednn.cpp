@@ -279,7 +279,7 @@ protected:
             // Compute scale/zp masks based on ndims, matching FC pattern:
             // 2D: PER_OC=2 (0b10), GROUPED=3 (0b11)
             // 3D: PER_OC=4 (0b100), GROUPED=7 (0b111)
-            const int ndims = src_md.get_dims().size();
+            const int ndims = static_cast<int>(src_md.get_dims().size());
             const int shift_size = std::max(ndims - 2, 0);
             const int per_oc_mask = PER_OC << shift_size;
             const int grouped_mask = (1 << ndims) - 1;
