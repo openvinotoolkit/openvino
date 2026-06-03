@@ -21,6 +21,22 @@ void MOECompressed::validate_and_infer_types() {
 
     set_output_type(0, output_type, get_input_partial_shape(0));
 
+    if (m_config.expert_type == Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+        NODE_VALIDATION_CHECK(this,
+                              m_config.activation_type == Activation_type::SWIGLU,
+                              "GEMM2_BIAS_SWIGLU_CLAMP expert type only supports SWIGLU activation");
+    }
+
+    // Check that routing_weights and router_topk_output_indices have the same shape
+    const auto& routing_weights_shape = get_input_partial_shape(1);
+    const auto& topk_indices_shape = get_input_partial_shape(2);
+    NODE_VALIDATION_CHECK(this,
+                          routing_weights_shape == topk_indices_shape,
+                          "routing_weights shape ",
+                          routing_weights_shape,
+                          " must be compatible with router_topk_output_indices shape ",
+                          topk_indices_shape);
+
     // Config carries a single group_size; gate/up/down must share it.
     auto check_scale = [&](size_t scale_idx, size_t K, const char* name) {
         if (scale_idx >= get_input_size())
