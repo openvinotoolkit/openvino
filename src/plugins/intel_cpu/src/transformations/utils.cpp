@@ -35,6 +35,8 @@ using namespace ov::pass::pattern;
 
 namespace ov::intel_cpu {
 
+namespace {
+
 std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output) {
     const auto& consumers = output.get_target_inputs();
     if (consumers.size() != 1) {
@@ -43,6 +45,8 @@ std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output)
 
     return consumers.begin()->get_node()->shared_from_this();
 }
+
+}  // namespace
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
     auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
