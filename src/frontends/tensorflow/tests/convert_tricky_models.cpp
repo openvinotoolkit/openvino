@@ -100,6 +100,30 @@ TEST(FrontEndConvertTrickyModels, undefined_input_shape) {
     }
 }
 
+TEST(FrontEndConvertTrickyModels, slice_static_shape_is_static) {
+    shared_ptr<Model> model;
+    try {
+        model = convert_model("slice_static_shape/slice_static_shape.pbtxt");
+    } catch (std::exception& ex) {
+        ASSERT_TRUE(false) << ex.what();
+    }
+
+    // The shared TF/TFLite Slice translator builds
+    //   stop = Select(Less(size, 0), Convert(ShapeOf(input)), Add(start, size)).
+    // Convert (unlike ConvertLike) propagates value bounds, so with a static input shape the Slice `stop`
+    // resolves via bounds-based shape inference and the Slice output stays static after frontend conversion
+    // (no MOC runs here). This is the regression gate for using Convert instead of ConvertLike.
+    bool found_slice = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (as_type_ptr<v8::Slice>(node)) {
+            found_slice = true;
+            EXPECT_TRUE(node->get_output_partial_shape(0).is_static());
+            EXPECT_TRUE(node->get_output_partial_shape(0).same_scheme(ov::PartialShape{2, 2, 4}));
+        }
+    }
+    ASSERT_TRUE(found_slice);
+}
+
 TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
     shared_ptr<Model> model;
     try {

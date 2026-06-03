@@ -7,7 +7,7 @@
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -37,8 +37,11 @@ OutputVector translate_slice_op(const NodeContext& node) {
     // compute stop values in case negative sizes
     // since TensorFlow supports only -1 among negative sizes
     // assign stop values to the data shape
+    // Use Convert (not ConvertLike) so the value bounds of ShapeOf propagate through this node: Convert
+    // implements evaluate_lower/upper while ConvertLike does not, so bounds-based Slice shape inference can
+    // resolve `stop` and keep the output static when the data shape is static.
     Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
-    stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
+    stop_neg = make_shared<v0::Convert>(stop_neg, size.get_element_type());
 
     // select the correct stop value based on a sign of size value
     auto negative_sizes_mask = make_shared<v1::Less>(size, const_zero);
