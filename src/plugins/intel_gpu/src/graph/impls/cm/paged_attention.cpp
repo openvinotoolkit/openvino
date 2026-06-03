@@ -139,8 +139,6 @@ public:
         const auto past_lens = read_i32_input(params, PagedAttentionInputIdx::PAST_LENS);
         const auto block_indices_begins = read_i32_input(instance, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
 
-        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED && m_mixed_route_mode == MixedRouteMode::SPLIT;
-
         size_t total_wg_count = 0;
         size_t max_q_block_pad = 0;
         size_t max_merged_q_blocks = 0;
@@ -168,15 +166,6 @@ public:
 
         for (size_t i = 0; i + 1 < subsequence_begins.size(); ++i) {
             const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[i + 1] - subsequence_begins[i], 0));
-            if (q_len == 0)
-                continue;
-
-            if (use_split_mixed) {
-                const auto past_len = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
-                const bool decode_subseq = (q_len == 1) && (past_len > 0);
-                if (decode_subseq)
-                    continue;
-            }
 
             const auto past_len_s = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
             const size_t kv_len = past_len_s + q_len;

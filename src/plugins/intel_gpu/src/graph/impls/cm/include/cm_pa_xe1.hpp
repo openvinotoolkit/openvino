@@ -375,17 +375,6 @@ void pa_kernel_lsc_prefetch_f16(
     rO = 0;  // Initialize to prevent NaN from uninitialized values
     bool first_active = true;
 
-#if SPARSE_BLOCK_SIZE > 1
-    const int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
-    auto skip_by = [&](const bool* base, int kv_pos) -> bool {
-        if (sb_shift < 0) return false;
-        if (!base) return false;
-        return !base[(uint)kv_pos >> sb_shift];
-    };
-
-    auto skip_compute = [&](int kv_pos) { return skip_by((const bool*)sparse_mask_base, kv_pos); };
-#endif
-
     // clamp per-tile valid query tokens to [0, q_step]
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
@@ -454,6 +443,7 @@ void pa_kernel_lsc_prefetch_f16(
 
             auto skip_compute = [&](int pos) -> bool {
                 if (sb_shift < 0) return false;
+                if (!sparse_mask_base) return false;
                 return !*(reinterpret_cast<bool*>(sparse_mask_base) + ((uint)pos >> sb_shift));
             };
 
