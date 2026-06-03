@@ -95,7 +95,8 @@ ov::pass::TransposeFQ::TransposeFQ() {
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
-        auto transpose_order = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_order_m).get_node_shared_ptr());
+        auto transpose_order =
+            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_order_m).get_node_shared_ptr());
         if (!transpose_order || !fq)
             return false;
 
