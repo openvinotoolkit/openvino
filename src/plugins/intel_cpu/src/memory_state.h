@@ -162,6 +162,10 @@ public:
         m_scale_zp = t;
     }
 
+    const ov::Extensions::Cpu::CacheSpec& get_spec() const {
+        return m_spec;
+    }
+
 private:
     // ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
@@ -179,8 +183,6 @@ private:
     // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
     PlainTensor m_scale_zp;
     ov::Extensions::Cpu::CacheSpec m_spec;
-    bool m_quant_by_channel = false;
-    size_t m_group_size = 0;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

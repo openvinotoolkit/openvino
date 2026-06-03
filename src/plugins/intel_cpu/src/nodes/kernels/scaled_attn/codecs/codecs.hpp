@@ -43,7 +43,7 @@ namespace ov::Extensions::Cpu::XARCH {
 
 // Read a T from a possibly-unaligned byte pointer. Compiles to a single mov.
 template <typename T>
-static inline T read_as(const uint8_t* p) {
+inline T read_as(const uint8_t* p) {
     T v{};
     std::memcpy(&v, p, sizeof(T));
     return v;
@@ -54,7 +54,7 @@ using i32 = simd::i32;
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 // 4-bit nibble unpack (SSE2): TBQ packing order. Returns raw __m128i.
-static inline __m128i unpack_4bit_nibbles(const uint8_t* packed) {
+inline __m128i unpack_4bit_nibbles(const uint8_t* packed) {
     const __m128i nibble_mask = _mm_set1_epi8(0x0F);
     __m128i p = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(packed));
     return _mm_unpacklo_epi8(_mm_and_si128(p, nibble_mask), _mm_and_si128(_mm_srli_epi16(p, 4), nibble_mask));
@@ -64,7 +64,7 @@ static inline __m128i unpack_4bit_nibbles(const uint8_t* packed) {
 // 4-bit unpack returning vec<int32_t>. Works for all ISAs.
 // bit_offset: sub-byte starting bit (0 for SIMD, 0 or 4 for scalar).
 template <simd::isa i = simd::active_isa>
-static inline simd::vec<int32_t, i> unpack_4bit(const uint8_t* packed, int bit_offset = 0) {
+inline simd::vec<int32_t, i> unpack_4bit(const uint8_t* packed, int bit_offset = 0) {
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
     if constexpr (i != simd::isa::scalar) {
         (void)bit_offset;
@@ -79,10 +79,10 @@ static inline simd::vec<int32_t, i> unpack_4bit(const uint8_t* packed, int bit_o
 // 3-bit unpack: AVX-512 unpacks 2 groups (16 indices), AVX2 unpacks 1 group (8),
 // scalar unpacks 1 index.
 template <simd::isa i>
-static inline simd::vec<int32_t, i> unpack_3bit(const uint8_t* packed,
-                                                simd::vec<int32_t, i> shifts,
-                                                simd::vec<int32_t, i> mask7,
-                                                int bit_offset = 0) {
+inline simd::vec<int32_t, i> unpack_3bit(const uint8_t* packed,
+                                         simd::vec<int32_t, i> shifts,
+                                         simd::vec<int32_t, i> mask7,
+                                         int bit_offset = 0) {
     if constexpr (i == simd::isa::avx512) {
         auto w0 = static_cast<int32_t>(read_as<uint32_t>(packed));
         auto w1 = static_cast<int32_t>(read_as<uint32_t>(packed + 3));
@@ -95,10 +95,10 @@ static inline simd::vec<int32_t, i> unpack_3bit(const uint8_t* packed,
 
 // 2-bit unpack.
 template <simd::isa i>
-static inline simd::vec<int32_t, i> unpack_2bit(const uint8_t* packed,
-                                                simd::vec<int32_t, i> shifts,
-                                                simd::vec<int32_t, i> mask3,
-                                                int bit_offset = 0) {
+inline simd::vec<int32_t, i> unpack_2bit(const uint8_t* packed,
+                                         simd::vec<int32_t, i> shifts,
+                                         simd::vec<int32_t, i> mask3,
+                                         int bit_offset = 0) {
     if constexpr (i == simd::isa::avx512) {
         auto w = read_as<uint32_t>(packed);
         return srlv(simd::vec<int32_t, i>{static_cast<int32_t>(w)}, shifts) & mask3;
@@ -110,7 +110,7 @@ static inline simd::vec<int32_t, i> unpack_2bit(const uint8_t* packed,
 
 // Per-token magnitude scale (norm / sqrt(dim)) for a TurboQ record.
 // Norm is carried in a parallel meta-data tensor (no longer inline in the packed record).
-static inline float turboq_norm_scale(float norm, int dim) {
+inline float turboq_norm_scale(float norm, int dim) {
     return norm / std::sqrt(static_cast<float>(dim));
 }
 

@@ -25,7 +25,8 @@ void turboq_quantize_head(const void* src,
                           int head_dim,
                           int bits,
                           ov::element::Type src_precision,
-                          float* ws);
+                          float* ws,
+                          const float* signs);
 
 // Quantize a full cache tensor (K or V) using TurboQuant.
 // Writes packed indices to dst and per-head fp32 norm to meta_data[b, h, L0+l, 0].
@@ -38,6 +39,7 @@ void turboq_quantize(const ov::intel_cpu::PlainTensor& cur,
                      size_t L0,
                      int bits,
                      const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
-                     ov::Extensions::Cpu::StridedData<float> ws);
+                     ov::Extensions::Cpu::StridedData<float> ws,
+                     const ov::intel_cpu::PlainTensor& signs);
 
 }  // namespace ov::Extensions::Cpu::XARCH

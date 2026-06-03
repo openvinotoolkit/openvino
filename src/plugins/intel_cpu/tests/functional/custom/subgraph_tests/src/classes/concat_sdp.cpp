@@ -23,6 +23,23 @@
 namespace ov {
 namespace test {
 
+// Subgraph:
+/*                            Parameter
+ *                                |
+ *       Parameter    ReadValue   |    ReadValue  Parameter
+ *           \           /        |       \          /
+ *         Gather       /               Gather      /
+ *             \       /          |         \      /
+ *               Concat           |          Concat
+ *                / \             |            / \
+ *               /   \            |           /   \
+ *              /     \           |          /     \
+ *          Assign     ScaledDotProductAttention  Assign
+ *                                |
+ *                               Add
+ *                                |
+ *                              Result
+ */
 std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
     const auto& [inType, inputShapes, cacheCfg, hasShapeOf, headNumQ, headNumKV] = obj.param;
     std::ostringstream result;
@@ -83,8 +100,7 @@ void ConcatSDPTest::SetUp() {
     const bool is_u4 = has_value("KEY_CACHE_PRECISION", "u4") || has_value("VALUE_CACHE_PRECISION", "u4");
     const bool is_u8 = has_value("KEY_CACHE_PRECISION", "u8") || has_value("VALUE_CACHE_PRECISION", "u8");
     const bool is_tbq = has_value("KEY_CACHE_QUANT_ALG", "TURBO") ||
-                        has_value("VALUE_CACHE_QUANT_ALG", "TURBO") ||
-                        has_value("KV_CACHE_QUANT_ALG", "TURBO");
+                        has_value("VALUE_CACHE_QUANT_ALG", "TURBO");
     rel_threshold = 1e-2F;
     abs_threshold = 1e-3F;
     if (is_u4 && is_tbq) {
@@ -130,6 +146,11 @@ void ConcatSDPTest::SetUp() {
         pastv, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {}, {0}));
 
     std::shared_ptr<Node> shapeof_k, shapeof_v;
+    // test special case:
+    // ReadValue->Gather->Concat->SDPA...
+    //              |
+    //            ShapeOf...
+    // The transformation 'SimplifyGatherShapeOf' will move ShapeOf to be the child of ReadValue
     if (m_hasShapeOf) {
         shapeof_k = std::make_shared<ov::op::v0::ShapeOf>(gatherK);
         shapeof_v = std::make_shared<ov::op::v0::ShapeOf>(gatherV);
@@ -261,8 +282,7 @@ void ConcatSDPTest::run() {
     // config keys so reference runs full-precision; keeps quant noise on actual side only.
     auto ref_config = configuration;
     for (const auto& key : {"KEY_CACHE_PRECISION", "VALUE_CACHE_PRECISION",
-                            "KEY_CACHE_QUANT_ALG", "VALUE_CACHE_QUANT_ALG",
-                            "KV_CACHE_QUANT_ALG"}) {
+                            "KEY_CACHE_QUANT_ALG", "VALUE_CACHE_QUANT_ALG"}) {
         ref_config.erase(key);
     }
     auto expected = run_test(functionRefs, ref_config);

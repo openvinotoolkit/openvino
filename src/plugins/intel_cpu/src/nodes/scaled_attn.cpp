@@ -70,6 +70,7 @@
 #include "kernels/scaled_attn/attn_quant.hpp"
 #include "kernels/scaled_attn/codecs/codec_kernels.hpp"
 #include "kernels/scaled_attn/codecs/turboq_quantize.hpp"
+#include "kernels/scaled_attn/codecs/turboq_rotation.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
@@ -87,32 +88,25 @@ static bool is_quantized_cache(ov::element::Type prec) {
     return prec == ov::element::u8 || prec == ov::element::u4;
 }
 
-static inline bool is_turbo(ov::internal::CacheQuantAlgorithm alg) {
-    return alg == ov::internal::CacheQuantAlgorithm::TURBO;
-}
-
 // Compress and write cur tensor into the KV cache (dst) at position L0.
 // Handles encoded (TurboQ), quantized (u8/u4 with scale/zp), or raw (f32/f16/bf16 memcpy).
 // ws: per-thread f32 scratch for the codec path.
 static void compress_cache(const PlainTensor& cur,
                            PlainTensor& dst,
                            size_t L0,
-                           ov::element::Type quant_precision,
+                           const ov::Extensions::Cpu::CacheSpec& spec,
                            PlainTensor& scale_zp,
                            PlainTensor& meta_data,
-                           size_t group_size,
-                           bool quant_by_channel,
                            const CpuParallelPtr& cpu_parallel,
-                           bool is_codec = false,
-                           int bits = 0,
-                           ov::Extensions::Cpu::StridedData<float> ws = {nullptr, 0}) {
-    if (is_codec) {
-        turboq_quantize(cur, dst, meta_data, L0, bits, cpu_parallel, ws);
-    } else if (is_quantized_cache(quant_precision)) {
-        if (quant_by_channel) {
-            attn_quant_by_channel(cur, dst, scale_zp, L0, group_size, cpu_parallel);
+                           ov::Extensions::Cpu::StridedData<float> ws = {nullptr, 0},
+                           const PlainTensor& signs = {}) {
+    if (spec.alg == ov::internal::CacheQuantAlgorithm::TURBO) {
+        turboq_quantize(cur, dst, meta_data, L0, static_cast<int>(spec.precision.bitwidth()), cpu_parallel, ws, signs);
+    } else if (is_quantized_cache(spec.precision)) {
+        if (spec.by_channel) {
+            attn_quant_by_channel(cur, dst, scale_zp, L0, spec.group_size, cpu_parallel);
         } else {
-            attn_quant_by_token(cur, dst, scale_zp, L0, group_size, cpu_parallel);
+            attn_quant_by_token(cur, dst, scale_zp, L0, spec.group_size, cpu_parallel);
         }
     } else {
         attn_memcpy2d(cur, dst, L0, cpu_parallel);
@@ -1436,7 +1430,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                  float* per_thread_head_scratch,
                  size_t per_thread_head_stride,
                  const PlainTensor& k_quant_meta_data,
-                 const PlainTensor& v_quant_meta_data) override {
+                 const PlainTensor& v_quant_meta_data,
+                 const PlainTensor& wht_signs) override {
         bool has_in_reshape = config.config.input_BLHxS;
         bool has_out_transpose = config.config.output_BLHxS;
         bool fuse_causal_attn = config.config.fuse_causal_attn;
@@ -1529,12 +1524,12 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             k_input.assert_dims({B, Hk, L0 + L1, S});
             v_input.assert_dims({B, Hk, L0 + L1, SV});
         }
-        const bool k_has_codec = is_turbo(k_param.alg);
-        const bool v_has_codec = is_turbo(v_param.alg);
-        if (!k_has_codec) {
+        const bool k_is_turboq = k_param.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+        const bool v_is_turboq = v_param.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+        if (!k_is_turboq) {
             present_key.assert_dims({B, Hk, L0 + L1, S});
         }
-        if (!v_has_codec) {
+        if (!v_is_turboq) {
             present_value.assert_dims({B, Hk, L0 + L1, SV});
         }
         if (beam_table) {
@@ -1629,7 +1624,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                              per_thread_head_scratch,
                              per_thread_head_stride,
                              k_quant_meta_data,
-                             v_quant_meta_data);
+                             v_quant_meta_data,
+                             wht_signs);
             } else {
                 kernel_single_token(q_input,
                                     present_key,
@@ -1850,8 +1846,8 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     const auto valueDims = getInputShapeAtPort(2).getDims();
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
-    const bool is_turbo_key = is_turbo(cpuConfig.keyCacheQuantAlg);
-    const bool is_turbo_value = is_turbo(cpuConfig.valueCacheQuantAlg);
+    const bool is_turbo_key = cpuConfig.keyCacheQuantAlg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const bool is_turbo_value = cpuConfig.valueCacheQuantAlg == ov::internal::CacheQuantAlgorithm::TURBO;
     if (is_turbo_key || is_turbo_value) {
         if (is_turbo_key) {
             CPU_NODE_ASSERT(any_of(keyCachePrecision, ov::element::u3, ov::element::u4),
@@ -2025,10 +2021,10 @@ void ScaledDotProductAttention::createPrimitive() {
     // For fuse_concat=true the cache is the internal state with quantization per config.
     // Without fuse_concat the cache is the raw K/V input — use rtPrecision to decode it,
     // since cpuConfig.{key,value}CachePrecision only describes the internal state.
-    if (!is_turbo(m_key_spec.alg)) {
+    if (m_key_spec.alg != ov::internal::CacheQuantAlgorithm::TURBO) {
         m_key_spec.precision = m_config.config.fuse_concat ? getKeyCachePrecision() : rtPrecision;
     }
-    if (!is_turbo(m_value_spec.alg)) {
+    if (m_value_spec.alg != ov::internal::CacheQuantAlgorithm::TURBO) {
         m_value_spec.precision = m_config.config.fuse_concat ? getValueCachePrecision() : rtPrecision;
     }
 
@@ -2109,16 +2105,19 @@ void ScaledDotProductAttention::createPrimitive() {
     m_executor = result.first;
 
     // Per-thread f32 workspace of one head_dim row — reused across codec stages:
-    //   Q bf16/f16→f32 conversion (QK path), unit vector + in-place WHT rotation (quantize path).
-    // WHT rotation aliases src==dst; quantize+pack reads from same buffer inline.
-    // Sized to max(K,V) head_dim; allocated whenever either side is TURBO.
-    if (is_turbo(m_key_spec.alg) || is_turbo(m_value_spec.alg)) {
-        const auto nthr = static_cast<size_t>(parallel_get_max_threads());
+    if (m_key_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO ||
+        m_value_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO) {
+        const auto nthr = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
         const auto k_head_dim = *(keyDims.end() - 1);
         const auto v_head_dim = *(valueDims.end() - 1);
         const auto head_dim = std::max(k_head_dim, v_head_dim);
         const auto desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{VectorDims{nthr, head_dim}});
         m_per_thread_head_scratch = getScratchPadMem(desc);
+
+        // Precompute WHT sign vector once. Hot path reads m_wht_signs.
+        m_wht_signs.resize<float>({head_dim});
+        const auto* src = ov::Extensions::Cpu::turboq_get_wht_signs(static_cast<int>(head_dim));
+        std::copy(src, src + head_dim, m_wht_signs.ptr<float>());
     }
 }
 
@@ -2171,7 +2170,8 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
                         per_thread_head_scratch,
                         per_thread_head_stride,
                         m_k_quant_meta_data,
-                        m_v_quant_meta_data);
+                        m_v_quant_meta_data,
+                        m_wht_signs);
 }
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -2346,21 +2346,21 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     // 2. resize pastkv
     const ov::element::Type k_kvcache_precision = m_k_state->internal_desc()->getPrecision();
     const ov::element::Type v_kvcache_precision = m_v_state->internal_desc()->getPrecision();
-    const bool is_k_codec = is_turbo(m_key_spec.alg);
-    const bool is_v_codec = is_turbo(m_value_spec.alg);
-    const int k_bits = is_k_codec ? static_cast<int>(m_key_spec.precision.bitwidth()) : 0;
-    const int v_bits = is_v_codec ? static_cast<int>(m_value_spec.precision.bitwidth()) : 0;
-    const size_t S_cache = is_k_codec ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(S), k_bits) : S;
+    const bool is_k_turboq = m_key_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const bool is_v_turboq = m_value_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const int k_bits = is_k_turboq ? static_cast<int>(m_key_spec.precision.bitwidth()) : 0;
+    const int v_bits = is_v_turboq ? static_cast<int>(m_value_spec.precision.bitwidth()) : 0;
+    const size_t S_cache = is_k_turboq ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(S), k_bits) : S;
     const size_t SV_cache =
-        is_v_codec ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(SV), v_bits) : SV;
+        is_v_turboq ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(SV), v_bits) : SV;
     // Save old meta-data before resize so we can beam-reorder+copy into the new buffer.
     PlainTensor old_k_meta_data = m_k_quant_meta_data;
     PlainTensor old_v_meta_data = m_v_quant_meta_data;
-    if (is_k_codec) {
+    if (is_k_turboq) {
         m_k_quant_meta_data = PlainTensor{};
         m_k_quant_meta_data.resize<float>({B, H, L0 + L1, 1});
     }
-    if (is_v_codec) {
+    if (is_v_turboq) {
         m_v_quant_meta_data = PlainTensor{};
         m_v_quant_meta_data.resize<float>({B, H, L0 + L1, 1});
     }
@@ -2386,24 +2386,24 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             old_past_k = old_past_k.permute(order);
             old_past_v = old_past_v.permute(order);
             const size_t k_row_bytes =
-                is_k_codec ? S_cache : S * old_past_k.m_element_size / old_past_k.m_sub_byte_multiplier;
+                is_k_turboq ? S_cache : S * old_past_k.m_element_size / old_past_k.m_sub_byte_multiplier;
             const size_t v_row_bytes =
-                is_v_codec ? SV_cache : SV * old_past_v.m_element_size / old_past_v.m_sub_byte_multiplier;
+                is_v_turboq ? SV_cache : SV * old_past_v.m_element_size / old_past_v.m_sub_byte_multiplier;
             cpu_parallel->parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
                 auto idx = static_cast<size_t>(table[b]);
                 auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
                 memcpy(&new_pastk.at<char>({b, h, m}), &old_past_k.at<char>({b_kv, h, m}), k_row_bytes);
                 memcpy(&new_pastv.at<char>({b, h, m}), &old_past_v.at<char>({b_kv, h, m}), v_row_bytes);
-                if (is_k_codec) {
+                if (is_k_turboq) {
                     *m_k_quant_meta_data.ptr<float>(b, h, m) = *old_k_meta_data.ptr<float>(b_kv, h, m);
                 }
-                if (is_v_codec) {
+                if (is_v_turboq) {
                     *m_v_quant_meta_data.ptr<float>(b, h, m) = *old_v_meta_data.ptr<float>(b_kv, h, m);
                 }
             });
         }
-        const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_codec;
-        const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_codec;
+        const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_turboq;
+        const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_turboq;
         if (need_k_szp || need_v_szp) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
@@ -2493,27 +2493,21 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         compress_cache(cur_k,
                        new_pastk,
                        L0,
-                       k_kvcache_precision,
+                       m_key_spec,
                        k_scale_zp,
                        m_k_quant_meta_data,
-                       m_key_spec.group_size,
-                       m_key_spec.by_channel,
                        cpu_parallel,
-                       is_k_codec,
-                       k_bits,
-                       ws);
+                       ws,
+                       m_wht_signs);
         compress_cache(cur_v,
                        new_pastv,
                        L0,
-                       v_kvcache_precision,
+                       m_value_spec,
                        v_scale_zp,
                        m_v_quant_meta_data,
-                       m_value_spec.group_size,
-                       false,
                        cpu_parallel,
-                       is_v_codec,
-                       v_bits,
-                       ws);
+                       ws,
+                       m_wht_signs);
 
         m_k_state->assign_internal_state(new_internal_mem_k);
         m_v_state->assign_internal_state(new_internal_mem_v);
@@ -2764,13 +2758,13 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     // resize buffer
     const ov::element::Type k_kvcache_precision = m_k_state->internal_desc()->getPrecision();
     const ov::element::Type v_kvcache_precision = m_v_state->internal_desc()->getPrecision();
-    const bool is_k_codec = is_turbo(m_key_spec.alg);
-    const bool is_v_codec = is_turbo(m_value_spec.alg);
-    const int k_bits = is_k_codec ? static_cast<int>(m_key_spec.precision.bitwidth()) : 0;
-    const int v_bits = is_v_codec ? static_cast<int>(m_value_spec.precision.bitwidth()) : 0;
-    const size_t S_cache = is_k_codec ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(S), k_bits) : S;
+    const bool is_k_turboq = m_key_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const bool is_v_turboq = m_value_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const int k_bits = is_k_turboq ? static_cast<int>(m_key_spec.precision.bitwidth()) : 0;
+    const int v_bits = is_v_turboq ? static_cast<int>(m_value_spec.precision.bitwidth()) : 0;
+    const size_t S_cache = is_k_turboq ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(S), k_bits) : S;
     const size_t SV_cache =
-        is_v_codec ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(SV), v_bits) : SV;
+        is_v_turboq ? ov::Extensions::Cpu::XARCH::turboq_head_bytes(static_cast<int>(SV), v_bits) : SV;
     // Grow the norm buffer if needed; preserve old content for L0 tokens so subsequent
     // decodes see the correct norms (this path grows in place, no beam reorder).
     auto grow_meta_data = [&](PlainTensor& meta_data) {
@@ -2788,10 +2782,10 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             }
         }
     };
-    if (is_k_codec) {
+    if (is_k_turboq) {
         grow_meta_data(m_k_quant_meta_data);
     }
-    if (is_v_codec) {
+    if (is_v_turboq) {
         grow_meta_data(m_v_quant_meta_data);
     }
     bool need_redefine = true;
@@ -2824,8 +2818,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         m_v_state->assign_internal_state(new_internal_mem_v);
         m_k_state->assign_internal_state_max_size(2 * (L0 + L1) * B * H * S_cache);
         m_v_state->assign_internal_state_max_size(2 * (L0 + L1) * B * H * SV_cache);
-        const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_codec;
-        const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_codec;
+        const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_turboq;
+        const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_turboq;
         if (need_k_szp || need_v_szp) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
@@ -2898,8 +2892,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         };
         internal_mem_k->redefineDesc(reset_desc(k_kvcache_precision, S_cache));
         internal_mem_v->redefineDesc(reset_desc(v_kvcache_precision, SV_cache));
-        if ((is_quantized_cache(k_kvcache_precision) || is_quantized_cache(v_kvcache_precision)) && !is_k_codec &&
-            !is_v_codec) {
+        if ((is_quantized_cache(k_kvcache_precision) || is_quantized_cache(v_kvcache_precision)) && !is_k_turboq &&
+            !is_v_turboq) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             // only dim0, dim1 need change
@@ -2956,57 +2950,29 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             compress_cache(init_k,
                            past_k,
                            0,
-                           k_kvcache_precision,
+                           m_key_spec,
                            k_scale_zp,
                            m_k_quant_meta_data,
-                           m_key_spec.group_size,
-                           m_key_spec.by_channel,
                            cpu_parallel,
-                           is_k_codec,
-                           k_bits,
-                           ws0);
+                           ws0,
+                           m_wht_signs);
             compress_cache(init_v,
                            past_v,
                            0,
-                           v_kvcache_precision,
+                           m_value_spec,
                            v_scale_zp,
                            m_v_quant_meta_data,
-                           m_value_spec.group_size,
-                           false,
                            cpu_parallel,
-                           is_v_codec,
-                           v_bits,
-                           ws0);
+                           ws0,
+                           m_wht_signs);
         }
     }
 
     auto k_scale_zp = m_k_state->get_scale_zp();
     auto v_scale_zp = m_v_state->get_scale_zp();
     auto ws = get_per_thread_scratch();
-    compress_cache(cur_k,
-                   past_k,
-                   L0,
-                   k_kvcache_precision,
-                   k_scale_zp,
-                   m_k_quant_meta_data,
-                   m_key_spec.group_size,
-                   m_key_spec.by_channel,
-                   cpu_parallel,
-                   is_k_codec,
-                   k_bits,
-                   ws);
-    compress_cache(cur_v,
-                   past_v,
-                   L0,
-                   v_kvcache_precision,
-                   v_scale_zp,
-                   m_v_quant_meta_data,
-                   m_value_spec.group_size,
-                   false,
-                   cpu_parallel,
-                   is_v_codec,
-                   v_bits,
-                   ws);
+    compress_cache(cur_k, past_k, L0, m_key_spec, k_scale_zp, m_k_quant_meta_data, cpu_parallel, ws, m_wht_signs);
+    compress_cache(cur_v, past_v, L0, m_value_spec, v_scale_zp, m_v_quant_meta_data, cpu_parallel, ws, m_wht_signs);
 }
 
 static ov::element::Type side_cache_precision(bool is_turbo,
@@ -3029,7 +2995,10 @@ ov::element::Type ScaledDotProductAttention::getKeyCachePrecision() {
     const auto valueHint = context->getConfig().valueCachePrecision;
     const bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
                                    rtPrecision != ov::element::bf16 && all_of(ov::element::f16, keyHint, valueHint);
-    return side_cache_precision(is_turbo(m_key_spec.alg), keyHint, rtPrecision, enableKVCacheFP16);
+    return side_cache_precision(m_key_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO,
+                                keyHint,
+                                rtPrecision,
+                                enableKVCacheFP16);
 }
 
 ov::element::Type ScaledDotProductAttention::getValueCachePrecision() {
@@ -3038,7 +3007,10 @@ ov::element::Type ScaledDotProductAttention::getValueCachePrecision() {
     const auto valueHint = context->getConfig().valueCachePrecision;
     const bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
                                    rtPrecision != ov::element::bf16 && all_of(ov::element::f16, keyHint, valueHint);
-    return side_cache_precision(is_turbo(m_value_spec.alg), valueHint, rtPrecision, enableKVCacheFP16);
+    return side_cache_precision(m_value_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO,
+                                valueHint,
+                                rtPrecision,
+                                enableKVCacheFP16);
 }
 
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {

@@ -393,19 +393,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::value_cache_precision.name(),
                                ". Supported values: u3, u4, u8, bf16, f16, f32");
             }
-        } else if (key == ov::internal::kv_cache_quant_alg.name()) {
-            auto alg = val.as<ov::internal::CacheQuantAlgorithm>();
-            keyCacheQuantAlg = alg;
-            valueCacheQuantAlg = alg;
-            if (alg == ov::internal::CacheQuantAlgorithm::TURBO) {
-                // TBQ: bits derived from precision (u3→3, u4→4). Default u4 if unset.
-                if (!keyCachePrecisionSetExplicitly) {
-                    keyCachePrecision = ov::element::u4;
-                }
-                if (!valueCachePrecisionSetExplicitly) {
-                    valueCachePrecision = ov::element::u4;
-                }
-            }
         } else if (key == ov::internal::key_cache_quant_alg.name()) {
             auto alg = val.as<ov::internal::CacheQuantAlgorithm>();
             keyCacheQuantAlg = alg;

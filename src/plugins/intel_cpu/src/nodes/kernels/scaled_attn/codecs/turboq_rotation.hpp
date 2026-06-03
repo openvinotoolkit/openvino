@@ -78,17 +78,5 @@ inline void turboq_wht_inverse(const float* signs, float* y, T* x, int dim) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Rotation entry points — thin wrappers over WHT with cached signs.
-// ---------------------------------------------------------------------------
-inline void turboq_rotate_forward(const float* src, float* dst, int dim) {
-    turboq_wht_forward(turboq_get_wht_signs(dim), src, dst, dim);
-}
-
-template <typename T = float>
-inline void turboq_rotate_inverse(float* src, T* dst, int dim) {
-    turboq_wht_inverse(turboq_get_wht_signs(dim), src, dst, dim);
-}
-
 }  // namespace XARCH
 }  // namespace ov::Extensions::Cpu
