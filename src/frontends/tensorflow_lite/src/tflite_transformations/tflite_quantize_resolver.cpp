@@ -210,7 +210,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             tfl_quantize->output(0).replace(output);
             return true;
         }
-        if (in_type != element::f32) {
+        if (!in_type.is_real()) {
             output = make_shared<v0::Convert>(output, element::f32);
         }
 
@@ -225,9 +225,9 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
 
         Output<Node> input_low, input_high, output_low, output_high;
 
-        if (out_type != element::f32) {
+        if (!out_type.is_real()) {
             /*
-                Quantize case when it must provide non-float32 output
+                Quantize case when it must provide non-float output
                 Calculating default values for input/output low/high (example calculations for int8):
                 output_low = lower bound for original type (-128)
                 output_high = upper bound for original type (127)
@@ -239,9 +239,9 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
             input_high =
                 std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
-        } else if (in_type != element::f32) {
+        } else if (!in_type.is_real()) {
             /*
-                Dequantize case when it must accept non-float32 input
+                Dequantize case when it must accept non-float input
                 Calculating default values for input/output low/high (example calculations for int8):
                 input_low = lower bound for original type (-128)
                 input_high = upper bound for original type (127)
@@ -255,7 +255,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
                 std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_high, zp_node), scale_node);
         } else {
             /*
-                Requantize (QDQ) case when it accepts float32 for input and output
+                Requantize (QDQ) case when both input and output are real (float) types
                 Calculating default values for input/output low/high (example calculations for int8):
                 input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
                 input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
