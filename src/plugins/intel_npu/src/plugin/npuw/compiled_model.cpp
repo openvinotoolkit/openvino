@@ -43,6 +43,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace {
@@ -341,6 +342,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
+
+    ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 

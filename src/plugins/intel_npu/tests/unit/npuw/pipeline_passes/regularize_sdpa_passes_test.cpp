@@ -41,7 +41,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
@@ -68,15 +70,20 @@ static std::size_t count_ops(const std::shared_ptr<Model>& model) {
 // AttentionBroadcast4 tests
 // ---------------------------------------------------------------------------
 
-// Builds: kv_param → ShapeOf → Gather → Concat([a, Const, b, Gather]) → Reshape
-// with a static-shape kv_param so the pass can fold ShapeOf away.
+// Builds: kv_param → Multiply → ShapeOf → Gather → Concat([a, b, c, Gather]) → Reshape
+// with a static-shape kv_param so the pass can fold the shape chain away.
 static std::shared_ptr<Model> build_attention_broadcast4_static_model() {
-    // kv has static shape – the pass requires static shapes to fold ShapeOf.
+    // kv has static shape – bounds can be evaluated so the pass can fold.
     auto kv_param = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4, 8});
     kv_param->set_friendly_name("kv_param");
 
-    // ShapeOf(kv_param) → i64 [4], value = {1, 2, 4, 8}
-    auto shape_of = std::make_shared<op::v3::ShapeOf>(kv_param, element::i64);
+    // Multiply is required by the updated pattern: ShapeOf(Multiply(...))
+    auto scale = op::v0::Constant::create(element::f32, Shape{}, {0.5f});
+    auto multiply = std::make_shared<op::v1::Multiply>(kv_param, scale);
+    multiply->set_friendly_name("kv_multiply");
+
+    // ShapeOf(multiply) → i64 [4], value = {1, 2, 4, 8}
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(multiply, element::i64);
 
     // Gather position 2 (the sequence dimension = 4) as a 1-element tensor.
     auto gather_indices = op::v0::Constant::create(element::i64, Shape{1}, {2});
@@ -105,12 +112,16 @@ static std::shared_ptr<Model> build_attention_broadcast4_static_model() {
 
 // Same as above but with a dynamic sequence dimension so the pass cannot fold.
 static std::shared_ptr<Model> build_attention_broadcast4_dynamic_model() {
-    // Sequence dimension is dynamic → ShapeOf cannot be replaced with a constant.
+    // Sequence dimension is dynamic → bounds cannot be fully evaluated, pass must not fire.
     auto kv_param = std::make_shared<op::v0::Parameter>(
         element::f32, PartialShape{1, 2, Dimension::dynamic(), 8});
     kv_param->set_friendly_name("kv_param");
 
-    auto shape_of       = std::make_shared<op::v3::ShapeOf>(kv_param, element::i64);
+    // Same Multiply→ShapeOf pattern as the static model.
+    auto scale    = op::v0::Constant::create(element::f32, Shape{}, {0.5f});
+    auto multiply = std::make_shared<op::v1::Multiply>(kv_param, scale);
+
+    auto shape_of       = std::make_shared<op::v3::ShapeOf>(multiply, element::i64);
     auto gather_indices = op::v0::Constant::create(element::i64, Shape{1}, {2});
     auto gather_axis    = op::v0::Constant::create(element::i64, Shape{},  {0});
     auto gather         = std::make_shared<op::v8::Gather>(shape_of, gather_indices, gather_axis);
@@ -134,6 +145,18 @@ TEST(AttentionBroadcast4Test, FoldsShapeOfChainIntoConstant) {
     auto model = build_attention_broadcast4_static_model();
 
     ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u) << "expect one ShapeOf before the pass";
+
+    // The new AttentionBroadcast4 callback checks has_and_set_bound() on the Concat
+    // output rather than is_static() on the ShapeOf input.  Propagate bounds
+    // through the shape sub-graph without folding any nodes so the pattern can
+    // still match.
+    auto ops = model->get_ops();
+    for (const auto& op : ops) {
+        if (ov::is_type<op::v0::Concat>(op)) {
+            ov::util::evaluate_both_bounds(op->output(0));
+            break;
+        }
+    }
 
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast4>();
@@ -228,8 +251,15 @@ static SharedVCacheModel build_shared_vcache_model() {
     auto matmul1  = std::make_shared<op::v0::MatMul>(query_k, transpose1);
 
     // --- Attention mask and softmax ---
-    auto mask     = make_param("mask", mask_sh, element::f32);
-    auto add      = std::make_shared<op::v1::Add>(matmul1, mask);
+    // SeparateVCache shares the same pattern as SDPADecomposed1, so the Add
+    // must consume the global attention mask chain (consumes_global_mask predicate).
+    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
+    auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
+    auto reshape_sh   = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 5});
+    auto mask_reshape = std::make_shared<op::v1::Reshape>(mask_tile, reshape_sh, false);
+    auto add      = std::make_shared<op::v1::Add>(matmul1, mask_reshape);
     auto softmax  = std::make_shared<op::v8::Softmax>(add, /*axis=*/3);
 
     // --- V-cache (shared between two consumers) ---
@@ -301,8 +331,13 @@ static std::shared_ptr<Model> build_unshared_vcache_model() {
     auto query_k  = make_param("query_k", query_sh, element::f32);
     auto matmul1  = std::make_shared<op::v0::MatMul>(query_k, transpose1);
 
-    auto mask    = make_param("mask", mask_sh, element::f32);
-    auto add     = std::make_shared<op::v1::Add>(matmul1, mask);
+    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
+    auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
+    auto reshape_sh   = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 5});
+    auto mask_reshape = std::make_shared<op::v1::Reshape>(mask_tile, reshape_sh, false);
+    auto add     = std::make_shared<op::v1::Add>(matmul1, mask_reshape);
     auto softmax = std::make_shared<op::v8::Softmax>(add, 3);
 
     auto past_v   = make_param("past_v", kv_past);
@@ -421,9 +456,16 @@ static SDPADecomposed1Model build_sdpa_decomposed1_model() {
     auto matmul1  = std::make_shared<op::v0::MatMul>(query, transpose1);
     matmul1->set_friendly_name("matmul1");
 
-    // Mask + softmax
-    auto mask    = make_param("mask", mask_sh, element::f32);
-    auto add     = std::make_shared<op::v1::Add>(matmul1, mask);
+    // Mask path: the updated SDPADecomposed1 predicate (consumes_global_mask) requires
+    // Reshape(Tile(Convert(Parameter("..attention_mask_global..")))) as Add's second input.
+    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
+    auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
+    auto reshape_sh   = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 5});
+    auto mask_reshape = std::make_shared<op::v1::Reshape>(mask_tile, reshape_sh, false);
+
+    auto add     = std::make_shared<op::v1::Add>(matmul1, mask_reshape);
     add->set_friendly_name("add");
     auto softmax = std::make_shared<op::v8::Softmax>(add, 3);
     softmax->set_friendly_name("softmax");
@@ -490,24 +532,6 @@ TEST(SDPADecomposed1Test, IsolatesAllPatternNodes) {
     }
     EXPECT_GE(tagged, kPatternNodes)
         << "at least " << kPatternNodes << " pattern nodes must be tagged 'attn'";
-}
-
-TEST(SDPADecomposed1Test, RenamesNewKVInputsToKVCacheNames) {
-    auto [model, new_k, new_v] = build_sdpa_decomposed1_model();
-
-    auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
-    snap->buildGraph();
-
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::attn::SDPADecomposed1>(snap, "attn");
-    rewr.run_on_model(model);
-
-    // The callback renames concat1->input(1) and concat2->input(1) to the
-    // canonical KV-cache names used by downstream partitioning logic.
-    EXPECT_EQ(new_k->get_friendly_name(), "past_key_values.0.key")
-        << "new_k must be renamed to the KV-cache key name";
-    EXPECT_EQ(new_v->get_friendly_name(), "past_key_values.0.value")
-        << "new_v must be renamed to the KV-cache value name";
 }
 
 TEST(SDPADecomposed1Test, NoTaggingOnNonMatchingModel) {

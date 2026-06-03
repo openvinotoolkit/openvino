@@ -55,6 +55,15 @@ public:
 class SDPADecomposed1 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::SDPADecomposed1");
+    static constexpr const char* pattern_name() {
+        return "SDPADecomposed1";
+    }
+    static constexpr const char* isolation_tag() {
+        return "attn";
+    }
+    static constexpr const char* group_name() {
+        return "attn";
+    }
     SDPADecomposed1(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 

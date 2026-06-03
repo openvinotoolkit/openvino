@@ -21,6 +21,7 @@ struct PyramidValidationResult {
     size_t query_length = 0;
     size_t past_kv_length = 0;
     size_t full_context_length = 0;
+    bool data_left_aligned = false;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
 
@@ -69,6 +70,7 @@ struct PyramidAttention {
     std::vector<std::shared_ptr<ov::Model>> _models;
     size_t _query_length = 0;
     size_t _full_context_length = 0;
+    bool _data_left_aligned = false;
 
     // Validation helpers
     bool is_valid() const {
@@ -114,6 +116,8 @@ struct PyramidAttention {
     /// The last pyramid model reuses the already-compiled main subgraph model and
     /// therefore never participates in strided I/O.
     bool _can_use_tensor_view = false;
+
+    bool _data_left_aligned = false;
 
     // Store models temporarily for compilation - cleared after compilation completes in set_compiled_models()
     std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
@@ -194,6 +198,7 @@ class PositionIDs final : public Selector {
     int64_t m_current_length = 0;
     int64_t m_past_length = 0;
     std::size_t m_query_size = 0u;
+    std::size_t m_pyramid_step = 0u;
 
     // Store pyramid attention reference for pyramid model selection
     const compiled::PyramidAttention* m_pyramid_attention = nullptr;

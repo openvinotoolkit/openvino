@@ -110,7 +110,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     } else {
         // PREFILL
         current_context_length = (model_idx + 1) * pyramid_step;
-        current_past_length = current_context_length - query_length;
+        current_past_length = current_context_length - pyramid_step;
     }
     // FIXME: Probably the generic formula for all cases is:
     // current_context_length = (model_idx + 1) * pyramid_step;
@@ -308,9 +308,16 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
+    // Remove this check as we moved to left-alignment
+    bool data_left_aligned = past_key_sequence_dims.begin()->second == 1 &&
+                             past_value_sequence_dims.begin()->second == 3 &&
+                             pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
+                             pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
+
     return PyramidValidationResult{query_length,
                                    past_kv_length,
                                    full_context_length,
+                                   data_left_aligned,
                                    past_key_sequence_dims,
                                    past_value_sequence_dims};
 }
@@ -334,7 +341,8 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     // FIXME: Make it configurable
     // FIXME: Handle the speculative case here (query_length > 1; << 1024)
     bool is_generate = query_length == 1;
-    size_t pyramid_step = is_generate ? 1024u : query_length;
+    size_t kv_step = full_context_length - full_past_kv_length;
+    size_t pyramid_step = is_generate ? 1024u : kv_step;
     // FIXME: Check all the right alignments
     size_t num_models = full_context_length / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
@@ -385,6 +393,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._full_context_length = full_context_length;
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
+    pyramid_attention._data_left_aligned = validation_result->data_left_aligned;
 
     LOG_INFO("Returning pyramid attention with " << pyramid_models.size() << " models");
     LOG_INFO("  Query length: " << pyramid_attention._query_length);
@@ -401,6 +410,7 @@ namespace compiled {
 PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyramid)
     : query_size(func_pyramid._query_length),
       full_context_size(func_pyramid._full_context_length),
+      _data_left_aligned(func_pyramid._data_left_aligned),
       _models_to_compile(func_pyramid._models) {  // Store models for later compilation
     NPUW_ASSERT(func_pyramid._models.size() == func_pyramid._attentions.size());
 
@@ -456,6 +466,7 @@ namespace pyramid_attention {
 PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
       m_query_size(d.query_size),
+      m_pyramid_step(d._context_lengths.empty() ? d.query_size : d._context_lengths[0]),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
@@ -483,13 +494,22 @@ void PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
+    const auto elem_type = in_tensor->get_element_type();
 
+    // Read a single position ID value, handling both i32 and i64 tensors
+    auto get_pos = [&](size_t i) -> int64_t {
+        if (elem_type == ov::element::i64) {
+            return in_tensor->data<int64_t>()[i];
+        } else if (elem_type == ov::element::i32) {
+            return static_cast<int64_t>(in_tensor->data<int32_t>()[i]);
+        }
+        return 0;
+    };
     // Same logic as regular attention PositionIDs
-    auto* pos_data_ptr = in_tensor->data<int64_t>();
     for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
-        if (pos_data_ptr[idx] > 0) {
+        if (get_pos(idx) > 0) {
             // Initialize fields
-            m_current_length = pos_data_ptr[idx];
+            m_current_length = get_pos(idx);
             switch (m_case) {
             case Case::GENERATE:
                 // decode case, we have pos_id-1 past elements to take from kvcache
@@ -498,7 +518,7 @@ void PositionIDs::prepare(int64_t past_len) {
             case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
                 // FIXME: We know too much about chunking here
-                m_past_length = ((past_len + m_query_size - 1) / m_query_size) * m_query_size;
+                m_past_length = ((past_len + m_pyramid_step - 1) / m_pyramid_step) * m_pyramid_step;
                 break;
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");
@@ -508,7 +528,9 @@ void PositionIDs::prepare(int64_t past_len) {
             NPUW_ASSERT(m_pyramid_attention && "PyramidAttention reference must not be null");
 
             const auto& context_lengths = m_pyramid_attention->_context_lengths;
-            const int64_t current_seq_length = m_query_size + m_past_length;
+            const int64_t query_contrib =
+                (m_case == Case::PREFILL) ? static_cast<int64_t>(m_pyramid_step) : static_cast<int64_t>(m_query_size);
+            const int64_t current_seq_length = query_contrib + m_past_length;
 
             // Find the smallest pyramid model that can handle the current sequence length
             for (std::size_t i = 0; i < context_lengths.size(); ++i) {
