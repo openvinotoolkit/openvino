@@ -109,7 +109,7 @@ ov::pass::TransposeFQ::TransposeFQ() {
         ov::OutputVector fq_inputs = {transpose->input_value(0)};
         for (size_t i = 1; i < fq->inputs().size(); ++i) {
             auto input = fq->input_value(i);
-            if (ov::as_type_ptr<v0::Constant>(input.get_node_shared_ptr()) && ov::shape_size(input.get_shape()) == 1) {
+            if (ov::shape_size(input.get_shape()) == 1) {
                 fq_inputs.push_back(input);
                 continue;
             }
