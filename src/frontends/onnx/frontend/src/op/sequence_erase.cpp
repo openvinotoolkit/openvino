@@ -30,6 +30,11 @@ ov::OutputVector sequence_erase(const ov::frontend::onnx::Node& node) {
 
     const auto& inputs = node.get_ov_inputs();
 
+    if (inputs.size() == 2) {
+        OPENVINO_ASSERT(inputs[1].get_partial_shape().rank().compatible(0),
+                        "SequenceErase: 'position' input must be a scalar");
+    }
+
     // Fast path: input is a SequenceMark with a constant (or omitted) position.
     if (const auto input_sequence = as_type_ptr<SequenceMark>(inputs[0].get_node_shared_ptr())) {
         auto seq = input_sequence->get_sequence();
