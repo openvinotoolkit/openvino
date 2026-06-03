@@ -415,6 +415,14 @@ def _tool_version_report() -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _extra_coverage_dirs() -> list[Path]:
+    """Return additional native build directories requested by the caller."""
+    raw_dirs = os.environ.get("EXTRA_CPP_COVERAGE_DIRS", "").strip()
+    if not raw_dirs:
+        return []
+    return [Path(item) for item in raw_dirs.split(os.pathsep) if item.strip()]
+
+
 def _tree_inventory_report(
     *,
     root: Path,
@@ -748,6 +756,24 @@ def run(ctx: CoverageContext) -> None:
 
     if has_main_gcda and main_info is not None:
         tracefiles.append(main_info)
+
+    for index, extra_dir in enumerate(_extra_coverage_dirs(), start=1):
+        label = f"extra native capture {index}"
+        _prune_unwanted_gcda(extra_dir, label=label, run_gpu_tests=ctx.run_gpu_tests)
+        _prefilter_incompatible_gcda(extra_dir, label=label)
+        if not _has_gcda(extra_dir):
+            LOGGER.warning("No .gcda files found in %s, skipping %s", extra_dir, label)
+            continue
+        extra_info = trace_dir / f"extra-build-{index}.info"
+        _run_lcov_capture(
+            directory=extra_dir,
+            base_directory=src_dir,
+            output_file=extra_info,
+            label=label,
+            debug_dir=trace_dir,
+            branch_coverage=ctx.branch_coverage,
+        )
+        tracefiles.append(extra_info)
 
     _merge_tracefiles(tracefiles, merged_info, branch_coverage=ctx.branch_coverage)
 
