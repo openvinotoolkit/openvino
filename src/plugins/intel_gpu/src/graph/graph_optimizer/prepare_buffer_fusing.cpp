@@ -77,15 +77,7 @@ auto available_pred = [](const program_node& input) {
 };
 
 // Primitives that read input by explicit tensor coordinate and therefore correctly skip
-// padding on the input side. reorder and permute are excluded because some of their
-// implementations copy over raw buffer byte ranges and would include padding bytes.
-//
-// A can_be_optimzied node is excluded as it is transparent and shares buffer with
-// downstream consumers whoes types are not checked
-//
-// Eltwise is safe only when broadcast_spec is NONE/EXPLICIT, i.e, when both inputs
-// were declared equal-shape at graph construction and no dimension is expanded
-// over the padded region of the padded predecessor.
+// padding on the input side.
 auto reads_padded_input_safely = [](const program_node& user) {
     if (user.can_be_optimized())
         return false;

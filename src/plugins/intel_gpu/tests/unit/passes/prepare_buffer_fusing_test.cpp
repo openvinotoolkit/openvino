@@ -1650,24 +1650,15 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
-// Feature-axis oneDNN concat with batch>1 must now fuse (zero-copy, in-place buffer).
-// Before the fix: concat_out_l.batch() > 1 returned false for all axes in the oneDNN static path.
-// After the fix: the guard is scoped to batch-axis (axis=0) only; feature-axis (axis=1) at
-// batch>1 goes through the existing 64-byte alignment gate and may be optimized.
-//
-// Three inputs with non-uniform feature counts and non-square spatial dimensions stress the
-// alignment gate and the buffer-offset arithmetic more than symmetric shapes would.
-//
-// Run both an implicit (optimize_data=true) and an explicit (optimize_data=false) network over
-// the same random inputs and assert element-wise equality. This catches buffer aliasing bugs
-// that produce valid-looking floats but incorrect values without requiring hardcoded references.
+
+// Verifies that feature-axis concat with static batch > 1 and non-uniform feature counts
+// can be optimized in-place by oneDNN
 TEST(prepare_buffer_fusing, in_place_onednn_concat_static_batch_gt1) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
     // Three inputs with batch=3 and non-uniform feature counts [16, 32, 16] at spatial 2×3.
-    // Previously all were blocked by the unconditional batch>1 guard on feature-axis concat.
     auto in_layout1 = layout{ ov::PartialShape{3, 16, 2, 3}, data_types::f32, format::bfyx };
     auto in_layout2 = layout{ ov::PartialShape{3, 32, 2, 3}, data_types::f32, format::bfyx };
     auto in_layout3 = layout{ ov::PartialShape{3, 16, 2, 3}, data_types::f32, format::bfyx };
@@ -1729,17 +1720,12 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static_batch_gt1) {
         ASSERT_NEAR(ptr_implicit[i], ptr_explicit[i], 1e-3f) << "mismatch at index " << i;
 }
 
-// Predecessor with 3 users (concat + 2 safe-type activation nodes) must now be allowed
-// to fuse. Before the fix: get_users().size() > 2 blocked fusing unconditionally.
-// After the fix: the type-based reads_padded_input_safely check allows safe-type
-// multi-user predecessors.
+// Verifies that oneDNN in-place concat remains safe when a shared predecessor has multiple users.
 TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    // shared_in → reorder (shared_r) feeds 3 users: concat, act1, act2 — all safe types.
-    // Use f32 inputs so reorder(f32→f16) is non-trivial and not optimized out by the pass.
     auto in_layout  = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
     auto in_layout2 = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
 
@@ -1764,7 +1750,6 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
-    // Force onednn on the concat predecessors so the onednn fusing path is exercised.
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
         {"shared_r", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
         {"other_r",  ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
@@ -1773,8 +1758,6 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
 
     auto input_memory  = engine.allocate_memory(in_layout);
     auto input_memory2 = engine.allocate_memory(in_layout2);
-    // Natural-number sequences — d1 starts at 0, d2 starts at 512 so buffers are
-    // distinguishable: any overlap/aliasing bug produces a clearly wrong value.
     const size_t N = 16 * 4 * 4;  // 256
     std::vector<float> d1(N), d2(N);
     for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(512 + i); }
@@ -1790,8 +1773,6 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
     const auto& concat_node = network.get_primitive("concat")->get_node();
     ASSERT_TRUE(concat_node.can_be_optimized());
 
-    // out_concat = [other_r(512..512+N-1) | shared_r(0..N-1)] along feature axis
-    // (other_r is the first concat input after the order swap)
     auto out_concat_mem = output.at("out_concat").get_memory();
     cldnn::mem_lock<float> concat_ptr(out_concat_mem, get_test_stream());
     ASSERT_EQ(concat_ptr.size(), 2 * N);
@@ -1813,30 +1794,20 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
         ASSERT_NEAR(act2_ptr[i], static_cast<float>(i), 1e-3f) << "out_act2 mismatch at index " << i;
 }
 
-// Verifies that oneDNN convolution is recognised as a safe-reader type in
-// reads_padded_input_safely, so that implicit concat fusing still applies
-// when the shared predecessor has an oneDNN conv as one of its non-concat users.
+// Verifies that in-place concat fuses when an oneDNN conv is among the shared predecessor's users.
 //
-// Topology (shared_r has 3 users):
-//   shared_in(f32) → shared_r(f32→f16, b_fs_yx_fsv16, oneDNN) ─┬→ concat ─→ out_concat
-//   other_in(f32)  → other_r(f32→f16)                          ─┘
-//                                     └→ conv(b_fs_yx_fsv16, oneDNN, reads padded safely) → out_conv
-//                                     └→ act1                                              → out_act1
-//
-// Both conv and act1 are in reads_padded_input_safely. shared_r and conv are both
-// forced to b_fs_yx_fsv16 so reorder_inputs finds no format mismatch and does not
-// insert an intermediate reorder — oneDNN conv reads directly from the padded buffer.
+//   shared_in → shared_r (b_fs_yx_fsv16, oneDNN) ─┬→ concat → out_concat
+//   other_in  → other_r  (b_fs_yx_fsv16)          ─┘
+//                                  └→ conv (oneDNN, b_fs_yx_fsv16) → out_conv
+//                                  └→ act1                         → out_act1
 TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    // f32 inputs so shared_r and other_r are genuinely non-trivial reorders
-    // (f32→f16) and are not eliminated by remove_redundant_reorders.
     auto in_layout  = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
     auto in_layout2 = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
 
-    // 1×1 identity conv weights (16 output channels, 16 input channels).
     auto weights_layout = layout{ ov::PartialShape{16, 16, 1, 1}, data_types::f16, format::bfyx };
     auto weights_mem = engine.allocate_memory(weights_layout);
     std::vector<ov::float16> wdata(16 * 16, ov::float16(0.f));
@@ -1849,19 +1820,13 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     topology.add(input_layout("other_in",  in_layout2));
     topology.add(data("conv_w", weights_mem));
 
-    // shared_r is the predecessor node that will have 3 users after fusing.
-    // Declared as b_fs_yx_fsv16 to match the oneDNN conv preferred input format,
-    // so reorder_inputs does not insert a format-conversion reorder in between.
+    // shared_r must match the conv preferred format so reorder_inputs does not
+    // insert an intermediate reorder that would break the fusing path.
     topology.add(reorder("shared_r", input_info("shared_in"), format::b_fs_yx_fsv16, data_types::f16));
     topology.add(reorder("other_r",  input_info("other_in"),  format::b_fs_yx_fsv16, data_types::f16));
 
-    // User 1 of shared_r: feature-axis concat (the fusing candidate) — other_r first so
-    // shared_r lands in the second slot, making the padding layout more asymmetric.
     topology.add(concatenation("concat", { input_info("other_r"), input_info("shared_r") }, 1));
-    // User 2 of shared_r: 1×1 identity oneDNN conv — validates that oneDNN conv
-    // reads from the padded buffer by logical tensor coordinates, not raw byte offsets.
     topology.add(convolution("conv", input_info("shared_r"), "conv_w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-    // User 3 of shared_r: activation (always safe).
     topology.add(activation("act1", input_info("shared_r"), activation_func::relu));
 
     topology.add(reorder("out_concat", input_info("concat"), format::bfyx, data_types::f32));
@@ -1871,9 +1836,6 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
-    // Both shared_r and conv are forced to b_fs_yx_fsv16 + oneDNN. Since their
-    // formats already match, reorder_inputs inserts no intermediate reorder —
-    // oneDNN conv reads the padded buffer directly, exercising the safety guarantee.
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
         {"shared_r", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn}},
         {"conv",     ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn}},
@@ -1883,7 +1845,7 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     auto input_memory  = engine.allocate_memory(in_layout);
     auto input_memory2 = engine.allocate_memory(in_layout2);
     // Natural-number sequences — d1 starts at 0, d2 starts at 512 so the two halves of
-    // the concat output are unambiguously distinguishable; aliasing bugs produce clearly wrong values.
+    // the concat output are unambiguously distinguishable
     const size_t N = 16 * 4 * 4;  // 256
     std::vector<float> d1(N), d2(N);
     for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(512 + i); }
@@ -1896,13 +1858,10 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     std::map<cldnn::primitive_id, cldnn::network_output> output;
     EXPECT_NO_THROW(output = network.execute());
 
-    // Confirm concat was fused: shared_r has 3 users (concat, conv, act1), all safe types,
-    // so the multi-user guard allows implicit concat optimization.
+    // Confirm concat was fused
     const auto& concat_node = network.get_primitive("concat")->get_node();
     ASSERT_TRUE(concat_node.can_be_optimized());
 
-    // out_concat: [other_r(512..512+N-1) | shared_r(0..N-1)] along feature axis.
-    // (other_r is now the first concat input after the order swap)
     auto out_concat_mem = output.at("out_concat").get_memory();
     cldnn::mem_lock<float> concat_ptr(out_concat_mem, get_test_stream());
     ASSERT_EQ(concat_ptr.size(), 2 * N);
@@ -1911,14 +1870,11 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
     for (size_t i = 0; i < N; i++)
         ASSERT_NEAR(concat_ptr[N + i], static_cast<float>(i),       1e-2f) << "out_concat second half mismatch at index " << i;
 
-    // out_conv: identity conv(shared_r) = 0..N-1 — confirms that conv reads from the
-    // padded predecessor buffer by logical tensor coordinates, not raw byte offsets.
     auto out_conv_mem = output.at("out_conv").get_memory();
     cldnn::mem_lock<float> conv_ptr(out_conv_mem, get_test_stream());
     for (size_t i = 0; i < conv_ptr.size(); i++)
         ASSERT_NEAR(conv_ptr[i], static_cast<float>(i), 1e-2f) << "out_conv mismatch at index " << i;
 
-    // out_act1: relu(shared_r) = 0..N-1 (all non-negative, relu is identity).
     auto out_act1_mem = output.at("out_act1").get_memory();
     cldnn::mem_lock<float> act1_ptr(out_act1_mem, get_test_stream());
     for (size_t i = 0; i < act1_ptr.size(); i++)
