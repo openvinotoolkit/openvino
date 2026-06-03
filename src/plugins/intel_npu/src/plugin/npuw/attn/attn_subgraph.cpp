@@ -817,8 +817,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const int64_t total_kv_length = state.hfa_selector->context_length();
                         const int64_t actual_kv_length = state.hfa_selector->current_length();
                         const int64_t num_tiles = total_kv_length / tile_size;
-                        // If the last tile is not fully filled, need to use the mask
-                        const bool use_mask = (actual_kv_length + 1) % tile_size != 0;
                         OPENVINO_ASSERT(total_kv_length % tile_size == 0,
                                         "HFA total KV length must be multiple of tile size for now");
 
@@ -832,13 +830,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
-                        const bool use_mask_model = use_mask && hfa_desc->_compiled_tile_no_mask_model;
+                        // If the regular tile is not fully filled, need to use the mask
+                        const bool use_mask = (actual_kv_length + 1) % tile_size != 0;
+                        const bool use_no_mask_model = !use_mask && hfa_desc->_compiled_tile_no_mask_model;
                         auto& regular_tile_request =
-                            use_mask_model ? state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE_MASK]
-                                           : state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE_NO_MASK];
+                            use_no_mask_model ? state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE_NO_MASK]
+                                              : state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE_MASK];
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
                         const auto& compiled_regular_tile_model =
-                            use_mask_model ? hfa_desc->_compiled_tile_model : hfa_desc->_compiled_tile_no_mask_model;
+                            use_no_mask_model ? hfa_desc->_compiled_tile_no_mask_model : hfa_desc->_compiled_tile_model;
                         auto attention_output_tensor =
                             final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
                         const auto& tile_in = sdpa_info._tile_input_indices;
