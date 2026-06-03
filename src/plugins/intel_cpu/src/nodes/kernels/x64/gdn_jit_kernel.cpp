@@ -4,11 +4,20 @@
 
 #include "gdn_jit_kernel.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cmath>
+#include <common/float16.hpp>
 #include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <type_traits>
+#include <cstddef>
+#include <memory>
 
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "jit_kernel_base.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -351,8 +360,8 @@ void jit_gdn_kernel<isa>::generate() {
     // Determine if we use registers or temp buffers
     const size_t qk = m_jcp.qk_head_size;
     const bool use_registers = (qk <= 128);
-    const int num_regs = static_cast<int>(qk / XF16_ELEMS_PER_ZMM);
-    const int num_chunks = (num_regs + MAX_REGS_PER_VEC - 1) / MAX_REGS_PER_VEC;
+    const auto num_regs = static_cast<int>(qk / XF16_ELEMS_PER_ZMM);
+    const auto num_chunks = (num_regs + MAX_REGS_PER_VEC - 1) / MAX_REGS_PER_VEC;
 
     // One-time setup
     exp_injector->load_table_addr();

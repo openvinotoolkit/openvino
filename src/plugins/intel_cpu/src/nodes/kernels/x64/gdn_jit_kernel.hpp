@@ -142,8 +142,8 @@ private:
               size_t offset = 0);
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
-    const std::vector<size_t> pool_aux_gpr_idxs = {};
-    const std::vector<size_t> pool_aux_vmm_idxs = {};
+    const std::vector<size_t> pool_aux_gpr_idxs;
+    const std::vector<size_t> pool_aux_vmm_idxs;
 };
 
 std::shared_ptr<JitKernelBase> create_gdn_jit_kernel(ov::element::Type data_prc = ov::element::f32,
