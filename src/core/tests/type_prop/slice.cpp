@@ -10,6 +10,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/minimum.hpp"
@@ -1186,13 +1187,14 @@ TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
     EXPECT_THAT(get_shape_symbols(slice->get_output_partial_shape(0)), Each(nullptr));
 }
 
-// Reproduces the TF/TFLite Slice `stop` cascade with fully static inputs:
+// Reproduces the TF/TFLite Slice `stop` cascade with statically determinable inputs:
 //   stop = Select(Less(size, 0), ConvertLike(ShapeOf(data), size), Add(start, size))
-// Every input is a static Constant, so the subgraph is statically determinable. Slice shape
-// inference resolves `stop` via bounds propagation (evaluate_lower/upper), not ConstantFolding, so the
-// output must come out static [1,128,4,128] without any folding pass. This exercises ConvertLike value
-// bound evaluation: if ConvertLike does not propagate bounds, the propagation breaks before Select and
-// the Slice output is left dynamic.
+// `start`/`size`/`step` are static Constants and `data` is a Parameter with a static shape, so the whole
+// `stop` subgraph is statically determinable via bounds propagation. Slice shape inference resolves
+// `stop` via bounds propagation (evaluate_lower/upper), not ConstantFolding, so the output must come out
+// static [1,128,4,128] without any folding pass. This exercises ConvertLike value bound evaluation: if
+// ConvertLike does not propagate bounds, the propagation breaks before Select and the Slice output is
+// left dynamic.
 TEST(type_prop, slice_v8_stop_select_cascade_static_inputs_is_static) {
     constexpr auto et = element::i32;
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128, 8, 256});
@@ -1226,6 +1228,31 @@ TEST(type_prop, slice_v8_stop_minimum_shapeof_is_static) {
     const auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
     const auto cap = op::v0::Constant::create(et, Shape{4}, {1, 128, 4, 128});
     const auto stop = std::make_shared<op::v1::Minimum>(shape_of, cap);
+
+    const auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step);
+
+    EXPECT_TRUE(slice->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 128, 4, 128}));
+}
+
+// Control pinning the cascade dynamism to ConvertLike specifically: the same cascade as
+// slice_v8_stop_select_cascade_static_inputs_is_static, but with the `size < 0` branch built from
+// v0::Convert instead of v1::ConvertLike. v0::Convert has always implemented value bound evaluation
+// (evaluate_lower/upper/symbol), so this Slice resolves to a static output regardless of ConvertLike's
+// own bound-evaluation support. It is the behavioral reference that ConvertLike now mirrors.
+TEST(type_prop, slice_v8_stop_select_cascade_convert_is_static) {
+    constexpr auto et = element::i32;
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128, 8, 256});
+    const auto start = op::v0::Constant::create(et, Shape{4}, {0, 0, 0, 0});
+    const auto size = op::v0::Constant::create(et, Shape{4}, {1, 128, 4, 128});
+    const auto step = op::v0::Constant::create(et, Shape{4}, {1, 1, 1, 1});
+
+    const auto zero = op::v0::Constant::create(et, Shape{}, {0});
+    const auto negative_size_mask = std::make_shared<op::v1::Less>(size, zero);
+    const auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
+    const auto stop_neg = std::make_shared<op::v0::Convert>(shape_of, et);
+    const auto stop_pos = std::make_shared<op::v1::Add>(start, size);
+    const auto stop = std::make_shared<op::v1::Select>(negative_size_mask, stop_neg, stop_pos);
 
     const auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step);
 

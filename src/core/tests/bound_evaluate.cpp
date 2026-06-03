@@ -104,9 +104,12 @@ TEST(BoundEvaluatorTest, convert_like_propagates_bounds_from_shape_of) {
     EXPECT_EQ(bounds.first.get_element_type(), element::i32);
     EXPECT_EQ(bounds.second.get_element_type(), element::i32);
 
+    const std::vector<int32_t> expected{1, 128, 4, 128};
+    ASSERT_EQ(bounds.first.get_shape(), ov::Shape{expected.size()});
+    ASSERT_EQ(bounds.second.get_shape(), ov::Shape{expected.size()});
+
     const auto* lower = bounds.first.data<int32_t>();
     const auto* upper = bounds.second.data<int32_t>();
-    const std::vector<int32_t> expected{1, 128, 4, 128};
-    EXPECT_EQ(std::vector<int32_t>(lower, lower + 4), expected);
-    EXPECT_EQ(std::vector<int32_t>(upper, upper + 4), expected);
+    EXPECT_EQ(std::vector<int32_t>(lower, lower + expected.size()), expected);
+    EXPECT_EQ(std::vector<int32_t>(upper, upper + expected.size()), expected);
 }
