@@ -645,32 +645,30 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
         return "ov::streams::Num";
     }
 
-    // The only supported number for currently supported platforms.
-    // FIXME: update in the future
     static ov::streams::Num defaultValue() {
-        return ov::streams::Num(1);
+        return ov::streams::AUTO;
     }
 
     static ov::streams::Num parse(std::string_view val) {
         std::istringstream stringStream = std::istringstream(std::string(val));
         ov::streams::Num numberOfStreams;
-
         stringStream >> numberOfStreams;
 
         return numberOfStreams;
     }
 
-    static std::string itoString(const ov::streams::Num& val) {
+    static std::string toString(const ov::streams::Num& val) {
         std::ostringstream stringStream;
-
         stringStream << val;
 
         return stringStream.str();
     }
 
     static void validateValue(const ov::streams::Num& num) {
-        if (defaultValue() != num && ov::streams::AUTO != num) {
-            OPENVINO_THROW("NUM_STREAMS can not be set");
+        if (num != ov::streams::AUTO && num < 0) {
+            OPENVINO_THROW("NUM_STREAMS cannot be set to this value: ",
+                           num,
+                           ". Supported values are non-negative integers (including 0) or ov::streams::AUTO");
         }
     }
 
@@ -683,11 +681,14 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     }
 
     static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
+        return ov::PropertyMutability::RW;
     }
 };
 
-struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
+OPENVINO_SUPPRESS_DEPRECATED_START
+struct OPENVINO_DEPRECATED("This property is deprecated and has no effect on the NPU Plugin. It will be removed in "
+                           "the OpenVINO 2027.0 release.") ENABLE_CPU_PINNING final
+    : OptionBase<ENABLE_CPU_PINNING, bool> {
     static std::string_view key() {
         return ov::hint::enable_cpu_pinning.name();
     }
@@ -696,8 +697,9 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
         return false;
     }
 
-    static bool isPublic() {
-        return true;
+    static constexpr const char* deprecationMessage() {
+        return "The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin. It will "
+               "be removed in the OpenVINO 2027.0 release.";
     }
 
     static ov::PropertyMutability mutability() {
@@ -708,6 +710,7 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
         return OptionMode::RunTime;
     }
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
     static std::string_view key() {

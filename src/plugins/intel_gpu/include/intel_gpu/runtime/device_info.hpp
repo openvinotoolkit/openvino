@@ -117,13 +117,13 @@ struct device_info {
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
-    bool supports_mutable_command_list;         ///< [L0] Does the target runtime/device support mutable command list feature
+    bool supports_mutable_command_list;         ///< [ZE] Does the target runtime/device support mutable command list feature
 
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
-    bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
-    bool supports_counter_based_events;                    ///< [L0] Does the target runtime support counter based events
+    bool supports_cp_offload;                   ///< [ZE] Does the command queue support copy offload
+    bool supports_counter_based_events;         ///< [ZE] Does the target runtime support counter based events
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
@@ -146,10 +146,10 @@ struct device_info {
 
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 
-    uint64_t timer_resolution;                  ///< [L0] Resolution of device timer used for profiling in cycles/sec
-    uint32_t kernel_timestamp_valid_bits;       ///< [L0] Number of valid bits in the kernel timestamp values
-    uint32_t compute_queue_group_ordinal;       ///< [L0] Ordinal of the command queue group to use for compute
-    uint32_t device_memory_ordinal;             ///< [L0] Ordinal of the selected global device memory
+    uint64_t timer_resolution;                  ///< [ZE] Resolution of device timer used for profiling in cycles/sec
+    uint32_t kernel_timestamp_valid_bits;       ///< [ZE] Number of valid bits in the kernel timestamp values
+    uint32_t compute_queue_group_ordinal;       ///< [ZE] Ordinal of the command queue group to use for compute
+    uint32_t device_memory_ordinal;             ///< [ZE] Ordinal of the selected global device memory
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
