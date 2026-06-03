@@ -39,7 +39,8 @@ public:
     }
 
     Output<Node> get_position() const {
-        return has_position() ? input_value(1) : Output<Node>{};
+        OPENVINO_ASSERT(has_position(), "SequenceErase: no position input; check has_position() first");
+        return input_value(1);
     }
 };
 

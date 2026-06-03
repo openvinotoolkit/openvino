@@ -41,12 +41,13 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
         const auto position_const = ov::util::get_constant_from_source(position);
         if (position_const) {
             const auto position_value = position_const->cast_vector<std::int64_t>()[0];
-            const auto input_sequence_length = static_cast<std::int64_t>(input_sequence->get_sequence().size());
+            const auto seq = input_sequence->get_sequence();
+            const auto input_sequence_length = static_cast<std::int64_t>(seq.size());
             const auto position_value_normalized =
                 position_value < 0 ? position_value + input_sequence_length : position_value;
             OPENVINO_ASSERT(position_value_normalized >= 0 && position_value_normalized < input_sequence_length,
                             "SequenceAt: 'position' is out of bounds");
-            return {input_sequence->get_sequence().at(position_value_normalized)};
+            return {seq.at(position_value_normalized)};
         }
     }
 
