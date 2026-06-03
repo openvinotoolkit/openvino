@@ -18,7 +18,7 @@ cl_context get_cl_context();
 cl_command_queue get_cl_queue();
 cl::Buffer allocate_buffer(size_t size);
 cl::Image2D allocate_image(size_t size);
-ov::intel_gpu::ocl::handle_param get_shared_handle();
+ov::intel_gpu::ocl::os_handle_param get_shared_handle();
 
 
 #ifdef WIN32

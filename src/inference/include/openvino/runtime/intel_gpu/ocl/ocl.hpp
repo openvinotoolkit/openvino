@@ -46,9 +46,9 @@ using gpu_handle_param = void*;
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 #ifdef __linux__
-using handle_param = int;
+using os_handle_param = int;
 #else
-using handle_param = void*;
+using os_handle_param = void*;
 #endif
 
 /**
@@ -331,7 +331,7 @@ public:
      */
     ClBufferTensor create_tensor(const element::Type type,
                                  const Shape& shape,
-                                 handle_param shared_buffer,
+                                 os_handle_param shared_buffer,
                                  const MemType memory_type) {
 #ifndef __linux__
         OPENVINO_ASSERT(shared_buffer != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
