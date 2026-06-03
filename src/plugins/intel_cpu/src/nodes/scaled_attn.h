@@ -107,7 +107,8 @@ private:
                              float* per_thread_head_scratch,
                              size_t per_thread_head_stride,
                              const PlainTensor& k_quant_meta_data,
-                             const PlainTensor& v_quant_meta_data) = 0;
+                             const PlainTensor& v_quant_meta_data,
+                             const PlainTensor& wht_signs) = 0;
         [[nodiscard]] virtual impl_desc_type implType() const = 0;
         virtual ~Executor() = default;
     };
@@ -133,6 +134,9 @@ private:
     // Per-token TBQ norm. Populated only when a side has alg=TURBO; empty otherwise.
     PlainTensor m_k_quant_meta_data;
     PlainTensor m_v_quant_meta_data;
+    // Random ±1 sign vector for WHT rotation. Sized to max(k_head_dim, v_head_dim);
+    // both sides read prefix [0:dim). Allocated once per primitive when either side is TURBO.
+    PlainTensor m_wht_signs;
 };
 
 }  // namespace ov::intel_cpu::node

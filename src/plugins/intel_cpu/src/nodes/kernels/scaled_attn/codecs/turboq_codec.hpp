@@ -5,7 +5,7 @@
 #pragma once
 
 #include "codecs.hpp"
-#include "turboq_tables.h"
+#include "turboq_tables.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 

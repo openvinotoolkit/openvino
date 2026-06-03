@@ -1084,10 +1084,9 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     auto node = m_sdpaNode.lock();
     // retrieve the internal precision and axis order from the SDPA node
     CPU_NODE_ASSERT(node, "SDPA node is not available");
-    const auto& edges_to_past_key_pre = node->getParentEdgeAt(node->getParentEdges().size() - 2);
-    const auto& past_key_pre = std::dynamic_pointer_cast<node::MemoryInputBase>(edges_to_past_key_pre->getParent());
-    OPENVINO_ASSERT(past_key_pre);
-    const bool is_key = past_key_pre->getId() == state_name;
+    // SDPA port convention: K = inputNumber - 2, V = inputNumber - 1.
+    const auto sdpa_inputs = node->getOriginalInputsNumber();
+    const bool is_key = static_cast<size_t>(m_child_port_idx) == sdpa_inputs - 2;
     auto kv_precision = is_key ? node->getKeyCachePrecision() : node->getValueCachePrecision();
     ov::Extensions::Cpu::CacheSpec quant_param;
     if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4) {
@@ -1116,10 +1115,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, internal_shape);
 
-    return std::make_shared<VariableStateKVcache>(state_name,
-                                                  original_desc,
-                                                  internal_desc,
-                                                  quant_param);
+    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc, quant_param);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {
@@ -1133,8 +1129,7 @@ void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
     // expects the original model head_dim. Report model-space dims here; the SDPA executor
     // reads the packed cache directly via m_k_state->internal_state_mem(), bypassing this output.
     const auto& base_shape = getBaseMemDescAtOutputPort(0)->getShape();
-    const bool is_tbq =
-        sdpaState && sdpaState->internal_desc()->getShape().getDims().back() != base_shape.getDims().back();
+    const bool is_tbq = sdpaState && sdpaState->get_spec().alg == ov::internal::CacheQuantAlgorithm::TURBO;
 
     if (currentState->is_reset_state()) {
         if (getParentEdges().empty()) {

@@ -51,7 +51,8 @@ static void mha_prepare_query(const PlainTensor& q_input,
                               const CpuParallelPtr& cpu_parallel,
                               ov::element::Type q_precision,
                               float* per_thread_head_scratch,
-                              size_t per_thread_head_stride) {
+                              size_t per_thread_head_stride,
+                              const float* signs) {
     auto B = q_input.size(0);
     auto num_q_heads = q_input.size(1);
     auto L1 = q_input.size(2);
@@ -96,7 +97,7 @@ static void mha_prepare_query(const PlainTensor& q_input,
                 }
             }
             if (rotate) {
-                turboq_rotate_forward(q_src, dst, dim);
+                turboq_wht_forward(signs, q_src, dst, dim);
             }
         }
     });
@@ -571,7 +572,8 @@ void mha_kv_cache(PlainTensor& q_input,
                   float* per_thread_head_scratch,
                   size_t per_thread_head_stride,
                   const PlainTensor& k_quant_meta_data,
-                  const PlainTensor& v_quant_meta_data) {
+                  const PlainTensor& v_quant_meta_data,
+                  const PlainTensor& wht_signs) {
     // ---------------------------------------------------------------------------
     // Setup: dimensions, scratch buffers, precomputed constants.
     // ---------------------------------------------------------------------------
@@ -592,14 +594,15 @@ void mha_kv_cache(PlainTensor& q_input,
 
     // Prepare f32 Q only when K has codec — rotation needed for QK dot in rotated domain.
     PlainTensor prepared_q;
-    if (k_spec.is_turbo()) {
+    if (k_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO) {
         mha_prepare_query(q_input,
                           prepared_q,
                           /*rotate=*/true,
                           cpu_parallel,
                           q_precision,
                           per_thread_head_scratch,
-                          per_thread_head_stride);
+                          per_thread_head_stride,
+                          wht_signs.ptr<float>());
     }
 
     buf_attn_w.resize<float>({B, num_q_heads, q_len, (kv_len + 15) / 16 * 16});
@@ -610,8 +613,8 @@ void mha_kv_cache(PlainTensor& q_input,
     // AVX2-only: defer u8 zp subtraction from per-element to per-group-after-dot.
     // AVX-512 has enough throughput to absorb the per-element sub — not worth the overhead.
     constexpr bool is_avx2 = simd::f32::isa_value == simd::isa::avx2;
-    const bool use_affine_k =
-        is_avx2 && !k_spec.is_turbo() && k_spec.precision == ov::element::u8 && !k_spec.by_channel;
+    const bool use_affine_k = is_avx2 && k_spec.alg != ov::internal::CacheQuantAlgorithm::TURBO &&
+                              k_spec.precision == ov::element::u8 && !k_spec.by_channel;
     const size_t n_key_groups = use_affine_k ? S / k_spec.group_size : 0;
     PlainTensor q_group_sums_buf;
     if (use_affine_k) {
@@ -671,7 +674,7 @@ void mha_kv_cache(PlainTensor& q_input,
                 float* scores_row_base = buf_attn_w.ptr<float>(b, h_start, m) + start_pos;
                 StridedData<float> scores{scores_row_base, buf_attn_w.stride(1)};
                 KVEntryContext entry_ctx{start_pos, h_group, head_dim, nullptr, 0, 0};
-                if (k_spec.is_turbo() && k_quant_meta_data) {
+                if (k_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO && k_quant_meta_data) {
                     entry_ctx.norm_base = k_quant_meta_data.ptr<float>(0, h_group, 0);
                     entry_ctx.norm_stride_batch = k_quant_meta_data.stride(0);
                     entry_ctx.norm_stride_pos = k_quant_meta_data.stride(2);
@@ -680,7 +683,7 @@ void mha_kv_cache(PlainTensor& q_input,
                 // q_group_sums base for first head in group; stride to step between heads.
                 const float* q_group_sums = use_affine_k ? q_group_sums_buf.ptr<float>(b, h_start, m) : nullptr;
                 const size_t q_group_sums_stride = use_affine_k ? q_group_sums_buf.stride(1) : 0;
-                const bool encoded = k_spec.is_turbo();
+                const bool encoded = k_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
                 const auto& q_src = encoded ? prepared_q : q_input;
                 const auto q_prec = encoded ? ov::element::f32 : q_precision;
                 dispatch_q_precision(
@@ -731,7 +734,7 @@ void mha_kv_cache(PlainTensor& q_input,
     // ---------------------------------------------------------------------------
     // Phases 3+4: V accumulation + reduce, per query position.
     // ---------------------------------------------------------------------------
-    const bool do_inv_rotate = v_spec.is_turbo();
+    const bool do_inv_rotate = v_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
     for (size_t m = 0; m < q_len; m++) {
         // Phase 3: V accumulation for query position m.
         mha_foreach_kv(
@@ -755,7 +758,7 @@ void mha_kv_cache(PlainTensor& q_input,
                 auto* accum_row_base = buf_attn_score.ptr<float>(ithr, b, m, h_start);
                 StridedData<float> accum{accum_row_base, buf_attn_score.stride(3)};
                 KVEntryContext entry_ctx{start_pos, h_group, head_dim, nullptr, 0, 0};
-                if (v_spec.is_turbo() && v_quant_meta_data) {
+                if (v_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO && v_quant_meta_data) {
                     entry_ctx.norm_base = v_quant_meta_data.ptr<float>(0, h_group, 0);
                     entry_ctx.norm_stride_batch = v_quant_meta_data.stride(0);
                     entry_ctx.norm_stride_pos = v_quant_meta_data.stride(2);
@@ -795,6 +798,7 @@ void mha_kv_cache(PlainTensor& q_input,
                    SV,
                    nthr,
                    cpu_parallel,
+                   do_inv_rotate ? wht_signs.ptr<float>() : nullptr,
                    m);
     }
 }

@@ -16,10 +16,6 @@ struct CacheSpec {
     ov::element::Type precision = ov::element::dynamic;
     size_t group_size = 0;
     bool by_channel = false;
-
-    [[nodiscard]] bool is_turbo() const {
-        return alg == ov::internal::CacheQuantAlgorithm::TURBO;
-    }
 };
 
 }  // namespace ov::Extensions::Cpu

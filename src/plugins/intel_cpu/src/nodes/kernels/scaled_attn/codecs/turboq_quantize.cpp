@@ -15,7 +15,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "turboq_rotation.hpp"
-#include "turboq_tables.h"
+#include "turboq_tables.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -26,7 +26,7 @@ static const bool g_turboq_norm_correction = std::getenv("OV_TURBOQ_NORM_CORRECT
 // Fused norm + sign-flip + normalize. Templated on input precision T.
 // Reads src as T, writes f32 unit*signs into dst, returns the L2 norm.
 template <typename T>
-static inline float turboq_norm_signflip(const T* src, const float* signs, float* dst, int dim) {
+inline float turboq_norm_signflip(const T* src, const float* signs, float* dst, int dim) {
     constexpr int W = simd::f32::width;
     simd::f32 acc0, acc1;
     int i = 0;
@@ -71,16 +71,17 @@ void turboq_quantize_head(const void* src,
                           int head_dim,
                           int bits,
                           ov::element::Type src_precision,
-                          float* ws) {
+                          float* ws,
+                          const float* signs) {
     assert((bits == 3 || bits == 4) && "bits must be 3 or 4");
     assert(head_dim % 64 == 0 && "head_dim must be divisible by 64");
     assert(ws != nullptr && "per-thread scratch required");
+    assert(signs != nullptr && "WHT signs required");
 
     const int dim = head_dim;
 
     // Step 1: norm + sign-flip + normalize into ws.
     float* buf = ws;
-    const float* signs = turboq_get_wht_signs(dim);
     const float norm = dispatch_norm_signflip(src, signs, buf, dim, src_precision);
 
     // Step 2: WHT in-place. Unscaled butterfly; |buf|² = dim after.
@@ -139,19 +140,21 @@ void turboq_quantize(const ov::intel_cpu::PlainTensor& cur,
                      size_t L0,
                      int bits,
                      const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
-                     ov::Extensions::Cpu::StridedData<float> ws) {
+                     ov::Extensions::Cpu::StridedData<float> ws,
+                     const ov::intel_cpu::PlainTensor& signs) {
     const auto B = cur.size(0);
     const auto H = cur.size(1);
     const auto L1 = cur.size(2);
     const auto S = cur.size(3);
     const auto prec = cur.get_precision();
+    const float* signs_ptr = signs.ptr<float>();
     cpu_parallel->parallel_for2d(B, H, [&](size_t b, size_t h) {
         float* tws = ws[parallel_get_thread_num()];
         for (size_t l = 0; l < L1; l++) {
             const void* src = cur.ptr_v(b, h, l);
             auto* d = dst.ptr<uint8_t>(b, h, L0 + l);
             auto* out_norm = meta_data.ptr<float>(b, h, L0 + l);
-            turboq_quantize_head(src, d, out_norm, static_cast<int>(S), bits, prec, tws);
+            turboq_quantize_head(src, d, out_norm, static_cast<int>(S), bits, prec, tws, signs_ptr);
         }
     });
 }

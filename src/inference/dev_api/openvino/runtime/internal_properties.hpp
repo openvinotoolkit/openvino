@@ -211,20 +211,14 @@ inline std::istream& operator>>(std::istream& is, CacheQuantAlgorithm& alg) {
 /** @endcond */
 
 /**
- * @brief Define quantization algorithm for KV cache (both K and V).
- * Unset = raw storage (no quantization).
- */
-static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> kv_cache_quant_alg{"KV_CACHE_QUANT_ALG"};
-
-/**
- * @brief Define quantization algorithm for key cache only.
- * Overrides kv_cache_quant_alg for key cache when asymmetric K/V configs are desired.
+ * @brief Define quantization algorithm for key cache.
+ * Set both key_cache_quant_alg and value_cache_quant_alg to the same value
+ * for symmetric K/V; differ them for asymmetric configs.
  */
 static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> key_cache_quant_alg{"KEY_CACHE_QUANT_ALG"};
 
 /**
- * @brief Define quantization algorithm for value cache only.
- * Overrides kv_cache_quant_alg for value cache when asymmetric K/V configs are desired.
+ * @brief Define quantization algorithm for value cache. See key_cache_quant_alg.
  */
 static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> value_cache_quant_alg{"VALUE_CACHE_QUANT_ALG"};
 

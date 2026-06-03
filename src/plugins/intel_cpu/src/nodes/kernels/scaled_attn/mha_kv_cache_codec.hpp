@@ -45,6 +45,7 @@ void mha_kv_cache(ov::intel_cpu::PlainTensor& q_input,
                   float* per_thread_head_scratch,
                   size_t per_thread_head_stride,
                   const ov::intel_cpu::PlainTensor& k_quant_meta_data,
-                  const ov::intel_cpu::PlainTensor& v_quant_meta_data);
+                  const ov::intel_cpu::PlainTensor& v_quant_meta_data,
+                  const ov::intel_cpu::PlainTensor& wht_signs);
 
 }  // namespace ov::Extensions::Cpu::XARCH
