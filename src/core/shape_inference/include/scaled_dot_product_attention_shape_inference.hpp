@@ -40,7 +40,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
         if (q_num_head.is_static() && k_num_head.is_static() && k_num_head != q_num_head) {
             auto kv_num_heads_factor = q_num_head.get_length() / k_num_head.get_length();
-            if(kv_num_heads_factor > 1)
+            if (kv_num_heads_factor > 1)
                 skip_broadcast_merge = true;
         }
     }
