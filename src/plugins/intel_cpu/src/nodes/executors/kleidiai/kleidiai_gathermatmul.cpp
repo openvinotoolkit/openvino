@@ -104,11 +104,7 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor(const GatherMatmulAtt
     }
 
     auto expertWeiDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N, K}));
-
     auto targetWeightsDesc = addBatchDim(expertWeiDesc, numExperts);
-    // auto weightsMemory =
-    //     prepareWeightMemory(targetWeightsDesc, MemoryDescUtils::convertToDnnlMemoryDesc(weiMemoryDesc));
-
     auto m_weightsMemory = utils::prepareWeightsMemory(MemoryDescUtils::convertToDnnlMemoryDesc(weiMemoryDesc),
                                                        targetWeightsDesc,
                                                        memory.at(ARG_WEI),
