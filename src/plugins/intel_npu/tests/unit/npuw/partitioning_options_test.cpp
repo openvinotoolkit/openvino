@@ -112,9 +112,110 @@ std::shared_ptr<ov::Model> build_static_generate_model() {
     return build_static_llm_model(1, 2047);
 }
 
+std::shared_ptr<ov::Model> build_static_attention_llm_model() {
+    LLMConfig config;
+    config.num_layers = 2;
+    config.hidden_size = 64;
+    config.num_heads = 4;
+    config.head_dim = 16;
+    config.num_kv_heads = 2;
+    config.vocab_size = 256;
+    config.force_gqa_broadcast = true;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(config);
+
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    constexpr int64_t query_len = 4;
+    constexpr int64_t past_len = 8;
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        auto shape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = {1, query_len + past_len};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else {
+            shape[0] = 1;
+            shape[2] = past_len;
+            new_shapes[name] = shape;
+        }
+    }
+    model->reshape(new_shapes);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+std::shared_ptr<ov::Model> build_static_attention_mixed_llm_model() {
+    LLMConfig config;
+    config.num_layers = 4;
+    config.hidden_size = 64;
+    config.num_heads = 4;
+    config.head_dim = 16;
+    config.num_kv_heads = 2;
+    config.vocab_size = 256;
+    config.force_gqa_broadcast = true;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(config);
+
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    constexpr int64_t query_len = 4;
+    constexpr int64_t past_len = 8;
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        auto shape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = {1, query_len + past_len};
+        } else if (name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else {
+            shape[0] = 1;
+            shape[2] = past_len;
+            new_shapes[name] = shape;
+        }
+    }
+    model->reshape(new_shapes);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
 std::shared_ptr<ov::Model> build_repeated_model(std::size_t repetitions = 10) {
     ModelBuilder mb;
     return mb.get_model_with_repeated_blocks(repetitions);
+}
+
+// Build a model with N repetitions of (Relu -> Sigmoid -> Tanh).
+// Each op type forms its own isolated tag so mergeTriangles cannot merge the
+// three families into one combined repeating block.
+std::shared_ptr<ov::Model> build_abc_attn_model(std::size_t repetitions = 30) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32});
+    input->set_friendly_name("input");
+
+    std::shared_ptr<ov::Node> prev = input;
+    for (std::size_t i = 0; i < repetitions; ++i) {
+        auto relu = std::make_shared<ov::op::v0::Relu>(prev);
+        relu->set_friendly_name("relu_" + std::to_string(i));
+        auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(relu);
+        sigmoid->set_friendly_name("sigmoid_" + std::to_string(i));
+        auto tanh = std::make_shared<ov::op::v0::Tanh>(sigmoid);
+        tanh->set_friendly_name("tanh_" + std::to_string(i));
+        prev = tanh;
+    }
+
+    auto result = std::make_shared<ov::op::v0::Result>(prev);
+    result->set_friendly_name("output");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 }
 
 TEST(PartitioningOptionsTest, PipelineNoneMergesUnaryModelIntoSingleGroup) {
@@ -270,6 +371,57 @@ TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
     }));
 }
 
+TEST(PartitioningOptionsTest, FoldOnlyProcessesTaggedRepeatedFamiliesWithoutCwai) {
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                         {"NPUW_ATTN", "DYNAMIC"},
+                         {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+                         {"NPUW_FOLD_ONLY", "attn"}});
+    auto partitioning = ov::npuw::getPartitioning(build_static_attention_llm_model(), cfg);
+
+    EXPECT_FALSE(partitioning.functions.empty());
+    EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+        return !sg._funcall.empty();
+    }));
+}
+
+TEST(PartitioningOptionsTest, FoldOnlyAndCwaiProcessTaggedAndUntaggedRepeatedFamilies) {
+    const auto base_cfg = ::intel_npu::Config::ConfigMap{{"NPUW_ONLINE_PIPELINE", "REP"},
+                                                         {"NPUW_ONLINE_ISOLATE", "COMPUTE,ATTN"},
+                                                         {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                                                         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+                                                         {"NPUW_FOLD_ONLY", "attn"},
+                                                         {"NPUW_ATTN", "STATIC"}};
+    auto fold_only_cfg = make_cfg(base_cfg);
+    auto fold_only_partitioning = ov::npuw::getPartitioning(build_static_attention_mixed_llm_model(), fold_only_cfg);
+
+    auto mixed_cfg = base_cfg;
+    mixed_cfg["NPUW_CWAI"] = "YES";
+    auto mixed_cfg_obj = make_cfg(mixed_cfg);
+    auto mixed_partitioning = ov::npuw::getPartitioning(build_static_attention_mixed_llm_model(), mixed_cfg_obj);
+
+    EXPECT_TRUE(std::any_of(mixed_partitioning.functions.begin(), mixed_partitioning.functions.end(), [](const auto& func) {
+        return func.second.gettag() == "attn";
+    }));
+
+    const auto has_cwai_function = [](const ov::npuw::Partitioning& partitioning) {
+        return std::any_of(partitioning.functions.begin(), partitioning.functions.end(), [](const auto& func) {
+            return func.first.find("__") != std::string::npos;
+        });
+    };
+    const auto has_cwai_funcall = [](const ov::npuw::Partitioning& partitioning) {
+        return std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return sg._funcall.find("__") != std::string::npos;
+        });
+    };
+
+    EXPECT_FALSE(has_cwai_function(fold_only_partitioning));
+    EXPECT_FALSE(has_cwai_funcall(fold_only_partitioning));
+    EXPECT_TRUE(has_cwai_function(mixed_partitioning));
+    EXPECT_TRUE(has_cwai_funcall(mixed_partitioning));
+}
+
 TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {
     const auto plan_path = make_unique_temp_path("npuw_partitioning_effect_plan", ".xml");
 
@@ -283,6 +435,55 @@ TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {
     EXPECT_EQ(partitioning.subgraphs.size(), online_ens.groups.size());
 
     std::filesystem::remove(plan_path);
+}
+
+// Isolate three op families with distinct tags so that mergeTriangles cannot
+// collapse them into a single combined repeating block:
+//   blockA = Relu, blockB = Sigmoid, attn = Tanh
+// With N=30 we get 3*N=90 frozen groups after repeatedBlocks.
+static const ::intel_npu::Config::ConfigMap abc_attn_base_cfg = {
+    {"NPUW_ONLINE_PIPELINE", "REP"},
+    {"NPUW_ONLINE_ISOLATE", "Op:Relu/blockA,Op:Sigmoid/blockB,Op:Tanh/attn"},
+    {"NPUW_ONLINE_KEEP_BLOCKS", "3"},
+    {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+    {"NPUW_FOLD_ONLY", "attn"},
+};
+
+TEST(PartitioningOptionsTest, FoldOnlyWithIsolatedTagsProducesExpectedSubgraphCount) {
+    // Baseline: FOLD_ONLY folds the 30 attn blocks; blockA and blockB remain
+    // as individual non-folded subgraphs → 3*30 = 90 subgraphs, 30 with funcalls.
+    constexpr std::size_t N = 30;
+    auto cfg = make_cfg(abc_attn_base_cfg);
+    auto partitioning = ov::npuw::getPartitioning(build_abc_attn_model(N), cfg);
+
+    EXPECT_EQ(partitioning.subgraphs.size(), 3u * N);
+
+    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
+                                       partitioning.subgraphs.end(),
+                                       [](const ov::npuw::Subgraph& sg) {
+                                           return !sg._funcall.empty();
+                                       });
+    EXPECT_EQ(folded, N);
+}
+
+TEST(PartitioningOptionsTest, FuseUnfoldedMergesNonFoldOnlyRepeatedBlocks) {
+    // With NPUW_FUSE_UNFOLDED, blockA (Relu) and blockB (Sigmoid) groups lose
+    // their reptag and are merged by fuseRemnants (frozen attn blocks act as
+    // barriers).  Result: 30 merged(blockA+blockB) + 30 folded attn = 2*30 = 60.
+    constexpr std::size_t N = 30;
+    auto ext_cfg = abc_attn_base_cfg;
+    ext_cfg["NPUW_FUSE_UNFOLDED"] = "YES";
+    auto cfg = make_cfg(ext_cfg);
+    auto partitioning = ov::npuw::getPartitioning(build_abc_attn_model(N), cfg);
+
+    EXPECT_EQ(partitioning.subgraphs.size(), 2u * N);
+
+    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
+                                       partitioning.subgraphs.end(),
+                                       [](const ov::npuw::Subgraph& sg) {
+                                           return !sg._funcall.empty();
+                                       });
+    EXPECT_EQ(folded, N);
 }
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
