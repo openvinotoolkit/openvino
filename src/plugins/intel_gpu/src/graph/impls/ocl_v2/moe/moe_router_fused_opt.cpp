@@ -24,9 +24,6 @@ protected:
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
-        // The router outputs compact [num_tokens, top_k] topk_weights.
-        // Shared expert is always active and handled by moe_3gemm_fused_compressed, not by the router.
-        jit.make("SHARED_EXPERT_ENABLE", 0);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -53,9 +50,6 @@ protected:
         jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
-        // The router outputs compact [num_tokens, top_k] topk_weights.
-        // Shared expert is always active and handled by moe_3gemm_fused_compressed, not by the router.
-        jit.make("SHARED_EXPERT_ENABLE", 0);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
