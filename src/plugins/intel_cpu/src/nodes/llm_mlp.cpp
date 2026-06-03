@@ -154,7 +154,12 @@ public:
              float* w_scale) {
         static ReduceAdd2bh jit_reduce2cvt(true, std::is_same_v<T, ov::float16>);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
+        // Only wake the threads that actually have work assigned. works[i] for
+        // i >= used_nthr is empty (no n-block range), so the lambda no-ops; but
+        // the OV/TBB threadpool still has per-thread fork-join overhead for
+        // each waker. Capping to used_nthr saves substantial wakeup cost at
+        // small M (decode), where compute per thread is ~zero.
+        ov::parallel_nt_static(used_nthr, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = work.m_C;
             if (work) {
@@ -301,7 +306,9 @@ public:
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float* w_scale) {
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
+        // See comment in LinearKsplit2::run — cap to used_nthr to skip
+        // empty-work threads' fork-join overhead.
+        ov::parallel_nt_static(used_nthr, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.run(M, pA, strideA_in_bytes);
