@@ -388,14 +388,7 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    const auto status = ze::zeCommandListHostSynchronize(m_command_list, endless_wait);
-    if (status != ZE_RESULT_SUCCESS) {
-        OPENVINO_THROW("[GPU] zeCommandListHostSynchronize failed, status=",
-                       ze_result_to_hex(status),
-                       ", last enqueued kernel in this thread=",
-                       last_enqueued_kernel_id.empty() ? "<unknown>" : last_enqueued_kernel_id,
-                       ". For pinpointing, rerun with OV_GPU_ZE_SYNC_EACH_KERNEL=1");
-    }
+    OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_command_list, endless_wait));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
