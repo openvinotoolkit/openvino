@@ -365,7 +365,7 @@ TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     OV_EXPECT_THROW(
         auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
         AssertFailure,
-        testing::HasSubstr("Attention mask input shape not compatible with other inputs."));
+        testing::HasSubstr("Value input shape not compatible with other inputs."));
 }
 
 TEST(type_prop, scaled_dot_product_unsupported_attention_shape) {

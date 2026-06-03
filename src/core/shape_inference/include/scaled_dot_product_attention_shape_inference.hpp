@@ -33,9 +33,11 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     size_t kv_num_heads_factor = 1;
     if ((n_dims_rank.is_static() && key_rank.is_static()) && (n_dims_rank.get_length() == key_rank.get_length())) {
-        const auto& last_dim = *(n_dims.end() - 1);
-        const auto& key_dim =
+        const ov::Dimension last_dim =
+            (n_dims_rank.is_static() && n_dims_rank.get_length() >= 3) ? *(n_dims.end() - 3) : ov::Dimension(1);
+        const ov::Dimension key_dim =
             (key_rank.is_static() && key_rank.get_length() >= 3) ? *(key.end() - 3) : ov::Dimension(1);
+
         if (last_dim.is_static() && key_dim.is_static() && key_dim.get_length() != 0) {
             kv_num_heads_factor = last_dim.get_length() / key_dim.get_length();
         }
@@ -55,7 +57,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     if (key_rank.is_static()) {
         if (kv_num_heads_factor > 1) {
             key_input_correctness = key_rank.get_length() >= 3 && DimType::merge(e_dim, e_dim, *(key.end() - 1));
-        }else {
+        } else {
             key_input_correctness =
                 key_rank.get_length() >= 3 &&
                 TRShape::broadcast_merge_into(n_dims,
@@ -77,8 +79,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     if (value_rank.is_static()) {
         if (kv_num_heads_factor > 1) {
             value_input_correctness = value_rank.get_length() >= 3 && DimType::merge(s_dim, s_dim, *(value.end() - 2));
-        }
-        else {
+        } else {
             value_input_correctness =
                 value_rank.get_length() >= 3 &&
                 TRShape::broadcast_merge_into(n_dims,
