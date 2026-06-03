@@ -81,7 +81,8 @@ std::shared_ptr<v0::Constant> get_reversed_order_constant(const std::shared_ptr<
 ov::pass::TransposeFQ::TransposeFQ() {
     MATCHER_SCOPE(TransposeFQ);
 
-    auto transpose_label = wrap_type<v1::Transpose>({any_input(pattern::has_static_rank()), wrap_type<v0::Constant>()});
+    auto transpose_order_m = wrap_type<v0::Constant>();
+    auto transpose_label = wrap_type<v1::Transpose>({any_input(pattern::has_static_rank()), transpose_order_m});
     auto fq_label = wrap_type<v0::FakeQuantize>({transpose_label,
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank()),
@@ -94,7 +95,7 @@ ov::pass::TransposeFQ::TransposeFQ() {
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
-        auto transpose_order = ov::as_type_ptr<v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto transpose_order = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_order_m).get_node_shared_ptr());
         if (!transpose_order || !fq)
             return false;
 
@@ -107,8 +108,16 @@ ov::pass::TransposeFQ::TransposeFQ() {
         ov::OutputVector fq_inputs = {transpose->input_value(0)};
         for (size_t i = 1; i < fq->inputs().size(); ++i) {
             auto input = fq->input_value(i);
-            const auto& ranks_diff = input_rank - input.get_partial_shape().rank().get_length();
-            OPENVINO_ASSERT(ranks_diff >= 0);
+            if (ov::as_type_ptr<v0::Constant>(input.get_node_shared_ptr()) && ov::shape_size(input.get_shape()) == 1) {
+                fq_inputs.push_back(input);
+                continue;
+            }
+
+            const auto& range_rank = input.get_partial_shape().rank().get_length();
+            if (range_rank > input_rank)
+                return false;
+
+            const auto& ranks_diff = input_rank - range_rank;
             if (ranks_diff > 0) {
                 std::vector<int64_t> axes(ranks_diff);
                 std::iota(axes.begin(), axes.end(), 0);
