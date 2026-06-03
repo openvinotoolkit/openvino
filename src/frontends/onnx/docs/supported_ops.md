@@ -169,9 +169,9 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |SequenceAt                                              |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceConstruct                                       |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceEmpty                                           |11                      |11                              |Supported only in certain patterns|
-|                        |SequenceErase                                           |                        |11                              |                                |
+|                        |SequenceErase                                           |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceInsert                                          |11                      |11                              |Supported only in certain patterns|
-|                        |SequenceLength                                          |                        |11                              |                                |
+|                        |SequenceLength                                          |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceMap                                             |                        |17                              |                                |
 |                        |Shape                                                   |15, 1                   |21, 19, 15, 13, 1               |                                |
 |                        |Shrink                                                  |9                       |9                               |                                |
