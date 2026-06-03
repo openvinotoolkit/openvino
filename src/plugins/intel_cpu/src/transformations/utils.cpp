@@ -143,6 +143,32 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
            dequantization.data.get_element_type() != resolved_precision.precision;
 }
 
+bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node>& node) {
+    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
+    if (!conv) {
+        return false;
+    }
+
+    const auto& conv_consumers = conv->output(0).get_target_inputs();
+    if (conv_consumers.size() != 1) {
+        return false;
+    }
+
+    const auto first_consumer = conv_consumers.begin()->get_node()->shared_from_this();
+    const auto add = ov::as_type_ptr<const ov::op::v1::Add>(first_consumer);
+    if (!add) {
+        return false;
+    }
+
+    const auto& add_consumers = add->output(0).get_target_inputs();
+    if (add_consumers.size() != 1) {
+        return false;
+    }
+
+    const auto second_consumer = add_consumers.begin()->get_node()->shared_from_this();
+    return ov::is_type<ov::op::v0::FakeQuantize>(second_consumer);
+}
+
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
                                    const ov::Shape& kernel_shape,
