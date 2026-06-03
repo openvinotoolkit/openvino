@@ -92,10 +92,10 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
                               offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
                               "GroupedMatMul offsets must be 1D tensor.");
 
-        const auto k = mat_a_shape[0];
-        const auto total_tokens_a = mat_a_shape[1];
-        const auto n = mat_b_shape[0];
-        const auto total_tokens_b = mat_b_shape[1];
+        const auto& k = mat_a_shape[0];
+        const auto& total_tokens_a = mat_a_shape[1];
+        const auto& n = mat_b_shape[0];
+        const auto& total_tokens_b = mat_b_shape[1];
 
         auto merged_tokens = DimType();
         NODE_VALIDATION_CHECK(op,
