@@ -273,19 +273,16 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
 
         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin)});
         auto* initial_state_src = recurrent_state_table.ptr<T>(static_cast<size_t>(block_id), i_h, i_v);
-        for (size_t j = 0; j < k_head_dims; j++) {
-            init_state[j] = static_cast<float>(initial_state_src[j * v_head_dims]);
-        }
+        cvt_copy(init_state, initial_state_src, 1, k_head_dims, 0, 0);
 
         const size_t hk = i_h / group_size;
 
         for (int32_t token = token_begin; token < token_end; token++) {
             const auto token_u = static_cast<size_t>(token);
-            // Vectorized load of contiguous k and q
-            T* key_ptr = key.ptr<T>(token_u, hk);
-            T* query_ptr = query.ptr<T>(token_u, hk);
-            cvt_copy(b_k, key_ptr, 1, k_head_dims, 0, 0);
-            cvt_copy(b_q, query_ptr, 1, k_head_dims, 0, 0);
+            for (size_t j = 0; j < k_head_dims; j++) {
+                b_k[j] = static_cast<float>(key.at<T>({token_u, hk, j}));
+                b_q[j] = static_cast<float>(query.at<T>({token_u, hk, j}));
+            }
 
             if (use_qk_l2norm) {
                 l2norm(b_k, k_head_dims, k_l2_norm_eps);
@@ -321,9 +318,7 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
                 if (slot < seq_blocks) {
                     const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
                     auto* updated_state_dst = recurrent_state_table.ptr<T>(static_cast<size_t>(block_id), i_h, i_v);
-                    for (size_t j = 0; j < k_head_dims; j++) {
-                        updated_state_dst[j * v_head_dims] = static_cast<T>(init_state[j]);
-                    }
+                    cvt_copy(updated_state_dst, init_state, 1, k_head_dims, 0, 0);
                 }
             }
         }
