@@ -77,7 +77,7 @@ void jit_gdn_kernel<isa>::reduce_zmm_f32_to_xmm_scalar(const Xbyak::Zmm& zmm_src
 }
 
 // ============================================
-// Native xf16 helpers - FP16-only implementation
+// Native xf16 helpers
 // ============================================
 
 template <cpu_isa_t isa>
@@ -227,8 +227,6 @@ void jit_gdn_kernel<isa>::l2norm_inplace_native_xf16(Vmm* vmm_array, const Xbyak
     }
 
     // Reduce to scalar: sqrt(sum + eps), then compute reciprocal
-    // NOTE: do not use x_tmp0 as destination of reduce_zmm_f32_to_xmm_scalar,
-    // because x_tmp0 is used internally as a scratch register in that helper.
     uni_vpxor(x_hk, x_hk, x_hk);
     reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_hk, x_tmp0, x_tmp1);
     vaddss(x_hk, x_hk, xmm_eps);

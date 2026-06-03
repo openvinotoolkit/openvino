@@ -4,9 +4,8 @@
 
 #include "gated_delta_net.h"
 
-#include <algorithm>
-#include <common/utils.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -15,7 +14,6 @@
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -25,16 +23,15 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu_parallel.hpp"
 #    include "kernels/x64/gdn_jit_kernel.hpp"
+using namespace dnnl::impl::cpu::x64;
 #endif
 
 using namespace ov::Extensions::Cpu;
 using namespace ov::Extensions::Cpu::XARCH;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -178,10 +175,13 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     const auto queryDims = getInputShapeAtPort(0).getDims();
     auto headSize = *(queryDims.end() - 1);
     auto implType = impl_desc_type::ref_any;
+#if defined(OPENVINO_ARCH_X86_64)
     if (ov::intel_cpu::any_of(getOriginalOutputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
         (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0) {
         implType = impl_desc_type::jit_avx512;
+        m_enableJit = true;
     }
+#endif
 
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
@@ -197,12 +197,11 @@ void GatedDeltaNet::createPrimitive() {
     const auto precision = getOriginalOutputPrecisionAtPort(0);
     const auto queryDims = getInputShapeAtPort(0).getDims();
     auto headSize = *(queryDims.end() - 1);
-    m_gdnJitVTile = 16;
+    size_t scratchRows = 3;
+    auto scratchPrecision = ov::element::f32;
     // if head_size is not multiple of 32, fallbacks to intrinsic kernel
-    bool enableJit = ov::intel_cpu::any_of(precision, ov::element::f16, ov::element::bf16) &&
-                     (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0;
 #if defined(OPENVINO_ARCH_X86_64)
-    if (enableJit) {
+    if (m_enableJit) {
         GatedDeltaNetKey key{precision, headSize, m_gdnJitVTile, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps};
 
         auto builder = [&](const GatedDeltaNetKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
@@ -217,16 +216,17 @@ void GatedDeltaNet::createPrimitive() {
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         m_gdnJitKernel = result.first;
+        if (m_gdnJitKernel) {
+            scratchPrecision = precision;
+            scratchRows = m_gdnJitVTile + 2;
+        }
     }
 #endif
 
     const auto numWorkerThreads = context->getCpuParallel()->get_num_worker_threads();
-    // Fallback recurrent_linear_attn uses float scratchpad; keep model/output precision unchanged.
-    const auto scratchPrecision = m_gdnJitKernel ? precision : ov::element::f32;
     auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
         scratchPrecision,
-        ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads),
-                             (m_gdnJitKernel ? (m_gdnJitVTile + 2) : 3) * headSize});
+        ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads), scratchRows * headSize});
     m_tmpInpBuffer = context->getScratchPad()->createScratchPadMem(newMemDesc);
 }
 

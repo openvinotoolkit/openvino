@@ -55,6 +55,7 @@ private:
 #if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<kernel::JitKernelBase> m_gdnJitKernel;
     size_t m_gdnJitVTile = 16;
+    bool m_enableJit = false;
 #endif
 };
 
