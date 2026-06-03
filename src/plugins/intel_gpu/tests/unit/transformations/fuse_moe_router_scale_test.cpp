@@ -82,6 +82,7 @@ TEST_F(TransformationTestsF, FuseMoEPerExpertScale) {
 
         model = std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{hidden, routing, topk_idx});
         manager.register_pass<FuseMoERouterScale>();
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
 
     {
@@ -123,6 +124,7 @@ TEST_F(TransformationTestsF, FuseMoEScalarScale) {
 
         model = std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{hidden, routing, topk_idx});
         manager.register_pass<FuseMoERouterScale>();
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
 
     {
