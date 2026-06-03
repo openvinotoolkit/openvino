@@ -45,7 +45,7 @@ using gpu_handle_param = void*;
  * @brief Shortcut for defining a HANDLE on windows or file descriptor on linux
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-#ifdef __linux__ 
+#ifdef __linux__
 using handle_param = int;
 #else
 using handle_param = void*;
