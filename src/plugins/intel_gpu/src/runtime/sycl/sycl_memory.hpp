@@ -17,7 +17,6 @@
 #include <memory>
 #include <variant>
 
-
 namespace cldnn {
 namespace sycl {
 struct lockable_gpu_mem {
@@ -171,10 +170,6 @@ protected:
     host_accessor_variant _host_accessor;
 };
 
-// TODO: add gpu_image2d class
-
-
-
 struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& usm_buffer,
             allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
@@ -215,5 +210,7 @@ struct sycl_surfaces_lock : public surfaces_lock {
 private:
     std::vector<::sycl::buffer<std::byte, 1>> get_handles(std::vector<memory::ptr> mem) const;
 };
+
+// TODO: add gpu_image2d class
 }  // namespace sycl
 }  // namespace cldnn

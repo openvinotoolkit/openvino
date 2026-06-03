@@ -414,7 +414,6 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
                 OPENVINO_THROW("No instance for given types found: ", out_t);
             }
         }
-
     }
 
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_params) {

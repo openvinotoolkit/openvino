@@ -130,10 +130,10 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
             UsmMemory sub_buffer(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
-                                         new_layout,
-                                         sub_buffer,
-                                         memory.get_allocation_type(),
-                                         memory.get_mem_tracker());
+                                                   new_layout,
+                                                   sub_buffer,
+                                                   memory.get_allocation_type(),
+                                                   memory.get_mem_tracker());
         } else {
             return downcast<const sycl::gpu_buffer>(memory).create_subbuffer(new_layout, byte_offset);
         }
@@ -152,10 +152,10 @@ memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& 
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             return std::make_shared<sycl::gpu_usm>(this,
-                                         new_layout,
-                                         downcast<const sycl::gpu_usm>(memory).get_buffer(),
-                                         memory.get_allocation_type(),
-                                         memory.get_mem_tracker());
+                                                   new_layout,
+                                                   downcast<const sycl::gpu_usm>(memory).get_buffer(),
+                                                   memory.get_allocation_type(),
+                                                   memory.get_mem_tracker());
         } else {
             return downcast<const sycl::gpu_buffer>(memory).reinterpret(new_layout);
         }

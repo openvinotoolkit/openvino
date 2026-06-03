@@ -340,6 +340,7 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
+
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
         _buffer.allocateHost(actual_bytes_count);
@@ -351,8 +352,7 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type
         _buffer.allocateDevice(actual_bytes_count);
         break;
     default:
-        CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
-            "Unknown unified shared memory type!");
+        OPENVINO_THROW("[GPU] Unknown unified shared memory type!");
     }
 
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), actual_bytes_count, type);
@@ -368,8 +368,9 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
             }
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
+            auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
             try {
-                auto ev = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue().memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
+                auto ev = sycl_queue.memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
                 ev.wait_and_throw();
             } catch (::sycl::exception const& err) {
                 OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));

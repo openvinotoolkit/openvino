@@ -39,7 +39,3 @@ inline bool is_device_available(const device_info& info) {
 
 }  // namespace sycl
 }  // namespace cldnn
-
-namespace sycl {
-
-}
