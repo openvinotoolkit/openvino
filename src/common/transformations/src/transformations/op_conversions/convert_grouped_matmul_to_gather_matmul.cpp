@@ -42,10 +42,10 @@ namespace v17 = ov::op::v17;
 
 using ov::op::internal::GatherMatmul;
 
-// Build the identity-per-group `indices` for Case 2:
+// Build the identity-per-group `indices` for 3Dx3D:
 //     indices = Broadcast(Unsqueeze(Range(0, G), 0), [M, G])
 // The G and M dimensions are taken dynamically from ShapeOf(mat_a).
-ov::Output<ov::Node> build_case2_indices(const ov::Output<ov::Node>& mat_a, ov::NodeVector& new_nodes) {
+ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::NodeVector& new_nodes) {
     auto i32 = ov::element::i32;
 
     auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [3]: [G, M, K]
@@ -91,14 +91,14 @@ ov::Output<ov::Node> build_case2_indices(const ov::Output<ov::Node>& mat_a, ov::
     return indices;
 }
 
-// Build per-token expert indices from `offsets` for Case 1:
+// Build per-token expert indices from `offsets` for 2Dx3D:
 //     positions  = Range(0, T)                                     [T]
 //     idx_1d     = SearchSorted(offsets, positions, right=true)    [T]
 //     indices    = Unsqueeze(idx_1d, -1)                           [T, 1]
 //
 // `offsets` may be i32 or i64; we Convert to i32 and use i32 positions to keep
 // SearchSorted's type contract happy and to match GatherMatmul's preferred index type.
-ov::Output<ov::Node> build_case1_indices(const ov::Output<ov::Node>& mat_a,
+ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
                                          const ov::Output<ov::Node>& offsets,
                                          ov::NodeVector& new_nodes) {
     auto i32 = ov::element::i32;
@@ -158,14 +158,14 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
         std::shared_ptr<ov::Node> replacement;
 
         if (a_rank == 3 && b_rank == 3 && input_size == 2) {
-            // ---- Case 2: 3D x 3D, no offsets ----
+            // ---- 3Dx3D: no offsets ----
             // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
-            auto indices = build_case2_indices(mat_a, new_nodes);
+            auto indices = build_3dx3d_indices(mat_a, new_nodes);
             auto gm = std::make_shared<GatherMatmul>(mat_a, mat_b, indices);
             new_nodes.push_back(gm);
             replacement = gm;
         } else if (a_rank == 2 && b_rank == 3 && input_size == 3) {
-            // ---- Case 1: 2D x 3D with offsets ----
+            // ---- 2Dx3D: with offsets ----
             // A:[T,K] B:[G,N,K] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), B, idx[T,1]), 0) -> [T,N]
             const auto offsets = gmm->input_value(2);
 
@@ -174,7 +174,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(a_unsq_axis);
             new_nodes.push_back(a_3d);
 
-            auto indices = build_case1_indices(mat_a, offsets, new_nodes);
+            auto indices = build_2dx3d_indices(mat_a, offsets, new_nodes);
 
             auto gm = std::make_shared<GatherMatmul>(a_3d, mat_b, indices);  // [1, T, N]
             auto squeeze_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
@@ -185,7 +185,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(out);
             replacement = out;
         } else {
-            // Case 3 (2D x 2D weight gradient) and any unexpected shape combinations
+            // 2Dx2D (weight gradient) and any unexpected shape combinations
             // are not handled by GatherMatmul — leave the graph untouched so the
             // default decomposition / reference path can take over.
             return false;
