@@ -531,8 +531,8 @@ shared_mem_params gpu_usm::get_internal_params() const {
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(const_cast<::sycl::context*>(&(sycl_engine->get_sycl_context()))),  // context handle
-        nullptr,        // user_device handle
-        _buffer.get(),  // mem handle
+        static_cast<shared_handle>(const_cast<::sycl::device*>(&(sycl_engine->get_sycl_device()))),  // user_device handle
+        static_cast<shared_handle>(_buffer.get()),  // mem handle
 #ifdef _WIN32
         nullptr,  // surface handle
 #else
