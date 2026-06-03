@@ -354,7 +354,6 @@ TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
         AssertFailure,
         testing::HasSubstr("Key input shape not compatible with other inputs."));
 }
-
 TEST(type_prop, scaled_dot_product_unsupported_value_shape) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
