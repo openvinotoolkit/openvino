@@ -9,7 +9,7 @@
 
 #include <sstream>
 
-#include "intel_npu/common/dynamic_arguments_impl.hpp"
+#include "intel_npu/common/dynamic_arguments.hpp"
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
