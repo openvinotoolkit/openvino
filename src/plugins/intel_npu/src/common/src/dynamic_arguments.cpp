@@ -151,6 +151,20 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
     }
 }
 
+DynamicMemRefImpl& DynamicMemRefType::ensure_impl() {
+    if (!_impl) {
+        _impl = std::make_unique<DynamicMemRefImpl>();
+    }
+    return *_impl;
+}
+
+DynamicArgumentsImpl& DynamicArguments::ensure_impl() {
+    if (!_impl) {
+        _impl = std::make_unique<DynamicArgumentsImpl>();
+    }
+    return *_impl;
+}
+
 DynamicMemRefImpl::~DynamicMemRefImpl() {
     destroyMemRef();
 }
