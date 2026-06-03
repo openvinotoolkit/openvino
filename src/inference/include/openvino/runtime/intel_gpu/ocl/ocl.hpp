@@ -45,10 +45,10 @@ using gpu_handle_param = void*;
  * @brief Shortcut for defining a HANDLE on windows or file descriptor on linux
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-#ifdef linux 
-    using handle_param = int;
+#ifdef __linux__ 
+using handle_param = int;
 #else
-    using handle_param = void*;
+using handle_param = void*;
 #endif
 
 /**
@@ -333,7 +333,9 @@ public:
                                  const Shape& shape,
                                  handle_param shared_buffer,
                                  const MemType memory_type) {
+#ifndef __linux__
         OPENVINO_ASSERT(shared_buffer != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
+#endif
         OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
                         "Only SHARED_BUF memory type is supported for raw buffer pointer or NT handle");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE},
