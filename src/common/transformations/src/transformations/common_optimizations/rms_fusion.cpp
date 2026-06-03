@@ -89,9 +89,14 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
 
     // Pattern 1: RMS with gamma (learnable parameter)
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma (gamma is constant)
+    // Allow an optional Convert between the rsqrt-multiply and the gamma
+    // multiply: with model dtype = bf16/f16 the rsqrt branch runs in f32 and
+    // the residual stream is narrow, so a Convert appears in between. The
+    // Convert is matched as an optional node so this is dtype-agnostic.
     auto gamma = pattern::wrap_type<v0::Constant>();
     auto gamma_convert = pattern::optional<v0::Convert>(gamma);
-    auto mul_with_gamma = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div});
+    auto mul_or_div_cvt = pattern::optional<v0::Convert>(mul_or_div);
+    auto mul_with_gamma = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div_cvt});
 
     std::shared_ptr<ov::Node> rms_mul;
     if (enable_without_gamma) {
@@ -99,7 +104,7 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_wit
         // RMS(x) * scale where scale is non-constant (e.g., gate, activation, residual)
         // This allows partial fusion: only fuse up to mul_or_div
         auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
-        auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
+        auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div_cvt, scale});
         rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
     } else {
         rms_mul = mul_with_gamma;
