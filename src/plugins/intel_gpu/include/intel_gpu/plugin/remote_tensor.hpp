@@ -9,7 +9,7 @@
 #endif
 
 
-// Do not include DirectX / VA wrappers when running with L0 runtime as they depend on OCL
+// Do not include DirectX / VA wrappers when running with ZE runtime as they depend on OCL
 #ifndef OV_GPU_WITH_ZE_RT
 #ifdef _WIN32
 # include <openvino/runtime/intel_gpu/ocl/dx.hpp>
