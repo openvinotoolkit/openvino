@@ -17,7 +17,6 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/runtime/mmap_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -225,7 +224,6 @@ size_t get_size_for_mapping(const ov::element::Type& element_type, const ov::Par
         return auto_size;
     }
 }
-}  // namespace
 
 Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
                                   const element::Type& element_type,
@@ -238,6 +236,7 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
     set_tensor_source_id(tensor, mapped_memory->get_id());
     return tensor;
 }
+}  // namespace
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const ov::element::Type& element_type,
@@ -247,7 +246,7 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
     OPENVINO_ASSERT(element_type != ov::element::string);
     if (mmap) {
         const auto size = get_size_for_mapping(element_type, partial_shape);
-        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size),
+        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size, /*no_placeholder=*/true),
                                           element_type,
                                           partial_shape);
     } else {

@@ -16,7 +16,6 @@
 #include <variant>
 
 #include "openvino/runtime/icache_manager.hpp"
-#include "openvino/runtime/mmap_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
@@ -74,11 +73,7 @@ private:
         const auto blob_path = get_blob_file(id);
         if (ov::util::file_exists(blob_path)) {
             if (enable_mmap) {
-                // Disable placeholder on windows until fix provided in CVS-187957, to be compatible with NPU zero-copy
-                auto mapped = ov::load_mmap_object(blob_path, 0, ov::auto_size, /*no_placeholder=*/true);
-                CompiledBlobVariant compiled_blob{
-                    std::in_place_index<0>,
-                    ov::read_tensor_data_mmap_impl(std::move(mapped), ov::element::u8, ov::PartialShape::dynamic(1))};
+                CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_path)};
                 reader(compiled_blob);
             } else {
                 ov::util::ParallelReadStreamBuf par_buf(blob_path);
