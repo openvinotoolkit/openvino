@@ -38,10 +38,6 @@ public:
     using pointer           = _Ptr;
     using reference         = std::remove_pointer_t<_Ptr>&;
 
-#if _HAS_CXX20
-    using iterator_concept = std::contiguous_iterator_tag;
-#endif // _HAS_CXX20
-
     checked_array_iterator() = default;
     
     checked_array_iterator(const pointer data, const std::size_t size, const std::size_t index = 0) noexcept
@@ -136,13 +132,6 @@ public:
         return _Myoff == a._Myoff;
     }
 
-#if _HAS_CXX20
-    _NODISCARD constexpr std::strong_ordering operator<=>(const checked_array_iterator& _Right) const noexcept {
-        _STL_VERIFY(_Myptr == _Right._Myptr && _Mysize == _Right._Mysize,
-            "cannot compare incompatible checked_array_iterators");
-        return _Myoff <=> _Right._Myoff;
-    }
-#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
     _NODISCARD constexpr bool operator!=(const checked_array_iterator& a) const noexcept {
         _Compat(a);
         return _Myoff != a._Myoff;
@@ -163,8 +152,6 @@ public:
         _Compat(a);
         return _Myoff >= a._Myoff;
     }
-#endif // ^^^ !_HAS_CXX20 ^^^
-    
 
     // MSVC-style unwrapping helpers used by the iterator->const_iterator ctor above.
     pointer      _Unwrapped_base() const noexcept { return _Myptr; }
