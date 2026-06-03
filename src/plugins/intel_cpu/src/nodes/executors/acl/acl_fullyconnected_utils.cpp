@@ -5,12 +5,14 @@
 
 #include <arm_compute/core/CoreTypes.h>
 #include <arm_compute/core/Error.h>
+#include <arm_compute/core/Strides.h>
 #include <arm_compute/core/TensorInfo.h>
 #include <arm_compute/core/TensorShape.h>
 #include <arm_compute/core/Types.h>
 #include <arm_compute/function_info/FullyConnectedLayerInfo.h>
 #include <arm_compute/runtime/NEON/functions/NECast.h>
 #include <arm_compute/runtime/NEON/functions/NEFullyConnectedLayer.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <any>
@@ -89,7 +91,7 @@ void reorderToAclFcWeightFormat(arm_compute::TensorInfo& info,
     const dnnl::impl::dim_t innermostBatchStride = md.padded_dims[inputDim] * md.padded_dims[outputDim];
 
     if (interleavedBy > 1) {
-        md.format_desc.blocking.inner_nblks = 1 + (blockBy > 1);
+        md.format_desc.blocking.inner_nblks = 1 + static_cast<int>(blockBy > 1);
         md.format_desc.blocking.inner_idxs[0] = outputDim;
         md.format_desc.blocking.inner_blks[0] = interleavedBy;
         if (blockBy > 1) {
