@@ -71,10 +71,8 @@ static std::vector<float> run_network_get_f32_output(engine& eng, topology& tp,
 // =====================================================
 TEST(bf16_onednn_ops, convolution_bf16) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad) {
-        // oneDNN bf16 convolution needs XMX support (DG2+/Xe-HPG+)
-        // DG2 has supports_immad = true
-    }
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
 
     tests::random_generator rg("bf16_conv");
     const int batch = 1, in_f = 16, in_y = 8, in_x = 8;
@@ -127,6 +125,9 @@ TEST(bf16_onednn_ops, convolution_bf16) {
 // =====================================================
 TEST(bf16_onednn_ops, gemm_bf16) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
     tests::random_generator rg("bf16_gemm");
 
     const int M = 16, K = 32, N = 16;
@@ -191,6 +192,9 @@ TEST(bf16_onednn_ops, gemm_bf16) {
 // =====================================================
 TEST(bf16_onednn_ops, fully_connected_bf16) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
     tests::random_generator rg("bf16_fc");
 
     const int batch = 4, input_f = 64, output_f = 32;
@@ -239,6 +243,9 @@ TEST(bf16_onednn_ops, fully_connected_bf16) {
 // =====================================================
 TEST(bf16_onednn_ops, pooling_avg_bf16) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
     tests::random_generator rg("bf16_pool");
 
     const int batch = 1, features = 16, in_y = 8, in_x = 8;
@@ -277,6 +284,9 @@ TEST(bf16_onednn_ops, pooling_avg_bf16) {
 // =====================================================
 TEST(bf16_onednn_ops, concatenation_bf16) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
     tests::random_generator rg("bf16_concat");
 
     const int batch = 1, f1 = 8, f2 = 8, y = 4, x = 4;
@@ -340,6 +350,9 @@ TEST(bf16_onednn_ops, concatenation_bf16) {
 // =====================================================
 TEST(bf16_onednn_ops, reduce_sum_bf16) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
     tests::random_generator rg("bf16_reduce");
 
     const int batch = 1, features = 16, in_y = 4, in_x = 4;
@@ -378,6 +391,9 @@ TEST(bf16_onednn_ops, reduce_sum_bf16) {
 // =====================================================
 TEST(bf16_onednn_ops, deconvolution_bf16) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
     tests::random_generator rg("bf16_deconv");
 
     const int batch = 1, in_f = 16, in_y = 4, in_x = 4;
