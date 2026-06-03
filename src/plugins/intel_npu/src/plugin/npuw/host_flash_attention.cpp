@@ -903,8 +903,8 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
 
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
                                                            bool fused_flash_attention) {
-    LOG_ERROR("Attempting to create HostFlashAttention"
-              << (fused_flash_attention ? " with fused flash attention node" : ""));
+    LOG_INFO("Attempting to create HostFlashAttention"
+             << (fused_flash_attention ? " with fused flash attention node" : ""));
     LOG_BLOCK();
 
     // ========================================================================
@@ -1033,7 +1033,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         LOG_WARN("Failed to create HFA final tile model");
         return std::nullopt;
     }
-    LOG_ERROR("Start create_hfa_tile_model use_mask=false");
+
     // ========================================================================
     // Step 6: Create HostFlashAttention structure and set configuration
     // ========================================================================
@@ -1050,7 +1050,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                         output_dtype,
                                                         false);
     }
-    LOG_ERROR("End create_hfa_tile_model use_mask=false");
+
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;
     hfa._context_size = context_size;
@@ -1073,8 +1073,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     build_tile_output_mapping(hfa, tile_model);
 
-    LOG_ERROR("Successfully created HostFlashAttention with query_size="
-              << query_size << ", context_size=" << context_size << ", tile_size=" << query_size);
+    LOG_INFO("Successfully created HostFlashAttention with query_size="
+             << query_size << ", context_size=" << context_size << ", tile_size=" << query_size);
 
     return hfa;
 }

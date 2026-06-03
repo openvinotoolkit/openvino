@@ -1844,7 +1844,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
             if (hfa->_tile_no_mask_model_to_compile) {
                 hfa->set_compiled_tile_no_mask_model(
-                        make_wrapped(hfa->_tile_no_mask_model_to_compile, "/hfa_tile_no_mask", devices));
+                    make_wrapped(hfa->_tile_no_mask_model_to_compile, "/hfa_tile_no_mask", devices));
             }
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
