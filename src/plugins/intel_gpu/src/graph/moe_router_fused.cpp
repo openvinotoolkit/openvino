@@ -32,16 +32,14 @@ std::vector<layout> moe_router_fused_inst::calc_output_layouts(const moe_router_
     auto input_pshape = input_layout.get_partial_shape();
     size_t top_k = desc->_config.top_k;
 
+    OPENVINO_ASSERT(input_pshape.rank().is_static(), "Input rank must be static");
     ov::PartialShape out_shape;
-    if (input_pshape.rank().is_static() && input_pshape.rank().get_length() >= 3) {
+    auto num_tokens = input_pshape[0];
+    if (input_pshape.rank().get_length() == 3) {
         // 3D input [batch, seq_len, num_experts] -> num_tokens = batch * seq_len
-        auto num_tokens = input_pshape[0] * input_pshape[1];
-        out_shape = ov::PartialShape{num_tokens, static_cast<int64_t>(top_k)};
-    } else if (input_pshape.rank().is_static() && input_pshape.rank().get_length() >= 1) {
-        out_shape = ov::PartialShape{input_pshape[0], static_cast<int64_t>(top_k)};
-    } else {
-        out_shape = ov::PartialShape::dynamic(2);
+        num_tokens = input_pshape[0] * input_pshape[1];
     }
+    out_shape = ov::PartialShape{num_tokens, static_cast<int64_t>(top_k)};
 
     // Output 0: topk_weights [num_tokens, top_k] — same element type as input
     layout weights_layout(out_shape, input_layout.data_type, format::bfyx);

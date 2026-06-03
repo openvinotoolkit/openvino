@@ -78,6 +78,7 @@ public:
         if (desc->_config.routing_type == MoERouterFused::RoutingType::SOFTMAX) {
             add_stage(softmax_topk, params);
         } else {
+            OPENVINO_ASSERT(desc->_config.routing_type == MoERouterFused::RoutingType::SIGMOID_BIAS, "Unsupported routing type");
             add_stage(sigmoid_bias_topk, params);
         }
     }
