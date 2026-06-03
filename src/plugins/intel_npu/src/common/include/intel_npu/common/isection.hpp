@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {

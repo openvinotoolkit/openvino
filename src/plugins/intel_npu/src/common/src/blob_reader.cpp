@@ -191,17 +191,24 @@ void BlobReader::read(const ov::Tensor& source,
     std::optional<uint64_t> cre_location = offsets_table.lookup_offset(CRE_SECTION_ID);
     std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
-    cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
 
-    interface = BlobReaderInterface(source, cursor, cre_length.value(), npu_region_size, plugin_capabilities);
-    m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
-    m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
-    const bool is_compatible =
-        std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
-            ->get_cre()
-            .check_compatibility(plugin_capabilities);
-    OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
-    m_logger.debug("CRE evaluation passed");
+    // TODO test the negative branch as well
+    if (cre_location.has_value()) {
+        cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
+
+        interface = BlobReaderInterface(source, cursor, cre_length.value(), npu_region_size, plugin_capabilities);
+        m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
+        m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
+        const bool is_compatible = std::dynamic_pointer_cast<CRESection>(
+                                       m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
+                                       ->get_cre()
+                                       .check_compatibility(plugin_capabilities);
+        OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
+        m_logger.debug("CRE evaluation passed");
+    } else {
+        m_logger.warning("The CRE section was not found within the table of offsets. Proceeding without performing any "
+                         "compatibility checks");
+    }
 
     // Step 3: Parse all known sections
     size_t number_of_sections_encountered = 0;
