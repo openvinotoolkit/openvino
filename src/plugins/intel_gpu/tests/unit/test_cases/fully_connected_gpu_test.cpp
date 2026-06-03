@@ -6410,3 +6410,217 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(16L, 256L, 1024L, true)
     )
 );
+
+// Parameterized test fixture for UINT2 fully connected kernel across various matrix dimensions
+class fully_connected_gpu_u2_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int>> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int>>& obj) {
+        int batch = std::get<0>(obj.param);
+        int ifm = std::get<1>(obj.param);
+        int ofm = std::get<2>(obj.param);
+        int group_size = std::get<3>(obj.param);
+        return "b" + std::to_string(batch) + "_ifm" + std::to_string(ifm) + "_ofm" + std::to_string(ofm) + "_g" + std::to_string(group_size);
+    }
+};
+
+// Validates UINT2 decompression correctness across multiple sizes using random data vs inline CPU-computed reference
+TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        GTEST_SKIP();
+
+    const int batch_num = std::get<0>(GetParam());
+    const int ifm_num = std::get<1>(GetParam());
+    const int ofm_num = std::get<2>(GetParam());
+    const int scales_group_size = std::get<3>(GetParam());
+
+    ASSERT_EQ(ifm_num % 4, 0) << "ifm_num must be multiple of 4 for U2";
+    ASSERT_EQ(ifm_num % scales_group_size, 0) << "ifm_num must be multiple of scales_group_size";
+
+    auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+
+    std::vector<uint8_t> packed_weights;
+    std::vector<uint8_t> unpacked_weights;
+    for (int ofm = 0; ofm < ofm_num; ++ofm) {
+        for (int ifm_byte = 0; ifm_byte < ifm_num / 4; ++ifm_byte) {
+            uint8_t packed = 0;
+            for (int i = 0; i < 4; ++i) {
+                uint8_t val = (ifm_byte * 4 + i) % 4;
+                unpacked_weights.push_back(val);
+                packed |= (val << (i * 2));
+            }
+            packed_weights.push_back(packed);
+        }
+    }
+    set_values(weights_mem, packed_weights);
+
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    auto in_layout = layout{{batch_num, ifm_num}, data_types::f16, format::bfyx};
+
+    topology topology(input_layout("input", in_layout),
+                      data("weights", weights_mem),
+                      data("scale", scale_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto inst = network->get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    std::vector<float> expected_output(batch_num * ofm_num);
+    for (int b = 0; b < batch_num; ++b) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float acc = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                int group_id = ifm / scales_group_size;
+                uint8_t weight_u2 = unpacked_weights[ofm * ifm_num + ifm];
+                float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                float weight_f16 = weight_u2 * scale;
+                float inp = static_cast<float>(input_data[b * ifm_num + ifm]);
+                acc += inp * weight_f16;
+            }
+            expected_output[b * ofm_num + ofm] = acc;
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f)
+            << "Mismatch at output index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_gpu_u2_validation,
+                         ::testing::Values(std::make_tuple(1, 4, 4, 4),       // minimum size (single group)
+                                           std::make_tuple(2, 16, 8, 4),      // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32),    // group_size == ifm (single group per row)
+                                           std::make_tuple(1, 128, 64, 32),   // larger dimensions, multiple groups
+                                           std::make_tuple(8, 256, 128, 64),  // large batch + large matrix
+                                           std::make_tuple(1, 512, 256, 128)  // stress test
+                                           ),
+                         fully_connected_gpu_u2_validation::GetTestCaseName);
+
+// Validates UINT2 weight decompression in the OUTPUT_3D code path, compared against inline CPU-computed reference
+TEST_F(fully_connected_gpu_tests, reference_kernel_uint2_3d_path) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        GTEST_SKIP();
+
+    // 3D input: {batch, seq_len, features} -> output is 3D (OUTPUT_3D path)
+    const int batch_num = 2;
+    const int seq_len = 3;
+    const int ifm_num = 8;   // features (must be multiple of 4 for U2)
+    const int ofm_num = 4;
+    const int scales_group_size = 4;
+
+    // Input shape: {batch, seq_len, ifm_num} as 3D tensor for OUTPUT_3D path
+    auto input_mem = engine.allocate_memory({{batch_num, seq_len, ifm_num}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+
+    // Fill input data
+    std::vector<ov::float16> input_data(batch_num * seq_len * ifm_num);
+    for (size_t i = 0; i < input_data.size(); ++i)
+        input_data[i] = ov::float16(1.0f + static_cast<float>(i % 5) * 0.5f);
+    set_values(input_mem, input_data);
+
+    // Pack uint2 weights (4 values per byte)
+    std::vector<uint8_t> packed_weights;
+    std::vector<uint8_t> unpacked_weights;
+    for (int ofm = 0; ofm < ofm_num; ++ofm) {
+        for (int ifm_byte = 0; ifm_byte < ifm_num / 4; ++ifm_byte) {
+            uint8_t packed = 0;
+            for (int i = 0; i < 4; ++i) {
+                uint8_t val = (ifm_byte * 4 + i) % 4;
+                unpacked_weights.push_back(val);
+                packed |= (val << (i * 2));
+            }
+            packed_weights.push_back(packed);
+        }
+    }
+    set_values(weights_mem, packed_weights);
+
+    // Scale data: ofm_num * (ifm_num / scales_group_size)
+    std::vector<ov::float16> scale_data(ofm_num * (ifm_num / scales_group_size));
+    for (size_t i = 0; i < scale_data.size(); ++i)
+        scale_data[i] = ov::float16(0.5f + static_cast<float>(i % 3) * 0.5f);
+    set_values(scale_mem, scale_data);
+
+    auto in_layout = layout{{batch_num, seq_len, ifm_num}, data_types::f16, format::bfyx};
+
+    topology topology(input_layout("input", in_layout),
+                      data("weights", weights_mem),
+                      data("scale", scale_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto inst = network->get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    // Compute expected output: for each batch and seq_len position, compute FC over ifm_num
+    // Output shape is {batch, seq_len, ofm_num}
+    std::vector<float> expected_output(batch_num * seq_len * ofm_num);
+    for (int b = 0; b < batch_num; ++b) {
+        for (int s = 0; s < seq_len; ++s) {
+            for (int ofm = 0; ofm < ofm_num; ++ofm) {
+                float acc = 0.0f;
+                for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                    int group_id = ifm / scales_group_size;
+                    uint8_t weight_u2 = unpacked_weights[ofm * ifm_num + ifm];
+                    float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                    float weight_f16 = weight_u2 * scale;
+                    float inp = static_cast<float>(input_data[(b * seq_len + s) * ifm_num + ifm]);
+                    acc += inp * weight_f16;
+                }
+                expected_output[(b * seq_len + s) * ofm_num + ofm] = acc;
+            }
+        }
+    }
+
+    // Validate results with tolerance
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f)
+            << "Mismatch at output index " << i;
+    }
+}

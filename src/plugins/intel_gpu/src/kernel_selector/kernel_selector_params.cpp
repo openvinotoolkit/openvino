@@ -170,6 +170,9 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::UINT4:
             key.inputWeightsType.val.uint4 = 1;
             break;
+        case WeightsType::UINT2:
+            key.inputWeightsType.val.uint2 = 1;
+            break;
         case WeightsType::INT32:
             key.inputWeightsType.val.int32 = 1;
             break;
@@ -199,6 +202,9 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::UINT4:
             key.outputWeightsType.val.uint4 = 1;
+            break;
+        case WeightsType::UINT2:
+            key.outputWeightsType.val.uint2 = 1;
             break;
         case WeightsType::INT32:
             key.outputWeightsType.val.int32 = 1;
