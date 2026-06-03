@@ -198,12 +198,7 @@ static std::vector<Detection> parseTwoTensorDetections(const ov::Tensor& pred_bo
     return detections;
 }
 
-// Parse detections from model outputs (single image).
-// Automatically detects the output format:
-//   - If outputs contain "pred_boxes" and "logits" → two-layer DETR-style parsing
-//   - If a single output (or two outputs without the above names) has shape [batch, N, 6+]
-//     → single-tensor parsing (YOLOv10 or similar end-to-end detection models)
-//   - If two outputs are present: the one with last dim == 4 is boxes, the other is logits
+// Automatically detects the output formats for DETR and YOLOv10 style models
 std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov::Tensor>& outputs,
                                                   float confidence_threshold) {
     std::vector<Detection> detections;
@@ -218,7 +213,6 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
     auto logits_it = outputs.find("logits");
 
     if (pred_boxes_it != outputs.end() && logits_it != outputs.end()) {
-        std::cout << "Detected two-layer mode (pred_boxes + logits)" << std::endl;
         return parseTwoTensorDetections(pred_boxes_it->second, logits_it->second, confidence_threshold);
     }
 
@@ -228,8 +222,6 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
         const auto shape = tensor.get_shape();
 
         if (shape.size() == 3 && shape[2] >= 6) {
-            std::cout << "Detected single-layer mode: " << name << " " << shape
-                      << " (end-to-end detection output)" << std::endl;
             return parseSingleTensorDetections(tensor, confidence_threshold);
         }
 
@@ -257,29 +249,9 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
         }
 
         if (boxes_tensor && classes_tensor) {
-            std::cout << "Detected two-layer mode by shape: boxes='" << boxes_name
-                      << "', classes='" << classes_name << "'" << std::endl;
             return parseTwoTensorDetections(*boxes_tensor, *classes_tensor, confidence_threshold);
         }
-
-        // If neither has dim 4, try single-tensor parsing on the one with dim >= 6
-        // for (const auto& [name, tensor] : outputs) {
-        //     const auto shape = tensor.get_shape();
-        //     if (shape.size() == 3 && shape[2] >= 6) {
-        //         std::cout << "Detected single-layer mode from multi-output: " << name << " " << shape << std::endl;
-        //         return parseSingleTensorDetections(tensor, confidence_threshold);
-        //     }
-        // }
     }
-
-    // // Strategy 4: Multiple outputs — try to find any tensor with shape [batch, N, 6+]
-    // for (const auto& [name, tensor] : outputs) {
-    //     const auto shape = tensor.get_shape();
-    //     if (shape.size() == 3 && shape[2] >= 6) {
-    //         std::cout << "Detected single-layer mode (fallback): " << name << " " << shape << std::endl;
-    //         return parseSingleTensorDetections(tensor, confidence_threshold);
-    //     }
-    // }
 
     std::cout << "Warning: Could not determine detection format from outputs. Available tensors:" << std::endl;
     for (const auto& [name, tensor] : outputs) {
