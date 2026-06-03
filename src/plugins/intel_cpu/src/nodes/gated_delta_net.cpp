@@ -86,8 +86,8 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
     const size_t V = value.m_dims[3];
     const auto data_prc = query.m_dt;
     const size_t elem_size = ov::element::Type(data_prc).size();
-    OPENVINO_ASSERT(ov::intel_cpu::any_of(data_prc, ov::element::f16, ov::element::bf16),
-                    "GDN JIT supports only f16/bf16 state copy path");
+    OPENVINO_ASSERT(ov::intel_cpu::any_of(data_prc, ov::element::f16, ov::element::bf16, ov::element::f32),
+                    "GDN JIT supports only f16/bf16/f32 state copy path");
     const size_t group_size = v_heads / qk_heads;
     OPENVINO_ASSERT(V % gdn_jit_v_tile == 0, "GDN JIT requires V divisible by ", gdn_jit_v_tile, ", got V=", V);
     const size_t v_tiles = V / gdn_jit_v_tile;
@@ -116,13 +116,24 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
         const size_t output_state_stride_k = output_recurrent_state.stride(2);
         const size_t output_state_stride_v = output_recurrent_state.stride(3);
 
-        // JIT path stores state in 2-byte elements (f16/bf16).
-        auto* init_state_u16 = reinterpret_cast<uint16_t*>(state_buffer);
-        auto* recurrent_state_u16 = reinterpret_cast<const uint16_t*>(recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
-        for (size_t j = 0; j < K; j++) {
-            const auto* src_row = recurrent_state_u16 + j * recurrent_state_stride_k;
-            for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
-                init_state_u16[v_idx * K + j] = src_row[v_idx * recurrent_state_stride_v];
+        if (data_prc == ov::element::f32) {
+            auto* init_state_f32 = reinterpret_cast<float*>(state_buffer);
+            auto* recurrent_state_f32 = reinterpret_cast<const float*>(recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
+            for (size_t j = 0; j < K; j++) {
+                const auto* src_row = recurrent_state_f32 + j * recurrent_state_stride_k;
+                for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
+                    init_state_f32[v_idx * K + j] = src_row[v_idx * recurrent_state_stride_v];
+                }
+            }
+        } else {
+            // JIT xf16 path stores state in 2-byte elements (f16/bf16).
+            auto* init_state_u16 = reinterpret_cast<uint16_t*>(state_buffer);
+            auto* recurrent_state_u16 = reinterpret_cast<const uint16_t*>(recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
+            for (size_t j = 0; j < K; j++) {
+                const auto* src_row = recurrent_state_u16 + j * recurrent_state_stride_k;
+                for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
+                    init_state_u16[v_idx * K + j] = src_row[v_idx * recurrent_state_stride_v];
+                }
             }
         }
 
@@ -143,13 +154,24 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
         args.output_seq = reinterpret_cast<uint8_t*>(out_ptr);
         (*jit_kernel)(&args);
 
-        // Copy final state tile back (2-byte elements: f16/bf16).
-        auto* final_state_u16 = reinterpret_cast<const uint16_t*>(state_buffer);
-        auto* output_state_u16 = reinterpret_cast<uint16_t*>(output_recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
-        for (size_t j = 0; j < K; j++) {
-            auto* dst_row = output_state_u16 + j * output_state_stride_k;
-            for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
-                dst_row[v_idx * output_state_stride_v] = final_state_u16[v_idx * K + j];
+        if (data_prc == ov::element::f32) {
+            auto* final_state_f32 = reinterpret_cast<const float*>(state_buffer);
+            auto* output_state_f32 = reinterpret_cast<float*>(output_recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
+            for (size_t j = 0; j < K; j++) {
+                auto* dst_row = output_state_f32 + j * output_state_stride_k;
+                for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
+                    dst_row[v_idx * output_state_stride_v] = final_state_f32[v_idx * K + j];
+                }
+            }
+        } else {
+            // Copy final state tile back (2-byte elements: f16/bf16).
+            auto* final_state_u16 = reinterpret_cast<const uint16_t*>(state_buffer);
+            auto* output_state_u16 = reinterpret_cast<uint16_t*>(output_recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
+            for (size_t j = 0; j < K; j++) {
+                auto* dst_row = output_state_u16 + j * output_state_stride_k;
+                for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
+                    dst_row[v_idx * output_state_stride_v] = final_state_u16[v_idx * K + j];
+                }
             }
         }
     });
@@ -177,8 +199,13 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
 #if defined(OPENVINO_ARCH_X86_64)
     const auto queryDims = getInputShapeAtPort(0).getDims();
     auto headSize = *(queryDims.end() - 1);
-    if (ov::intel_cpu::any_of(getOriginalOutputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
-        (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0) {
+    const auto precision = getOriginalOutputPrecisionAtPort(0);
+    const bool canUseXf16Jit = ov::intel_cpu::any_of(precision, ov::element::f16, ov::element::bf16) &&
+                               (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0;
+    const bool canUseF32Jit = precision == ov::element::f32 &&
+                              (mayiuse(avx512_core) || mayiuse(dnnl::impl::cpu::x64::avx2));
+
+    if (canUseXf16Jit || canUseF32Jit) {
         implType = impl_desc_type::jit_avx512;
         m_enableJit = true;
     }
@@ -203,6 +230,9 @@ void GatedDeltaNet::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     if (m_enableJit) {
         const auto precision = getOriginalOutputPrecisionAtPort(0);
+        if (precision == ov::element::f32) {
+            m_gdnJitVTile = 1;
+        }
         GatedDeltaNetKey key{precision, headSize, m_gdnJitVTile, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps};
 
         auto builder = [&](const GatedDeltaNetKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
