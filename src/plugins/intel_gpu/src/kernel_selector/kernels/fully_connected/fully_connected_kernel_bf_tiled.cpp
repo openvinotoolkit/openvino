@@ -353,6 +353,10 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
+    // UINT2 compressed weights are not supported by this kernel; the reference kernel handles them.
+    if (wt == WeightsType::UINT2) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
