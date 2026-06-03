@@ -469,7 +469,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
 
-    if (src_mem.get_allocation_type() == allocation_type::cl_mem) {
+    if (src_mem.get_allocation_type() == allocation_type::sycl_buffer) {
         auto& sycl_mem_buffer = downcast<const gpu_buffer>(src_mem);
         auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
 
