@@ -166,6 +166,19 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 return true;
         return false;
     };
+    auto bit_all_of = [&](const Bits& a, const std::function<bool(size_t)>& pred) {
+        for (size_t i = 0; i < a.size(); ++i) {
+            uint64_t bits = a[i];
+            while (bits) {
+                const size_t b = (i << 6) + ctz64(bits);
+                bits &= bits - 1;
+                if (!pred(b)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
 
     // Subgraph-ID state is shared across the per-node loop, the SCC loop, and the return value.
     SubgraphIdsMap subgraph_ids;
@@ -305,7 +318,20 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 const auto input_source_idx = get_index_by_node(input.get_source_output().get_node());
                 const auto& src_cyc_dep = node_subgraph_cyclic_input_dependencies[input_source_idx];
                 const auto& src_sg_dep = node_subgraph_input_dependencies[input_source_idx];
-                if (!bit_intersects(cyc_dep, src_cyc_dep) && bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
+                const auto source_output = input.get_source_output();
+                const bool single_consumer_graph_input_leaf =
+                    !is_graph_input_node(source_output.get_node()) && !bit_any(src_cyc_dep) &&
+                    bit_all_of(src_sg_dep, [&](size_t b) {
+                        const auto& traced_input = bit_to_input[b];
+                        if (is_graph_input_node(traced_input.get_node())) {
+                            return true;
+                        }
+                        const auto* traced_producer = traced_input.get_source_output().get_node();
+                        return is_graph_input_node(traced_producer);
+                    }) &&
+                    source_output.get_target_inputs().size() == 1;
+                if (!single_consumer_graph_input_leaf && !bit_intersects(cyc_dep, src_cyc_dep) &&
+                    bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
                     _subgraph_inputs.insert(input);
                 }
             }
@@ -477,33 +503,106 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     //     and well within the total_node_inputs edge budget.
     //
     // Target selection: among all candidate nodes (in any SCC member with >= 1 same-sg input),
-    // we pick the one with the fewest same-sg inputs (ties broken by topological order, i.e.
-    // smaller index). This minimizes per-iteration boundary growth and tends to cut near
-    // shared connectors first.
+    // prefer cuts at actual SCC re-entry nodes and shared connectors. Falling back to the node
+    // with the fewest same-sg inputs is still valid for convergence, but doing so too early may
+    // peel ordinary linear compute nodes out of the main device region and create tiny
+    // Parameter->op->Result submodels. Those are especially expensive for GPU compilation.
     auto isolate_one_scc_node = [&](const std::vector<SubgraphId>& sg_id_by_index,
                                     const std::unordered_set<SubgraphId>& scc_members) -> size_t {
+        struct CandidateRank {
+            size_t lacks_scc_boundary_input = 1;
+            size_t lacks_shared_same_sg_source = 1;
+            size_t has_trivial_leaf_input = 1;
+            size_t is_linear_compute_node = 1;
+            size_t same_sg_inputs = 0;
+            size_t node_idx = 0;
+        };
+
+        auto is_better_rank = [](const CandidateRank& lhs, const CandidateRank& rhs) {
+            if (lhs.lacks_scc_boundary_input != rhs.lacks_scc_boundary_input)
+                return lhs.lacks_scc_boundary_input < rhs.lacks_scc_boundary_input;
+            if (lhs.lacks_shared_same_sg_source != rhs.lacks_shared_same_sg_source)
+                return lhs.lacks_shared_same_sg_source < rhs.lacks_shared_same_sg_source;
+            if (lhs.has_trivial_leaf_input != rhs.has_trivial_leaf_input)
+                return lhs.has_trivial_leaf_input < rhs.has_trivial_leaf_input;
+            if (lhs.is_linear_compute_node != rhs.is_linear_compute_node)
+                return lhs.is_linear_compute_node < rhs.is_linear_compute_node;
+            if (lhs.same_sg_inputs != rhs.same_sg_inputs)
+                return lhs.same_sg_inputs < rhs.same_sg_inputs;
+            return lhs.node_idx < rhs.node_idx;
+        };
+
+        auto count_non_result_consumers = [](const std::shared_ptr<ov::Node>& node) {
+            size_t non_result_consumers = 0;
+            for (const auto& output : node->outputs()) {
+                for (const auto& target_input : output.get_target_inputs()) {
+                    if (!ov::op::util::is_output(target_input.get_node())) {
+                        ++non_result_consumers;
+                    }
+                }
+            }
+            return non_result_consumers;
+        };
+
         bool have_target = false;
         size_t target_idx = 0;
-        size_t target_same_sg_inputs = 0;
+        CandidateRank target_rank;
+        auto is_graph_input_leaf_source = [&](size_t node_idx) {
+            const auto& node = _ordered_ops[node_idx];
+            if (is_graph_input_node(node.get()))
+                return false;
+
+            if (count_non_result_consumers(node) != 1)
+                return false;
+
+            for (const auto& input : ordered_inputs[node_idx]) {
+                if (!is_graph_input_node(input.get_source_output().get_node()))
+                    return false;
+            }
+            return true;
+        };
         for (size_t i = 0; i < nodes_count; ++i) {
             const auto my_sg = sg_id_by_index[i];
             if (!scc_members.count(my_sg))
                 continue;
             size_t same_sg_inputs = 0;
+            bool has_scc_boundary_input = false;
+            bool has_shared_same_sg_source = false;
+            bool has_trivial_leaf_input = false;
             for (const auto& input : ordered_inputs[i]) {
-                if (_subgraph_inputs.count(input))
+                if (_subgraph_inputs.count(input)) {
+                    if (!is_graph_input_node(input.get_node())) {
+                        const auto src_idx = get_index_by_node(input.get_source_output().get_node());
+                        const auto producer_sg = sg_id_by_index[src_idx];
+                        has_scc_boundary_input =
+                            has_scc_boundary_input || (producer_sg != my_sg && scc_members.count(producer_sg));
+                    }
                     continue;
+                }
                 const auto src_idx = get_index_by_node(input.get_source_output().get_node());
                 if (sg_id_by_index[src_idx] != my_sg)
                     continue;
                 ++same_sg_inputs;
+                has_shared_same_sg_source =
+                    has_shared_same_sg_source || count_non_result_consumers(_ordered_ops[src_idx]) > 1;
+                has_trivial_leaf_input = has_trivial_leaf_input || is_graph_input_leaf_source(src_idx);
             }
             if (same_sg_inputs == 0)
                 continue;
-            if (!have_target || same_sg_inputs < target_same_sg_inputs) {
+
+            const CandidateRank candidate_rank{has_scc_boundary_input ? 0UL : 1UL,
+                                               has_shared_same_sg_source ? 0UL : 1UL,
+                                               has_trivial_leaf_input ? 1UL : 0UL,
+                                               (same_sg_inputs == 1 && count_non_result_consumers(_ordered_ops[i]) <= 1)
+                                                   ? 1UL
+                                                   : 0UL,
+                                               same_sg_inputs,
+                                               i};
+            const bool better_target = !have_target || is_better_rank(candidate_rank, target_rank);
+            if (better_target) {
                 have_target = true;
                 target_idx = i;
-                target_same_sg_inputs = same_sg_inputs;
+                target_rank = candidate_rank;
             }
         }
         OPENVINO_ASSERT(have_target,
