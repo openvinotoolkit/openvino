@@ -126,8 +126,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             auto& new_buf = downcast<const sycl::gpu_usm>(memory);
             auto ptr = new_buf.get_buffer().get();
-            ptr = static_cast<char*>(ptr) + byte_offset;
-            UsmMemory sub_buffer(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
+            auto sub_buffer = sycl::UsmMemory(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
                                                    new_layout,
