@@ -185,22 +185,4 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type) {
-    return s << as_string(type);
-}
-
 }  // namespace ov::op::internal
-
-namespace ov {
-using RoutingType = ov::op::internal::MOECompressed::RoutingType;
-template <>
-EnumNames<RoutingType>& EnumNames<RoutingType>::get() {
-    static auto enum_names = EnumNames<RoutingType>("MOECompressed::RoutingType",
-                                                    {
-                                                        {"softmax", RoutingType::SOFTMAX},
-                                                        {"sigmoid_bias", RoutingType::SIGMOID_BIAS},
-                                                    });
-    return enum_names;
-}
-
-}  // namespace ov

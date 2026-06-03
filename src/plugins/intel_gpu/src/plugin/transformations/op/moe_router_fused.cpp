@@ -43,9 +43,26 @@ std::shared_ptr<ov::Node> MoERouterFused::clone_with_new_inputs(const ov::Output
 bool MoERouterFused::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("num_expert", m_config.num_expert);
     visitor.on_attribute("top_k", m_config.top_k);
-    int rt = static_cast<int>(m_config.routing_type);
-    visitor.on_attribute("routing_type", rt);
+    visitor.on_attribute("routing_type", m_config.routing_type);
     return true;
 }
 
+std::ostream& operator<<(std::ostream& s, const MoERouterFused::RoutingType& type) {
+    return s << as_string(type);
+}
+
 }  // namespace ov::intel_gpu::op
+
+namespace ov {
+using RoutingType = ov::intel_gpu::op::MoERouterFused::RoutingType;
+template <>
+EnumNames<RoutingType>& EnumNames<RoutingType>::get() {
+    static auto enum_names = EnumNames<RoutingType>("MOECompressed::RoutingType",
+                                                    {
+                                                        {"softmax", RoutingType::SOFTMAX},
+                                                        {"sigmoid_bias", RoutingType::SIGMOID_BIAS},
+                                                    });
+    return enum_names;
+}
+
+}  // namespace ov

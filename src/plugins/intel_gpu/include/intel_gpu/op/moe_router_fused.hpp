@@ -28,7 +28,7 @@ class MoERouterFused : public ov::op::Op {
 public:
     OPENVINO_OP("MoERouterFused", "gpu_opset");
 
-    using RoutingType = ov::op::internal::MOECompressed::RoutingType;
+    enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
 
     struct Config {
         size_t num_expert = 0;
@@ -49,4 +49,20 @@ private:
     Config m_config;
 };
 
+TRANSFORMATIONS_API std::ostream& operator<<(std::ostream& s, const MoERouterFused::RoutingType& type);
+
 }  // namespace ov::intel_gpu::op
+
+namespace ov {
+template <>
+class AttributeAdapter<ov::intel_gpu::op::MoERouterFused::RoutingType>
+    : public EnumAttributeAdapterBase<ov::intel_gpu::op::MoERouterFused::RoutingType> {
+public:
+    AttributeAdapter(ov::intel_gpu::op::MoERouterFused::RoutingType& value)
+        : EnumAttributeAdapterBase<ov::intel_gpu::op::MoERouterFused::RoutingType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_gpu::op::MoERouterFused::RoutingType>");
+    ~AttributeAdapter() override = default;
+};
+
+}  // namespace ov

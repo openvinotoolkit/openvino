@@ -19,8 +19,6 @@ public:
 
     MOECompressed() = default;
 
-    enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
-
     struct Config : public MOE::Config {
         size_t hidden_size = 0;
         size_t inter_size = 0;
@@ -79,20 +77,4 @@ protected:
     Config m_config;
 };
 
-TRANSFORMATIONS_API std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type);
-
 }  // namespace ov::op::internal
-
-namespace ov {
-template <>
-class AttributeAdapter<ov::op::internal::MOECompressed::RoutingType>
-    : public EnumAttributeAdapterBase<ov::op::internal::MOECompressed::RoutingType> {
-public:
-    AttributeAdapter(ov::op::internal::MOECompressed::RoutingType& value)
-        : EnumAttributeAdapterBase<ov::op::internal::MOECompressed::RoutingType>(value) {}
-
-    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::MOECompressed::RoutingType>");
-    ~AttributeAdapter() override = default;
-};
-
-}  // namespace ov
