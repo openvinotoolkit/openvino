@@ -54,6 +54,7 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
         case EltwiseMode::BITWISE_AND:
         case EltwiseMode::BITWISE_OR:
         case EltwiseMode::BITWISE_XOR:
+        case EltwiseMode::ATAN2:
             return 2;
         case EltwiseMode::SQRT:
         case EltwiseMode::RSQRT:
@@ -270,6 +271,10 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             } break;
             case EltwiseMode::POW:
                 op += cast_type + "pow(" + input0_str + ", " + input1_str + ")";
+                break;
+            case EltwiseMode::ATAN2:
+                // input0 = y (lhs of atan2), input1 = x (rhs).
+                op += cast_type + "atan2(" + input0_str + ", " + input1_str + ")";
                 break;
             case EltwiseMode::SQRT:
                 op += cast_type + "sqrt(" + input0_str + ")";

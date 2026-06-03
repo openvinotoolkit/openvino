@@ -317,7 +317,7 @@ private:
 
 template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
 std::ostream& operator<<(std::ostream& out, const T& shape) {
-    return out << '{' << ov::util::join(shape, ",") << '}';
+    return out << '{' << ov::util::join<std::ostream>(shape, ",") << '}';
 }
 
 template <class T, class U, typename = std::enable_if_t<is_static_shape_adapter<T>() && is_static_shape_adapter<U>()>>
