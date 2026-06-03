@@ -75,10 +75,6 @@ inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activa
     }
 }
 
-// Routing kernels (softmax_topk / sigmoid_bias_topk) have been extracted to the
-// standalone MoERouterFused primitive (see moe_router_fused_opt.cpp). Top-k weights
-// and indices are now fed into this primitive via inputs TOPK_WEIGHTS / TOPK_INDICES.
-
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
     MoE3GemmSwigluGather() : KernelGenerator("moe_3gemm_swiglu_fuse", "gather") {}
@@ -547,7 +543,6 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
-    // softmax_topk / sigmoid_bias_topk stages removed: routing is now performed by MoERouterFused.
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
@@ -713,8 +708,6 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "MOE_BATCHED_GEMV_THRESHOLD = " << batched_gemv_threshold << std::endl;
         }
 
-        // Routing is now handled externally by MoERouterFused; this primitive consumes
-        // pre-computed topk weights/indices via inputs TOPK_WEIGHTS / TOPK_INDICES.
         // Don't change the order of stages
         add_stage(gather, params);
         add_stage(scatter, params);
@@ -1017,8 +1010,6 @@ public:
         bool has_shared_expert = params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT);
 
         std::vector<BufferDescriptor> internal_buffers;
-        // topk_id / topk_weights are no longer internal buffers; they come from inputs (provided by MoERouterFused).
-
         // To support micro_gemm, prefill need to allocate max_topk * token_num for input data of micro_gemm
         auto max_batch = has_shared_expert ? (max_topk + 1) * token_num : max_topk * token_num;
         layout layout_gateup_out(ov::Shape{max_batch, static_cast<size_t>(config.inter_size)}, data_type, cldnn::format::bfyx);
@@ -2239,9 +2230,6 @@ public:
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);
         kernel_dump_info.clear_entries();
-
-        // Routing is computed by the standalone MoERouterFused primitive; topk_weights / topk_indices
-        // arrive as inputs (already wired into scratch in prepare_internal_buffers).
 
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
