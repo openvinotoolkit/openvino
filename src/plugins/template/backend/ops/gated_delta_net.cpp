@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gated_delta_net.hpp"
+
 #include <cmath>
 #include <vector>
 
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::internal::GatedDeltaNet>& op,

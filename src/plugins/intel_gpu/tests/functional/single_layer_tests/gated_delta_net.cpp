@@ -14,13 +14,11 @@
 
 namespace {
 
-using GatedDeltaNetParams = std::tuple<
-    std::vector<ov::Shape>,  // Input shapes: query, key, value, state, gate, beta
-    ov::element::Type,       // Input precision
-    bool>;                   // fuse_qk_l2norm
+using GatedDeltaNetParams = std::tuple<std::vector<ov::Shape>,  // Input shapes: query, key, value, state, gate, beta
+                                       ov::element::Type,       // Input precision
+                                       bool>;                   // fuse_qk_l2norm
 
-class GatedDeltaNetStaticTest : public testing::WithParamInterface<GatedDeltaNetParams>,
-                                public ov::test::TestsCommon {
+class GatedDeltaNetStaticTest : public testing::WithParamInterface<GatedDeltaNetParams>, public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatedDeltaNetParams>& obj) {
         const auto& [input_shapes, precision, fuse_qk_l2norm] = obj.param;
@@ -48,16 +46,12 @@ protected:
         auto gate = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[4]);
         auto beta = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[5]);
 
-        auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
-            query, key, value, state, gate, beta, fuse_qk_l2norm);
+        auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(query, key, value, state, gate, beta, fuse_qk_l2norm);
 
         auto result0 = std::make_shared<ov::op::v0::Result>(gdn->output(0));
         auto result1 = std::make_shared<ov::op::v0::Result>(gdn->output(1));
 
-        model = std::make_shared<ov::Model>(
-            ov::ResultVector{result0, result1},
-            ov::ParameterVector{query, key, value, state, gate, beta},
-            "GatedDeltaNetTest");
+        model = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{query, key, value, state, gate, beta}, "GatedDeltaNetTest");
     }
 
     std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::Tensor> generate_inputs() {
@@ -68,8 +62,7 @@ protected:
             if (i == 4) {
                 in_data = ov::test::utils::InputGenerateData(-1, 1, 1000, 1);
             }
-            inputs[params[i]] = ov::test::utils::create_and_fill_tensor(
-                params[i]->get_element_type(), params[i]->get_shape(), in_data);
+            inputs[params[i]] = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), params[i]->get_shape(), in_data);
         }
         return inputs;
     }
@@ -119,12 +112,9 @@ const std::vector<std::vector<ov::Shape>> static_shapes = {
     {{1, 4, 2, 16}, {1, 4, 2, 16}, {1, 4, 8, 16}, {1, 8, 16, 16}, {1, 4, 8}, {1, 4, 8}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_GatedDeltaNetStatic,
-    GatedDeltaNetStaticTest,
-    ::testing::Combine(::testing::ValuesIn(static_shapes),
-                       ::testing::Values(ov::element::f32),
-                       ::testing::Values(false, true)),
-    GatedDeltaNetStaticTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatedDeltaNetStatic,
+                         GatedDeltaNetStaticTest,
+                         ::testing::Combine(::testing::ValuesIn(static_shapes), ::testing::Values(ov::element::f32), ::testing::Values(false, true)),
+                         GatedDeltaNetStaticTest::getTestCaseName);
 
 }  // namespace
