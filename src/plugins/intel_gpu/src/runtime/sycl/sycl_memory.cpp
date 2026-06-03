@@ -317,7 +317,7 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
 }
 #endif
 
-gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& buffer, allocation_type type,
+gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& buffer, allocation_type type,
                  std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, mem_tracker)
@@ -325,7 +325,7 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::Us
     , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
 }
 
-gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
+gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
     : lockable_gpu_mem()
     , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
     , _buffer(buffer)
@@ -537,7 +537,7 @@ allocation_type gpu_usm::detect_allocation_type(const sycl::sycl_engine* engine,
     return res;
 }
 
-allocation_type gpu_usm::detect_allocation_type(const sycl::sycl_engine* engine, const ::sycl::UsmMemory& buffer) {
+allocation_type gpu_usm::detect_allocation_type(const sycl::sycl_engine* engine, const UsmMemory& buffer) {
     auto alloc_type = detect_allocation_type(engine, buffer.get());
     OPENVINO_ASSERT(alloc_type == allocation_type::usm_device ||
                     alloc_type == allocation_type::usm_host ||

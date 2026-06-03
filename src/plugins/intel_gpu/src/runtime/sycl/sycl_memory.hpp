@@ -30,6 +30,99 @@ struct lockable_gpu_mem {
     void* _mapped_ptr;
 };
 
+class UsmHolder {
+public:
+    UsmHolder(::sycl::context context, void* ptr, size_t size, bool shared_memory = false)
+    : _context(context)
+    , _ptr(ptr)
+    , _size(size)
+    , _shared_memory(shared_memory) {
+        OPENVINO_ASSERT(ptr != nullptr, "[GPU] Can not create UsmHolder with nullptr");
+    }
+    UsmHolder(const UsmHolder&) = delete;
+    UsmHolder& operator=(const UsmHolder&) = delete;
+
+    void* ptr() { return _ptr; }
+    size_t size() { return _size; }
+
+    ~UsmHolder() {
+        if (!_shared_memory) {
+            ::sycl::free(_ptr, _context);
+        }
+    }
+
+private:
+    ::sycl::context _context;
+    void* _ptr;
+    size_t _size;  // hold size of allocation because SYCL doesn't provide API to get it from pointer
+    bool _shared_memory = false;
+};
+
+class UsmMemory {
+public:
+    explicit UsmMemory(::sycl::context context, ::sycl::device device)
+    : _context(context)
+    , _device(device) {}
+
+    UsmMemory(::sycl::context context, ::sycl::device device, void* usm_ptr, size_t size, size_t offset)
+    : _context(context)
+    , _device(device)
+    , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, size, true)) {}
+
+    size_t size() const {
+        if (is_empty()) {
+            return 0;
+        }
+        return _usm_pointer->size();
+    }
+
+    void* get() const {
+        if (is_empty()) {
+            return nullptr;
+        }
+        return _usm_pointer->ptr();
+    }
+
+    bool is_empty() const { return _usm_pointer.get() == nullptr; }
+
+    void allocateHost(size_t size, size_t alignment = 0) {
+        auto ptr = ::sycl::aligned_alloc_host(alignment, size, _context);
+        OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate host USM memory");
+        _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
+    }
+
+    void allocateShared(size_t size, size_t alignment = 0) {
+        auto ptr = ::sycl::aligned_alloc_shared(alignment, size, _device, _context);
+        OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate shared USM memory");
+        _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
+    }
+
+    void allocateDevice(size_t size, size_t alignment = 0) {
+        auto ptr = ::sycl::aligned_alloc_device(alignment, size, _device, _context);
+        OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate device USM memory");
+        _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
+    }
+
+    void freeMem() {
+        _usm_pointer.reset();
+    }
+
+    virtual ~UsmMemory() = default;
+
+protected:
+    ::sycl::context _context;
+    ::sycl::device _device;
+    std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
+};
+
+inline bool operator==(const UsmMemory &lhs, const UsmMemory &rhs) {
+    return lhs.get() == rhs.get();
+}
+
+inline bool operator!=(const UsmMemory &lhs, const UsmMemory &rhs) {
+    return !operator==(lhs, rhs);
+}
+
 struct gpu_buffer : public lockable_gpu_mem, public memory {
     gpu_buffer(sycl_engine* engine, const layout& new_layout, const ::sycl::buffer<std::byte, 1>& root_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(sycl_engine* engine, const layout& new_layout, const size_t byte_offset, const ::sycl::buffer<std::byte, 1>& root_buffer,
@@ -81,16 +174,17 @@ protected:
 // TODO: add gpu_image2d class
 
 
+
 struct gpu_usm : public lockable_gpu_mem, public memory {
-    gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& usm_buffer,
+    gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& usm_buffer,
             allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
-    gpu_usm(sycl_engine* engine, const layout& new_layout, const ::sycl::UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    const ::sycl::UsmMemory& get_buffer() const { return _buffer; }
-    ::sycl::UsmMemory& get_buffer() { return _buffer; }
+    const UsmMemory& get_buffer() const { return _buffer; }
+    UsmMemory& get_buffer() { return _buffer; }
     void* buffer_ptr() const override { return _buffer.get(); }
 
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
@@ -108,10 +202,10 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     static allocation_type detect_allocation_type(const sycl_engine* engine, const void* mem_ptr);
 
 protected:
-    ::sycl::UsmMemory _buffer;
-    ::sycl::UsmMemory _host_buffer;
+    UsmMemory _buffer;
+    UsmMemory _host_buffer;
 
-    static allocation_type detect_allocation_type(const sycl_engine* engine, const ::sycl::UsmMemory& buffer);
+    static allocation_type detect_allocation_type(const sycl_engine* engine, const UsmMemory& buffer);
 };
 
 struct sycl_surfaces_lock : public surfaces_lock {

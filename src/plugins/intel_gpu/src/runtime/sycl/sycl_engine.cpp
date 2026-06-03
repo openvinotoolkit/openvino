@@ -127,7 +127,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
             auto& new_buf = downcast<const sycl::gpu_usm>(memory);
             auto ptr = new_buf.get_buffer().get();
             ptr = static_cast<char*>(ptr) + byte_offset;
-            ::sycl::UsmMemory sub_buffer(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
+            UsmMemory sub_buffer(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
                                          new_layout,
