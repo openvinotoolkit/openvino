@@ -12,6 +12,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/resolve_precision_attribute.hpp"
+#include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
@@ -33,6 +34,16 @@
 using namespace ov::pass::pattern;
 
 namespace ov::intel_cpu {
+
+template <typename NodeType>
+std::shared_ptr<ov::Node> get_consumer(const ov::Output<NodeType>& output) {
+    const auto& consumers = output.get_target_inputs();
+    if (consumers.size() != 1) {
+        return nullptr;
+    }
+
+    return consumers.begin()->get_node()->shared_from_this();
+}
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
     auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
@@ -127,12 +138,12 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
         return true;
     }
 
-    const auto& consumers = avg_pool->output(0).get_target_inputs();
-    if (consumers.size() != 1) {
+    const auto fq_consumer = get_consumer(avg_pool->output(0));
+    if (!fq_consumer) {
         return true;
     }
 
-    const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(consumers.begin()->get_node()->shared_from_this());
+    const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_consumer);
     if (!fq) {
         return true;
     }
@@ -149,23 +160,27 @@ bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node
         return false;
     }
 
-    const auto& conv_consumers = conv->output(0).get_target_inputs();
-    if (conv_consumers.size() != 1) {
+    const auto first_consumer = get_consumer(conv->output(0));
+    if (!first_consumer) {
         return false;
     }
 
-    const auto first_consumer = conv_consumers.begin()->get_node()->shared_from_this();
+    if (ov::is_type<ov::op::v0::FakeQuantize>(first_consumer)) {
+        return true;
+    }
+
     const auto add = ov::as_type_ptr<const ov::op::v1::Add>(first_consumer);
     if (!add) {
         return false;
     }
 
-    const auto& add_consumers = add->output(0).get_target_inputs();
-    if (add_consumers.size() != 1) {
+    // Accept Conv->FQ and Conv->Add->FQ only.
+    // Activations between bias and FQ are not supported here yet, some of them will be enabled later
+    const auto second_consumer = get_consumer(add->output(0));
+    if (!second_consumer) {
         return false;
     }
 
-    const auto second_consumer = add_consumers.begin()->get_node()->shared_from_this();
     return ov::is_type<ov::op::v0::FakeQuantize>(second_consumer);
 }
 
