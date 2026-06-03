@@ -49,7 +49,7 @@ private:
     Config m_config;
 };
 
-TRANSFORMATIONS_API std::ostream& operator<<(std::ostream& s, const MoERouterFused::RoutingType& type);
+std::ostream& operator<<(std::ostream& s, const MoERouterFused::RoutingType& type);
 
 }  // namespace ov::intel_gpu::op
 
