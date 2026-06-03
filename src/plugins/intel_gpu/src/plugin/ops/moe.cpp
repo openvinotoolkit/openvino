@@ -38,36 +38,13 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         input_infos.push_back(cldnn::input_info(input));
     }
     if (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
-        // MOECompressed input layout (post FuseMoERouter):
-        //   0: hidden_states
-        //   1: routing_weights (topk_weights from MoERouterFused)
-        //   2: topk_indices (from MoERouterFused)
-        //   3-11: w0_weight, w0_scale, w0_zp, w1_weight, w1_scale, w1_zp, w2_weight, w2_scale, w2_zp
-        //   12-21: shared expert weights (optional)
-        //
-        // Primitive (moe_3gemm_fused_compressed) input layout:
-        //   0: hidden_states
-        //   1: topk_weights
-        //   2-10: w0_weight..w2_zp
-        //   11: topk_indices
-        //   12-21: shared expert weights (optional)
         const size_t base_inputs = 12;
         const size_t shared_inputs = config.num_shared_expert > 0 ? 10 : 0;
         const size_t expected_inputs = base_inputs + shared_inputs;
         validate_inputs_count(op, {expected_inputs});
 
-        // Remap: [hs, routing, topk, w0..zp2, shared...] → [hs, routing, w0..zp2, topk, shared...]
-        std::vector<cldnn::input_info> prim_inputs;
-        prim_inputs.push_back(input_infos[0]);   // hidden_states → 0
-        prim_inputs.push_back(input_infos[1]);   // routing_weights → 1 (TOPK_WEIGHTS)
-        for (size_t i = 3; i <= 11; ++i)
-            prim_inputs.push_back(input_infos[i]);  // w0..zp2 → 2..10
-        prim_inputs.push_back(input_infos[2]);   // topk_indices → 11 (TOPK_INDICES)
-        for (size_t i = 12; i < expected_inputs; ++i)
-            prim_inputs.push_back(input_infos[i]);  // shared → 12..21
-
         const std::string layerName = layer_type_name_ID(op);
-        const cldnn::moe_3gemm_fused_compressed moe(layerName, prim_inputs, config);
+        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config);
         p.add_primitive(*op, moe);
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives

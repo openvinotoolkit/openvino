@@ -545,6 +545,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
 
     std::vector<input_info> moe_inputs{input_info("hidden_states"),
                                        input_info("router", 0),  // topk_weights
+                                       input_info("router", 1),  // topk_indices
                                        input_info("w0_weight"),
                                        input_info("w0_scale"),
                                        input_info("w0_zp"),
@@ -553,8 +554,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                                        input_info("w1_zp"),
                                        input_info("w2_weight"),
                                        input_info("w2_scale"),
-                                       input_info("w2_zp"),
-                                       input_info("router", 1)}; // topk_indices
+                                       input_info("w2_zp")};
 
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config));
 
@@ -831,6 +831,7 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
                                             {input_info("hidden_states"),
                                              input_info("router", 0),  // topk_weights
+                                             input_info("router", 1),  // topk_indices
                                              input_info("w0_weight"),
                                              input_info("w0_scale"),
                                              input_info("w0_zp"),
@@ -840,7 +841,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
                                              input_info("w2_weight"),
                                              input_info("w2_scale"),
                                              input_info("w2_zp"),
-                                             input_info("router", 1),  // topk_indices
                                              // Shared Expert Inputs (indices 12-21)
                                              input_info("s_gate_weight"),
                                              input_info("s_gate_scale"),
@@ -1024,6 +1024,7 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
 
     std::vector<input_info> moe_inputs{input_info("hidden_states"),
                                        input_info("router", 0),  // topk_weights
+                                       input_info("router", 1),  // topk_indices
                                        input_info("w0_weight"),
                                        input_info("w0_scale"),
                                        input_info("w0_zp"),
@@ -1032,8 +1033,7 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
                                        input_info("w1_zp"),
                                        input_info("w2_weight"),
                                        input_info("w2_scale"),
-                                       input_info("w2_zp"),
-                                       input_info("router", 1)}; // topk_indices
+                                       input_info("w2_zp")};
 
     // Create MOECompressed primitive
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, config));
@@ -1217,6 +1217,7 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
     std::vector<input_info> moe_inputs{input_info("hidden_states"),
                                        input_info("router", 0),  // topk_weights
+                                       input_info("router", 1),  // topk_indices
                                        input_info("w0_weight"),
                                        input_info("w0_scale"),
                                        input_info("w0_zp"),
@@ -1225,8 +1226,7 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
                                        input_info("w1_zp"),
                                        input_info("w2_weight"),
                                        input_info("w2_scale"),
-                                       input_info("w2_zp"),
-                                       input_info("router", 1)}; // topk_indices
+                                       input_info("w2_zp")};
 
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config));
 
@@ -1455,6 +1455,7 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
                                             {input_info("hidden_states"),
                                              input_info("router", 0),  // topk_weights
+                                             input_info("router", 1),  // topk_indices
                                              input_info("w0_weight"),
                                              input_info("w0_scale"),
                                              input_info("w0_zp"),
@@ -1464,7 +1465,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
                                              input_info("w2_weight"),
                                              input_info("w2_scale"),
                                              input_info("w2_zp"),
-                                             input_info("router", 1),  // topk_indices
                                              // Shared Expert Inputs (indices 12-21)
                                              input_info("s_gate_weight"),
                                              input_info("s_gate_scale"),
