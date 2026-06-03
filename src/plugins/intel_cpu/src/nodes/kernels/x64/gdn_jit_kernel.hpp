@@ -22,6 +22,7 @@ namespace ov::intel_cpu::kernel {
 struct jit_gdn_compile_params {
     ov::element::Type data_prc = ov::element::f32;
     size_t qk_head_size = 0;
+    size_t v_tile = 1;
     bool fuse_qk_l2norm = false;
     float q_l2_norm_eps = 1e-6F;
     float k_l2_norm_eps = 1e-6F;
@@ -30,7 +31,6 @@ struct jit_gdn_compile_params {
 
 struct jit_gdn_call_args {
     uint8_t* state;
-    size_t v_block;
     const uint8_t* key_seq;
     const uint8_t* query_seq;
     const uint8_t* value_seq;
@@ -69,7 +69,6 @@ private:
     const Xbyak::Reg64 reg_key_seq = r13;
     const Xbyak::Reg64 reg_query_seq = r14;
     const Xbyak::Reg64 reg_value_seq = r15;
-    const Xbyak::Reg64 reg_v_idx = rdx;
     const Xbyak::Reg64 reg_aux = r11;
     const Xbyak::Reg64 reg_gate_seq = rsi;
     const Xbyak::Reg64 reg_beta_seq = rdi;
@@ -149,6 +148,7 @@ private:
 
 std::shared_ptr<JitKernelBase> create_gdn_jit_kernel(ov::element::Type data_prc = ov::element::f32,
                                                      size_t qk_head_size = 0,
+                                                     size_t v_tile = 1,
                                                      bool fuse_qk_l2norm = false,
                                                      float q_l2_norm_eps = 1e-6F,
                                                      float k_l2_norm_eps = 1e-6F);

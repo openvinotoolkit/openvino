@@ -54,6 +54,7 @@ private:
     float m_k_l2_norm_eps = 1e-6F;
 #if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<kernel::JitKernelBase> m_gdnJitKernel;
+    size_t m_gdnJitVTile = 16;
 #endif
 };
 
