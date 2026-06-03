@@ -22,6 +22,7 @@ public:
     runtime_types runtime_type() const override { return runtime_types::ze; };
 
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
+    memory_ptr import_buffer(const layout& layout, shared_handle external_handle) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
