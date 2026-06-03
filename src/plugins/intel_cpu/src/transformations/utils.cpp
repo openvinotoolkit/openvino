@@ -35,7 +35,8 @@ using namespace ov::pass::pattern;
 
 namespace ov::intel_cpu {
 
-std::shared_ptr<ov::Node> get_consumer(const ov::Output<ov::Node>& output) {
+template <typename NodeType>
+std::shared_ptr<ov::Node> get_consumer(const ov::Output<NodeType>& output) {
     const auto& consumers = output.get_target_inputs();
     if (consumers.size() != 1) {
         return nullptr;
