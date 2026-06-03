@@ -31,15 +31,17 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& key = input_shapes[1];
     const auto& key_rank = key.rank();
 
-    size_t kv_num_heads_factor = 1;
+    bool skip_broadcast_merge = false;
     if ((n_dims_rank.is_static() && key_rank.is_static()) && (n_dims_rank.get_length() == key_rank.get_length())) {
-        const ov::Dimension last_dim =
+        const ov::Dimension q_num_head =
             (n_dims_rank.is_static() && n_dims_rank.get_length() >= 3) ? *(n_dims.end() - 3) : ov::Dimension(1);
-        const ov::Dimension key_dim =
+        const ov::Dimension k_num_head =
             (key_rank.is_static() && key_rank.get_length() >= 3) ? *(key.end() - 3) : ov::Dimension(1);
 
-        if (last_dim.is_static() && key_dim.is_static() && key_dim.get_length() != 0) {
-            kv_num_heads_factor = last_dim.get_length() / key_dim.get_length();
+        if (q_num_head.is_static() && k_num_head.is_static() && k_num_head != q_num_head) {
+            auto kv_num_heads_factor = q_num_head.get_length() / k_num_head.get_length();
+            if(kv_num_heads_factor > 1)
+                skip_broadcast_merge = true;
         }
     }
 
@@ -55,7 +57,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     bool key_input_correctness = true;
     if (key_rank.is_static()) {
-        if (kv_num_heads_factor > 1) {
+        if (skip_broadcast_merge) {
             key_input_correctness = key_rank.get_length() >= 3 && DimType::merge(e_dim, e_dim, *(key.end() - 1));
         } else {
             key_input_correctness =
@@ -77,7 +79,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& value_rank = value.rank();
     bool value_input_correctness = true;
     if (value_rank.is_static()) {
-        if (kv_num_heads_factor > 1) {
+        if (skip_broadcast_merge) {
             value_input_correctness = value_rank.get_length() >= 3 && DimType::merge(s_dim, s_dim, *(value.end() - 2));
         } else {
             value_input_correctness =
