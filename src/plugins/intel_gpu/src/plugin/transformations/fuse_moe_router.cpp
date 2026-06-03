@@ -47,7 +47,6 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
 
     auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), any_input()}, consumers_count(1));
     auto norm_m = wrap_type<ov::op::v1::Divide>({topk_m->output(0), reduce_m});
-    auto convert_topk_m = optional<ov::op::v0::Convert>({topk_m->output(1)});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
@@ -72,7 +71,18 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
         ov::copy_runtime_info(m.get_match_root(), router_node);
 
         OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(norm_m), router_node->output(0)), "MoERouter fusion failed");
-        OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(convert_topk_m), router_node->output(1)), "MoERouter fusion failed");
+
+        // TopK indices output may be followed by an optional Convert (i64 -> i32).
+        // Since the matcher doesn't support several roots, the Convert is detected in the callback.
+        auto actual_topk = pattern_map.at(topk_m).get_node_shared_ptr();
+        auto indices_output = actual_topk->output(1);
+        for (const auto& consumer_in : actual_topk->output(1).get_target_inputs()) {
+            if (ov::is_type<ov::op::v0::Convert>(consumer_in.get_node())) {
+                indices_output = consumer_in.get_node()->output(0);
+                break;
+            }
+        }
+        OPENVINO_ASSERT(ov::replace_output_update_name(indices_output, router_node->output(1)), "MoERouter fusion failed");
         return true;
     };
 
@@ -90,8 +100,9 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
     auto topk_m = wrap_type<ov::op::v11::TopK>({add_m, topk_k_m});
     topk_m->set_output_size(2);
 
-    auto convert_topk_m = optional<ov::op::v0::Convert>({topk_m->output(1)});
-    auto gather_el_m = wrap_type<ov::op::v6::GatherElements>({sigmoid_m, convert_topk_m});
+    auto convert_topk_m = wrap_type<ov::op::v0::Convert>({topk_m->output(1)});
+    auto indices_m = convert_topk_m | topk_m->output(1);
+    auto gather_el_m = wrap_type<ov::op::v6::GatherElements>({sigmoid_m, indices_m});
     auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({gather_el_m, any_input()}, consumers_count(1));
 
     // Note: only scalar eps is supported for now
@@ -126,8 +137,7 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
         ov::copy_runtime_info(m.get_match_root(), router_node);
 
         OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(norm_m), router_node->output(0)), "MoERouter fusion failed");
-        OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(convert_topk_m), router_node->output(1)), "MoERouter fusion failed");
-
+        OPENVINO_ASSERT(ov::replace_output_update_name(pattern_map.at(indices_m), router_node->output(1)), "MoERouter fusion failed");
         return true;
     };
 
