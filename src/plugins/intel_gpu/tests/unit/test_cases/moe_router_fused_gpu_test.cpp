@@ -59,7 +59,7 @@ TEST_P(moe_router_fused_softmax_gpu, router_accuracy_test) {
 
     topology.add(moe_router_fused("router", {input_info("logits")}, config));
     topology.add(reorder("topk_weights", input_info("router", 0), format::bfyx, data_types::f16));
-    topology.add(reorder("topk_indices", input_info("router", 1), format::bfyx, data_types::u8));
+    topology.add(reorder("topk_indices", input_info("router", 1), format::bfyx, data_types::i32));
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -73,7 +73,7 @@ TEST_P(moe_router_fused_softmax_gpu, router_accuracy_test) {
     auto indices_mem = outputs.at("topk_indices").get_memory();
 
     cldnn::mem_lock<ov::float16, mem_lock_type::read> weights_ptr(weights_mem, get_test_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> indices_ptr(indices_mem, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> indices_ptr(indices_mem, get_test_stream());
 
     // Compute reference: softmax + top-k + normalize
     for (size_t t = 0; t < num_tokens; ++t) {
@@ -113,12 +113,10 @@ TEST_P(moe_router_fused_softmax_gpu, router_accuracy_test) {
         // Compare
         for (size_t k = 0; k < top_k; ++k) {
             float ref_weight = expert_weights[k].first / sum_weights;
-            uint32_t ref_index = static_cast<uint32_t>(expert_weights[k].second);
+            int32_t ref_index = static_cast<int32_t>(expert_weights[k].second);
 
             float actual_weight = static_cast<float>(weights_ptr[t * top_k + k]);
-            // Indices are u32 in kernel output, but we reordered to u8 for reading
-            // Need to read as u32 from the original output
-            uint32_t actual_index = static_cast<uint32_t>(indices_ptr[t * top_k + k]);
+            int32_t actual_index = indices_ptr[t * top_k + k];
 
             ASSERT_NEAR(actual_weight, ref_weight, 0.01f)
                 << "Token " << t << ", k=" << k << " weight mismatch";
@@ -175,7 +173,7 @@ TEST_P(moe_router_fused_sigmoid_bias_gpu, router_accuracy_test) {
 
     topology.add(moe_router_fused("router", {input_info("logits"), input_info("bias"), input_info("eps")}, config));
     topology.add(reorder("topk_weights", input_info("router", 0), format::bfyx, data_types::f16));
-    topology.add(reorder("topk_indices", input_info("router", 1), format::bfyx, data_types::u8));
+    topology.add(reorder("topk_indices", input_info("router", 1), format::bfyx, data_types::i32));
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -189,7 +187,7 @@ TEST_P(moe_router_fused_sigmoid_bias_gpu, router_accuracy_test) {
     auto indices_mem = outputs.at("topk_indices").get_memory();
 
     cldnn::mem_lock<ov::float16, mem_lock_type::read> weights_ptr(weights_mem, get_test_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> indices_ptr(indices_mem, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> indices_ptr(indices_mem, get_test_stream());
 
     // Compute reference: sigmoid + bias topk + normalize
     for (size_t t = 0; t < num_tokens; ++t) {
@@ -222,10 +220,10 @@ TEST_P(moe_router_fused_sigmoid_bias_gpu, router_accuracy_test) {
         // Compare
         for (size_t k = 0; k < top_k; ++k) {
             float ref_weight = sigmoid_scores[expert_weights[k].second] / sum_weights;
-            uint32_t ref_index = static_cast<uint32_t>(expert_weights[k].second);
+            int32_t ref_index = static_cast<int32_t>(expert_weights[k].second);
 
             float actual_weight = static_cast<float>(weights_ptr[t * top_k + k]);
-            uint32_t actual_index = static_cast<uint32_t>(indices_ptr[t * top_k + k]);
+            int32_t actual_index = indices_ptr[t * top_k + k];
 
             ASSERT_NEAR(actual_weight, ref_weight, 0.02f)
                 << "Token " << t << ", k=" << k << " weight mismatch";
