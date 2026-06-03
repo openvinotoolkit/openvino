@@ -11,11 +11,12 @@
 namespace intel_npu {
 
 IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
-                                   const std::vector<ov::Layout>& output_layouts)
+                                   const std::vector<ov::Layout>& output_layouts,
+                                   const ov::log::Level log_level)
     : ISection(PredefinedSectionType::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
       m_output_layouts(std::move(output_layouts)),
-      m_logger("IOLayoutsSection", Logger::global().level()) {}
+      m_logger("IOLayoutsSection", log_level) {}
 
 void IOLayoutsSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");
@@ -54,7 +55,7 @@ std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
 
 std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::read");
-    const Logger logger("IOLayoutsSection", Logger::global().level());
+    const Logger logger("IOLayoutsSection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length >= 2 * sizeof(uint64_t),
@@ -103,7 +104,7 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
 
     const std::vector<ov::Layout> input_layouts = read_n_layouts(number_of_input_layouts, "Input");
     const std::vector<ov::Layout> output_layouts = read_n_layouts(number_of_output_layouts, "Output");
-    return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts);
+    return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts, blob_reader.get_log_level());
 }
 
 }  // namespace intel_npu

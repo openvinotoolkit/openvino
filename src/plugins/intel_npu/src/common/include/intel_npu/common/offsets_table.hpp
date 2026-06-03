@@ -17,7 +17,7 @@ namespace intel_npu {
  */
 class OffsetsTable final {
 public:
-    OffsetsTable();
+    OffsetsTable(const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void add_entry(const SectionID id, const uint64_t offset, const uint64_t length);
 
@@ -50,7 +50,7 @@ private:
 
 class OffsetsTableSection final : public ISection {
 public:
-    OffsetsTableSection(const OffsetsTable& offsets_table);
+    OffsetsTableSection(const OffsetsTable& offsets_table, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 

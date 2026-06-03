@@ -11,9 +11,10 @@ namespace intel_npu {
 
 class ELFMainScheduleSection final : public ISection {
 public:
-    ELFMainScheduleSection(const std::shared_ptr<Graph>& graph);
+    ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
+                           const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    ELFMainScheduleSection(ov::Tensor main_schedule);
+    ELFMainScheduleSection(ov::Tensor main_schedule, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 
@@ -32,9 +33,11 @@ private:
 
 class ELFInitSchedulesSection final : public ISection {
 public:
-    ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph);
+    ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
+                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules);
+    ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules,
+                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 

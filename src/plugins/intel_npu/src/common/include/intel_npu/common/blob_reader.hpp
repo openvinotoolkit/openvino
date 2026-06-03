@@ -25,7 +25,8 @@ public:
                         const size_t section_start,
                         const size_t section_length,
                         const size_t npu_region_size,
-                        const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
+                        const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
+                        const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
@@ -56,6 +57,8 @@ public:
     size_t get_section_length() const;
 
     std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> get_plugin_capabilities() const;
+
+    ov::log::Level get_log_level() const;
 
 private:
     std::reference_wrapper<const ov::Tensor> m_source;
@@ -93,7 +96,7 @@ public:
     /**
      * @brief Constructs a BlobReader, associating it with the given compiled model source.
      */
-    BlobReader();
+    BlobReader(const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Parses the given compiled model using all section readers registered so far.

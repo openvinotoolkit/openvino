@@ -20,11 +20,13 @@ constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
 namespace intel_npu {
 
-BlobWriterInterface::BlobWriterInterface(std::ostream& stream, const std::streampos stream_npu_region_start)
+BlobWriterInterface::BlobWriterInterface(std::ostream& stream,
+                                         const std::streampos stream_npu_region_start,
+                                         const ov::log::Level log_level)
     : m_stream(stream),
       m_stream_npu_region_start(stream_npu_region_start),
       m_stream_current_section_start(stream.tellp()),
-      m_logger("BlobWriterInterface", Logger::global().level()) {
+      m_logger("BlobWriterInterface", log_level) {
     m_logger.debug("Created a new BlobWriterInterface. Section start: %lu", m_stream_current_section_start);
 }
 
@@ -75,12 +77,12 @@ void BlobWriterInterface::seek_to_the_end() {
     m_stream.get().seekp(0, std::ios_base::end);
 }
 
-BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {
+BlobWriter::BlobWriter(const ov::log::Level log_level) : m_logger("BlobWriter", log_level) {
     m_logger.debug("BlobWriter built from scratch");
 }
 
-BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
-    : m_logger("BlobWriter", Logger::global().level()) {
+BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader, const ov::log::Level log_level)
+    : m_logger("BlobWriter", log_level) {
     m_logger.debug("Building the BlobWriter using the contents of a BlobReader");
 
     for (const SectionID& section_id : blob_reader->m_parsed_sections_order) {
@@ -119,7 +121,7 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
 CRE BlobWriter::build_cre() const {
     m_logger.debug("Filling the CRE");
 
-    CRE cre({CRE::AND});
+    CRE cre({CRE::AND}, m_logger.level());
     cre.append_to_expression(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
     m_logger.debug("Added the CRE_EVALUATION token to the CRE");
 
@@ -179,7 +181,7 @@ void BlobWriter::write_section(std::ostream& stream,
 
     stream.seekp(0, std::ios_base::end);
     const uint64_t offset = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
-    BlobWriterInterface blob_writer_interface(stream, stream_npu_region_start);
+    BlobWriterInterface blob_writer_interface(stream, stream_npu_region_start, m_logger.level());
 
     section->write(blob_writer_interface);
 
@@ -204,7 +206,7 @@ void BlobWriter::write(std::ostream& stream) const {
 
     // The table of offsets corresponds to a single blob written into a stream. Therefore, this table should exist
     // only within the scope of the writing session.
-    OffsetsTable offsets_table;
+    OffsetsTable offsets_table(m_logger.level());
 
     // The region of persistent format (fields of cemented location and meaning)
     stream.write(reinterpret_cast<const char*>(MAGIC_BYTES.data()), MAGIC_BYTES.size());
@@ -236,14 +238,14 @@ void BlobWriter::write(std::ostream& stream) const {
     // TODO: in that case, reading this blob and then writing it again would add redundant CRE tokens. Maybe a
     // redesign would be useful here.
     // TODO update this
-    const auto cre_section = std::make_shared<CRESection>(build_cre());
+    const auto cre_section = std::make_shared<CRESection>(build_cre(), m_logger.level());
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, cre_section, stream_npu_region_start, offsets_table);
 
     // Write the table of offsets
     offsets_table_location = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
 
-    const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table);
+    const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table, m_logger.level());
     offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, offsets_table_section, stream_npu_region_start, offsets_table);
 

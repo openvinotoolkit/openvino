@@ -104,7 +104,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          /* compatibilityDescriptor = */ std::nullopt);
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph));
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph, _logger.level()));
 
     return graph;
 }
@@ -227,8 +227,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              updatedConfig);
 
     // At export time, all schedules (main + inits) shall be stored in the blob.
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
-    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph, _logger.level()));
+    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph, _logger.level()));
 
     return weightlessGraph;
 }

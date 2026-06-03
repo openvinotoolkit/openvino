@@ -10,7 +10,7 @@
 
 namespace intel_npu {
 
-OffsetsTable::OffsetsTable() : m_logger("OffsetsTable", Logger::global().level()) {}
+OffsetsTable::OffsetsTable(const ov::log::Level log_level) : m_logger("OffsetsTable", log_level) {}
 
 void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const uint64_t length) {
     // TODO maybe add some message when failing
@@ -69,10 +69,10 @@ bool OffsetsTable::empty() const {
     return m_table.empty();
 }
 
-OffsetsTableSection::OffsetsTableSection(const OffsetsTable& offsets_table)
+OffsetsTableSection::OffsetsTableSection(const OffsetsTable& offsets_table, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::OFFSETS_TABLE),
       m_offsets_table(offsets_table),
-      m_logger("OffsetsTableSection", Logger::global().level()) {}
+      m_logger("OffsetsTableSection", log_level) {}
 
 void OffsetsTableSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::write");
@@ -100,7 +100,7 @@ OffsetsTable OffsetsTableSection::get_table() const {
 
 std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "OffsetsTableSection::read");
-    Logger logger("OffsetsTableSection", Logger::global().level());
+    Logger logger("OffsetsTableSection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
     const size_t entry_size = OffsetsTable::get_entry_size();
@@ -112,7 +112,7 @@ std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_re
         entry_size);
 
     size_t number_of_sections_in_table = section_length / entry_size;
-    OffsetsTable offsets_table;
+    OffsetsTable offsets_table(blob_reader.get_log_level());
     SectionType type;
     SectionTypeInstance type_instance;
     uint64_t offset;
@@ -130,7 +130,7 @@ std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_re
         logger.trace("Read entry: section ID (%lu, %lu), offset %lu, length %lu", type, type_instance, offset, length);
     }
 
-    return std::make_shared<OffsetsTableSection>(std::move(offsets_table));
+    return std::make_shared<OffsetsTableSection>(std::move(offsets_table), logger.level());
 }
 
 }  // namespace intel_npu

@@ -714,7 +714,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             graph->set_batch_size(batch.value());
         }
 
-        blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value()));
+        blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -747,7 +747,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
     }
 
-    blobWriter->register_section(std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
+    blobWriter->register_section(
+        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
 
     ++_compiledModelLoadCounter;
     OV_ITT_TASK_SKIP(PLUGIN_COMPILE_MODEL);
@@ -916,7 +917,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
-    auto blobReader = std::make_shared<BlobReader>();
+    auto blobReader = std::make_shared<BlobReader>(_logger.level());
     register_known_sections(blobReader);
     auto localProperties = properties;
 

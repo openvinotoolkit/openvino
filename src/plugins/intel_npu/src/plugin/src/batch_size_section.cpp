@@ -10,10 +10,10 @@
 
 namespace intel_npu {
 
-BatchSizeSection::BatchSizeSection(const int64_t batch_size)
+BatchSizeSection::BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::BATCH_SIZE),
       m_batch_size(batch_size),
-      m_logger("BatchSizeSection", Logger::global().level()) {
+      m_logger("BatchSizeSection", log_level) {
     m_logger.trace("Section created");
 }
 
@@ -41,9 +41,9 @@ std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reade
     int64_t batch_size;
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(&batch_size), sizeof(batch_size));
 
-    Logger("BatchSizeSection", Logger::global().level()).debug("Read batch size %lu", batch_size);
+    Logger("BatchSizeSection", blob_reader.get_log_level()).debug("Read batch size %lu", batch_size);
 
-    return std::make_shared<BatchSizeSection>(batch_size);
+    return std::make_shared<BatchSizeSection>(batch_size, blob_reader.get_log_level());
 }
 
 }  // namespace intel_npu

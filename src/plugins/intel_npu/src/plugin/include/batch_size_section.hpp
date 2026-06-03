@@ -13,7 +13,7 @@ namespace intel_npu {
 
 class BatchSizeSection final : public ISection {
 public:
-    BatchSizeSection(const int64_t batch_size);
+    BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 

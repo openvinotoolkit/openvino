@@ -31,13 +31,14 @@ BlobReaderInterface::BlobReaderInterface(
     const size_t section_start,
     const size_t section_length,
     const size_t npu_region_size,
-    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities)
+    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
+    const ov::log::Level log_level)
     : m_source(source),
       m_cursor(section_start),
       m_section_start(section_start),
       m_section_end(section_start + section_length),
       m_plugin_capabilities(plugin_capabilities),
-      m_logger("BlobReaderInterface", Logger::global().level()) {
+      m_logger("BlobReaderInterface", log_level) {
     OPENVINO_ASSERT(m_section_end <= npu_region_size,
                     "The end of a section surpasses the registered NPU region boundaries. Section end position: ",
                     m_section_end,
@@ -98,7 +99,11 @@ std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> BlobReaderInterface
     return m_plugin_capabilities;
 }
 
-BlobReader::BlobReader() : m_logger("BlobReader", Logger::global().level()) {
+ov::log::Level BlobReaderInterface::get_log_level() const {
+    return m_logger.level();
+}
+
+BlobReader::BlobReader(const ov::log::Level log_level) : m_logger("BlobReader", log_level) {
     // Register the core sections
     register_reader(PredefinedSectionType::CRE, CRESection::read);
     register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
@@ -177,7 +182,12 @@ void BlobReader::read(const ov::Tensor& source,
 
     cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
 
-    BlobReaderInterface interface(source, cursor, offsets_table_size, npu_region_size, plugin_capabilities);
+    BlobReaderInterface interface(source,
+                                  cursor,
+                                  offsets_table_size,
+                                  npu_region_size,
+                                  plugin_capabilities,
+                                  m_logger.level());
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] = OffsetsTableSection::read(interface);
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
         FIRST_INSTANCE_ID);
@@ -196,7 +206,12 @@ void BlobReader::read(const ov::Tensor& source,
     if (cre_location.has_value()) {
         cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
 
-        interface = BlobReaderInterface(source, cursor, cre_length.value(), npu_region_size, plugin_capabilities);
+        interface = BlobReaderInterface(source,
+                                        cursor,
+                                        cre_length.value(),
+                                        npu_region_size,
+                                        plugin_capabilities,
+                                        m_logger.level());
         m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
         m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
         const bool is_compatible = std::dynamic_pointer_cast<CRESection>(
@@ -246,8 +261,12 @@ void BlobReader::read(const ov::Tensor& source,
                            section_id.value().type,
                            section_id.value().type_instance);
 
-            interface =
-                BlobReaderInterface(source, cursor, section_length.value(), npu_region_size, plugin_capabilities);
+            interface = BlobReaderInterface(source,
+                                            cursor,
+                                            section_length.value(),
+                                            npu_region_size,
+                                            plugin_capabilities,
+                                            m_logger.level());
             m_parsed_sections[section_id.value().type][section_id.value().type_instance] =
                 m_readers.at(section_id.value().type)(interface);
             m_parsed_sections[section_id.value().type][section_id.value().type_instance]->set_section_type_instance(

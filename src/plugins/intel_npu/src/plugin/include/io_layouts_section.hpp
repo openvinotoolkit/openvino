@@ -13,7 +13,9 @@ namespace intel_npu {
 
 class IOLayoutsSection final : public ISection {
 public:
-    IOLayoutsSection(const std::vector<ov::Layout>& input_layouts, const std::vector<ov::Layout>& output_layouts);
+    IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
+                     const std::vector<ov::Layout>& output_layouts,
+                     const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 

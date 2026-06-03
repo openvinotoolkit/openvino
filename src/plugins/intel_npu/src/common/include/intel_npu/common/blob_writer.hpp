@@ -19,7 +19,9 @@ namespace intel_npu {
 
 class BlobWriterInterface final {
 public:
-    BlobWriterInterface(std::ostream& stream, const std::streampos stream_npu_region_start);
+    BlobWriterInterface(std::ostream& stream,
+                        const std::streampos stream_npu_region_start,
+                        const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(const void* source, const size_t size);
 
@@ -96,7 +98,7 @@ private:
  */
 class BlobWriter final {
 public:
-    BlobWriter();
+    BlobWriter(const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Construct a BlobWriter based on the data parsed by the BlobReader.
@@ -105,7 +107,8 @@ public:
      *
      * @param blob_reader Contains the parsed data of a compiled model.
      */
-    BlobWriter(const std::shared_ptr<BlobReader>& blob_reader);
+    BlobWriter(const std::shared_ptr<BlobReader>& blob_reader,
+               const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Add a new blob section to the writing queue.

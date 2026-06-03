@@ -11,15 +11,15 @@
 
 namespace intel_npu {
 
-ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph)
+ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_graph(graph),
-      m_logger("ELFMainScheduleSection", Logger::global().level()) {}
+      m_logger("ELFMainScheduleSection", log_level) {}
 
-ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
+ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_main_schedule(main_schedule),
-      m_logger("ELFMainScheduleSection", Logger::global().level()) {}
+      m_logger("ELFMainScheduleSection", log_level) {}
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
@@ -48,7 +48,7 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::read");
-    const Logger logger("ELFMainScheduleSection", Logger::global().level());
+    const Logger logger("ELFMainScheduleSection", blob_reader.get_log_level());
 
     // Skip the first padding region
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
@@ -58,18 +58,21 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     logger.debug("Skipped %lu padding from offset %lu", padding_size, offset);
 
     return std::make_shared<ELFMainScheduleSection>(
-        blob_reader.get_roi_tensor(blob_reader.get_section_length() - padding_size));
+        blob_reader.get_roi_tensor(blob_reader.get_section_length() - padding_size),
+        logger.level());
 }
 
-ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
+ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
+                                                 const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_weightless_graph(weightless_graph),
-      m_logger("ELFInitSchedulesSection", Logger::global().level()) {}
+      m_logger("ELFInitSchedulesSection", log_level) {}
 
-ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules)
+ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules,
+                                                 const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_init_schedules(std::move(init_schedules)),
-      m_logger("ELFInitSchedulesSection", Logger::global().level()) {}
+      m_logger("ELFInitSchedulesSection", log_level) {}
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
@@ -112,7 +115,7 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
 
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
-    Logger logger("ELFInitSchedulesSection", Logger::global().level());
+    Logger logger("ELFInitSchedulesSection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
 
@@ -154,7 +157,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         init_schedules.push_back(blob_reader.get_roi_tensor(init_size));
     }
 
-    return std::make_shared<ELFInitSchedulesSection>(init_schedules);
+    return std::make_shared<ELFInitSchedulesSection>(init_schedules, logger.level());
 }
 
 }  // namespace intel_npu

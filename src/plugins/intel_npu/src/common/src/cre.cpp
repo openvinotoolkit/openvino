@@ -39,9 +39,11 @@ void InvalidCRE::create(const char* file,
 }
 
 // TODO use the logger more after modifying the algorithm
-CRE::CRE() : m_logger("CRE", Logger::global().level()) {}
+CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
-CRE::CRE(const std::vector<Token>& expression) : m_expression(expression), m_logger("CRE", Logger::global().level()) {}
+CRE::CRE(const std::vector<Token>& expression, const ov::log::Level log_level)
+    : m_expression(expression),
+      m_logger("CRE", log_level) {}
 
 void CRE::append_to_expression(const CRE::Token requirement_token) {
     OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
@@ -164,10 +166,10 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
     return result;
 }
 
-CRESection::CRESection(const CRE& cre)
+CRESection::CRESection(const CRE& cre, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::CRE),
       m_cre(cre),
-      m_logger("CRESection", Logger::global().level()) {}
+      m_logger("CRESection", log_level) {}
 
 void CRESection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
@@ -183,7 +185,7 @@ CRE CRESection::get_cre() const {
 
 std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::read");
-    Logger logger("CRESection", Logger::global().level());
+    Logger logger("CRESection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length % sizeof(CRE::Token) == 0,
@@ -201,7 +203,7 @@ std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     std::vector<CRE::Token> tokens(number_of_tokens);
     blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));
 
-    return std::make_shared<CRESection>(CRE(tokens));
+    return std::make_shared<CRESection>(CRE(tokens, logger.level()), logger.level());
 }
 
 }  // namespace intel_npu

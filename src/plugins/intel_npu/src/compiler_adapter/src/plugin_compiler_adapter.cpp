@@ -106,7 +106,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph));
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph, _logger.level()));
 
     return graph;
 }
@@ -253,8 +253,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // At export time, all schedules (main + inits) shall be stored in the blob
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
-    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph, _logger.level()));
+    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph, _logger.level()));
 
     return weightlessGraph;
 }

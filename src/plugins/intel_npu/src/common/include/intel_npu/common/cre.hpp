@@ -53,9 +53,9 @@ public:
         PredefinedCapabilityToken::BATCHING,
         PredefinedCapabilityToken::WEIGHTS_SEPARATION};
 
-    CRE();
+    CRE(const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    CRE(const std::vector<Token>& expression);
+    CRE(const std::vector<Token>& expression, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
@@ -102,7 +102,7 @@ private:
 
 class CRESection final : public ISection {
 public:
-    CRESection(const CRE& cre);
+    CRESection(const CRE& cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 
