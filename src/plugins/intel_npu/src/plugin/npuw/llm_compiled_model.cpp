@@ -75,15 +75,17 @@ public:
         //  Matmul -> Convert -> Result
         auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
         // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        // MatMul -> Divide -> Result (Granite-4.0-h-micro)
+        auto matmul_divide = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({matmul_divide});
         auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
 
         auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
                                                                       matmul_add->output(0),
                                                                       matmul_transpose->output(0),
                                                                       matmul_convert->output(0),
-                                                                      matmul_multiply->output(0)});
+                                                                      matmul_multiply->output(0),
+                                                                      matmul_divide->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
         auto callback = [=, &lm_head_model](opp::Matcher& m) {
@@ -99,6 +101,8 @@ public:
                 matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
             } else if (node_to_output.count(matmul_multiply)) {
                 matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
+            } else if (node_to_output.count(matmul_divide)) {
+                matched_node_last_op = node_to_output[matmul_divide].get_node_shared_ptr();
             } else {
                 matched_node_last_op = matched_node_matmul;
             }
