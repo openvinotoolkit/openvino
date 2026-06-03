@@ -49,8 +49,6 @@ public:
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
-    bool has_evaluate() const override;
     bool get_fuse_qk_l2norm() const {
         return m_fuse_qk_l2norm;
     }
