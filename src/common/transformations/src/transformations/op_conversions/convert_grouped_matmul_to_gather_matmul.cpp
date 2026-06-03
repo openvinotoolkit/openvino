@@ -129,7 +129,7 @@ ov::Output<ov::Node> build_case1_indices(const ov::Output<ov::Node>& mat_a,
 ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
     MATCHER_SCOPE(ConvertGroupedMatMulToGatherMatmul);
 
-    auto gmm_m = ov::pass::pattern::wrap_type<v17::GroupedMatMul>();
+    auto gmm_m = ov::pass::pattern::wrap_type<v17::GroupedMatMul>(ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto gmm = ov::as_type_ptr<v17::GroupedMatMul>(m.get_match_root());
@@ -139,9 +139,6 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
 
         const auto& a_pshape = gmm->get_input_partial_shape(0);
         const auto& b_pshape = gmm->get_input_partial_shape(1);
-        if (a_pshape.rank().is_dynamic() || b_pshape.rank().is_dynamic()) {
-            return false;
-        }
         const size_t a_rank = a_pshape.size();
         const size_t b_rank = b_pshape.size();
         const size_t input_size = gmm->get_input_size();
