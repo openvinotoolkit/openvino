@@ -71,15 +71,7 @@ TEST_F(TransformationTestsF, ReduceFCDimensions2) {
         manager.register_pass<ReduceFCDimensions>();
     }
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, -1, 16});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
-        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
-        auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_const);
-        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        model_ref = model->clone();
     }
 }
 
@@ -98,15 +90,7 @@ TEST_F(TransformationTestsF, ReduceFCDimensions3) {
         manager.register_pass<ReduceFCDimensions>();
     }
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 16});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
-        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
-        auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_const);
-        auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 32}, {1});
-        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, bias);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        model_ref = model->clone();
     }
 }
 
@@ -125,15 +109,7 @@ TEST_F(TransformationTestsF, ReduceFCDimensions4) {
         manager.register_pass<ReduceFCDimensions>();
     }
     {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 16});
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 32, 16}, {1});
-        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4, 32, 1}, {1});
-        auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_const);
-        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        model_ref = model->clone();
     }
 }
 
