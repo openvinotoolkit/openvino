@@ -12,62 +12,62 @@
 
 namespace ov::pass {
 
-// Frameworks that materialize a "model dtype" residual stream produce graphs
-// where every wide-precision intermediate (typically f32 from a MatMul or
-// from a decompressed weight) is wrapped in:
+// Eliminates redundant Convert ops on activations:
 //
-//   wide_value -> Convert(narrow) -> next op (residual / consumer expecting
-//                                              narrow)
-//                                 -> Convert(wide) -> next wide consumer
+//   1. Round-trip pair `wide -> Convert(narrow) -> Convert(wide)`: the outer
+//      Convert is replaced with the original wide source, since the bytes
+//      have round-tripped through narrow precision (value-preserving modulo
+//      the narrow-precision rounding of the inner Convert; the narrow side
+//      remains available for any branch that actually consumes it).
 //
-// The Convert(narrow) -> Convert(wide) chain on the wide-consumer branch is
-// a value-preserving round-trip (modulo the narrowing rounding) and just
-// costs two scans across the activation. This pass elides that round-trip
-// by short-circuiting the second Convert's output to the first Convert's
-// source, so the wide consumer reads the pre-narrowing value directly. The
-// inner narrow Convert is left in place for the genuinely narrow-consuming
-// branch (the residual stream); when it becomes unused, DCE removes it.
+//   2. Identity Convert `x:T -> Convert(T) -> y:T`: the Convert is bypassed
+//      (its consumers read x directly). This shape arises when a frontend
+//      emits an explicit dtype cast that turns into a no-op after the OV
+//      pipeline normalizes precision (e.g. PyTorch `_to_copy.default` from
+//      a model that runs entirely in one dtype).
 //
-// Dtype-agnostic: matches any narrow-then-wide round-trip where the outer
-// destination type equals the inner source type. ISA-agnostic: a pure graph
-// rewrite, no assumption about AVX2/AVX-512/AMX.
+// Dtype-agnostic: pattern only checks element-type relationships, so it
+// works for {fp16, bf16, fp32, future narrow types} without per-dtype code.
+// ISA-agnostic: no AVX2/AVX-512/AMX assumptions.
 EraseRedundantConvertPair::EraseRedundantConvertPair() {
     MATCHER_SCOPE(EraseRedundantConvertPair);
     using namespace pattern;
 
-    auto inner_src = any_input();
-    auto cvt_inner = wrap_type<ov::op::v0::Convert>({inner_src});
-    auto cvt_outer = wrap_type<ov::op::v0::Convert>({cvt_inner});
+    // Match any Convert; classify in the callback into round-trip vs identity.
+    auto cvt = wrap_type<ov::op::v0::Convert>();
 
     auto callback = [=](Matcher& m) -> bool {
         auto outer = ov::as_type_ptr<ov::op::v0::Convert>(m.get_match_root());
         if (!outer) return false;
 
-        auto inner = ov::as_type_ptr<ov::op::v0::Convert>(outer->get_input_node_shared_ptr(0));
+        const auto outer_dst = outer->get_destination_type();
+        auto outer_src_val = outer->input_value(0);
+        const auto outer_src_type = outer_src_val.get_element_type();
+
+        // Identity Convert: source dtype already matches the destination.
+        if (outer_src_type == outer_dst) {
+            outer->output(0).replace(outer_src_val);
+            return true;
+        }
+
+        // Round-trip Convert pair: inner Convert narrows, outer widens back
+        // to the original type.
+        auto inner = ov::as_type_ptr<ov::op::v0::Convert>(outer_src_val.get_node_shared_ptr());
         if (!inner) return false;
 
         const auto src_type = inner->input_value(0).get_element_type();
         const auto narrow_type = inner->get_destination_type();
-        const auto outer_dst = outer->get_destination_type();
 
-        // Round-trip semantics require the outer destination to match the
-        // original source type, and the inner destination to be a narrower
-        // float type.
         if (outer_dst != src_type) return false;
         if (!src_type.is_real()) return false;
         if (!narrow_type.is_real()) return false;
         if (narrow_type.bitwidth() >= src_type.bitwidth()) return false;
 
-        // Bypass the round-trip: feed the outer Convert's consumers from the
-        // original wide source. The inner Convert is left in place; if its
-        // narrow output is still needed by another branch (residual stream),
-        // it stays; otherwise DCE removes it.
-        auto src_val = inner->input_value(0);
-        outer->output(0).replace(src_val);
+        outer->output(0).replace(inner->input_value(0));
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(cvt_outer, matcher_name);
+    auto m = std::make_shared<Matcher>(cvt, matcher_name);
     this->register_matcher(m, callback);
 }
 

@@ -457,6 +457,20 @@ void Transformations::CpuSpecificOpSet() {
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
+    // Eliminate identity Converts (and narrow-wide round-trip Convert pairs)
+    // very early so later passes (snippets tokenization, decompression
+    // marking) don't tokenize them into Subgraphs that we cannot remove
+    // later. PyTorch's _to_copy.default emits identity Converts when source
+    // and destination dtypes happen to coincide; without this, those become
+    // per-step jit_avx512 Subgraphs that scan the activation tensor for
+    // nothing.
+    {
+        ov::pass::Manager identity_convert_cleanup("CPU:IdentityConvertCleanup");
+        identity_convert_cleanup.set_per_pass_validation(false);
+        CPU_REGISTER_PASS_COMMON(identity_convert_cleanup, ov::pass::EraseRedundantConvertPair);
+        identity_convert_cleanup.run_passes(model);
+    }
+
     // Decompression handling related transformations must be run separately from common preLPT pipeline
     // since there is used the same transformations as in LPT related transformations, but with the specific settings.
     // This must be done in order to keep compressed MatMul weights with decompression operations as is
@@ -1205,6 +1219,19 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
+
+    // Run identity-Convert + round-trip elimination once more right before
+    // snippets tokenization. Earlier ConvertPrecision / common-optimization
+    // passes can introduce new identity Converts (T -> T) around precision
+    // alignment boundaries; if those reach snippets they get tokenized into
+    // per-step jit Subgraphs that scan the activation tensor for nothing.
+    // Catch them here, after all the precision-rebalancing work is done.
+    {
+        ov::pass::Manager pre_snippets_cleanup("CPU:PreSnippetsConvertCleanup");
+        pre_snippets_cleanup.set_per_pass_validation(false);
+        CPU_REGISTER_PASS_COMMON(pre_snippets_cleanup, ov::pass::EraseRedundantConvertPair);
+        pre_snippets_cleanup.run_passes(model);
+    }
 
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
