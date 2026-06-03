@@ -339,7 +339,7 @@ public:
         OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
                         "Only SHARED_BUF memory type is supported for raw buffer pointer or NT handle");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE},
-                         {ov::intel_gpu::mem_handle.name(), shared_buffer}};
+                         {ov::intel_gpu::mem_handle.name(), reinterpret_cast<void*>(shared_buffer)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
