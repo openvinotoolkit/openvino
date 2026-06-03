@@ -61,9 +61,9 @@ protected:
     cl::Buffer _buffer;
 };
 
-struct gpu_external_buffer : public gpu_buffer {
+struct gpu_buffer_from_handle : public gpu_buffer {
     using gpu_buffer::gpu_buffer; // constructor inheritance
-    ~gpu_external_buffer() override;
+    ~gpu_buffer_from_handle() override;
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {

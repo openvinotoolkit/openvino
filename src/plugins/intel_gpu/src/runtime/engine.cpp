@@ -157,7 +157,7 @@ memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     return reinterpret_handle(layout, params);
 }
 
-memory_ptr engine::import_external_buffer(const layout&, shared_handle) {
+memory_ptr engine::import_buffer(const layout&, shared_handle) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

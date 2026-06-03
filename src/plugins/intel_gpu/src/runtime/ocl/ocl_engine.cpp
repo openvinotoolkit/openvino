@@ -105,7 +105,7 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
                                        : allocation_type::unknown;
 }
 
-memory::ptr ocl_engine::import_external_buffer(const layout& layout, shared_handle external_handle) {
+memory::ptr ocl_engine::import_buffer(const layout& layout, shared_handle external_handle) {
     OPENVINO_ASSERT(external_handle != nullptr, "[GPU] External memory handle must not be null");
     OPENVINO_ASSERT(extension_supported("cl_khr_external_memory"),
                     "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
@@ -147,7 +147,7 @@ memory::ptr ocl_engine::import_external_buffer(const layout& layout, shared_hand
     }
     clFinish(q);
     cl::Buffer buf(imported, true);
-    auto memory = std::make_shared<ocl::gpu_external_buffer>(this, layout, buf, nullptr);
+    auto memory = std::make_shared<ocl::gpu_buffer_from_handle>(this, layout, buf, nullptr);
     clReleaseMemObject(imported);
     return memory;
 #endif

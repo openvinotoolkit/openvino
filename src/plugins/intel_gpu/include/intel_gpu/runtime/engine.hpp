@@ -67,7 +67,7 @@ public:
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
 
-    virtual memory_ptr import_external_buffer(const layout& layout, shared_handle external_handle);
+    virtual memory_ptr import_buffer(const layout& layout, shared_handle external_handle);
 
     /// Create shared memory object using user-supplied USM pointer @p usm_ptr using specified @p layout
     memory_ptr share_usm(const layout& layout, shared_handle usm_ptr);

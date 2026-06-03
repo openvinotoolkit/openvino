@@ -38,7 +38,18 @@ namespace ocl {
  * @brief Shortcut for defining a handle parameter
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
+
 using gpu_handle_param = void*;
+
+/**
+ * @brief Shortcut for defining a HANDLE on windows or file descriptor on linux
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+#ifdef linux 
+    using handle_param = int;
+#else
+    using handle_param = void*;
+#endif
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
@@ -313,20 +324,20 @@ public:
      *        The API mirrors the NPU pointer-based create_tensor form.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param shared_buffer External memory handle from another API (DX12 shared NT handle on Windows,
-     *                     DMA-BUF fd on Linux), passed as void*
+     * @param shared_buffer External memory handle from another API (DX12 shared NT handle on Windows passed as void*,
+     *                     DMA-BUF fd on Linux passed as int)
      * @param memory_type Memory type to use; only MemType::SHARED_BUF is currently supported
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type,
                                  const Shape& shape,
-                                 void* shared_buffer,
+                                 handle_param shared_buffer,
                                  const MemType memory_type) {
         OPENVINO_ASSERT(shared_buffer != nullptr, "shared_buffer must not be nullptr for SHARED_BUF memory type");
         OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
                         "Only SHARED_BUF memory type is supported for raw buffer pointer or NT handle");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE},
-                         {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(shared_buffer)}};
+                         {ov::intel_gpu::mem_handle.name(), shared_buffer}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 

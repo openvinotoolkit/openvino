@@ -219,7 +219,7 @@ dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, cons
 }
 #endif
 
-gpu_external_buffer::~gpu_external_buffer() {
+gpu_buffer_from_handle::~gpu_buffer_from_handle() {
     auto cl_engine = downcast<const ocl_engine>(_engine);
     cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
 }
