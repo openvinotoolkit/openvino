@@ -8,9 +8,7 @@
 
 #include <vector>
 #include <cassert>
-#include <cstddef>
 #include <iterator>
-#include <type_traits>
 #include <cstring>
 #include <string>
 #include <stdexcept>
@@ -244,12 +242,12 @@ public:
     bool empty() const { return _size == 0; }
 
 #if defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL != 0
-    typedef checked_array_iterator<T*>       iterator;
+    typedef checked_array_iterator<T*> iterator;
     typedef checked_array_iterator<const T*> const_iterator;
-    iterator       begin()  const { return iterator(_data, _size, 0); }
-    iterator       end()    const { return iterator(_data, _size, _size); }
-    const_iterator cbegin() const { return const_iterator(_data, _size, 0); }
-    const_iterator cend()   const { return const_iterator(_data, _size, _size); }
+    iterator begin() const { return make_checked_array_iterator(_data, _size); }
+    iterator end() const { return make_checked_array_iterator(_data, _size, _size); }
+    const_iterator cbegin() const { return make_checked_array_iterator(_data, _size); }
+    const_iterator cend() const { return make_checked_array_iterator(_data, _size, _size); }
 #else
     typedef T* iterator;
     typedef T* const_iterator;

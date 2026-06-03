@@ -194,13 +194,11 @@ struct mem_lock {
     mem_lock& operator=(const mem_lock& other) = delete;
 
 #if defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL != 0
-    using iterator       = checked_array_iterator<T*>;
-    using const_iterator = checked_array_iterator<const T*>;
-    iterator begin() & { return iterator(_ptr, size(), 0); }
-    iterator end()   & { return iterator(_ptr, size(), size()); }
+    auto begin() & { return make_checked_array_iterator(_ptr, size()); }
+    auto end() & { return make_checked_array_iterator(_ptr, size(), size()); }
 #else
     T* begin() & { return _ptr; }
-    T* end()   & { return _ptr + size(); }
+    T* end() & { return _ptr + size(); }
 #endif
 
     /// @brief Provides indexed access to pointed memory.
