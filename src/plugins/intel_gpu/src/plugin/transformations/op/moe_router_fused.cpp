@@ -17,8 +17,12 @@ void MoERouterFused::validate_and_infer_types() {
                           "MoERouterFused: expected ", expected_inputs,
                           " inputs, got ", get_input_size());
 
-    auto input_type = get_input_element_type(0);
-    auto input_pshape = get_input_partial_shape(0);
+    const auto& input_type = get_input_element_type(0);
+    const auto& input_pshape = get_input_partial_shape(0);
+    NODE_VALIDATION_CHECK(this,
+                          input_pshape.rank().is_static() && (input_pshape.rank().get_length() == 2 || input_pshape.rank().get_length() == 3),
+                          "MoERouterFused expects input of rank 2 or 3, got rank ",
+                          input_pshape.rank());
 
     ov::PartialShape out_shape = input_pshape;
     if (input_pshape.rank().is_static()) {
