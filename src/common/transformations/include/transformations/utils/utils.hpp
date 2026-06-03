@@ -79,6 +79,10 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
  */
 float cast_eps_to_float(double eps_d);
 
+inline bool is_scalar_or_single_elem_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+    return constant && shape_size(constant->get_shape()) == 1;
+}
+
 template <typename T>
 bool get_constant_value(const std::shared_ptr<ov::Node>& node, T& value) {
     auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
