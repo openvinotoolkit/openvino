@@ -14,6 +14,7 @@
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "kernels/linear_attn/recurrent_linear_attn.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -172,10 +173,10 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     // TODO: support other precision CVS-182464
     auto dataPrecision = getOriginalOutputPrecisionAtPort(0);
-    const auto queryDims = getInputShapeAtPort(0).getDims();
-    auto headSize = *(queryDims.end() - 1);
     auto implType = impl_desc_type::ref_any;
 #if defined(OPENVINO_ARCH_X86_64)
+    const auto queryDims = getInputShapeAtPort(0).getDims();
+    auto headSize = *(queryDims.end() - 1);
     if (ov::intel_cpu::any_of(getOriginalOutputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
         (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0) {
         implType = impl_desc_type::jit_avx512;
@@ -194,7 +195,6 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
 }
 
 void GatedDeltaNet::createPrimitive() {
-    const auto precision = getOriginalOutputPrecisionAtPort(0);
     const auto queryDims = getInputShapeAtPort(0).getDims();
     auto headSize = *(queryDims.end() - 1);
     size_t scratchRows = 3;
@@ -202,6 +202,7 @@ void GatedDeltaNet::createPrimitive() {
     // if head_size is not multiple of 32, fallbacks to intrinsic kernel
 #if defined(OPENVINO_ARCH_X86_64)
     if (m_enableJit) {
+        const auto precision = getOriginalOutputPrecisionAtPort(0);
         GatedDeltaNetKey key{precision, headSize, m_gdnJitVTile, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps};
 
         auto builder = [&](const GatedDeltaNetKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
