@@ -176,9 +176,8 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_qu
 
 /**
  * @brief KV cache quantization algorithm.
- * Orthogonal to cache precision (element::Type). Absence of the property means raw storage
- * (no quantization); setting the property selects an algorithm that operates on the quantized
- * integer values stored with the configured precision.
+ * Selects SCALAR vs TURBO for integer cache precision (u8/u4); defaults to SCALAR when unset.
+ * No effect for floating-point cache precision.
  */
 enum class CacheQuantAlgorithm {
     SCALAR = 0,  // Per-group affine scale/zero-point (metadata in k_scale_zp / v_scale_zp)

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // TurboQuant encode: per-head quantize + pack for bits ∈ {3, 4}.
-// Output layout: [packed indices | norm_fp32].
+// Outputs: packed indices written to dst; per-head fp32 norm written to a
+// separate meta_data tensor (out_norm in the per-head entry point).
 
 #pragma once
 
