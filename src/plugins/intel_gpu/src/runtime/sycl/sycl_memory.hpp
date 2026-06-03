@@ -67,7 +67,7 @@ public:
     : _context(context)
     , _device(device) {}
 
-    UsmMemory(::sycl::context context, ::sycl::device device, void* usm_ptr, size_t size, size_t offset)
+    UsmMemory(::sycl::context context, ::sycl::device device, void* usm_ptr, size_t size, size_t offset = 0)
     : _context(context)
     , _device(device)
     , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, size, true)) {}
