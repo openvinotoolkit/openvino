@@ -12,6 +12,7 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 
 #include "ov_ops/vl_sdpa.hpp"
+#include "intel_gpu/op/sdpa.hpp"
 
 #include <openvino/pass/serialize.hpp>
 
@@ -28,10 +29,15 @@ namespace intel_gpu {
 
 namespace {
 
-// Build the original model with Transpose + Split pattern from Qwen-VL Vision Merger
+enum class AttentionType {
+    SDPA,    // ScaledDotProductAttention
+    VLSDPA   // Vision Language SDPA (for Qwen-VL models)
+};
+
+// Build the original model with Transpose + Split pattern
 // This pattern appears in Qwen-VL models (Qwen2-VL, Qwen2.5-VL, Qwen3-VL, etc.)
-// Pattern: Parameter[-1, 3, H, S] -> Transpose[3, -1, H, S] -> Split(axis=0) -> Reshape
-std::shared_ptr<ov::Model> build_model_with_transpose_split() {
+// Pattern: Parameter[-1, 3, H, S] -> Transpose[3, -1, H, S] -> Split(axis=0) -> Reshape -> Attention
+std::shared_ptr<ov::Model> build_model_with_transpose_split(AttentionType attn_type) {
     const int64_t num_head = 8;
     const int64_t head_size = 32;
 
@@ -71,20 +77,29 @@ std::shared_ptr<ov::Model> build_model_with_transpose_split() {
     auto rope_k = std::make_shared<Multiply>(reshape_k, rope_cos_sin);
     rope_k->set_friendly_name("rope_k");
 
-    // Create VLSDPA
-    auto cu_seq_lens = std::make_shared<Parameter>(element::i32, PartialShape{-1});
-    cu_seq_lens->set_friendly_name("cu_seq_lens");
-    cu_seq_lens->get_output_tensor(0).set_names({"cu_seq_lens"});
+    // Create attention node based on type
+    if (attn_type == AttentionType::VLSDPA) {
+        // Create VLSDPA for Qwen-VL models
+        auto cu_seq_lens = std::make_shared<Parameter>(element::i32, PartialShape{-1});
+        cu_seq_lens->set_friendly_name("cu_seq_lens");
+        cu_seq_lens->get_output_tensor(0).set_names({"cu_seq_lens"});
 
-    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(rope_q, rope_k, reshape_v, cu_seq_lens);
-    vlsdpa->set_friendly_name("vlsdpa");
+        auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{rope_q, rope_k, reshape_v, cu_seq_lens});
+        vlsdpa->set_friendly_name("vlsdpa");
 
-    return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{qkv, cu_seq_lens});
+        return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{qkv, cu_seq_lens});
+    } else {
+        // Create standard SDPA
+        auto sdpa = std::make_shared<ScaledDotProductAttention>(rope_q, rope_k, reshape_v, false);
+        sdpa->set_friendly_name("sdpa");
+
+        return std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{qkv});
+    }
 }
 
 // Build the target model after TransposeSplitMatcher transformation
 // Pattern: Parameter[-1, 3, H, S] -> Split(axis=1) -> Reshape
-std::shared_ptr<ov::Model> build_target_model_with_optimized_split() {
+std::shared_ptr<ov::Model> build_target_model_with_optimized_split(AttentionType attn_type) {
     const int64_t num_head = 8;
     const int64_t head_size = 32;
 
@@ -119,27 +134,52 @@ std::shared_ptr<ov::Model> build_target_model_with_optimized_split() {
     auto rope_k = std::make_shared<Multiply>(reshape_k, rope_cos_sin);
     rope_k->set_friendly_name("rope_k");
 
-    // Create VLSDPA
-    auto cu_seq_lens = std::make_shared<Parameter>(element::i32, PartialShape{-1});
-    cu_seq_lens->set_friendly_name("cu_seq_lens");
-    cu_seq_lens->get_output_tensor(0).set_names({"cu_seq_lens"});
+    // Create attention node based on type
+    if (attn_type == AttentionType::VLSDPA) {
+        // Create VLSDPA for Qwen-VL models
+        auto cu_seq_lens = std::make_shared<Parameter>(element::i32, PartialShape{-1});
+        cu_seq_lens->set_friendly_name("cu_seq_lens");
+        cu_seq_lens->get_output_tensor(0).set_names({"cu_seq_lens"});
 
-    auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(rope_q, rope_k, reshape_v, cu_seq_lens);
-    vlsdpa->set_friendly_name("vlsdpa");
+        auto vlsdpa = std::make_shared<ov::op::internal::VLSDPA>(OutputVector{rope_q, rope_k, reshape_v, cu_seq_lens});
+        vlsdpa->set_friendly_name("vlsdpa");
 
-    return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{qkv, cu_seq_lens});
+        return std::make_shared<ov::Model>(OutputVector{vlsdpa}, ParameterVector{qkv, cu_seq_lens});
+    } else {
+        // Create GPU-specific SDPA (TransposeSDPAMatcher converts to this)
+        std::vector<int64_t> default_order = {0, 1, 2};  // Default order for 3D tensors
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
+            OutputVector{rope_q, rope_k, reshape_v},
+            false,  // not causal
+            default_order, default_order, default_order, default_order);
+        sdpa->set_friendly_name("sdpa");
+
+        return std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{qkv});
+    }
 }
 
 }  // namespace
 
-TEST_F(TransformationTestsF, TransposeSplitFusionTest) {
+// Parameterized test for TransposeSplitMatcher with both SDPA and VLSDPA
+class TransposeSplitFusionTest : public TransformationTestsF,
+                                  public ::testing::WithParamInterface<AttentionType> {};
+
+TEST_P(TransposeSplitFusionTest, TransposeSplitWithAttention) {
+    AttentionType attn_type = GetParam();
     disable_rt_info_check();
     {
-        model = build_model_with_transpose_split();
+        model = build_model_with_transpose_split(attn_type);
         manager.register_pass<TransposeFusion>();
     }
-    { model_ref = build_target_model_with_optimized_split(); }
+    { model_ref = build_target_model_with_optimized_split(attn_type); }
 }
+
+INSTANTIATE_TEST_SUITE_P(TransposeSplitFusion,
+                         TransposeSplitFusionTest,
+                         ::testing::Values(AttentionType::SDPA, AttentionType::VLSDPA),
+                         [](const testing::TestParamInfo<AttentionType>& info) {
+                             return info.param == AttentionType::SDPA ? "SDPA" : "VLSDPA";
+                         });
 
 }  // namespace intel_gpu
 }  // namespace test

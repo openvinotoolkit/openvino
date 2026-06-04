@@ -50,10 +50,16 @@ using namespace ov;
 using namespace ov::opset13;
 using namespace ov::intel_gpu;
 
+enum class AttentionType {
+    SDPA,    // ScaledDotProductAttention
+    VLSDPA   // Vision Language SDPA (for Qwen-VL models)
+};
+
 using TransposeSplitVLSDPATestParams = std::tuple<ElementType,
                                                    ov::Dimension::value_type,     // num_head
                                                    ov::Dimension::value_type,     // head_size
-                                                   std::vector<int32_t>>;         // cu_seqlens
+                                                   std::vector<int32_t>,          // cu_seqlens
+                                                   AttentionType>;                // attention type
 
 class TransposeSplitVLSDPATestOnGPU: public testing::WithParamInterface<TransposeSplitVLSDPATestParams>,
                                      virtual public test::SubgraphBaseTest {
@@ -62,15 +68,17 @@ public:
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;
+        AttentionType attn_type;
 
-        std::tie(inType, num_head, head_size, cu_seqlens) = obj.param;
+        std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = obj.param;
 
         std::ostringstream result;
         result << "device=(" << std::string(utils::DEVICE_GPU) << ")_";
         result << "num_head=(" << to_str(num_head) << ")_";
         result << "head_size=(" << to_str(head_size) << ")_";
         result << test::utils::vec2str<int32_t>({cu_seqlens}) << "_";
-        result << "Prc=" << inType;
+        result << "Prc=" << inType << "_";
+        result << (attn_type == AttentionType::SDPA ? "SDPA" : "VLSDPA");
         return result.str();
     }
 
@@ -103,7 +111,8 @@ protected:
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;
-        std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
+        AttentionType attn_type;
+        std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = GetParam();
 
         targetDevice = test::utils::DEVICE_GPU;
         rel_threshold = 0.02f;
@@ -119,15 +128,21 @@ protected:
         const std::vector<InputShape> inputShapes = {
             // qkv (combined parameter with 3 channels)
             {PartialShape{-1, 3, num_head, head_size}, {Shape{L, 3, H, S}}},
-            // cu_seqlen
-            {PartialShape{-1}, {Shape{cu_seqlens.size()}}},
         };
         init_input_shapes(inputShapes);
 
+        // Create function - with model_type_hint for VLSDPA, without for SDPA
         function = get_function(inType, num_head, head_size);
-        functionRefs = function->clone();
+        if (attn_type == AttentionType::VLSDPA) {
+            function->set_rt_info("QWenVL", "model_type_hint");
+        }
+
+        // Create reference without model_type_hint - will keep original Transpose+Split pattern
+        // Template plugin will execute SDPA without GPU transformations
+        functionRefs = get_function(inType, num_head, head_size);
 
         m_cu_seqlens = cu_seqlens;
+        m_attn_type = attn_type;
     }
 
     std::shared_ptr<ov::Model> get_function(ov::element::Type inType,
@@ -167,7 +182,7 @@ protected:
 
         // RoPE for q and k (dummy RoPE implementation using Multiply for testing)
         // In real scenario, RoPE would be a more complex subgraph
-        auto rope_cos_sin = Constant::create(inType, Shape{1, num_head, head_size}, {1.0f});
+        auto rope_cos_sin = Constant::create(inType, Shape{1, static_cast<size_t>(num_head), static_cast<size_t>(head_size)}, {1.0f});
 
         auto rope_q = std::make_shared<Multiply>(reshape_q, rope_cos_sin);
         rope_q->set_friendly_name("rope_q");
@@ -175,18 +190,12 @@ protected:
         auto rope_k = std::make_shared<Multiply>(reshape_k, rope_cos_sin);
         rope_k->set_friendly_name("rope_k");
 
-        // Create VLSDPA with q, k, v from the reshaped outputs
-        auto cu_seq_lens = make_param(PartialShape{ov::Dimension::dynamic()}, element::i32, "cu_seq_lens");
+        // Use ScaledDotProductAttention (will be transformed to VLSDPA on GPU with model_type_hint)
+        auto sdpa = std::make_shared<ScaledDotProductAttention>(rope_q, rope_k, reshape_v, false);
+        sdpa->set_friendly_name("sdpa");
 
-        // VLSDPA expects inputs: query, key, value, cu_seq_lens, [optional: cu_window_seqlens]
-        auto vlsdpa = std::make_shared<op::VLSDPA>(rope_q, rope_k, reshape_v, cu_seq_lens);
-        vlsdpa->set_friendly_name("vlsdpa");
-
-        auto result = std::make_shared<Result>(vlsdpa);
-        result->set_friendly_name("result");
-
-        auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{qkv, cu_seq_lens});
-        model->set_rt_info("QWenVL", "model_type_hint");
+        auto model = std::make_shared<Model>(sdpa, ParameterVector{qkv});
+        // NOTE: model_type_hint will be set in SetUp() only for function, not functionRefs
         return model;
     }
 
@@ -195,18 +204,12 @@ protected:
         inputs_ref.clear();
         const auto& funcInputs = compiledModel.inputs();
 
+        // Only qkv parameter (SDPA will be transformed to handle cu_seqlens internally)
         for (size_t i = 0lu; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-
-            if (i == 0) { // qkv parameter
-                auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), tensor});
-                inputs_ref.emplace_back(tensor);
-            } else { // cu_seqlens
-                auto cu_seqlens = get_cu_seqlens(m_cu_seqlens);
-                inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), cu_seqlens});
-                inputs_ref.emplace_back(cu_seqlens);
-            }
+            auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), tensor});
+            inputs_ref.emplace_back(tensor);
         }
     }
 
@@ -216,8 +219,9 @@ protected:
         }
         auto start_time = std::chrono::system_clock::now();
 
-        // Infer using GPU on the reference model (without transformation)
-        auto outputs = infer_on_gpu(functionRefs, inputs_ref);
+        // Use Template plugin for reference - it doesn't have TransposeSplitMatcher
+        // This keeps the original Transpose+Split pattern intact
+        auto outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
 
         if (is_report_stages) {
             auto end_time = std::chrono::system_clock::now();
@@ -240,49 +244,8 @@ protected:
     }
 
 private:
-    ov::TensorVector infer_on_gpu(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& input_tensors) {
-        std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
-        auto params = model->inputs();
-        OPENVINO_ASSERT(params.size() == input_tensors.size());
-        for (size_t i = 0; i < params.size(); i++) {
-            inputs[params[i].get_node_shared_ptr()] = input_tensors[i];
-        }
-        return infer_on_gpu(model, inputs);
-    }
-
-    ov::TensorVector infer_on_gpu(const std::shared_ptr<ov::Model>& model,
-                                  const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
-        auto core = ov::test::utils::PluginCache::get().core();
-
-        auto compiled_model = core->compile_model(model,
-                                                  ov::test::utils::DEVICE_GPU,
-                                                  configuration);
-        auto infer_request = compiled_model.create_infer_request();
-
-        for (auto& input : inputs) {
-            infer_request.set_tensor(input.first, input.second);
-        }
-        infer_request.infer();
-
-        ov::TensorVector outputs;
-        for (const auto& output : model->outputs()) {
-            outputs.push_back(infer_request.get_tensor(output));
-        }
-
-        return outputs;
-    }
-
-    ov::Tensor get_cu_seqlens(std::vector<int32_t> cu_seqlens) const {
-        assert(cu_seqlens.front() == 0);
-        ov::Tensor t_cu_seqlens = ov::Tensor(ov::element::i32, {cu_seqlens.size()});
-        auto* ptr = static_cast<int32_t*>(t_cu_seqlens.data());
-        for (size_t n = 0; n < cu_seqlens.size(); n++) {
-            ptr[n] = cu_seqlens[n];
-        }
-        return t_cu_seqlens;
-    }
-
     std::vector<int32_t> m_cu_seqlens;
+    AttentionType m_attn_type;
     ov::TensorVector inputs_ref;
 };
 
@@ -291,7 +254,8 @@ TEST_P(TransposeSplitVLSDPATestOnGPU, CompareWithRefs) {
     ElementType inType;
     ov::Dimension::value_type num_head, head_size;
     std::vector<int32_t> cu_seqlens;
-    std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
+    AttentionType attn_type;
+    std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = GetParam();
     if (inType != ElementType::f16) // VLSDPA CM kernel supports half precision only
         GTEST_SKIP();
 
@@ -312,7 +276,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_TransposeSplitVLSDPATest,
                          ::testing::Combine(::testing::Values(ov::element::f16),
                                             ::testing::Values(1, 2),   // num_heads
                                             ::testing::Values(16, 64),  // head_size
-                                            ::testing::ValuesIn(input_cu_seqlens)),
+                                            ::testing::ValuesIn(input_cu_seqlens),
+                                            ::testing::Values(AttentionType::SDPA, AttentionType::VLSDPA)),
                          TransposeSplitVLSDPATestOnGPU::getTestCaseName);
 
 }  // namespace
