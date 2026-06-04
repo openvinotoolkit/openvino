@@ -321,13 +321,14 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 const auto source_output = input.get_source_output();
                 const bool single_consumer_graph_input_leaf =
                     !is_graph_input_node(source_output.get_node()) && !bit_any(src_cyc_dep) &&
-                    bit_all_of(src_sg_dep, [&](size_t b) {
-                        const auto& traced_input = bit_to_input[b];
-                        if (is_graph_input_node(traced_input.get_node())) {
-                            return true;
-                        }
-                        const auto* traced_producer = traced_input.get_source_output().get_node();
-                        return is_graph_input_node(traced_producer);
+                    bit_all_of(src_sg_dep,
+                        [&](size_t b) {
+                            const auto& traced_input = bit_to_input[b];
+                            if (is_graph_input_node(traced_input.get_node())) {
+                                return true;
+                            }
+                            const auto* traced_producer = traced_input.get_source_output().get_node();
+                            return is_graph_input_node(traced_producer);
                     }) &&
                     source_output.get_target_inputs().size() == 1;
                 if (!single_consumer_graph_input_leaf && !bit_intersects(cyc_dep, src_cyc_dep) &&
@@ -590,14 +591,13 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
             if (same_sg_inputs == 0)
                 continue;
 
-            const CandidateRank candidate_rank{has_scc_boundary_input ? 0UL : 1UL,
-                                               has_shared_same_sg_source ? 0UL : 1UL,
-                                               has_trivial_leaf_input ? 1UL : 0UL,
-                                               (same_sg_inputs == 1 && count_non_result_consumers(_ordered_ops[i]) <= 1)
-                                                   ? 1UL
-                                                   : 0UL,
-                                               same_sg_inputs,
-                                               i};
+            const CandidateRank candidate_rank{
+                has_scc_boundary_input ? 0UL : 1UL,
+                has_shared_same_sg_source ? 0UL : 1UL,
+                has_trivial_leaf_input ? 1UL : 0UL,
+                (same_sg_inputs == 1 && count_non_result_consumers(_ordered_ops[i]) <= 1) ? 1UL : 0UL,
+                same_sg_inputs,
+                i};
             const bool better_target = !have_target || is_better_rank(candidate_rank, target_rank);
             if (better_target) {
                 have_target = true;
