@@ -77,7 +77,7 @@
 #endif
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(SNIPPETS_DEBUG_CAPS)
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #endif
@@ -680,7 +680,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 Subgraph::ControlFlowPasses
 Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functions-to-static)
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(SNIPPETS_DEBUG_CAPS)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif

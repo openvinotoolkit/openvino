@@ -30,6 +30,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
@@ -343,6 +344,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
     // unary operations
     jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_node<jit_abs_emitter>();
+    jitters[ov::op::v0::Ceiling::get_type_info_static()] = emitter_factory.from_node<jit_ceil_emitter>();
     jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<jit_clamp_emitter>();
     jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<jit_elu_emitter>();
     jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_node<jit_erf_emitter>();
