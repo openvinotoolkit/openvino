@@ -1777,8 +1777,7 @@ bool testMAP(const TensorMap& outputs, const TensorMap& references, const Layout
     }
 
     // Compute mAP from detection model outputs.
-    // Supports: DETR-style (pred_boxes + logits), YOLOv10-style (single [N,6] tensor),
-    // and generic two-tensor mode (boxes [N,4] + class scores).
+    // Supports: DETR-style (pred_boxes + logits), YOLOv10-style (single [N,6] tensor)
     std::cout << "Computing mAP for detection model" << std::endl;
     std::cout << "Output layers:" << std::endl;
     for (const auto& [tensorName, tensor] : outputs) {
