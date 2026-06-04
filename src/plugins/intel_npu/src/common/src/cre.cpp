@@ -16,7 +16,8 @@
 
 namespace {
 
-const std::unordered_set<intel_npu::CRE::Token> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
+const std::unordered_set<intel_npu::CRE::Token> BINARY_OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
+const std::unordered_set<intel_npu::CRE::Token> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR, intel_npu::CRE::NOT};
 
 inline bool and_function(bool a, bool b) {
     return a && b;
@@ -24,6 +25,10 @@ inline bool and_function(bool a, bool b) {
 
 inline bool or_function(bool a, bool b) {
     return a || b;
+}
+
+inline bool first_operand_function(bool /*a*/, bool b) {
+    return b;
 }
 
 }  // namespace
@@ -48,13 +53,42 @@ CRE::CRE(const std::vector<Token>& expression, const ov::log::Level log_level)
 void CRE::append_to_expression(const CRE::Token requirement_token) {
     OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
                     "Appending subexpressions should be done through the \"vector\" API");
+    if (!m_expression.empty()) {
+        m_expression.push_back(CRE::AND);  // At depth 0, all subexpressions are connected by ANDs
+    }
     m_expression.push_back(requirement_token);
 
     m_logger.trace("Appended token %u", requirement_token);
 }
 
 void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens) {
+    const size_t subexpression_size = requirement_tokens.size();
+    if (!subexpression_size) {
+        return;
+    }
+
+    OPENVINO_ASSERT(!BINARY_OPERATORS.count(requirement_tokens.at(0)),
+                    "Subexpressions cannot start with a binary operator");
+    const CRE::Token last_token = requirement_tokens.at(subexpression_size - 1);
+    OPENVINO_ASSERT(!OPERATORS.count(last_token) && last_token != OPEN,
+                    "The last token within a subexpression cannot be an operator nor open parrenthesis");
+
+    const bool subexpression_enclosed = requirement_tokens.at(0) == CRE::OPEN && last_token == CRE::CLOSE;
+
+    if (!m_expression.empty()) {
+        m_expression.push_back(CRE::AND);  // At depth 0, all subexpressions are connected by ANDs
+    }
+
+    // At least three tokens are required for a binary operator and its operands. In this case, parrenthesis are
+    // required to ensure the correct operator precedence
+    if (subexpression_size > 2 && !subexpression_enclosed) {
+        m_expression.push_back(CRE::OPEN);
+    }
     m_expression.insert(m_expression.end(), requirement_tokens.begin(), requirement_tokens.end());
+
+    if (subexpression_size > 2 && !subexpression_enclosed) {
+        m_expression.push_back(CRE::CLOSE);
+    }
 
     m_logger.trace("Appended subexpression");
 }
@@ -91,67 +125,77 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
                    const Delimiter end_delimiter) {
-    std::function<bool(bool, bool)> logical_function;
-    bool base, subexpression_result, negate;
+    std::function<bool(bool, bool)> logical_function = first_operand_function;
+    bool result = true;
+    bool negate = false;
+    bool expect_binary_operator = false;
+    bool at_least_one_iteration = false;
+    bool subexpression_result;
 
-    CRE_EVAL_ASSERT(*expression_iterator != CLOSE, "Found a closed parrenthesis without any matching open token");
-
-    // TODO comments
-    switch (*expression_iterator) {
-    case NOT:
-        negate = false;
-        while (*expression_iterator == NOT) {
-            negate = !negate;
-            advance_iterator(expression_iterator);
-            CRE_EVAL_ASSERT(expression_iterator != m_expression.end(), "NOT operator is missing its operand");
-        }
-        subexpression_result = evaluate(expression_iterator, plugin_capabilities, end_delimiter);
-        return negate ? !subexpression_result : subexpression_result;
-    case OPEN:
-        advance_iterator(expression_iterator);
-        subexpression_result = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
-        CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
-                        "Expected a closed parrenthesis token during CRE evaluation. Received: ",
-                        *expression_iterator);
-        advance_iterator(expression_iterator);
-        return subexpression_result;
-    case AND:
-        logical_function = and_function;
-        base = true;
-        break;
-    case OR:
-        logical_function = or_function;
-        base = false;
-        break;
-    default:
-        // A capability token was found
-        const bool operand = plugin_capabilities.count(*expression_iterator)
-                                 ? plugin_capabilities.at(*expression_iterator)->check_support()
-                                 : false;
-        advance_iterator(expression_iterator);
-        return operand;
-    }
-
-    advance_iterator(expression_iterator);
-
-    // Found an n-ary operator (AND or OR). This should be followed by n operands, n >= 1. One operand can be defined
-    // as:
-    //   * The ID of a capability
-    //   * Open parrenthesis - subexpression - closed parrenthesis
-    //   * Subexpression without parrenthesis (starts with an operator)
-    subexpression_result = base;
-    bool no_operands = true;
     while (!end_condition(expression_iterator, end_delimiter)) {
-        no_operands = false;
+        CRE_EVAL_ASSERT(*expression_iterator != CLOSE, "Found a closed parrenthesis without any matching open token");
+        at_least_one_iteration = true;
 
-        subexpression_result =
-            logical_function(subexpression_result,
-                             evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID));
+        // TODO comments
+        switch (*expression_iterator) {
+        case NOT:
+            CRE_EVAL_ASSERT(!expect_binary_operator, "A \"NOT\" token was found when a binary operator was expected");
+            negate = !negate;
+
+            break;
+        case OPEN:
+            CRE_EVAL_ASSERT(!expect_binary_operator,
+                            "An open parrenthesis was found when a binary operator was expected");
+            // A subexpression is also an operand, and it should be followed by an operator
+            expect_binary_operator = true;
+
+            advance_iterator(expression_iterator);
+            subexpression_result = evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS);
+            CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
+                            "Expected a closed parrenthesis token during CRE evaluation. Received: ",
+                            *expression_iterator);
+
+            subexpression_result = negate ? !subexpression_result : subexpression_result;
+            negate = false;
+
+            result = logical_function(result, subexpression_result);
+            break;
+        case AND:
+            CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
+            expect_binary_operator = false;  // A binary operator should be followed by an operand
+
+            logical_function = and_function;
+            break;
+        case OR:
+            CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
+            expect_binary_operator = false;  // A binary operator should be followed by an operand
+
+            logical_function = or_function;
+            break;
+        default:
+            // A capability token was found
+            CRE_EVAL_ASSERT(!expect_binary_operator,
+                            "A capability token was found when a binary operator was expected");
+            expect_binary_operator = true;  // An operand should be followed by an operator
+
+            bool operand = plugin_capabilities.count(*expression_iterator)
+                               ? plugin_capabilities.at(*expression_iterator)->check_support()
+                               : false;
+            operand = negate ? !operand : operand;
+            negate = false;
+
+            result = logical_function(result, operand);
+            break;
+        }
+
+        advance_iterator(expression_iterator);
     }
 
-    CRE_EVAL_ASSERT(!no_operands, "At least one operator doesn't have any operand");
+    CRE_EVAL_ASSERT(at_least_one_iteration, "Cannot evaluate empty subexpressions");
+    CRE_EVAL_ASSERT(expect_binary_operator,
+                    "The CRE did not end with an operand. This means the final operator is missing its operand");
 
-    return subexpression_result;
+    return result;
 }
 
 bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {

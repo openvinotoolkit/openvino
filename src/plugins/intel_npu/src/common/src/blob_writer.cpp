@@ -121,7 +121,7 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
 CRE BlobWriter::build_cre() const {
     m_logger.debug("Filling the CRE");
 
-    CRE cre({CRE::AND}, m_logger.level());
+    CRE cre(m_logger.level());
     cre.append_to_expression(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
     m_logger.debug("Added the CRE_EVALUATION token to the CRE");
 
