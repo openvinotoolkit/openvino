@@ -19,57 +19,27 @@
 
 namespace intel_npu {
 
-class DynamicGraphImpl : public DynamicGraph::Impl {
-public:
-    DynamicGraphImpl() : _engineProperties{}, _logger("DynamicGraphImpl", Logger::global().level()) {}
-    void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
-    void createExecutionEngine(std::optional<ov::Tensor>& blob);
-    void prepareMetadata(NetworkMetadata& metadata);
-    void initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata);
-    uint64_t getNumSubgraphs() override {
-        return _engineProperties.numOfSubGraphs;
-    }
-    npu_vm_runtime_handle_t getVmRuntimeHandle() const override {
-        return _engine;
-    }
-
-    virtual ~DynamicGraphImpl() {
-        destroy();
-    }
-
-    void destroy() {
-        if (_engine != nullptr) {
-            npuVMRuntimeDestroy(_engine);
-            _engine = nullptr;
-        }
-    }
-
-public:
-    npu_vm_runtime_handle_t _engine = nullptr;
-    npu_vm_runtime_properties_t _engineProperties;
-    bool _initialized = false;
-    Logger _logger;
-};
-
-void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
-    if (!_initialized) {
-        initializeDynamicGraphExecution(blob, metadata);
-        _initialized = true;
+void DynamicGraph::initializeDynamicGraphExecution() {
+    if (!_engineInitialized) {
+        createExecutionEngine();
+        prepareMetadata();
+        _num_of_subgraphs = _engineProperties.numOfSubGraphs;
+        _engineInitialized = true;
     }
 
     if (_logger.level() >= ov::log::Level::DEBUG) {
         // dump output of _metadata
         _logger.debug("Dump metadata info from blob");
-        _logger.debug("Metadata inputs: %d", metadata.inputs.size());
-        for (const auto& input : metadata.inputs) {
+        _logger.debug("Metadata inputs: %d", _metadata.inputs.size());
+        for (const auto& input : _metadata.inputs) {
             _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
                           input.nameFromCompiler.c_str(),
                           input.nodeFriendlyName.c_str(),
                           input.shapeFromCompiler.to_string().c_str(),
                           input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
         }
-        _logger.debug("Metadata outputs: %d", metadata.outputs.size());
-        for (const auto& output : metadata.outputs) {
+        _logger.debug("Metadata outputs: %d", _metadata.outputs.size());
+        for (const auto& output : _metadata.outputs) {
             _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
                           output.nameFromCompiler.c_str(),
                           output.nodeFriendlyName.c_str(),
@@ -79,10 +49,10 @@ void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetada
     }
 }
 
-void DynamicGraphImpl::createExecutionEngine(std::optional<ov::Tensor>& blob) {
+void DynamicGraph::createExecutionEngine() {
     npu_vm_runtime_blob_desc_t blobDesc;
-    blobDesc.pInput = reinterpret_cast<const uint8_t*>(blob.value().data());
-    blobDesc.inputSize = blob.value().get_byte_size();
+    blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
+    blobDesc.inputSize = _blob.value().get_byte_size();
 
     if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
@@ -179,9 +149,9 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
-void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
-    metadata.inputs.clear();
-    metadata.outputs.clear();
+void DynamicGraph::prepareMetadata() {
+    _metadata.inputs.clear();
+    _metadata.outputs.clear();
     for (uint32_t i = 0; i < _engineProperties.numOfGraphArgs; ++i) {
         // TODO: follow graph ext to support Optional metadata for weightless model
         ze_graph_argument_properties_3_t arg;
@@ -197,10 +167,10 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
         ioDesc.supportsStridedLayout = true;
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            metadata.inputs.push_back(std::move(ioDesc));
+            _metadata.inputs.push_back(std::move(ioDesc));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            metadata.outputs.push_back(std::move(ioDesc));
+            _metadata.outputs.push_back(std::move(ioDesc));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -208,17 +178,12 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
         }
         }
     }
-    metadata.bindRelatedDescriptors();
-}
-
-void DynamicGraphImpl::initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
-    createExecutionEngine(blob);
-    prepareMetadata(metadata);
+    _metadata.bindRelatedDescriptors();
 
     _logger.debug("num of subgraphs: %d inputs: %d outputs: %d",
                   _engineProperties.numOfSubGraphs,
-                  metadata.inputs.size(),
-                  metadata.outputs.size());
+                  _metadata.inputs.size(),
+                  _metadata.outputs.size());
 }
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
@@ -234,14 +199,10 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
         return;
     }
 
-    _impl = std::make_unique<DynamicGraphImpl>();
-
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
-    _impl->initialize(_blob, _metadata);
-
-    _num_of_subgraphs = _impl->getNumSubgraphs();
+    initializeDynamicGraphExecution();
 
     initialize(config);
 }
@@ -345,11 +306,8 @@ ze_graph_handle_t DynamicGraph::get_handle() const {
 void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
-    if (!_impl) {
-        _impl = std::make_unique<DynamicGraphImpl>();
-        // initialize VM execution engine, metadata, input&output descriptors
-        _impl->initialize(_blob, _metadata);
-        _num_of_subgraphs = _impl->getNumSubgraphs();
+    if (!_engineInitialized) {
+        initializeDynamicGraphExecution();
     }
 
     if (!_zeroInitStruct) {
@@ -472,15 +430,15 @@ DynamicGraph::~DynamicGraph() {
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
     }
+
+    if (_engine != nullptr) {
+        npuVMRuntimeDestroy(_engine);
+        _engine = nullptr;
+    }
 }
 
 npu_vm_runtime_handle_t DynamicGraph::get_vm_runtime_handle() const {
-    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
-
-    if (impl == nullptr)
-        return nullptr;
-
-    return impl->getVmRuntimeHandle();
+    return _engine;
 }
 
 uint64_t DynamicGraph::get_num_subgraphs() const {

@@ -17,14 +17,6 @@
 namespace intel_npu {
 class DynamicGraph final : public IDynamicGraph {
 public:
-    class Impl {
-    public:
-        virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
-        virtual uint64_t getNumSubgraphs() = 0;
-        virtual npu_vm_runtime_handle_t getVmRuntimeHandle() const = 0;
-        virtual ~Impl() {};
-    };
-
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
                  bool blobAllocatedByPlugin,
@@ -64,6 +56,9 @@ private:
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
+    void initializeDynamicGraphExecution();
+    void createExecutionEngine();
+    void prepareMetadata();
     std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
@@ -89,6 +84,10 @@ private:
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
 
+    npu_vm_runtime_handle_t _engine = nullptr;
+    npu_vm_runtime_properties_t _engineProperties = {};
+    bool _engineInitialized = false;
+
     /**
      * @brief The batch size used by the corresponding model.
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
@@ -96,8 +95,6 @@ private:
     std::optional<std::size_t> _batchSize = std::nullopt;
 
     Logger _logger;
-
-    std::unique_ptr<Impl> _impl;
 };
 
 }  // namespace intel_npu
