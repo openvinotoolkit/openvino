@@ -587,7 +587,7 @@ TransposeSplitMatcher::TransposeSplitMatcher() {
         // This produces 3 outputs of shape [-1, 1, H, S] instead of [1, -1, H, S]
         auto new_split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto new_split = std::make_shared<ov::op::v1::Split>(input_node, new_split_axis, 3);
-        new_split->set_friendly_name(split->get_friendly_name());
+        new_split->set_friendly_name(split->get_friendly_name() + "_optimized");
 
         // For each output of the old split, we need to update the consumers
         // Old split outputs: [1, -1, H, S]

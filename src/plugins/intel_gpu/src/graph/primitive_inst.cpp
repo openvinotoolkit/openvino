@@ -1942,14 +1942,30 @@ void primitive_inst::do_runtime_in_place_crop() {
                 auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto offsets = u->_impl_params->input_offsets[0];
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
-                    // TODO: If crop is optimized out w/ data padding along feature and crop's user is reshape
-                    // manual dynamic padding update to reshape output layout is not currently supported
+                    // If there is a reshape user, we can still optimize when the reshape is able to propagate
+                    // runtime padding (is_runtime_propagatable_padding() == true).
+                    //
+                    // This covers the TransposeSplitMatcher case: Transpose+Split(axis=0) is replaced by
+                    // Split(axis=1), so each crop has shape [-1,1,H,S] with axis=1 (feature axis).
+                    // The following reshape squeezes that size-1 dim to [-1,H,S].  Because axis=1 and
+                    // input[1]==1, is_runtime_propagatable_padding() returns true (see reshape_inst.h),
+                    // meaning the reshape can safely forward the dynamic padding offset to its output.
+                    // In this case we update the reshape output layout so downstream consumers see the
+                    // correct padded view — same as the simple_data_format path does at lines below.
                     if (user_info.first) {
-                        u->set_can_be_optimized(false);
-                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
-                        continue;
+                        auto reshape_inst_node = static_cast<const reshape_node*>(user_info.first);
+                        if (!reshape_inst_node->is_runtime_propagatable_padding()) {
+                            u->set_can_be_optimized(false);
+                            GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                            continue;
+                        }
                     }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
+                    if (user_info.first) {
+                        auto reshape_inst = crop_users.front();
+                        reshape_inst->_impl_params->output_layouts[0] = user_info.second;
+                        reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+                    }
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                     if (!crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true)) {
                         u->set_can_be_optimized(false);
