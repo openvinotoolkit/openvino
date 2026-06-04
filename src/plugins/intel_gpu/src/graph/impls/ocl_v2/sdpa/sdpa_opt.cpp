@@ -190,7 +190,9 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
         }
         // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
         // accuracy issues (produces inf/nan) after oneDNN main branch integration.
-        if (device_info.arch == gpu_arch::xe3p && desc->k_head_size <= 64) {
+        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+        const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        if (device_info.arch == gpu_arch::xe3p && k_head_size <= 64) {
             return false;
         }
     } else {
