@@ -782,7 +782,11 @@ void Concat::execWithFuseConvert() {
 
                 size_t numElementsFP16 = nelemToCopy[a] / sizeof(ov::float16);
 
-                cpu_parallel_convert(inputDataFP16, outputDataFP32, ov::element::f16, ov::element::f32, numElementsFP16);
+                cpu_parallel_convert(inputDataFP16,
+                                     outputDataFP32,
+                                     ov::element::f16,
+                                     ov::element::f32,
+                                     numElementsFP16);
             }
         } else {
             // Multi-threaded execution
@@ -802,7 +806,11 @@ void Concat::execWithFuseConvert() {
                     auto* outputDataFP32 =
                         reinterpret_cast<float*>(&reinterpret_cast<uint8_t*>(dstPtr)[dstOffset[a]]) + start;
 
-                    cpu_parallel_convert(inputDataFP16, outputDataFP32, ov::element::f16, ov::element::f32, end - start);
+                    cpu_parallel_convert(inputDataFP16,
+                                         outputDataFP32,
+                                         ov::element::f16,
+                                         ov::element::f32,
+                                         end - start);
                 }
             });
         }
@@ -849,7 +857,11 @@ void Concat::execWithFuseConvert() {
                 // Convert number of bytes to number of elements for this slice
                 size_t numElementsFP16 = nelemToCopy[a] / sizeof(ov::float16);
 
-                cpu_parallel_convert(inputDataFP16, outputDataFP32, ov::element::f16, ov::element::f32, numElementsFP16);
+                cpu_parallel_convert(inputDataFP16,
+                                     outputDataFP32,
+                                     ov::element::f16,
+                                     ov::element::f32,
+                                     numElementsFP16);
             });
     }
 }

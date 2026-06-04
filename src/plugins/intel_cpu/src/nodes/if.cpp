@@ -52,10 +52,10 @@ void If::PortMapHelper::execute([[maybe_unused]] const dnnl::stream& strm) {
     redefineTo();
 
     cpu_parallel_convert(srcMemPtr->getData(),
-                dstMemPtrs.front()->getData(),
-                srcMemPtr->getDesc().getPrecision(),
-                dstMemPtrs.front()->getDesc().getPrecision(),
-                size);
+                         dstMemPtrs.front()->getData(),
+                         srcMemPtr->getDesc().getPrecision(),
+                         dstMemPtrs.front()->getDesc().getPrecision(),
+                         size);
 }
 
 void If::PortMapHelper::redefineTo() {

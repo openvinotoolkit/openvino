@@ -100,10 +100,10 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
             auto external_prc = current_ext_desc->getPrecision();
 
             cpu_parallel_convert(internal_state_mem()->getData(),
-                        mem->getData(),
-                        internal_prc,
-                        external_prc,
-                        elements_to_convert);
+                                 mem->getData(),
+                                 internal_prc,
+                                 external_prc,
+                                 elements_to_convert);
             return std::make_shared<Tensor>(mem);
         }
     }
@@ -346,10 +346,10 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                 size_t valid_seq = std::min(m_group_size, L0 - group_id * m_group_size);
                 buffers[ithr].resize<float>({valid_seq, S});
                 cpu_parallel_convert(external.ptr_v(valid_seq, b, h),
-                            buffers[ithr].ptr<float>(),
-                            external.m_dt,
-                            element::f32,
-                            valid_seq * S);
+                                     buffers[ithr].ptr<float>(),
+                                     external.m_dt,
+                                     element::f32,
+                                     valid_seq * S);
                 attn_quant_by_channel_u8(buffers[ithr].ptr<float>(),
                                          internal.ptr<uint8_t>(group_id * m_group_size, b, h),
                                          valid_seq,
@@ -363,7 +363,11 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
             m_scale_zp.resize<float>({L0, B, H, 2 * S / m_group_size});
             parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
                 buffers[ithr].resize<float>({S});
-                cpu_parallel_convert(external.ptr_v(m, b, h), buffers[ithr].ptr<float>(), external.m_dt, element::f32, S);
+                cpu_parallel_convert(external.ptr_v(m, b, h),
+                                     buffers[ithr].ptr<float>(),
+                                     external.m_dt,
+                                     element::f32,
+                                     S);
                 for (size_t group_id = 0; group_id < S / m_group_size; group_id++) {
                     attn_quant_u8(buffers[ithr].ptr<float>() + group_id * m_group_size,
                                   internal.ptr<uint8_t>(m, b, h, group_id * m_group_size),

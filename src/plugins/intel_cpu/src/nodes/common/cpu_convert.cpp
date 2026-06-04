@@ -1020,7 +1020,7 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
         auto* dst = static_cast<uint8_t*>(ctx.dstPtr);
         // each byte must be fully processed within same thread
         auto work_amount = ctx.size / 2;
-        auto has_tail = ctx.size % work_amount != 0;
+        auto has_tail = (ctx.size % 2) != 0;
         if (ctx.outType == ov::element::nf4) {
             LoopPolicy::run(work_amount, [&](size_t ib) {
                 size_t idx = ib * 2;
