@@ -124,6 +124,7 @@ private:
                                   Vmm* vmm_temp,
                                   int num_regs,
                                   int num_chunks);
+    void load_qk(bool is_f32, bool use_registers, int num_regs, int num_chunks);
 
     void reduce_zmm_f32_to_xmm_scalar(const Xbyak::Zmm& zmm_src,
                                       const Xbyak::Xmm& xmm_dst,
@@ -151,13 +152,15 @@ private:
                const Vmm& vmm_src,
                ov::element::Type dst_prc,
                const int& elt_num,
-               size_t offset = 0);
+               size_t offset = 0,
+               ov::element::Type src_prc = ov::element::f32);
     void load(const Vmm& vmm_dst,
               const Xbyak::Reg64& reg_src,
               ov::element::Type src_prc,
               const int& elt_num,
               bool fill,
-              size_t offset = 0);
+              size_t offset = 0,
+              ov::element::Type dst_prc = ov::element::f32);
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
     const std::vector<size_t> pool_aux_gpr_idxs;

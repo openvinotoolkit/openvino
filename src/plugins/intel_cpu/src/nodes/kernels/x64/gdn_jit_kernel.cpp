@@ -32,17 +32,18 @@ void jit_gdn_kernel<isa>::load(const Vmm& vmm_dst,
                                ov::element::Type src_prc,
                                const int& elt_num,
                                bool fill,
-                               size_t offset) {
-    // Typed load helper (src_prc -> f32 VMM via jit emitter)
-    const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
+                               size_t offset,
+                               ov::element::Type dst_prc) {
+    // Typed load helper (src_prc -> dst_prc VMM via jit emitter)
+    const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
         constexpr cpu_isa_t load_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
         emitters[seed] = std::make_unique<jit_load_emitter>(this,
                                                             load_isa,
                                                             src_prc,
-                                                            ov::element::f32,
+                                                            dst_prc,
                                                             elt_num,
-                                                            ov::element::f32,
+                                                            dst_prc,
                                                             fill,
                                                             "float_min");
     }
@@ -57,12 +58,13 @@ void jit_gdn_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
                                 const Vmm& vmm_src,
                                 ov::element::Type dst_prc,
                                 const int& elt_num,
-                                size_t offset) {
-    // Typed store helper (f32 VMM -> dst_prc via jit emitter)
-    const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
+                                size_t offset,
+                                ov::element::Type src_prc) {
+    // Typed store helper (src_prc VMM -> dst_prc via jit emitter)
+    const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
         constexpr cpu_isa_t store_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
-        emitters[seed] = std::make_unique<jit_store_emitter>(this, store_isa, ov::element::f32, dst_prc, elt_num);
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, store_isa, src_prc, dst_prc, elt_num);
     }
     emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
                               {static_cast<size_t>(reg_dst.getIdx()), offset},
@@ -470,6 +472,76 @@ void jit_gdn_kernel<isa>::scale_buffer_native_xf16(const Xbyak::Reg64& reg_buffe
     }
 }
 
+template <cpu_isa_t isa>
+void jit_gdn_kernel<isa>::load_qk(bool is_f32, bool use_registers, int num_regs, int num_chunks) {
+    if (!is_f32 && use_registers) {
+        // Load K, Q directly into registers
+        load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_key_seq, num_regs);
+        load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_query_seq, num_regs);
+
+        // Optional L2 normalization
+        if (m_jcp.fuse_qk_l2norm) {
+            l2norm_inplace_native_xf16(const_cast<Vmm*>(v_k), x_eps_k, num_regs);
+            l2norm_inplace_native_xf16(const_cast<Vmm*>(v_q), x_eps_q, num_regs);
+        }
+
+        // Scale query
+        scale_vector_native_xf16(const_cast<Vmm*>(v_q), x_qscale, num_regs);
+    } else {
+        // Temp-buffer path: f32 and large-head xf16 share this skeleton.
+        mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
+        mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
+
+        const int copy_elt_num = static_cast<int>(vec_size);
+        const size_t copy_step = static_cast<size_t>(copy_elt_num) * m_jcp.data_prc.size();
+        const size_t vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(copy_elt_num);
+        const size_t tail = m_jcp.qk_head_size % static_cast<size_t>(copy_elt_num);
+
+        // State/temp copy: keep storage precision (no conversion).
+        for (size_t i = 0; i < vec_cnt; i++) {
+            const size_t off = i * copy_step;
+            load(v_tmp0, reg_key_seq, m_jcp.data_prc, copy_elt_num, false, off, m_jcp.data_prc);
+            store(reg_key_tmp, v_tmp0, m_jcp.data_prc, copy_elt_num, off, m_jcp.data_prc);
+            load(v_tmp1, reg_query_seq, m_jcp.data_prc, copy_elt_num, false, off, m_jcp.data_prc);
+            store(reg_query_tmp, v_tmp1, m_jcp.data_prc, copy_elt_num, off, m_jcp.data_prc);
+        }
+        for (size_t i = 0; i < tail; i++) {
+            const size_t off = vec_cnt * copy_step + i * m_jcp.data_prc.size();
+            load(v_tmp0, reg_key_seq, m_jcp.data_prc, 1, false, off, m_jcp.data_prc);
+            store(reg_key_tmp, v_tmp0, m_jcp.data_prc, 1, off, m_jcp.data_prc);
+            load(v_tmp1, reg_query_seq, m_jcp.data_prc, 1, false, off, m_jcp.data_prc);
+            store(reg_query_tmp, v_tmp1, m_jcp.data_prc, 1, off, m_jcp.data_prc);
+        }
+
+        if (is_f32) {
+            mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
+            mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
+
+            if (m_jcp.fuse_qk_l2norm) {
+                l2norm_inplace(reg_key_tmp, x_eps_k, x_tmp0, x_tmp1, x_hk);
+                l2norm_inplace(reg_query_tmp, x_eps_q, x_tmp0, x_tmp1, x_hk);
+            }
+
+            multiply_scalar(reg_query_tmp, x_qscale);
+        } else {
+            // Optional L2 normalization (process in chunks)
+            if (m_jcp.fuse_qk_l2norm) {
+                // Normalize K
+                l2norm_buffer_compute_scale_native_xf16(reg_key_tmp, x_eps_k, x_beta, num_regs, num_chunks);
+                scale_buffer_native_xf16(reg_key_tmp, x_beta, const_cast<Vmm*>(v_k), num_regs, num_chunks);
+
+                // Normalize Q and combine with q_scale
+                l2norm_buffer_compute_scale_native_xf16(reg_query_tmp, x_eps_q, x_beta, num_regs, num_chunks);
+                vmulss(x_beta, x_beta, x_qscale);  // Combine: l2norm_scale * q_scale
+                scale_buffer_native_xf16(reg_query_tmp, x_beta, const_cast<Vmm*>(v_q), num_regs, num_chunks);
+            } else {
+                // No L2 norm, just scale Q by q_scale
+                scale_buffer_native_xf16(reg_query_tmp, x_qscale, const_cast<Vmm*>(v_q), num_regs, num_chunks);
+            }
+        }
+    }
+}
+
 // ============================================
 // Main native xf16 kernel
 // ============================================
@@ -536,96 +608,7 @@ void jit_gdn_kernel<isa>::generate() {
         mov(reg_aux.cvt32(), float2int(m_jcp.q_scale));
         vmovd(x_qscale, reg_aux.cvt32());
 
-        if (is_f32) {
-            mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
-            mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
-
-            const int copy_elt_num = static_cast<int>(vec_size);
-            const size_t copy_step = static_cast<size_t>(copy_elt_num) * sizeof(float);
-            const size_t vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(copy_elt_num);
-            const size_t tail = m_jcp.qk_head_size % static_cast<size_t>(copy_elt_num);
-
-            for (size_t i = 0; i < vec_cnt; i++) {
-                const size_t off = i * copy_step;
-                load(v_tmp0, reg_key_seq, ov::element::f32, copy_elt_num, false, off);
-                store(reg_key_tmp, v_tmp0, ov::element::f32, copy_elt_num, off);
-                load(v_tmp1, reg_query_seq, ov::element::f32, copy_elt_num, false, off);
-                store(reg_query_tmp, v_tmp1, ov::element::f32, copy_elt_num, off);
-            }
-            for (size_t i = 0; i < tail; i++) {
-                const size_t off = vec_cnt * copy_step + i * sizeof(float);
-                load(v_tmp0, reg_key_seq, ov::element::f32, 1, false, off);
-                store(reg_key_tmp, v_tmp0, ov::element::f32, 1, off);
-                load(v_tmp1, reg_query_seq, ov::element::f32, 1, false, off);
-                store(reg_query_tmp, v_tmp1, ov::element::f32, 1, off);
-            }
-
-            mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
-            mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
-
-            if (m_jcp.fuse_qk_l2norm) {
-                l2norm_inplace(reg_key_tmp, x_eps_k, x_tmp0, x_tmp1, x_hk);
-                l2norm_inplace(reg_query_tmp, x_eps_q, x_tmp0, x_tmp1, x_hk);
-            }
-
-            multiply_scalar(reg_query_tmp, x_qscale);
-        } else if (use_registers) {
-            // Load K, Q directly into registers
-            load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_key_seq, num_regs);
-            load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_query_seq, num_regs);
-
-            // Optional L2 normalization
-            if (m_jcp.fuse_qk_l2norm) {
-                l2norm_inplace_native_xf16(const_cast<Vmm*>(v_k), x_eps_k, num_regs);
-                l2norm_inplace_native_xf16(const_cast<Vmm*>(v_q), x_eps_q, num_regs);
-            }
-
-            // Scale query
-            scale_vector_native_xf16(const_cast<Vmm*>(v_q), x_qscale, num_regs);
-        } else {
-            // Large head_size: use temp buffers and process in chunks
-            // Reset temp buffer pointers
-            mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
-            mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
-
-            // Copy K, Q to temp buffers
-            for (int chunk = 0; chunk < num_chunks; chunk++) {
-                const int chunk_start = chunk * MAX_REGS_PER_VEC;
-                const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
-                const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
-
-                mov(reg_aux2, reg_key_seq);
-                add(reg_aux2, chunk_offset);
-                load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
-
-                mov(reg_aux2, reg_key_tmp);
-                add(reg_aux2, chunk_offset);
-                store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_k), chunk_regs);
-
-                mov(reg_aux2, reg_query_seq);
-                add(reg_aux2, chunk_offset);
-                load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_aux2, chunk_regs);
-
-                mov(reg_aux2, reg_query_tmp);
-                add(reg_aux2, chunk_offset);
-                store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_q), chunk_regs);
-            }
-
-            // Optional L2 normalization (process in chunks)
-            if (m_jcp.fuse_qk_l2norm) {
-                // Normalize K
-                l2norm_buffer_compute_scale_native_xf16(reg_key_tmp, x_eps_k, x_beta, num_regs, num_chunks);
-                scale_buffer_native_xf16(reg_key_tmp, x_beta, const_cast<Vmm*>(v_k), num_regs, num_chunks);
-
-                // Normalize Q and combine with q_scale
-                l2norm_buffer_compute_scale_native_xf16(reg_query_tmp, x_eps_q, x_beta, num_regs, num_chunks);
-                vmulss(x_beta, x_beta, x_qscale);  // Combine: l2norm_scale * q_scale
-                scale_buffer_native_xf16(reg_query_tmp, x_beta, const_cast<Vmm*>(v_q), num_regs, num_chunks);
-            } else {
-                // No L2 norm, just scale Q by q_scale
-                scale_buffer_native_xf16(reg_query_tmp, x_qscale, const_cast<Vmm*>(v_q), num_regs, num_chunks);
-            }
-        }
+        load_qk(is_f32, use_registers, num_regs, num_chunks);
 
         // Compute gate and beta once per timestep and share across V lanes
         load(Vmm(x_gate.getIdx()), reg_gate_seq, m_jcp.data_prc, 1, false);
@@ -664,48 +647,7 @@ void jit_gdn_kernel<isa>::generate() {
             add(reg_aux2, static_cast<size_t>(v_idx * m_jcp.data_prc.size()));
             load(Vmm(x_value.getIdx()), reg_aux2, m_jcp.data_prc, 1, false);
 
-            if (is_f32) {
-                multiply_scalar(reg_state, x_gate);
-
-                mov(reg_query_tmp, reg_state);
-                mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
-                dot_product_to_scalar(x_hk, reg_query_tmp, reg_key_tmp, reg_aux);
-
-                vsubss(x_delta, x_value, x_hk);
-                vmulss(x_delta, x_delta, x_beta);
-
-                const int update_elt_num = static_cast<int>(vec_size);
-                const size_t update_step = static_cast<size_t>(update_elt_num) * sizeof(float);
-                const size_t update_vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(update_elt_num);
-                const size_t update_tail = m_jcp.qk_head_size % static_cast<size_t>(update_elt_num);
-
-                vbroadcastss(v_aux2, x_delta);
-
-                mov(reg_aux2, ptr[reg_args + GET_OFF(key_tmp)]);
-                for (size_t i = 0; i < update_vec_cnt; i++) {
-                    const size_t off = i * update_step;
-                    load(v_tmp0, reg_state, ov::element::f32, update_elt_num, false, off);
-                    load(v_tmp1, reg_aux2, ov::element::f32, update_elt_num, false, off);
-                    vfmadd231ps(v_tmp0, v_tmp1, v_aux2);
-                    store(reg_state, v_tmp0, ov::element::f32, update_elt_num, off);
-                }
-                for (size_t i = 0; i < update_tail; i++) {
-                    const size_t off = update_vec_cnt * update_step + i * sizeof(float);
-                    load(v_tmp0, reg_state, ov::element::f32, 1, false, off);
-                    load(v_tmp1, reg_aux2, ov::element::f32, 1, false, off);
-                    vmulss(x_tmp1, x_tmp1, x_delta);
-                    vaddss(x_tmp0, x_tmp0, x_tmp1);
-                    store(reg_state, v_tmp0, ov::element::f32, 1, off);
-                }
-
-                mov(reg_query_tmp, reg_state);
-                mov(reg_key_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
-                dot_product_to_scalar(x_out, reg_query_tmp, reg_key_tmp, reg_aux);
-
-                mov(reg_aux2, reg_out_seq);
-                add(reg_aux2, static_cast<size_t>(v_idx * sizeof(float)));
-                vmovss(ptr[reg_aux2], x_out);
-            } else if (use_registers) {
+            if (!is_f32 && use_registers) {
                 // Load H for current V lane
                 load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_state, num_regs);
 
@@ -731,73 +673,113 @@ void jit_gdn_kernel<isa>::generate() {
                 store(reg_aux2, Vmm(x_out.getIdx()), m_jcp.data_prc, 1);
                 store_vector_native_xf16(reg_state, const_cast<Vmm*>(v_h), num_regs);
             } else {
-                // Scale H by exp(gate)
-                scale_buffer_native_xf16(reg_state, x_gate, const_cast<Vmm*>(v_h), num_regs, num_chunks);
+                // Temp-buffer compute path shared by f32 and xf16-large.
+                if (is_f32) {
+                    multiply_scalar(reg_state, x_gate);
 
-                // Compute hk = dot(H, K)
-                uni_vpxor(v_aux0, v_aux0, v_aux0);
-                for (int chunk = 0; chunk < num_chunks; chunk++) {
-                    const int chunk_start = chunk * MAX_REGS_PER_VEC;
-                    const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
-                    const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+                    mov(reg_query_tmp, reg_state);
+                    mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
+                    dot_product_to_scalar(x_hk, reg_query_tmp, reg_key_tmp, reg_aux);
+                } else {
+                    // Scale H by exp(gate)
+                    scale_buffer_native_xf16(reg_state, x_gate, const_cast<Vmm*>(v_h), num_regs, num_chunks);
 
-                    mov(reg_aux2, reg_state);
-                    add(reg_aux2, chunk_offset);
-                    load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+                    // Compute hk = dot(H, K)
+                    uni_vpxor(v_aux0, v_aux0, v_aux0);
+                    for (int chunk = 0; chunk < num_chunks; chunk++) {
+                        const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                        const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                        const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
 
-                    mov(reg_aux2, reg_key_tmp);
-                    add(reg_aux2, chunk_offset);
-                    load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+                        mov(reg_aux2, reg_state);
+                        add(reg_aux2, chunk_offset);
+                        load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
 
-                    accumulate_dot_product(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), chunk_regs);
+                        mov(reg_aux2, reg_key_tmp);
+                        add(reg_aux2, chunk_offset);
+                        load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+
+                        accumulate_dot_product(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), chunk_regs);
+                    }
+                    uni_vpxor(x_hk, x_hk, x_hk);
+                    reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_hk, x_tmp0, x_tmp1);
                 }
-                uni_vpxor(x_hk, x_hk, x_hk);
-                reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_hk, x_tmp0, x_tmp1);
 
                 // delta = (value - hk) * beta
                 vsubss(x_delta, x_value, x_hk);
                 vmulss(x_delta, x_delta, x_beta);
 
-                // Update: H += K * delta
-                for (int chunk = 0; chunk < num_chunks; chunk++) {
-                    const int chunk_start = chunk * MAX_REGS_PER_VEC;
-                    const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
-                    const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+                if (is_f32) {
+                    // Update: H += K * delta
+                    const int update_elt_num = static_cast<int>(vec_size);
+                    const size_t update_step = static_cast<size_t>(update_elt_num) * sizeof(float);
+                    const size_t update_vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(update_elt_num);
+                    const size_t update_tail = m_jcp.qk_head_size % static_cast<size_t>(update_elt_num);
 
-                    mov(reg_aux2, reg_state);
-                    add(reg_aux2, chunk_offset);
-                    load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+                    vbroadcastss(v_aux2, x_delta);
 
-                    mov(reg_aux2, reg_key_tmp);
-                    add(reg_aux2, chunk_offset);
-                    load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+                    mov(reg_aux2, ptr[reg_args + GET_OFF(key_tmp)]);
+                    for (size_t i = 0; i < update_vec_cnt; i++) {
+                        const size_t off = i * update_step;
+                        load(v_tmp0, reg_state, ov::element::f32, update_elt_num, false, off);
+                        load(v_tmp1, reg_aux2, ov::element::f32, update_elt_num, false, off);
+                        vfmadd231ps(v_tmp0, v_tmp1, v_aux2);
+                        store(reg_state, v_tmp0, ov::element::f32, update_elt_num, off);
+                    }
+                    for (size_t i = 0; i < update_tail; i++) {
+                        const size_t off = update_vec_cnt * update_step + i * sizeof(float);
+                        load(v_tmp0, reg_state, ov::element::f32, 1, false, off);
+                        load(v_tmp1, reg_aux2, ov::element::f32, 1, false, off);
+                        vmulss(x_tmp1, x_tmp1, x_delta);
+                        vaddss(x_tmp0, x_tmp0, x_tmp1);
+                        store(reg_state, v_tmp0, ov::element::f32, 1, off);
+                    }
 
-                    fmadd_vector_native_xf16(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), x_delta, chunk_regs);
+                    mov(reg_query_tmp, reg_state);
+                    mov(reg_key_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
+                    dot_product_to_scalar(x_out, reg_query_tmp, reg_key_tmp, reg_aux);
+                } else {
+                    // Update: H += K * delta
+                    for (int chunk = 0; chunk < num_chunks; chunk++) {
+                        const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                        const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                        const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
 
-                    mov(reg_aux2, reg_state);
-                    add(reg_aux2, chunk_offset);
-                    store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_h), chunk_regs);
+                        mov(reg_aux2, reg_state);
+                        add(reg_aux2, chunk_offset);
+                        load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+
+                        mov(reg_aux2, reg_key_tmp);
+                        add(reg_aux2, chunk_offset);
+                        load_vector_native_xf16(const_cast<Vmm*>(v_k), reg_aux2, chunk_regs);
+
+                        fmadd_vector_native_xf16(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_k), x_delta, chunk_regs);
+
+                        mov(reg_aux2, reg_state);
+                        add(reg_aux2, chunk_offset);
+                        store_vector_native_xf16(reg_aux2, const_cast<Vmm*>(v_h), chunk_regs);
+                    }
+
+                    // Output: out = dot(H, Q)
+                    uni_vpxor(v_aux0, v_aux0, v_aux0);
+                    for (int chunk = 0; chunk < num_chunks; chunk++) {
+                        const int chunk_start = chunk * MAX_REGS_PER_VEC;
+                        const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
+                        const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
+
+                        mov(reg_aux2, reg_state);
+                        add(reg_aux2, chunk_offset);
+                        load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
+
+                        mov(reg_aux2, reg_query_tmp);
+                        add(reg_aux2, chunk_offset);
+                        load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_aux2, chunk_regs);
+
+                        accumulate_dot_product(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_q), chunk_regs);
+                    }
+                    uni_vpxor(x_out, x_out, x_out);
+                    reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_out, x_tmp0, x_tmp1);
                 }
-
-                // Output: out = dot(H, Q)
-                uni_vpxor(v_aux0, v_aux0, v_aux0);
-                for (int chunk = 0; chunk < num_chunks; chunk++) {
-                    const int chunk_start = chunk * MAX_REGS_PER_VEC;
-                    const int chunk_regs = std::min(MAX_REGS_PER_VEC, num_regs - chunk_start);
-                    const size_t chunk_offset = chunk_start * XF16_ELEMS_PER_ZMM * m_jcp.data_prc.size();
-
-                    mov(reg_aux2, reg_state);
-                    add(reg_aux2, chunk_offset);
-                    load_vector_native_xf16(const_cast<Vmm*>(v_h), reg_aux2, chunk_regs);
-
-                    mov(reg_aux2, reg_query_tmp);
-                    add(reg_aux2, chunk_offset);
-                    load_vector_native_xf16(const_cast<Vmm*>(v_q), reg_aux2, chunk_regs);
-
-                    accumulate_dot_product(const_cast<Vmm*>(v_h), const_cast<Vmm*>(v_q), chunk_regs);
-                }
-                uni_vpxor(x_out, x_out, x_out);
-                reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), x_out, x_tmp0, x_tmp1);
 
                 mov(reg_aux2, reg_out_seq);
                 add(reg_aux2, static_cast<size_t>(v_idx * m_jcp.data_prc.size()));
