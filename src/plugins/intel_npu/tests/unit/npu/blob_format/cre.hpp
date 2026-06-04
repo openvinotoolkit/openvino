@@ -186,6 +186,26 @@ TEST_F(CREAppendToken, AppendSubexpressionWithoutParrentheses) {
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::OPEN, CRE::NOT, CRE::BATCHING, CRE::CLOSE}));
 }
 
+/**
+ * @brief The CRE code should be able to detect duplicate subexpressions (relative to depth level 0) and avoid inserting
+ * copies.
+ */
+TEST_F(CREAppendToken, AvoidAppendingDuplicates) {
+    CRE cre;
+    cre.append_to_expression(CRE::BATCHING);
+    cre.append_to_expression(CRE::BATCHING);
+    EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::BATCHING}));
+
+    cre = {};
+    cre.append_to_expression(
+        std::vector<CRE::Token>{CRE::OPEN, CRE::NOT, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
+    cre.append_to_expression(
+        std::vector<CRE::Token>{CRE::OPEN, CRE::NOT, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
+    EXPECT_EQ(
+        cre.get_expression(),
+        (std::vector<CRE::Token>{CRE::OPEN, CRE::NOT, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE}));
+}
+
 TEST_F(CREAppendToken, MixedAppend) {
     CRE cre;
     cre.append_to_expression(CRE::ELF_SCHEDULE);

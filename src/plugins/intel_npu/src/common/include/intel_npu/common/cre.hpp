@@ -82,20 +82,27 @@ public:
      *
      * @param plugin_capabilities A mapping between CRE tokens and their (lazy) evaluators.
      */
-    bool check_compatibility(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
+    bool check_compatibility(
+        const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) const;
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE, NOT_CAPABILITY_ID };
 
-    void advance_iterator(std::vector<Token>::const_iterator& expression_iterator);
+    bool subexpression_already_registered(const std::vector<Token>& subexpression) const;
 
-    bool end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter);
+    void advance_iterator(std::vector<Token>::const_iterator& expression_iterator,
+                          const std::vector<Token>::const_iterator& expression_end) const;
+
+    bool end_condition(const std::vector<Token>::const_iterator& expression_iterator,
+                       const std::vector<Token>::const_iterator& expression_end,
+                       const Delimiter end_delimiter) const;
 
     bool evaluate(std::vector<Token>::const_iterator& expression_iterator,
+                  const std::vector<Token>::const_iterator& expression_end,
                   const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
-                  const Delimiter end_delimiter);
+                  const Delimiter end_delimiter) const;
 
-    std::vector<Token> m_expression;
+    std::vector<std::vector<Token>> m_subexpressions;
 
     Logger m_logger;
 };
