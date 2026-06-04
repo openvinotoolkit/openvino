@@ -601,10 +601,10 @@ void Reorder::reorderData(const IMemory& input,
 
                 const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
                 cpu_parallel_convert(data,
-                            tmpBuff.data(),
-                            DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
-                            outPrc,
-                            input.getDesc().getShape().getElementsCount());
+                                     tmpBuff.data(),
+                                     DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
+                                     outPrc,
+                                     input.getDesc().getShape().getElementsCount());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 Memory tmpMem(engine, tmpDesc, tmpBuff.data());

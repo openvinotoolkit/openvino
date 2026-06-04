@@ -1055,10 +1055,10 @@ void RNN::fillBiases() {
             ie_b_ptr = ie_b_vec.data();
 
             cpu_parallel_convert(b_const_blob->getData(),
-                        ie_b_ptr,
-                        DnnlExtensionUtils::DataTypeToElementType(b_const_blob->getDataType()),
-                        ET,
-                        ie_b_vec_size);
+                                 ie_b_ptr,
+                                 DnnlExtensionUtils::DataTypeToElementType(b_const_blob->getDataType()),
+                                 ET,
+                                 ie_b_vec_size);
         } else {
             ie_b_ptr = reinterpret_cast<DataType*>(b_const_blob->getData());
         }
