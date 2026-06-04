@@ -20,15 +20,14 @@
 
 namespace {
 
-using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
-using ResultNodes = std::vector<ConstPtr>;
+using ResultNodes = std::vector<std::shared_ptr<ov::op::v0::Constant>>;
 
 // Build the subgraph matched by PreserveConstDictMatMulAsymm:
 //   Const(W:u8) -> Convert(f16) ------+
 //   Const(Z:u8) -> Convert(f16) -> Subtract -> Multiply -> [Convert(f32) ->] MatMul -> Result
 //   Const(S:f16) ----------------------------+
 //   Parameter(act:f32) -------------------------------------------->
-// The Convert between Multiply and MatMul is optional (with_mul_to_matmul_convert controls it).
+// The Convert between Multiply and MatMul is optional (convert_before_matmul controls it).
 struct SubgraphNodes {
     std::shared_ptr<ov::op::v0::Constant> qweight;
     std::shared_ptr<ov::op::v0::Constant> qzerop;
@@ -41,28 +40,28 @@ SubgraphNodes build_asymm_matmul_subgraph(const ov::Shape& weight_shape,
                                           const ov::Shape& zerop_shape,
                                           const ov::Shape& scale_shape,
                                           bool transpose_b,
-                                          bool with_mul_to_matmul_convert = true) {
+                                          bool convert_before_matmul = true) {
     auto qweight = std::make_shared<ov::op::v0::Constant>(weight_type, weight_shape, 0);
     auto qzerop = std::make_shared<ov::op::v0::Constant>(weight_type, zerop_shape, 0);
     // When there is no Convert after Multiply, Multiply must produce f32 directly, which
     // requires scale (qcoeff) to be f32 — matching real onnx-converted model behaviour.
-    const auto scale_type = with_mul_to_matmul_convert ? ov::element::f16 : ov::element::f32;
+    const auto scale_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
     auto qcoeff = std::make_shared<ov::op::v0::Constant>(scale_type, scale_shape, 1.0f);
 
-    // When with_mul_to_matmul_convert=true (optimum-intel style):
+    // When convert_before_matmul=true (optimum-intel style):
     //   u8 → Convert(f16) → Subtract → Multiply(f16) → Convert(f32) → MatMul(f32)
     //   scale (qcoeff) is f16
-    // When with_mul_to_matmul_convert=false (onnx-converted style):
+    // When convert_before_matmul=false (onnx-converted style):
     //   u8 → Convert(f32) → Subtract → Multiply(f32) → MatMul(f32)  [no final Convert]
     //   scale (qcoeff) is f32
-    const auto mid_type = with_mul_to_matmul_convert ? ov::element::f16 : ov::element::f32;
+    const auto mid_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
     auto cvtw = std::make_shared<ov::op::v0::Convert>(qweight, mid_type);
     auto cvtz = std::make_shared<ov::op::v0::Convert>(qzerop, mid_type);
     auto sub = std::make_shared<ov::op::v1::Subtract>(cvtw, cvtz);
     auto mul = std::make_shared<ov::op::v1::Multiply>(sub, qcoeff);
 
     std::shared_ptr<ov::Node> mm_weight_input;
-    if (with_mul_to_matmul_convert) {
+    if (convert_before_matmul) {
         mm_weight_input = std::make_shared<ov::op::v0::Convert>(mul, ov::element::f32);
     } else {
         mm_weight_input = mul;
@@ -164,7 +163,7 @@ TEST(OptPatterns, PreTransposedLayout_NoConvert_MatchesAndPreservesConsts) {
                                                                         weight_shape,
                                                                         scale_shape,
                                                                         /*transpose_b=*/false,
-                                                                        /*with_mul_to_matmul_convert=*/false);
+                                                                        /*convert_before_matmul=*/false);
 
     ResultNodes to_keep;
     run_preserve_pattern(model, to_keep);
@@ -176,7 +175,7 @@ TEST(OptPatterns, PreTransposedLayout_NoConvert_MatchesAndPreservesConsts) {
 }
 
 // ─────────────────────────────────────────────
-// Test 6: Standard layout without Multiply→MatMul Convert
+// Test 6: Standard layout without Convert before MatMul
 // ─────────────────────────────────────────────
 TEST(OptPatterns, StandardLayout_NoConvert_MatchesAndPreservesConsts) {
     const ov::Shape weight_shape{32064, 3072};
@@ -186,7 +185,7 @@ TEST(OptPatterns, StandardLayout_NoConvert_MatchesAndPreservesConsts) {
                                                                         weight_shape,
                                                                         scale_shape,
                                                                         /*transpose_b=*/true,
-                                                                        /*with_mul_to_matmul_convert=*/false);
+                                                                        /*convert_before_matmul=*/false);
 
     ResultNodes to_keep;
     run_preserve_pattern(model, to_keep);

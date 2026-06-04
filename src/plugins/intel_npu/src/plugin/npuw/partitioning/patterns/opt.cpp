@@ -1928,11 +1928,10 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
     auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
     // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
-    auto qmm_input = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{qcvtm->output(0), qmuls->output(0)});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qmm_input});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
     std::shared_ptr<Node> qres;
 
     // MatMul -> Divide -> Tanh -> Multiply -> Result
