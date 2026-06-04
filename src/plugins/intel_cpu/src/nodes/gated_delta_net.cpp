@@ -201,12 +201,16 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     auto headSize = *(queryDims.end() - 1);
     const auto precision = getOriginalOutputPrecisionAtPort(0);
     const bool canUseXf16Jit = ov::intel_cpu::any_of(precision, ov::element::f16, ov::element::bf16) &&
-                               (mayiuse(avx512_core_bf16) || mayiuse(avx512_core_fp16)) && headSize % 32 == 0;
+                               (mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16)) && headSize % 32 == 0;
     const bool canUseF32Jit = precision == ov::element::f32 &&
-                              (mayiuse(avx512_core) || mayiuse(dnnl::impl::cpu::x64::avx2));
+                              (mayiuse(dnnl::impl::cpu::x64::avx512_core) || mayiuse(dnnl::impl::cpu::x64::avx2));
 
     if (canUseXf16Jit || canUseF32Jit) {
-        implType = impl_desc_type::jit_avx512;
+        if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            implType = impl_desc_type::jit_avx512;
+        } else if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
+            implType = impl_desc_type::jit_avx2;
+        }
         m_enableJit = true;
     }
 #endif
