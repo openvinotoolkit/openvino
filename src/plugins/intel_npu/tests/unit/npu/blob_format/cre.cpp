@@ -211,6 +211,13 @@ const std::vector<CRE::Token> expression_18 =
     {CRE::NOT, CRE::OPEN, CRE::ELF_SCHEDULE, CRE::AND, CRE::BATCHING, CRE::CLOSE};
 
 /*
+    AND
+    /  \
+~ELF  *BT*
+*/
+const std::vector<CRE::Token> expression_15 = {CRE::NOT, CRE::ELF_SCHEDULE, CRE::AND, CRE::BATCHING};
+
+/*
                     NOT
                      |
                 ___ AND ___
@@ -296,8 +303,16 @@ const std::vector<CRE::Token> expression_22 = {CRE::OPEN, CRE::ELF_SCHEDULE, CRE
 const std::vector<CRE::Token> expression_23 =
     {CRE::OPEN, CRE::OPEN, CRE::NOT, CRE::ELF_SCHEDULE, CRE::CLOSE, CRE::CLOSE};
 
-// missing operand for OR operator
+// missing both operands for the OR operator
 const std::vector<CRE::Token> invalid_expression_1 = {CRE::ELF_SCHEDULE, CRE::AND, CRE::OPEN, CRE::OR, CRE::CLOSE};
+
+// Missing only the first operand for the OR operator
+const std::vector<CRE::Token> invalid_expression_15 =
+    {CRE::ELF_SCHEDULE, CRE::AND, CRE::OPEN, CRE::ELF_SCHEDULE, CRE::OR, CRE::CLOSE};
+
+// Missing only the second operand for the OR operator
+const std::vector<CRE::Token> invalid_expression_16 =
+    {CRE::ELF_SCHEDULE, CRE::AND, CRE::OPEN, CRE::OR, CRE::ELF_SCHEDULE, CRE::CLOSE};
 
 // missing closed parenthesis
 const std::vector<CRE::Token> invalid_expression_2 =
@@ -350,6 +365,34 @@ const std::vector<CRE::Token> invalid_expression_11 = {CRE::OPEN, CRE::OPEN, CRE
 
 // missing OPEN
 const std::vector<CRE::Token> invalid_expression_12 = {CRE::OPEN, CRE::NOT, CRE::ELF_SCHEDULE, CRE::CLOSE, CRE::CLOSE};
+
+// Empty parrentheses cannot play the role of an operand
+const std::vector<CRE::Token> invalid_expression_13 = {CRE::ELF_SCHEDULE, CRE::AND, CRE::OPEN, CRE::CLOSE};
+
+// The subexpression is just "NOT". The operand is missing
+const std::vector<CRE::Token> invalid_expression_14 = {CRE::OPEN, CRE::NOT, CRE::CLOSE, CRE::ELF_SCHEDULE};
+
+// AND has too many operands
+const std::vector<CRE::Token> invalid_expression_17 = {CRE::ELF_SCHEDULE,
+                                                       CRE::AND,
+                                                       CRE::ELF_SCHEDULE,
+                                                       CRE::ELF_SCHEDULE};
+
+// OR has too many operands
+const std::vector<CRE::Token> invalid_expression_18 = {CRE::ELF_SCHEDULE,
+                                                       CRE::OR,
+                                                       CRE::ELF_SCHEDULE,
+                                                       CRE::ELF_SCHEDULE};
+
+// No operator to tie the two tokens
+const std::vector<CRE::Token> invalid_expression_19 = {CRE::ELF_SCHEDULE, CRE::ELF_SCHEDULE};
+
+// No operator to tie the two subexpressions
+const std::vector<CRE::Token> invalid_expression_20 =
+    {CRE::OPEN, CRE::ELF_SCHEDULE, CRE::CLOSE, CRE::OPEN, CRE::ELF_SCHEDULE, CRE::CLOSE};
+
+// "OR" cannot replace an operand
+const std::vector<CRE::Token> invalid_expression_21 = {CRE::ELF_SCHEDULE, CRE::OR, CRE::OR};
 
 std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_1, true),
@@ -407,6 +450,11 @@ std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_14, false, CRE::ELF_SCHEDULE, CRE::BATCHING),
     MAKE_PARAM(expression_14, false, CRE::ELF_SCHEDULE),
 
+    MAKE_PARAM(expression_15, false, CRE::ELF_SCHEDULE, CRE::BATCHING),
+    MAKE_PARAM(expression_15, false, CRE::ELF_SCHEDULE),
+    MAKE_PARAM(expression_15, true, CRE::BATCHING),
+    MAKE_PARAM(expression_15, false),
+
     MAKE_PARAM(expression_16, true, CRE::WEIGHTS_SEPARATION),
     MAKE_PARAM(expression_16, false, CRE::ELF_SCHEDULE, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
     MAKE_PARAM(expression_16, false, CRE::BATCHING, CRE::WEIGHTS_SEPARATION),
@@ -449,18 +497,17 @@ std::vector<CREParams> valid_test_cases = {
 INSTANTIATE_TEST_SUITE_P(CRE, ValidExpression, ::testing::ValuesIn(valid_test_cases), CREUnitTests::getTestCaseName);
 
 std::vector<CREParams> invalid_test_cases = {
-    MAKE_PARAM(invalid_expression_1, false),
-    MAKE_PARAM(invalid_expression_2, false),
-    MAKE_PARAM(invalid_expression_3, false),
-    MAKE_PARAM(invalid_expression_4, false),
-    MAKE_PARAM(invalid_expression_5, false),
-    MAKE_PARAM(invalid_expression_6, false),
-    MAKE_PARAM(invalid_expression_7, false),
-    MAKE_PARAM(invalid_expression_8, false),
-    MAKE_PARAM(invalid_expression_9, false),
-    MAKE_PARAM(invalid_expression_10, false),
-    MAKE_PARAM(invalid_expression_11, false),
-    MAKE_PARAM(invalid_expression_12, false),
+    MAKE_PARAM(invalid_expression_1, false),  MAKE_PARAM(invalid_expression_2, false),
+    MAKE_PARAM(invalid_expression_3, false),  MAKE_PARAM(invalid_expression_4, false),
+    MAKE_PARAM(invalid_expression_5, false),  MAKE_PARAM(invalid_expression_6, false),
+    MAKE_PARAM(invalid_expression_7, false),  MAKE_PARAM(invalid_expression_8, false),
+    MAKE_PARAM(invalid_expression_9, false),  MAKE_PARAM(invalid_expression_10, false),
+    MAKE_PARAM(invalid_expression_11, false), MAKE_PARAM(invalid_expression_12, false),
+    MAKE_PARAM(invalid_expression_13, false), MAKE_PARAM(invalid_expression_14, false),
+    MAKE_PARAM(invalid_expression_15, false), MAKE_PARAM(invalid_expression_16, false),
+    MAKE_PARAM(invalid_expression_17, false), MAKE_PARAM(invalid_expression_18, false),
+    MAKE_PARAM(invalid_expression_19, false), MAKE_PARAM(invalid_expression_20, false),
+    MAKE_PARAM(invalid_expression_21, false),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRE,

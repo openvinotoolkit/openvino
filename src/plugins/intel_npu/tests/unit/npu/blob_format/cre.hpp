@@ -100,7 +100,6 @@ TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
 TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
     CRE cre;
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::AND));
-    std::cout << 11111111 << std::endl << std::endl;
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OR));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OPEN));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::CLOSE));
@@ -134,9 +133,57 @@ TEST_F(CREAppendToken, AppendSubexpressionTokens) {
     CRE cre;
     cre.append_to_expression(
         std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
-
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE}));
+
+    cre.append_to_expression(std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::CLOSE});
+    EXPECT_EQ(cre.get_expression(),
+              (std::vector<CRE::Token>{CRE::OPEN,
+                                       CRE::BATCHING,
+                                       CRE::OR,
+                                       CRE::WEIGHTS_SEPARATION,
+                                       CRE::CLOSE,
+                                       CRE::AND,
+                                       CRE::OPEN,
+                                       CRE::BATCHING,
+                                       CRE::CLOSE}));
+}
+
+/**
+ * @brief Upon appending a subexpression, the CRE will add parrethesis automatically if the subexpression is longer than
+ * two tokens (to include a valid binary operator) and the expression is not already enclosed.
+ */
+TEST_F(CREAppendToken, AppendSubexpressionAddsParrentheses) {
+    CRE cre;
+    cre.append_to_expression(std::vector<CRE::Token>{CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION});
+    EXPECT_EQ(cre.get_expression(),
+              (std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE}));
+
+    cre = {};
+    cre.append_to_expression(std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION});
+    EXPECT_EQ(
+        cre.get_expression(),
+        (std::vector<CRE::Token>{CRE::OPEN, CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE}));
+
+    cre = {};
+    cre.append_to_expression(std::vector<CRE::Token>{CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
+    EXPECT_EQ(
+        cre.get_expression(),
+        (std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE, CRE::CLOSE}));
+}
+
+/**
+ * @brief Parretheses are not necessary if the subexpression has less than three tokens (no valid binary operator can be
+ * there) or if the subexpression is already enclosed.
+ */
+TEST_F(CREAppendToken, AppendSubexpressionWithoutParrentheses) {
+    CRE cre;
+    cre.append_to_expression(std::vector<CRE::Token>{CRE::NOT, CRE::BATCHING});
+    EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::NOT, CRE::BATCHING}));
+
+    cre = {};
+    cre.append_to_expression(std::vector<CRE::Token>{CRE::OPEN, CRE::NOT, CRE::BATCHING, CRE::CLOSE});
+    EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::OPEN, CRE::NOT, CRE::BATCHING, CRE::CLOSE}));
 }
 
 TEST_F(CREAppendToken, MixedAppend) {
