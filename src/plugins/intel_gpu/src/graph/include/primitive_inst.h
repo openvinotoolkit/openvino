@@ -355,7 +355,7 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
-    // ── Runtime Implementation Switching (Multi-Impl Pool) ───────────────────
+    // -- Runtime Implementation Switching (Multi-Impl Pool) --
     // Policy controlling how the active implementation is selected at runtime.
     enum class ImplSwitchingPolicy { NONE, AUTO_HEURISTIC, MANUAL, PROFILING };
 
@@ -371,6 +371,11 @@ public:
         impl_types active_impl_type = impl_types::any;
         std::unordered_map<impl_types, ImplStats> stats;
 
+        // True when the impl accepts every shape the pool will route to it
+        // without recompilation. Default false: execute() falls back to
+        // update_impl() on shape change.
+        std::unordered_map<impl_types, bool> shape_agnostic;
+
         // Shape-cached fast-path for AUTO_HEURISTIC: caches the last
         // evaluate_best_impl_type result so that repeated calls with
         // the same input shape skip all analysis (O(1) cache hit).
@@ -379,13 +384,13 @@ public:
     };
 
     // Lightweight predictor that tracks recent workload patterns to anticipate
-    // phase changes (Prefill → Generate or vice-versa).
+    // phase changes (Prefill -> Generate or vice-versa).
     struct WorkloadPredictor {
         static constexpr size_t HISTORY_SIZE = 8;
         std::deque<size_t>     workload_history;  // compute_workload (M*K) per invocation
         std::deque<impl_types> impl_history;
         // Returns true when the latest compute workload differs from the previous by
-        // more than 2x — a strong indicator of a Prefill/Generate transition.
+        // more than 2x; a strong indicator of a Prefill/Generate transition.
         bool      detect_phase_change() const;
         // If the last three recorded impls are identical, predict that type;
         // otherwise returns impl_types::any (no confident prediction).
@@ -407,8 +412,12 @@ public:
     // No-op when called again or when the node cannot support both impl types.
     void enable_multi_impl_mode(ImplSwitchingPolicy policy = ImplSwitchingPolicy::AUTO_HEURISTIC);
 
-    // Register a pre-built implementation in the pool (used for manual policy).
-    void add_impl_to_pool(impl_types type, std::shared_ptr<primitive_impl> impl);
+    // Register a pre-built implementation in the pool.
+    // is_shape_agnostic_alt: true if the impl handles every shape the pool will
+    // route to it without recompilation. Pass false for shape-bound impls
+    // (e.g. OneDNN) that must go through update_impl() on shape change.
+    void add_impl_to_pool(impl_types type, std::shared_ptr<primitive_impl> impl,
+                          bool is_shape_agnostic_alt = false);
 
     // Synchronously switch the active implementation to a pooled type.
     // Rebinds kernel arguments; returns false when the type is absent from the pool.
@@ -592,7 +601,7 @@ protected:
     std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
 
 private:
-    // ── Multi-impl switching helpers ─────────────────────────────────────────
+    // -- Multi-impl switching helpers --
     // Derive workload characteristics from the current impl params.
     ImplSelectionCriteria extract_selection_criteria(const kernel_impl_params& params) const;
     // Apply heuristic rules to choose the best impl type for given criteria.

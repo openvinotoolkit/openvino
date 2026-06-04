@@ -60,7 +60,7 @@
 
 namespace cldnn {
 
-// --- FC impl execution counters (extern declaration, defined in primitive_inst.cpp) ---
+// DEBUG CODE: FC impl execution counters (extern declaration, defined in primitive_inst.cpp)
 namespace fc_counters {
 extern std::atomic<uint64_t> fc_onednn_count;
 extern std::atomic<uint64_t> fc_ocl_count;
@@ -869,7 +869,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
 
-    // --- FC counter: print and reset after each network execution ---
+    //  DEBUG CODE: FC counter for print and reset after each network execution
     {
         const uint64_t fc_total = fc_counters::fc_onednn_count.load() +
                                   fc_counters::fc_ocl_count.load() +
