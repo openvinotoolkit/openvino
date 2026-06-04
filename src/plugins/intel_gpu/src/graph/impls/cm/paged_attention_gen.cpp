@@ -352,6 +352,12 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});       // xattn_subseq_meta
+    } else if (_xattn_block_size <= 1 && desc->has_qq_bias) {
+        // Speculative tree mask path: only the dense `pa_multi_token_1` stage carries qq_bias.
+        // When has_xattention is also true, the user must bypass xattn at runtime
+        // (threshold >= 1.0) so execute_multi_token_path() routes here.
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
     }
     return args;
 }
@@ -381,6 +387,16 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
     jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
+
+    // Speculative tree mask: applied only on the dense `_xattn_block_size == 1` stage.
+    // Sparse xattn stages (128/256) skip qq_bias because they short-circuit via block-mask;
+    // when both xattn and qq_bias are configured, runtime bypass (threshold >= 1.0) routes
+    // to the dense stage instead.
+    if (_xattn_block_size <= 1 && desc->has_qq_bias) {
+        jit.make("HAS_QQ_BIAS", 1);
+    } else {
+        jit.make("HAS_QQ_BIAS", 0);
+    }
 
     return jit;
 }

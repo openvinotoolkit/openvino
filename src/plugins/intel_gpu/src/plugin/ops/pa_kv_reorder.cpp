@@ -83,7 +83,28 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     const size_t k_head_size = rt_info.at(k_head_size_id).as<int64_t>();
     const size_t v_head_size = rt_info.at(v_head_size_id).as<int64_t>();
     const size_t kv_heads_num = rt_info.at(num_k_heads_id).as<int64_t>();
-    const size_t block_size = cldnn::paged_attention::block_size;
+
+    // Resolve the *physical* block_size from KEY_CACHE Parameter shape rather than the
+    // legacy constant cldnn::paged_attention::block_size. ConvertPagedAttnInputs bakes
+    // block_size and head_size into shape[2]/shape[3] according to dim_order:
+    //   - plain PA (OCL, dim_order {0,1,3,2}): shape = [-1, num_heads, head_size, block_size=16]
+    //   - xattn PA (CM, dim_order {0,1,2,3}):  shape = [-1, num_heads, block_size=256, head_size]
+    // Pick the dim that is NOT head_size as the physical block_size.
+    auto pick_block_dim = [&](const ov::PartialShape& ps, size_t head_size) -> size_t {
+        OPENVINO_ASSERT(ps.size() == 4, "[GPU] pa_kv_reorder expects 4D KV cache");
+        if (ps[2].is_static() && ps[3].is_static()) {
+            const size_t s2 = static_cast<size_t>(ps[2].get_length());
+            const size_t s3 = static_cast<size_t>(ps[3].get_length());
+            if (s3 == head_size) return s2;       // head-major OCL layout
+            if (s2 == head_size) return s3;       // token-major CM layout
+            // head_size could be stretched by per-channel scale tail; fall back to the
+            // smaller dim as a heuristic (block_size is typically <= head_size only for
+            // the legacy OCL block_size=16 case).
+            return std::min(s2, s3);
+        }
+        return cldnn::paged_attention::block_size_xattn;
+    };
+    const size_t block_size = pick_block_dim(key_cache_ps, k_head_size);
 
     prim.kv_heads_num = kv_heads_num;
     if (prim.is_kv_compressed) {

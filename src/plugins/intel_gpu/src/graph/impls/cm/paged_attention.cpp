@@ -97,6 +97,10 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         m_mixed_route_mode = get_mixed_route_mode_from_config(params);
 
+        // Note: when has_qq_bias && has_xattention are both set, the user is expected to
+        // bypass xattn at runtime (threshold >= 1.0) so execute_multi_token_path() routes
+        // to pa_multi_token_1 which carries the qq_bias mask.
+
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()"
                                << " with mode: " << (m_mixed_route_mode == MixedRouteMode::SPLIT ? "split" : "multi") << std::endl;
         add_stage(kv_cache_update, params);

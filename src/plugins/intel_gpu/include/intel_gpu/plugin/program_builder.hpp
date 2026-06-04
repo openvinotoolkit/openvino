@@ -102,6 +102,7 @@ public:
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
+    std::shared_ptr<ov::Model> get_model() const { return m_model; }
 
     const std::map<size_t, cldnn::layout>& get_input_layouts() const { return inputLayouts; }
     cldnn::engine& get_engine() const { return m_engine; }

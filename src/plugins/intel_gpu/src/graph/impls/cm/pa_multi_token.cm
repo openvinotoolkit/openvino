@@ -104,6 +104,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     bool* sparse_block_mask_wg [[type("svmptr_t")]],
     int32_t* xattn_subseq_meta [[type("svmptr_t")]]
 #endif
+#if HAS_QQ_BIAS
+    // qq_bias is stored as element::u8 (0 = masked, !=0 = visible). One byte per
+    // (query_spec, key_spec) pair, row-major within each subsequence.
+    , uchar* qq_bias [[type("svmptr_t")]],
+    int32_t* qq_bias_begins [[type("svmptr_t")]]
+#endif
     ) {
     constexpr int is_causal = CMFLA_IS_CAUSAL;
     constexpr int num_heads = CMFLA_NUM_HEADS;
@@ -253,6 +259,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
 #endif
 
+#if HAS_QQ_BIAS
+    // Per-subsequence qq_bias slice. qq_bias_begins[i] is the cumulative element count
+    // (each element a half), qq_bias_num_subseq is row-major flatten of [spec_num,spec_num].
+    int qq_bias_num_subseq = qq_bias_begins[subsequence_id + 1] - qq_bias_begins[subsequence_id];
+    int qq_bias_off_subseq = qq_bias_begins[subsequence_id];
+    // spec_num = sqrt(qq_bias_num_subseq); use integer sqrt because qq_bias_num is always
+    // a perfect square spec_num*spec_num.
+    int qq_bias_spec_num = 0;
+    {
+        int s = 0;
+        while ((s + 1) * (s + 1) <= qq_bias_num_subseq) ++s;
+        qq_bias_spec_num = s;
+    }
+    uchar* qq_bias_subseq_ptr = qq_bias + qq_bias_off_subseq;
+#endif
+
 #if KV_CACHE_COMPRESSION
 #if KV_CACHE_COMPRESSION == 1
     uint k_offset = hkv * (head_size + 4) * pa_block_sz;
@@ -289,6 +311,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             reinterpret_cast<svmptr_t>(block_mask_base),
                             reinterpret_cast<svmptr_t>(wg_block_mask_base),
 #endif
+#if HAS_QQ_BIAS
+                            reinterpret_cast<svmptr_t>(qq_bias_subseq_ptr),
+                            qq_bias_num_subseq,
+                            qq_bias_spec_num,
+#endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
                             block_indices_base);
@@ -319,6 +346,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #if SPARSE_BLOCK_SIZE > 1
                             reinterpret_cast<svmptr_t>(block_mask_base),
                             reinterpret_cast<svmptr_t>(wg_block_mask_base),
+#endif
+#if HAS_QQ_BIAS
+                            reinterpret_cast<svmptr_t>(qq_bias_subseq_ptr),
+                            qq_bias_num_subseq,
+                            qq_bias_spec_num,
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,

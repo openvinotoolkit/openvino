@@ -60,6 +60,11 @@ void pa_lsc_u8(
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
 #endif
+#if HAS_QQ_BIAS
+    svmptr_t qq_bias_base [[type("svmptr_t")]],
+    int32_t qq_bias_num,
+    int32_t qq_bias_spec_num,
+#endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
     int32_t* block_indices [[type("svmptr_t")]]) {
@@ -342,6 +347,27 @@ void pa_lsc_u8(
                     }
                     int kv_tokens = kv_stop - kv_pos;
                     for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+#if HAS_QQ_BIAS
+                    // Speculative tree mask. qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
+                    if (qq_bias_num > 0) {
+                        const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
+                        #pragma unroll
+                        for (int k_row = 0; k_row < kv_step; ++k_row) {
+                            const int key_local = kv_pos + k_row;
+                            const int key_spec = key_local - (int)past_lens;
+                            if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
+                            #pragma unroll
+                            for (int q_col = 0; q_col < q_step; ++q_col) {
+                                const int query_spec = q_start + q_col;
+                                if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
+                                const int qq_off = query_spec * qq_bias_spec_num + key_spec;
+                                if (qq_bias_ptr[qq_off] == 0) {
+                                    St[k_row][q_col] = -3.4e38f;
+                                }
+                            }
+                        }
+                    }
+#endif
                     auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
                     matrix<half, REG_N, REG_K> P;
@@ -528,6 +554,27 @@ void pa_lsc_u8(
             }
             int kv_tokens = kv_stop - kv_pos;
             for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+#if HAS_QQ_BIAS
+            // Speculative tree mask. qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
+            if (qq_bias_num > 0) {
+                const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
+                #pragma unroll
+                for (int k_row = 0; k_row < kv_step; ++k_row) {
+                    const int key_local = kv_pos + k_row;
+                    const int key_spec = key_local - (int)past_lens;
+                    if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
+                    #pragma unroll
+                    for (int q_col = 0; q_col < q_step; ++q_col) {
+                        const int query_spec = q_start + q_col;
+                        if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
+                        const int qq_off = query_spec * qq_bias_spec_num + key_spec;
+                        if (qq_bias_ptr[qq_off] == 0) {
+                            St[k_row][q_col] = -3.4e38f;
+                        }
+                    }
+                }
+            }
+#endif
             auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
@@ -602,6 +649,13 @@ void pa_kernel_lsc_prefetch_f16(
 #if SPARSE_BLOCK_SIZE > 1
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
+#endif
+#if HAS_QQ_BIAS
+    // Speculative tree mask. Layout per subsequence: [spec_num, spec_num] row-major,
+    // i.e. qq_bias[query_spec * spec_num + key_spec]. Zero entries imply masked-out pairs.
+    svmptr_t qq_bias_base [[type("svmptr_t")]],
+    int32_t qq_bias_num,
+    int32_t qq_bias_spec_num,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -743,6 +797,32 @@ void pa_kernel_lsc_prefetch_f16(
         int kv_tokens = kv_stop - kv_pos;
         // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+
+#if HAS_QQ_BIAS
+        // Speculative tree mask. Apply only on the "new" K range (key_spec >= 0) and
+        // for queries that fall inside the spec window (query_spec in [0, spec_num)).
+        // St layout: St[k_row][q_col] with k_row in [0, kv_step), q_col in [0, q_step).
+        // qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
+        if (qq_bias_num > 0) {
+            const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
+            #pragma unroll
+            for (int k_row = 0; k_row < kv_step; ++k_row) {
+                const int key_local = kv_pos + k_row;
+                const int key_spec = key_local - (int)past_lens;
+                if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
+                #pragma unroll
+                for (int q_col = 0; q_col < q_step; ++q_col) {
+                    const int query_spec = q_start + q_col;
+                    if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
+                    const int qq_off = query_spec * qq_bias_spec_num + key_spec;
+                    if (qq_bias_ptr[qq_off] == 0) {
+                        St[k_row][q_col] = -3.4e38f;
+                    }
+                }
+            }
+        }
+#endif
+
         //show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
@@ -884,6 +964,32 @@ void pa_kernel_lsc_prefetch_f16(
         int kv_tokens = kv_stop - kv_pos;
         // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
         for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+
+#if HAS_QQ_BIAS
+        // Speculative tree mask. Apply only on the "new" K range (key_spec >= 0) and
+        // for queries that fall inside the spec window (query_spec in [0, spec_num)).
+        // St layout: St[k_row][q_col] with k_row in [0, kv_step), q_col in [0, q_step).
+        // qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
+        if (qq_bias_num > 0) {
+            const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
+            #pragma unroll
+            for (int k_row = 0; k_row < kv_step; ++k_row) {
+                const int key_local = kv_pos + k_row;
+                const int key_spec = key_local - (int)past_lens;
+                if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
+                #pragma unroll
+                for (int q_col = 0; q_col < q_step; ++q_col) {
+                    const int query_spec = q_start + q_col;
+                    if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
+                    const int qq_off = query_spec * qq_bias_spec_num + key_spec;
+                    if (qq_bias_ptr[qq_off] == 0) {
+                        St[k_row][q_col] = -3.4e38f;
+                    }
+                }
+            }
+        }
+#endif
+
         //show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 

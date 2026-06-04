@@ -287,11 +287,11 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         const auto auxiliary_kv_prec = get_auxiliary_kv_cache_precision(model);
         if (auxiliary_kv_prec != ov::element::dynamic) {
             m_kv_cache_precision = auxiliary_kv_prec;
-        } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
+        } /*else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
             GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
-        } else if (is_paged_attention_model || !info.supports_immad) {
+        }*/ else if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
