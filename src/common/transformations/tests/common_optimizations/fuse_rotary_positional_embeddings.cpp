@@ -2461,6 +2461,93 @@ TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp_subtract_canonicalized_to_ad
     }
 }
 
+TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp_strided_slice) {
+    // As ConvertToROPE_LlamaCpp but the even/odd reads are v1::StridedSlice (step 2 on the last axis),
+    // which is what a prior pass canonicalizes the serializer's Slice into for the real model. The
+    // fused result is identical to the Slice variant.
+    disable_rt_info_check();
+    const int seq_len = 7;
+    const int num_heads = 32;
+    const int ndims = 64;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{seq_len, num_heads, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+
+        // even = x[..., 0::2], odd = x[..., 1::2] expressed as StridedSlice (strides last axis = 2).
+        auto x_low = makeOP<opset1::StridedSlice>({x, {0, 0, 0}, {0, 0, ndims}, {1, 1, 2}},
+                                                  {{"begin_mask", {1, 1, 0}},
+                                                   {"end_mask", {1, 1, 0}},
+                                                   {"new_axis_mask", {}},
+                                                   {"shrink_axis_mask", {}},
+                                                   {"ellipsis_mask", {}}});
+        auto x_high = makeOP<opset1::StridedSlice>({x, {0, 0, 1}, {0, 0, ndims}, {1, 1, 2}},
+                                                   {{"begin_mask", {1, 1, 0}},
+                                                    {"end_mask", {1, 1, 0}},
+                                                    {"new_axis_mask", {}},
+                                                    {"shrink_axis_mask", {}},
+                                                    {"ellipsis_mask", {}}});
+
+        auto mul_low_cos = makeOP<opset1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_low_sin = makeOP<opset1::Multiply>({x_low, t_sin}, {{"auto_broadcast", "numpy"}});
+        auto mul_high_cos = makeOP<opset1::Multiply>({x_high, t_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_high_sin = makeOP<opset1::Multiply>({x_high, t_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto sub_low = makeOP<opset1::Subtract>({mul_low_cos, mul_high_sin}, {{"auto_broadcast", "numpy"}});
+        auto add_high = makeOP<opset1::Add>({mul_high_cos, mul_low_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto unsq_low = makeOP<opset1::Unsqueeze>({sub_low, {-2}});
+        auto unsq_high = makeOP<opset1::Unsqueeze>({add_high, {-2}});
+
+        auto stack = makeOP<opset1::Concat>({unsq_low, unsq_high}, {{"axis", -2}});
+        auto reshape = makeOP<opset1::Reshape>({stack, makeConst(element::i64, Shape{4}, {1, -1, num_heads, ndims})},
+                                               {{"special_zero", false}});
+
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{seq_len, num_heads, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, seq_len, 1, half_ndims});
+
+        auto x_unsq = makeOP<opset1::Unsqueeze>({x, makeConst(element::i64, Shape{1}, std::vector<int64_t>{0})});
+
+        auto cos_t =
+            makeOP<opset1::Transpose>({t_cos, makeConst(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3})});
+        auto sin_t =
+            makeOP<opset1::Transpose>({t_sin, makeConst(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3})});
+
+        auto rope = makeOP<op::internal::RoPE>({x_unsq, cos_t, sin_t},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", true},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", false},
+                                                {"config.interleaved_input", true},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.cos_sin_ndims", half_ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        auto rope_t =
+            makeOP<opset1::Transpose>({rope, makeConst(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3})});
+        auto reshape = makeOP<opset1::Reshape>({rope_t, makeConst(element::i64, Shape{4}, {1, -1, num_heads, ndims})},
+                                               {{"special_zero", false}});
+
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{x, t_cos, t_sin});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertToROPE_LlamaCpp_half_split_not_fused) {
     // As ConvertToROPE_LlamaCpp but with half-split slices (step 1) instead of the interleaved step-2
     // read llama.cpp emits. interleaved_input would be wrong here, so the matcher must reject it
