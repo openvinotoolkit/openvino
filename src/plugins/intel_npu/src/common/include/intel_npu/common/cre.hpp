@@ -97,10 +97,27 @@ private:
                        const std::vector<Token>::const_iterator& expression_end,
                        const Delimiter end_delimiter) const;
 
+    /**
+     * @brief Evaluates a subexpression from left to right.
+     * @details The evaluation starts from the position where the iterator was left at. The end of the subexpression is
+     * determined based on the given type of delimiter.
+     *
+     * The parent of the current subexpression might have determined that all evaluations within this subexpression have
+     * no impact on the final result. If that is the case, then "skip_all_evaluations" should be set to true, and
+     * operand evaluation will be skipped to save some resources.
+     * @param expression_iterator The cursor corresponding to the expression that is being evaluated. The initial value
+     * indicates the start of the subexpression.
+     * @param expression_end Points towards the end of the whole expression.
+     * @param plugin_capabilities
+     * @param end_delimiter The type of delimiter that is used for judging the end of the subexpression.
+     * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped.
+     * However, CRE validity checks will still be performed.
+     */
     bool evaluate(std::vector<Token>::const_iterator& expression_iterator,
                   const std::vector<Token>::const_iterator& expression_end,
                   const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
-                  const Delimiter end_delimiter) const;
+                  const Delimiter end_delimiter,
+                  const bool skip_all_evaluations = false) const;
 
     std::vector<std::vector<Token>> m_subexpressions;
 

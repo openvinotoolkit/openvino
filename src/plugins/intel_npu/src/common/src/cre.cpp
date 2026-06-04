@@ -171,12 +171,14 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                    const std::vector<Token>::const_iterator& expression_end,
                    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
-                   const Delimiter end_delimiter) const {
+                   const Delimiter end_delimiter,
+                   const bool skip_all_evaluations) const {
     std::function<bool(bool, bool)> logical_function = first_operand_function;
     bool result = true;
     bool negate = false;
     bool expect_binary_operator = false;
     bool at_least_one_iteration = false;
+    bool skip_next_evaluation = false;
     bool subexpression_result;
 
     while (!end_condition(expression_iterator, expression_end, end_delimiter)) {
@@ -197,8 +199,13 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
             expect_binary_operator = true;
 
             advance_iterator(expression_iterator, expression_end);
-            subexpression_result =
-                evaluate(expression_iterator, expression_end, plugin_capabilities, Delimiter::PARRENTHESIS);
+            // If the evaluation of the current operand is useless, then all children operands following this one are
+            // also useless
+            subexpression_result = evaluate(expression_iterator,
+                                            expression_end,
+                                            plugin_capabilities,
+                                            Delimiter::PARRENTHESIS,
+                                            skip_all_evaluations || skip_next_evaluation);
             CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
                             "Expected a closed parrenthesis token during CRE evaluation. Received: ",
                             *expression_iterator);
@@ -213,12 +220,16 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
             expect_binary_operator = false;  // A binary operator should be followed by an operand
 
             logical_function = and_function;
+            // No point in evaluating the next operand if the previous one yielded "false"
+            skip_next_evaluation = result == false ? true : false;
             break;
         case OR:
             CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
             expect_binary_operator = false;  // A binary operator should be followed by an operand
 
             logical_function = or_function;
+            // No point in evaluating the next operand if the previous one yielded "true"
+            skip_next_evaluation = result == true ? true : false;
             break;
         default:
             // A capability token was found
@@ -226,13 +237,15 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                             "A capability token was found when a binary operator was expected");
             expect_binary_operator = true;  // An operand should be followed by an operator
 
-            bool operand = plugin_capabilities.count(*expression_iterator)
-                               ? plugin_capabilities.at(*expression_iterator)->check_support()
-                               : false;
-            operand = negate ? !operand : operand;
-            negate = false;
+            if (!skip_all_evaluations && !skip_next_evaluation) {
+                bool operand = plugin_capabilities.count(*expression_iterator)
+                                   ? plugin_capabilities.at(*expression_iterator)->check_support()
+                                   : false;
+                operand = negate ? !operand : operand;
+                result = logical_function(result, operand);
+            }
 
-            result = logical_function(result, operand);
+            negate = false;
             break;
         }
 
