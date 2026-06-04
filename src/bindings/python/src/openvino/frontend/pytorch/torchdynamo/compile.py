@@ -84,15 +84,22 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
 
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
-    # vLLM's init_cpu_threads_env pins the worker process to a single CPU
-    # via sched_setaffinity, which TBB/OV sample on first parallel use →
-    # INFERENCE_NUM_THREADS=1 regardless of what we request. Widen the mask
-    # once, before our first Core() compile so TBB sizes its thread pool
-    # to the full available set. Default ON; disable via OV_UNBIND_AFFINITY=0
-    # if a caller genuinely needs the single-core affinity preserved.
-    if os.environ.get("OV_UNBIND_AFFINITY", "1") == "1":
+    # Some callers (e.g. vLLM's init_cpu_threads_env) pin the worker process
+    # to a single CPU via sched_setaffinity before reaching here. TBB/OV sample
+    # affinity on first parallel use, so a 1-CPU mask locks
+    # INFERENCE_NUM_THREADS=1 regardless of what we request.
+    #
+    # Default OFF to avoid silently overriding a standalone caller's explicit
+    # taskset/numactl pinning. Callers that need the widening (vLLM plugin)
+    # set OV_UNBIND_AFFINITY=1 themselves. Even when enabled, only widen if
+    # the current affinity has fewer cores than the requested thread count
+    # (heuristic: don't widen when the caller's pinning is already big enough).
+    if os.environ.get("OV_UNBIND_AFFINITY", "0") == "1":
         try:
-            os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
+            cur = os.sched_getaffinity(0)
+            req = int(os.environ.get("OV_INFERENCE_NUM_THREADS", "0") or 0)
+            if req == 0 or len(cur) < req:
+                os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
         except Exception:
             pass
     core = Core()

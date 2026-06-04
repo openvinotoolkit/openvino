@@ -49,6 +49,13 @@ def _patch_cpu_model_runner():
 
     def patched_load_model(self, load_dummy_weights: bool = False) -> None:
         _orig_load_model(self, load_dummy_weights)
+        # vLLM's init_cpu_threads_env pins this worker to a single CPU before
+        # we get here. Opt the OV compile path into widening that mask so TBB
+        # sees a real thread count when it samples affinity on first compile.
+        # Default the env knob to 1 only for vLLM-driven runs; standalone
+        # torch.compile users keep the (default 0) no-affinity-mutation path.
+        import os as _os_aff
+        _os_aff.environ.setdefault("OV_UNBIND_AFFINITY", "1")
         comp_cfg = getattr(self.vllm_config, "compilation_config", None)
         try:
             mode = getattr(comp_cfg, "mode", None)
