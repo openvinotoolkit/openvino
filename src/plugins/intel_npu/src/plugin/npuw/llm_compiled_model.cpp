@@ -1085,14 +1085,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
         ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
-
-        // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
-        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
+            for (auto&& model_variant : generate_model_variants) {
+                ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+            }
+        } else if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
+            // transformations)
             for (auto&& model_variant : generate_model_variants) {
                 ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
-            LOG_INFO("DEVICE_ROUTED MoE transformations completed");
+        } else {
+            OPENVINO_THROW("Unsupported MoE hint: " + std::to_string(static_cast<int>(generate_moe_hint)));
         }
     }
 

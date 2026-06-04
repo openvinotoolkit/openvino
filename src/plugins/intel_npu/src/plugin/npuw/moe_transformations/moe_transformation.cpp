@@ -52,6 +52,24 @@ static std::optional<size_t> extract_k_from_router(const std::shared_ptr<ov::Mod
     return std::nullopt;
 }
 
+// Scan the transformed model for a parameter bearing `tag` and return its new index.
+// Falls back to `original_idx` when the tag is absent (e.g. router_scores is replaced
+// by K closures in EXPERT_BATCH mode and its parameter no longer exists).
+static std::optional<size_t> resolve_compiled_idx(const std::shared_ptr<ov::Model>& transformed_model,
+                                                  const char* tag,
+                                                  std::optional<size_t> original_idx) {
+    const auto& params = transformed_model->get_parameters();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (params[i]->get_rt_info().count(tag) > 0) {
+            LOG_INFO("Post-transform [" << tag << "] idx: " << i << " (original: " << original_idx.value_or(SIZE_MAX)
+                                        << ")");
+            return i;
+        }
+    }
+    LOG_WARN("[" << tag << "] not found in transformed model; falling back to original index");
+    return original_idx;
+}
+
 // Helper function to build parameter mapping from RTInfo metadata
 static std::map<size_t, std::vector<size_t>> build_parameter_mapping_from_rtinfo(
     const std::shared_ptr<ov::Model>& original_model,
@@ -934,6 +952,19 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         }
     }
 
+    // Tag activation parameters before transformation so we can re-locate them afterwards
+    // (transformations may shift parameter indices).
+    constexpr const char* expert_input_tag = "npuw_moe_expert_input";
+    constexpr const char* router_scores_tag = "npuw_moe_router_scores";
+    auto tag_param = [&](std::optional<size_t> idx, const char* tag) {
+        if (idx.has_value()) {
+            model->get_parameters()[idx.value()]->get_rt_info()[tag] = true;
+            LOG_DEBUG("Tagged [" << tag << "] at original index " << idx.value());
+        }
+    };
+    tag_param(structure_info->expert_input_param_idx, expert_input_tag);
+    tag_param(structure_info->router_scores_idx, router_scores_tag);
+
     // Step 4: Transform models for each chunk size
     std::map<size_t, std::shared_ptr<ov::Model>> transformed_models;
     for (auto chunk_size : chunk_sizes) {
@@ -957,6 +988,16 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
+    // Resolve compiled-model parameter indices via rt_info tags.
+    // All chunk-size variants share the same parameter ordering, so the first model suffices.
+    // router_scores may be absent in EXPERT_BATCH (unrolled into K closures); resolve_compiled_idx
+    // falls back to the original index, which is harmless since run_expert_batch uses param_mapping.
+    const auto& first_transformed_model = transformed_models.begin()->second;
+    const auto expert_input_compiled_idx =
+        resolve_compiled_idx(first_transformed_model, expert_input_tag, structure_info->expert_input_param_idx);
+    const auto router_scores_compiled_idx =
+        resolve_compiled_idx(first_transformed_model, router_scores_tag, structure_info->router_scores_idx);
+
     // Step 5: Build parameter mapping from any transformed model (all have same mapping)
     // Note: For EXPERT_ITERATIVE mode (single expert), no unrolling happens, so mapping will be empty
     //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
@@ -970,8 +1011,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._chunk_token_count = structure_info->is_expert_batch_mode() ? 0 : iterative_chunk_size;
     moe_experts._num_active_experts = k_value;  // Store actual K from router
     moe_experts._transformed_models = std::move(transformed_models);
-    moe_experts._router_scores_idx = structure_info->router_scores_idx;
-    moe_experts._expert_input_param_idx = structure_info->expert_input_param_idx;
+    moe_experts._router_scores.original = structure_info->router_scores_idx;
+    moe_experts._router_scores.compiled = router_scores_compiled_idx;
+    moe_experts._expert_input.original = structure_info->expert_input_param_idx;
+    moe_experts._expert_input.compiled = expert_input_compiled_idx;
     moe_experts._param_mapping = std::move(param_mapping);
 
     if (!moe_experts.is_valid()) {
@@ -1006,8 +1049,10 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     num_active_experts = func_moe._num_active_experts;
     input_token_count = func_moe._input_token_count;
     _models_to_compile = func_moe._transformed_models;
-    _router_scores_idx = func_moe._router_scores_idx;
-    _expert_input_param_idx = func_moe._expert_input_param_idx;
+    _router_scores.original = func_moe._router_scores.original;
+    _router_scores.compiled = func_moe._router_scores.compiled;
+    _expert_input.original = func_moe._expert_input.original;
+    _expert_input.compiled = func_moe._expert_input.compiled;
     _param_mapping = func_moe._param_mapping;
 
     LOG_DEBUG("Created compiled::MoEExperts:");
@@ -1019,11 +1064,11 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     for (const auto& entry : _models_to_compile) {
         LOG_DEBUG("    Chunk size: " << entry.first);
     }
-    if (_router_scores_idx.has_value()) {
-        LOG_DEBUG("  Router scores parameter index: " << _router_scores_idx.value());
+    if (_router_scores.original.has_value()) {
+        LOG_DEBUG("  Router scores parameter index: " << _router_scores.original.value());
     }
-    if (_expert_input_param_idx.has_value()) {
-        LOG_DEBUG("  Expert input parameter index: " << _expert_input_param_idx.value());
+    if (_expert_input.original.has_value()) {
+        LOG_DEBUG("  Expert input parameter index: " << _expert_input.original.value());
     }
 }
 
