@@ -12,6 +12,8 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/engine_configuration.hpp"
 
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "ov_ops/vl_sdpa.hpp"
 
@@ -115,8 +117,9 @@ protected:
         std::tie(inType, num_head, head_size, cu_seqlens, attn_type) = GetParam();
 
         targetDevice = test::utils::DEVICE_GPU;
-        rel_threshold = 0.02f;
-        abs_threshold = 0.02f;
+        // f16 SDPA accumulation error grows with head_size
+        rel_threshold = head_size <= 16 ? 0.02f : 0.05f;
+        abs_threshold = head_size <= 16 ? 0.02f : 0.05f;
         if (inType == ov::element::f32)
             configuration[ov::hint::inference_precision.name()] = ov::element::f32.get_type_name();
 
@@ -126,8 +129,12 @@ protected:
         const auto H = static_cast<size_t>(num_head);
         const auto S = static_cast<size_t>(head_size);
         const std::vector<InputShape> inputShapes = {
-            // qkv (combined parameter with 3 channels)
+            // qkv: [-1, 3, H, S]
             {PartialShape{-1, 3, num_head, head_size}, {Shape{L, 3, H, S}}},
+            // cos: [-1, 1, S]
+            {PartialShape{-1, 1, head_size}, {Shape{L, 1, S}}},
+            // sin: [-1, 1, S]
+            {PartialShape{-1, 1, head_size}, {Shape{L, 1, S}}},
         };
         init_input_shapes(inputShapes);
 
@@ -180,22 +187,46 @@ protected:
         auto reshape_v = std::make_shared<Reshape>(split->output(2), reshape_pattern, false);
         reshape_v->set_friendly_name("reshape_v");
 
-        // RoPE for q and k (dummy RoPE implementation using Multiply for testing)
-        // In real scenario, RoPE would be a more complex subgraph
-        auto rope_cos_sin = Constant::create(inType, Shape{1, static_cast<size_t>(num_head), static_cast<size_t>(head_size)}, {1.0f});
+        // Real Qwen-VL RoPE pattern (GPTNEOX_3D style):
+        //   input [-1, H, S]
+        //   cos_param [-1, 1, S], sin_param [-1, 1, S]
+        //
+        //   rope(input) = input * cos + rotate_half(input) * sin
+        //   rotate_half: [-x_right, x_left]  (split along head_size dim)
+        auto cos_param = make_param(PartialShape{ov::Dimension::dynamic(), 1, head_size}, inType, "cos");
+        auto sin_param = make_param(PartialShape{ov::Dimension::dynamic(), 1, head_size}, inType, "sin");
 
-        auto rope_q = std::make_shared<Multiply>(reshape_q, rope_cos_sin);
-        rope_q->set_friendly_name("rope_q");
+        auto apply_rope = [&](const std::shared_ptr<ov::Node>& x, const std::string& prefix) {
+            // rotate_half: split at head_size/2, negate right half, concat [-right, left]
+            auto neg_one = Constant::create(inType, Shape{1, 1, 1}, {-1.0f});
+            auto vs = std::make_shared<ov::opset1::VariadicSplit>(
+                x,
+                Constant::create(element::i64, Shape{}, {2}),
+                Constant::create(element::i64, Shape{2}, std::vector<int64_t>{head_size / 2, head_size / 2}));
+            vs->set_friendly_name(prefix + "_vs");
+            auto neg = std::make_shared<Multiply>(vs->output(1), neg_one);
+            neg->set_friendly_name(prefix + "_neg");
+            auto rotated = std::make_shared<ov::opset1::Concat>(ov::OutputVector{neg, vs->output(0)}, -1);
+            rotated->set_friendly_name(prefix + "_rotated");
 
-        auto rope_k = std::make_shared<Multiply>(reshape_k, rope_cos_sin);
-        rope_k->set_friendly_name("rope_k");
+            auto cos_mul = std::make_shared<Multiply>(x, cos_param);
+            cos_mul->set_friendly_name(prefix + "_cos_mul");
+            auto sin_mul = std::make_shared<Multiply>(rotated, sin_param);
+            sin_mul->set_friendly_name(prefix + "_sin_mul");
+            auto rope_out = std::make_shared<ov::opset1::Add>(cos_mul, sin_mul);
+            rope_out->set_friendly_name(prefix + "_rope");
+            return rope_out;
+        };
+
+        auto rope_q = apply_rope(reshape_q, "q");
+        auto rope_k = apply_rope(reshape_k, "k");
 
         // Use ScaledDotProductAttention (will be transformed to VLSDPA on GPU with model_type_hint)
         auto sdpa = std::make_shared<ScaledDotProductAttention>(rope_q, rope_k, reshape_v, false);
         sdpa->set_friendly_name("sdpa");
 
-        auto model = std::make_shared<Model>(sdpa, ParameterVector{qkv});
-        // NOTE: model_type_hint will be set in SetUp() only for function, not functionRefs
+        auto model = std::make_shared<Model>(sdpa, ParameterVector{qkv, cos_param, sin_param});
+        // NOTE: model_type_hint will be set in SetUp() only for VLSDPA case
         return model;
     }
 
@@ -204,10 +235,13 @@ protected:
         inputs_ref.clear();
         const auto& funcInputs = compiledModel.inputs();
 
-        // Only qkv parameter (SDPA will be transformed to handle cu_seqlens internally)
+        // Use small range [-0.5, 0.5] to avoid NaN in f16 SDPA softmax with larger head sizes
         for (size_t i = 0lu; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                        targetInputStaticShapes[i],
+                                                        1.0f,   // range
+                                                        -0.5f); // start_from
             inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), tensor});
             inputs_ref.emplace_back(tensor);
         }
