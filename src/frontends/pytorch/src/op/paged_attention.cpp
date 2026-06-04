@@ -196,27 +196,13 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     force_rank2(key);
     force_rank2(value);
 
-    // Convert q/k/v to the PA target dtype (env-selectable; default f32).
+    // Q/K/V flow at their native dtype (typically bf16 from vLLM bf16 models).
+    // KV cache Parameters use the same dtype as a placeholder; the CPU plugin's
+    // KV_CACHE_PRECISION config and INFERENCE_PRECISION_HINT drive the actual
+    // compute and cache precisions at compile time. This matches how OV GenAI
+    // handles KV cache quant via runtime_options.kv_cache_precision.
     auto original_q_et = query.get_element_type();
-    // Q/K/V compute dtype (selectable). KV cache dtype is controlled by the
-    // plugin's KV_CACHE_PRECISION config; we emit a Parameter with dynamic
-    // element type and let the plugin override. This matches how OV GenAI
-    // works: runtime_options.kv_cache_precision drives cache quant.
-    element::Type pa_dtype = element::f32;
-    if (const char* e = std::getenv("OV_PA_DTYPE")) {
-        std::string s = e;
-        if (s == "f16") pa_dtype = element::f16;
-        else if (s == "bf16") pa_dtype = element::bf16;
-        else if (s == "f32") pa_dtype = element::f32;
-    }
-    auto to_pa_dtype = [&](Output<Node>& t) {
-        if (t.get_element_type() != pa_dtype) {
-            t = std::make_shared<ov::op::v0::Convert>(t, pa_dtype);
-        }
-    };
-    to_pa_dtype(query);
-    to_pa_dtype(key);
-    to_pa_dtype(value);
+    element::Type pa_dtype = original_q_et;
 
     // Side-channel Parameters bound at infer time from ForwardContext.
     // Shapes/types here mirror PagedAttentionExtension::validate_and_infer_types().

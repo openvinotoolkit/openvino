@@ -73,11 +73,6 @@ def _patch_cpu_model_runner():
                     logger.debug("[OV plugin] _supports_onednn forced False (backend=openvino)")
             except Exception as _e:
                 logger.debug("[OV plugin] _supports_onednn flip skipped: %s", _e)
-            # OV_PA_DTYPE is read by the C++ paged_attention frontend op, so it
-            # cannot be plumbed through Python options. Set it here to align
-            # with the bf16 model dtype that the "vllm" preset assumes.
-            import os as _os_pa
-            _os_pa.environ.setdefault("OV_PA_DTYPE", "bf16")
 
         _orig_load_model(self, load_dummy_weights)
         if not is_ov:
