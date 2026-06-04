@@ -444,3 +444,9 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_group_size_256_preco
                                 data_types::i8, data_types::i8, OutputStorageType::Planar,
                                 "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
 }
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_group_size_8192_with_precompute_sum) {
+    this->test_dynamic_quantization(false, {1, 1, 16384}, {1, 1, 16384}, QuantizationType::Symmetric, 8192,
+                                data_types::i8, data_types::i8, OutputStorageType::Planar,
+                                "", SetInnerMostDimValuesZero::No, PrecomputeSum::Enabled);
+}

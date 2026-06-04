@@ -188,7 +188,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
     min_value = local_mem_min[group_base_idx];
 #endif
-    for (int j = 1; j < blocks_per_group; j++) {
+    unroll_for (int j = 1; j < QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE; j++) {
         max_value = fmax(max_value, local_mem_max[group_base_idx + j]);
 #if ASYMMETRIC_QUANTIZATION
         min_value = fmin(min_value, local_mem_min[group_base_idx + j]);
@@ -232,7 +232,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     // Only the first work-item in each group does this
     if (sglid == 0 && block_in_group == 0) {
         int total_reduction = 0;
-        for (int j = 0; j < blocks_per_group; j++) {
+        unroll_for (int j = 0; j < QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE; j++) {
             total_reduction += local_mem_reduction[group_base_idx + j];
         }
         precomputed_reduction = total_reduction;
