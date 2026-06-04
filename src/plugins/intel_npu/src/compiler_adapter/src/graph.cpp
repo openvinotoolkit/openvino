@@ -70,8 +70,8 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
     if (_commandQueue && zeWorkloadType.has_value()) {
         // When shared common queue is disabled, workload type is set per command queue.
         // Update the existing queue if it has already been created.
-        _workloadType = workloadType;
         _commandQueue->setWorkloadType(zeWorkloadType.value());
+        _workloadType = workloadType;
 
         return;
     }
