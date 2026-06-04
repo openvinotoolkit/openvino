@@ -405,9 +405,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (old_pos != std::istream::pos_type(-1)) {
             p_model_stream->seekg(old_pos);
         }
-        p_model_stream->setstate(old_state);
+        p_model_stream->clear(old_state);
 
-        return first != std::char_traits<char>::eof();
+        return first != std::char_traits<char>::eof() && ((static_cast<unsigned char>(first) & 0x07u) == 2u);
     }
     return false;
 }
