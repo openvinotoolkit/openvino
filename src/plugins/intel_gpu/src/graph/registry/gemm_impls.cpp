@@ -5,7 +5,6 @@
 #include "registry.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
 #include "primitive_inst.h"
-#include "impls/ocl_v2/gemm/gemm_generate_opt.hpp"
 
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/gemm_onednn.hpp"

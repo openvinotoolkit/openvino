@@ -35,6 +35,8 @@
 #include <deque>
 #include <unordered_map>
 
+#define OV_GPU_MULTI_IMPL_SWITCHING_DEBUG 0
+
 namespace cldnn {
 
 // checks if any user in a list is a cpu primitive

@@ -60,6 +60,7 @@
 
 namespace cldnn {
 
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 // DEBUG CODE: FC impl execution counters (extern declaration, defined in primitive_inst.cpp)
 namespace fc_counters {
 extern std::atomic<uint64_t> fc_onednn_count;
@@ -69,6 +70,7 @@ extern std::atomic<uint64_t> fc_switch_count;
 extern void reset();
 extern void print_summary(const char* tag);
 }  // namespace fc_counters
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 
 namespace {
 
@@ -869,6 +871,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
 
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
     //  DEBUG CODE: FC counter for print and reset after each network execution
     {
         const uint64_t fc_total = fc_counters::fc_onednn_count.load() +
@@ -882,6 +885,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             fc_counters::reset();
         }
     }
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {

@@ -442,7 +442,30 @@ KERNEL(gemm_generate_opt)(
     if (id_local == 0) {
         C[b * N_SIZE + n]     = TO_OUTPUT_TYPE(sum_all0);
         if (n + 1 < N_SIZE)
-            C[b * N_SIZE + n + 1] = TO_OUTPUT_TYPE(sum_all1); (n >= N_SIZE)
+            C[b * N_SIZE + n + 1] = TO_OUTPUT_TYPE(sum_all1);
+    }
+}
+
+#else  // IS_ACT_INT8 == 1 (W4A8 path)
+
+// W4A8 GEMV kernel: i8 activation + u4/i4 weight + per-token activation scale.
+// Single output channel per work-item (no TILE_N), sequential K-reduction.
+__attribute__((intel_reqd_sub_group_size(SG_SIZE)))
+KERNEL(gemm_generate_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE*  A,         // i8 activation [B, K]
+    const __global uchar*        W,         // u4/i4 packed weight [N, K/2]
+    const __global INPUT2_TYPE*  Scale,     // f16 scale, fbyx: [NUM_GROUPS, N]
+#if HAS_ZP
+    const __global uchar*        ZP,        // ZP fbyx
+#endif
+    const __global half*         ActScale,  // per-token activation scale [B]
+    __global OUTPUT_TYPE*        C          // output [B, N]
+)
+{
+    const int n = (int)get_global_id(0);
+    const int b = (int)get_global_id(1);
+    if (n >= N_SIZE)
         return;
 
     // ---- HOIST base pointers ----

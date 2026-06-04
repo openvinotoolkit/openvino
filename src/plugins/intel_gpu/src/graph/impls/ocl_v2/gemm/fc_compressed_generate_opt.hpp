@@ -174,6 +174,17 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
         if (K % group_size != 0)
             return false;
 
+        // If there's a 4th input that is not a recognized ZP type (u4/i4/u8)
+        // and not an activation scale (f16 in W4A8 mode), reject — we can't
+        // generate valid JIT for unknown input types (e.g. nf4 zero points).
+        if (params.input_layouts.size() > 3) {
+            const auto dt3 = params.input_layouts[3].data_type;
+            const bool is_known_zp = (dt3 == data_types::u4 || dt3 == data_types::i4 || dt3 == data_types::u8);
+            const bool is_act_scale = (dt3 == data_types::f16 && params.input_layouts[0].data_type == data_types::i8);
+            if (!is_known_zp && !is_act_scale)
+                return false;
+        }
+
         return true;
     }
 };

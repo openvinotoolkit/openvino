@@ -7,6 +7,10 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "program_helpers.h"
 #include "primitive_inst.h"
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
+#include <fstream>
+#include <iostream>
+#endif
 
 #include <cstdlib>
 
@@ -78,6 +82,7 @@
 
 namespace cldnn {
 
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 // DEBUG CODE: FC impl execution counters (instrumentation)
 namespace fc_counters {
 // Forward declarations (satisfy -Werror=missing-declarations)
@@ -102,15 +107,14 @@ void reset() {
 
 void print_summary(const char* tag) {
     const uint64_t total = fc_onednn_count + fc_ocl_count + fc_other_count;
-    fprintf(stderr, "[FC-COUNTER][%s] onednn=%lu  ocl=%lu  other=%lu  total=%lu  switches=%lu\n",
-            tag,
-            static_cast<unsigned long>(fc_onednn_count.load()),
-            static_cast<unsigned long>(fc_ocl_count.load()),
-            static_cast<unsigned long>(fc_other_count.load()),
-            static_cast<unsigned long>(total),
-            static_cast<unsigned long>(fc_switch_count.load()));
+    std::cout << "[FC-COUNTER][" << tag << "] onednn=" << fc_onednn_count.load()
+              << "  ocl=" << fc_ocl_count.load()
+              << "  other=" << fc_other_count.load()
+              << "  total=" << total
+              << "  switches=" << fc_switch_count.load() << std::endl;
 }
 }  // namespace fc_counters
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 
 namespace {
 
@@ -2385,6 +2389,7 @@ void primitive_inst::execute() {
         }
     }
 
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
     // DEBUG CODE: FC impl execution counter instrumentation
     if (get_node().is_type<fully_connected>()) {
         if (_impl->is_onednn()) {
@@ -2397,6 +2402,7 @@ void primitive_inst::execute() {
             fc_counters::fc_other_count.fetch_add(1, std::memory_order_relaxed);
         }
     }
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 
     // Only time the kernel and collect stats when the switching policy needs it.
     // AUTO_HEURISTIC uses threshold rules (no stats needed), so skip entirely.
@@ -3718,25 +3724,45 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
             // W4A8 -> W4A16: dynamic_quantize is skipped at decode (M=1) and
             // passes f16 through unchanged, so the alt must be compiled for f16.
             const auto& fc_desc = *m1_params.typed_desc<fully_connected>();
-            if (fc_desc.dynamic_quantized_activation &&
-                !m1_params.input_layouts.empty() &&
-                m1_params.input_layouts[0].data_type == data_types::i8) {
-                m1_params.input_layouts[0].data_type = data_types::f16;
+            if (fc_desc.dynamic_quantized_activation) {
+                // Force f16 activation regardless of current dtype.
+                if (!m1_params.input_layouts.empty())
+                    m1_params.input_layouts[0].data_type = data_types::f16;
+                // Remove the per-token activation-scale input that's only
+                // needed for W4A8. With f16 activation the kernel runs in
+                // W4A16 mode and doesn't reference this tensor.  Leaving it
+                // in input_layouts causes the base JIT to emit macros for a
+                // potentially dynamic-shaped layout, producing invalid OpenCL.
+                // Layout order: [0]act [1]wt [2]scale [3]zp? [4]act_scale?
+                // If ZP present (input[3] is u4/i4/u8), act_scale is at [4];
+                // otherwise at [3].
+                const size_t n_base = (m1_params.input_layouts.size() > 3 &&
+                    (m1_params.input_layouts[3].data_type == data_types::u4 ||
+                     m1_params.input_layouts[3].data_type == data_types::i4 ||
+                     m1_params.input_layouts[3].data_type == data_types::u8)) ? 4 : 3;
+                if (m1_params.input_layouts.size() > n_base)
+                    m1_params.input_layouts.resize(n_base);
             }
 
-            // Force batch=1 by collapsing leading dims of activation layouts
-            // (last dim is K/N for FC, kept as-is).
-            auto collapse_leading_to_1 = [](layout& l) {
+            // Force batch=1: collapse leading dims of activation [0] and
+            // output [0] only. Weights/scale/zp layouts must stay unchanged.
+            auto collapse_leading = [](layout& l) {
                 auto ps = l.get_partial_shape();
                 if (ps.size() >= 2) {
                     for (size_t i = 0; i + 1 < ps.size(); ++i)
                         ps[i] = 1;
                     l.set_partial_shape(ps);
                 }
-                l.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
             };
-            for (auto& l : m1_params.input_layouts)  collapse_leading_to_1(l);
-            for (auto& l : m1_params.output_layouts) collapse_leading_to_1(l);
+            if (!m1_params.input_layouts.empty())
+                collapse_leading(m1_params.input_layouts[0]);
+            if (!m1_params.output_layouts.empty())
+                collapse_leading(m1_params.output_layouts[0]);
+            // Clear dynamic dims mask on all layouts (safe for weights too).
+            for (auto& l : m1_params.input_layouts)
+                l.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+            for (auto& l : m1_params.output_layouts)
+                l.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
 
             auto m1_impl = build_alt_impl_with_specialized_params(
                 *this, *_impls_factory, t, m1_params, /*require_raw_sub_byte=*/true);
@@ -3882,27 +3908,90 @@ build_alt_impl_with_specialized_params(primitive_inst& inst,
         for (const auto& ks : kernel_sources)
             hash ^= ks->get_hash() + 0x9e3779b9 + (hash << 6) + (hash >> 2);
 
-        std::lock_guard<std::mutex> lock(s_cache_mutex);
-        auto it = s_compiled_cache.find(hash);
-        if (it != s_compiled_cache.end()) {
-            // Cache hit. clone(false) returns an independent cl_kernel with its
-            // own argument state; clone(true) would share the underlying handle
-            // via clRetainKernel and let concurrent layers overwrite arguments.
-            kernels_cache::compiled_kernels cloned;
-            std::vector<std::pair<kernel::ptr, size_t>> kv;
-            kv.reserve(it->second.size());
-            for (size_t i = 0; i < it->second.size(); ++i)
-                kv.emplace_back(it->second[i]->clone(false), i);
-            cloned[specialized_params] = std::move(kv);
-            impl->set_kernels(std::move(cloned));
-        } else {
-            auto kernels = kc.compile(specialized_params, kernel_sources);
-            std::vector<kernel::ptr> to_cache;
-            to_cache.reserve(kernels.begin()->second.size());
-            for (const auto& [k, _idx] : kernels.begin()->second)
-                to_cache.push_back(k);
-            s_compiled_cache.emplace(hash, std::move(to_cache));
-            impl->set_kernels(std::move(kernels));
+        bool cache_hit = false;
+        {
+            std::lock_guard<std::mutex> lock(s_cache_mutex);
+            auto it = s_compiled_cache.find(hash);
+            if (it != s_compiled_cache.end()) {
+                // Cache hit. clone(false) returns an independent cl_kernel with its
+                // own argument state; clone(true) would share the underlying handle
+                // via clRetainKernel and let concurrent layers overwrite arguments.
+                kernels_cache::compiled_kernels cloned;
+                std::vector<std::pair<kernel::ptr, size_t>> kv;
+                kv.reserve(it->second.size());
+                for (size_t i = 0; i < it->second.size(); ++i)
+                    kv.emplace_back(it->second[i]->clone(false), i);
+                cloned[specialized_params] = std::move(kv);
+                impl->set_kernels(std::move(cloned));
+                cache_hit = true;
+            }
+        }
+        if (!cache_hit) {
+            // DEBUG: log what we're about to compile
+            GPU_DEBUG_LOG << "[build_alt_impl] Compiling kernel for impl_type=" << static_cast<int>(t)
+                         << " hash=" << hash
+                         << " num_sources=" << kernel_sources.size()
+                         << " in0_shape=";
+            if (!specialized_params.input_layouts.empty()) {
+                auto s = specialized_params.input_layouts[0].get_partial_shape();
+                for (size_t d = 0; d < s.size(); ++d)
+                    GPU_DEBUG_LOG << s[d] << (d + 1 < s.size() ? "x" : "");
+            }
+            GPU_DEBUG_LOG << " in0_dt=" << static_cast<int>(specialized_params.input_layouts[0].data_type)
+                         << " in1_shape=";
+            if (specialized_params.input_layouts.size() > 1) {
+                auto s = specialized_params.input_layouts[1].get_partial_shape();
+                for (size_t d = 0; d < s.size(); ++d)
+                    GPU_DEBUG_LOG << s[d] << (d + 1 < s.size() ? "x" : "");
+            }
+            GPU_DEBUG_LOG << std::endl;
+            try {
+                auto kernels = kc.compile(specialized_params, kernel_sources);
+                {
+                    std::lock_guard<std::mutex> lock(s_cache_mutex);
+                    std::vector<kernel::ptr> to_cache;
+                    to_cache.reserve(kernels.begin()->second.size());
+                    for (const auto& [k, _idx] : kernels.begin()->second)
+                        to_cache.push_back(k);
+                    s_compiled_cache.emplace(hash, std::move(to_cache));
+                }
+                impl->set_kernels(std::move(kernels));
+            } catch (const std::exception& e) {
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
+                // Dump kernel source on first failure only
+                static bool dumped = false;
+                if (!dumped) {
+                    dumped = true;
+                    std::ofstream dump("/tmp/failed_kernel_" + std::to_string(hash) + ".cl");
+                    for (const auto& ks : kernel_sources) {
+                        dump << "// === JIT ===\n" << ks->jit << "\n";
+                        dump << "// === SOURCE ===\n" << ks->str << "\n";
+                    }
+                    dump.close();
+                }
+                std::cout << "[build_alt_impl] COMPILE FAILED for hash=" << hash
+                          << " num_inputs=" << specialized_params.input_layouts.size()
+                          << " num_outputs=" << specialized_params.output_layouts.size();
+                for (size_t i = 0; i < specialized_params.input_layouts.size(); ++i) {
+                    auto ps = specialized_params.input_layouts[i].get_partial_shape();
+                    std::cout << " in" << i << "=[";
+                    for (size_t d = 0; d < ps.size(); ++d)
+                        std::cout << ps[d] << (d + 1 < ps.size() ? "," : "");
+                    std::cout << "]:" << static_cast<int>(specialized_params.input_layouts[i].data_type)
+                              << "(dyn=" << specialized_params.input_layouts[i].is_dynamic() << ")";
+                }
+                for (size_t i = 0; i < specialized_params.output_layouts.size(); ++i) {
+                    auto ps = specialized_params.output_layouts[i].get_partial_shape();
+                    std::cout << " out" << i << "=[";
+                    for (size_t d = 0; d < ps.size(); ++d)
+                        std::cout << ps[d] << (d + 1 < ps.size() ? "," : "");
+                    std::cout << "]:" << static_cast<int>(specialized_params.output_layouts[i].data_type)
+                              << "(dyn=" << specialized_params.output_layouts[i].is_dynamic() << ")";
+                }
+                std::cout << "\n  error: " << e.what() << std::endl;
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
+                return nullptr;
+            }
         }
         return impl;
     }
@@ -3923,10 +4012,12 @@ bool primitive_inst::switch_impl_to(impl_types target_type) {
     _impl = it->second;
     _impl_pool->active_impl_type = target_type;
 
+#if OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
     // --- FC switch counter instrumentation ---
     if (get_node().is_type<fully_connected>()) {
         fc_counters::fc_switch_count.fetch_add(1, std::memory_order_relaxed);
     }
+#endif  // OV_GPU_MULTI_IMPL_SWITCHING_DEBUG
 
     // Ensure the weight reorder cache matches the newly active impl's requirements.
     // Without this, if the previous impl (e.g. OneDNN) had reordered weights into its
