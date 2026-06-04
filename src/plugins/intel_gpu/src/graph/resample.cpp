@@ -243,7 +243,8 @@ resample_inst::typed_primitive_inst(network& network, resample_node const& node)
 
 void resample_inst::on_execute() {
     update_output_memory();
-    rebind_onednn_reuse_optimized_dst_if_needed(*this);
+    if (can_be_optimized())
+        rebind_onednn_reuse_optimized_dst_if_needed(*this);
 }
 
 void resample_inst::update_output_memory() {
