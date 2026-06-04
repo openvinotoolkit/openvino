@@ -47,23 +47,40 @@ def _patch_cpu_model_runner():
 
     _orig_load_model = CPUModelRunner.load_model
 
-    def patched_load_model(self, load_dummy_weights: bool = False) -> None:
-        _orig_load_model(self, load_dummy_weights)
-        # OV_PA_DTYPE is read by the C++ paged_attention frontend op, so it
-        # cannot be plumbed through Python options. Set it here to align with
-        # the bf16 model dtype that the "vllm" preset assumes.
-        import os as _os_pa
-        _os_pa.environ.setdefault("OV_PA_DTYPE", "bf16")
+    def _ov_active(self) -> bool:
         comp_cfg = getattr(self.vllm_config, "compilation_config", None)
+        if comp_cfg is None:
+            return False
         try:
             mode = getattr(comp_cfg, "mode", None)
             mode_name = getattr(mode, "name", None) if mode is not None else None
             backend = getattr(comp_cfg, "backend", None)
         except Exception:
-            return
-        if comp_cfg is None or mode_name != "STOCK_TORCH_COMPILE":
-            return
-        if backend != "openvino":
+            return False
+        return mode_name == "STOCK_TORCH_COMPILE" and backend == "openvino"
+
+    def patched_load_model(self, load_dummy_weights: bool = False) -> None:
+        # Resolve OV-active state from the actual vllm_config (not env vars).
+        # Flip _supports_onednn BEFORE _orig_load_model so vLLM's FC layers
+        # see the False value when they're constructed during model load.
+        is_ov = _ov_active(self)
+        if is_ov:
+            try:
+                import vllm._custom_ops as _ops
+                if not getattr(_ops, "_ov_plugin_onednn_disabled", False):
+                    _ops._supports_onednn = False
+                    _ops._ov_plugin_onednn_disabled = True
+                    logger.debug("[OV plugin] _supports_onednn forced False (backend=openvino)")
+            except Exception as _e:
+                logger.debug("[OV plugin] _supports_onednn flip skipped: %s", _e)
+            # OV_PA_DTYPE is read by the C++ paged_attention frontend op, so it
+            # cannot be plumbed through Python options. Set it here to align
+            # with the bf16 model dtype that the "vllm" preset assumes.
+            import os as _os_pa
+            _os_pa.environ.setdefault("OV_PA_DTYPE", "bf16")
+
+        _orig_load_model(self, load_dummy_weights)
+        if not is_ov:
             return
 
         import torch
@@ -118,22 +135,6 @@ def _patch_cpu_model_runner():
     logger.debug("[OV plugin] CPUModelRunner.load_model patched")
 
 
-def _force_disable_onednn():
-    try:
-        import vllm._custom_ops as _ops
-    except Exception:
-        return
-    if getattr(_ops, "_ov_plugin_onednn_disabled", False):
-        return
-    # Only disable when an OV-style run is suggested by env vars; otherwise leave
-    # vLLM's default in place. We check here rather than later because the flag
-    # is read at module import time by various vLLM linear layers.
-    if os.environ.get("OV_VLLM_PA") or "openvino" in os.environ.get("BENCH_OV_BACKEND", ""):
-        _ops._supports_onednn = False
-        _ops._ov_plugin_onednn_disabled = True
-        logger.debug("[OV plugin] vllm._custom_ops._supports_onednn forced False")
-
-
 def _disable_layername():
     """Force VLLM_USE_LAYERNAME=0 so OV PA op gets plain str layer names."""
     if os.environ.get("VLLM_USE_LAYERNAME") is None:
@@ -142,12 +143,10 @@ def _disable_layername():
 
 
 def register():
-    # _force_disable_onednn must run during register() (before vLLM's FC
-    # layers are constructed and read _supports_onednn). Set OV_VLLM_PA so
-    # that onednn-disable detector lights up; this env var is also still
-    # honored by C++ ops that can't be plumbed through Python options.
-    os.environ.setdefault("OV_VLLM_PA", "1")
-    """Entry point for `vllm.general_plugins`."""
+    """Entry point for `vllm.general_plugins`.
+
+    OV-active detection deferred to patched_load_model so we can read the
+    real compilation_config.backend instead of guessing from env vars.
+    """
     _disable_layername()
-    _force_disable_onednn()
     _patch_cpu_model_runner()
