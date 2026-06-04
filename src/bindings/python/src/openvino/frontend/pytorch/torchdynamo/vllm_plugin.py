@@ -79,6 +79,29 @@ def _patch_cpu_model_runner():
         )
         self.model.forward = compiled
 
+        # lm_head runs OUTSIDE the OV-compiled forward() (in compute_logits()).
+        # It got cpu_linear=torch.nn.functional.linear during model load
+        # because onednn was disabled to keep OV trace clean. Re-dispatch
+        # just lm_head with onednn enabled so its huge [hidden, vocab]
+        # bf16 GEMM uses oneDNN's AMX-prepacked path. Saves ~3-5 ms/step
+        # at Llama-3.2-1B decode (lm_head reads 524 MB weight per call).
+        try:
+            import vllm._custom_ops as _ops
+            from vllm.model_executor.layers.utils import dispatch_cpu_unquantized_gemm
+            lm_head = getattr(self.model, "lm_head", None)
+            if lm_head is not None and hasattr(lm_head, "weight") and not lm_head.weight.is_meta:
+                _saved = getattr(_ops, "_supports_onednn", True)
+                _ops._supports_onednn = True
+                try:
+                    dispatch_cpu_unquantized_gemm(lm_head, remove_weight=False)
+                    logger.info("[OV plugin] lm_head re-dispatched with onednn enabled")
+                except Exception as _e:
+                    logger.warning("[OV plugin] lm_head onednn re-dispatch failed: %s", _e)
+                finally:
+                    _ops._supports_onednn = _saved
+        except Exception as _e:
+            logger.debug("[OV plugin] lm_head onednn fast path unavailable: %s", _e)
+
     CPUModelRunner.load_model = patched_load_model
     CPUModelRunner._ov_plugin_patched = True
     logger.debug("[OV plugin] CPUModelRunner.load_model patched")
