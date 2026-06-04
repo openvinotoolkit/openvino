@@ -1445,8 +1445,12 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             const int64_t norm_axis = axis < 0 ? axis + x_low_rank : axis;
             return norm_axis == x_low_rank - 1 && step == 2 && begin == expected_begin;
         };
-        // StridedSlice(data, begin, end, strides): per-axis vectors + masks; the last axis carries the
-        // step-2 read. Reject axis-adding/removing masks; require begin[-1] applied (begin_mask off).
+        // StridedSlice(data, begin, end, strides): per-axis vectors + masks. Require a pure last-axis
+        // step-2 read: last axis has stride 2, begin expected_begin (begin_mask off so it applies); all
+        // other axes untouched (stride 1, begin/end fully masked). Reject axis-adding/removing masks.
+        auto mask_set = [](const std::vector<int64_t>& m, size_t i) {
+            return i < m.size() && m[i] == 1;
+        };
         auto is_interleaved_strided = [&](const v1::StridedSlice* ss, int64_t expected_begin) -> bool {
             std::vector<int64_t> begin, strides;
             if (!as_vector_const(ss->input_value(1), begin) || !as_vector_const(ss->input_value(3), strides) ||
@@ -1464,9 +1468,14 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
                 return false;
             }
             const auto& begin_mask = ss->get_begin_mask();
+            const auto& end_mask = ss->get_end_mask();
             const size_t last = static_cast<size_t>(x_low_rank - 1);
-            const bool last_begin_active = last >= begin_mask.size() || begin_mask[last] == 0;
-            return strides[last] == 2 && begin[last] == expected_begin && last_begin_active;
+            for (size_t i = 0; i < last; ++i) {  // non-last axes must be left untouched
+                if (strides[i] != 1 || !mask_set(begin_mask, i) || !mask_set(end_mask, i)) {
+                    return false;
+                }
+            }
+            return strides[last] == 2 && begin[last] == expected_begin && !mask_set(begin_mask, last);
         };
         auto is_interleaved_slice = [&](const ov::Output<ov::Node>& slice_out, int64_t expected_begin) -> bool {
             auto node = slice_out.get_node_shared_ptr();
