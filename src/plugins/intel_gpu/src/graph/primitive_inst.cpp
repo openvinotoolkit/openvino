@@ -1942,16 +1942,26 @@ void primitive_inst::do_runtime_in_place_crop() {
                 auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto offsets = u->_impl_params->input_offsets[0];
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
-                    // If there is a reshape user, we can still optimize when the reshape is able to propagate
-                    // runtime padding (is_runtime_propagatable_padding() == true).
+                    // If there is a reshape user, we can still optimize when the reshape is able to
+                    // propagate runtime padding (is_runtime_propagatable_padding() == true).
                     //
-                    // This covers the TransposeSplitMatcher case: Transpose+Split(axis=0) is replaced by
-                    // Split(axis=1), so each crop has shape [-1,1,H,S] with axis=1 (feature axis).
-                    // The following reshape squeezes that size-1 dim to [-1,H,S].  Because axis=1 and
-                    // input[1]==1, is_runtime_propagatable_padding() returns true (see reshape_inst.h),
-                    // meaning the reshape can safely forward the dynamic padding offset to its output.
-                    // In this case we update the reshape output layout so downstream consumers see the
-                    // correct padded view — same as the simple_data_format path does at lines below.
+                    // This covers the TransposeSplitMatcher case: Transpose+Split(axis=0) over a
+                    // packed QKV tensor [-1,3,H,S] is replaced by Split(axis=1), so each crop has
+                    // shape [-1,1,H,S] with crop axis=1 (feature axis).  The following reshape
+                    // squeezes that size-1 dim to [-1,H,S].
+                    //
+                    // For out0/out1 (→ Reshape → RoPE): is_runtime_propagatable_padding() is true
+                    // because the downstream RoPE can handle the propagated padding via the standard
+                    // dynamic-layout mechanism.
+                    //
+                    // For out2 (→ Reshape → vl_sdpa): is_runtime_propagatable_padding() is also true
+                    // for the axis=1/size-1 pattern (see reshape_inst.h).  The CM kernel reads the
+                    // dynamic padding offset via dedicated token_offset_q/token_offset_kv scalars
+                    // (see vl_sdpa_opt.cpp), so it does NOT need shape_info — the offset is applied
+                    // directly to the SVM pointer before dispatch.
+                    //
+                    // In both cases we update the reshape output layout so downstream nodes see the
+                    // correct padded view — same as the simple_data_format path does below.
                     if (user_info.first) {
                         auto reshape_inst_node = static_cast<const reshape_node*>(user_info.first);
                         if (!reshape_inst_node->is_runtime_propagatable_padding()) {

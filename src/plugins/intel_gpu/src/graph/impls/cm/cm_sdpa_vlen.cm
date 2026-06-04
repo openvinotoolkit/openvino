@@ -36,10 +36,17 @@ _GENX_MAIN_ void KERNEL_NAME(
     SurfaceIndex query [[type("buffer_t")]],
     SurfaceIndex key [[type("buffer_t")]],
     SurfaceIndex value [[type("buffer_t")]],
-    SurfaceIndex output [[type("buffer_t")]],    
+    SurfaceIndex output [[type("buffer_t")]],
 #endif
     int* cu_seqlens [[type("svmptr_t")]],
-    int  need_wg_mapping
+    int  need_wg_mapping,
+    // Element-count offsets for in-place crop (TransposeSplitMatcher axis=1 pattern).
+    // When the upstream Reshape propagates dynamic padding from a Split(axis=1) crop,
+    // the SVM base pointer still points to the start of the packed QKV buffer.
+    // These scalars shift query/output (token_offset_q) and key/value (token_offset_kv)
+    // to the correct slice.  Both are 0 when no crop optimization is active.
+    int  token_offset_q,
+    int  token_offset_kv
     ) {
     constexpr int num_heads = CMFLA_NUM_HEADS;
     constexpr int head_size = CMFLA_HEAD_SIZE;
@@ -107,8 +114,11 @@ _GENX_MAIN_ void KERNEL_NAME(
         kv_start = cu_seqlens[wg_id];
         kv_seq_len = cu_seqlens[wg_id + 1] - kv_start;
     }
-    uint qo_offset = (q_start*num_heads + h)*head_size;
-    uint kv_offset = (kv_start*num_kv_heads + hkv)*head_size;
+    // qo_offset / kv_offset: element index into the slice buffer.
+    // token_offset_q / token_offset_kv are added to advance the SVM base pointer
+    // past the slice padding set by the in-place crop optimization.
+    uint qo_offset = (q_start*num_heads + h)*head_size + token_offset_q;
+    uint kv_offset = (kv_start*num_kv_heads + hkv)*head_size + token_offset_kv;
 
 #if USE_LSC == 1
 #if USE_LSC_PREFETCH

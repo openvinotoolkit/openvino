@@ -58,10 +58,31 @@ public:
         if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
             return false;
 
-        // TODO: If user is mvn or vl_sdpa and dynamic padding exists, output padding propagation is not supported in the base mode
-        // vl_sdpa uses raw SVM pointers (CM kernel) without shape_info support, so it cannot apply dynamic padding offsets
-        if (get_users().size() == 1 && (get_users().front()->is_type<mvn>() || get_users().front()->is_type<vl_sdpa>()))
+        // MVN canonicalizes input strides and cannot tolerate dynamic padding offsets.
+        if (get_users().size() == 1 && get_users().front()->is_type<mvn>())
             return false;
+
+        // vl_sdpa uses a CM kernel that receives raw SVM pointers.  Generic dynamic
+        // padding (e.g. from an inner-axis crop) cannot be applied through shape_info
+        // as with OCL kernels.  The one exception is the TransposeSplitMatcher axis=1
+        // pattern: crop axis=1 with a size-1 input[1] followed by a rank-reducing reshape.
+        // In that case the CM kernel receives dedicated token_offset_q / token_offset_kv
+        // scalars computed from _lower_size[1], so propagation IS safe.
+        // All other vl_sdpa paths remain blocked.
+        if (get_users().size() == 1 && get_users().front()->is_type<vl_sdpa>()) {
+            // Allow only if the crop is the axis=1 / size-1 squeeze pattern handled by
+            // the token_offset scalars in the CM kernel.  That pattern is already checked
+            // below (axis == 1 block), so we fall through here without blocking.
+            auto axis = input().as<crop>().get_primitive()->axis;
+            const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
+            const bool is_axis1_size1_squeeze =
+                axis == 1 &&
+                !input_pshape[1].is_dynamic() &&
+                input_pshape[1].get_length() == 1 &&
+                prim->output_partial_shape.size() + 1 == input_pshape.size();
+            if (!is_axis1_size1_squeeze)
+                return false;
+        }
 
         auto axis = input().as<crop>().get_primitive()->axis;
         const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
