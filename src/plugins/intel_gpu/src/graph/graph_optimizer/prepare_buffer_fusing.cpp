@@ -76,6 +76,22 @@ auto available_pred = [](const program_node& input) {
     return true;
 };
 
+// Primitives that read input by explicit tensor coordinate and therefore correctly skip
+// padding on the input side.
+auto reads_padded_input_safely = [](const program_node& user) {
+    if (user.can_be_optimized())
+        return false;
+    if (user.is_type<eltwise>()) {
+        auto broadcast_type = user.as<eltwise>().get_primitive()->broadcast_spec.m_type;
+        return broadcast_type == ov::op::AutoBroadcastType::NONE;
+    }
+    return user.is_type<convolution>()   ||
+           user.is_type<deconvolution>() ||
+           user.is_type<pooling>()       ||
+           user.is_type<activation>()    ||
+           user.is_type<quantize>();
+};
+
 bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params& concat_params,
                                          std::vector<kernel_impl_params>& pred_params,
@@ -148,9 +164,16 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // TODO: handle optimized reshape
         if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
             return false;
-        // TODO: Investigate if this condition is needed
-        if (pred.first->get_users().size() > 2)
-            return false;
+        // A predecessor with more than two users can still be fused if all non-concat
+        // users correctly handle a padded input buffer.
+        if (pred.first->get_users().size() > 2) {
+            for (const auto& user : pred.first->get_users()) {
+                if (user->is_type<concatenation>())
+                    continue;
+                if (!reads_padded_input_safely(*user))
+                    return false;
+            }
+        }
 
        // Check that input isn't optimized out concatenation along different axis.
         if (pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
@@ -236,7 +259,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
-    // Implicit concat for onednn only when use_usm and batch 1.
+    // Implicit concat for onednn only when use_usm and batch 1 on the batch axis.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
         const layout& concat_out_l = concat_params.get_output_layout();
@@ -246,7 +269,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             // Return true in build time, it will be checked again in runtime
             return true;
         } else {
-            if (concat_out_l.batch() > 1)
+            // Block formats (b_fs_yx_fsv16 etc.) are not contiguous along the batch axis,
+            // so batch-axis (axis=0) concat with batch>1 cannot safely alias buffers.
+            // Feature-axis and other axes are fine — the 64-byte alignment check above is
+            // the correctness gate for those cases.
+            if (concat_axis_index == 0 && concat_out_l.batch() > 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {

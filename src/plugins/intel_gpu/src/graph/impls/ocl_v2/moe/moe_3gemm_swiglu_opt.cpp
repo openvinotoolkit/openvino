@@ -1031,8 +1031,20 @@ public:
         _shared_down_proj->forward(stream, batch, gate_mem_dnnl, output_dnnl, scalar_gate_dnnl);
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        PrimitiveImplOCL::save(ob);
+        ob << use_micro_gemm_prefill;
+        ob << use_gpu_mask_gen_prefill;
+        ob << use_grouped_gemm_prefill;
+    }
+
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
+        // Read execution-path flags before init() so any future init() logic
+        // that depends on them sees the deserialized (not default) values.
+        ib >> use_micro_gemm_prefill;
+        ib >> use_gpu_mask_gen_prefill;
+        ib >> use_grouped_gemm_prefill;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         init(impl_params->typed_desc<moe_3gemm_fused_compressed>());
     }
