@@ -96,7 +96,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     # pass options={"unbind_affinity": True} or options={"vllm": True}.
     # Even when enabled, only widen if the current affinity has fewer cores
     # than the requested thread count.
-    if _bool_opt(options, "unbind_affinity", "OV_UNBIND_AFFINITY", False):
+    if _bool_opt(options, "unbind_affinity", False):
         try:
             cur = os.sched_getaffinity(0)
             cfg = _get_config(options) or {}
@@ -206,7 +206,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         # Without this, CPU plugin falls back to gemm_mlas_f32 (6x slower than
         # brgemm_avx512_f32) for fp16-activation FCs. OV GenAI's IR has exactly
         # this pattern; we emulate it.
-        if _bool_opt(options, "fc_decompress", "OV_FC_DECOMPRESS", True):
+        if _bool_opt(options, "fc_decompress", True):
             try:
                 from openvino import opset1 as _o1
                 import numpy as _np
@@ -323,7 +323,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om.remove_parameter(_p)
 
     _tensor_idx = 0
-    _dyn = _bool_opt(options, "dynamic_shapes", "OV_DYNAMIC_SHAPES", True)
+    _dyn = _bool_opt(options, "dynamic_shapes", True)
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             continue  # Already baked as Constant above
@@ -331,7 +331,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if _dyn:
             # Dynamic shapes so the compiled OV model is reused across
             # different batch sizes / seq lengths / past_lens rather than
-            # recompiling per shape. Disable with OV_DYNAMIC_SHAPES=0.
+            # recompiling per shape. Disable with options["dynamic_shapes"]=False.
             om.inputs[_tensor_idx].get_node().set_partial_shape(
                 PartialShape([-1] * input_data.ndim))
         else:
@@ -363,7 +363,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if device == "CPU" and "INFERENCE_PRECISION_HINT" not in config and _inf_hint:
         config["INFERENCE_PRECISION_HINT"] = _inf_hint
 
-    if _bool_opt(options, "perf_count", "OV_PERF_COUNT", False):
+    if _bool_opt(options, "perf_count", False):
         config["PERF_COUNT"] = "YES"
 
     _num_threads = os.environ.get("OV_INFERENCE_NUM_THREADS")

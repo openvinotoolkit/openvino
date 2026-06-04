@@ -146,7 +146,7 @@ class Partitioner:
         # attention inside its partitions and translate it to
         # PagedAttentionExtension. No-op on non-vLLM graphs.
         from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-        if _bool_opt(getattr(self, "_ov_options", None), "paged_attention", "OV_VLLM_PA", True):
+        if _bool_opt(getattr(self, "_ov_options", None), "paged_attention", True):
             try:
                 from openvino.frontend.pytorch.torchdynamo.vllm_paged_attention import (
                     rewrite_unified_attention_to_paged_attention,

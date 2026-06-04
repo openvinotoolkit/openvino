@@ -477,7 +477,7 @@ def execute_cached(compiled_model, *args):
     import os as _os_ec
     ov_inputs = [a.detach().cpu().numpy() for a in args]
     ov_inputs.reverse()
-    if _os_ec.environ.get("OV_PERF_COUNT"):
+    if _os_ec.environ.get("OV_PERF_COUNT_OUT"):
         _req = compiled_model.create_infer_request()
         _res = _req.infer(ov_inputs)
         _pc_path = _os_ec.environ.get("OV_PERF_COUNT_OUT", "/tmp/ov_perf_count.log")
@@ -636,7 +636,7 @@ def openvino_execute(
     with open("/tmp/ov_path.log", "a") as _f: _f.write("openvino_execute infer done\n")
     # POST-infer cache logging removed: reading key_cache_ovt.data during
     # debug caused instability in the non-debug path.
-    if _os_pc.environ.get("OV_PERF_COUNT"):
+    if _os_pc.environ.get("OV_PERF_COUNT_OUT"):
         _pc_path = _os_pc.environ.get("OV_PERF_COUNT_OUT", "/tmp/ov_perf_count.log")
         try:
             _pi = req.profiling_info
@@ -667,7 +667,7 @@ class OpenVINOGraphModule(torch.nn.Module):
     def __call__(self, *args):
         import os as _os_nof
         from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf1
-        if self.perm_fallback and not _bo_nf1(getattr(self, "options", None), "no_fallback", "OV_NO_FALLBACK", False):
+        if self.perm_fallback and not _bo_nf1(getattr(self, "options", None), "no_fallback", False):
             return self.gm(*args)
 
         try:
@@ -688,7 +688,7 @@ class OpenVINOGraphModule(torch.nn.Module):
             if _os.environ.get("OV_TRACE_FALLBACK"):
                 print(f"[OV_FALLBACK partition={self.partition_id}] {type(e).__name__}: {str(e)[:800]}", flush=True)
             from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf2
-            if _bo_nf2(executor_parameters, "no_fallback", "OV_NO_FALLBACK", False):
+            if _bo_nf2(executor_parameters, "no_fallback", False):
                 raise  # Fail loudly so we can see where OV actually breaks
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."

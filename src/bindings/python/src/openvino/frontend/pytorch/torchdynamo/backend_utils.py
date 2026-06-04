@@ -112,19 +112,16 @@ def _is_vllm_preset(options) -> bool:
     return bool(v) and str(v).lower() not in ("false", "0")
 
 
-def _bool_opt(options, key: str, env: str, default: bool) -> bool:
+def _bool_opt(options, key: str, default: bool) -> bool:
     """Resolve a boolean plugin option.
 
-    Priority: options[key] > vLLM preset (if active) > env > default.
+    Priority: options[key] > vLLM preset (if active) > default.
     Strings "false"/"0" are treated as False.
     """
-    import os as _os_b
     if options is not None and key in options:
         v = options[key]
     elif _is_vllm_preset(options) and key in _VLLM_PRESET_FLAGS:
         v = _VLLM_PRESET_FLAGS[key]
-    elif env in _os_b.environ:
-        v = _os_b.environ[env]
     else:
         return default
     return bool(v) and str(v).lower() not in ("false", "0")

@@ -289,11 +289,11 @@ class OperatorSupport(OpSupport):
         # of side-channel inputs (KV cache, block tables, past_lens, etc.) is
         # complete. Without binding the CPU plugin compiles the PA op with
         # unset side-channel Parameters, which typically triggers a SIGFPE
-        # during warmup. Enable with OV_VLLM_PA_TRANSLATE=1 once binding is
+        # during warmup. Enable with options["pa_translate"]=True once binding is
         # plumbed through execute.py.
         import os as _os_pa_sup
         from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-        if _bool_opt(getattr(self, "_ov_options", None), "pa_translate", "OV_VLLM_PA_TRANSLATE", False):
+        if _bool_opt(getattr(self, "_ov_options", None), "pa_translate", False):
             support_dict["torch.ops.openvino.paged_attention.default"] = None
 
         self.enabled_op_names = []
