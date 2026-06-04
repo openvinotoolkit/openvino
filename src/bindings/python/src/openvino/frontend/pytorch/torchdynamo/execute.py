@@ -666,7 +666,8 @@ class OpenVINOGraphModule(torch.nn.Module):
 
     def __call__(self, *args):
         import os as _os_nof
-        if self.perm_fallback and _os_nof.environ.get("OV_NO_FALLBACK", "0") != "1":
+        from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf1
+        if self.perm_fallback and not _bo_nf1(getattr(self, "options", None), "no_fallback", "OV_NO_FALLBACK", False):
             return self.gm(*args)
 
         try:
@@ -686,7 +687,8 @@ class OpenVINOGraphModule(torch.nn.Module):
                 _f.write(_tb.format_exc() + "\n")
             if _os.environ.get("OV_TRACE_FALLBACK"):
                 print(f"[OV_FALLBACK partition={self.partition_id}] {type(e).__name__}: {str(e)[:800]}", flush=True)
-            if _os.environ.get("OV_NO_FALLBACK") == "1":
+            from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf2
+            if _bo_nf2(executor_parameters, "no_fallback", "OV_NO_FALLBACK", False):
                 raise  # Fail loudly so we can see where OV actually breaks
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."

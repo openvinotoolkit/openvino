@@ -33,6 +33,7 @@ class PatternNode:
 
 class Partitioner:
     def __init__(self, options):
+        self._ov_options = options
         self.supported_ops = OperatorSupport(options)
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
@@ -144,7 +145,8 @@ class Partitioner:
         # ...) calls into torch.ops.openvino.paged_attention so OV can keep
         # attention inside its partitions and translate it to
         # PagedAttentionExtension. No-op on non-vLLM graphs.
-        if _os.environ.get("OV_VLLM_PA", "1") != "0":
+        from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
+        if _bool_opt(getattr(self, "_ov_options", None), "paged_attention", "OV_VLLM_PA", True):
             try:
                 from openvino.frontend.pytorch.torchdynamo.vllm_paged_attention import (
                     rewrite_unified_attention_to_paged_attention,

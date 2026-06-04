@@ -23,6 +23,7 @@ class OperatorSupport(OpSupport):
     """Operator support for OpenVINO backend."""
 
     def __init__(self, options):
+        self._ov_options = options
         support_dict = {
             "_operator.add": None,
             "_operator.floordiv": None,
@@ -291,7 +292,8 @@ class OperatorSupport(OpSupport):
         # during warmup. Enable with OV_VLLM_PA_TRANSLATE=1 once binding is
         # plumbed through execute.py.
         import os as _os_pa_sup
-        if _os_pa_sup.environ.get("OV_VLLM_PA_TRANSLATE") == "1":
+        from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
+        if _bool_opt(getattr(self, "_ov_options", None), "pa_translate", "OV_VLLM_PA_TRANSLATE", False):
             support_dict["torch.ops.openvino.paged_attention.default"] = None
 
         self.enabled_op_names = []

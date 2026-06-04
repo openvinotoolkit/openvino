@@ -20,6 +20,8 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import (
     _get_device,
     _get_config,
     _is_cache_dir_in_config,
+    _bool_opt,
+    _config_with_vllm_defaults,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,13 +93,15 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     #
     # Default OFF to avoid silently overriding a standalone caller's explicit
     # taskset/numactl pinning. Callers that need the widening (vLLM plugin)
-    # set OV_UNBIND_AFFINITY=1 themselves. Even when enabled, only widen if
-    # the current affinity has fewer cores than the requested thread count
-    # (heuristic: don't widen when the caller's pinning is already big enough).
-    if os.environ.get("OV_UNBIND_AFFINITY", "0") == "1":
+    # pass options={"unbind_affinity": True} or options={"vllm": True}.
+    # Even when enabled, only widen if the current affinity has fewer cores
+    # than the requested thread count.
+    if _bool_opt(options, "unbind_affinity", "OV_UNBIND_AFFINITY", False):
         try:
             cur = os.sched_getaffinity(0)
-            req = int(os.environ.get("OV_INFERENCE_NUM_THREADS", "0") or 0)
+            cfg = _get_config(options) or {}
+            req = int(cfg.get("INFERENCE_NUM_THREADS",
+                              os.environ.get("OV_INFERENCE_NUM_THREADS", "0")) or 0)
             if req == 0 or len(cur) < req:
                 os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
         except Exception:
@@ -202,7 +206,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         # Without this, CPU plugin falls back to gemm_mlas_f32 (6x slower than
         # brgemm_avx512_f32) for fp16-activation FCs. OV GenAI's IR has exactly
         # this pattern; we emulate it.
-        if os.environ.get("OV_FC_DECOMPRESS", "1") == "1":
+        if _bool_opt(options, "fc_decompress", "OV_FC_DECOMPRESS", True):
             try:
                 from openvino import opset1 as _o1
                 import numpy as _np
@@ -319,7 +323,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om.remove_parameter(_p)
 
     _tensor_idx = 0
-    _dyn = os.environ.get("OV_DYNAMIC_SHAPES", "1") == "1"
+    _dyn = _bool_opt(options, "dynamic_shapes", "OV_DYNAMIC_SHAPES", True)
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             continue  # Already baked as Constant above
@@ -337,7 +341,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
     om.validate_nodes_and_infer_types()
 
-    config = _get_config(options)
+    config = _config_with_vllm_defaults(options)
 
     if model_hash_str is not None:
         if not _is_cache_dir_in_config(options):
@@ -359,7 +363,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if device == "CPU" and "INFERENCE_PRECISION_HINT" not in config and _inf_hint:
         config["INFERENCE_PRECISION_HINT"] = _inf_hint
 
-    if os.environ.get("OV_PERF_COUNT"):
+    if _bool_opt(options, "perf_count", "OV_PERF_COUNT", False):
         config["PERF_COUNT"] = "YES"
 
     _num_threads = os.environ.get("OV_INFERENCE_NUM_THREADS")

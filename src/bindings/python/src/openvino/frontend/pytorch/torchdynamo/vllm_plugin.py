@@ -49,13 +49,11 @@ def _patch_cpu_model_runner():
 
     def patched_load_model(self, load_dummy_weights: bool = False) -> None:
         _orig_load_model(self, load_dummy_weights)
-        # vLLM's init_cpu_threads_env pins this worker to a single CPU before
-        # we get here. Opt the OV compile path into widening that mask so TBB
-        # sees a real thread count when it samples affinity on first compile.
-        # Default the env knob to 1 only for vLLM-driven runs; standalone
-        # torch.compile users keep the (default 0) no-affinity-mutation path.
-        import os as _os_aff
-        _os_aff.environ.setdefault("OV_UNBIND_AFFINITY", "1")
+        # OV_PA_DTYPE is read by the C++ paged_attention frontend op, so it
+        # cannot be plumbed through Python options. Set it here to align with
+        # the bf16 model dtype that the "vllm" preset assumes.
+        import os as _os_pa
+        _os_pa.environ.setdefault("OV_PA_DTYPE", "bf16")
         comp_cfg = getattr(self.vllm_config, "compilation_config", None)
         try:
             mode = getattr(comp_cfg, "mode", None)
@@ -76,7 +74,13 @@ def _patch_cpu_model_runner():
             return
 
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
-        options = {"aot_autograd": True}
+        # The "vllm": True mega-preset turns on every vLLM-required flag
+        # (paged_attention, pa_translate, unbind_affinity, no_fallback,
+        # fc_decompress) and seeds vLLM-specific OV config defaults
+        # (KV_CACHE_PRECISION=bf16, INFERENCE_PRECISION_HINT=bf16,
+        # DYNAMIC_QUANTIZATION_GROUP_SIZE=32). Individual flags can be
+        # overridden by adding them explicitly to `options`.
+        options = {"aot_autograd": True, "vllm": True}
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",
@@ -138,6 +142,11 @@ def _disable_layername():
 
 
 def register():
+    # _force_disable_onednn must run during register() (before vLLM's FC
+    # layers are constructed and read _supports_onednn). Set OV_VLLM_PA so
+    # that onednn-disable detector lights up; this env var is also still
+    # honored by C++ ops that can't be plumbed through Python options.
+    os.environ.setdefault("OV_VLLM_PA", "1")
     """Entry point for `vllm.general_plugins`."""
     _disable_layername()
     _force_disable_onednn()
