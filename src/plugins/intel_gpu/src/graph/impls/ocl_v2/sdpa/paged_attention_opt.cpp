@@ -1359,17 +1359,22 @@ public:
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
+        const auto desc = params.typed_desc<paged_attention>();
 
         if (params.get_device_info().supports_immad) {
             const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
+            // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
+            // accuracy issues (produces inf/nan) after oneDNN main branch integration.
+            if (params.get_device_info().arch == gpu_arch::xe3p && desc->k_head_size <= 64) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        const auto desc = params.typed_desc<paged_attention>();
         ov::Dimension head_num = desc->heads_num;
         ov::Dimension kv_heads_num = desc->kv_heads_num;
 
