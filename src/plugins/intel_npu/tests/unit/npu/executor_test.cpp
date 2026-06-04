@@ -348,6 +348,139 @@ TEST(NPUExecutorTests, AdaptiveModeGrowShrinkAcrossMultipleBursts) {
     }
 }
 
+TEST(NPUExecutorTests, AdaptiveModeRetireReuseCyclesDoNotHang) {
+    auto exec = intel_npu::make_executor("retire_reuse_cycles", 1, true, 1ms);
+
+    constexpr int cycles = 40;
+    constexpr int burstTasks = 3;
+
+    for (int cycle = 0; cycle < cycles; ++cycle) {
+        std::mutex m;
+        std::condition_variable cv;
+        bool release = false;
+        int started = 0;
+        int completed = 0;
+
+        for (int i = 0; i < burstTasks; ++i) {
+            exec->run([&] {
+                {
+                    std::lock_guard<std::mutex> lock(m);
+                    ++started;
+                }
+                cv.notify_all();
+
+                std::unique_lock<std::mutex> lock(m);
+                cv.wait(lock, [&] {
+                    return release;
+                });
+
+                ++completed;
+                cv.notify_all();
+            });
+        }
+
+        ASSERT_TRUE(wait_until([&] {
+            std::lock_guard<std::mutex> lock(m);
+            return started == burstTasks;
+        }));
+
+        {
+            std::lock_guard<std::mutex> lock(m);
+            release = true;
+        }
+        cv.notify_all();
+
+        ASSERT_TRUE(wait_until([&] {
+            std::lock_guard<std::mutex> lock(m);
+            return completed == burstTasks;
+        }));
+
+        std::promise<void> probeDone;
+        auto probeReady = probeDone.get_future();
+        exec->run([&] {
+            probeDone.set_value();
+        });
+
+        ASSERT_EQ(probeReady.wait_for(600s), std::future_status::ready)
+            << "Executor stalled after retire/reuse cycle " << cycle;
+    }
+}
+
+TEST(NPUExecutorTests, AdaptiveModeRetireReuseWithConcurrentProducersDoesNotStall) {
+    auto exec = intel_npu::make_executor("retire_reuse_concurrent_submitters", 1, true, 1ms);
+
+    constexpr int cycles = 20;
+    constexpr int producers = 6;
+    constexpr int tasksPerProducer = 4;
+    constexpr int totalTasks = producers * tasksPerProducer;
+    constexpr auto cycleTimeout = 20s;
+
+    for (int cycle = 0; cycle < cycles; ++cycle) {
+        std::mutex m;
+        std::condition_variable cv;
+        bool release = false;
+        std::atomic<int> started{0};
+        std::atomic<int> completed{0};
+
+        auto wait_for_counter = [](const std::atomic<int>& counter, int expected, std::chrono::seconds timeout) {
+            const auto deadline = std::chrono::steady_clock::now() + timeout;
+            while (counter.load() < expected) {
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    return false;
+                }
+                std::this_thread::yield();
+            }
+            return true;
+        };
+
+        std::vector<std::thread> submitters;
+        submitters.reserve(producers);
+        for (int p = 0; p < producers; ++p) {
+            submitters.emplace_back([&] {
+                for (int i = 0; i < tasksPerProducer; ++i) {
+                    exec->run([&] {
+                        started.fetch_add(1);
+                        cv.notify_all();
+
+                        std::unique_lock<std::mutex> lock(m);
+                        cv.wait(lock, [&] {
+                            return release;
+                        });
+
+                        completed.fetch_add(1);
+                        cv.notify_all();
+                    });
+                }
+            });
+        }
+
+        for (auto& submitter : submitters) {
+            submitter.join();
+        }
+
+        ASSERT_TRUE(wait_for_counter(started, totalTasks, cycleTimeout))
+            << "Not all tasks started in cycle " << cycle;
+
+        {
+            std::lock_guard<std::mutex> lock(m);
+            release = true;
+        }
+        cv.notify_all();
+
+        ASSERT_TRUE(wait_for_counter(completed, totalTasks, cycleTimeout))
+            << "Not all tasks completed in cycle " << cycle;
+
+        std::promise<void> probeDone;
+        auto probeReady = probeDone.get_future();
+        exec->run([&] {
+            probeDone.set_value();
+        });
+
+        ASSERT_EQ(probeReady.wait_for(cycleTimeout), std::future_status::ready)
+            << "Executor stalled after concurrent retire/reuse cycle " << cycle;
+    }
+}
+
 TEST(NPUExecutorTests, DestructorWaitsForInFlightTaskCompletion) {
     auto exec = intel_npu::make_executor("destroy_waits", 1, false, 200ms);
 

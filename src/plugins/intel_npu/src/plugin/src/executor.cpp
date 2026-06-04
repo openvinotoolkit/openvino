@@ -107,16 +107,24 @@ private:
     void reap_finished_workers() {
         std::vector<std::thread> threadsToJoin;
         std::vector<size_t> joinedIndices;
+        std::vector<size_t> pendingRetiredIndices;
 
         {
             std::lock_guard<std::mutex> lock(_mutex);
             for (const auto index : _retiredWorkerIndices) {
-                if (_workers[index].finished && _workers[index].thread.joinable()) {
-                    threadsToJoin.emplace_back(std::move(_workers[index].thread));
+                if (index >= _workers.size()) {
+                    continue;
+                }
+
+                auto& worker = _workers[index];
+                if (worker.finished && worker.thread.joinable()) {
+                    threadsToJoin.emplace_back(std::move(worker.thread));
                     joinedIndices.emplace_back(index);
+                } else if (worker.finished) {
+                    pendingRetiredIndices.emplace_back(index);
                 }
             }
-            _retiredWorkerIndices.clear();
+            _retiredWorkerIndices.swap(pendingRetiredIndices);
         }
 
         for (auto& thread : threadsToJoin) {
@@ -126,8 +134,13 @@ private:
         if (!joinedIndices.empty()) {
             std::lock_guard<std::mutex> lock(_mutex);
             for (const auto index : joinedIndices) {
+                if (index >= _workers.size()) {
+                    continue;
+                }
                 _workers[index].finished = false;
-                _freeWorkerIndices.emplace_back(index);
+                if (!_workers[index].thread.joinable()) {
+                    _freeWorkerIndices.emplace_back(index);
+                }
             }
         }
     }
@@ -135,10 +148,18 @@ private:
     void start_worker_locked() {
         const size_t workerId = _nextWorkerId++;
         size_t workerIndex = 0;
-        const bool reuseSlot = !_freeWorkerIndices.empty();
+        bool reuseSlot = false;
         if (!_freeWorkerIndices.empty()) {
-            workerIndex = _freeWorkerIndices.back();
+            const auto candidateIndex = _freeWorkerIndices.back();
             _freeWorkerIndices.pop_back();
+
+            if (candidateIndex < _workers.size() && !_workers[candidateIndex].thread.joinable()) {
+                workerIndex = candidateIndex;
+                reuseSlot = true;
+            } else {
+                workerIndex = _workers.size();
+                _workers.emplace_back();
+            }
         } else {
             workerIndex = _workers.size();
             _workers.emplace_back();
