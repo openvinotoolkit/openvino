@@ -1510,8 +1510,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -16.0f, 16.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
         set_values(scale_mem, scale_data);
@@ -1631,8 +1631,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
         set_values(scale_mem, scale_data);
@@ -1736,8 +1736,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -1.0f, 1.0f);
         set_values(scale_mem, scale_data);
@@ -1836,9 +1836,9 @@ public:
         std::fill(input_data.begin(), input_data.end(), 1);
         set_values(input_mem, input_data);
 
-        auto weigths_data = std::vector<uint8_t>(weights_mem->count() / 2);
-        std::fill(weigths_data.begin(), weigths_data.end(), 0x11);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = std::vector<uint8_t>(weights_mem->count() / 2);
+        std::fill(weights_data.begin(), weights_data.end(), 0x11);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = std::vector<ov::float16>(scale_mem->count());
         std::fill(scale_data.begin(), scale_data.end(), 1);
@@ -1901,9 +1901,9 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        set_values(weights_mem1, weigths_data);
-        set_values(weights_mem2, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem1, weights_data);
+        set_values(weights_mem2, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
         set_values(scale_mem, scale_data);
@@ -2021,8 +2021,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.0f, 2.0f);
         set_values(scale_mem, scale_data);
@@ -2166,8 +2166,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.0f, 2.0f);
         set_values(scale_mem, scale_data);
@@ -2309,8 +2309,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
         set_values(scale_mem, scale_data);
@@ -2446,8 +2446,8 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -1.0f, 1.0f);
         set_values(scale_mem, scale_data);
@@ -2590,9 +2590,9 @@ public:
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-        set_values(weights_mem1, weigths_data);
-        set_values(weights_mem2, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+        set_values(weights_mem1, weights_data);
+        set_values(weights_mem2, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
         set_values(scale_mem, scale_data);
@@ -2733,8 +2733,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         set_values<int8_t>(dcomp_zp_mem, {8});
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5);
+        set_values(weights_mem, weights_data);
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.0f, 2.0f);
         set_values(scale_mem, scale_data);
@@ -2939,8 +2939,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 10);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 10);
+        set_values(weights_mem, weights_data);
 
         auto bias_data = rg.generate_random_1d<ov::float16>(ofm_num, -2.0f, 2.0f);;
         set_values(bias_mem, bias_data);
@@ -3741,11 +3741,11 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         set_values(input_mem, input_data);
 
         if (weight_mode == WeightMode::Bit4) {
-            auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
-            set_values(weights_mem, weigths_data);
+            auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
+            set_values(weights_mem, weights_data);
         } else {
-            auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 4);
-            set_values(weights_mem, weigths_data);
+            auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 4);
+            set_values(weights_mem, weights_data);
         }
 
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * scale_num, -2.f, 2.f);
@@ -3878,8 +3878,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
+        set_values(weights_mem, weights_data);
 
         // Decompression scales up to 60. This triggers intermediate overflow:
         //   convert_half(1500) * 60 = 90,000 > 65,504 -> INF in old code
@@ -4004,8 +4004,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -20.0f, 20.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
+        set_values(weights_mem, weights_data);
 
         // Moderate decompression scales. Combined with large activations, intermediate overflows.
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -30.0f, 30.0f);
@@ -4133,8 +4133,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 2.0f);
         set_values(input_mem, input_data);
 
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
-        set_values(weights_mem, weigths_data);
+        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
+        set_values(weights_mem, weights_data);
 
         // Large positive decompression scales [30, 60] to keep stress deterministic.
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 30.0f, 60.0f);
@@ -5184,8 +5184,8 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
     set_values(input_mem, input_data);
 
-    auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
-    set_values(weights_mem, weigths_data);
+    auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10);
+    set_values(weights_mem, weights_data);
 
     auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
     set_values(scale_mem, scale_data);
