@@ -21,14 +21,14 @@ using namespace ov::pass::pattern;
 
 FoldActivationTranspose::FoldActivationTranspose() {
     auto a_input_m = any_input();
-    auto a_order_m = wrap_type<ov::op::v0::Constant>(shape_matches("[4]"));
+    auto a_order_m = wrap_type<ov::op::v0::Constant>();
     auto a_transpose_m = wrap_type<ov::op::v1::Transpose>({a_input_m, a_order_m});
     auto swish_m = wrap_type<ov::op::v4::Swish>({a_transpose_m});
     auto b_input_m = any_input();
-    auto b_order_m = wrap_type<ov::op::v0::Constant>(shape_matches("[4]"));
+    auto b_order_m = wrap_type<ov::op::v0::Constant>();
     auto b_transpose_m = wrap_type<ov::op::v1::Transpose>({b_input_m, b_order_m});
     auto mul_m = wrap_type<ov::op::v1::Multiply>({swish_m, b_transpose_m});
-    auto c_order_m = wrap_type<ov::op::v0::Constant>(shape_matches("[4]"));
+    auto c_order_m = wrap_type<ov::op::v0::Constant>();
     auto c_transpose_m = wrap_type<ov::op::v1::Transpose>({mul_m, c_order_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -40,18 +40,25 @@ FoldActivationTranspose::FoldActivationTranspose() {
         const auto b_order_value = b_order->cast_vector<int64_t>();
         auto c_order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(c_order_m).get_node_shared_ptr());
         const auto c_order_value = c_order->cast_vector<int64_t>();
-        for (int i = 0; i < 4; ++i) {
+        OPENVINO_ASSERT(a_order_value.size() == b_order_value.size());
+        OPENVINO_ASSERT(a_order_value.size() == c_order_value.size());
+        for (int i = 0; i < a_order_value.size(); ++i) {
             if (a_order_value[i] != b_order_value[i] || c_order_value[a_order_value[i]] != i)
                 return false;
         }
 
         auto a_input = pattern_map.at(a_input_m).get_node_shared_ptr();
         auto swish = pattern_map.at(swish_m).get_node_shared_ptr();
-        auto swish_new = swish->clone_with_new_inputs({a_input});
         auto b_input = pattern_map.at(b_input_m).get_node_shared_ptr();
         auto mul = pattern_map.at(mul_m).get_node_shared_ptr();
-        auto mul_new = mul->clone_with_new_inputs({swish_new, b_input});
         auto c_transpose = pattern_map.at(c_transpose_m).get_node_shared_ptr();
+
+        // Guard against extra users
+        if (swish->get_output_target_inputs(0).size() > 1 || mul->get_output_target_inputs(0).size() > 1) {
+            return false;
+        }
+        auto swish_new = swish->clone_with_new_inputs({a_input});
+        auto mul_new = mul->clone_with_new_inputs({swish_new, b_input});
 
         ov::copy_runtime_info(swish, swish_new);
         swish_new->set_friendly_name(swish->get_friendly_name());

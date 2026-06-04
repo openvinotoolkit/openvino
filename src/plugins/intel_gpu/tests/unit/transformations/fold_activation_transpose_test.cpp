@@ -116,6 +116,54 @@ TEST_F(TransformationTestsF, FoldActivationTranspose4) {
     }
 }
 
+// Swish extra consumer
+TEST_F(TransformationTestsF, FoldActivationTranspose5) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
+        auto order1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transpose1 = std::make_shared<ov::op::v1::Transpose>(input1, order1);
+        auto swish = std::make_shared<ov::op::v4::Swish>(transpose1);
+        auto square = std::make_shared<ov::op::v1::Multiply>(swish, swish);
+        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
+        auto order2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transpose2 = std::make_shared<ov::op::v1::Transpose>(input2, order2);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, transpose2);
+        auto order3 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+        auto transpose3 = std::make_shared<ov::op::v1::Transpose>(mul, order3);
+        transpose3->set_friendly_name("Multiply_transpose");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose3, square}, ov::ParameterVector{input1, input2});
+        manager.register_pass<FoldActivationTranspose>();
+    }
+    {
+        model_ref = model->clone();
+    }
+}
+
+// Mul extra consumer
+TEST_F(TransformationTestsF, FoldActivationTranspose6) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
+        auto order1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transpose1 = std::make_shared<ov::op::v1::Transpose>(input1, order1);
+        auto swish = std::make_shared<ov::op::v4::Swish>(transpose1);
+        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 3, 7});
+        auto order2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transpose2 = std::make_shared<ov::op::v1::Transpose>(input2, order2);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, transpose2);
+        auto square = std::make_shared<ov::op::v1::Multiply>(mul, mul);
+        auto order3 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+        auto transpose3 = std::make_shared<ov::op::v1::Transpose>(mul, order3);
+        transpose3->set_friendly_name("Multiply_transpose");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose3, square}, ov::ParameterVector{input1, input2});
+        manager.register_pass<FoldActivationTranspose>();
+    }
+    {
+        model_ref = model->clone();
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
