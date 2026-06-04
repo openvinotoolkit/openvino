@@ -22,11 +22,7 @@ void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const ui
                     ". ID: ",
                     id);
 
-    m_logger.debug("New entry added: section ID (%lu, %lu), offset %lu, length %lu",
-                   id.type,
-                   id.type_instance,
-                   offset,
-                   length);
+    m_logger.debug("New entry added: section ID %s offset %lu, length %lu", id.to_string(), offset, length);
 
     m_table[id] = std::make_pair<>(offset, length);
     m_reversed_table[offset] = id;
@@ -86,9 +82,8 @@ void OffsetsTableSection::write(BlobWriterInterface& writer) {
         writer.write(&value.first, sizeof(value.first));
         writer.write(&value.second, sizeof(value.second));
 
-        m_logger.trace("Entry written: section ID (%lu, %lu), offset %lu, length %lu",
-                       key.type,
-                       key.type_instance,
+        m_logger.trace("Entry written: section ID %s, offset %lu, length %lu",
+                       key.to_string(),
                        value.first,
                        value.second);
     }
@@ -125,9 +120,11 @@ std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_re
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type_instance), sizeof(type_instance));
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
         blob_reader.copy_data_from_source(reinterpret_cast<char*>(&length), sizeof(length));
-        offsets_table.add_entry(SectionID(type, type_instance), offset, length);
 
-        logger.trace("Read entry: section ID (%lu, %lu), offset %lu, length %lu", type, type_instance, offset, length);
+        const SectionID section_id(type, type_instance);
+        offsets_table.add_entry(section_id, offset, length);
+
+        logger.trace("Read entry: section ID %s, offset %lu, length %lu", section_id.to_string(), offset, length);
     }
 
     return std::make_shared<OffsetsTableSection>(std::move(offsets_table), logger.level());

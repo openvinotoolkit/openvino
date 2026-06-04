@@ -249,17 +249,14 @@ void BlobReader::read(const ov::Tensor& source,
 
         const size_t next_section_location = cursor + section_length.value();
 
-        m_logger.trace("Found section ID (%lu, %lu) at offset %lu, length %lu",
-                       section_id.value().type,
-                       section_id.value().type_instance,
+        m_logger.trace("Found section ID %s at offset %lu, length %lu",
+                       section_id->to_string(),
                        cursor,
                        section_length.value());
 
         // Read the section if we have a reader for it. Otherwise, skip it.
-        if (m_readers.count(section_id.value().type)) {
-            m_logger.debug("Parsing section type ID %lu, instance ID %lu",
-                           section_id.value().type,
-                           section_id.value().type_instance);
+        if (m_readers.count(section_id->type)) {
+            m_logger.debug("Parsing section ID ", section_id);
 
             interface = BlobReaderInterface(source,
                                             cursor,
@@ -267,13 +264,12 @@ void BlobReader::read(const ov::Tensor& source,
                                             npu_region_size,
                                             plugin_capabilities,
                                             m_logger.level());
-            m_parsed_sections[section_id.value().type][section_id.value().type_instance] =
-                m_readers.at(section_id.value().type)(interface);
-            m_parsed_sections[section_id.value().type][section_id.value().type_instance]->set_section_type_instance(
-                section_id.value().type_instance);
+            m_parsed_sections[section_id->type][section_id->type_instance] = m_readers.at(section_id->type)(interface);
+            m_parsed_sections[section_id->type][section_id->type_instance]->set_section_type_instance(
+                section_id->type_instance);
             m_parsed_sections_order.push_back(section_id.value());
         } else {
-            m_logger.debug("No section reader found for section type %lu. Skipping", section_id.value().type);
+            m_logger.debug("No section reader found for section type %lu. Skipping", section_id->type);
         }
 
         cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);

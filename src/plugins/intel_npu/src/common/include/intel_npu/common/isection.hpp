@@ -35,13 +35,19 @@ struct SectionID final {
     SectionID() = default;
     SectionID(SectionType section_type, SectionTypeInstance section_type_instance);
 
+    std::string to_string() const;
+
+    static SectionID from_string(std::string_view section_id_string);
+
     SectionType type;
     SectionTypeInstance type_instance;
 };
 
 bool operator==(const SectionID& sid1, const SectionID& sid2);
 
-std::ostream& operator<<(std::ostream& out, const SectionID& id);
+std::ostream& operator<<(std::ostream& os, const SectionID& id);
+
+std::istream& operator>>(std::istream& is, SectionID& id);
 
 class BlobWriterInterface;
 class BlobReaderInterface;

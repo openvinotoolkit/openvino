@@ -93,7 +93,7 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader, const ov:
             "By convention, the offsets table and CRE sections should not be found within the parsed sections order "
             "attribute");
         register_section_from_blob_reader(blob_reader->retrieve_section(section_id));
-        m_logger.debug("Registered section type ID %lu, instance ID %lu", section_id.type, section_id.type_instance);
+        m_logger.debug("Registered section ID %s", section_id.to_string());
     }
 }
 
@@ -113,7 +113,7 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
     section->set_section_type_instance(type_instance_id);
     m_registered_sections.push(section);
 
-    m_logger.debug("Registered section type ID %lu, instance ID %lu", section_type, type_instance_id);
+    m_logger.debug("Registered section %s", section->get_section_id()->to_string());
 
     return type_instance_id;
 }
@@ -175,9 +175,9 @@ void BlobWriter::write_section(std::ostream& stream,
                                const std::shared_ptr<ISection>& section,
                                const std::streampos stream_npu_region_start,
                                OffsetsTable& offsets_table) const {
-    m_logger.debug("Writting section type ID %lu, instance ID %lu",
-                   section->get_section_type(),
-                   section->get_section_type_instance());
+    const std::optional<SectionID> section_id = section->get_section_id();
+    OPENVINO_ASSERT(section_id.has_value(), "Missing section ID while writing the section");
+    m_logger.debug("Writting the section identified as %s", section_id->to_string());
 
     stream.seekp(0, std::ios_base::end);
     const uint64_t offset = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
@@ -189,9 +189,7 @@ void BlobWriter::write_section(std::ostream& stream,
     const uint64_t length = static_cast<uint64_t>(blob_writer_interface.get_offset_relative_to_npu_region() - offset);
 
     // All sections registered within the BlobWriter are automatically added to the table of offsets
-    const std::optional<SectionID> section_id = section->get_section_id();
     // The instance ID should have been added by the writer. Therefore, the section ID should exist.
-    OPENVINO_ASSERT(section_id.has_value(), "Missing section ID while writing the section");
     offsets_table.add_entry(section_id.value(), offset, length);
 }
 
