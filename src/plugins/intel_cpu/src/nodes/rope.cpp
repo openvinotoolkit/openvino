@@ -536,6 +536,13 @@ bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Only RoPE operation is supported";
             return false;
         }
+        // interleaved_input (interleaved read + half-split write) has no CPU executor; the RoPEFusion
+        // pass that sets it is disabled for CPU. Reject explicitly so a model carrying it (e.g. one
+        // transformed for GPU) fails fast here instead of running RotateHalf and silently mis-rotating.
+        if (node->get_config().interleaved_input) {
+            errorMessage = "RoPE with interleaved_input is not supported on CPU";
+            return false;
+        }
     } catch (...) {
         return false;
     }
