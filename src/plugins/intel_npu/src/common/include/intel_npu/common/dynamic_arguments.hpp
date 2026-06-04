@@ -113,40 +113,31 @@ struct DynamicMemRefType {
 };
 
 /**
- * @brief Runtime-side implementation strongly attached to a @ref DynamicArguments.
- * @details Owns the VM execution context and the flattened MemRef-handle arrays used by
- * @c npuVMRuntimeExecute. The execution context is created lazily via
- * @ref ensureExecutionContext on the first execute call and destroyed when this struct is
- * destroyed -- Create/Destroy of the context are paired in the same translation unit.
+ * @brief Argument descriptors plus the runtime-side state used to invoke @c npuVMRuntimeExecute.
+ * @details Owns the VM execution context across multiple executes (it caches device-side
+ * state and must not be re-created per call). The context is created lazily via
+ * @ref ensureExecutionContext on the first execute call and destroyed by the destructor --
+ * Create/Destroy of the context are paired in the same translation unit (the destructor is
+ * defined in the corresponding .cpp).
  */
-struct DynamicArgumentsImpl {
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
-    npu_vm_runtime_execute_params_t _executeParams = {};
-
-    DynamicArgumentsImpl() = default;
-    DynamicArgumentsImpl(const DynamicArgumentsImpl&) = delete;
-    DynamicArgumentsImpl& operator=(const DynamicArgumentsImpl&) = delete;
-    ~DynamicArgumentsImpl();
-
-    /// Lazily create the VM execution context for @p vmRuntime. No-op if already created.
-    void ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime);
-};
-
 struct DynamicArguments {
     std::vector<DynamicMemRefType> _inputs;
     std::vector<DynamicMemRefType> _outputs;
-    std::unique_ptr<DynamicArgumentsImpl> _impl;
+    npu_vm_runtime_execution_context_handle_t _executionContext = nullptr;
+    // Set by the caller after the first successful @c npuVMRuntimeExecute. Until then any
+    // command lists previously associated with this object are not yet populated, so the
+    // "no tensor change -> reuse command list" fast path must be skipped.
+    bool _executedOnce = false;
 
     DynamicArguments() = default;
     DynamicArguments(const DynamicArguments&) = delete;
     DynamicArguments& operator=(const DynamicArguments&) = delete;
-    DynamicArguments(DynamicArguments&&) noexcept = default;
-    DynamicArguments& operator=(DynamicArguments&&) noexcept = default;
-    ~DynamicArguments() = default;
+    DynamicArguments(DynamicArguments&&) = delete;
+    DynamicArguments& operator=(DynamicArguments&&) = delete;
+    ~DynamicArguments();
 
-    /// Return the runtime-side impl, lazily creating it on first access.
-    DynamicArgumentsImpl& ensure_impl();
+    /// Lazily create the VM execution context for @p vmRuntime. No-op if already created.
+    void ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime);
 
     void setArgumentProperties(uint32_t argi,
                                const void* argv,
