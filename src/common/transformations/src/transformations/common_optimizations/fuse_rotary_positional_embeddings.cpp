@@ -1335,26 +1335,19 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     //   even/odd = Slice(x, {0,1}, end, step=2, axis=-1)
     //   stack    = Concat(Unsqueeze((even*cos - odd*sin), -2), Unsqueeze((even*sin + odd*cos), -2), -2)
     //   out      = Reshape(stack, [1, -1, head_cnt, head_size])
-    // The interleaved read + half-split write is mapped to config.interleaved_input in the callback (see
-    // there). Slice begin/end/step are left unconstrained below; pattern vars x_low/x_high carry the
-    // even/odd lanes. Stateless emits a different 5D-stack topology and is intentionally not matched.
+    // The interleaved read + half-split write is mapped to config.interleaved_input in the callback,
+    // which also re-validates the slice attrs left unconstrained below. Stateless emits a different
+    // 5D-stack topology and is intentionally not matched.
     auto x = pattern::any_input(pattern::rank_equals(3));
     auto t_cos = pattern::any_input();
     auto t_sin = pattern::any_input();
 
-    // Last-axis slice. Accept Slice and StridedSlice (canonicalization varies); attrs are left
-    // unconstrained here and re-validated in the callback.
-    auto x_low_slice = pattern::wrap_type<v8::Slice>(
+    // Last-axis slice; attrs (step==2, begins {0,1}) are validated in the callback (see
+    // is_interleaved_slice). The llama.cpp serializer emits opset8 Slice.
+    auto x_low = pattern::wrap_type<v8::Slice>(
         {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_low_strided =
-        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_low = std::make_shared<pattern::op::Or>(OutputVector{x_low_slice, x_low_strided});
-
-    auto x_high_slice = pattern::wrap_type<v8::Slice>(
+    auto x_high = pattern::wrap_type<v8::Slice>(
         {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_high_strided =
-        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_high = std::make_shared<pattern::op::Or>(OutputVector{x_high_slice, x_high_strided});
 
     auto mul_low_cos = pattern::wrap_type<v1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
     auto mul_low_sin = pattern::wrap_type<v1::Multiply>({x_low, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -1386,27 +1379,48 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-
-        // half_ndims from x_low's last dim (whichever OR-branch matched).
-        auto find_or_branch = [&](const std::shared_ptr<ov::Node>& a,
-                                  const std::shared_ptr<ov::Node>& b) -> ov::Output<ov::Node> {
-            auto ita = pattern_map.find(a);
-            if (ita != pattern_map.end())
-                return ita->second;
-            auto itb = pattern_map.find(b);
-            if (itb != pattern_map.end())
-                return itb->second;
-            return {};
-        };
-        auto x_low_out = find_or_branch(x_low_slice, x_low_strided);
-        if (!x_low_out.get_node_shared_ptr()) {
+        auto root_reshape = ov::as_type_ptr<v1::Reshape>(root);
+        if (!root_reshape) {
             return false;
         }
+
+        auto x_low_out = pattern_map.at(x_low);
+        auto x_high_out = pattern_map.at(x_high);
         const auto x_low_pshape = x_low_out.get_partial_shape();
         if (!x_low_pshape.rank().is_static() || x_low_pshape[x_low_pshape.size() - 1].is_dynamic()) {
             return false;
         }
         const int64_t half_ndims_val = x_low_pshape[x_low_pshape.size() - 1].get_length();
+
+        // Re-validate the slice attrs (left unconstrained in the pattern): the callback sets
+        // interleaved_input=true unconditionally, which is only correct for the llama.cpp interleaved
+        // read even = x[..., 0::2], odd = x[..., 1::2]. Otherwise a half-split (step==1) slice would
+        // fuse with wrong semantics.
+        auto as_scalar_const = [](const ov::Output<ov::Node>& o, int64_t& out) -> bool {
+            auto c = ov::as_type_ptr<v0::Constant>(o.get_node_shared_ptr());
+            if (!c || shape_size(c->get_shape()) != 1) {
+                return false;
+            }
+            out = c->cast_vector<int64_t>()[0];
+            return true;
+        };
+        const int64_t x_low_rank = x_low_pshape.rank().get_length();
+        auto is_interleaved_slice = [&](const ov::Output<ov::Node>& slice_out, int64_t expected_begin) -> bool {
+            auto slice = ov::as_type_ptr<v8::Slice>(slice_out.get_node_shared_ptr());
+            if (!slice || slice->get_input_size() != 5) {  // data, start, stop, step, axis
+                return false;
+            }
+            int64_t begin = 0, step = 0, axis = 0;
+            if (!as_scalar_const(slice->input_value(1), begin) || !as_scalar_const(slice->input_value(3), step) ||
+                !as_scalar_const(slice->input_value(4), axis)) {
+                return false;
+            }
+            const int64_t norm_axis = axis < 0 ? axis + x_low_rank : axis;
+            return norm_axis == x_low_rank - 1 && step == 2 && begin == expected_begin;
+        };
+        if (!is_interleaved_slice(x_low_out, 0) || !is_interleaved_slice(x_high_out, 1)) {
+            return false;
+        }
 
         // Stack must be one rank above the final Reshape, concatenating on the next-to-last axis.
         auto stack_node = ov::as_type_ptr<v0::Concat>(pattern_map.at(stack).get_node_shared_ptr());
@@ -1432,6 +1446,25 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             return false;
         }
 
+        // When the lanes are stacked via Unsqueeze (not the Reshape OR-branch), require its axis to be
+        // the same next-to-last position. The Reshape branch is covered by the stack rank/axis checks
+        // above (it must feed a Concat one rank above the output on axis stacked_rank-2).
+        auto unsqueeze_axis_ok = [&](const std::shared_ptr<ov::Node>& unsq_branch) -> bool {
+            auto it = pattern_map.find(unsq_branch);
+            if (it == pattern_map.end()) {
+                return true;  // Reshape branch matched instead; nothing to check here.
+            }
+            int64_t axis = 0;
+            if (!as_scalar_const(it->second.get_node_shared_ptr()->input_value(1), axis)) {
+                return false;
+            }
+            const int64_t norm = axis < 0 ? axis + stacked_rank : axis;
+            return norm == stacked_rank - 2;
+        };
+        if (!unsqueeze_axis_ok(unsq_low_via_unsq) || !unsqueeze_axis_ok(unsq_high_via_unsq)) {
+            return false;
+        }
+
         // llama.cpp NORMAL RoPE reads interleaved lanes (even = x[0::2], odd = x[1::2]) but writes a
         // half-split output. The RoPE op's interleaved_input mode reproduces exactly that: it reads the
         // even/odd lanes inside the kernel and writes half-split, so no even/odd gather is needed in the
@@ -1439,8 +1472,22 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         // [B, 1, L, half]; here x is rank-3 [L, H, S] and cos/sin rank-4 [1, L, 1, half].
         const auto x_pshape = pattern_map.at(x).get_partial_shape();
         const auto cos_pshape = pattern_map.at(t_cos).get_partial_shape();
+        const auto sin_pshape = pattern_map.at(t_sin).get_partial_shape();
+        // cos and sin are both transposed with a length-4 perm below, so both must be rank-4.
         if (!x_pshape.rank().is_static() || x_pshape.rank().get_length() != 3 || !cos_pshape.rank().is_static() ||
-            cos_pshape.rank().get_length() != 4) {
+            cos_pshape.rank().get_length() != 4 || !sin_pshape.rank().is_static() ||
+            sin_pshape.rank().get_length() != 4) {
+            return false;
+        }
+
+        // Guard the cos_sin_ndims=half_ndims invariant set below (pins the kernel table offset to 0):
+        // a mismatched cos/sin last dim reads past the table; x's last dim must hold both lanes (2*half).
+        const auto& cos_last = cos_pshape[cos_pshape.size() - 1];
+        const auto& sin_last = sin_pshape[sin_pshape.size() - 1];
+        const auto& x_last = x_pshape[x_pshape.size() - 1];
+        if (cos_last.is_dynamic() || cos_last.get_length() != half_ndims_val || sin_last.is_dynamic() ||
+            sin_last.get_length() != half_ndims_val || x_last.is_dynamic() ||
+            x_last.get_length() != 2 * half_ndims_val) {
             return false;
         }
 
@@ -1476,10 +1523,12 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         // layout downstream consumers expect.
         auto out_perm = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
         auto rope_t = std::make_shared<v1::Transpose>(rope_node, out_perm);
-        auto new_node = std::make_shared<v1::Reshape>(rope_t, root->input_value(1), false);
+        auto new_node = std::make_shared<v1::Reshape>(rope_t, root->input_value(1), root_reshape->get_special_zero());
         new_node->set_friendly_name(root->get_friendly_name());
 
-        ov::NodeVector rt_from{pattern_map.at(mul_low_cos).get_node_shared_ptr(),
+        ov::NodeVector rt_from{pattern_map.at(x_low).get_node_shared_ptr(),
+                               pattern_map.at(x_high).get_node_shared_ptr(),
+                               pattern_map.at(mul_low_cos).get_node_shared_ptr(),
                                pattern_map.at(mul_low_sin).get_node_shared_ptr(),
                                pattern_map.at(mul_high_cos).get_node_shared_ptr(),
                                pattern_map.at(mul_high_sin).get_node_shared_ptr(),
@@ -1487,11 +1536,7 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
                                pattern_map.at(stack).get_node_shared_ptr(),
                                root};
         // OR-branch nodes — only the matched branch is present in pattern_map.
-        for (const auto& or_branch : {x_low_slice,
-                                      x_low_strided,
-                                      x_high_slice,
-                                      x_high_strided,
-                                      sub_low_via_subtract,
+        for (const auto& or_branch : {sub_low_via_subtract,
                                       sub_low_via_add,
                                       neg_high_sin,
                                       unsq_low_via_unsq,
