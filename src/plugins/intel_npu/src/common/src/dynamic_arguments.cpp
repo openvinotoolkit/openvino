@@ -120,9 +120,9 @@ std::string DynamicMemRefType::toString() {
 }
 
 void DynamicArguments::setArgumentProperties(uint32_t argi,
-                                           const void* argv,
-                                           const ov::Shape& sizes,
-                                           const std::vector<size_t>& strides) {
+                                             const void* argv,
+                                             const ov::Shape& sizes,
+                                             const std::vector<size_t>& strides) {
     auto assign_slot = [&](DynamicMemRefType& slot) {
         slot._basePtr = slot._data = const_cast<void*>(argv);
         if (slot._dimsCount == 0) {
@@ -174,11 +174,11 @@ void DynamicMemRefImpl::updateMemRefHandleStatus(DynamicMemRefType& memref) {
         createMemRef(memref._dimsCount);
     } else {
         DynamicMemRefType tempMemRef(memref._basePtr,
-                              memref._data,
-                              memref._offset,
-                              memref._sizes,
-                              memref._strides,
-                              memref._dimsCount);
+                                     memref._data,
+                                     memref._offset,
+                                     memref._sizes,
+                                     memref._strides,
+                                     memref._dimsCount);
         alignWithHandle(tempMemRef);
 
         _ptrUpdated = (memref._basePtr != tempMemRef._basePtr || memref._data != tempMemRef._data ||

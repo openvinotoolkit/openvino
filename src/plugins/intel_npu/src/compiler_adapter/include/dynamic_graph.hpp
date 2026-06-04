@@ -17,14 +17,6 @@
 namespace intel_npu {
 class DynamicGraph final : public IDynamicGraph {
 public:
-    class Impl {
-    public:
-        virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
-        virtual uint64_t getNumSubgraphs() = 0;
-        virtual npu_vm_runtime_handle_t getVmRuntimeHandle() const = 0;
-        virtual ~Impl() {};
-    };
-
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
                  bool blobAllocatedByPlugin,
@@ -66,6 +58,10 @@ private:
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
+    void initialize_engine();
+    void create_execution_engine();
+    void prepare_metadata();
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     NetworkMetadata _metadata;
@@ -97,7 +93,9 @@ private:
 
     Logger _logger;
 
-    std::unique_ptr<Impl> _impl;
+    npu_vm_runtime_handle_t _engine = nullptr;
+    npu_vm_runtime_properties_t _engineProperties{};
+    bool _engineInitialized = false;
 };
 
 }  // namespace intel_npu
