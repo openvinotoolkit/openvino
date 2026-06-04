@@ -151,11 +151,6 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                 _fn = _node.get_friendly_name()
                 if _fn.startswith("__pa__"):
                     _to_add.append(_node)
-            import os as _os_pa
-            if _os_pa.environ.get("OV_DBG_PA_PARAMS"):
-                print(f"[PA_PARAMS] model has {len(om.get_parameters())} existing params, adding {len(_to_add)} PA params", flush=True)
-                for _p in _to_add[:5]:
-                    print(f"  PA param: {_p.get_friendly_name()}", flush=True)
             if _to_add:
                 om.add_parameters(_to_add)
         except Exception as _ee:
@@ -282,14 +277,9 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                     except Exception:
                         pass
                     _rewritten += 1
-                if os.environ.get("OV_DBG_FC"):
-                    print(f"[FC_DECOMPRESS] rewrote {_rewritten} MatMuls", flush=True)
                 om.validate_nodes_and_infer_types()
             except Exception as _ee:
-                if os.environ.get("OV_DBG_FC"):
-                    import traceback as _tb
-                    print(f"[FC_DECOMPRESS] error: {_ee}", flush=True)
-                    _tb.print_exc()
+                logger.debug("FC_DECOMPRESS rewrite failed: %s", _ee)
 
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
@@ -381,15 +371,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             serialize(om, _path + ".xml", _path + ".bin")
             print(f"[OV_DUMP] Dumped pre-plugin IR to {_path}.xml", flush=True)
 
-    if os.environ.get("OV_DBG_CONFIG"):
-        print(f"[CONFIG] {config}", flush=True)
     compiled = core.compile_model(om, device, config)
-    if os.environ.get("OV_DBG_CONFIG"):
-        try:
-            print(f"[CONFIG] actual INFERENCE_NUM_THREADS={compiled.get_property('INFERENCE_NUM_THREADS')}", flush=True)
-            print(f"[CONFIG] actual NUM_STREAMS={compiled.get_property('NUM_STREAMS')}", flush=True)
-        except Exception as _e:
-            print(f"[CONFIG] get_property failed: {_e}", flush=True)
     # Keep the widened affinity mask — TBB threads were created during
     # compile_model and inherit the mask at creation time. Restoring the
     # narrow mask would not shrink the thread pool but would prevent newly

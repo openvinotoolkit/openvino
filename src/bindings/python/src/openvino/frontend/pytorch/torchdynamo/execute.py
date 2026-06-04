@@ -292,13 +292,6 @@ def _bind_paged_attention_side_channel(compiled):
         if ctx is not None:
             try:
                 am_map = ctx.attn_metadata
-                try:
-                    import os as _osd
-                    if _osd.environ.get("OV_DBG_PA"):
-                        with open("/tmp/ov_path.log","a") as _fd:
-                            _fd.write(f"am_map keys: {list(am_map.keys()) if isinstance(am_map, dict) else type(am_map)} layer_name={layer_name} meta={meta_layer_name}\n")
-                except Exception:
-                    pass
                 if isinstance(am_map, dict) and meta_layer_name is not None:
                     attn_meta = am_map.get(meta_layer_name)
                 # kv cache: vLLM stores it in static_forward_context (per layer).
@@ -331,10 +324,6 @@ def _bind_paged_attention_side_channel(compiled):
                 # persists across torch-compile invocations (prefill + decode).
                 cache_key = meta_layer_name
                 cached = _pa_kv_ovt_cache.get(cache_key)
-                import os as _osdk
-                if _osdk.environ.get("OV_DBG_CACHE"):
-                    with open("/tmp/ov_cache.log","a") as _fk:
-                        _fk.write(f"bind layer={layer_name} meta={meta_layer_name} HIT={cached is not None}\n")
                 if cached is not None:
                     key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
                 else:
@@ -343,10 +332,6 @@ def _bind_paged_attention_side_channel(compiled):
                     # OV CPU PA writes back to this buffer via shared_memory.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
-                    import os as _os_kv
-                    if _os_kv.environ.get("OV_DBG_KV_SHAPE"):
-                        print(f"[KV_SHAPE] layer={layer_name} meta={meta_layer_name} "
-                              f"kv_cache.shape={tuple(kv_cache.shape)} kc.shape={_kv_shape}", flush=True)
                     # Find the actual Parameter in compiled.inputs for this layer's
                     # key_cache and use its dtype (plugin may override via KV_CACHE_PRECISION).
                     _param_dt = None
@@ -377,11 +362,11 @@ def _bind_paged_attention_side_channel(compiled):
             # Hk=1, S=1 from the dummy and asserts against the real K.
             # OV CPU PA requires block_size == 32 (hard constraint).
             import openvino as _ov_fb
-            import os as _os_fb
             _fb_dt_ov = _ov_fb.Type.f32
             _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name)
             _fb_block = 32  # CPU PA hard requirement
             # Env overrides (for debugging / unusual models)
+            import os as _os_fb
             if _os_fb.environ.get("OV_PA_NUM_KV_HEADS"):
                 _fb_Hk = int(_os_fb.environ["OV_PA_NUM_KV_HEADS"])
             if _os_fb.environ.get("OV_PA_HEAD_SIZE"):
@@ -394,9 +379,6 @@ def _bind_paged_attention_side_channel(compiled):
                     _fb_dt_ov = _pi.get_element_type()
                     break
             _fb_shape = (1, _fb_Hk, _fb_block, _fb_S)
-            if _os_fb.environ.get("OV_DBG_KV_SHAPE"):
-                print(f"[KV_SHAPE] FALLBACK layer={layer_name} meta={meta_layer_name} "
-                      f"shape={_fb_shape} dt={_fb_dt_ov}", flush=True)
             key_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
             value_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
             key_cache_np = key_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
@@ -443,12 +425,6 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
 
-        import os as _osc
-        if _osc.environ.get("OV_DBG_CACHE"):
-            with open("/tmp/ov_cache.log", "a") as _fc:
-                _kcshape = None if key_cache_np is None else key_cache_np.shape
-                _kcmean = None if key_cache_np is None else float(np.abs(key_cache_np).mean())
-                _fc.write(f"layer={layer_name} meta={meta_layer_name} kc_mean={_kcmean} kc_shape={_kcshape} kv_cache_found={kv_cache is not None} real_names={len(_real_layer_names)}\n")
         _sm = _shared_meta
         for field, name in fields.items():
             if field == "key_cache":
@@ -537,15 +513,8 @@ def openvino_execute(
         if use_cache and struct_key in structural_cache:
             compiled, req = structural_cache[struct_key]
         else:
-            import time as _t_c0, os as _os_c0
-            _tc_s = _t_c0.perf_counter()
             compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
             req = compiled.create_infer_request()
-            _tc_e = _t_c0.perf_counter()
-            if _os_c0.environ.get("OV_TIME", "1") == "1":
-                with open("/tmp/ov_timing.log", "a") as _ftc:
-                    _shapes = [tuple(a.size()) if hasattr(a,'size') else a for a in args]
-                    _ftc.write(f"COMPILE: {1000*(_tc_e-_tc_s):.1f}ms shapes={_shapes[:3]}\n")
             structural_cache[struct_key] = (compiled, req)
         compiled_cache[cache_key] = compiled
         req_cache[cache_key] = req
@@ -566,30 +535,17 @@ def openvino_execute(
     # tables / past_lens / ...) that the paged_attention C++ translator added
     # as extra Parameters with names like "__pa__<layer_name>__<field>".
     # The tensors come from vllm.forward_context.get_forward_context().
-    import os as _os_ot, time as _t_ot
-    _pr_ot = _os_ot.environ.get("OV_STEP_PROFILE")
-    if _pr_ot: _t_bind_s = _t_ot.perf_counter()
     _pa_inputs_by_pos = {}
     if any(inp.get_names() and any(n.startswith("__pa__") for n in inp.get_names())
            for inp in compiled.inputs):
         _pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
-    if _pr_ot: _t_a = _t_ot.perf_counter()
 
     if _pa_inputs_by_pos:
-        import os as _osd2
-        if _osd2.environ.get("OV_DBG_PA"):
-            with open("/tmp/ov_path.log", "a") as _f:
-                _f.write(f"PA bind: compiled.inputs={len(compiled.inputs)} ov_inputs={len(ov_inputs)} pa_by_pos={len(_pa_inputs_by_pos)} flat_args={len(flat_args)}\n")
-                for _ii, _inp in enumerate(compiled.inputs):
-                    _nms = list(_inp.get_names())
-                    _f.write(f"  [{_ii}] names={_nms} prec={_inp.get_element_type()} shape={_inp.get_partial_shape()}\n")
         # Use explicit set_tensor for PA inputs so the underlying shared-memory
         # buffer is bound directly; pass regular tensor inputs via dict.
         import openvino as _ov_bind
         _call_kwargs = {}
         _tensor_pos = 0
-        import os as _os_dbg_vals
-        _dbg_vals = _os_dbg_vals.environ.get("OV_DBG_BIND_VALUES")
         for i, inp in enumerate(compiled.inputs):
             _names = inp.get_names()
             pa_tensor = None
@@ -599,43 +555,13 @@ def openvino_execute(
                     break
             if pa_tensor is not None:
                 _call_kwargs[inp] = pa_tensor
-                if _dbg_vals:
-                    with open("/tmp/ov_bind_vals.log", "a") as _fbv:
-                        try:
-                            if hasattr(pa_tensor, 'data') and not isinstance(pa_tensor, np.ndarray):
-                                _arr = np.asarray(pa_tensor.data)
-                            else:
-                                _arr = np.asarray(pa_tensor)
-                            _preview = _arr.flatten()[:8].tolist()
-                            _fbv.write(f"BIND {n} shape={_arr.shape} dtype={_arr.dtype} first8={_preview}\n")
-                        except Exception as _e:
-                            _fbv.write(f"BIND {n} err: {_e}\n")
             else:
                 _call_kwargs[inp] = ov_inputs[_tensor_pos]
                 _tensor_pos += 1
-        if _pr_ot: _t_b = _t_ot.perf_counter()
-        _ti_s = _t_ot.perf_counter()
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=False)
-        _ti_e = _t_ot.perf_counter()
-        if _os_ot.environ.get("OV_TIME"):
-            with open("/tmp/ov_timing.log", "a") as _fti:
-                _fti.write(f"INFER: {1000*(_ti_e-_ti_s):.1f}ms\n")
-        if _pr_ot:
-            _t_c = _t_ot.perf_counter()
-            with open("/tmp/ov_infer_prof.log", "a") as _fp_ot:
-                _fp_ot.write(f"bind={1000*(_t_a-_t_bind_s):.2f}ms dict_build={1000*(_t_b-_t_a):.2f}ms infer={1000*(_t_c-_ti_s):.2f}ms\n")
     else:
-        _ti2_s = _t_ot.perf_counter()
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
-        _ti2_e = _t_ot.perf_counter()
-        if _os_ot.environ.get("OV_TIME", "1") == "1":
-            with open("/tmp/ov_timing.log", "a") as _fti2:
-                _fti2.write(f"INFER: {1000*(_ti2_e-_ti2_s):.1f}ms\n")
-
     import os as _os_pc
-    with open("/tmp/ov_path.log", "a") as _f: _f.write("openvino_execute infer done\n")
-    # POST-infer cache logging removed: reading key_cache_ovt.data during
-    # debug caused instability in the non-debug path.
     if _os_pc.environ.get("OV_PERF_COUNT_OUT"):
         _pc_path = _os_pc.environ.get("OV_PERF_COUNT_OUT", "/tmp/ov_perf_count.log")
         try:
@@ -680,15 +606,9 @@ class OpenVINOGraphModule(torch.nn.Module):
             )
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
-            import os as _os
-            import traceback as _tb
-            with open("/tmp/ov_path.log", "a") as _f:
-                _f.write(f"FALLBACK: {type(e).__name__}: {str(e)[:400]}\n")
-                _f.write(_tb.format_exc() + "\n")
-            if _os.environ.get("OV_TRACE_FALLBACK"):
-                print(f"[OV_FALLBACK partition={self.partition_id}] {type(e).__name__}: {str(e)[:800]}", flush=True)
+            logger.exception("OV partition %d execution failed; falling back to PyTorch", self.partition_id)
             from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf2
-            if _bo_nf2(executor_parameters, "no_fallback", False):
+            if _bo_nf2(getattr(self, "options", None), "no_fallback", False):
                 raise  # Fail loudly so we can see where OV actually breaks
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."

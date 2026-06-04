@@ -73,24 +73,6 @@ def _register_custom_op():
     logger.debug("Registered torch.ops.openvino.paged_attention")
 
 
-def _dump_all_auto_functionalized_targets(gm):
-    import torch
-    try:
-        auto_fv2 = torch.ops.higher_order.auto_functionalized_v2
-    except Exception:
-        return
-    import os
-    if not os.environ.get("OV_DBG_PA_TARGETS"):
-        return
-    seen = {}
-    for n in gm.graph.nodes:
-        if n.op == "call_function" and n.target is auto_fv2 and n.args:
-            t = str(n.args[0])
-            seen[t] = seen.get(t, 0) + 1
-    if seen:
-        print(f"[PA_TARGETS] {seen}", flush=True)
-
-
 def _is_unified_attention_with_output(node) -> bool:
     """Match auto_functionalized_v2(unified_attention_with_output, ...)."""
     import torch
@@ -127,26 +109,13 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
 
     paged_attention_op = torch.ops.openvino.paged_attention.default
 
-    _dump_all_auto_functionalized_targets(gm)
-
     # Collect candidate nodes first (don't mutate while iterating)
     to_rewrite = [n for n in gm.graph.nodes if _is_unified_attention_with_output(n)]
     if not to_rewrite:
         return 0
 
-    import os as _os
-    _dbg = _os.environ.get("OV_DBG_PA")
     rewrites = 0
     for node in to_rewrite:
-        if _dbg:
-            kw_keys = list(node.kwargs.keys())
-            user_info = []
-            for u in node.users:
-                if u.op == "call_function" and u.target is __import__("operator").getitem:
-                    user_info.append(f"getitem[{u.args[1]}]")
-                else:
-                    user_info.append(f"{u.op}:{u.target}")
-            print(f"[PA_NODE] layer={node.kwargs.get('layer_name')} kwargs={kw_keys} users={user_info}", flush=True)
         # node.kwargs has: query, key, value, layer_name, output_scale,
         # kv_cache_dummy_dep, _output_base_index, _output_size, _output_stride,
         # _output_storage_offset, _output_block_scale_base_index, _all_bases
