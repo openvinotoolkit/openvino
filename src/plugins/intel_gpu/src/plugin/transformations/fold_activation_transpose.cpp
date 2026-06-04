@@ -23,11 +23,11 @@ FoldActivationTranspose::FoldActivationTranspose() {
     auto a_input_m = any_input();
     auto a_order_m = wrap_type<ov::op::v0::Constant>();
     auto a_transpose_m = wrap_type<ov::op::v1::Transpose>({a_input_m, a_order_m});
-    auto swish_m = wrap_type<ov::op::v4::Swish>({a_transpose_m});
+    auto swish_m = wrap_type<ov::op::v4::Swish>({a_transpose_m}, consumers_count(1));
     auto b_input_m = any_input();
     auto b_order_m = wrap_type<ov::op::v0::Constant>();
     auto b_transpose_m = wrap_type<ov::op::v1::Transpose>({b_input_m, b_order_m});
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({swish_m, b_transpose_m});
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({swish_m, b_transpose_m}, consumers_count(1));
     auto c_order_m = wrap_type<ov::op::v0::Constant>();
     auto c_transpose_m = wrap_type<ov::op::v1::Transpose>({mul_m, c_order_m});
 
@@ -53,10 +53,6 @@ FoldActivationTranspose::FoldActivationTranspose() {
         auto mul = pattern_map.at(mul_m).get_node_shared_ptr();
         auto c_transpose = pattern_map.at(c_transpose_m).get_node_shared_ptr();
 
-        // Guard against extra users
-        if (swish->get_output_target_inputs(0).size() > 1 || mul->get_output_target_inputs(0).size() > 1) {
-            return false;
-        }
         auto swish_new = swish->clone_with_new_inputs({a_input});
         auto mul_new = mul->clone_with_new_inputs({swish_new, b_input});
 
