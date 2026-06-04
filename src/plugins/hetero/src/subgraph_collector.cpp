@@ -322,14 +322,14 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 const bool single_consumer_graph_input_leaf =
                     !is_graph_input_node(source_output.get_node()) && !bit_any(src_cyc_dep) &&
                     bit_all_of(src_sg_dep,
-                        [&](size_t b) {
-                            const auto& traced_input = bit_to_input[b];
-                            if (is_graph_input_node(traced_input.get_node())) {
-                                return true;
-                            }
-                            const auto* traced_producer = traced_input.get_source_output().get_node();
-                            return is_graph_input_node(traced_producer);
-                        }) &&
+                               [&](size_t b) {
+                                   const auto& traced_input = bit_to_input[b];
+                                   if (is_graph_input_node(traced_input.get_node())) {
+                                       return true;
+                                   }
+                                   const auto* traced_producer = traced_input.get_source_output().get_node();
+                                   return is_graph_input_node(traced_producer);
+                               }) &&
                     source_output.get_target_inputs().size() == 1;
                 if (!single_consumer_graph_input_leaf && !bit_intersects(cyc_dep, src_cyc_dep) &&
                     bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
