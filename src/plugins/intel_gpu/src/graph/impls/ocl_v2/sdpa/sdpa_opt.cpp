@@ -201,7 +201,6 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     const auto& k_layout = params.get_input_layout(1);
     const auto& v_layout = params.get_input_layout(2);
 
-
     // Will check it later to decide whether support micro kernel
     // if (desc->indirect_axis != -1) {
     //     // Micro kernel does not support indirect axis
