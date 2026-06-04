@@ -199,9 +199,12 @@ const std::vector<uint32_t>& program_node::get_memory_dependencies() const { ret
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), val);
-        if (it == memory_dependencies.end() || *it != val) {
-            memory_dependencies.insert(it, val);
+        OPENVINO_ASSERT(val <= std::numeric_limits<uint32_t>::max(),
+            "[GPU] Memory dependency id is out of uint32_t range: ", std::to_string(val));
+        const auto v32 = static_cast<uint32_t>(val);
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), v32);
+        if (it == memory_dependencies.end() || *it != v32) {
+            memory_dependencies.insert(it, v32);
         }
     }
 }
