@@ -81,14 +81,14 @@ TEST_P(InvalidExpression, check_compatibility) {
 using CREAppendSingleToken = ::testing::Test;
 
 TEST_F(CREAppendSingleToken, AppendValidTokenUpdatesExpression) {
-    CRE cre;
+    CRE cre({CRE::AND});
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     EXPECT_EQ(cre.get_expression_length(), 2);
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::AND, CRE::ELF_SCHEDULE}));
 }
 
 TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
-    CRE cre;
+    CRE cre({CRE::AND});
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(CRE::BATCHING);
     cre.append_to_expression(CRE::WEIGHTS_SEPARATION);
@@ -98,7 +98,7 @@ TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
 }
 
 TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
-    CRE cre;
+    CRE cre({CRE::AND});
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::AND));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OR));
     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OPEN));
@@ -107,7 +107,7 @@ TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
 }
 
 TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
-    CRE cre;
+    CRE cre({CRE::AND});
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(CRE::BATCHING);
 
@@ -123,14 +123,14 @@ TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
 using CREAppendToken = ::testing::Test;
 
 TEST_F(CREAppendToken, AppendEmptyVector) {
-    CRE cre;
+    CRE cre({CRE::AND});
     cre.append_to_expression(std::vector<CRE::Token>{});
     EXPECT_EQ(cre.get_expression_length(), 1);
     EXPECT_EQ(cre.get_expression(), (std::vector<CRE::Token>{CRE::AND}));
 }
 
 TEST_F(CREAppendToken, AppendSubexpressionTokens) {
-    CRE cre;
+    CRE cre({CRE::AND});
     cre.append_to_expression(
         std::vector<CRE::Token>{CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
 
@@ -140,7 +140,7 @@ TEST_F(CREAppendToken, AppendSubexpressionTokens) {
 }
 
 TEST_F(CREAppendToken, MixedAppend) {
-    CRE cre;
+    CRE cre({CRE::AND});
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(
         std::vector<CRE::Token>{CRE::OPEN, CRE::OR, CRE::BATCHING, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
