@@ -129,14 +129,15 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
     }
 
+    format output_format = get_preferred_format(node, impl_param);
+
     auto& fused_prims = node.get_fused_primitives();
-    for (auto f : fused_prims) {
+    for (const auto& f : fused_prims) {
         if (f.is_type<swiglu>()) {
             OPENVINO_ASSERT(fused_prims.size() == 1, "Other operation is fused in addition to swiglu!");
             ov::PartialShape out_pshape = f.output_layout.get_partial_shape();
             GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " fused with swiglu so override with its output layout: " << out_pshape.to_string()
                                     << std::endl;
-            format output_format = get_preferred_format(node, impl_param);
             return layout(out_pshape, output_type, output_format);
         }
     }
@@ -154,8 +155,6 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
                           input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
         }
 
-        format output_format = get_preferred_format(node, impl_param);
-
         return layout(out_pshape, output_type, output_format);
     } else {
         if (desc->input_size > 5) {
@@ -170,8 +169,6 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         } else if (desc->input_size == 5) {
             output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
         }
-
-        format output_format = get_preferred_format(node, impl_param);
 
         return layout(output_type, output_format, output_size);
     }
