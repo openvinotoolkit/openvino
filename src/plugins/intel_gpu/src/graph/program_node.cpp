@@ -199,13 +199,20 @@ const std::vector<uint32_t>& program_node::get_memory_dependencies() const { ret
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        memory_dependencies.emplace_back(static_cast<int32_t>(val));
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), val);
+        if (it == memory_dependencies.end() || *it != val) {
+            memory_dependencies.insert(it, val);
+        }
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
-    if (dep.may_use_mempool() && may_use_mempool())
-        memory_dependencies.emplace_back(static_cast<uint32_t>(dep.get_unique_id()));
+    if (dep.may_use_mempool() && may_use_mempool()) {
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), static_cast<uint32_t>(dep.get_unique_id()));
+        if (it == memory_dependencies.end() || *it != static_cast<uint32_t>(dep.get_unique_id())) {
+            memory_dependencies.insert(it, static_cast<uint32_t>(dep.get_unique_id()));
+        }
+    }
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {

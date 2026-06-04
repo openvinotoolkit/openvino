@@ -328,8 +328,8 @@ public:
 
         // If this dependency is already there, exit early
         const auto& mem_deps = node->get_memory_dependencies();
-        auto it = std::find(mem_deps.begin(), mem_deps.end(), static_cast<uint32_t>(dep->get_unique_id()));
-        if (it != mem_deps.end()) {
+        auto it = std::lower_bound(mem_deps.begin(), mem_deps.end(), static_cast<uint32_t>(dep->get_unique_id()));
+        if (it != mem_deps.end() && *it == static_cast<uint32_t>(dep->get_unique_id())) {
             return;
         }
 
