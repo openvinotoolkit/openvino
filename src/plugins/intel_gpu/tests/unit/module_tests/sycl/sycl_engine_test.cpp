@@ -166,7 +166,7 @@ TEST(sycl_engine, memory_creation_usm_shared) {
     ASSERT_EQ(src, dst);
 }
 
-// TODO: add the bellow tests when usm allocation is implemented
+// TODO: add the below test when usm allocation with large size is supported
 // TEST(sycl_engine, large_allocation) { ... }
 
 #endif  // OV_GPU_WITH_SYCL_RT
