@@ -9,7 +9,7 @@
 #include "sycl_test_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
-#include "sycl/sycl_memory.hpp"
+#include "runtime/sycl/sycl_memory.hpp"
 
 #include <numeric>
 #include <vector>
