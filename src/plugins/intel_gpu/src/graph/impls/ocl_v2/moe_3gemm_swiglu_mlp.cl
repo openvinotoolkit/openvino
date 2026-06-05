@@ -5,8 +5,6 @@
 
 #include "include/batch_headers/sub_group_block_read.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 // Fake group size for compatibility and computation performance balance.
 // Each gk-iteration of the inner GEMV loop processes FAKE_GROUP_SIZE K-elements
 // using a single (scale, zp) entry, so FAKE_GROUP_SIZE must divide both
