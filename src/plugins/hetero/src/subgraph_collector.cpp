@@ -600,7 +600,8 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 if (sg_id_by_index[src_idx] != my_sg)
                     continue;
                 ++same_sg_inputs;
-                has_shared_same_sg_source = has_shared_same_sg_source || count_non_result_consumers_by_index(src_idx) > 1;
+                has_shared_same_sg_source =
+                    has_shared_same_sg_source || count_non_result_consumers_by_index(src_idx) > 1;
                 has_trivial_leaf_input = has_trivial_leaf_input || is_graph_input_leaf_source(src_idx);
             }
             if (same_sg_inputs == 0)
