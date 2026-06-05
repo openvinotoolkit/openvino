@@ -501,8 +501,30 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
 
     if (src_mem.get_allocation_type() == allocation_type::sycl_buffer) {
         auto& sycl_mem_buffer = downcast<const gpu_buffer>(src_mem);
-        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
+        // gpu_buffer::copy_to() uses handler::copy(accessor, ptr) which targets host-accessible pointers.
+        // For usm_device destination, do an explicit kernel copy from buffer accessor to USM.
+        if (get_allocation_type() == allocation_type::usm_device) {
+            // const qualifier should be removed to construct ::sycl::accessor
+            auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(sycl_mem_buffer.get_buffer());
+            auto dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
+            try {
+                auto ev = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
+                    ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read> src_acc(src_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(src_offset));
+                    cgh.parallel_for(::sycl::range<1>(size), [=](::sycl::id<1> idx) {
+                        dst_ptr[idx] = src_acc[idx];
+                    });
+                });
+                if (blocking) {
+                    ev.wait_and_throw();
+                    return nullptr;
+                }
+                return create_event(sycl_stream, ev);
+            } catch (::sycl::exception const& err) {
+                OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+            }
+        }
 
+        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
         return sycl_mem_buffer.copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
     } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
         auto& usm_mem = downcast<const gpu_usm>(src_mem);
