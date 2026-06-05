@@ -707,6 +707,469 @@ void pa_lsc_u8(
     }
 }
 
+template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused, int wg_local_size>
+void pa_kernel_lsc_prefetch_u8(
+    uint slm_St_base,
+    int wg_local_id,
+    int q_start,
+    int kv_stop,
+    int q_tokens_in_tile,
+    int kv_len,
+    svmptr_t q_base [[type("svmptr_t")]],
+    svmptr_t k_cache_base [[type("svmptr_t")]],
+    svmptr_t v_cache_base [[type("svmptr_t")]],
+#if SPARSE_BLOCK_SIZE > 1
+    svmptr_t sparse_mask_base [[type("svmptr_t")]],
+    svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
+#endif
+    svmptr_t o_base [[type("svmptr_t")]],
+    int32_t past_lens,
+    int32_t* block_indices [[type("svmptr_t")]]) {
+
+    static_assert(head_size == 256, "pa_kernel_lsc_prefetch_u8 supports head_size == 256 only.");
+
+    constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
+    constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads * 2) * head_size * sizeof(half)) : o_pitch;
+    constexpr uint kv_pitch = head_size * sizeof(uint8_t);
+
+    // K cache layout is various across compression modes.
+    //   BY_TOKEN: data + per-token dscale/zp (CMPA_BLOCK_SZ halfs each).
+    //   BY_CHANNEL: data + per-(SUB_BLOCK_SIZE × head_size) dscale/zp interleaved.
+    // V is always per-token quantized.
+#if KV_CACHE_COMPRESSION == 1
+    constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
+#else
+    constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE * (CMPA_BLOCK_SZ + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * 4) * sizeof(uint8_t);
+#endif
+    constexpr int v_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
+
+    constexpr bool enable_head_size_partition = (head_size == 256);
+    constexpr int num_team = enable_head_size_partition ? 4 : wg_local_size;
+    constexpr int num_worker = wg_local_size / num_team;
+    constexpr int process_head_size = head_size / num_worker;
+
+    static_assert(wg_local_size == 16, "wg_local_size must be 16");
+    static_assert(head_size % num_worker == 0, "head_size must be divisible by num_worker");
+
+    int team_id = enable_head_size_partition ? (wg_local_id / num_team) : wg_local_id;
+    int worker_id = enable_head_size_partition ? (wg_local_id % num_team) : 0;
+
+    vector<float, q_step> cur_max;
+    vector<float, q_step> cur_sum;
+    cur_max = -3e38f;
+    cur_sum = 0;
+    constexpr int num_P_tiles = REG_N / REG_M;
+
+    matrix<half, process_head_size / REG_K, REG_K * REG_N> rQ;
+    constexpr int rO_half_rows_u8 = process_head_size / 2 / REG_N * num_P_tiles;
+    static_assert(process_head_size % (2 * REG_N) == 0, "process_head_size must be divisible by 2*REG_N for rO split");
+    matrix<float, rO_half_rows_u8, REG_M * REG_N> rO_lo;
+    matrix<float, rO_half_rows_u8, REG_M * REG_N> rO_hi;
+    bool first_active = true;
+
+#if SPARSE_BLOCK_SIZE > 1
+    constexpr int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
+    auto skip_by = [&](const bool* base, int kv_pos) -> bool {
+        if constexpr (sb_shift < 0) {
+            return false;
+        } else {
+            if (!base) return false;
+            return !base[(uint)kv_pos >> sb_shift];
+        }
+    };
+    auto skip_compute = [&](int kv_pos) {
+        return skip_by((const bool*)sparse_mask_base, kv_pos);
+    };
+#endif
+
+    static_assert(q_step == REG_N);
+    static_assert(kv_step == REG_K);
+
+    if (q_tokens_in_tile < 0) q_tokens_in_tile = 0;
+    if (q_tokens_in_tile > q_step) q_tokens_in_tile = q_step;
+
+    if constexpr (!enable_head_size_partition) {
+        if (q_tokens_in_tile == 0) return;
+    }
+
+    int worker_offset = worker_id * process_head_size;
+    if (q_tokens_in_tile > 0) {
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, worker_offset);
+        #pragma unroll
+        for (int k = 0, ri = 0; k < process_head_size/2; k += REG_K/2, ri++) {
+            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+        }
+    }
+
+    lsc::block_2d_desc<uint8_t, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(v_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+
+    static_assert(wg_local_size == 16);
+    lsc::block_2d_desc<uint8_t, 1, kv_step/wg_local_size, REG_K> prefetch_K(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<uint8_t, 1, REG_K/wg_local_size, REG_N> prefetch_V(v_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+
+    int causal_left = q_start + past_lens;
+
+    auto slm_St = slm_St_base;
+
+    for (int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step) {
+        auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
+        uint32_t prefetch_kv_pos = (kv_pos + kv_step) >= kv_stop ? kv_pos : (kv_pos + kv_step);
+        auto prefetch_block_id = block_indices[prefetch_kv_pos / CMPA_BLOCK_SZ];
+
+        matrix<float, kv_step, q_step> St;
+        {
+            constexpr int num_K = kv_step / REG_M;
+            auto St2 = St.format<float, num_K, REG_M*REG_N>();
+
+            int kv_pos_in_block = kv_pos - (kv_pos / CMPA_BLOCK_SZ) * CMPA_BLOCK_SZ;
+#if KV_CACHE_COMPRESSION == 1
+            uint32_t k_dscale_offset =
+                cur_block_id * k_quan_blk_stride +
+                CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+                kv_pos_in_block * sizeof(half);
+            uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ * sizeof(half);
+#else
+            uint32_t k_dscale_offset =
+                cur_block_id * k_quan_blk_stride +
+                CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+                kv_pos_in_block / SUB_BLOCK_SIZE * head_size * sizeof(half);
+            uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * head_size * sizeof(half);
+#endif
+
+            vector<half, kv_step> k_dscale;
+            vector<half, kv_step> k_zp;
+#if KV_CACHE_COMPRESSION == 1
+            cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset), k_dscale);
+            cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset), k_zp);
+#endif
+
+            matrix<uint8_t, kv_step, REG_K> quanKmat;
+            matrix<half, num_K, REG_M * REG_K> Kmat;
+
+            prefetch_K.set_base_ptr((reinterpret_cast<uint8_t*>(k_cache_base) + prefetch_block_id * k_quan_blk_stride));
+            prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
+            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(worker_offset));
+
+#if SPARSE_BLOCK_SIZE > 1
+            if (skip_compute(kv_pos)) {
+                if constexpr (use_causal_mask)
+                    causal_left -= kv_step;
+                continue;
+            }
+#endif
+            b2dK.set_base_ptr((reinterpret_cast<uint8_t*>(k_cache_base) + cur_block_id * k_quan_blk_stride));
+            b2dK.set_block_y(kv_pos % CMPA_BLOCK_SZ);
+
+            // First K tile: column offset = worker_offset.
+#if KV_CACHE_COMPRESSION == 2
+            cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset + worker_offset * sizeof(half)), k_dscale);
+            cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset    + worker_offset * sizeof(half)), k_zp);
+#endif
+            cm_load<lsc::Normal>(quanKmat.format<uint8_t>(), b2dK.set_block_x(worker_offset));
+
+            {
+                auto Kmat_flat = Kmat.format<half, kv_step, REG_K>();
+                #pragma unroll
+                for (int r = 0; r < kv_step; r++) {
+#if KV_CACHE_COMPRESSION == 1
+                    Kmat_flat[r] = quanKmat[r] - k_zp[r];
+                    Kmat_flat[r] = cm_mul<half>(Kmat_flat[r], k_dscale[r]);
+#else
+                    Kmat_flat[r] = quanKmat[r] - k_zp;
+                    Kmat_flat[r] = cm_mul<half>(Kmat_flat[r], k_dscale);
+#endif
+                }
+            }
+
+            if ((kv_pos + kv_step) > kv_stop) {
+                auto valid_rows = kv_stop - kv_pos;
+                for (int r = valid_rows; r < kv_step; r++)
+                    Kmat.format<half, num_K*REG_M, REG_N>().row(r) = 0.f;
+            }
+
+            #pragma unroll
+            for (int k = 0; k < num_K; k++)
+                St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                0,
+                                rQ[0].format<int32_t>(),
+                                Kmat[k].format<int32_t>());
+
+            #pragma unroll
+            for (int ri = 1; ri < process_head_size/REG_K; ri++) {
+                int k_offset = worker_offset + ri*REG_K;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(k_offset));
+#if KV_CACHE_COMPRESSION == 2
+                cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset + k_offset * sizeof(half)), k_dscale);
+                cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset    + k_offset * sizeof(half)), k_zp);
+#endif
+                cm_load<lsc::Normal>(quanKmat.format<uint8_t>(), b2dK.set_block_x(k_offset));
+                {
+                    auto Kmat_flat = Kmat.format<half, kv_step, REG_K>();
+                    #pragma unroll
+                    for (int r = 0; r < kv_step; r++) {
+#if KV_CACHE_COMPRESSION == 1
+                        Kmat_flat[r] = quanKmat[r] - k_zp[r];
+                        Kmat_flat[r] = cm_mul<half>(Kmat_flat[r], k_dscale[r]);
+#else
+                        Kmat_flat[r] = quanKmat[r] - k_zp;
+                        Kmat_flat[r] = cm_mul<half>(Kmat_flat[r], k_dscale);
+#endif
+                    }
+                }
+                if ((kv_pos + kv_step) > kv_stop) {
+                    auto valid_rows = kv_stop - kv_pos;
+                    for (int r = valid_rows; r < kv_step; r++)
+                        Kmat.format<half, num_K*REG_M, REG_N>().row(r) = 0.f;
+                }
+                #pragma unroll
+                for (int k = 0; k < num_K; k++) {
+                    St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                        St2.row(k),
+                        rQ[ri].format<int32_t>(),
+                        Kmat[k].format<int32_t>());
+                }
+            }
+
+            // Head_size partitioning: synchronize and accumulate partial St across workers
+            if constexpr (enable_head_size_partition) {
+                int slm_offset_bytes = wg_local_id * kv_step * q_step * sizeof(float);
+                cm_slm_block_write(slm_St, slm_offset_bytes, St.format<float>());
+
+                cm_slm_fence(CM_LOCAL_BARRIER);
+                cm_barrier();
+
+                St = 0.0f;
+                #pragma unroll
+                for (int g = 0; g < num_worker; g++) {
+                    int src_wi = team_id * num_worker + g;
+                    int src_slm_offset_bytes = src_wi * kv_step * q_step * sizeof(float);
+                    matrix<float, kv_step, q_step> partial_st;
+                    cm_slm_block_read(slm_St, GENX_NONE, src_slm_offset_bytes, partial_st.format<float>());
+                    St += partial_st;
+                }
+            }
+        }
+
+        if constexpr (use_causal_mask) {
+            apply_causal_mask_with_offset(St, causal_left);
+            causal_left -= kv_step;
+        }
+        int kv_tokens = kv_stop - kv_pos;
+        for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+
+        matrix<half, REG_N, REG_K> P;
+        Transpose2DMatrix(St, P);
+
+        int kv_pos_in_block_v = kv_pos - (kv_pos / CMPA_BLOCK_SZ) * CMPA_BLOCK_SZ;
+        uint32_t v_dscale_offset =
+            cur_block_id * v_quan_blk_stride +
+            CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+            kv_pos_in_block_v * sizeof(half);
+        uint32_t v_zp_offset = v_dscale_offset + CMPA_BLOCK_SZ * sizeof(half);
+        vector<half, kv_step> v_dscale;
+        vector<half, kv_step> v_zp;
+        cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + v_dscale_offset), v_dscale);
+        cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + v_zp_offset), v_zp);
+
+        prefetch_V.set_base_ptr((reinterpret_cast<uint8_t*>(v_cache_base) + prefetch_block_id * v_quan_blk_stride));
+        prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
+
+        b2dV.set_base_ptr((reinterpret_cast<uint8_t*>(v_cache_base) + cur_block_id * v_quan_blk_stride));
+        b2dV.set_block_y(kv_pos % CMPA_BLOCK_SZ);
+
+        if (first_active) {
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            // PV0 lower half
+            #pragma unroll
+            for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                {
+                    matrix<uint8_t, REG_K, REG_N> quanVmat;
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                    cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(v_offset));
+                    matrix<half, REG_K, REG_N> Vraw;
+                    #pragma unroll
+                    for (int r = 0; r < REG_K; r++) {
+                        Vraw[r] = quanVmat[r] - v_zp[r];
+                        Vraw[r] = cm_mul<half>(Vraw[r], v_dscale[r]);
+                    }
+                    if ((kv_pos + kv_step) > kv_stop) {
+                        uint valid_rows = kv_stop - kv_pos;
+                        for (int r = valid_rows; r < REG_K; r++)
+                            Vraw[r] = 0.f;
+                    }
+                    prepackAsVNNIWidth2(Vraw, Vmat);
+                }
+                #pragma unroll
+                for (int p = 0; p < num_P_tiles; p++) {
+                    rO_lo[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                }
+            }
+            // PV0 upper half
+            #pragma unroll
+            for (int k = process_head_size / 2, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                {
+                    matrix<uint8_t, REG_K, REG_N> quanVmat;
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                    cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(v_offset));
+                    matrix<half, REG_K, REG_N> Vraw;
+                    #pragma unroll
+                    for (int r = 0; r < REG_K; r++) {
+                        Vraw[r] = quanVmat[r] - v_zp[r];
+                        Vraw[r] = cm_mul<half>(Vraw[r], v_dscale[r]);
+                    }
+                    if ((kv_pos + kv_step) > kv_stop) {
+                        uint valid_rows = kv_stop - kv_pos;
+                        for (int r = valid_rows; r < REG_K; r++)
+                            Vraw[r] = 0.f;
+                    }
+                    prepackAsVNNIWidth2(Vraw, Vmat);
+                }
+                #pragma unroll
+                for (int p = 0; p < num_P_tiles; p++) {
+                    rO_hi[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                }
+            }
+            first_active = false;
+        } else {
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            // PV1 lower half
+            #pragma unroll
+            for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                {
+                    matrix<uint8_t, REG_K, REG_N> quanVmat;
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                    cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(v_offset));
+                    matrix<half, REG_K, REG_N> Vraw;
+                    #pragma unroll
+                    for (int r = 0; r < REG_K; r++) {
+                        Vraw[r] = quanVmat[r] - v_zp[r];
+                        Vraw[r] = cm_mul<half>(Vraw[r], v_dscale[r]);
+                    }
+                    if ((kv_pos + kv_step) > kv_stop) {
+                        uint valid_rows = kv_stop - kv_pos;
+                        for (int r = valid_rows; r < REG_K; r++)
+                            Vraw[r] = 0.f;
+                    }
+                    prepackAsVNNIWidth2(Vraw, Vmat);
+                }
+                #pragma unroll
+                for (int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO_lo[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for (int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+                #pragma unroll
+                for (int p = 0; p < num_P_tiles; p++) {
+                    rO_lo[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_lo[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                }
+            }
+            // PV1 upper half
+            #pragma unroll
+            for (int k = process_head_size / 2, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                {
+                    matrix<uint8_t, REG_K, REG_N> quanVmat;
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                    cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(v_offset));
+                    matrix<half, REG_K, REG_N> Vraw;
+                    #pragma unroll
+                    for (int r = 0; r < REG_K; r++) {
+                        Vraw[r] = quanVmat[r] - v_zp[r];
+                        Vraw[r] = cm_mul<half>(Vraw[r], v_dscale[r]);
+                    }
+                    if ((kv_pos + kv_step) > kv_stop) {
+                        uint valid_rows = kv_stop - kv_pos;
+                        for (int r = valid_rows; r < REG_K; r++)
+                            Vraw[r] = 0.f;
+                    }
+                    prepackAsVNNIWidth2(Vraw, Vmat);
+                }
+                #pragma unroll
+                for (int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO_hi[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for (int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+                #pragma unroll
+                for (int p = 0; p < num_P_tiles; p++) {
+                    rO_hi[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_hi[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                }
+            }
+        }
+    }
+
+#ifdef CMPA_DEBUG_ALL_MASKED
+    if (first_active) {
+        cm_printf("CMPA error: all blocks masked out, q_start=%d\n", q_start);
+    }
+#endif
+
+    matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
+    cur_sum = cm_inv(cur_sum);
+
+    if (q_tokens_in_tile > 0) {
+        lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_in_tile - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
+
+        // Store lower half from rO_lo
+        #pragma unroll
+        for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
+            #pragma unroll
+            for (int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO_lo[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for (int r = 0; r < cO.n_rows(); r++) {
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+                }
+            }
+            int o_offset = worker_offset + k;
+            b2dO.set_block_x(o_offset);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+        }
+
+        // Store upper half from rO_hi
+        #pragma unroll
+        for (int k = process_head_size / 2, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+            #pragma unroll
+            for (int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO_hi[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for (int r = 0; r < cO.n_rows(); r++) {
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+                }
+            }
+            int o_offset = worker_offset + k;
+            b2dO.set_block_x(o_offset);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+        }
+    }
+}
+
 #else
 
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused, int wg_local_size>
