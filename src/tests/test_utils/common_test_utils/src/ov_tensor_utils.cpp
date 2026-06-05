@@ -474,10 +474,10 @@ public:
                 .append(std::to_string(tensor_size))
                 .append(" shapes.");
 
-            static const char* const env = std::getenv("OV_TEST_MAX_DIFFS_TO_PRINT");
-            static const long parsed = env ? std::strtol(env, nullptr, 10) : 0;
+            static const char* const num_to_print_env = std::getenv("OV_TEST_MAX_DIFFS_TO_PRINT");
+            static const long num_to_print = num_to_print_env ? std::strtol(num_to_print_env, nullptr, 10) : 0;
             const size_t max_num_to_print =
-                parsed < 0 ? incorrect_values_abs.size() : static_cast<size_t>(parsed);
+                num_to_print < 0 ? incorrect_values_abs.size() : static_cast<size_t>(num_to_print);
 
             const auto print = [&shape](const char* label, const IncorrectValue& val) {
                 std::cout << label << ": " << flat_index_to_nd(val.coordinate, shape)
