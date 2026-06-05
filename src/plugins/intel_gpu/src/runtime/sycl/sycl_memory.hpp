@@ -232,14 +232,6 @@ protected:
     static allocation_type detect_allocation_type(const sycl_engine* engine, const UsmMemory& buffer);
 };
 
-struct sycl_surfaces_lock : public surfaces_lock {
-    sycl_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream);
-
-    ~sycl_surfaces_lock() = default;
-private:
-    std::vector<::sycl::buffer<std::byte, 1>> get_handles(std::vector<memory::ptr> mem) const;
-};
-
 // TODO: add gpu_image2d class
 }  // namespace sycl
 }  // namespace cldnn
