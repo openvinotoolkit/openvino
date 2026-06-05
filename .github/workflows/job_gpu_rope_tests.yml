@@ -1,0 +1,184 @@
+name: GPU RoPE Tests
+
+on:
+  workflow_call:
+    inputs:
+      device:
+        description: 'Device name (igpu or dgpu)'
+        type: string
+        required: true
+      runner:
+        description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
+        type: string
+        required: true
+      runner-group:
+        description: 'Runner group from which the runner will be chosen'
+        type: string
+        required: true
+      image:
+        description: 'Docker image in which the tests would run'
+        type: string
+        required: false
+        default: null
+      options:
+        description: 'Docker options to use for the job'
+        type: string
+        required: false
+        default: ''
+
+permissions: read-all
+
+jobs:
+  GPU_RoPE:
+    timeout-minutes: 80
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ fromJSON(inputs.runner) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: ${{ inputs.options }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      PIP_CERT: /etc/ssl/certs/ca-certificates.crt
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+
+    steps:
+      - name: Update CA certificates
+        # The image already ships ca-certificates, so its postinst hook (which
+        # would have merged the bind-mounted Intel proxy root CA into the system
+        # bundle) does not fire at runtime. The Intel CA reaches the container
+        # only via the /usr/local/share/ca-certificates bind-mount, so we must
+        # merge it ourselves. Must run BEFORE Fetch actions — otherwise git's
+        # HTTPS handshake to github.com through the intercepting proxy fails,
+        # and pip/HF (PIP_CERT/REQUESTS_CA_BUNDLE point at the system bundle).
+        run: update-ca-certificates
+
+      - name: Fetch actions
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+
+      - name: Download OpenVINO artifacts (package)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tests)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        # pigz is pre-installed in the ov_test/ubuntu_22_04_x64_igpu image.
+        run: |
+            pigz -dc openvino_package.tar.gz | tar -xf - -v
+            pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      # The ov_test/ubuntu_22_04_x64_igpu image already bakes in everything the
+      # rope flow used to install at runtime: it runs
+      # install_openvino_dependencies.sh -c=core -c=dev -c=gpu at build time and
+      # ships the Intel iGPU compute-runtime drivers (intel-igc-core/opencl,
+      # intel-level-zero-gpu, intel-opencl-icd, libigdgmm12), plus git,
+      # ca-certificates, clinfo, wget and python3.11. So the previous
+      # "Install dependencies (Linux)" and "Install compute runtime drivers"
+      # steps are gone (per review feedback: no need to install them every run).
+      # See .github/dockerfiles/ov_test/ubuntu_22_04_x64_igpu/Dockerfile.
+
+      - name: Verify devices
+        run: clinfo
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'true'
+
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino openvino_tokenizers'
+
+      - name: Install RoPE test requirements
+        run: |
+          python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
+          # diffusers is GPU-only (Flux is skipped on CPU per
+          # test_transformations.py:run_flux_test). diffusers 0.34
+          # registers cogview4 in its auto-pipeline, which imports
+          # GlmModel from transformers (added in 4.49). The runner's
+          # setup-python venv ships transformers 4.45.1, and
+          # optimum-intel==1.27.0 accepts >=4.45,<4.58 so pip won't
+          # auto-upgrade — bump it explicitly into a window that
+          # satisfies both diffusers cogview4 and optimum-intel.
+          python3 -m pip install 'diffusers==0.34.0' 'transformers>=4.49,<4.58'
+
+      - name: OpenVINO GPU RoPE Tests
+        env:
+          TEST_DEVICE: GPU
+          PYTHONPATH: ${{ github.workspace }}/install/tests/model_hub_tests
+        run: |
+          # We are testing the pip-wheel distribution (matches the CPU RoPE
+          # flow in job_pytorch_models_tests.yml). Unlike the non-RoPE flow,
+          # which sources setupvars.sh to set LD_LIBRARY_PATH=<install>/runtime/lib,
+          # `pip install openvino` does not patch the dynamic linker — its
+          # shared libs live under <site-packages>/openvino/libs. Without this
+          # export the GPU plugin loads but discovers 0 devices on the iGPU
+          # runner.
+          OV_LIBS_DIR=$(python3 -c "import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), 'libs'))")
+          export LD_LIBRARY_PATH="${OV_LIBS_DIR}:${LD_LIBRARY_PATH}"
+
+          # Fail fast if the iGPU runner did not expose a GPU (clinfo earlier
+          # is informational and does not fail the step when 0 platforms are
+          # found). Without this gate, all 35 pytest cases would fail with the
+          # same cryptic error instead of one clear assertion.
+          python3 -c "
+          from openvino import Core
+          devs = Core().available_devices
+          print('Available devices:', devs)
+          assert 'GPU' in devs, 'iGPU runner did not expose GPU — likely infra flake, rerun the job'
+          "
+
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
+            -m precommit \
+            --html=${INSTALL_TEST_DIR}/TEST-gpu_rope_tests.html \
+            --self-contained-html -v --tb=short -n 2
+
+      - name: Upload RoPE Test Results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-rope-${{ inputs.device }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu_rope_tests.html
+          if-no-files-found: 'error'
