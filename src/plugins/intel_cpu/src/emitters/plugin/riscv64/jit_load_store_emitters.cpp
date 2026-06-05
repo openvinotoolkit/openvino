@@ -19,19 +19,6 @@
 namespace ov::intel_cpu::riscv64 {
 namespace {
 
-Xbyak_riscv::SEW byte_size_to_sew(size_t byte_size) {
-    switch (byte_size) {
-    case 1UL:
-        return Xbyak_riscv::SEW::e8;
-    case 2UL:
-        return Xbyak_riscv::SEW::e16;
-    case 4UL:
-        return Xbyak_riscv::SEW::e32;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported memory access byte size: ", byte_size);
-    }
-}
-
 bool needs_aux_vec_for_conversion(const ov::element::Type& src_prc, const ov::element::Type& dst_prc) {
     return src_prc != dst_prc && src_prc.size() < dst_prc.size();
 }
@@ -82,7 +69,7 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
     auto data = needs_aux_vec ? Xbyak_riscv::VReg(aux_vec_idxs.front()) : dst;
 
     const auto byte_size = src_prc_.size();
-    set_vector_length(h, load_num_, byte_size_to_sew(byte_size), aux_gpr_idxs);
+    set_vector_length(h, load_num_, jit_conversion::byte_size_to_sew(byte_size), aux_gpr_idxs);
 
     if (byte_offset_ == 0) {
         if (byte_size == 1) {
@@ -107,13 +94,9 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
     }
 
     if (needs_conversion(src_prc_, dst_prc_)) {
-        jit_conversion::emit_convert_process(h,
-                                             data,
-                                             dst,
-                                             src_prc_,
-                                             dst_prc_,
-                                             mode_ == arithmetic_mode::saturation,
-                                             aux_gpr_idxs);
+        OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Load conversion requires an auxiliary GPR");
+        const auto avl = Xbyak_riscv::Reg(aux_gpr_idxs.front());
+        jit_conversion::emit_convert_process(h, data, dst, src_prc_, dst_prc_, mode_, avl);
     }
 }
 
@@ -163,19 +146,15 @@ void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::
 
     if (needs_conversion(src_prc_, dst_prc_)) {
         OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "Store conversion requires an auxiliary vector register");
+        OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Store conversion requires an auxiliary GPR");
         data = Xbyak_riscv::VReg(aux_vec_idxs.front());
-        set_vector_length(h, store_num_, byte_size_to_sew(src_prc_.size()), aux_gpr_idxs);
-        jit_conversion::emit_convert_process(h,
-                                             src,
-                                             data,
-                                             src_prc_,
-                                             dst_prc_,
-                                             mode_ == arithmetic_mode::saturation,
-                                             aux_gpr_idxs);
+        set_vector_length(h, store_num_, jit_conversion::byte_size_to_sew(src_prc_.size()), aux_gpr_idxs);
+        const auto avl = Xbyak_riscv::Reg(aux_gpr_idxs.front());
+        jit_conversion::emit_convert_process(h, src, data, src_prc_, dst_prc_, mode_, avl);
     }
 
     const auto byte_size = dst_prc_.size();
-    set_vector_length(h, store_num_, byte_size_to_sew(byte_size), aux_gpr_idxs);
+    set_vector_length(h, store_num_, jit_conversion::byte_size_to_sew(byte_size), aux_gpr_idxs);
 
     if (byte_offset_ == 0) {
         if (byte_size == 1) {

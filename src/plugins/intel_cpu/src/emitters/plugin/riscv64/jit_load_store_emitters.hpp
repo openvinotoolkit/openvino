@@ -5,17 +5,15 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_conversion_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::riscv64 {
-
-enum class arithmetic_mode : uint8_t { saturation, truncation };
 
 class jit_load_emitter : public jit_emitter {
 public:

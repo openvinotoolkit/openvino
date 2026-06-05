@@ -8,7 +8,6 @@
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <utility>
-#include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
@@ -57,21 +56,32 @@ void validate_convert_precision(const ov::element::Type& input_type, const ov::e
         output_type);
 }
 
+Xbyak_riscv::SEW byte_size_to_sew(size_t byte_size) {
+    switch (byte_size) {
+    case 1UL:
+        return Xbyak_riscv::SEW::e8;
+    case 2UL:
+        return Xbyak_riscv::SEW::e16;
+    case 4UL:
+        return Xbyak_riscv::SEW::e32;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported memory access byte size: ", byte_size);
+    }
+}
+
 void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
                           const Xbyak_riscv::VReg& src,
                           const Xbyak_riscv::VReg& dst,
                           const ov::element::Type& input_type,
                           const ov::element::Type& output_type,
-                          bool saturation,
-                          const std::vector<size_t>& aux_gpr_idxs) {
-    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Precision conversion requires an auxiliary GPR");
-
-    auto avl = Xbyak_riscv::Reg(aux_gpr_idxs.front());
+                          arithmetic_mode mode,
+                          const Xbyak_riscv::Reg& avl) {
+    const auto is_saturation = mode == arithmetic_mode::saturation;
     h->csrr(avl, Xbyak_riscv::CSR::vl);
 
     const auto set_type_for = [&](const ov::element::Type& type) {
         const auto [sew, lmul] = get_vtype_for_element_size(type);
-        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
+        set_vector_length(h, 0, sew, {}, lmul, &avl);
     };
     const auto move_if_needed = [&](const Xbyak_riscv::VReg& from, const Xbyak_riscv::VReg& to) {
         if (from.getIdx() != to.getIdx()) {
@@ -80,13 +90,13 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
     };
     const auto narrow_i32_to_i8 = [&](const Xbyak_riscv::VReg& from, const Xbyak_riscv::VReg& to) {
         set_type_for(ov::element::i16);
-        if (saturation) {
+        if (is_saturation) {
             h->vnclip_wi(to, from, 0);
         } else {
             h->vnsra_wi(to, from, 0);
         }
         set_type_for(ov::element::i8);
-        if (saturation) {
+        if (is_saturation) {
             h->vnclip_wi(to, to, 0);
         } else {
             h->vnsra_wi(to, to, 0);
@@ -94,13 +104,13 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
     };
     const auto narrow_i32_to_u8 = [&](const Xbyak_riscv::VReg& from, const Xbyak_riscv::VReg& to) {
         set_type_for(ov::element::i16);
-        if (saturation) {
+        if (is_saturation) {
             h->vnclipu_wi(to, from, 0);
         } else {
             h->vnsrl_wi(to, from, 0);
         }
         set_type_for(ov::element::i8);
-        if (saturation) {
+        if (is_saturation) {
             h->vnclipu_wi(to, to, 0);
         } else {
             h->vnsrl_wi(to, to, 0);
@@ -164,21 +174,21 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
         } else if (input_type == ov::element::i32) {
             set_type_for(ov::element::i32);
             h->vfcvt_f_x_v(dst, src);
-            if (saturation) {
+            if (is_saturation) {
                 set_type_for(ov::element::f32);
             }
             narrow_f32_to_f16(dst, dst);
         } else if (input_type == ov::element::i8) {
             widen_i8_to_i32(src, dst, true);
             h->vfcvt_f_x_v(dst, dst);
-            if (saturation) {
+            if (is_saturation) {
                 set_type_for(ov::element::f32);
             }
             narrow_f32_to_f16(dst, dst);
         } else if (input_type == ov::element::u8) {
             widen_i8_to_i32(src, dst, false);
             h->vfcvt_f_xu_v(dst, dst);
-            if (saturation) {
+            if (is_saturation) {
                 set_type_for(ov::element::f32);
             }
             narrow_f32_to_f16(dst, dst);
@@ -191,7 +201,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
     if (output_type == ov::element::i32) {
         if (input_type == ov::element::f32) {
             set_type_for(ov::element::f32);
-            if (saturation) {
+            if (is_saturation) {
                 h->vfcvt_x_f_v(dst, src);
             } else {
                 h->vfcvt_rtz_x_f_v(dst, src);
@@ -199,7 +209,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
             set_type_for(ov::element::i32);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
-            if (saturation) {
+            if (is_saturation) {
                 h->vfcvt_x_f_v(dst, dst);
             } else {
                 h->vfcvt_rtz_x_f_v(dst, dst);
@@ -216,7 +226,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
     if (output_type == ov::element::i8) {
         if (input_type == ov::element::f32) {
             set_type_for(ov::element::f32);
-            if (saturation) {
+            if (is_saturation) {
                 h->vfcvt_x_f_v(dst, src);
             } else {
                 h->vfcvt_rtz_x_f_v(dst, src);
@@ -225,7 +235,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
             narrow_i32_to_i8(dst, dst);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
-            if (saturation) {
+            if (is_saturation) {
                 h->vfcvt_x_f_v(dst, dst);
             } else {
                 h->vfcvt_rtz_x_f_v(dst, dst);
@@ -235,7 +245,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
         } else if (input_type == ov::element::i32) {
             narrow_i32_to_i8(src, dst);
         } else if (input_type == ov::element::u8) {
-            if (saturation) {
+            if (is_saturation) {
                 widen_i8_to_i32(src, dst, false);
                 narrow_i32_to_i8(dst, dst);
             } else {
@@ -251,7 +261,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
     if (output_type == ov::element::u8) {
         if (input_type == ov::element::f32) {
             set_type_for(ov::element::f32);
-            if (saturation) {
+            if (is_saturation) {
                 h->vfcvt_xu_f_v(dst, src);
             } else {
                 h->vfcvt_rtz_x_f_v(dst, src);
@@ -260,7 +270,7 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
             narrow_i32_to_u8(dst, dst);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
-            if (saturation) {
+            if (is_saturation) {
                 h->vfcvt_xu_f_v(dst, dst);
             } else {
                 h->vfcvt_rtz_x_f_v(dst, dst);
@@ -268,13 +278,13 @@ void emit_convert_process(ov::intel_cpu::riscv64::jit_generator_t* h,
             set_type_for(ov::element::i32);
             narrow_i32_to_u8(dst, dst);
         } else if (input_type == ov::element::i32) {
-            if (saturation) {
+            if (is_saturation) {
                 saturate_i32_to_u8(src, dst);
             } else {
                 narrow_i32_to_u8(src, dst);
             }
         } else if (input_type == ov::element::i8) {
-            if (saturation) {
+            if (is_saturation) {
                 widen_i8_to_i32(src, dst, true);
                 saturate_i32_to_u8(dst, dst);
             } else {

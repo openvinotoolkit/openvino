@@ -38,23 +38,6 @@ using jit_generator_t = ov::intel_cpu::riscv64::jit_generator_t;
 using cpu_isa_t = ov::intel_cpu::riscv64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-namespace {
-
-Xbyak_riscv::SEW byte_size_to_sew(size_t byte_size) {
-    switch (byte_size) {
-    case 1UL:
-        return Xbyak_riscv::SEW::e8;
-    case 2UL:
-        return Xbyak_riscv::SEW::e16;
-    case 4UL:
-        return Xbyak_riscv::SEW::e32;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported memory access byte size: ", byte_size);
-    }
-}
-
-}  // namespace
-
 jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ExpressionPtr& expr,
@@ -215,7 +198,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     const auto available_aux_gprs = get_available_aux_gprs();
     set_vector_length(h,
                       ov::intel_cpu::riscv64::utils::get_snippet_lanes(),
-                      byte_size_to_sew(byte_size),
+                      jit_conversion::byte_size_to_sew(byte_size),
                       available_aux_gprs);
 
     OV_CPU_JIT_EMITTER_ASSERT(!available_aux_gprs.empty(), "Broadcast load requires an auxiliary GPR");

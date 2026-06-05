@@ -160,7 +160,9 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                                               const std::vector<size_t>& out_vec_idxs) const {
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    jit_conversion::emit_convert_process(h, src, dst, input_type, output_type, true, aux_gpr_idxs);
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Convert saturation emitter expects one auxiliary GPR register");
+    const auto avl = Reg(aux_gpr_idxs.front());
+    jit_conversion::emit_convert_process(h, src, dst, input_type, output_type, arithmetic_mode::saturation, avl);
 }
 
 /// ConvertTruncation ///
@@ -199,7 +201,9 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                                               const std::vector<size_t>& out_vec_idxs) const {
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    jit_conversion::emit_convert_process(h, src, dst, input_type, output_type, false, aux_gpr_idxs);
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Convert truncation emitter expects one auxiliary GPR register");
+    const auto avl = Reg(aux_gpr_idxs.front());
+    jit_conversion::emit_convert_process(h, src, dst, input_type, output_type, arithmetic_mode::truncation, avl);
 }
 
 /// CEIL ///
