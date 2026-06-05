@@ -257,30 +257,10 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             auto it = compare_map.find(inputNode->get_type_info());
-            // ASSERT_NE(it, compare_map.end());
-            if (it == compare_map.end()) {
-                // std::stringstream errMsg;
-                // errMsg << "Couldn't find compare function for node with type " << inputNode->get_type_name();
-                // throw std::runtime_error(errMsg.str());
-                // Use standard compre:
-                ov::test::utils::compare(expected[j],
-                                         actual[j],
-                                         abs_threshold,
-                                         rel_threshold,
-                                         topk_threshold,
-                                         mvn_threshold);
-
-            } else {
-                it->second(inputNode,
-                           i,
-                           inference_precision,
-                           expected[j],
-                           actual[j],
-                           abs_threshold,
-                           rel_threshold,
-                           topk_threshold,
-                           mvn_threshold);
-            }
+            ASSERT_NE(it, compare_map.end());
+            it->second(inputNode, i, inference_precision,
+                       expected[j], actual[j],
+                       abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
         }
     }
 }
