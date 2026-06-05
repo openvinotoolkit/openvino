@@ -34,7 +34,7 @@ env:
 jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 60 || 120 }}
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
