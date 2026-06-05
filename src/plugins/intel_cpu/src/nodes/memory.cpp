@@ -23,6 +23,7 @@
 #include "edge.h"
 #include "graph.h"
 #include "graph_context.h"
+#include "kernels/scaled_attn/cache_spec.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"

@@ -13,6 +13,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "kernels/scaled_attn/cache_spec.hpp"
 #include "kernels/scaled_attn/codecs/codec_kernels.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "memory_state.h"
