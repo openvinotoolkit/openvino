@@ -117,11 +117,21 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
 
     // 3 versions of mulitply by -1 depending on transformations execution prior to this pass
     auto opt_squeeze = pattern::optional<opset1::Squeeze>({split->output(1), -1});
-    auto x1_1_neg = pattern::wrap_type<opset1::Multiply>({opt_squeeze, -1}, {{"auto_broadcast", "numpy"}});
+    // Flux.1 lowers the negation constant as a bare -1; Flux.2 (klein) wraps it in a Convert
+    // (ConvertLike), so allow an optional Convert around the -1.
+    auto neg_scale = pattern::optional<v0::Convert>({-1});
+    auto x1_1_neg = pattern::wrap_type<opset1::Multiply>({opt_squeeze, neg_scale}, {{"auto_broadcast", "numpy"}});
     auto opt_squeeze_1 = pattern::optional<opset1::Squeeze>({x1_1_neg, -1});
     auto opt_unsqueeze = pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, -1});
 
-    auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
+    // Flux.1 feeds split->output(0) directly into the concat. Flux.2 builds the rotated tensor with
+    // torch.stack([-x_imag, x_real], -1), which wraps the non-negated ("real") branch in
+    // Squeeze->Unsqueeze as well. Allow both via optional Squeeze/Unsqueeze so a single matcher
+    // covers Flux.1 and Flux.2 interleaved RoPE.
+    auto opt_squeeze_real = pattern::optional<opset1::Squeeze>({split->output(0), -1});
+    auto opt_unsqueeze_real = pattern::optional<opset1::Unsqueeze>({opt_squeeze_real, -1});
+
+    auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, opt_unsqueeze_real}, {{"axis", -1}});
     auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()},
                                                   pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
 
