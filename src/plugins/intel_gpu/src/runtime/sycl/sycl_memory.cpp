@@ -428,7 +428,10 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     try {
         auto sycl_dep_events = utils::get_sycl_events(dep_events);
-        auto ev = sycl_stream.get_sycl_queue().fill(_buffer.get(), static_cast<std::byte>(pattern), _bytes_count, sycl_dep_events);
+        auto ev = sycl_stream.get_sycl_queue().fill(static_cast<std::byte*>(_buffer.get()),
+                                                    static_cast<std::byte>(pattern),
+                                                    _bytes_count,
+                                                    sycl_dep_events);
 
         if (blocking) {
             ev.wait_and_throw();
