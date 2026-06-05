@@ -37,7 +37,11 @@ using namespace ov::op;
 ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
     MATCHER_SCOPE(QKVProjFusionPass1);
 
-    auto input = pattern::any_input(pattern::rank_equals(3));
+    // Accept rank-2 (vLLM-style flattened [B*S, H]) and rank-3 ([B, S, H]).
+    auto input = pattern::any_input([](const ov::Output<ov::Node>& o) {
+        auto r = o.get_partial_shape().rank();
+        return r.is_static() && (r.get_length() == 2 || r.get_length() == 3);
+    });
 
     auto q_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
@@ -191,7 +195,11 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
     MATCHER_SCOPE(QKVProjFusionPass2);
 
-    auto input = pattern::any_input(pattern::rank_equals(3));
+    // Accept rank-2 (vLLM-style flattened [B*S, H]) and rank-3 ([B, S, H]).
+    auto input = pattern::any_input([](const ov::Output<ov::Node>& o) {
+        auto r = o.get_partial_shape().rank();
+        return r.is_static() && (r.get_length() == 2 || r.get_length() == 3);
+    });
 
     auto qkv_proj_weight_const = pattern::wrap_const();
     auto qkv_proj_cvt =
@@ -233,6 +241,28 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         }
         auto split_lengths = node_split_lengths->get_vector<int32_t>();
         if (split_lengths.size() != 3) {
+            return false;
+        }
+        // Validate axis points to the last dim (literal -1 or positive last-dim index).
+        auto axis_const = ov::as_type_ptr<op::v0::Constant>(
+            pattern_map.at(qkv_split_axis).get_node_shared_ptr());
+        if (!axis_const) {
+            return false;
+        }
+        auto axis_vals = axis_const->cast_vector<int64_t>();
+        if (axis_vals.size() != 1) {
+            return false;
+        }
+        auto src_rank_pshape = pattern_map.at(input).get_partial_shape().rank();
+        if (!src_rank_pshape.is_static()) {
+            return false;
+        }
+        int64_t r = src_rank_pshape.get_length();
+        int64_t axis_val = axis_vals[0];
+        if (axis_val < 0) {
+            axis_val += r;
+        }
+        if (axis_val != r - 1) {
             return false;
         }
         // Allow GQA / unequal Q/K/V proj sizes; only enforce that no entry is non-positive.
