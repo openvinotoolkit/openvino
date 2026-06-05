@@ -319,20 +319,22 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 const auto input_source_idx = get_index_by_node(input.get_source_output().get_node());
                 const auto& src_cyc_dep = node_subgraph_cyclic_input_dependencies[input_source_idx];
                 const auto& src_sg_dep = node_subgraph_input_dependencies[input_source_idx];
-                const auto source_output = input.get_source_output();
-                const bool single_consumer_graph_input_leaf =
-                    source_output.get_target_inputs().size() == 1 && !is_graph_input_node(source_output.get_node()) &&
-                    !bit_any(src_cyc_dep) && bit_all_of(src_sg_dep, [&](size_t b) {
-                        const auto& traced_input = bit_to_input[b];
-                        if (is_graph_input_node(traced_input.get_node())) {
-                            return true;
-                        }
-                        const auto* traced_producer = traced_input.get_source_output().get_node();
-                        return is_graph_input_node(traced_producer);
-                    });
-                if (!single_consumer_graph_input_leaf && !bit_intersects(cyc_dep, src_cyc_dep) &&
-                    bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
+                if (!bit_intersects(cyc_dep, src_cyc_dep) && bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
+                    const auto source_output = input.get_source_output();
+                    const bool single_consumer_graph_input_leaf =
+                        source_output.get_target_inputs().size() == 1 &&
+                        !is_graph_input_node(source_output.get_node()) && !bit_any(src_cyc_dep) &&
+                        bit_all_of(src_sg_dep, [&](size_t b) {
+                            const auto& traced_input = bit_to_input[b];
+                            if (is_graph_input_node(traced_input.get_node())) {
+                                return true;
+                            }
+                            const auto* traced_producer = traced_input.get_source_output().get_node();
+                            return is_graph_input_node(traced_producer);
+                        });
+                    if (!single_consumer_graph_input_leaf) {
                     _subgraph_inputs.insert(input);
+                    }
                 }
             }
         };
