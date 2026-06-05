@@ -552,6 +552,14 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
             }
             return non_result_consumers;
         };
+        std::vector<size_t> non_result_consumer_counts(nodes_count, static_cast<size_t>(-1));
+        auto count_non_result_consumers_by_index = [&](size_t node_idx) {
+            auto& cached = non_result_consumer_counts[node_idx];
+            if (cached == static_cast<size_t>(-1)) {
+                cached = count_non_result_consumers(_ordered_ops[node_idx]);
+            }
+            return cached;
+        };
 
         bool have_target = false;
         size_t target_idx = 0;
@@ -561,7 +569,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
             if (is_graph_input_node(node.get()))
                 return false;
 
-            if (count_non_result_consumers(node) != 1)
+            if (count_non_result_consumers_by_index(node_idx) != 1)
                 return false;
 
             for (const auto& input : ordered_inputs[node_idx]) {
@@ -592,8 +600,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 if (sg_id_by_index[src_idx] != my_sg)
                     continue;
                 ++same_sg_inputs;
-                has_shared_same_sg_source =
-                    has_shared_same_sg_source || count_non_result_consumers(_ordered_ops[src_idx]) > 1;
+                has_shared_same_sg_source = has_shared_same_sg_source || count_non_result_consumers_by_index(src_idx) > 1;
                 has_trivial_leaf_input = has_trivial_leaf_input || is_graph_input_leaf_source(src_idx);
             }
             if (same_sg_inputs == 0)
@@ -603,7 +610,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 has_scc_boundary_input ? 0UL : 1UL,
                 has_shared_same_sg_source ? 0UL : 1UL,
                 has_trivial_leaf_input ? 1UL : 0UL,
-                (same_sg_inputs == 1 && count_non_result_consumers(_ordered_ops[i]) <= 1) ? 1UL : 0UL,
+                (same_sg_inputs == 1 && count_non_result_consumers_by_index(i) <= 1) ? 1UL : 0UL,
                 same_sg_inputs,
                 i};
             const bool better_target = !have_target || is_better_rank(candidate_rank, target_rank);
