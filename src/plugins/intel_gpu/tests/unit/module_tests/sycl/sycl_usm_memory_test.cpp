@@ -175,7 +175,9 @@ TEST(sycl_usm_memory, fill_buffer) {
 		OV_ASSERT_NO_THROW(mem->fill(*ctx.sycl_test_stream, fill_pattern, {}, true));
 
 		if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-			auto ptr = std::dynamic_pointer_cast<cldnn::sycl::gpu_usm>(mem)->buffer_ptr();
+			auto usm_mem = std::dynamic_pointer_cast<cldnn::sycl::gpu_usm>(mem);
+			ASSERT_NE(usm_mem, nullptr);
+			auto ptr = usm_mem->buffer_ptr();
 			for (size_t i = 0; i < values_count; i++) {
 				ASSERT_EQ(*(static_cast<unsigned char*>(ptr) + i), fill_pattern);
 			}
