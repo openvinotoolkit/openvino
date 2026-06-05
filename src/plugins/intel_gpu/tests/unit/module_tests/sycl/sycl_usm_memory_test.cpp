@@ -219,6 +219,51 @@ TEST(sycl_usm_memory, copy_between_different_alloc_types) {
     }
 }
 
+TEST(sycl_usm_memory, copy_from_sycl_buffer_to_usm_alloc_types) {
+    auto ctx = create_sycl_test_context();
+    auto alloc_types = get_supported_sycl_alloc_types(ctx.sycl_test_engine);
+    if (alloc_types.empty()) {
+        GTEST_SKIP() << "No supported SYCL USM allocation types";
+    }
+    if (!ctx.sycl_test_engine->supports_allocation(allocation_type::sycl_buffer)) {
+        GTEST_SKIP() << "sycl_buffer allocation is not supported on this device";
+    }
+
+    constexpr size_t src_offset = 19;
+    constexpr size_t dst_offset = 31;
+    constexpr size_t copy_size = 257;
+    const size_t src_size = src_offset + copy_size;
+    const size_t dst_size = dst_offset + copy_size;
+
+    const layout src_layout = {{static_cast<int64_t>(src_size)}, data_types::u8, format::bfyx};
+    const layout dst_layout = {{static_cast<int64_t>(dst_size)}, data_types::u8, format::bfyx};
+
+    auto src_mem = ctx.sycl_test_engine->allocate_memory(src_layout, allocation_type::sycl_buffer);
+    ASSERT_NE(src_mem, nullptr);
+
+    std::vector<uint8_t> src_data(src_size);
+    for (size_t i = 0; i < src_size; i++) {
+        src_data[i] = static_cast<uint8_t>((i * 37 + 11) % 251);
+    }
+    OV_ASSERT_NO_THROW(src_mem->copy_from(*ctx.sycl_test_stream, src_data.data(), 0, 0, src_size, true));
+
+    for (auto dst_alloc : alloc_types) {
+        SCOPED_TRACE(static_cast<int>(dst_alloc));
+
+        auto dst_mem = ctx.sycl_test_engine->allocate_memory(dst_layout, dst_alloc);
+        ASSERT_NE(dst_mem, nullptr);
+
+        OV_ASSERT_NO_THROW(dst_mem->copy_from(*ctx.sycl_test_stream, *src_mem, src_offset, dst_offset, copy_size, true));
+
+        std::vector<uint8_t> actual(copy_size, 0);
+        OV_ASSERT_NO_THROW(dst_mem->copy_to(*ctx.sycl_test_stream, actual.data(), dst_offset, 0, copy_size, true));
+
+        for (size_t i = 0; i < copy_size; i++) {
+            ASSERT_EQ(src_data[src_offset + i], actual[i]);
+        }
+    }
+}
+
 TEST(sycl_usm_memory, copy_small_to_large_buffer) {
     auto ctx = create_sycl_test_context();
     auto alloc_types = get_supported_sycl_alloc_types(ctx.sycl_test_engine);
