@@ -126,7 +126,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             const auto requested_mem_size = new_layout.bytes_count();
             const auto parent_mem_size = memory.size();
-            OPENVINO_ASSERT(byte_offset <= parent_mem_size && requested_mem_size <= parent_mem_size - byte_offset,
+            OPENVINO_ASSERT(byte_offset <= parent_mem_size && byte_offset + requested_mem_size <= parent_mem_size,
                             "[GPU] Sub-buffer size (", requested_mem_size,
                             ") + offset (", byte_offset,
                             ") exceeds parent buffer size (", parent_mem_size, ")");
