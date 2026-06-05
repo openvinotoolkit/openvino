@@ -359,11 +359,17 @@ def extract_input_info_from_example(args, inputs):
         if isinstance(example, tuple) and len(example) == 2:
             name = example[0]
             example = example[1]
-        shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
-        if getattr(args, 'dynamo', False):
-            # For dynamo mode, use concrete shapes from example; dynamic dims
-            # are only introduced when the user explicitly provides 'input'.
-            shape = PartialShape(list(example.shape)) if hasattr(example, "shape") else shape
+        # Pin concrete shapes from the example by default for all PyTorch paths
+        # (TorchScript trace and dynamo/FX). Dynamic dimensions are only introduced
+        # when the user explicitly provides 'input'. Keeping the IR static for the
+        # common single-shape deployment case matches the ONNX path and lets the GPU
+        # select shape-specialized kernels.
+        if hasattr(example, "shape"):
+            shape = PartialShape(list(example.shape))
+        elif hasattr(example, "ndim"):
+            shape = PartialShape([-1] * example.ndim)
+        else:
+            shape = PartialShape.dynamic()
         dtype = getattr(example, "dtype", type(example))
         dtype = pt_to_ov_type_map.get(str(dtype))
         if name:

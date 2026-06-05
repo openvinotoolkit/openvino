@@ -81,6 +81,10 @@ def convert_model(
             For PyTorch it can be torch.Tensor.
             For Tensorflow it can be tf.Tensor or numpy.ndarray.
             For PaddlePaddle it can be Paddle Variable.
+            For PyTorch, the converted model uses static shapes derived from
+            example_input by default. Dynamic dimensions are introduced only when
+            requested explicitly through the input parameter (e.g. a dimension set to
+            -1 / Dimension(-1), or a bounded Dimension(min, max)).
         :param extension:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
