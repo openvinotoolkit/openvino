@@ -306,7 +306,8 @@ safe-outputs:
 tools:
   github:
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
-  cache-memory: true
+  cache-memory: 
+    retention-days: 90
 
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
