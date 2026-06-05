@@ -14,8 +14,7 @@ namespace ov::Extensions::Cpu {
 static constexpr uint64_t TURBOQ_SEED = 0x517cc1b727220a95ULL;
 static constexpr uint64_t TURBOQ_WHT_SEED = TURBOQ_SEED ^ 0xfedcba9876543210ULL;
 
-// Per-thread, per-dimension sign cache. Each thread generates its own copy
-// on first access — no locking on hot path. Deterministic (fixed seed).
+// Per-thread, per-dimension sign cache.
 const float* turboq_get_wht_signs(int dim) {
     thread_local std::map<int, std::vector<float>> cache;
     auto [it, inserted] = cache.try_emplace(dim);

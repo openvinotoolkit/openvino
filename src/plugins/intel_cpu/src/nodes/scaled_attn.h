@@ -66,8 +66,6 @@ public:
         }
         return real_order;
     }
-    // Backing storage precision per side. TBQ side is always u8 (packed bytes);
-    // scalar side follows hint (u8/u4) or runtime precision.
     ov::element::Type getKeyCachePrecision();
     ov::element::Type getValueCachePrecision();
     // Legacy: returns key-side precision. Kept for graph_dumper serialization.
@@ -87,6 +85,9 @@ private:
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
     ov::element::Type getRuntimePrecision() const override;
     void resetBeamTablePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
+    // Derive per-thread scratch {base, stride} (f32 slots) from m_per_thread_head_scratch.
+    // Indexed as ws[tid] to get per-thread buffer start. {nullptr, 0} when non-codec.
+    ov::Extensions::Cpu::StridedData<float> get_per_thread_scratch() const;
 
     struct Config {
         ScaledDotProductAttentionWithKVCache::Config config;
@@ -128,14 +129,10 @@ private:
     ov::Extensions::Cpu::CacheSpec m_key_spec;
     ov::Extensions::Cpu::CacheSpec m_value_spec;
     MemoryPtr m_per_thread_head_scratch;
-    // Derive per-thread scratch {base, stride} (f32 slots) from m_per_thread_head_scratch.
-    // Indexed as ws[tid] to get per-thread buffer start. {nullptr, 0} when non-codec.
-    ov::Extensions::Cpu::StridedData<float> get_per_thread_scratch() const;
     // Per-token TBQ norm. Populated only when a side has alg=TURBO; empty otherwise.
     PlainTensor m_k_quant_meta_data;
     PlainTensor m_v_quant_meta_data;
-    // Random ±1 sign vector for WHT rotation. Sized to max(k_head_dim, v_head_dim);
-    // both sides read prefix [0:dim). Allocated once per primitive when either side is TURBO.
+    // Random ±1 sign vector for WHT rotation.
     PlainTensor m_wht_signs;
 };
 
