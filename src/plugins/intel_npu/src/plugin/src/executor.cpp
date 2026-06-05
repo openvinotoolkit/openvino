@@ -58,19 +58,35 @@ public:
     }
 
     ~AdaptiveThreadExecutor() override {
+        std::vector<std::thread> threadsToJoin;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             _stopped = true;
+            threadsToJoin.reserve(_workers.size());
+            for (auto& worker : _workers) {
+                if (worker.thread.joinable()) {
+                    threadsToJoin.emplace_back(std::move(worker.thread));
+                }
+            }
         }
         _condition.notify_all();
-        for (auto& worker : _workers) {
-            if (worker.thread.joinable()) {
-                worker.thread.join();
+        for (auto& thread : threadsToJoin) {
+            if (thread.get_id() == std::this_thread::get_id()) {
+                thread.detach();
+                continue;
             }
+            thread.join();
         }
     }
 
     void run(ov::threading::Task task) override {
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (_stopped) {
+                return;
+            }
+        }
+
         reap_finished_workers();
 
         if (_workersBaseline == 0 && !_allowWorkerGrowth) {
@@ -81,17 +97,25 @@ public:
             return;
         }
 
+        bool taskEnqueued = false;
         {
             std::lock_guard<std::mutex> lock(_mutex);
+            if (_stopped) {
+                return;
+            }
+
             _tasks.push(TaskEntry{std::move(task)});
+            taskEnqueued = true;
 
             if (_allowWorkerGrowth) {
-                while ((_tasks.size() + _busyWorkers) > _activeWorkers) {
+                while (!_stopped && (_tasks.size() + _busyWorkers) > _activeWorkers) {
                     start_worker_locked();
                 }
             }
         }
-        _condition.notify_one();
+        if (taskEnqueued) {
+            _condition.notify_one();
+        }
     }
 
 private:
