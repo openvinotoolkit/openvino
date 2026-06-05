@@ -216,7 +216,7 @@ struct GeOp : public EltwiseOpBase<GeOp> {
 };
 
 template <typename InPtrType, typename OutPtrType, typename OpFunc>
-inline void eltwise_kernel(::sycl::item<1> index, InPtrType in0, InPtrType in1, OutPtrType out, size_t in1_stride, OpFunc op) {
+inline void eltwise_kernel(size_t index, InPtrType in0, InPtrType in1, OutPtrType out, size_t in1_stride, OpFunc op) {
     auto val0 = in0[index];
     auto val1 = in1[index * in1_stride];
     out[index] = op(val0, val1);
@@ -244,7 +244,7 @@ template<typename DType, int Dim, typename Allocator, typename OpFunc>
             auto in0_ptr = in0_acc.template get_multi_ptr<::sycl::access::decorated::yes>();
             auto in1_ptr = in1_acc.template get_multi_ptr<::sycl::access::decorated::yes>();
             auto out_ptr = out_acc.template get_multi_ptr<::sycl::access::decorated::yes>();
-            eltwise_kernel(index, in0_ptr, in1_ptr, out_ptr, in1_stride, op);
+            eltwise_kernel(index[0], in0_ptr, in1_ptr, out_ptr, in1_stride, op);
         });
     });
 }
@@ -262,7 +262,7 @@ template<typename DType, typename OpFunc>
         cgh.depends_on(events);
 
         cgh.parallel_for(::sycl::range<1>(num_elements), [=](::sycl::item<1> index) {
-            eltwise_kernel(index, in0, in1, out, in1_stride, op);
+            eltwise_kernel(index[0], in0, in1, out, in1_stride, op);
         });
     });
 }
