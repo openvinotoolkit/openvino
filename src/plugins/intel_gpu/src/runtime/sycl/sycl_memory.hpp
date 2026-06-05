@@ -88,20 +88,20 @@ public:
 
     bool is_empty() const { return _usm_pointer.get() == nullptr; }
 
-    void allocateHost(size_t size, size_t alignment = 0) {
-        auto ptr = ::sycl::aligned_alloc_host(alignment, size, _context);
+    void allocateHost(size_t size) {
+        auto ptr = ::sycl::malloc_host(size, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate host USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
     }
 
-    void allocateShared(size_t size, size_t alignment = 0) {
-        auto ptr = ::sycl::aligned_alloc_shared(alignment, size, _device, _context);
+    void allocateShared(size_t size) {
+        auto ptr = ::sycl::malloc_shared(size, _device, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate shared USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
     }
 
-    void allocateDevice(size_t size, size_t alignment = 0) {
-        auto ptr = ::sycl::aligned_alloc_device(alignment, size, _device, _context);
+    void allocateDevice(size_t size) {
+        auto ptr = ::sycl::malloc_device(size, _device, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate device USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
     }
