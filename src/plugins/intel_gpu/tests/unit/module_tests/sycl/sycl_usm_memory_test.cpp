@@ -237,7 +237,20 @@ TEST(sycl_usm_memory, copy_small_to_large_buffer) {
     ASSERT_NE(small_mem, nullptr);
     ASSERT_NE(large_mem, nullptr);
 
+    const uint8_t fill_pattern = 0xAB;
+    OV_ASSERT_NO_THROW(small_mem->fill(*ctx.sycl_test_stream, fill_pattern, {}, true));
+    OV_ASSERT_NO_THROW(large_mem->fill(*ctx.sycl_test_stream, 0, {}, true));
+
     OV_ASSERT_NO_THROW(small_mem->copy_to(*ctx.sycl_test_stream, *large_mem, true));
+
+    std::vector<uint8_t> host_buffer(large_size, 0xFF);
+    OV_ASSERT_NO_THROW(large_mem->copy_to(*ctx.sycl_test_stream, host_buffer.data(), true));
+    for (size_t i = 0; i < small_size; i++) {
+        ASSERT_EQ(host_buffer[i], fill_pattern);
+    }
+    for (size_t i = small_size; i < large_size; i++) {
+        ASSERT_EQ(host_buffer[i], 0);
+    }
 }
 
 TEST(sycl_usm_memory, lock_zero_size_usm_device) {
