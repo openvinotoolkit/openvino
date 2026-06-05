@@ -344,13 +344,16 @@ gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory&
     , memory(engine, new_layout, type, mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
+    OPENVINO_ASSERT(new_layout.bytes_count() <= buffer.size(), "USM buffer size (", buffer.size(),
+                    ") is smaller than the new layout size (", new_layout.bytes_count(), ")");
 }
 
 gpu_usm::gpu_usm(sycl_engine* engine, const layout& new_layout, const UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
-    , _buffer(buffer)
-    , _host_buffer(engine->get_sycl_context(), engine->get_sycl_device()) {
+    : gpu_usm(engine,
+              new_layout,
+              buffer,
+              detect_allocation_type(engine, buffer),
+              mem_tracker) {
 }
 
 gpu_usm::gpu_usm(sycl_engine* engine, const layout& layout, allocation_type type)
