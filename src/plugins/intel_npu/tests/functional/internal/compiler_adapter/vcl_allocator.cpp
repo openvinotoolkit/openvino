@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vcl_allocator_test.hpp"
+#include "vcl_allocator.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 

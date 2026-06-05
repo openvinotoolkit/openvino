@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -33,6 +36,16 @@ public:
     uint32_t get_version() const override;
 
     bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const override;
+
+    /**
+     * @brief Generates a compatibility descriptor string for a compiled graph.
+     * @details Wraps zeDeviceGetRuntimeRequirements. The returned string is stored alongside
+     * the compiled blob at export time and later passed to validate_compatibility_descriptor
+     * on cache load to decide whether the cached blob can still run on the current driver.
+     * @return The descriptor string, or std::nullopt if the driver does not support the API
+     *         or the call fails.
+     */
+    std::optional<std::string> get_runtime_requirements(const GraphDescriptor& graphDescriptor) const;
 
 private:
     bool isCompilerOptionSupported(const FilteredConfig& config,
