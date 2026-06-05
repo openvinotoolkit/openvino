@@ -153,7 +153,7 @@ TEST(OptPatterns, WrongElemType_NotU8_NoMatch) {
 }
 
 // ─────────────────────────────────────────────
-// Test 5: Pre-transposed layout without Multiply→MatMul Convert (onnx-exported model pattern)
+// Test 5: Pre-transposed layout without Convert before MatMul (onnx-exported model pattern)
 // ─────────────────────────────────────────────
 TEST(OptPatterns, PreTransposedLayout_NoConvert_MatchesAndPreservesConsts) {
     const ov::Shape weight_shape{3072, 32064};
