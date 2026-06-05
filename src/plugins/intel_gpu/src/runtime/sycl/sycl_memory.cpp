@@ -497,7 +497,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
         src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
 
         GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
-        return copy_from(stream, tmp_buf.data(), 0, 0, size, blocking);
+        return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, blocking);
     }
 }
 
