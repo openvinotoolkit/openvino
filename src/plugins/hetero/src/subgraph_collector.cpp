@@ -112,9 +112,16 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     std::unordered_map<const ov::Node*, size_t> node_to_index;
     node_to_index.reserve(nodes_count);
     std::vector<InputVector> ordered_inputs(nodes_count);
+    std::vector<std::vector<size_t>> output_consumer_counts(nodes_count);
     for (size_t i = 0; i < nodes_count; ++i) {
         node_to_index.emplace(_ordered_ops[i].get(), i);
         ordered_inputs[i] = _ordered_ops[i]->inputs();
+        const auto outputs = _ordered_ops[i]->outputs();
+        auto& consumer_counts = output_consumer_counts[i];
+        consumer_counts.reserve(outputs.size());
+        for (const auto& output : outputs) {
+            consumer_counts.push_back(output.get_target_inputs().size());
+        }
     }
 
     auto get_index_by_node = [&node_to_index](const ov::Node* node) {
@@ -322,7 +329,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 if (!bit_intersects(cyc_dep, src_cyc_dep) && bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
                     const auto source_output = input.get_source_output();
                     const bool single_consumer_graph_input_leaf =
-                        source_output.get_target_inputs().size() == 1 &&
+                        output_consumer_counts[input_source_idx][source_output.get_index()] == 1 &&
                         !is_graph_input_node(source_output.get_node()) && !bit_any(src_cyc_dep) &&
                         bit_all_of(src_sg_dep, [&](size_t b) {
                             const auto& traced_input = bit_to_input[b];
