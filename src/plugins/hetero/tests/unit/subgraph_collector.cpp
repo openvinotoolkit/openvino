@@ -1872,8 +1872,8 @@ TEST(SubgraphCollectorBridgeBetweenCyclesTest, bridge_subgraph_not_split) {
     }
 
     SubgraphCollector collector(model, affinities);
-    const auto& [subgraphs, mapping] = collector.run();
-
+    const auto result = collector.run();
+    const auto& subgraphs = result.first;
     // Locate which subgraph each bridge node ended up in by scanning each subgraph's submodel.
     auto find_subgraph_containing = [&subgraphs](const std::string& node_name) -> std::optional<size_t> {
         for (size_t i = 0; i < subgraphs.size(); ++i) {
