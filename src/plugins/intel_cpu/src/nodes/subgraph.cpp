@@ -681,8 +681,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 Subgraph::ControlFlowPasses
 Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functions-to-static)
     ControlFlowPasses backend_passes;
-    using PassPosition = ov::snippets::pass::PassPosition;
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+    using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
