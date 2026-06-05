@@ -124,9 +124,16 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
+            const auto requested_mem_size = new_layout.bytes_count();
+            const auto parent_mem_size = memory.size();
+            OPENVINO_ASSERT(byte_offset <= parent_mem_size && requested_mem_size <= parent_mem_size - byte_offset,
+                            "[GPU] Sub-buffer size (", requested_mem_size,
+                            ") + offset (", byte_offset,
+                            ") exceeds parent buffer size (", parent_mem_size, ")");
+
             auto& new_buf = downcast<const sycl::gpu_usm>(memory);
             auto ptr = new_buf.get_buffer().get();
-            auto sub_buffer = sycl::UsmMemory(get_sycl_context(), get_sycl_device(), ptr, new_layout.bytes_count(), byte_offset);
+            auto sub_buffer = sycl::UsmMemory(get_sycl_context(), get_sycl_device(), ptr, requested_mem_size, byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
                                                    new_layout,
