@@ -46,6 +46,14 @@ std::optional<SectionID> ISection::get_section_id() const {
     return SectionID(m_section_type, m_section_type_instance.value());
 }
 
+std::vector<CRE::Token> ISection::get_compatibility_requirements_subexpression() const {
+    OPENVINO_ASSERT(m_section_type_instance.has_value(),
+                    "A CRE subexpression for section type ",
+                    m_section_type,
+                    " cannot be returned. The type instance ID is missing.");
+    return {m_section_type, m_section_type_instance.value()};
+}
+
 SectionID::SectionID(SectionType section_type, SectionTypeInstance section_type_instance) {
     type = section_type;
     type_instance = section_type_instance;
@@ -93,8 +101,7 @@ std::ostream& operator<<(std::ostream& os, const SectionID& id) {
         break;
     }
 
-    os << id.type_instance;
-    return os;
+    return os << id.type_instance;
 }
 
 // TODO test these
@@ -149,6 +156,8 @@ std::istream& operator>>(std::istream& is, SectionID& id) {
     } catch (const std::exception&) {
         OPENVINO_THROW("Failed to convert the section type instance ", type_instance_string, " to integer");
     }
+
+    return is;
 }
 
 }  // namespace intel_npu

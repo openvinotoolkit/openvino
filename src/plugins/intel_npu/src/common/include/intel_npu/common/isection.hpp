@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cre.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -86,6 +87,8 @@ public:
     virtual void write(BlobWriterInterface& writer) = 0;
 
     SectionType get_section_type() const;
+
+    virtual std::vector<CRE::Token> get_compatibility_requirements_subexpression() const;
 
     /**
      * @brief Get the type instance ID

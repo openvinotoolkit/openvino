@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cre.hpp"
 #include "intel_npu/common/icapability.hpp"
 #include "intel_npu/common/offsets_table.hpp"
 #include "intel_npu/utils/logger/logger.hpp"

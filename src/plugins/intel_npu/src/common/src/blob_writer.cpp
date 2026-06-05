@@ -7,6 +7,7 @@
 #include <iterator>
 
 #include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/cre_section.hpp"
 #include "intel_npu/common/itt.hpp"
 
 namespace {

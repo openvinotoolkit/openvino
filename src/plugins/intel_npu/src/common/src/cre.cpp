@@ -6,10 +6,7 @@
 
 #include <functional>
 
-#include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/icapability.hpp"
-#include "intel_npu/common/itt.hpp"
 
 #define CRE_EVAL_ASSERT(...) \
     OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
@@ -272,46 +269,6 @@ bool CRE::check_compatibility(
     CRE_EVAL_ASSERT(expression_iterator == expression.end(),
                     "CRE evaluation ended before parsing the whole expression");
     return result;
-}
-
-CRESection::CRESection(const CRE& cre, const ov::log::Level log_level)
-    : ISection(PredefinedSectionType::CRE),
-      m_cre(cre),
-      m_logger("CRESection", log_level) {}
-
-void CRESection::write(BlobWriterInterface& writer) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
-
-    writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CRE::Token));
-
-    m_logger.debug("%lu tokens written", m_cre.get_expression_length());
-}
-
-CRE CRESection::get_cre() const {
-    return m_cre;
-}
-
-std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::read");
-    Logger logger("CRESection", blob_reader.get_log_level());
-
-    const size_t section_length = blob_reader.get_section_length();
-    OPENVINO_ASSERT(section_length % sizeof(CRE::Token) == 0,
-                    "Received a CRE section length that is not divisible by the CRE token size. Section length: ",
-                    section_length,
-                    ". CRE token size: ",
-                    sizeof(CRE::Token));
-    size_t number_of_tokens = section_length / sizeof(CRE::Token);
-    OPENVINO_ASSERT(number_of_tokens != 0,
-                    "Read \"0\" as the number of CRE tokens. This value is invalid since at least one token (the CRE "
-                    "capability) is expected");
-
-    logger.debug("Reading %lu tokens", number_of_tokens);
-
-    std::vector<CRE::Token> tokens(number_of_tokens);
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));
-
-    return std::make_shared<CRESection>(CRE(tokens, logger.level()), logger.level());
 }
 
 }  // namespace intel_npu

@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include "intel_npu/common/isection.hpp"
+#include <unordered_set>
+
+#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
@@ -27,7 +29,7 @@ class CRE final {
 public:
     using Token = uint16_t;
 
-    enum ReservedToken : Token { AND = 50000, OR = 50001, OPEN = 50002, CLOSE = 50003, NOT = 50004 };
+    enum ReservedToken : Token { AND = 65400, OR = 65401, OPEN = 65402, CLOSE = 65403, NOT = 65404 };
 
     static inline const std::unordered_set<Token> RESERVED_TOKENS{ReservedToken::AND,
                                                                   ReservedToken::OR,
@@ -120,22 +122,6 @@ private:
                   const bool skip_all_evaluations = false) const;
 
     std::vector<std::vector<Token>> m_subexpressions;
-
-    Logger m_logger;
-};
-
-class CRESection final : public ISection {
-public:
-    CRESection(const CRE& cre, const ov::log::Level log_level = ov::log::Level::WARNING);
-
-    void write(BlobWriterInterface& writer) override;
-
-    CRE get_cre() const;
-
-    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
-
-private:
-    CRE m_cre;
 
     Logger m_logger;
 };
