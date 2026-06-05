@@ -134,6 +134,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |QLinearConv                                             |10                      |10                              |                                |
 |                        |QLinearMatMul                                           |10                      |21, 10                          |                                |
 |                        |QuantizeLinear                                          |21, 13, 10              |21, 19, 13, 10                  |                                |
+|                        |RMSNormalization                                        |23                      |23                              |                                |
 |                        |RNN                                                     |1                       |22, 14, 7, 1                    |                                |
 |                        |RandomNormal                                            |1                       |22, 1                           |                                |
 |                        |RandomNormalLike                                        |1                       |22, 1                           |                                |
@@ -157,6 +158,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Resize                                                  |11, 10                  |19, 18, 13, 11, 10              |                                |
 |                        |ReverseSequence                                         |10                      |10                              |                                |
 |                        |RoiAlign                                                |16, 10                  |22, 16, 10                      |                                |
+|                        |RotaryEmbedding                                         |23                      |23                              |                                |
 |                        |Round                                                   |11                      |22, 11                          |                                |
 |                        |STFT                                                    |17                      |17                              |                                |
 |                        |Scan                                                    |9, 8                    |21, 19, 16, 11, 9, 8            |                                |
@@ -215,7 +217,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |BiasGelu                                                |1                       |1                               |                                |
 |com.microsoft           |BiasSoftmax                                             |                        |1                               |                                |
 |com.microsoft           |BiasSplitGelu                                           |                        |1                               |                                |
-|com.microsoft           |BifurcationDetector                                     |                        |1                               |                                |
+|com.microsoft           |BifurcationDetector                                     |1                       |1                               |                                |
 |com.microsoft           |BitmaskBiasDropout                                      |                        |1                               |                                |
 |com.microsoft           |BitmaskDropout                                          |                        |1                               |                                |
 |com.microsoft           |CDist                                                   |                        |1                               |                                |
