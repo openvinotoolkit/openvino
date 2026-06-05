@@ -167,7 +167,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                 return true;
         return false;
     };
-    auto bit_all_of = [&](const Bits& a, const std::function<bool(size_t)>& pred) {
+    auto bit_all_of = [&](const Bits& a, const auto& pred) {
         for (size_t i = 0; i < a.size(); ++i) {
             uint64_t bits = a[i];
             while (bits) {
