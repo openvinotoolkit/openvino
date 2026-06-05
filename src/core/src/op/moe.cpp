@@ -52,10 +52,14 @@ void MOE::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(3).is_static(), "Weights must have static shape.");
     const auto& num_experts = get_input_shape(3)[0];
     for (size_t i = 4; i < base_inputs_count; i++) {
-        NODE_VALIDATION_CHECK(this, get_input_partial_shape(i).is_static(), "Weights must have static shape.");
-        NODE_VALIDATION_CHECK(this,
-                              num_experts == get_input_shape(i)[0],
-                              "All weight inputs must have the same first dimension (num_experts).");
+        const auto& ps = get_input_partial_shape(i);
+        NODE_VALIDATION_CHECK(this, ps.is_static(), "Weights must have static shape.");
+        // Note: dynamic element type means empty zero point input
+        if (get_input_element_type(i) != ov::element::dynamic) {
+            NODE_VALIDATION_CHECK(this,
+                                  num_experts == get_input_shape(i)[0],
+                                  "All weight inputs must have the same first dimension (num_experts).");
+        }
     }
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }

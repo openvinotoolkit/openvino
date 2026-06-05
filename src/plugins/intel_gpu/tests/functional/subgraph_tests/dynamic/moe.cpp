@@ -258,7 +258,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::empty),
                                             ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128),
                                             ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
