@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_1x1.h"
 #include "kernel_selector_utils.h"
 #include <string>
