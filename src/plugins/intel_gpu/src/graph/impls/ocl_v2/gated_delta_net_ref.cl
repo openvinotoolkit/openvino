@@ -83,23 +83,8 @@ inline void FUNC(
         float8 lane_q = FUNC(load_q8_as_float8)(q + q_offset + idx);
         b_k[c] = lane_k;
         b_q[c] = lane_q;
-        k_sum = fma(lane_k.s0, lane_k.s0, k_sum);
-        k_sum = fma(lane_k.s1, lane_k.s1, k_sum);
-        k_sum = fma(lane_k.s2, lane_k.s2, k_sum);
-        k_sum = fma(lane_k.s3, lane_k.s3, k_sum);
-        k_sum = fma(lane_k.s4, lane_k.s4, k_sum);
-        k_sum = fma(lane_k.s5, lane_k.s5, k_sum);
-        k_sum = fma(lane_k.s6, lane_k.s6, k_sum);
-        k_sum = fma(lane_k.s7, lane_k.s7, k_sum);
-
-        q_sum = fma(lane_q.s0, lane_q.s0, q_sum);
-        q_sum = fma(lane_q.s1, lane_q.s1, q_sum);
-        q_sum = fma(lane_q.s2, lane_q.s2, q_sum);
-        q_sum = fma(lane_q.s3, lane_q.s3, q_sum);
-        q_sum = fma(lane_q.s4, lane_q.s4, q_sum);
-        q_sum = fma(lane_q.s5, lane_q.s5, q_sum);
-        q_sum = fma(lane_q.s6, lane_q.s6, q_sum);
-        q_sum = fma(lane_q.s7, lane_q.s7, q_sum);
+        k_sum += FUNC(dot8_fma)(lane_k, lane_k);
+        q_sum += FUNC(dot8_fma)(lane_q, lane_q);
     }
     float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, K_L2_NORM_EPS);
     float q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, Q_L2_NORM_EPS);
