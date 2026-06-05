@@ -35,22 +35,6 @@ namespace cldnn {
 namespace ze {
 
 namespace {
-thread_local std::string last_enqueued_kernel_id;
-
-bool sync_after_each_kernel_enabled() {
-    static const bool enabled = [] {
-        const char* value = std::getenv("OV_GPU_ZE_SYNC_EACH_KERNEL");
-        return value != nullptr && std::string(value) != "0";
-    }();
-    return enabled;
-}
-
-std::string ze_result_to_hex(ze_result_t status) {
-    std::ostringstream oss;
-    oss << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(status);
-    return oss.str();
-}
-
 inline ze_group_count_t to_group_count(const std::vector<size_t>& v) {
      switch (v.size()) {
         case 1:
@@ -275,7 +259,6 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      const kernel_arguments_data& /* args */,
                                      std::vector<event::ptr> const& deps,
                                      bool is_output) {
-    last_enqueued_kernel_id = kernel.get_id();
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
     auto kern = ze_kernel.get_kernel_handle();
@@ -306,16 +289,6 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                              set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
                                              dep_events_ptr == nullptr ? 0 : static_cast<uint32_t>(dep_events_ptr->size()),
                                              dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
-
-    if (sync_after_each_kernel_enabled()) {
-    const auto status = ze::zeCommandListHostSynchronize(m_command_list, endless_wait);
-    if (status != ZE_RESULT_SUCCESS) {
-        OPENVINO_THROW("[GPU] Kernel failed during OV_GPU_ZE_SYNC_EACH_KERNEL mode: ",
-                        kernel.get_id(),
-                        ", zeCommandListHostSynchronize status=",
-                        ze_result_to_hex(status));
-    }
-    }
 
     return ev;
 }
