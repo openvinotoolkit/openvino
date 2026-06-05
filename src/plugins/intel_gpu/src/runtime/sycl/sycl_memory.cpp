@@ -205,8 +205,9 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
         case allocation_type::usm_host:
         case allocation_type::usm_shared:
         case allocation_type::usm_device: {
-            // If other is gpu_usm, down cast to gpu_buffer is not possible.
-            // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
+            // SYCL spec describes cgh.copy(ptr, accessor) source as host pointer,
+            // while some implementations may also accept USM device pointers.
+            // On Arc A700, using USM device pointers caused no issues in DPC++ with both the L0 and OCL backends.
             auto usm_mem = downcast<const gpu_usm>(&src_mem);
             return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
         } break;
