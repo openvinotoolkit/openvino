@@ -115,24 +115,22 @@ NormalizeVLLMQKV::NormalizeVLLMQKV() {
             mm_input, mm->input_value(1),
             mm->get_transpose_a(), mm->get_transpose_b());
 
-        // Rebuild post-MatMul Convert if present.
-        ov::Output<ov::Node> vs_input = mm_new->output(0);
-        if (post_cvt) {
-            auto cvt_new = std::make_shared<ov::op::v0::Convert>(vs_input, post_cvt->get_destination_type());
-            vs_input = cvt_new->output(0);
-        }
-
-        // 2 + 3. Replace axis with i32 canonical, cast lens to i32.
+        // 2 + 3. Replace axis with i32 canonical, cast lens to i32. The Split
+        // operates on the MatMul output directly (no Convert before the split)
+        // so the existing CPU QKVProjFusion pattern matches without needing an
+        // optional Convert hunk. The bf16 narrowing Convert is sunk to each leg.
         auto axis_new = ov::op::v0::Constant::create(
             ov::element::i32, ov::Shape{}, {static_cast<int32_t>(axis_canonical)});
         auto lens_new = ov::op::v0::Constant::create(
             ov::element::i32, ov::Shape{3},
             {static_cast<int32_t>(lv[0]), static_cast<int32_t>(lv[1]), static_cast<int32_t>(lv[2])});
-        auto vs_new = std::make_shared<ov::op::v1::VariadicSplit>(vs_input, axis_new, lens_new);
+        auto vs_new = std::make_shared<ov::op::v1::VariadicSplit>(mm_new->output(0), axis_new, lens_new);
 
         // Each VariadicSplit output is (post-wrap) rank-3 [1, B*S, len_i];
         // consumers expect rank-2 [B*S, len_i] when the original input was
-        // rank-2. Reflatten with Reshape -> [-1, len_i].
+        // rank-2. Reflatten with Reshape -> [-1, len_i] and apply the sunk
+        // Convert (bf16 narrowing) AFTER the reshape so the leg type matches
+        // what the original post-VariadicSplit Convert produced.
         for (size_t i = 0; i < 3; ++i) {
             ov::Output<ov::Node> out_i = vs_new->output(i);
             if (act_rank2) {
@@ -141,6 +139,10 @@ NormalizeVLLMQKV::NormalizeVLLMQKV() {
                     {static_cast<int32_t>(-1), static_cast<int32_t>(lv[i])});
                 auto r2 = std::make_shared<ov::op::v1::Reshape>(out_i, flat_const, false);
                 out_i = r2->output(0);
+            }
+            if (post_cvt) {
+                auto cvt_leaf = std::make_shared<ov::op::v0::Convert>(out_i, post_cvt->get_destination_type());
+                out_i = cvt_leaf->output(0);
             }
             vs->output(i).replace(out_i);
         }

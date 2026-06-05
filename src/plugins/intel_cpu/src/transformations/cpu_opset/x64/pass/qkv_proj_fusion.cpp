@@ -24,7 +24,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
@@ -209,15 +208,9 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
 
     auto qkv_proj = pattern::wrap_type<op::v0::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
                                                        {{"transpose_a", false}, {"transpose_b", true}});
-    // When the residual stream is a narrow float (bf16/f16), a Convert sits
-    // between qkv_proj's f32 output and the VariadicSplit. Match that case
-    // with an optional Convert.
-    auto qkv_proj_cvt_out = pattern::wrap_type<op::v0::Convert>({qkv_proj});
-    auto qkv_proj_or_cvt = std::make_shared<ov::pass::pattern::op::Or>(
-        ov::OutputVector{qkv_proj, qkv_proj_cvt_out});
     auto qkv_split_lengths =
         pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i32) && pattern::shape_matches("[3]"));
-    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj_or_cvt, 2, qkv_split_lengths});
+    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
     auto result = qkv_split->output(0);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
