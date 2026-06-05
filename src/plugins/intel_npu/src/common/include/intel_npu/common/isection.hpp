@@ -88,8 +88,6 @@ public:
 
     SectionType get_section_type() const;
 
-    virtual std::vector<CRE::Token> get_compatibility_requirements_subexpression() const;
-
     /**
      * @brief Get the type instance ID
      *
@@ -106,11 +104,42 @@ public:
      */
     std::optional<SectionID> get_section_id() const;
 
+    /**
+     * @brief Get the compatibility requirements subexpression corresponding to the current section.
+     * @details The base implementation returns the section ID (type ID + type instance ID) as the required
+     * subexpression. This implementation can be overriden to take into consideration other registered sections as well.
+     *
+     * For example, if we wish to register something like "ELF_INIT_SCHEDULE_1 OR ELF_INIT_SCHEDULE_2", then we may
+     * override this function to have the section of the first schedule write the OR relationship. The other section
+     * could then write nothing.
+     * @note The subexpression returned by this function is meant to be stitched to the main CRE using a logical "AND".
+     * @param all_registered_sections A map offering access to all sections registered for the current writing section.
+     * @return The subexpression describing the requirements of the current section.
+     */
+    virtual std::vector<CRE::Token> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+            all_registered_sections) const;
+
+    bool check_compatibility_based_on_section_content(BlobReaderInterface& reader);
+
 private:
     // Access required to set the section type instance ID
     friend class BlobWriter;
     friend class BlobWriterInterface;
     friend class BlobReader;
+
+    /**
+     * @brief Evaluate whether or not the current section instance is compatible with the current environment based on
+     * the content of the section.
+     * @details The first step in determining the compatibility of a section is by evaluating the compatibility of its
+     * type (see TODO). The second step is this function, which evaluates the compatibility of the current instance.
+     *
+     * The section writers are able to handle additional compatibility requirements by using the content of their own
+     * section. This function is meant to evaluate the said content if the case is applicable.
+     * @param reader The blob content of the section, as well as the capabilities of the plugin are available through
+     * this object.
+     */
+    virtual bool evaluate_compatibility_based_on_section_content(BlobReaderInterface& reader);
 
     /**
      * @note Only BlobWriters & BlobReaders should be allowed to manipulate the type instance ID. This is because the
@@ -124,6 +153,12 @@ private:
      * @note This value exists only if the current section has been added to a BlobWriter writing queue.
      */
     mutable std::optional<SectionTypeInstance> m_section_type_instance;
+
+    /**
+     * @brief Stores the result obtained after evaluating if the current section is supported based on its section
+     * content. This result can then be returned in future calls, thus avoiding the need to reevaluate.
+     */
+    mutable std::optional<bool> m_type_instance_supported;
 };
 
 }  // namespace intel_npu
