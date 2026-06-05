@@ -113,6 +113,44 @@ TEST_F(TransformationTestsF, ReduceFCDimensions4) {
     }
 }
 
+// Dynamic result dim, transformation should not trigger
+TEST_F(TransformationTestsF, ReduceFCDimensions5) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 16});
+        auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{-1, 16});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_param, ov::element::f32);
+        auto scale_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1});
+        auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_param);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1, weights_param, scale_param});
+        manager.register_pass<ReduceFCDimensions>();
+    }
+    {
+        model_ref = model->clone();
+    }
+}
+
+// Dynamic inner dim, transformation should not trigger
+TEST_F(TransformationTestsF, ReduceFCDimensions6) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 10, -1});
+        auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{32, -1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_param, ov::element::f32);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
+        auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1, weights_param});
+        manager.register_pass<ReduceFCDimensions>();
+    }
+    {
+        model_ref = model->clone();
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
