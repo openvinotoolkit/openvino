@@ -47,10 +47,11 @@ void MOE::validate_and_infer_types() {
                           " must be compatible with router_topk_output_indices shape ",
                           topk_indices_shape);
 
-    // Check that all weight inputs (index >= 3) have the same first dimension (num_experts)
+    // Check that all expert weight inputs (index >= 3) have the same first dimension (num_experts).
+    const size_t base_inputs_count = (m_config.expert_type == Expert_type::GEMM3_SWIGLU) ? 6 : 7;
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(3).is_static(), "Weights must have static shape.");
     const auto& num_experts = get_input_shape(3)[0];
-    for (size_t i = 4; i < get_input_size(); i++) {
+    for (size_t i = 4; i < base_inputs_count; i++) {
         NODE_VALIDATION_CHECK(this, get_input_partial_shape(i).is_static(), "Weights must have static shape.");
         NODE_VALIDATION_CHECK(this,
                               num_experts == get_input_shape(i)[0],
