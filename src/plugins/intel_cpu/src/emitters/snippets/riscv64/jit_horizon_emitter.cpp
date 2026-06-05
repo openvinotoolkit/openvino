@@ -11,7 +11,6 @@
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -19,6 +18,7 @@
 #include "snippets/op/horizon_sum.hpp"
 #include "utils.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -61,7 +61,7 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
         h->vfredmax_vs(mask_vreg(), src, src);
     } else {
         h->vmv_v_x(mask_vreg(), Xbyak_riscv::zero);
-        h->vfredusum_vs(mask_vreg(), src, mask_vreg());
+        h->vfredosum_vs(mask_vreg(), src, mask_vreg());
     }
 
     set_vector_length(h, lane_count, Xbyak_riscv::SEW::e32, aux_gpr_idxs);
