@@ -554,43 +554,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
 
-        const bool is_pa = [&func]() {
-            for (const auto& op : func->get_ops()) {
-                if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-                    return true;
-                }
-            }
-
-            return false;
-        }();
-
-        const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
-
-        // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
-        // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
-        // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
-        if (device_info.supports_immad && config.get_use_onednn()) {
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
-
-            // f32 listed because this pass runs before ConvertPrecision (line ~588);
-            // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
-            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
-                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
-                std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
-                                               ov::element::i8, ov::element::u8});
-
-            if (!disable_moe_opt) {
-                // PA models flatten batch into seq.
-                const bool has_batch_dim = !is_pa;
-                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
-                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
-                // MOE3GemmFusedCompressed kernel dispatches expert GEMMs through
-                // oneDNN, which requires an in-order OCL queue.  If oneDNN is
-                // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
-                // queue stays out-of-order and the oneDNN stream creation may assert.
-                manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
-            }
-        }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
@@ -1516,6 +1479,42 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
+
+        const bool is_pa = [&func]() {
+            for (const auto& op : func->get_ops()) {
+                if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }();
+
+        const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
+
+        // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
+        // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
+        // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
+        if (device_info.supports_immad && config.get_use_onednn()) {
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
+
+            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
+                std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
+                                               ov::element::i8, ov::element::u8});
+
+            if (!disable_moe_opt) {
+                // PA models flatten batch into seq.
+                const bool has_batch_dim = !is_pa;
+                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
+                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
+                // MOE3GemmFusedCompressed kernel dispatches expert GEMMs through
+                // oneDNN, which requires an in-order OCL queue.  If oneDNN is
+                // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
+                // queue stays out-of-order and the oneDNN stream creation may assert.
+                manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+            }
+        }
 
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
