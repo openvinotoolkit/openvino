@@ -43,6 +43,7 @@ public:
 protected:
     void SetUp() override;
     void TearDown() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void RunAndValidate();
 };
 
