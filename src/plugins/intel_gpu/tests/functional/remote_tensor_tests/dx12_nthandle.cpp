@@ -28,6 +28,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace {
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
@@ -252,28 +253,24 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
-    // Declare GPU device number
-    const std::string selected_gpu_id = "0";
-    const std::string selected_gpu_device = "GPU." + selected_gpu_id;
-
-    // Get OpenCL context for the selected GPU
-    auto candidate_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    auto candidate_ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
     auto params = candidate_ctx.get_params();
     auto it = params.find(ov::intel_gpu::ocl_context.name());
     if (it == params.end()) {
-        GTEST_SKIP() << "Failed to get OpenCL context for " << selected_gpu_device;
+        GTEST_FAIL() << "Failed to get OpenCL context for " << target_device;
     }
 
     // Extract LUID from OpenCL context
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
     std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
     if (!get_context_device_luid(cl_ctx, cl_luid)) {
-        GTEST_SKIP() << "Failed to get LUID for " << selected_gpu_device;
+        GTEST_FAIL() << "Failed to get LUID for " << target_device;
     }
     // Create DX12 context for the selected GPU's LUID
     Dx12TestContext dx12 = create_dx12_test_context(cl_luid);
     if (!dx12.device) {
-        GTEST_SKIP() << "Failed to create DX12 context for " << selected_gpu_device;
+        GTEST_FAIL() << "Failed to create DX12 context for " << target_device;
     }
 
     std::vector<float> input_init(element_count, 2.0f);
@@ -288,20 +285,19 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     dx12.adapter->GetDesc1(&dxgi_desc);
     std::array<unsigned char, CL_LUID_SIZE_KHR> dxgi_luid{};
     memcpy(dxgi_luid.data(), &dxgi_desc.AdapterLuid, sizeof(dxgi_desc.AdapterLuid));
-    auto ov_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
 
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;
 
-    remote_input_tensor = ov_ctx.create_tensor(ov::element::f32, shape,
+    remote_input_tensor = candidate_ctx.create_tensor(ov::element::f32, shape,
                                                 dx_input_shared.shared_handle,
                                                 ov::intel_gpu::MemType::SHARED_BUF);
-    remote_output_tensor = ov_ctx.create_tensor(ov::element::f32, shape,
+    remote_output_tensor = candidate_ctx.create_tensor(ov::element::f32, shape,
                                                 dx_output_shared.shared_handle,
                                                 ov::intel_gpu::MemType::SHARED_BUF);
 
     auto model = make_copy_model(shape);
-    auto compiled = core.compile_model(model, ov_ctx);
+    auto compiled = core.compile_model(model, candidate_ctx);
     auto infer_req = compiled.create_infer_request();
     infer_req.set_tensor(compiled.input(), remote_input_tensor);
     infer_req.set_tensor(compiled.output(), remote_output_tensor);
