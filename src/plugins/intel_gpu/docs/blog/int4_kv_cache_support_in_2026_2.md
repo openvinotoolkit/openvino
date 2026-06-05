@@ -2,7 +2,7 @@
 
 *By Mingyu Kim and Byungil Min | June 1, 2026*
 
-Running large language models at long context lengths is memory-intensive work. Even after compressing model weights to INT4, the **KV cache** keeps growing with every new token and every prompt you push through the model. OpenVINO 2026.2 introduces INT4 KV cache compression for the GPU plugin, cutting that overhead roughly in half compared to INT8 and by two-thirds compared to FP16. This post walks through what it is, how to enable it, and what you can expect in practice.
+Running large language models at long context lengths is memory-intensive work. The **KV cache** keeps growing with every prompt you push through the model and every new token generated. OpenVINO 2026.2 introduces INT4 KV cache compression for the GPU plugin, cutting that overhead compared to INT8(default config) or FP16(baseline). This post walks through what it is, how to enable it, and what you can expect in practice.
 
 ---
 
@@ -15,13 +15,13 @@ The KV cache size scales with:
 - **number of layers and attention heads**
 - **precision** of the stored tensors
 
-For a model like Llama-3-8B at 17k tokens and FP16 precision, the KV cache alone consumes over 2 GB of device memory. On a discrete GPU with limited VRAM or an integrated GPU sharing system DDR bandwidth, this is a hard constraint on what context lengths are practical.
+For a model like Llama-3-8B at 17k tokens and FP16 precision, the KV cache alone consumes over 2 GB of device memory. This is a hard constraint on what context lengths are practical.
 
 **Compressing the KV cache from FP16 to INT8** cuts that in half. **Going further to INT4** brings it down to roughly one-third of the FP16 baseline. OpenVINO has supported INT8 KV cache as the default option, and in 2026.2, INT4 is now available.
 
 ### Default Behavior
 
-OpenVINO GPU plugin applies **INT8 KV cache compression by default**. If you are already using OpenVINO for LLM inference on GPU, your KV cache is most likely already in INT8 unless you explicitly overrode the setting.
+OpenVINO GPU plugin applies **INT8 KV cache compression by default**. If you are already using OpenVINO for LLM inference on GPU, your KV cache is already in INT8 unless you explicitly overrode the setting.
 
 INT4 must be **manually enabled**.
 
