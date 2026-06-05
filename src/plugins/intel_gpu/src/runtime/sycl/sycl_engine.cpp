@@ -157,6 +157,12 @@ memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& 
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
+            const auto requested_mem_size = new_layout.bytes_count();
+            const auto source_mem_size = memory.size();
+            OPENVINO_ASSERT(requested_mem_size <= source_mem_size,
+                            "[GPU] Reinterpret buffer size (", requested_mem_size,
+                            ") exceeds source buffer size (", source_mem_size, ")");
+
             return std::make_shared<sycl::gpu_usm>(this,
                                                    new_layout,
                                                    downcast<const sycl::gpu_usm>(memory).get_buffer(),
