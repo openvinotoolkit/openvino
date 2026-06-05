@@ -70,20 +70,35 @@ public:
     UsmMemory(::sycl::context context, ::sycl::device device, void* usm_ptr, size_t size, size_t offset = 0)
     : _context(context)
     , _device(device)
-    , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, size, true)) {}
+    , _usm_pointer(std::make_shared<UsmHolder>(_context, usm_ptr, size, true))
+    , _offset(offset)
+    , _size(size) {}
+
+    UsmMemory(const UsmMemory& parent, size_t size, size_t offset = 0)
+    : _context(parent._context)
+    , _device(parent._device)
+    , _usm_pointer(parent._usm_pointer)
+    , _offset(parent._offset + offset)
+    , _size(size) {
+        OPENVINO_ASSERT(!parent.is_empty(), "[GPU] Can not create subview from empty USM memory");
+        OPENVINO_ASSERT(offset <= parent.size() && offset + size <= parent.size(),
+                        "[GPU] Subbuffer size (", size,
+                        ") + offset (", offset,
+                        ") exceeds parent buffer size (", parent.size(), ")");
+    }
 
     size_t size() const {
         if (is_empty()) {
             return 0;
         }
-        return _usm_pointer->size();
+        return _size;
     }
 
     void* get() const {
         if (is_empty()) {
             return nullptr;
         }
-        return _usm_pointer->ptr();
+        return reinterpret_cast<uint8_t*>(_usm_pointer->ptr()) + _offset;
     }
 
     bool is_empty() const { return _usm_pointer.get() == nullptr; }
@@ -92,22 +107,30 @@ public:
         auto ptr = ::sycl::malloc_host(size, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate host USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
+        _offset = 0;
+        _size = size;
     }
 
     void allocateShared(size_t size) {
         auto ptr = ::sycl::malloc_shared(size, _device, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate shared USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
+        _offset = 0;
+        _size = size;
     }
 
     void allocateDevice(size_t size) {
         auto ptr = ::sycl::malloc_device(size, _device, _context);
         OPENVINO_ASSERT(ptr != nullptr, "[GPU] Failed to allocate device USM memory");
         _usm_pointer = std::make_shared<UsmHolder>(_context, ptr, size);
+        _offset = 0;
+        _size = size;
     }
 
     void freeMem() {
         _usm_pointer.reset();
+        _offset = 0;
+        _size = 0;
     }
 
     virtual ~UsmMemory() = default;
@@ -116,6 +139,8 @@ protected:
     ::sycl::context _context;
     ::sycl::device _device;
     std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
+    size_t _offset = 0;
+    size_t _size = 0;
 };
 
 inline bool operator==(const UsmMemory &lhs, const UsmMemory &rhs) {

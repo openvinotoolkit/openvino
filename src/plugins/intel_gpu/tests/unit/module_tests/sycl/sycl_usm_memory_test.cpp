@@ -321,4 +321,51 @@ TEST(sycl_usm_memory, lock_zero_size_usm_device) {
     OV_ASSERT_NO_THROW(usm_mem->unlock(*ctx.sycl_test_stream));
 }
 
+TEST(sycl_usm_memory, subbuffer_keeps_allocation_alive_after_parent_release) {
+    auto ctx = create_sycl_test_context();
+    auto alloc_types = get_supported_sycl_alloc_types(ctx.sycl_test_engine);
+    if (alloc_types.empty()) {
+        GTEST_SKIP() << "No supported SYCL USM allocation types";
+    }
+
+    constexpr size_t parent_size = 512;
+    constexpr size_t sub_offset = 96;
+    constexpr size_t sub_size = 256;
+
+    const layout parent_layout = {{static_cast<int64_t>(parent_size)}, data_types::u8, format::bfyx};
+    const layout sub_layout = {{static_cast<int64_t>(sub_size)}, data_types::u8, format::bfyx};
+
+    std::vector<uint8_t> src(parent_size);
+    for (size_t i = 0; i < parent_size; i++) {
+        src[i] = static_cast<uint8_t>((i * 13 + 7) % 251);
+    }
+
+    for (auto alloc_type : alloc_types) {
+        SCOPED_TRACE(static_cast<int>(alloc_type));
+
+        auto parent_mem = ctx.sycl_test_engine->allocate_memory(parent_layout, alloc_type);
+        ASSERT_NE(parent_mem, nullptr);
+        OV_ASSERT_NO_THROW(parent_mem->copy_from(*ctx.sycl_test_stream, src.data(), true));
+
+        auto sub_mem = ctx.sycl_test_engine->create_subbuffer(*parent_mem, sub_layout, sub_offset);
+        ASSERT_NE(sub_mem, nullptr);
+
+        parent_mem.reset();
+
+        // Stress allocator reuse paths after parent release to make lifetime issues visible.
+        for (size_t i = 0; i < 4; i++) {
+            auto tmp = ctx.sycl_test_engine->allocate_memory(parent_layout, alloc_type);
+            ASSERT_NE(tmp, nullptr);
+            OV_ASSERT_NO_THROW(tmp->fill(*ctx.sycl_test_stream, static_cast<unsigned char>(i + 1), {}, true));
+        }
+
+        std::vector<uint8_t> actual(sub_size, 0);
+        OV_ASSERT_NO_THROW(sub_mem->copy_to(*ctx.sycl_test_stream, actual.data(), true));
+
+        for (size_t i = 0; i < sub_size; i++) {
+            ASSERT_EQ(src[sub_offset + i], actual[i]);
+        }
+    }
+}
+
 #endif  // OV_GPU_WITH_SYCL_RT

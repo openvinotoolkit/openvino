@@ -132,8 +132,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
                             ") exceeds parent buffer size (", parent_mem_size, ")");
 
             auto& new_buf = downcast<const sycl::gpu_usm>(memory);
-            auto ptr = new_buf.get_buffer().get();
-            auto sub_buffer = sycl::UsmMemory(get_sycl_context(), get_sycl_device(), ptr, requested_mem_size, byte_offset);
+            auto sub_buffer = sycl::UsmMemory(new_buf.get_buffer(), requested_mem_size, byte_offset);
 
             return std::make_shared<sycl::gpu_usm>(this,
                                                    new_layout,
