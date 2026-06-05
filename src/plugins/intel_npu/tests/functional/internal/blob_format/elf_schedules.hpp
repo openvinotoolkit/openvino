@@ -16,7 +16,7 @@
 #include "compiler_schedules_sections.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/static_capability.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -79,9 +79,9 @@ public:
         reader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         reader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
 
-        std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-        for (auto token : CRE::DEFAULT_PLUGIN_CAPABILITIES_TOKENS) {
-            caps[token] = std::make_shared<StaticCapability>(token);
+        std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+        for (auto token : CRE::DEFAULT_SUPPORTED_SECTION_TYPES) {
+            caps[token] = std::make_shared<SupportedSectionTypeEvaluator>(token);
         }
         reader->read(blob, caps);
     }

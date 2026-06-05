@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "cre.hpp"
-#include "intel_npu/common/icapability.hpp"
+#include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/offsets_table.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
@@ -22,12 +22,13 @@ public:
     /**
      * @brief Constructs a BlobReader, associating it with the given compiled model source.
      */
-    BlobReaderInterface(const ov::Tensor& source,
-                        const size_t section_start,
-                        const size_t section_length,
-                        const size_t npu_region_size,
-                        const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
-                        const ov::log::Level log_level = ov::log::Level::WARNING);
+    BlobReaderInterface(
+        const ov::Tensor& source,
+        const size_t section_start,
+        const size_t section_length,
+        const size_t npu_region_size,
+        const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+        const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
@@ -57,7 +58,7 @@ public:
 
     size_t get_section_length() const;
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> get_plugin_capabilities() const;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> get_section_type_evaluators() const;
 
     ov::log::Level get_log_level() const;
 
@@ -72,7 +73,7 @@ private:
     size_t m_section_start;
     size_t m_section_end;
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> m_plugin_capabilities;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
 
     Logger m_logger;
 };
@@ -102,11 +103,11 @@ public:
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
      *
-     * @param plugin_capabilities Indicates all capabilities of the NPU plugin. This mapping is used to evaluate the
+     * @param section_type_evaluators Indicates all capabilities of the NPU plugin. This mapping is used to evaluate the
      * CRE.
      */
     void read(const ov::Tensor& source,
-              const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
+              const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators);
 
     /**
      * @brief Register a new section reader for the given section type.

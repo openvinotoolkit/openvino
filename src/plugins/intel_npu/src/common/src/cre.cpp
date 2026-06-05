@@ -6,7 +6,7 @@
 
 #include <functional>
 
-#include "intel_npu/common/icapability.hpp"
+#include "intel_npu/common/isection_type_evaluator.hpp"
 
 #define CRE_EVAL_ASSERT(...) \
     OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
@@ -165,11 +165,12 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
     }
 }
 
-bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
-                   const std::vector<Token>::const_iterator& expression_end,
-                   const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
-                   const Delimiter end_delimiter,
-                   const bool skip_all_evaluations) const {
+bool CRE::evaluate(
+    std::vector<Token>::const_iterator& expression_iterator,
+    const std::vector<Token>::const_iterator& expression_end,
+    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+    const Delimiter end_delimiter,
+    const bool skip_all_evaluations) const {
     std::function<bool(bool, bool)> logical_function = first_operand_function;
     bool result = true;
     bool negate = false;
@@ -200,7 +201,7 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
             // also useless
             subexpression_result = evaluate(expression_iterator,
                                             expression_end,
-                                            plugin_capabilities,
+                                            section_type_evaluators,
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation);
             CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
@@ -235,8 +236,8 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
             expect_binary_operator = true;  // An operand should be followed by an operator
 
             if (!skip_all_evaluations && !skip_next_evaluation) {
-                bool operand = plugin_capabilities.count(*expression_iterator)
-                                   ? plugin_capabilities.at(*expression_iterator)->check_support()
+                bool operand = section_type_evaluators.count(*expression_iterator)
+                                   ? section_type_evaluators.at(*expression_iterator)->check_support()
                                    : false;
                 operand = negate ? !operand : operand;
                 result = logical_function(result, operand);
@@ -257,7 +258,7 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
 }
 
 bool CRE::check_compatibility(
-    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) const {
+    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const {
     if (m_subexpressions.empty()) {
         return true;
     }
@@ -265,7 +266,7 @@ bool CRE::check_compatibility(
     const std::vector<Token> expression = get_expression();
     std::vector<Token>::const_iterator expression_iterator = expression.begin();
     const std::vector<Token>::const_iterator expression_end = expression.end();
-    const bool result = evaluate(expression_iterator, expression_end, plugin_capabilities, Delimiter::SIZE);
+    const bool result = evaluate(expression_iterator, expression_end, section_type_evaluators, Delimiter::SIZE);
     CRE_EVAL_ASSERT(expression_iterator == expression.end(),
                     "CRE evaluation ended before parsing the whole expression");
     return result;

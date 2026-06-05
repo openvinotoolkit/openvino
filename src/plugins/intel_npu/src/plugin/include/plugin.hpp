@@ -10,8 +10,8 @@
 
 #include "backends_registry.hpp"
 #include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/icapability.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"
@@ -64,9 +64,9 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    void register_capability(const std::shared_ptr<ICapability>& capability) const;
+    void register_capability(const std::shared_ptr<ISectionTypeEvaluator>& capability) const;
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> get_capabilities() const;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> get_capabilities() const;
 
 private:
     void update_log_level(const ov::AnyMap& properties) const;
@@ -96,7 +96,7 @@ private:
     mutable Logger _logger;
     std::unique_ptr<Properties> _propertiesManager;
 
-    mutable std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> _capabilities;
+    mutable std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> _capabilities;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

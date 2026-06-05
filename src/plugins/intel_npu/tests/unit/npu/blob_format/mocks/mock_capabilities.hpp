@@ -8,15 +8,15 @@
 
 #include <memory>
 
-#include "intel_npu/common/icapability.hpp"
+#include "intel_npu/common/isection_type_evaluator.hpp"
 #include "mock_sections.hpp"
 
 constexpr double VALID_THRESHOLD = 10.0;
 
-class MockCapability_1 : public ICapability {
+class MockCapability_1 : public ISectionTypeEvaluator {
 public:
     explicit MockCapability_1(std::shared_ptr<MockSection_1> section)
-        : ICapability(MockTypes::MOCK_1),
+        : ISectionTypeEvaluator(MockTypes::MOCK_1),
           m_section(std::move(section)) {}
 
     bool lazy_check_support() const override;
@@ -25,10 +25,10 @@ private:
     std::shared_ptr<MockSection_1> m_section;
 };
 
-class MockCapability_2 : public ICapability {
+class MockCapability_2 : public ISectionTypeEvaluator {
 public:
     explicit MockCapability_2(std::shared_ptr<MockSection_2> section)
-        : ICapability(MockTypes::MOCK_2),
+        : ISectionTypeEvaluator(MockTypes::MOCK_2),
           m_section(std::move(section)) {}
 
     bool lazy_check_support() const override;
@@ -37,10 +37,10 @@ private:
     std::shared_ptr<MockSection_2> m_section;
 };
 
-class MockCapability_3 : public ICapability {
+class MockCapability_3 : public ISectionTypeEvaluator {
 public:
     explicit MockCapability_3(std::shared_ptr<MockSection_3> section)
-        : ICapability(MockTypes::MOCK_3),
+        : ISectionTypeEvaluator(MockTypes::MOCK_3),
           m_section(std::move(section)) {}
 
     bool lazy_check_support() const override;
@@ -49,9 +49,9 @@ private:
     std::shared_ptr<MockSection_3> m_section;
 };
 
-class MockCapability : public ICapability {
+class MockCapability : public ISectionTypeEvaluator {
 public:
-    explicit MockCapability(SectionType type) : ICapability(static_cast<CRE::Token>(type)) {}
+    explicit MockCapability(SectionType type) : ISectionTypeEvaluator(static_cast<CRE::Token>(type)) {}
     MOCK_METHOD(bool, lazy_check_support, (), (const, override));
 };
 
@@ -67,10 +67,10 @@ public:
     MOCK_METHOD(bool, supports_section, (SectionType type), (const, override));
 };
 
-class DriverCapability : public ICapability {
+class DriverCapability : public ISectionTypeEvaluator {
 public:
     DriverCapability(SectionType type, const IDriver& driver)
-        : ICapability(static_cast<CRE::Token>(type)),
+        : ISectionTypeEvaluator(static_cast<CRE::Token>(type)),
           m_driver(driver),
           m_type(type) {}
 

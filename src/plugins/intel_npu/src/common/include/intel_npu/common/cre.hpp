@@ -11,7 +11,7 @@
 
 namespace intel_npu {
 
-class ICapability;
+class ISectionTypeEvaluator;
 
 class InvalidCRE final : public ov::AssertFailure {
 public:
@@ -49,7 +49,7 @@ public:
     };
 
     // TODO: separate set for the "static" ones?
-    static inline const std::unordered_set<Token> DEFAULT_PLUGIN_CAPABILITIES_TOKENS{
+    static inline const std::unordered_set<Token> DEFAULT_SUPPORTED_SECTION_TYPES{
         PredefinedCapabilityToken::CRE_EVALUATION,
         PredefinedCapabilityToken::ELF_SCHEDULE,
         PredefinedCapabilityToken::BATCHING,
@@ -82,10 +82,10 @@ public:
      * @details The plugin capabilities are evaluated in a lazy manner: the check support function is called only upon
      * encountering the corresponding CRE token.
      *
-     * @param plugin_capabilities A mapping between CRE tokens and their (lazy) evaluators.
+     * @param section_type_evaluators A mapping between CRE tokens and their (lazy) evaluators.
      */
     bool check_compatibility(
-        const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) const;
+        const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const;
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE, NOT_CAPABILITY_ID };
@@ -110,14 +110,14 @@ private:
      * @param expression_iterator The cursor corresponding to the expression that is being evaluated. The initial value
      * indicates the start of the subexpression.
      * @param expression_end Points towards the end of the whole expression.
-     * @param plugin_capabilities
+     * @param section_type_evaluators
      * @param end_delimiter The type of delimiter that is used for judging the end of the subexpression.
      * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped.
      * However, CRE validity checks will still be performed.
      */
     bool evaluate(std::vector<Token>::const_iterator& expression_iterator,
                   const std::vector<Token>::const_iterator& expression_end,
-                  const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
+                  const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
                   const Delimiter end_delimiter,
                   const bool skip_all_evaluations = false) const;
 

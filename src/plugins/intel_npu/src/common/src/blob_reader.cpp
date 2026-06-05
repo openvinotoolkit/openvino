@@ -32,13 +32,13 @@ BlobReaderInterface::BlobReaderInterface(
     const size_t section_start,
     const size_t section_length,
     const size_t npu_region_size,
-    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
+    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const ov::log::Level log_level)
     : m_source(source),
       m_cursor(section_start),
       m_section_start(section_start),
       m_section_end(section_start + section_length),
-      m_plugin_capabilities(plugin_capabilities),
+      m_section_type_evaluators(section_type_evaluators),
       m_logger("BlobReaderInterface", log_level) {
     OPENVINO_ASSERT(m_section_end <= npu_region_size,
                     "The end of a section surpasses the registered NPU region boundaries. Section end position: ",
@@ -96,8 +96,9 @@ size_t BlobReaderInterface::get_section_length() const {
     return m_section_end - m_section_start;
 }
 
-std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> BlobReaderInterface::get_plugin_capabilities() const {
-    return m_plugin_capabilities;
+std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>
+BlobReaderInterface::get_section_type_evaluators() const {
+    return m_section_type_evaluators;
 }
 
 ov::log::Level BlobReaderInterface::get_log_level() const {
@@ -140,8 +141,9 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
     return std::nullopt;
 }
 
-void BlobReader::read(const ov::Tensor& source,
-                      const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
+void BlobReader::read(
+    const ov::Tensor& source,
+    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");
 
@@ -187,7 +189,7 @@ void BlobReader::read(const ov::Tensor& source,
                                   cursor,
                                   offsets_table_size,
                                   npu_region_size,
-                                  plugin_capabilities,
+                                  section_type_evaluators,
                                   m_logger.level());
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] = OffsetsTableSection::read(interface);
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
@@ -211,14 +213,14 @@ void BlobReader::read(const ov::Tensor& source,
                                         cursor,
                                         cre_length.value(),
                                         npu_region_size,
-                                        plugin_capabilities,
+                                        section_type_evaluators,
                                         m_logger.level());
         m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
         m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
         const bool is_compatible = std::dynamic_pointer_cast<CRESection>(
                                        m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
                                        ->get_cre()
-                                       .check_compatibility(plugin_capabilities);
+                                       .check_compatibility(section_type_evaluators);
         OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
         m_logger.debug("CRE evaluation passed");
     } else {
@@ -263,7 +265,7 @@ void BlobReader::read(const ov::Tensor& source,
                                             cursor,
                                             section_length.value(),
                                             npu_region_size,
-                                            plugin_capabilities,
+                                            section_type_evaluators,
                                             m_logger.level());
             m_parsed_sections[section_id->type][section_id->type_instance] = m_readers.at(section_id->type)(interface);
             m_parsed_sections[section_id->type][section_id->type_instance]->set_section_type_instance(

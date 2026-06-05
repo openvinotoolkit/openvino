@@ -9,7 +9,7 @@
 #include "batch_size_section.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
-#include "intel_npu/common/static_capability.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "io_layouts_section.hpp"
 
 using namespace intel_npu;
@@ -31,23 +31,23 @@ void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
 // TODO should we unit test the reader with precompiled compatibility blobs?
 void reader_register_sections(const std::shared_ptr<BlobReader>& blobReader,
                               const std::vector<uint16_t> section_types,
-                              std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& capabilities) {
+                              std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& capabilities) {
     for (const auto& token : section_types) {
-        capabilities[token] = std::make_shared<StaticCapability>(token);
+        capabilities[token] = std::make_shared<SupportedSectionTypeEvaluator>(token);
     }
 
     blobReader->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 }
 
-std::pair<std::string, std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>> make_simple_blob(
+std::pair<std::string, std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>> make_simple_blob(
     int64_t batch_size) {
     BlobWriter writer;
     writer.register_section(std::make_shared<BatchSizeSection>(batch_size));
     std::stringstream stream;
     writer.write(stream);
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-    caps[CRE::CRE_EVALUATION] = std::make_shared<StaticCapability>(CRE::CRE_EVALUATION);
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[CRE::CRE_EVALUATION] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION);
     return {stream.str(), std::move(caps)};
 }
 }  // namespace
@@ -85,7 +85,7 @@ protected:
     std::stringstream stream;
     std::string buffer;
     ov::Tensor tensor;
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> capabilities;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> capabilities;
 };
 
 using AllSections = WriterReaderUnitTests;
@@ -162,8 +162,8 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     writer_1.write(stream_1);
     std::string buffer_1 = stream_1.str();
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-    caps[CRE::CRE_EVALUATION] = std::make_shared<StaticCapability>(CRE::CRE_EVALUATION);
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[CRE::CRE_EVALUATION] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION);
 
     ov::Tensor tensor_1(ov::element::u8, ov::Shape{buffer_1.size()}, buffer_1.data());
     auto reader_1 = std::make_shared<BlobReader>();
@@ -207,8 +207,8 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-    caps[CRE::CRE_EVALUATION] = std::make_shared<StaticCapability>(CRE::CRE_EVALUATION);
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[CRE::CRE_EVALUATION] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION);
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     ASSERT_NO_THROW(reader.read(tensor, caps));
 
@@ -275,8 +275,8 @@ TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromStream) {
 }
 
 TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-    caps[CRE::CRE_EVALUATION] = std::make_shared<StaticCapability>(CRE::CRE_EVALUATION);
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[CRE::CRE_EVALUATION] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION);
 
     BlobWriter writer;
     constexpr int64_t BATCH_A = 0xDEADBEEF, BATCH_B = 0xDEAFBEEF, BATCH_C = 0x0FFBEEF;

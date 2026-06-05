@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "intel_npu/common/static_capability.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "mocks/mock_sections.hpp"
 
 using namespace intel_npu;
 
 namespace {
 
-std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> make_caps() {
-    return {{CRE::CRE_EVALUATION, std::make_shared<StaticCapability>(CRE::CRE_EVALUATION)}};
+std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
+    return {{CRE::CRE_EVALUATION, std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION)}};
 }
 
 void compare_aligned_elements(const std::string& buffer, const std::vector<double>& values) {

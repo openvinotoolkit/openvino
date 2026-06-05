@@ -8,7 +8,7 @@
 #include <sstream>
 #include <vector>
 
-#include "intel_npu/common/static_capability.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "mocks/mock_capabilities.hpp"
 
 namespace {
@@ -18,8 +18,8 @@ constexpr double VALID_VALUE_3 = VALID_THRESHOLD - 3;
 constexpr double INVALID_VALUE_1 = VALID_THRESHOLD + 1;
 constexpr double INVALID_VALUE_2 = 0xDEADBEEF;
 
-std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> make_caps() {
-    return {{CRE::CRE_EVALUATION, std::make_shared<StaticCapability>(CRE::CRE_EVALUATION)}};
+std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
+    return {{CRE::CRE_EVALUATION, std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION)}};
 }
 
 std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_ptr<MockSection_1> section_1,
@@ -130,7 +130,7 @@ TEST(EvaluatorLazyCheck, ValidSections) {
     auto parsed_s2 = std::dynamic_pointer_cast<MockSection_2>(parsed.at(SectionID(MockTypes::MOCK_2, 0)));
     auto parsed_s3 = std::dynamic_pointer_cast<MockSection_3>(parsed.at(SectionID(MockTypes::MOCK_3, 0)));
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_1] = std::make_shared<MockCapability_1>(parsed_s1);
     caps[MockTypes::MOCK_2] = std::make_shared<MockCapability_2>(parsed_s2);
     caps[MockTypes::MOCK_3] = std::make_shared<MockCapability_3>(parsed_s3);
@@ -157,7 +157,7 @@ TEST(EvaluatorLazyCheck, InvalidSection2) {
     auto parsed_s2 = std::dynamic_pointer_cast<MockSection_2>(parsed.at(SectionID(MockTypes::MOCK_2, 0)));
     auto parsed_s3 = std::dynamic_pointer_cast<MockSection_3>(parsed.at(SectionID(MockTypes::MOCK_3, 0)));
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_1] = std::make_shared<MockCapability_1>(parsed_s1);
     caps[MockTypes::MOCK_2] = std::make_shared<MockCapability_2>(parsed_s2);
     caps[MockTypes::MOCK_3] = std::make_shared<MockCapability_3>(parsed_s3);
@@ -177,7 +177,7 @@ TEST(EvaluatorLazyCheck, MemoizationPreventsRedundantQuerying) {
     CRE cre;
     cre.append_to_expression(MockTypes::MOCK_1);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_1] = cap;
 
     EXPECT_TRUE(cre.check_compatibility(caps));
@@ -188,7 +188,7 @@ TEST(EvaluatorLazyCheck, CapabilityAbsentFromSupportedMap) {
     CRE cre;
     cre.append_to_expression(MockTypes::MOCK_2);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     EXPECT_FALSE(cre.check_compatibility(caps));
 }
 
@@ -201,7 +201,7 @@ TEST(EvaluatorLazyCheck, SupportedCapabilityMissingFromCREIsNotQueried) {
     CRE cre;
     cre.append_to_expression(MockTypes::MOCK_1);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_1] = cap_1;
     caps[MockTypes::MOCK_2] = cap_2;
 
@@ -217,7 +217,7 @@ TEST(DriverCapabilityCheck, DriverQueriedOncePerCapability) {
     cre.append_to_expression(MockTypes::MOCK_2);
     cre.append_to_expression(MockTypes::MOCK_3);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_2] = std::make_shared<DriverCapability>(MockTypes::MOCK_2, driver);
     caps[MockTypes::MOCK_3] = std::make_shared<DriverCapability>(MockTypes::MOCK_3, driver);
 
@@ -234,7 +234,7 @@ TEST(DriverCapabilityCheck, DriverRejectionPropagates) {
     cre.append_to_expression(MockTypes::MOCK_2);
     cre.append_to_expression(MockTypes::MOCK_3);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_2] = std::make_shared<DriverCapability>(MockTypes::MOCK_2, driver);
     caps[MockTypes::MOCK_3] = std::make_shared<DriverCapability>(MockTypes::MOCK_3, driver);
 
@@ -249,7 +249,7 @@ TEST(DriverCapabilityCheck, SupportedCapabilityMissingFromCREDriverIsNotQueried)
     CRE cre;
     cre.append_to_expression(MockTypes::MOCK_3);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[MockTypes::MOCK_2] = std::make_shared<DriverCapability>(MockTypes::MOCK_2, driver);
     caps[MockTypes::MOCK_3] = std::make_shared<DriverCapability>(MockTypes::MOCK_3, driver);
 

@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/static_capability.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "mocks/mock_capabilities.hpp"
 
 using namespace intel_npu;
@@ -28,12 +28,12 @@ protected:
         cre = CRE(expression);
 
         for (const auto& token : supported_capabilities_tokens) {
-            supported_capabilities[token] = std::make_shared<StaticCapability>(token);
+            supported_capabilities[token] = std::make_shared<SupportedSectionTypeEvaluator>(token);
         }
     }
 
     CRE cre;
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> supported_capabilities;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> supported_capabilities;
     bool is_compatible;
 
 public:
@@ -112,9 +112,9 @@ TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
     cre.append_to_expression(CRE::ELF_SCHEDULE);
     cre.append_to_expression(CRE::BATCHING);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-    caps[CRE::ELF_SCHEDULE] = std::make_shared<StaticCapability>(CRE::ELF_SCHEDULE);
-    caps[CRE::BATCHING] = std::make_shared<StaticCapability>(CRE::BATCHING);
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[CRE::ELF_SCHEDULE] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::ELF_SCHEDULE);
+    caps[CRE::BATCHING] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::BATCHING);
     EXPECT_TRUE(cre.check_compatibility(caps));
 
     caps.erase(CRE::BATCHING);
@@ -213,9 +213,9 @@ TEST_F(CREAppendToken, MixedAppend) {
     cre.append_to_expression(
         std::vector<CRE::Token>{CRE::OPEN, CRE::BATCHING, CRE::OR, CRE::WEIGHTS_SEPARATION, CRE::CLOSE});
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
-    caps[CRE::ELF_SCHEDULE] = std::make_shared<StaticCapability>(CRE::ELF_SCHEDULE);
-    caps[CRE::BATCHING] = std::make_shared<StaticCapability>(CRE::BATCHING);
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[CRE::ELF_SCHEDULE] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::ELF_SCHEDULE);
+    caps[CRE::BATCHING] = std::make_shared<SupportedSectionTypeEvaluator>(CRE::BATCHING);
     EXPECT_TRUE(cre.check_compatibility(caps));
 
     caps.erase(CRE::ELF_SCHEDULE);
@@ -237,7 +237,7 @@ protected:
     std::shared_ptr<MockCapability> cap_1;
     std::shared_ptr<MockCapability> cap_2;
     std::shared_ptr<MockCapability> cap_3;
-    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> caps;
+    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
 };
 
 TEST_F(CREOperandsEvaluation, Depth0ORs) {
