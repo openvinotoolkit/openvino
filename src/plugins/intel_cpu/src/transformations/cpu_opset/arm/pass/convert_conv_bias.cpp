@@ -28,7 +28,7 @@
 using namespace ov::pass;
 
 ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
-    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(true);
+    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(false);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -49,7 +49,8 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
             return false;
         }
 
-        if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
+        const bool has_swish = activation_out.has_value();
+        if (!has_swish && fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
             return false;
         }
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
