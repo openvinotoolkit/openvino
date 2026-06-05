@@ -14,7 +14,6 @@
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
-#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 namespace {

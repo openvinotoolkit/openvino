@@ -11,6 +11,7 @@
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_conversion_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/plugin/riscv64/jit_load_store_emitters.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
@@ -30,7 +31,6 @@
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
-#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
