@@ -336,25 +336,14 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
 namespace tensor_comparation {
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
-inline std::string format_coordinate(size_t flat, const ov::Shape& shape) {
-    if (shape.empty()) {
-        return std::to_string(flat);
-    }
-    std::vector<size_t> nd(shape.size());
+static ov::Shape flat_index_to_nd(size_t flat, const ov::Shape& shape) {
+    ov::Shape nd(shape.size());
     size_t rem = flat;
     for (size_t d = shape.size(); d-- > 0;) {
         nd[d] = rem % shape[d];
         rem /= shape[d];
     }
-    std::ostringstream os;
-    os << "[";
-    for (size_t d = 0; d < nd.size(); ++d) {
-        if (d)
-            os << ",";
-        os << nd[d];
-    }
-    os << "]";
-    return os.str();
+    return nd;
 }
 
 inline bool less(const double a, const double b) {
@@ -485,12 +474,13 @@ public:
                 .append(std::to_string(tensor_size))
                 .append(" shapes.");
 
-            static const char* const env = std::getenv("OV_TEST_MAX_DIFFS_TO_PRINT");
-            const long parsed = env ? std::strtol(env, nullptr, 10) : 0;
-            const size_t max_num_to_print = parsed < 0 ? incorrect_values_abs.size() : static_cast<size_t>(parsed);
+            static const char* const num_to_print_env = std::getenv("OV_TEST_MAX_DIFFS_TO_PRINT");
+            static const long num_to_print = num_to_print_env ? std::strtol(num_to_print_env, nullptr, 10) : 0;
+            const size_t max_num_to_print =
+                num_to_print < 0 ? incorrect_values_abs.size() : static_cast<size_t>(num_to_print);
 
             const auto print = [&shape](const char* label, const IncorrectValue& val) {
-                std::cout << label << ": " << format_coordinate(val.coordinate, shape)
+                std::cout << label << ": " << flat_index_to_nd(val.coordinate, shape)
                           << " Expected: " << val.expected_value << " Actual: " << val.actual_value
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " abs_threshold: " << val.threshold << "\n";
