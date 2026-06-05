@@ -97,7 +97,7 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
     }
 }
 
-memory::ptr ze_engine::import_buffer(const layout& layout, shared_handle external_handle) {
+memory::ptr ze_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

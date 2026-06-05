@@ -4,6 +4,7 @@
 
 #include "ocl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_kernel_builder.hpp"
 #include "ocl_common.hpp"
@@ -105,8 +106,12 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
                                        : allocation_type::unknown;
 }
 
-memory::ptr ocl_engine::import_buffer(const layout& layout, shared_handle external_handle) {
+memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+#ifdef __linux__
+    OPENVINO_ASSERT(external_handle >= 0, "[GPU] External memory handle must be a valid file descriptor");
+#else
     OPENVINO_ASSERT(external_handle != nullptr, "[GPU] External memory handle must not be null");
+#endif
     OPENVINO_ASSERT(extension_supported("cl_khr_external_memory"),
                     "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
                     "external memory import is not supported");
@@ -124,7 +129,11 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, shared_handle extern
 
     cl_mem_properties props[] = {
         static_cast<cl_mem_properties>(handle_type_token),
+#ifdef __linux__
+        static_cast<cl_mem_properties>(external_handle),
+#else
         static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(external_handle)),
+#endif
         0,
     };
 

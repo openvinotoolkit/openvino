@@ -17,6 +17,12 @@ namespace intel_gpu {
 
 using gpu_handle_param = void*;
 
+#ifdef __linux__
+using os_handle_param = int;
+#else
+using os_handle_param = void*;
+#endif
+
 /**
  * @brief Enum to define the type of the shared context
  * @ingroup ov_runtime_ocl_gpu_cpp_api
@@ -119,7 +125,7 @@ enum class SharedMemType {
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class MemType {
-    SHARED_BUF = 0,  //!< Shared OpenCL buffer handle passed as void*
+    SHARED_BUF = 0,  //!< Shared OpenCL buffer handle passed as void* or int
 };
 
 /** @cond INTERNAL */
@@ -185,6 +191,13 @@ static constexpr Property<SharedMemType> shared_mem_type{"SHARED_MEM_TYPE"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
+
+/**
+ * @brief This key identifies system memory handle (fd on Linux, NT handle on Windows)
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
+
 
 /**
  * @brief This key identifies video decoder surface handle

@@ -27,7 +27,7 @@ public:
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
-    memory_ptr import_buffer(const layout&, shared_handle external_handle) override;
+    memory_ptr import_buffer(const layout&, ov::intel_gpu::os_handle_param external_handle) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
 
     void release_external_memory(cl_mem) const;
