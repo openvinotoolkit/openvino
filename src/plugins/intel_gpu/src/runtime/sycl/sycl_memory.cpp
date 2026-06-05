@@ -364,24 +364,28 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     if (0 == _lock_count) {
         auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
         if (get_allocation_type() == allocation_type::usm_device) {
-            GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
-            _host_buffer.allocateHost(_bytes_count);
-            // Always copy device data to host buffer (treat write as read_write internally).
-            // This ensures the host buffer always has valid data, making nested locks safe.
-            auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
-            try {
-                auto ev = sycl_queue.memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
-                ev.wait_and_throw();
-            } catch (::sycl::exception const& err) {
-                OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+            if (_bytes_count == 0) {
+                _mapped_ptr = nullptr;
+            } else {
+                GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
+                _host_buffer.allocateHost(_bytes_count);
+                // Always copy device data to host buffer (treat write as read_write internally).
+                // This ensures the host buffer always has valid data, making nested locks safe.
+                auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
+                try {
+                    auto ev = sycl_queue.memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
+                    ev.wait_and_throw();
+                } catch (::sycl::exception const& err) {
+                    OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+                }
+                _host_buffer_has_device_data = true;
+                _copy_back_to_device = (type != mem_lock_type::read);
+                _mapped_ptr = _host_buffer.get();
             }
-            _host_buffer_has_device_data = true;
-            _copy_back_to_device = (type != mem_lock_type::read);
-            _mapped_ptr = _host_buffer.get();
         } else {
             _mapped_ptr = _buffer.get();
         }
-    } else if (get_allocation_type() == allocation_type::usm_device) {
+    } else if (get_allocation_type() == allocation_type::usm_device && _bytes_count != 0) {
         if (type != mem_lock_type::read) {
             _copy_back_to_device = true;
         }
@@ -396,17 +400,19 @@ void gpu_usm::unlock(const stream& stream) {
     _lock_count--;
     if (0 == _lock_count) {
         if (get_allocation_type() == allocation_type::usm_device) {
-            if (_copy_back_to_device) {
-                auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
-                auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
-                try {
-                    auto ev = sycl_queue.memcpy(_buffer.get(), _host_buffer.get(), _bytes_count);
-                    ev.wait_and_throw();
-                } catch (::sycl::exception const& err) {
-                    OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+            if (_bytes_count != 0) {
+                if (_copy_back_to_device) {
+                    auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
+                    auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
+                    try {
+                        auto ev = sycl_queue.memcpy(_buffer.get(), _host_buffer.get(), _bytes_count);
+                        ev.wait_and_throw();
+                    } catch (::sycl::exception const& err) {
+                        OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+                    }
                 }
+                _host_buffer.freeMem();
             }
-            _host_buffer.freeMem();
             _copy_back_to_device = false;
             _host_buffer_has_device_data = false;
         }

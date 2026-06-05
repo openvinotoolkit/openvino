@@ -240,4 +240,27 @@ TEST(sycl_usm_memory, copy_small_to_large_buffer) {
 	OV_ASSERT_NO_THROW(small_mem->copy_to(*ctx.sycl_test_stream, *large_mem, true));
 }
 
+TEST(sycl_usm_memory, lock_zero_size_usm_device) {
+	auto ctx = create_sycl_test_context();
+	if (!ctx.sycl_test_engine->supports_allocation(allocation_type::usm_device)) {
+		GTEST_SKIP() << "SYCL usm_device allocation is not supported";
+	}
+
+	const layout zero_layout = {{0}, data_types::u8, format::bfyx};
+	auto mem = ctx.sycl_test_engine->allocate_memory(zero_layout, allocation_type::usm_device);
+	ASSERT_NE(mem, nullptr);
+
+	auto usm_mem = std::dynamic_pointer_cast<cldnn::sycl::gpu_usm>(mem);
+	ASSERT_NE(usm_mem, nullptr);
+
+	void *ptr0, *ptr1;
+	OV_ASSERT_NO_THROW(ptr0 = usm_mem->lock(*ctx.sycl_test_stream, mem_lock_type::write));
+	OV_ASSERT_NO_THROW(ptr1 = usm_mem->lock(*ctx.sycl_test_stream, mem_lock_type::read));
+	ASSERT_EQ(ptr0, nullptr);
+	ASSERT_EQ(ptr1, nullptr);
+
+	OV_ASSERT_NO_THROW(usm_mem->unlock(*ctx.sycl_test_stream));
+	OV_ASSERT_NO_THROW(usm_mem->unlock(*ctx.sycl_test_stream));
+}
+
 #endif  // OV_GPU_WITH_SYCL_RT
