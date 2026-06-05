@@ -19,6 +19,12 @@
 
 namespace {
 
+inline bool is_usm_allocation_type(cldnn::allocation_type alloc_type) {
+    return alloc_type == cldnn::allocation_type::usm_host ||
+           alloc_type == cldnn::allocation_type::usm_shared ||
+           alloc_type == cldnn::allocation_type::usm_device;
+}
+
 /**
  * @brief Base class for eltwise operation function objects using CRTP (Curiously Recurring Template Pattern)
  *
@@ -361,9 +367,18 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
             }
         }
 
-        auto use_sycl_buffer = input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer;
+        const auto in0_alloc_type = input0->get_allocation_type();
+        const auto in1_alloc_type = input1->get_allocation_type();
+        const auto out_alloc_type = output->get_allocation_type();
 
-        if (use_sycl_buffer) {
+        const bool all_sycl_buffer = in0_alloc_type == cldnn::allocation_type::sycl_buffer &&
+                                     in1_alloc_type == cldnn::allocation_type::sycl_buffer &&
+                                     out_alloc_type == cldnn::allocation_type::sycl_buffer;
+        const bool all_usm = is_usm_allocation_type(in0_alloc_type) &&
+                             is_usm_allocation_type(in1_alloc_type) &&
+                             is_usm_allocation_type(out_alloc_type);
+
+        if (all_sycl_buffer) {
             if (out_t == ov::element::f32) {
                 OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
                 auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<float>();
@@ -389,7 +404,7 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
             } else {
                 OPENVINO_THROW("No instance for given types found: ", out_t);
             }
-        } else {
+        } else if (all_usm) {
             if (out_t == ov::element::f32) {
                 auto in0_ptr = static_cast<float*>(std::dynamic_pointer_cast<sycl::gpu_usm>(input0)->get_buffer().get());
                 auto in1_ptr = static_cast<float*>(std::dynamic_pointer_cast<sycl::gpu_usm>(input1)->get_buffer().get());
@@ -413,6 +428,9 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
             } else {
                 OPENVINO_THROW("No instance for given types found: ", out_t);
             }
+        } else {
+            OPENVINO_THROW("Eltwise SYCL requires all inputs/outputs to be either sycl_buffer or USM. "
+                           "Got in0=", in0_alloc_type, ", in1=", in1_alloc_type, ", out=", out_alloc_type);
         }
     }
 
