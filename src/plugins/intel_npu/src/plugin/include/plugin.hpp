@@ -64,7 +64,7 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    void register_capability(const std::shared_ptr<ISectionTypeEvaluator>& capability) const;
+    void register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& capability) const;
 
     std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> get_capabilities() const;
 

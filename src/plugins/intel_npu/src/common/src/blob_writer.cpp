@@ -112,46 +112,17 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
 
     const SectionTypeInstance type_instance_id = m_next_type_instance_id[section_type]++;
     section->set_section_type_instance(type_instance_id);
-    m_registered_sections.push(section);
+    m_write_queue.push(section);
+
+    if (m_registered_sections.count(section_type)) {
+        OPENVINO_ASSERT(!m_registered_sections.at(section_type).count(type_instance_id),
+                        "The same section ID has been attributed to two distinct sections");
+    }
+    m_registered_sections[section_type][type_instance_id] = section;
 
     m_logger.debug("Registered section %s", section->get_section_id()->to_string());
 
     return type_instance_id;
-}
-
-CRE BlobWriter::build_cre() const {
-    m_logger.debug("Filling the CRE");
-
-    CRE cre(m_logger.level());
-    cre.append_to_expression(CRE::PredefinedCapabilityToken::CRE_EVALUATION);
-    m_logger.debug("Added the CRE_EVALUATION token to the CRE");
-
-    // Go through all sections to find out the tokens that are needed. There may be a many-to-many mapping between
-    // section types and capabilities in the future. The switch case here should not imply that one-to-many is the only
-    // possible relationship.
-    std::queue<std::shared_ptr<ISection>> registered_sections = m_registered_sections;
-    while (!registered_sections.empty()) {
-        const std::shared_ptr<ISection>& section = registered_sections.front();
-        registered_sections.pop();
-
-        switch (section->get_section_type()) {
-        case PredefinedSectionType::ELF_MAIN_SCHEDULE: {
-            cre.append_to_expression(CRE::PredefinedCapabilityToken::ELF_SCHEDULE);
-            m_logger.debug("Added the ELF_SCHEDULE token to the CRE");
-            break;
-        }
-        case PredefinedSectionType::ELF_INIT_SCHEDULES:
-            cre.append_to_expression(CRE::PredefinedCapabilityToken::WEIGHTS_SEPARATION);
-            m_logger.debug("Added the WEIGHTS_SEPARATION token to the CRE");
-            break;
-        case PredefinedSectionType::BATCH_SIZE:
-            cre.append_to_expression(CRE::PredefinedCapabilityToken::BATCHING);
-            m_logger.debug("Added the BATCHING token to the CRE");
-            break;
-        }
-    }
-
-    return cre;
 }
 
 void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISection>& section) {
@@ -169,7 +140,33 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
     m_next_type_instance_id[section_type] =
         candidate > m_next_type_instance_id[section_type] ? candidate + 1 : m_next_type_instance_id[section_type];
 
-    m_registered_sections.push(section);
+    m_write_queue.push(section);
+
+    if (m_registered_sections.count(section_type)) {
+        OPENVINO_ASSERT(!m_registered_sections.at(section_type).count(section->get_section_type_instance().value()),
+                        "The same section ID has been attributed to two distinct sections");
+    }
+    m_registered_sections[section_type][section->get_section_type_instance().value()] = section;
+}
+
+CRE BlobWriter::build_cre() const {
+    m_logger.debug("Filling the CRE");
+
+    CRE cre(m_logger.level());
+    cre.append_to_expression(PredefinedSectionType::CRE);
+    m_logger.debug("Added the CRE_EVALUATION token to the CRE");
+
+    // Go through all sections to find out the tokens that are needed. There may be a many-to-many mapping between
+    // section types requirements
+    std::queue<std::shared_ptr<ISection>> write_queue = m_write_queue;
+    while (!write_queue.empty()) {
+        const std::shared_ptr<ISection>& section = write_queue.front();
+        write_queue.pop();
+
+        cre.append_to_expression(section->get_compatibility_requirements_subexpression(m_registered_sections));
+    }
+
+    return cre;
 }
 
 void BlobWriter::write_section(std::ostream& stream,
@@ -200,7 +197,7 @@ void BlobWriter::write(std::ostream& stream) const {
 
     // Operate on this copy instead of the attribute. This is necessary to ensure write idempotency by keeping the
     // attributes unchanged.
-    std::queue<std::shared_ptr<ISection>> registered_sections = m_registered_sections;
+    std::queue<std::shared_ptr<ISection>> write_queue = m_write_queue;
     const std::streampos stream_npu_region_start = stream.tellp();
 
     // The table of offsets corresponds to a single blob written into a stream. Therefore, this table should exist
@@ -225,9 +222,9 @@ void BlobWriter::write(std::ostream& stream) const {
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t.
     // the content of the payload)
-    while (!registered_sections.empty()) {
-        const std::shared_ptr<ISection>& section = registered_sections.front();
-        registered_sections.pop();
+    while (!write_queue.empty()) {
+        const std::shared_ptr<ISection>& section = write_queue.front();
+        write_queue.pop();
 
         write_section(stream, section, stream_npu_region_start, offsets_table);
     }

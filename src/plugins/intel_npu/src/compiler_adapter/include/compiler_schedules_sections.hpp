@@ -16,6 +16,10 @@ public:
 
     ELFMainScheduleSection(ov::Tensor main_schedule, const ov::log::Level log_level = ov::log::Level::WARNING);
 
+    std::vector<CRE::Token> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+            all_registered_sections) const override;
+
     void write(BlobWriterInterface& writer) override;
 
     void set_graph(const std::shared_ptr<Graph>& graph);
@@ -38,6 +42,10 @@ public:
 
     ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules,
                             const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    std::vector<CRE::Token> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+            all_registered_sections) const override;
 
     void write(BlobWriterInterface& writer) override;
 

@@ -49,11 +49,8 @@ std::optional<SectionID> ISection::get_section_id() const {
 std::vector<CRE::Token> ISection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
-    OPENVINO_ASSERT(m_section_type_instance.has_value(),
-                    "A CRE subexpression for section type ",
-                    m_section_type,
-                    " cannot be returned. The type instance ID is missing.");
-    return {m_section_type, m_section_type_instance.value()};
+    // By default, not requirements are added
+    return {};
 }
 
 bool ISection::check_compatibility_based_on_section_content(BlobReaderInterface& reader) {

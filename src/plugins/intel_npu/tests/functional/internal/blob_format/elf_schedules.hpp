@@ -80,8 +80,8 @@ public:
         reader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
 
         std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
-        for (auto token : CRE::DEFAULT_SUPPORTED_SECTION_TYPES) {
-            caps[token] = std::make_shared<SupportedSectionTypeEvaluator>(token);
+        for (auto type : DEFAULT_SUPPORTED_SECTION_TYPES) {
+            caps[type] = std::make_shared<SupportedSectionTypeEvaluator>(type);
         }
         reader->read(blob, caps);
     }

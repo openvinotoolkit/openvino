@@ -165,7 +165,12 @@ private:
     /**
      * @brief Queue that holds all sections to be written at export time.
      */
-    std::queue<std::shared_ptr<ISection>> m_registered_sections;
+    std::queue<std::shared_ptr<ISection>> m_write_queue;
+    /**
+     * @brief An easy-to-access record of all sections registered so far.
+     */
+    std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
+        m_registered_sections;
 
     Logger m_logger;
 };

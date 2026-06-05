@@ -19,7 +19,7 @@ constexpr double INVALID_VALUE_1 = VALID_THRESHOLD + 1;
 constexpr double INVALID_VALUE_2 = 0xDEADBEEF;
 
 std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
-    return {{CRE::CRE_EVALUATION, std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION)}};
+    return {{PredefinedSectionType::CRE, std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE)}};
 }
 
 std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_ptr<MockSection_1> section_1,

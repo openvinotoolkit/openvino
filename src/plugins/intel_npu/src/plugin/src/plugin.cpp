@@ -347,8 +347,9 @@ namespace intel_npu {
 Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
 
-    for (const CRE::Token token : CRE::DEFAULT_SUPPORTED_SECTION_TYPES) {
-        register_capability(std::make_shared<SupportedSectionTypeEvaluator>(token));
+    for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
+        // TODO move this function within BlobReader, and have a BlobReader inside Plugin?
+        register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
     }
 
     set_device_name("NPU");
@@ -1027,7 +1028,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
 }
 
-void Plugin::register_capability(const std::shared_ptr<ISectionTypeEvaluator>& capability) const {
+void Plugin::register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& capability) const {
     _capabilities[capability->get_token()] = capability;
 }
 

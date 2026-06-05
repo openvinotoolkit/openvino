@@ -7,19 +7,27 @@
 INSTANTIATE_TEST_SUITE_P(
     WriterReaderUnitTests,
     AllSections,
-    ::testing::Values(make_tuple((std::vector<CRE::Token>{}), std::vector<uint16_t>{CRE::CRE_EVALUATION}),
-                      make_tuple(std::vector<CRE::Token>{CRE::AND, CRE::BATCHING},
-                                 std::vector<uint16_t>{CRE::CRE_EVALUATION, CRE::BATCHING}),
-                      make_tuple(std::vector<CRE::Token>{CRE::AND, CRE::WEIGHTS_SEPARATION},
-                                 std::vector<uint16_t>{CRE::CRE_EVALUATION, CRE::WEIGHTS_SEPARATION}),
-                      make_tuple(std::vector<CRE::Token>{CRE::AND, CRE::BATCHING, CRE::WEIGHTS_SEPARATION},
-                                 std::vector<uint16_t>{CRE::CRE_EVALUATION, CRE::BATCHING, CRE::WEIGHTS_SEPARATION})));
+    ::testing::Values(make_tuple((std::vector<CRE::Token>{}), std::vector<uint16_t>{PredefinedSectionType::CRE}),
+                      make_tuple(std::vector<CRE::Token>{CRE::AND, PredefinedSectionType::BATCH_SIZE},
+                                 std::vector<uint16_t>{PredefinedSectionType::CRE, PredefinedSectionType::BATCH_SIZE}),
+                      make_tuple(std::vector<CRE::Token>{CRE::AND, PredefinedSectionType::ELF_INIT_SCHEDULES},
+                                 std::vector<uint16_t>{PredefinedSectionType::CRE,
+                                                       PredefinedSectionType::ELF_INIT_SCHEDULES}),
+                      make_tuple(std::vector<CRE::Token>{CRE::AND,
+                                                         PredefinedSectionType::BATCH_SIZE,
+                                                         PredefinedSectionType::ELF_INIT_SCHEDULES},
+                                 std::vector<uint16_t>{PredefinedSectionType::CRE,
+                                                       PredefinedSectionType::BATCH_SIZE,
+                                                       PredefinedSectionType::ELF_INIT_SCHEDULES})));
 
 INSTANTIATE_TEST_SUITE_P(
     WriterReaderUnitTests,
     IncompatibleCRE,
-    ::testing::Values(make_tuple(std::vector<CRE::Token>{CRE::AND, CRE::BATCHING}, std::vector<uint16_t>()),
-                      make_tuple(std::vector<CRE::Token>{CRE::AND, CRE::ELF_SCHEDULE},
-                                 std::vector<uint16_t>{CRE::BATCHING}),
-                      make_tuple(std::vector<CRE::Token>{CRE::AND, CRE::BATCHING, CRE::WEIGHTS_SEPARATION},
-                                 std::vector<uint16_t>{CRE::BATCHING})));
+    ::testing::Values(make_tuple(std::vector<CRE::Token>{CRE::AND, PredefinedSectionType::BATCH_SIZE},
+                                 std::vector<uint16_t>()),
+                      make_tuple(std::vector<CRE::Token>{CRE::AND, PredefinedSectionType::ELF_MAIN_SCHEDULE},
+                                 std::vector<uint16_t>{PredefinedSectionType::BATCH_SIZE}),
+                      make_tuple(std::vector<CRE::Token>{CRE::AND,
+                                                         PredefinedSectionType::BATCH_SIZE,
+                                                         PredefinedSectionType::ELF_INIT_SCHEDULES},
+                                 std::vector<uint16_t>{PredefinedSectionType::BATCH_SIZE})));

@@ -57,7 +57,7 @@ class BlobReaderInterface;
  * @brief Section types already known by the NPU plugin. These section type IDs are reserved.
  */
 namespace PredefinedSectionType {
-enum {
+enum : SectionType {
     CRE = 100,
     OFFSETS_TABLE = 101,
     ELF_MAIN_SCHEDULE = 102,
@@ -66,6 +66,13 @@ enum {
     BATCH_SIZE = 105,
 };
 };
+
+// TODO any point in adding the offsets table as well?
+static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
+    PredefinedSectionType::CRE,
+    PredefinedSectionType::ELF_MAIN_SCHEDULE,
+    PredefinedSectionType::ELF_INIT_SCHEDULES,
+    PredefinedSectionType::BATCH_SIZE};
 
 // Only a single instance should exist within a blob. So, we may predefine these IDs for convenience.
 const SectionID CRE_SECTION_ID(PredefinedSectionType::CRE, 0);

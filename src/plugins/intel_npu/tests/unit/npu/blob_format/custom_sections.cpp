@@ -12,7 +12,7 @@ using namespace intel_npu;
 namespace {
 
 std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
-    return {{CRE::CRE_EVALUATION, std::make_shared<SupportedSectionTypeEvaluator>(CRE::CRE_EVALUATION)}};
+    return {{PredefinedSectionType::CRE, std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE)}};
 }
 
 void compare_aligned_elements(const std::string& buffer, const std::vector<double>& values) {
