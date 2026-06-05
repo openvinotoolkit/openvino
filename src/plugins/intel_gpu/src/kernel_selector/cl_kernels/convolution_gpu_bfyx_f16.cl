@@ -61,7 +61,6 @@ KERNEL(convolution_bfyx_f16)(
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
     const int input_spatial_size_x = INPUT0_SIZE_X;
-    const int full_x_block = (x + OUTPUT_X_BLOCK_SIZE) <= OUTPUT_SIZE_X;
 
     const int lid1 = (int)get_local_id(1);
     const int feature_per_wg = (int)get_local_size(1) / SLM_DIV_FACTOR;
@@ -206,7 +205,7 @@ KERNEL(convolution_bfyx_f16)(
                     int valid_start = max(0, -input_x);
                     int valid_end = min(INPUT_LINE_SIZE, input_spatial_size_x - input_x);
 
-                    if (full_x_block || (valid_start <= 0 && valid_end >= INPUT_LINE_SIZE)) {
+                    if (valid_start <= 0 && valid_end >= INPUT_LINE_SIZE) {
                         int xb = 0;
                         for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
                             INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
