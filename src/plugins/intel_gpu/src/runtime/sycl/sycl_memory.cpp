@@ -203,13 +203,33 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 
     switch (src_mem.get_allocation_type()) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared:
-        case allocation_type::usm_device: {
-            // SYCL spec describes cgh.copy(ptr, accessor) source as host pointer,
-            // while some implementations may also accept USM device pointers.
-            // On Arc A700, using USM device pointers caused no issues in DPC++ with both the L0 and OCL backends.
+        case allocation_type::usm_shared: {
+            // If other is gpu_usm, down cast to gpu_buffer is not possible.
+            // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
             auto usm_mem = downcast<const gpu_usm>(&src_mem);
             return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
+        } break;
+        case allocation_type::usm_device: {
+            auto usm_mem = downcast<const gpu_usm>(&src_mem);
+            auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
+            auto src_ptr = static_cast<const std::byte*>(usm_mem->buffer_ptr()) + src_offset;
+
+            try {
+                auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
+                    ::sycl::accessor<std::byte, 1, ::sycl::access::mode::write> dst_acc(_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(dst_offset));
+                    cgh.parallel_for(::sycl::range<1>(size), [=](::sycl::id<1> idx) {
+                        dst_acc[idx] = src_ptr[idx];
+                    });
+                });
+                if (blocking) {
+                    event.wait_and_throw();
+                    return nullptr;
+                } else {
+                    return create_event(sycl_stream, event);
+                }
+            } catch (::sycl::exception const& err) {
+                OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
+            }
         } break;
         case allocation_type::sycl_buffer: {
             OPENVINO_ASSERT(!src_mem.get_layout().format.is_image_2d());
