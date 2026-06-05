@@ -13,6 +13,20 @@ from openvino.tools.ovc.cli_parser import input_to_input_cut_info, single_input_
 from openvino.tools.ovc.error import Error
 
 
+def _example_to_partial_shape(example):
+    """Derive a PartialShape from an example value.
+
+    Concrete dimensions are pinned from the example's ``shape``; when only the
+    rank is known (``ndim``) the shape is fully dynamic of that rank; otherwise
+    it is fully dynamic.
+    """
+    if hasattr(example, "shape"):
+        return PartialShape(list(example.shape))
+    if hasattr(example, "ndim"):
+        return PartialShape([-1] * example.ndim)
+    return PartialShape.dynamic()
+
+
 def extract_module_extensions(args):
     from openvino.frontend.pytorch.module_extension import ModuleExtension
     extensions = args.get('extension', []) or []
@@ -364,12 +378,7 @@ def extract_input_info_from_example(args, inputs):
         # when the user explicitly provides 'input'. Keeping the IR static for the
         # common single-shape deployment case matches the ONNX path and lets the GPU
         # select shape-specialized kernels.
-        if hasattr(example, "shape"):
-            shape = PartialShape(list(example.shape))
-        elif hasattr(example, "ndim"):
-            shape = PartialShape([-1] * example.ndim)
-        else:
-            shape = PartialShape.dynamic()
+        shape = _example_to_partial_shape(example)
         dtype = getattr(example, "dtype", type(example))
         dtype = pt_to_ov_type_map.get(str(dtype))
         if name:

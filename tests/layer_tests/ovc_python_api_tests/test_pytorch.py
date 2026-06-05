@@ -13,6 +13,9 @@ from common.mo_convert_test_class import CommonMOConvertTest
 import openvino as ov
 from openvino import PartialShape, Dimension, Model, Type
 
+# Canonical reference input shape shared by the PyTorch convert-API test builders.
+_INPUT_SHAPE = [1, 3, 10, 10]
+
 
 class MyTorchOp(torch.autograd.Function):
     @staticmethod
@@ -227,7 +230,7 @@ def make_ref_pt_model_with_dict_input(shape, dtype=np.float32):
 
 def create_pytorch_nn_module_case1(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([1, 3, 10, 10])
+    ref_model = make_ref_pt_model_two_inputs(_INPUT_SHAPE)
 
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
@@ -402,7 +405,7 @@ def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
 
 def create_pytorch_nn_module_reorder_inputs(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([[1, 3, 10, 10], [10]])
+    ref_model = make_ref_pt_model_two_inputs([_INPUT_SHAPE, [10]])
 
     return pt_model, ref_model, {"input": ["x", "y"],
                                  "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((10))],}
@@ -547,7 +550,7 @@ def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
 
     net = make_pt_model_two_inputs()
     scripted_model = torch.jit.script(net)
-    shape = [1, 3, 10, 10]
+    shape = _INPUT_SHAPE
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     param2 = ov.opset10.parameter(shape, dtype=np.float32)
@@ -566,7 +569,7 @@ def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
     net = make_pt_model_two_inputs()
     example_input = [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))]
     scripted_model = torch.jit.trace(net, example_input)
-    shape = [1, 3, 10, 10]
+    shape = _INPUT_SHAPE
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     param2 = ov.opset10.parameter(shape, dtype=np.float32)
@@ -612,7 +615,7 @@ def create_pytorch_module_with_optional_inputs_case1(tmp_dir):
     net = make_pt_model_with_optional_input()
     example_input = {"x": torch.zeros(
         (1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))}
-    ref_model = make_ref_pt_model_with_optional_inputs([1, 3, 10, 10])
+    ref_model = make_ref_pt_model_with_optional_inputs(_INPUT_SHAPE)
     return net, ref_model, {"example_input": example_input}
 
 
@@ -621,7 +624,7 @@ def create_pytorch_module_with_optional_inputs_case2(tmp_dir):
     example_input = {"x": torch.zeros(
         (1, 3, 10, 10)), "z": torch.ones((1, 3, 10, 10))}
     ref_model = make_ref_pt_model_with_optional_inputs(
-        [1, 3, 10, 10], z_exist=True)
+        _INPUT_SHAPE, z_exist=True)
     return net, ref_model, {"example_input": example_input}
 
 
@@ -637,13 +640,13 @@ def create_pytorch_module_with_optional_inputs_case3(tmp_dir):
 def create_pytorch_module_with_tuple_case1(tmp_dir):
     net = make_pt_model_with_tuple_input()
     example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), torch.ones((1, 3, 10, 10)))
-    ref_model = make_ref_pt_model_with_tuple_input(([1, 3, 10, 10], [1, 3, 10, 10], [1, 3, 10, 10], [1, 3, 10, 10]))
+    ref_model = make_ref_pt_model_with_tuple_input([_INPUT_SHAPE] * 4)
     return net, ref_model, {"example_input": example_input}
 
 def create_pytorch_module_with_tuple_case2(tmp_dir):
     net = make_pt_model_with_tuple_input()
     example_input = {"x": (torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), "y": torch.ones((1, 3, 10, 10))}
-    ref_model = make_ref_pt_model_with_tuple_input(([1, 3, 10, 10], [1, 3, 10, 10], [1, 3, 10, 10], [1, 3, 10, 10]))
+    ref_model = make_ref_pt_model_with_tuple_input([_INPUT_SHAPE] * 4)
     return net, ref_model, {"example_input": example_input}
 
 
@@ -657,7 +660,7 @@ def create_pytorch_module_with_tuple_case3(tmp_dir):
 def create_pytorch_module_with_dict_case1(tmp_dir):
     net = make_pt_model_with_dict_input()
     example_input = ({"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10)), "z": torch.ones((1, 3, 10, 10))},)
-    ref_model = make_ref_pt_model_with_dict_input(([1, 3, 10, 10], [1, 3, 10, 10], [1, 3, 10, 10]))
+    ref_model = make_ref_pt_model_with_dict_input([_INPUT_SHAPE] * 3)
     return net, ref_model, {"example_input": example_input}
 
 
@@ -687,7 +690,7 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [1, 3, 10, 10]
+    shape = _INPUT_SHAPE
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -722,7 +725,7 @@ def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [1, 3, 10, 10]
+    shape = _INPUT_SHAPE
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -1231,33 +1234,43 @@ class ShapeDependentReshape(torch.nn.Module):
         return y.reshape(b, c, h * w)
 
 
-class TestExampleInputStaticShape(unittest.TestCase):
-    def test_example_input_pins_static_shape(self):
-        # example_input alone (no `input=`) must pin the input to its concrete dims so
-        # the shape-dependent subgraph folds and the whole graph becomes static. This is
-        # the fix for the YOLO direct-convert iGPU throughput drop.
+class TestExampleInputStaticShape:
+    # ShapeDependentReshape's reshape target is derived from x.shape, so the
+    # ShapeOf/Gather/Mul/Reshape subgraph stays live (dynamic) when the input is
+    # dynamic and constant-folds away when the input is static. These cases lock in
+    # the YOLO direct-convert fix: example_input pins concrete dims by default (the
+    # whole graph folds to static), while an explicit `input=` still introduces
+    # dynamic dimensions.
+    @pytest.mark.parametrize("convert_kwargs,expected_shape,expect_dynamic", [
+        # example_input alone -> input pinned to its concrete dims; graph is static.
+        ({"example_input": torch.zeros(1, 3, 16, 16)},
+         [1, 3, 16, 16], False),
+        # escape hatch: an explicit fully-dynamic `input=` overrides the example dims.
+        ({"example_input": torch.zeros(1, 3, 16, 16),
+          "input": [PartialShape([-1, 3, -1, -1])]},
+         [-1, 3, -1, -1], True),
+        # escape hatch: an explicit bounded Dimension(min, max) is honored too.
+        ({"example_input": torch.zeros(1, 3, 16, 16),
+          "input": [PartialShape([Dimension(1, 8), 3, 16, 16])]},
+         [Dimension(1, 8), 3, 16, 16], True),
+    ], ids=["example_only_static", "explicit_dynamic_override", "bounded_dim_override"])
+    def test_example_input_shape(self, convert_kwargs, expected_shape, expect_dynamic,
+                                 ie_device, precision, ir_version):
+        # ie_device/precision/ir_version are injected by the layer-test conftest for
+        # every test in this directory; conversion here is device/precision-agnostic.
         from openvino.tools.ovc import convert_model
-        ov_model = convert_model(ShapeDependentReshape(),
-                                 example_input=torch.zeros(1, 3, 16, 16))
-        assert ov_model.inputs[0].get_partial_shape() == PartialShape([1, 3, 16, 16]), \
-            "example_input must pin a static shape, got {}".format(
-                ov_model.inputs[0].get_partial_shape())
-        dynamic_nodes = [n.get_friendly_name() for n in ov_model.get_ops()
-                         if any(o.get_partial_shape().is_dynamic for o in n.outputs())]
-        assert not dynamic_nodes, \
-            "expected a fully static graph, dynamic nodes remain: {}".format(dynamic_nodes)
-
-    def test_explicit_dynamic_input_overrides_example(self):
-        # The escape hatch: an explicit `input=` with dynamic dims is still honored even
-        # though example_input carries concrete dims.
-        from openvino.tools.ovc import convert_model
-        ov_model = convert_model(ShapeDependentReshape(),
-                                 example_input=torch.zeros(1, 3, 16, 16),
-                                 input=[PartialShape([-1, 3, -1, -1])])
-        assert ov_model.inputs[0].get_partial_shape() == PartialShape([-1, 3, -1, -1]), \
-            "explicit dynamic input= must be honored, got {}".format(
-                ov_model.inputs[0].get_partial_shape())
-        assert ov_model.inputs[0].get_partial_shape().is_dynamic
+        ov_model = convert_model(ShapeDependentReshape(), **convert_kwargs)
+        actual = ov_model.inputs[0].get_partial_shape()
+        assert actual == PartialShape(expected_shape), \
+            "expected input shape {}, got {}".format(PartialShape(expected_shape), actual)
+        if expect_dynamic:
+            assert actual.is_dynamic, "expected a dynamic input shape, got {}".format(actual)
+        else:
+            # A static input must fold the shape-dependent subgraph away entirely.
+            dynamic_nodes = [n.get_friendly_name() for n in ov_model.get_ops()
+                             if any(o.get_partial_shape().is_dynamic for o in n.outputs())]
+            assert not dynamic_nodes, \
+                "expected a fully static graph, dynamic nodes remain: {}".format(dynamic_nodes)
 
 
 class ConvertRaises(unittest.TestCase):
@@ -1487,7 +1500,7 @@ class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
 
 def ovc_case1(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([1, 3, 10, 10])
+    ref_model = make_ref_pt_model_two_inputs(_INPUT_SHAPE)
 
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
