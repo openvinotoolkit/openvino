@@ -333,7 +333,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                             return is_graph_input_node(traced_producer);
                         });
                     if (!single_consumer_graph_input_leaf) {
-                    _subgraph_inputs.insert(input);
+                        _subgraph_inputs.insert(input);
                     }
                 }
             }
