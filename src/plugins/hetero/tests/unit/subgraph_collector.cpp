@@ -1037,10 +1037,11 @@ struct SubgraphCollectorTestParam {
     bool verify_merge_roundtrip = false;  // merge submodels back and check size == 1
     bool verify_merge_compare = false;    // compare_functions(original, merged)
     // Per-resulting-subgraph structural counts. Empty vector = check disabled. When non-empty,
-    // size MUST equal expected_subgraph_count; each entry is the expected count in the subgraph
-    // at the same index. Intended primarily as direct evidence of Constant duplication after a
-    // promoted boundary (see shared_const_*_cycle cases), without requiring a full reference
-    // submodel via expected_submodel_factories.
+    // size MUST equal the actual runtime subgraph count (`subgraphs.size()`); each entry is the
+    // expected count in the subgraph at the same index. This remains valid even when
+    // expected_subgraph_count is std::nullopt. Intended primarily as direct evidence of Constant
+    // duplication after a promoted boundary (see shared_const_*_cycle cases), without requiring
+    // a full reference submodel via expected_submodel_factories.
     std::vector<size_t> expected_constants_per_submodel = {};
     std::vector<size_t> expected_parameters_per_submodel = {};
     std::vector<size_t> expected_results_per_submodel = {};
