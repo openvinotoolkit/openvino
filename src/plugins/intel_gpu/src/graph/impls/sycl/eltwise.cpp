@@ -19,12 +19,6 @@
 
 namespace {
 
-inline bool is_usm_allocation_type(cldnn::allocation_type alloc_type) {
-    return alloc_type == cldnn::allocation_type::usm_host ||
-           alloc_type == cldnn::allocation_type::usm_shared ||
-           alloc_type == cldnn::allocation_type::usm_device;
-}
-
 /**
  * @brief Base class for eltwise operation function objects using CRTP (Curiously Recurring Template Pattern)
  *
@@ -374,9 +368,9 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
         const bool all_sycl_buffer = in0_alloc_type == cldnn::allocation_type::sycl_buffer &&
                                      in1_alloc_type == cldnn::allocation_type::sycl_buffer &&
                                      out_alloc_type == cldnn::allocation_type::sycl_buffer;
-        const bool all_usm = is_usm_allocation_type(in0_alloc_type) &&
-                             is_usm_allocation_type(in1_alloc_type) &&
-                             is_usm_allocation_type(out_alloc_type);
+        const bool all_usm = memory_capabilities::is_usm_type(in0_alloc_type) &&
+                             memory_capabilities::is_usm_type(in1_alloc_type) &&
+                             memory_capabilities::is_usm_type(out_alloc_type);
 
         if (all_sycl_buffer) {
             if (out_t == ov::element::f32) {
