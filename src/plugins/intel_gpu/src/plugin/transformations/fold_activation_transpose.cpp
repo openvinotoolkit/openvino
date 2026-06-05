@@ -42,7 +42,7 @@ FoldActivationTranspose::FoldActivationTranspose() {
         const auto c_order_value = c_order->cast_vector<int64_t>();
         OPENVINO_ASSERT(a_order_value.size() == b_order_value.size());
         OPENVINO_ASSERT(a_order_value.size() == c_order_value.size());
-        for (int i = 0; i < a_order_value.size(); ++i) {
+        for (size_t i = 0; i < a_order_value.size(); ++i) {
             if (a_order_value[i] != b_order_value[i] || c_order_value[a_order_value[i]] != i)
                 return false;
         }
