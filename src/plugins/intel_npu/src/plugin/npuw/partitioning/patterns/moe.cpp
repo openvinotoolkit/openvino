@@ -17,6 +17,64 @@ namespace moe {
 
 namespace opp = ov::pass::pattern;
 
+namespace {
+
+using NodeToGroupMapPtr = ov::npuw::online::detail::OVNodeToGroupMapPtr;
+
+void isolate_node(const std::shared_ptr<ov::Node>& node,
+                  const std::string& isol_tag,
+                  const NodeToGroupMapPtr& node_to_gptr) {
+    if (node && node_to_gptr->count(node)) {
+        node_to_gptr->at(node)->isolate(isol_tag);
+    }
+}
+
+// Scan output_multiply's middle dimensions (all dims except dim-0=num_experts and last=hidden).
+// If any middle dim > 1 it is the token count (prefill). If all are 1, it is decoding.
+// Shape layouts:  GPT-OSS [N, token, 1, H]  /  Qwen3 [N, 1, token, H]
+bool is_decoding_stage(const std::shared_ptr<ov::Node>& output_multiply) {
+    const auto shape = output_multiply->get_output_partial_shape(0);
+    if (!shape.rank().is_static()) {
+        return false;
+    }
+    const auto rank = shape.rank().get_length();
+    for (int64_t i = 1; i < rank - 1; ++i) {
+        const auto& d = shape[i];
+        if (d.is_static() && d.get_length() != 1) {
+            return false;  // prefill: found token dim > 1
+        }
+    }
+    return true;  // all middle dims are 1 → decoding
+}
+
+// After output_multiply, find the first ReduceSum consumer and isolate it.
+void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
+                              const std::string& isol_tag,
+                              const NodeToGroupMapPtr& node_to_gptr) {
+    std::shared_ptr<ov::Node> reduce_sum;
+    for (auto& out : output_multiply->outputs()) {
+        for (auto& in : out.get_target_inputs()) {
+            auto consumer = in.get_node()->shared_from_this();
+            if (std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
+                reduce_sum = consumer;
+                break;
+            }
+        }
+        if (reduce_sum)
+            break;
+    }
+    if (reduce_sum && node_to_gptr->count(reduce_sum)) {
+        node_to_gptr->at(reduce_sum)->isolate(isol_tag);
+        LOG_DEBUG("  ReduceSum successfully isolated");
+    } else if (reduce_sum) {
+        LOG_WARN("  ReduceSum found but not in node_to_gptr map");
+    } else {
+        LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
+    }
+}
+
+}  // namespace
+
 /*
     GPT-OSS Expert Pattern:
 
@@ -132,104 +190,40 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
         auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
 
-        // Check if this is decoding stage by scanning the middle dimensions of
-        // output_multiply for a non-1 token count.  The shape is always rank-4
-        // [num_experts, ..., hidden] with exactly one "token" dim and one singleton
-        // among dims 1..rank-2.
-        //
-        // GPT-OSS: [N, token, 1, H]  - prefill: token > 1; decoding: token = 1
-        // Qwen:    [N, 1, token, H]  - same semantics, different layout
-        //
-        // Strategy: scan dims 1..rank-2 for the first non-1 value.
-        //   - Found non-1 value  → that is the token count; if > 1 it's prefill.
-        //   - No non-1 found     → all middle dims are 1 (decoding, token_count == 1).
-        // Note: a token_count of exactly 1 always falls into the "not found" case
-        // since both middle dims are 1, and the fallback correctly sets is_decoding.
-        auto output_shape = matched_output_multiply->get_output_partial_shape(0);
-        LOG_DEBUG("Expert Multiply output_shape: " << output_shape);
-        bool is_decoding = false;
+        LOG_DEBUG("Expert Multiply output_shape: " << matched_output_multiply->get_output_partial_shape(0));
+        const bool is_decoding = is_decoding_stage(matched_output_multiply);
+        LOG_DEBUG("GPT-OSS Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
 
-        if (output_shape.rank().is_static()) {
-            const auto rank = output_shape.rank().get_length();
-            // Scan middle dims (skip dim 0 = num_experts, skip last = hidden_dim)
-            bool found_token_dim = false;
-            for (int64_t i = 1; i < rank - 1; ++i) {
-                const auto& d = output_shape[i];
-                if (!d.is_static()) {
-                    continue;
-                }
-                const auto val = d.get_length();
-                if (val != 1) {
-                    // This is the token dimension and val > 1: prefill stage.
-                    // (val == 1 never reaches here; that case is handled by fallback.)
-                    is_decoding = false;
-                    LOG_DEBUG("GPT-OSS Expert pattern matched (Prefill stage): token_count=" << val);
-                    found_token_dim = true;
-                    break;
-                }
-                // val == 1: singleton layout dim, keep scanning
-            }
-            if (!found_token_dim) {
-                // All middle dims are 1 (token_count == 1): decoding stage.
-                is_decoding = true;
-                LOG_DEBUG("GPT-OSS Expert pattern matched (Decoding stage): single token");
-            }
-        }
-
-        // Isolate all common expert nodes
-        node_to_gptr->at(matched_tile)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape1)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_multiply1)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_convert1)->isolate(isol_tag);
-        node_to_gptr->at(matched_matmul1)->isolate(isol_tag);
-        node_to_gptr->at(matched_add1)->isolate(isol_tag);
-        node_to_gptr->at(matched_slice)->isolate(isol_tag);
-        node_to_gptr->at(matched_minimum)->isolate(isol_tag);
-        node_to_gptr->at(matched_swish)->isolate(isol_tag);
+        isolate_node(matched_tile, isol_tag, node_to_gptr);
+        isolate_node(matched_reshape1, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_multiply1, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_convert1, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul1, isol_tag, node_to_gptr);
+        isolate_node(matched_add1, isol_tag, node_to_gptr);
+        isolate_node(matched_slice, isol_tag, node_to_gptr);
+        isolate_node(matched_minimum, isol_tag, node_to_gptr);
+        isolate_node(matched_swish, isol_tag, node_to_gptr);
 
         // Isolate AWQ multiply if it exists
-        if (matched_awq_multiply && node_to_gptr->count(matched_awq_multiply)) {
-            node_to_gptr->at(matched_awq_multiply)->isolate(isol_tag);
+        if (matched_awq_multiply) {
+            isolate_node(matched_awq_multiply, isol_tag, node_to_gptr);
             LOG_DEBUG("AWQ multiply after Swish isolated");
         }
 
-        node_to_gptr->at(matched_other_slice)->isolate(isol_tag);
-        node_to_gptr->at(matched_clamp)->isolate(isol_tag);
-        node_to_gptr->at(matched_add2)->isolate(isol_tag);
-        node_to_gptr->at(matched_multiply1)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_multiply2)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_convert2)->isolate(isol_tag);
-        node_to_gptr->at(matched_matmul2)->isolate(isol_tag);
-        node_to_gptr->at(matched_add3)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
-        node_to_gptr->at(matched_output_multiply)->isolate(isol_tag);
+        isolate_node(matched_other_slice, isol_tag, node_to_gptr);
+        isolate_node(matched_clamp, isol_tag, node_to_gptr);
+        isolate_node(matched_add2, isol_tag, node_to_gptr);
+        isolate_node(matched_multiply1, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_multiply2, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_convert2, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul2, isol_tag, node_to_gptr);
+        isolate_node(matched_add3, isol_tag, node_to_gptr);
+        isolate_node(matched_reshape2, isol_tag, node_to_gptr);
+        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
 
-        // If decoding stage, find and isolate ReduceSum after Multiply
         if (is_decoding) {
             LOG_DEBUG("Decoding stage detected, searching for ReduceSum to isolate...");
-            std::shared_ptr<ov::Node> matched_reduce_sum = nullptr;
-
-            for (auto& output : matched_output_multiply->outputs()) {
-                for (auto& input : output.get_target_inputs()) {
-                    auto consumer = input.get_node()->shared_from_this();
-                    if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
-                        matched_reduce_sum = reduce_sum;
-                        LOG_DEBUG("  Found ReduceSum after Multiply, isolating for decoding stage");
-                        break;
-                    }
-                }
-                if (matched_reduce_sum)
-                    break;
-            }
-
-            if (matched_reduce_sum && node_to_gptr->count(matched_reduce_sum)) {
-                node_to_gptr->at(matched_reduce_sum)->isolate(isol_tag);
-                LOG_DEBUG("  ReduceSum successfully isolated");
-            } else if (matched_reduce_sum) {
-                LOG_WARN("  ReduceSum found but not in node_to_gptr map");
-            } else {
-                LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
-            }
+            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
         }
 
         return false;
@@ -372,25 +366,19 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         }
 
         // Isolate all 16 nodes
-        auto isolate_if_exists = [&](const std::shared_ptr<ov::Node>& node) {
-            if (node && node_to_gptr->count(node)) {
-                node_to_gptr->at(node)->isolate(isol_tag);
-            }
-        };
-
-        isolate_if_exists(matched_weights_multiply);
-        isolate_if_exists(matched_weights_convert2);
-        isolate_if_exists(matched_matmul);
-        isolate_if_exists(matched_add);
-        isolate_if_exists(matched_topk);
-        isolate_if_exists(matched_softmax);
-        isolate_if_exists(matched_topk_convert);
-        isolate_if_exists(matched_slice);
-        isolate_if_exists(matched_broadcast);
-        isolate_if_exists(matched_scatter);
-        isolate_if_exists(matched_transpose);
-        isolate_if_exists(matched_reshape);
-        isolate_if_exists(matched_unsqueeze);
+        isolate_node(matched_weights_multiply, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_convert2, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul, isol_tag, node_to_gptr);
+        isolate_node(matched_add, isol_tag, node_to_gptr);
+        isolate_node(matched_topk, isol_tag, node_to_gptr);
+        isolate_node(matched_softmax, isol_tag, node_to_gptr);
+        isolate_node(matched_topk_convert, isol_tag, node_to_gptr);
+        isolate_node(matched_slice, isol_tag, node_to_gptr);
+        isolate_node(matched_broadcast, isol_tag, node_to_gptr);
+        isolate_node(matched_scatter, isol_tag, node_to_gptr);
+        isolate_node(matched_transpose, isol_tag, node_to_gptr);
+        isolate_node(matched_reshape, isol_tag, node_to_gptr);
+        isolate_node(matched_unsqueeze, isol_tag, node_to_gptr);
 
         LOG_DEBUG("Router pattern isolated");
         return false;
@@ -485,84 +473,29 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
 
         LOG_DEBUG("Qwen3Expert pattern matched: " << matched_tile->get_friendly_name());
 
-        // Detect decoding stage using the same middle-dims scan as GPTOSSExpert.
-        // output_multiply shape: [num_experts, ..., hidden]
-        //   Prefill: one middle dim is token_count > 1
-        //   Decoding: all middle dims are 1
-        auto output_shape = matched_output_multiply->get_output_partial_shape(0);
-        LOG_DEBUG("Qwen3 Expert Multiply output_shape: " << output_shape);
-        bool is_decoding = false;
+        LOG_DEBUG("Qwen3 Expert Multiply output_shape: " << matched_output_multiply->get_output_partial_shape(0));
+        const bool is_decoding = is_decoding_stage(matched_output_multiply);
+        LOG_DEBUG("Qwen3 Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
 
-        if (output_shape.rank().is_static()) {
-            const auto rank = output_shape.rank().get_length();
-            bool found_token_dim = false;
-            for (int64_t i = 1; i < rank - 1; ++i) {
-                const auto& d = output_shape[i];
-                if (!d.is_static()) {
-                    continue;
-                }
-                const auto val = d.get_length();
-                if (val != 1) {
-                    is_decoding = false;
-                    LOG_DEBUG("Qwen3 Expert pattern matched (Prefill stage): token_count=" << val);
-                    found_token_dim = true;
-                    break;
-                }
-            }
-            if (!found_token_dim) {
-                is_decoding = true;
-                LOG_DEBUG("Qwen3 Expert pattern matched (Decoding stage): single token");
-            }
-        }
+        isolate_node(matched_tile, isol_tag, node_to_gptr);
+        isolate_node(matched_reshape1, isol_tag, node_to_gptr);
+        isolate_node(matched_gate_weights_multiply, isol_tag, node_to_gptr);
+        isolate_node(matched_gate_weights_convert, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul_gate, isol_tag, node_to_gptr);
+        isolate_node(matched_swish, isol_tag, node_to_gptr);
+        isolate_node(matched_up_weights_multiply, isol_tag, node_to_gptr);
+        isolate_node(matched_up_weights_convert, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul_up, isol_tag, node_to_gptr);
+        isolate_node(matched_multiply_swiglu, isol_tag, node_to_gptr);
+        isolate_node(matched_down_weights_multiply, isol_tag, node_to_gptr);
+        isolate_node(matched_down_weights_convert, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul_down, isol_tag, node_to_gptr);
+        isolate_node(matched_reshape2, isol_tag, node_to_gptr);
+        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
 
-        auto isolate_if_exists = [&](const std::shared_ptr<ov::Node>& node) {
-            if (node && node_to_gptr->count(node)) {
-                node_to_gptr->at(node)->isolate(isol_tag);
-            }
-        };
-
-        isolate_if_exists(matched_tile);
-        isolate_if_exists(matched_reshape1);
-        isolate_if_exists(matched_gate_weights_multiply);
-        isolate_if_exists(matched_gate_weights_convert);
-        isolate_if_exists(matched_matmul_gate);
-        isolate_if_exists(matched_swish);
-        isolate_if_exists(matched_up_weights_multiply);
-        isolate_if_exists(matched_up_weights_convert);
-        isolate_if_exists(matched_matmul_up);
-        isolate_if_exists(matched_multiply_swiglu);
-        isolate_if_exists(matched_down_weights_multiply);
-        isolate_if_exists(matched_down_weights_convert);
-        isolate_if_exists(matched_matmul_down);
-        isolate_if_exists(matched_reshape2);
-        isolate_if_exists(matched_output_multiply);
-
-        // If decoding stage, find and isolate ReduceSum after output_multiply
         if (is_decoding) {
-            LOG_DEBUG("Qwen3 Decoding stage detected, searching for ReduceSum to isolate...");
-            std::shared_ptr<ov::Node> matched_reduce_sum = nullptr;
-
-            for (auto& output : matched_output_multiply->outputs()) {
-                for (auto& input : output.get_target_inputs()) {
-                    auto consumer = input.get_node()->shared_from_this();
-                    if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
-                        matched_reduce_sum = reduce_sum;
-                        LOG_DEBUG("  Found ReduceSum after Multiply, isolating for decoding stage");
-                        break;
-                    }
-                }
-                if (matched_reduce_sum)
-                    break;
-            }
-
-            if (matched_reduce_sum && node_to_gptr->count(matched_reduce_sum)) {
-                node_to_gptr->at(matched_reduce_sum)->isolate(isol_tag);
-                LOG_DEBUG("  ReduceSum successfully isolated");
-            } else if (matched_reduce_sum) {
-                LOG_WARN("  ReduceSum found but not in node_to_gptr map");
-            } else {
-                LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
-            }
+            LOG_DEBUG("Decoding stage detected, searching for ReduceSum to isolate...");
+            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
         }
 
         return false;
@@ -647,25 +580,19 @@ Qwen3Router::Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
         auto broadcast_node = matched_scatter->input_value(0).get_node_shared_ptr();
         auto matched_broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(broadcast_node);
 
-        auto isolate_if_exists = [&](const std::shared_ptr<ov::Node>& node) {
-            if (node && node_to_gptr->count(node)) {
-                node_to_gptr->at(node)->isolate(isol_tag);
-            }
-        };
-
-        isolate_if_exists(matched_weights_convert_in);
-        isolate_if_exists(matched_weights_multiply);
-        isolate_if_exists(matched_weights_convert_out);
-        isolate_if_exists(matched_matmul);
-        isolate_if_exists(matched_softmax);
-        isolate_if_exists(matched_topk);
-        isolate_if_exists(matched_reduce_sum);
-        isolate_if_exists(matched_divide);
-        isolate_if_exists(matched_broadcast);
-        isolate_if_exists(matched_scatter);
-        isolate_if_exists(matched_transpose);
-        isolate_if_exists(matched_reshape);
-        isolate_if_exists(matched_unsqueeze);
+        isolate_node(matched_weights_convert_in, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_multiply, isol_tag, node_to_gptr);
+        isolate_node(matched_weights_convert_out, isol_tag, node_to_gptr);
+        isolate_node(matched_matmul, isol_tag, node_to_gptr);
+        isolate_node(matched_softmax, isol_tag, node_to_gptr);
+        isolate_node(matched_topk, isol_tag, node_to_gptr);
+        isolate_node(matched_reduce_sum, isol_tag, node_to_gptr);
+        isolate_node(matched_divide, isol_tag, node_to_gptr);
+        isolate_node(matched_broadcast, isol_tag, node_to_gptr);
+        isolate_node(matched_scatter, isol_tag, node_to_gptr);
+        isolate_node(matched_transpose, isol_tag, node_to_gptr);
+        isolate_node(matched_reshape, isol_tag, node_to_gptr);
+        isolate_node(matched_unsqueeze, isol_tag, node_to_gptr);
 
         return false;
     };
