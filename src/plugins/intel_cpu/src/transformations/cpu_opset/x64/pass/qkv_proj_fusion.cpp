@@ -24,8 +24,8 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
@@ -217,9 +217,7 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         ov::OutputVector{qkv_proj, qkv_proj_cvt_out});
     auto qkv_split_lengths =
         pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i32) && pattern::shape_matches("[3]"));
-    // Match VariadicSplit on the qkv_proj output with any axis input (validated in callback).
-    auto qkv_split_axis = pattern::any_input();
-    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj_or_cvt, qkv_split_axis, qkv_split_lengths});
+    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj_or_cvt, 2, qkv_split_lengths});
     auto result = qkv_split->output(0);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
