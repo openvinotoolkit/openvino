@@ -4,6 +4,7 @@
 
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 
+#include <iostream>
 #include <mutex>
 
 #include "openvino/util/file_util.hpp"
@@ -46,6 +47,10 @@ VCLApi::VCLApi(const std::string& library_dir) : _logger("VCLApi", Logger::globa
     vcl_symbols_list();
     vcl_weak_symbols_list();
 #undef vcl_symbol_statement
+}
+
+VCLApi::~VCLApi() {
+    std::cout << "[DEBUG] VCLApi destructor" << std::endl;
 }
 
 const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& library_dir) {
