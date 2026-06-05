@@ -394,9 +394,8 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
                 _host_buffer.allocateHost(_bytes_count);
                 // Always copy device data to host buffer (treat write as read_write internally).
                 // This ensures the host buffer always has valid data, making nested locks safe.
-                auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
                 try {
-                    auto ev = sycl_queue.memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
+                    auto ev = sycl_stream.get_sycl_queue().memcpy(_host_buffer.get(), _buffer.get(), _bytes_count);
                     ev.wait_and_throw();
                 } catch (::sycl::exception const& err) {
                     OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
@@ -426,9 +425,8 @@ void gpu_usm::unlock(const stream& stream) {
             if (_bytes_count != 0) {
                 if (_copy_back_to_device) {
                     auto& sycl_stream = downcast<const sycl::sycl_stream>(stream);
-                    auto& sycl_queue = const_cast<sycl::sycl_stream&>(sycl_stream).get_sycl_queue();
                     try {
-                        auto ev = sycl_queue.memcpy(_buffer.get(), _host_buffer.get(), _bytes_count);
+                        auto ev = sycl_stream.get_sycl_queue().memcpy(_buffer.get(), _host_buffer.get(), _bytes_count);
                         ev.wait_and_throw();
                     } catch (::sycl::exception const& err) {
                         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));

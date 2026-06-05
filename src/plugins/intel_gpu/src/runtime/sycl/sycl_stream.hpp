@@ -19,7 +19,7 @@ namespace sycl {
 
 class sycl_stream : public stream {
 public:
-    ::sycl::queue& get_sycl_queue() { return _command_queue; }
+    ::sycl::queue& get_sycl_queue() const { return _command_queue; }
 
     sycl_stream(const sycl_engine& engine, const ExecutionConfig& config);
     sycl_stream(const sycl_engine& engine, const ExecutionConfig& config, void* handle);
