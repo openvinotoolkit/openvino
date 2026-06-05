@@ -139,7 +139,7 @@ void walk_subgraph_external_refs(const GraphProto& subgraph, const ExternalRefSi
         }
         for (const auto& attr : sub_node.attribute()) {
             if (attr.has_g()) {
-                walk_subgraph_external_refs(attr.g(), emit_if_external);
+                walk_subgraph_external_refs(attr.g(), sink);
             }
         }
     }
