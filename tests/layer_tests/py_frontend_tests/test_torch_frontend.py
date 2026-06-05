@@ -2355,7 +2355,7 @@ def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32)
             self.bias = None
 
         def forward(self, x):
-            return torch.zeros(*x.shape[:-1], out_features, dtype=x.dtype)
+            return torch.zeros(*x.shape[:-1], out_features, dtype=x.dtype, device=x.device)
 
     class GPTQModel(torch.nn.Module):
         def __init__(self):
