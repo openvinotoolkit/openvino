@@ -194,10 +194,12 @@ bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& n
         return false;
     }
 
+    // After ConvertConvolutionBias swaps Mul and Add:
+    // Conv -> Add(bias) -> Mul(scales) -> Swish -> FQ
     auto conv  = wrap_type<ov::op::v1::Convolution>();
-    auto mul   = wrap_type<ov::op::v1::Multiply>({conv, any_input()});
-    auto add   = wrap_type<ov::op::v1::Add>({mul, any_input()});
-    auto swish = wrap_type<ov::op::v4::Swish>({add});
+    auto add   = wrap_type<ov::op::v1::Add>({conv, any_input()});
+    auto mul   = wrap_type<ov::op::v1::Multiply>({add, any_input()});
+    auto swish = wrap_type<ov::op::v4::Swish>({mul});
     auto fq    = wrap_type<ov::op::v0::FakeQuantize>(
                      {swish, any_input(), any_input(), any_input(), any_input()});
 
@@ -209,10 +211,8 @@ bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& n
     const auto& pattern_map = matcher.get_pattern_value_map();
     const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
 
-    return any_of(conv_node->get_input_element_type(0), 
-                    ov::element::Type_t::i8,
-                    ov::element::Type_t::u8) &&
-            conv_node->get_input_element_type(1)== ov::element::Type_t::i8;
+    return any_of(conv_node->get_input_element_type(0), ov::element::Type_t::i8, ov::element::Type_t::u8) &&
+           conv_node->get_input_element_type(1) == ov::element::Type_t::i8;
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
