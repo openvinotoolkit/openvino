@@ -300,8 +300,7 @@ public:
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
 
         // For dual-nibble V opt, use PACKED_V_HEAD_SIZE for SG_SCALE_FACTOR calculation to match WG dispatch
-        const bool dual_nibble_v = is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt) &&
-                                   (desc->v_head_size / u4_elems_per_byte % subgroup_size == 0);
+        const bool dual_nibble_v = is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt) && (desc->v_head_size / u4_elems_per_byte % subgroup_size == 0);
         const size_t effective_head_size = dual_nibble_v ? desc->v_head_size / u4_elems_per_byte : desc->k_head_size;
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), effective_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
 
@@ -489,8 +488,8 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t v_head_size = desc->v_head_size;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool dual_nibble_v = get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) &&
-                                       (v_head_size / u4_elems_per_byte % subgroup_size == 0);
+            const bool dual_nibble_v =
+                get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) && (v_head_size / u4_elems_per_byte % subgroup_size == 0);
             const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
 
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
@@ -532,8 +531,8 @@ public:
             const size_t v_head_size = desc->v_head_size;
             const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool dual_nibble_v = get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) &&
-                                       (v_head_size / u4_elems_per_byte % subgroup_size == 0);
+            const bool dual_nibble_v =
+                get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) && (v_head_size / u4_elems_per_byte % subgroup_size == 0);
             const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             // GQA
@@ -701,8 +700,8 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t v_head_size = desc->v_head_size;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool dual_nibble_v = get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) &&
-                                       (v_head_size / u4_elems_per_byte % subgroup_size == 0);
+            const bool dual_nibble_v =
+                get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) && (v_head_size / u4_elems_per_byte % subgroup_size == 0);
             const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
 
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));
@@ -1764,8 +1763,8 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - " << "matrix: " << total_matrix_elements
-                                       << ", vector: " << total_vector_elements << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
+                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;
