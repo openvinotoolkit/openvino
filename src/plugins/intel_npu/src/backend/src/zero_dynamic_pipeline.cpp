@@ -209,36 +209,32 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
                                          ze_event_handle_t event) {
     _logger.debug("Start to execute graph with runtime engine");
 
-    // Build the args impl off to the side on first execution so that a throw mid-population
-    // leaves args._impl null and the next call retries from scratch (matches previous behavior).
-    const bool firstExecution = (args._impl == nullptr);
-    std::unique_ptr<DynamicArgumentsImpl> pendingImpl;
-    DynamicArgumentsImpl* argsImpl = nullptr;
-    if (firstExecution) {
-        pendingImpl = std::make_unique<DynamicArgumentsImpl>();
-        argsImpl = pendingImpl.get();
-    } else {
-        argsImpl = args._impl.get();
-    }
+    // The VM execution context is created on the first execute and persists across calls,
+    // so its presence doubles as the "have we executed at least once" flag. On first
+    // execution we must always run a full execute (command lists are still empty); on later
+    // calls we can skip the rebuild if no tensor description changed.
+    const bool firstExecution = (args._executionContext == nullptr);
+
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefs;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> outputMemRefs;
+    inputMemRefs.reserve(args._inputs.size());
+    outputMemRefs.reserve(args._outputs.size());
 
     bool noTensorChange = true;
-    npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
 
     for (auto& in : args._inputs) {
         auto& inImpl = in.ensure_impl();
         inImpl.updateMemRefHandleStatus(in);
-        if (firstExecution) {
-            argsImpl->_inputMemRefs.push_back(inImpl._memRef);
-        } else if (inImpl._ptrUpdated || inImpl._shapeUpdated || inImpl._strideUpdated) {
+        inputMemRefs.push_back(inImpl._memRef);
+        if (inImpl._ptrUpdated || inImpl._shapeUpdated || inImpl._strideUpdated) {
             noTensorChange = false;
         }
     }
     for (auto& out : args._outputs) {
         auto& outImpl = out.ensure_impl();
         outImpl.updateMemRefHandleStatus(out);
-        if (firstExecution) {
-            argsImpl->_outputMemRefs.push_back(outImpl._memRef);
-        } else if (outImpl._ptrUpdated || outImpl._shapeUpdated || outImpl._strideUpdated) {
+        outputMemRefs.push_back(outImpl._memRef);
+        if (outImpl._ptrUpdated || outImpl._shapeUpdated || outImpl._strideUpdated) {
             noTensorChange = false;
         }
     }
@@ -265,29 +261,27 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
         }
     }
 
-    // Lazily create the VM execution context (owned by argsImpl, destroyed with it).
-    argsImpl->ensureExecutionContext(vmRuntime);
+    // Lazily create the VM execution context (owned by args, destroyed with it).
+    args.ensureExecutionContext(vmRuntime);
 
-    params->pInputs = argsImpl->_inputMemRefs.data();
-    params->numOfInputs = static_cast<uint32_t>(argsImpl->_inputMemRefs.size());
-    params->pOutputs = argsImpl->_outputMemRefs.data();
-    params->numOfOutputs = static_cast<uint32_t>(argsImpl->_outputMemRefs.size());
-    params->ctx = _init_structs->getContext();
-    params->device = _init_structs->getDevice();
-    params->graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
-    params->commandLists = commandLists.data();
-    params->numCommandLists = static_cast<uint64_t>(commandLists.size());
-    params->commandQueue = commandQueue;
-    params->inferenceFence = fence;
-    params->event = event;
+    npu_vm_runtime_execute_params_t params{};
+    params.executionContext = args._executionContext;
+    params.pInputs = inputMemRefs.data();
+    params.numOfInputs = static_cast<uint32_t>(inputMemRefs.size());
+    params.pOutputs = outputMemRefs.data();
+    params.numOfOutputs = static_cast<uint32_t>(outputMemRefs.size());
+    params.ctx = _init_structs->getContext();
+    params.device = _init_structs->getDevice();
+    params.graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
+    params.commandLists = commandLists.data();
+    params.numCommandLists = static_cast<uint64_t>(commandLists.size());
+    params.commandQueue = commandQueue;
+    params.inferenceFence = fence;
+    params.event = event;
 
     _logger.debug("Execute graph with runtime engine");
-    if (npuVMRuntimeExecute(vmRuntime, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
-    }
-
-    if (firstExecution) {
-        args._impl = std::move(pendingImpl);
     }
 
     _logger.debug("Completed to execute graph with runtime engine");

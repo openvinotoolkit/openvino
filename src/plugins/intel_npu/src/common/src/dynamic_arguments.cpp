@@ -158,13 +158,6 @@ DynamicMemRefImpl& DynamicMemRefType::ensure_impl() {
     return *_impl;
 }
 
-DynamicArgumentsImpl& DynamicArguments::ensure_impl() {
-    if (!_impl) {
-        _impl = std::make_unique<DynamicArgumentsImpl>();
-    }
-    return *_impl;
-}
-
 DynamicMemRefImpl::~DynamicMemRefImpl() {
     destroyMemRef();
 }
@@ -229,19 +222,18 @@ void DynamicMemRefImpl::destroyMemRef() {
     }
 }
 
-DynamicArgumentsImpl::~DynamicArgumentsImpl() {
-    if (_executeParams.executionContext != nullptr) {
-        npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
-        _executeParams.executionContext = nullptr;
+DynamicArguments::~DynamicArguments() {
+    if (_executionContext != nullptr) {
+        npuVMRuntimeDestroyExecutionContext(_executionContext);
+        _executionContext = nullptr;
     }
 }
 
-void DynamicArgumentsImpl::ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime) {
-    if (_executeParams.executionContext != nullptr) {
+void DynamicArguments::ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime) {
+    if (_executionContext != nullptr) {
         return;
     }
-    if (npuVMRuntimeCreateExecutionContext(vmRuntime, &_executeParams.executionContext) !=
-        NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeCreateExecutionContext(vmRuntime, &_executionContext) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create a VM execution context");
     }
 }
