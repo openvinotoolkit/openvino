@@ -16,12 +16,6 @@
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
-// Forward declaration of the opaque VM runtime handle. The actual definition lives in
-// <intel_npu/runtime/npu_vm_runtime.hpp> and is included by translation units that need
-// to dereference / call into the VM runtime. Keeping it forward-declared here avoids
-// pulling the VM headers into every consumer of the IGraph interface.
-struct _npu_vm_runtime_handle_t;
-
 namespace intel_npu {
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
@@ -41,7 +35,6 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 
     virtual void set_argument_value(uint32_t id, const void* data) const;
-
     virtual void set_argument_value_with_strides(uint32_t id,
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;

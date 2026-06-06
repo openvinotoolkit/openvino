@@ -40,8 +40,8 @@ class DynamicPipeline final : public IPipeline {
         /// Allocate per-IO MemRef slots driven by the network metadata. The pipeline ctor fills
         /// each slot's data/shape/strides via setArgumentProperties; this just sizes the vectors.
         void bind(const NetworkMetadata& metadata) {
-            _binding._inputs.assign(metadata.inputs.size(), {});
-            _binding._outputs.assign(metadata.outputs.size(), {});
+            _binding._inputs.resize(metadata.inputs.size());
+            _binding._outputs.resize(metadata.outputs.size());
         }
 
         std::vector<ze_command_list_handle_t>& getHandles() {
@@ -102,9 +102,7 @@ public:
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
     /// Run VM-runtime output shape prediction. Independent of pipeline instance state
-    /// (depends only on the graph's VM runtime handle), so it is callable before the
-    /// pipeline is constructed -- in particular from the first inference's predict_shapes
-    /// path, which runs prior to lazy pipeline creation in prepare_inputs().
+    /// (depends only on the graph's VM runtime handle)
     static void predict_output_shape(const IGraph& graph,
                                      std::vector<DynamicMemRefType>& inputs,
                                      std::vector<DynamicMemRefType>& outputs);

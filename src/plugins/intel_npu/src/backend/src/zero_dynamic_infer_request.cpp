@@ -223,10 +223,9 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<DynamicMemRefType>& out
     OPENVINO_ASSERT(dynamicGraph != nullptr, "ZeroDynamicInferRequest::predict_shapes requires IDynamicGraph");
 
     if (dynamicGraph->get_vm_runtime_handle() != nullptr && _isTensorChanged) {
-        // MemRef slots are sized from network metadata; per-element data/shape/strides are populated
-        // below from user/level-zero tensors (or metadata fallback) before predict_output_shape().
         std::vector<DynamicMemRefType> inputPros(_metadata.inputs.size());
-        outputProps.assign(_metadata.outputs.size(), {});
+        outputProps.clear();
+        outputProps.resize(_metadata.outputs.size());
 
         // TODO: Support Batch later
         // Update input Info
@@ -274,7 +273,14 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<DynamicMemRefType>& out
             }
         }
 
-        auto originalOutputProps = outputProps;
+        std::vector<DynamicMemRefType> originalOutputProps;
+        originalOutputProps.resize(outputProps.size());
+
+        for (size_t i = 0; i < outputProps.size(); ++i) {
+            originalOutputProps[i]._dimsCount = outputProps[i]._dimsCount;
+            originalOutputProps[i]._sizes = outputProps[i]._sizes;
+            originalOutputProps[i]._strides = outputProps[i]._strides;
+        }
 
         DynamicPipeline::predict_output_shape(*_graph, inputPros, outputProps);
 
