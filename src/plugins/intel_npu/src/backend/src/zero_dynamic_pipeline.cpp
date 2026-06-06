@@ -209,11 +209,10 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
                                          ze_event_handle_t event) {
     _logger.debug("Start to execute graph with runtime engine");
 
-    // The VM execution context is created on the first execute and persists across calls,
-    // so its presence doubles as the "have we executed at least once" flag. On first
-    // execution we must always run a full execute (command lists are still empty); on later
-    // calls we can skip the rebuild if no tensor description changed.
-    const bool firstExecution = (args._executionContext == nullptr);
+    // _executedOnce is flipped only after a successful npuVMRuntimeExecute below, so until
+    // then the command lists are not yet populated and the "no tensor change -> reuse
+    // command list" fast path must be skipped.
+    const bool firstExecution = !args._executedOnce;
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefs;
     std::vector<npu_vm_runtime_mem_ref_handle_t> outputMemRefs;
@@ -283,6 +282,8 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
     if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     }
+
+    args._executedOnce = true;
 
     _logger.debug("Completed to execute graph with runtime engine");
 }

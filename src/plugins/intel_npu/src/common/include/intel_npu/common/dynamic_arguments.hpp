@@ -124,6 +124,10 @@ struct DynamicArguments {
     std::vector<DynamicMemRefType> _inputs;
     std::vector<DynamicMemRefType> _outputs;
     npu_vm_runtime_execution_context_handle_t _executionContext = nullptr;
+    // Set by the caller after the first successful @c npuVMRuntimeExecute. Until then any
+    // command lists previously associated with this object are not yet populated, so the
+    // "no tensor change -> reuse command list" fast path must be skipped.
+    bool _executedOnce = false;
 
     DynamicArguments() = default;
     DynamicArguments(const DynamicArguments&) = delete;
