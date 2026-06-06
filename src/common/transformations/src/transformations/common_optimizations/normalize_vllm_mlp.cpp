@@ -11,6 +11,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -35,23 +36,35 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
         if (!mul) return false;
 
         std::shared_ptr<ov::op::v4::Swish> swish;
+        std::shared_ptr<ov::op::v7::Gelu> gelu;
+        std::shared_ptr<ov::Node> activation;  // either Swish or Gelu
         std::shared_ptr<ov::op::v8::Slice> up_slice;
         std::shared_ptr<ov::op::v1::VariadicSplit> up_vsplit;
         ov::Output<ov::Node> up_out;
         for (size_t i = 0; i < 2; ++i) {
             auto sw = std::dynamic_pointer_cast<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(i));
+            auto ge = std::dynamic_pointer_cast<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(i));
+            std::shared_ptr<ov::Node> act = sw ? std::static_pointer_cast<ov::Node>(sw)
+                                                : std::static_pointer_cast<ov::Node>(ge);
+            if (!act) continue;
             auto other = mul->input_value(1 - i);
             auto sl = std::dynamic_pointer_cast<ov::op::v8::Slice>(other.get_node_shared_ptr());
             auto vs = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(other.get_node_shared_ptr());
-            if (sw && sl) { swish = sw; up_slice = sl; break; }
-            if (sw && vs) { swish = sw; up_vsplit = vs; up_out = other; break; }
+            if (sl) { swish = sw; gelu = ge; activation = act; up_slice = sl; break; }
+            if (vs) { swish = sw; gelu = ge; activation = act; up_vsplit = vs; up_out = other; break; }
         }
-        if (!swish || (!up_slice && !up_vsplit)) return false;
+        if (!activation || (!up_slice && !up_vsplit)) return false;
+        auto _make_act = [&](const ov::Output<ov::Node>& in) -> std::shared_ptr<ov::Node> {
+            if (gelu) {
+                return std::make_shared<ov::op::v7::Gelu>(in, gelu->get_approximation_mode());
+            }
+            return std::make_shared<ov::op::v4::Swish>(in);
+        };
 
         // Branch B: already a VariadicSplit. Canonicalize lengths to i32 [2]
         // and axis to -1 if needed.
         if (up_vsplit) {
-            auto sw_in = swish->input_value(0);
+            auto sw_in = activation->input_value(0);
             auto gate_vs = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(sw_in.get_node_shared_ptr());
             if (!gate_vs || gate_vs.get() != up_vsplit.get()) return false;
 
@@ -84,17 +97,17 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             size_t up_idx = up_out.get_index();
             if (gate_idx == up_idx) up_idx = 1 - gate_idx;
 
-            auto new_swish = std::make_shared<ov::op::v4::Swish>(new_vsplit->output(gate_idx));
+            auto new_swish = _make_act(new_vsplit->output(gate_idx));
             auto new_mul = std::make_shared<ov::op::v1::Multiply>(
                 new_swish->output(0), new_vsplit->output(up_idx));
             new_mul->set_friendly_name(mul->get_friendly_name());
-            ov::copy_runtime_info({up_vsplit, swish, mul}, {new_vsplit, new_swish, new_mul});
+            ov::copy_runtime_info({up_vsplit, activation, mul}, {new_vsplit, new_swish, new_mul});
             ov::replace_node(mul, new_mul);
             return true;
         }
 
         // Branch A: two Slice ops on the same source.
-        auto gate_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(swish->get_input_node_shared_ptr(0));
+        auto gate_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(activation->get_input_node_shared_ptr(0));
         if (!gate_slice) return false;
         auto gate_src = gate_slice->input_value(0);
         auto up_src = up_slice->input_value(0);
@@ -146,10 +159,10 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
         size_t gate_idx = order_normal ? 0 : 1;
         size_t up_idx   = order_normal ? 1 : 0;
 
-        auto new_swish = std::make_shared<ov::op::v4::Swish>(vsplit->output(gate_idx));
+        auto new_swish = _make_act(vsplit->output(gate_idx));
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_swish->output(0), vsplit->output(up_idx));
         new_mul->set_friendly_name(mul->get_friendly_name());
-        ov::copy_runtime_info({gate_slice, up_slice, swish, mul},
+        ov::copy_runtime_info({gate_slice, up_slice, activation, mul},
                               {vsplit, new_swish, new_mul});
         ov::replace_node(mul, new_mul);
         return true;
