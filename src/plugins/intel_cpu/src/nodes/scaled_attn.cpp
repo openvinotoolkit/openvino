@@ -72,8 +72,10 @@
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
-#include "nodes/common/cpu_convert.h"
 #include "utils/precision_support.h"
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/common/cpu_convert.h"
+#endif
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
