@@ -58,8 +58,9 @@ struct ParallelLoopPolicy {
 struct SequentialLoopPolicy {
     template <typename Body>
     static void run(size_t iterations, Body&& body) {
+        auto&& fn = std::forward<Body>(body);
         for (size_t i = 0; i < iterations; ++i) {
-            body(i);
+            fn(i);
         }
     }
 };
@@ -543,12 +544,12 @@ template <typename LoopPolicy>
 struct ConvertContext {
     using loop_policy = LoopPolicy;
 
-    const void* srcPtr;
-    void* dstPtr;
-    size_t size;
+    const void* srcPtr = nullptr;
+    void* dstPtr = nullptr;
+    size_t size = 0UL;
     ov::element::Type interimPrc;
     ov::element::Type dstPrc;
-    bool converted;
+    bool converted = false;
 
     template <typename T>
     [[nodiscard]] std::tuple<T, T> range() const {
