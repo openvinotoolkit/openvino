@@ -13,6 +13,7 @@ using PagedAttnTokenTypeParams = std::tuple<ov::element::Type_t,
                                             size_t,      //< head_size
                                             size_t,      //< head_num
                                             size_t,      //< sliding_window_size
+                                            size_t,      //< batch_size
                                             size_t,      //< sequence_length
                                             std::string  //< Device name
                                             >;

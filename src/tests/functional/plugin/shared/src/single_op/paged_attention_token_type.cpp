@@ -185,26 +185,27 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
 }  // namespace helpers
 
 std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj) {
-    const auto& [inType, head_size, head_num, sliding_window_size, seq_len, device] = obj.param;
+    const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_len, device] = obj.param;
     std::ostringstream result;
     result << "Prc=" << inType << "_";
     result << "HS=" << head_size << "_";
     result << "HN=" << head_num << "_";
     result << "SW=" << sliding_window_size << "_";
+    result << "BS=" << batch_size << "_";
     result << "SQ=" << seq_len << "_";
-    result << "Device=" << device << "_";
+    result << "Device=" << device;
 
     return result.str();
 }
 
 void PagedAttentionTokenTypeTest::SetUp() {
-    const auto& [inType, head_size, head_num, sliding_window_size, seq_len, device] = GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_len, device] = GetParam();
     ASSERT_LE(seq_len, helpers::MAX_CONTEXT_LEN);
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
     targetDevice = device;
 
-    init_input_shapes({InputShape{PartialShape::dynamic(1), {{seq_len}}}});
+    init_input_shapes({InputShape{PartialShape::dynamic(1), {{batch_size * seq_len}}}});
 
     function = helpers::PrepareModel(inType, head_size, head_num, sliding_window_size);
 }
@@ -212,27 +213,38 @@ void PagedAttentionTokenTypeTest::SetUp() {
 void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
 
-    const auto& [inType, head_size, head_num, sliding_window_size, seq_length, device] = this->GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_length, device] = this->GetParam();
 
     OPENVINO_ASSERT(!targetInputStaticShapes.empty() && targetInputStaticShapes[0].size() == 1,
-                    "Expected a single 1-D shape representing seq_len");
-    const size_t seq_len = targetInputStaticShapes[0][0];
+                    "Expected a single 1-D shape representing total token count");
+    OPENVINO_ASSERT(targetInputStaticShapes[0][0] == batch_size * seq_length,
+                    "Unexpected total token count for the configured batch and sequence length");
+    const size_t seq_len = seq_length;
+    const size_t total_tokens = targetInputStaticShapes[0][0];
     const size_t hidden_dim = static_cast<size_t>(head_size) * static_cast<size_t>(head_num);
 
     using ov::test::utils::InputGenerateData;
 
     ov::Tensor q_tensor =
-        ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim}, InputGenerateData(-1, 2, 32, 1));
+        ov::test::utils::create_and_fill_tensor(inType, {total_tokens, hidden_dim}, InputGenerateData(-1, 2, 32, 1));
     ov::Tensor k_tensor =
-        ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim}, InputGenerateData(-1, 2, 32, 2));
+        ov::test::utils::create_and_fill_tensor(inType, {total_tokens, hidden_dim}, InputGenerateData(-1, 2, 32, 2));
     ov::Tensor v_tensor =
-        ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim}, InputGenerateData(-1, 2, 32, 3));
+        ov::test::utils::create_and_fill_tensor(inType, {total_tokens, hidden_dim}, InputGenerateData(-1, 2, 32, 3));
 
-    ov::Tensor token_type_tensor = helpers::GenerateTokenTypeTensor(seq_len);
+    ov::Tensor token_type_tensor(ov::element::i32, {total_tokens});
+    auto* token_types = token_type_tensor.data<int32_t>();
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        ov::Tensor sequence_token_types = helpers::GenerateTokenTypeTensor(seq_len);
+        std::copy(sequence_token_types.data<int32_t>(),
+                  sequence_token_types.data<int32_t>() + seq_len,
+                  token_types + batch * seq_len);
+    }
 
     // Cache tensors with known shapes (matching PrepareModel layout).
     const size_t block_size = helpers::BLOCK_SIZE;
-    const size_t block_nums = helpers::MAX_CONTEXT_LEN / block_size;
+    const size_t max_blocks_per_sequence = (helpers::MAX_CONTEXT_LEN + block_size - 1) / block_size;
+    const size_t block_nums = batch_size * max_blocks_per_sequence;
     ov::Tensor key_cache_tensor = ov::test::utils::create_and_fill_tensor(
         inType,
         {block_nums, static_cast<size_t>(head_num), static_cast<size_t>(head_size), block_size},
@@ -242,20 +254,21 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
         {block_nums, static_cast<size_t>(head_num), block_size, static_cast<size_t>(head_size)},
         InputGenerateData(-1, 2, 32, 6));
 
-    // Prefill: past_lens=0, single sequence.
-    const size_t batch_size = 1;
-    const int32_t total_blocks = static_cast<int32_t>((seq_len + block_size - 1) / block_size);
+    const int32_t blocks_per_sequence = static_cast<int32_t>((seq_len + block_size - 1) / block_size);
+    const int32_t total_blocks = static_cast<int32_t>(batch_size) * blocks_per_sequence;
 
     ov::Tensor past_lens(ov::element::i32, {batch_size});
     ov::Tensor subsequence_begins(ov::element::i32, {batch_size + 1});
     ov::Tensor block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
     ov::Tensor block_indices_begins(ov::element::i32, {batch_size + 1});
 
-    past_lens.data<int32_t>()[0] = 0;
     subsequence_begins.data<int32_t>()[0] = 0;
-    subsequence_begins.data<int32_t>()[1] = static_cast<int32_t>(seq_len);
     block_indices_begins.data<int32_t>()[0] = 0;
-    block_indices_begins.data<int32_t>()[1] = total_blocks;
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        past_lens.data<int32_t>()[batch] = 0;
+        subsequence_begins.data<int32_t>()[batch + 1] = static_cast<int32_t>((batch + 1) * seq_len);
+        block_indices_begins.data<int32_t>()[batch + 1] = static_cast<int32_t>(batch + 1) * blocks_per_sequence;
+    }
     for (int32_t i = 0; i < total_blocks; i++) {
         block_indices.data<int32_t>()[i] = i;
     }
