@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
 #include <vector>
 
 #include "nodes/executors/executor.hpp"
@@ -10,13 +9,15 @@
 #include "nodes/executors/gated_delta_net_config.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
-#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/ref/gdn_ref_executor.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
+#    include <cstddef>
+
+#    include "nodes/executors/memory_arguments.hpp"
 #    include "nodes/executors/x64/gdn_jit_executor.hpp"
+#    include "openvino/core/type/element_type.hpp"
 #endif
 
 namespace ov::intel_cpu {
