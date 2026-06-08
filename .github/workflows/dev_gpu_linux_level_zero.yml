@@ -116,9 +116,14 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        test_type: [ 'unit', 'func' ]
     with:
       device: 'dgpu'
-      test_type: 'unit'
+      test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
