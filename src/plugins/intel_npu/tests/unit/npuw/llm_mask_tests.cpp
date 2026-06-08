@@ -84,18 +84,30 @@ TEST(LLMMaskTest, WhisperDecoder_CausalMask_Boolean_Builds) {
     EXPECT_TRUE(found_bool_sdpa_mask);
 }
 
-TEST(LLMMaskTest, SlidingWindow_Alternating_Builds) {
-    // ratio=1 → Gemma 2 (S, F, S, F, ...)
-    auto model = ov::test::npuw::build_sliding_window_test_model(512, 1);
+// Gemma 2: 1:1 sliding/full alternation. Gemma 2/3 emit the Phi-3 SWA shape
+// (sliding_window_mask.cpp:413 — Phi3SlidingMaskMatcher handles "Phi-3, Gemma-2,
+// Gemma-3"), NOT the Gemma-4 Add(Range(0,seq),past) shape — so the sliding layers
+// use make_sliding_window_mask_phi3.
+TEST(LLMMaskTest, SlidingWindow_Gemma2_Builds) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.sliding_window_size = 512;
+    cfg.sliding_to_full_ratio = 1;  // S, F, S, F
+    cfg.sliding_mask_fn = make_sliding_window_mask_phi3;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
     ASSERT_NE(model, nullptr);
 }
 
-TEST(LLMMaskTest, SlidingWindow_Gemma3Ratio_Builds) {
-    // ratio=5 → Gemma 3 (S, S, S, S, S, F, ...). Needs ≥6 layers to exercise both branches.
+// Gemma 3: 5:1 sliding/full. Same Phi-3 SWA shape as Gemma 2. Needs ≥6 layers to
+// exercise both the sliding and full branches of the layer cycle.
+TEST(LLMMaskTest, SlidingWindow_Gemma3_Builds) {
     auto cfg = ov::test::npuw::make_test_model_config();
     cfg.num_layers = 12;
     cfg.sliding_window_size = 1024;
-    cfg.sliding_to_full_ratio = 5;
+    cfg.sliding_to_full_ratio = 5;  // S, S, S, S, S, F, ...
+    cfg.sliding_mask_fn = make_sliding_window_mask_phi3;
 
     ModelBuilder mb;
     auto model = mb.build_llm(cfg);
@@ -126,19 +138,6 @@ TEST(LLMMaskTest, SlidingWindow_Phi3Boolean_Builds) {
         }
     }
     EXPECT_TRUE(found_bool_sdpa_mask);
-}
-
-// Phi-3 boolean pattern + 1:1 sliding/full alternation (Gemma 2) — sliding then full, repeating.
-TEST(LLMMaskTest, SlidingWindow_Phi3Boolean_Alternating_Builds) {
-    auto cfg = ov::test::npuw::make_test_model_config();
-    cfg.num_layers = 4;
-    cfg.sliding_window_size = 512;
-    cfg.sliding_to_full_ratio = 1;
-    cfg.sliding_mask_fn = make_sliding_window_mask_phi3;
-
-    ModelBuilder mb;
-    auto model = mb.build_llm(cfg);
-    ASSERT_NE(model, nullptr);
 }
 
 TEST(LLMMaskTest, TokenTypeIds_HasCorrectInputs) {
