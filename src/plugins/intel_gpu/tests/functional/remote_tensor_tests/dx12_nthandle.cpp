@@ -4,7 +4,6 @@
 
 #if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX12)
 #include <array>
-#include <algorithm>
 #include <cstring>
 #include <gtest/gtest.h>
 #include <vector>
@@ -271,14 +270,9 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     auto dx_input_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue,
                                                       byte_size, input_init.data());
     std::vector<float> output_init(element_count, 0.0f);
-    auto dx_output_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue, byte_size);
+    auto dx_output_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue, byte_size, output_init.data());
     ASSERT_NE(dx_input_shared.shared_handle, nullptr);
     ASSERT_NE(dx_output_shared.shared_handle, nullptr);
-
-    DXGI_ADAPTER_DESC1 dxgi_desc{};
-    dx12.adapter->GetDesc1(&dxgi_desc);
-    std::array<unsigned char, CL_LUID_SIZE_KHR> dxgi_luid{};
-    memcpy(dxgi_luid.data(), &dxgi_desc.AdapterLuid, sizeof(dxgi_desc.AdapterLuid));
 
     ov::RemoteTensor remote_input_tensor;
     ov::RemoteTensor remote_output_tensor;

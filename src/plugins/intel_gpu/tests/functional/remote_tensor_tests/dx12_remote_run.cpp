@@ -3,8 +3,6 @@
 //
 
 #if defined(_WIN32) && defined(ENABLE_DX12)
-#include <gmock/gmock-matchers.h>
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <common_test_utils/subgraph_builders/conv_pool_relu.hpp>
@@ -14,19 +12,10 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #include <d3d12.h>
-#include <dxgi1_4.h>
 #include <wrl.h>
-#include <cstring>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 
 namespace {
 
