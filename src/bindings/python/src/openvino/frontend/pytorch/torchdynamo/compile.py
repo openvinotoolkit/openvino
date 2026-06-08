@@ -143,90 +143,14 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         except Exception as _ee:
             logger.debug("vllm.compile_hooks unavailable: %s", _ee)
 
-        # Rewrite MatMul(X, Transpose(Const_fp16)) to the oneDNN-BRGEMM-friendly
-        # form: MatMul(X, Convert(Const_fp16 -> f32)) with transpose_b=true.
-        # Without this, CPU plugin falls back to gemm_mlas_f32 (6x slower than
-        # brgemm_avx512_f32) for fp16-activation FCs. OV GenAI's IR has exactly
-        # this pattern; we emulate it.
+        # Optional MatMul(X, Const_f16/bf16) rewrite to the oneDNN BRGEMM
+        # decompression form. Lifts FP16/bf16 weight FCs onto the brgemm path.
         if _bool_opt(options, "fc_decompress", True):
             try:
-                from openvino import opset1 as _o1
-                import numpy as _np
-                _rewritten = 0
-                for _mm in list(om.get_ordered_ops()):
-                    if _mm.get_type_name() != "MatMul":
-                        continue
-                    try:
-                        _tb = _mm.get_transpose_b()
-                        _ta = _mm.get_transpose_a()
-                    except Exception:
-                        continue
-                    if _tb:
-                        continue  # already transpose_b=true
-                    _src = _mm.input_value(1).get_node()
-                    _const = None
-                    _new_tb = False
-                    if _src.get_type_name() == "Transpose":
-                        _inner = _src.input_value(0).get_node()
-                        if _inner.get_type_name() == "Constant":
-                            _perm_node = _src.input_value(1).get_node()
-                            if _perm_node.get_type_name() == "Constant":
-                                _perm = list(_perm_node.get_data().flatten())
-                                if _perm == [1, 0]:
-                                    _const = _inner
-                                    _new_tb = True
-                    elif _src.get_type_name() == "Constant":
-                        _const = _src
-                    if _const is None:
-                        continue
-                    # Plugin's weight-decompression FC path accepts
-                    # inputType=f32 with weightsType in {f16, bf16}. For f32
-                    # weights there is no decompression to do — plugin's
-                    # regular FC path already dispatches brgemm_avx512_f32.
-                    # For other dtypes (u8, i8, int quant) plugin has its
-                    # own handling; skip.
-                    _w_et = _const.get_element_type()
-                    if _w_et not in (Type.f16, Type.bf16):
-                        continue
-                    _new_const = _const
-                    _conv_w = _o1.convert(_new_const.output(0), "f32")
-                    # Mark Convert as decompression so CPU plugin's
-                    # ConvertMatMulToFC pass accepts this pattern and routes
-                    # to brgemm_avx512_f32 (fast) instead of gemm_mlas_f32.
-                    try:
-                        # RTMap is keyed by DiscreteTypeInfo::operator std::string()
-                        # which is "<name>_<version_id>". For Decompression this is
-                        # "decompression_0" — matching the key is_decompression()
-                        # uses internally.
-                        _conv_w.get_rt_info()["decompression_0"] = True
-                    except Exception:
-                        pass
-                    _mm.input(1).replace_source_output(_conv_w.output(0))
-                    # Upcast activation to f32 (decompression path requires
-                    # f32 input) and cast output back to activation's native
-                    # dtype so downstream ops keep their precision.
-                    _act_src = _mm.input_value(0)
-                    _act_et = _act_src.get_element_type()
-                    # Only rewrite when the activation has a concrete float
-                    # dtype != f32. Dynamic/unknown or f32 paths don't need
-                    # the Convert pair (would produce dynamic-typed Converts
-                    # that the CPU plugin can't materialize).
-                    if _act_et in (Type.f16, Type.bf16):
-                        _conv_a = _o1.convert(_act_src, "f32")
-                        _mm.input(0).replace_source_output(_conv_a.output(0))
-                        _out = _mm.output(0)
-                        _consumers = list(_out.get_target_inputs())
-                        _down = _o1.convert(_out, _act_et)
-                        for _cin in _consumers:
-                            _cin.replace_source_output(_down.output(0))
-                    try:
-                        _mm.set_transpose_b(_new_tb if _new_tb else _mm.get_transpose_b())
-                    except Exception:
-                        pass
-                    _rewritten += 1
-                om.validate_nodes_and_infer_types()
+                from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_fc
+                _vh_fc.rewrite_fc_decompression(om)
             except Exception as _ee:
-                logger.debug("FC_DECOMPRESS rewrite failed: %s", _ee)
+                logger.debug("vllm.rewrite_fc_decompression skipped: %s", _ee)
 
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")

@@ -114,3 +114,81 @@ def apply_kv_cache_config_defaults(config, device, options=None):
         # Let the plugin pick its narrow-float GEMM path. PA op is fenced
         # with Convert(f32) in the translator so it stays f32 regardless.
         config["INFERENCE_PRECISION_HINT"] = inf_hint
+
+
+def rewrite_fc_decompression(om):
+    """Rewrite MatMul(X, Const_f16/bf16) into the oneDNN-BRGEMM-friendly form.
+
+    For each MatMul that consumes a constant fp16/bf16 weight (optionally
+    transposed via a [1,0] permutation), insert a Convert to f32 marked as
+    decompression so the CPU plugin ConvertMatMulToFC pass routes it to
+    brgemm_avx512_f32 instead of the slower gemm_mlas_f32 fallback.
+
+    Activation is upcast to f32 and its consumers downcast back to the native
+    dtype so downstream ops keep their precision. f32 weights and quantized
+    paths are skipped.
+
+    No-op on graphs without matching MatMul patterns. Lives here so the
+    generic compile.py stays small; not vLLM-specific by itself but we keep
+    all narrow-float / KV-cache / PA-related compile-time edits together.
+    """
+    from openvino import opset1 as _o1
+    from openvino import Type
+    try:
+        for mm in list(om.get_ordered_ops()):
+            if mm.get_type_name() != "MatMul":
+                continue
+            try:
+                tb = mm.get_transpose_b()
+            except Exception:
+                continue
+            if tb:
+                continue  # already transpose_b=true
+            src = mm.input_value(1).get_node()
+            const = None
+            new_tb = False
+            if src.get_type_name() == "Transpose":
+                inner = src.input_value(0).get_node()
+                if inner.get_type_name() == "Constant":
+                    perm_node = src.input_value(1).get_node()
+                    if perm_node.get_type_name() == "Constant":
+                        perm = list(perm_node.get_data().flatten())
+                        if perm == [1, 0]:
+                            const = inner
+                            new_tb = True
+            elif src.get_type_name() == "Constant":
+                const = src
+            if const is None:
+                continue
+            # Plugin\x27s weight-decompression FC path accepts inputType=f32
+            # with weightsType in {f16, bf16}. f32 weights need no decompression.
+            w_et = const.get_element_type()
+            if w_et not in (Type.f16, Type.bf16):
+                continue
+            conv_w = _o1.convert(const.output(0), "f32")
+            try:
+                # Mark the Convert as decompression so the plugin pattern
+                # matcher accepts it (key == "decompression_0", matching the
+                # internal is_decompression() probe).
+                conv_w.get_rt_info()["decompression_0"] = True
+            except Exception:
+                pass
+            mm.input(1).replace_source_output(conv_w.output(0))
+            # Upcast activation to f32; downcast each consumer of MatMul back.
+            act_src = mm.input_value(0)
+            act_et = act_src.get_element_type()
+            if act_et in (Type.f16, Type.bf16):
+                conv_a = _o1.convert(act_src, "f32")
+                mm.input(0).replace_source_output(conv_a.output(0))
+                out = mm.output(0)
+                consumers = list(out.get_target_inputs())
+                down = _o1.convert(out, act_et)
+                for cin in consumers:
+                    cin.replace_source_output(down.output(0))
+            try:
+                mm.set_transpose_b(new_tb if new_tb else mm.get_transpose_b())
+            except Exception:
+                pass
+        om.validate_nodes_and_infer_types()
+    except Exception as e:
+        logger.debug("FC_DECOMPRESS rewrite failed: %s", e)
