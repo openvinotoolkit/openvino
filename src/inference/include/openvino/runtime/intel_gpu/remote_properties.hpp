@@ -198,7 +198,6 @@ static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
  */
 static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
 
-
 /**
  * @brief This key identifies video decoder surface handle
  * in a shared memory blob parameter map
