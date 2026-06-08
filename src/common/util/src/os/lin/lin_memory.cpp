@@ -44,7 +44,13 @@ void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
 
 void vm_decommit(void* ptr, size_t size) noexcept {
     assert(ptr != nullptr && size > 0);
+#if defined(__linux__)
+    std::ignore = madvise(ptr, size, MADV_DONTNEED);
+#elif defined(__APPLE__) && defined(MADV_FREE_REUSABLE)
+    std::ignore = madvise(ptr, size, MADV_FREE_REUSABLE);
+#else
     std::ignore = mmap(ptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+#endif
 }
 
 void vm_release(void* ptr, size_t size) noexcept {
