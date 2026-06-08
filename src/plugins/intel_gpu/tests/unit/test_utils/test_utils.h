@@ -45,6 +45,7 @@
 #include <limits>
 #include <random>
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <chrono>
 
@@ -143,6 +144,25 @@ inline VF<T> flatten_2d(cldnn::format input_format, VVF<T> &data) {
 inline float half_to_float(uint16_t val) {
     auto half = ov::float16::from_bits(val);
     return static_cast<float>(half);
+}
+
+inline float fp16_ulp(float value) {
+    constexpr float min_subnormal = 5.96046448e-08f;  // 2^-24
+
+    if (!std::isfinite(value))
+        return 0.0f;
+
+    float abs_value = std::fabs(value);
+    if (abs_value == 0.0f)
+        return min_subnormal;
+
+    int exponent = 0;
+    std::frexp(abs_value, &exponent);
+    return std::max(std::ldexp(1.0f, exponent - 11), min_subnormal);
+}
+
+inline float fp16_tolerance(float reference_value, float base_tolerance = 0.0f) {
+    return std::max(base_tolerance, fp16_ulp(reference_value));
 }
 
 template<typename T>

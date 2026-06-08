@@ -11,7 +11,8 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/graph/network.hpp>
 
-#include <cmath>
+#include <type_traits>
+#include <utility>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -32,6 +33,30 @@ public:
     static const int max_random = 200;
 
     tests::random_generator rg;
+
+    template <typename U, typename = void>
+    struct has_data_type : std::false_type {};
+
+    template <typename U>
+    struct has_data_type<U, std::void_t<decltype(std::declval<U>().data_type)>> : std::true_type {};
+
+    template <typename U, typename = void>
+    struct has_default_type : std::false_type {};
+
+    template <typename U>
+    struct has_default_type<U, std::void_t<decltype(std::declval<U>().default_type)>> : std::true_type {};
+
+    static bool uses_fp16_path(const T& p) {
+        bool is_fp16 = false;
+
+        if constexpr (has_data_type<T>::value)
+            is_fp16 = is_fp16 || p.data_type == data_types::f16;
+
+        if constexpr (has_default_type<T>::value)
+            is_fp16 = is_fp16 || p.default_type == data_types::f16;
+
+        return is_fp16;
+    }
 
     void SetUp() override {
         rg.set_seed(GET_SUITE_NAME);
@@ -85,9 +110,12 @@ public:
         auto val_ref = get_output_values_to_float(not_fused, outputs_ref.begin()->second);
         ASSERT_NO_THROW(val_opt = get_output_values_to_float(fused, outputs_fused.begin()->second));
         ASSERT_EQ(val_ref.size(), val_opt.size());
+        const bool fp16_path = uses_fp16_path(p);
         for (size_t i = 0; i < val_ref.size(); i++) {
-            ASSERT_NEAR(val_ref[i], val_opt[i], tolerance)
-                << "tolerance = " << tolerance
+            const float effective_tolerance = fp16_path ? fp16_tolerance(val_ref[i], tolerance) : tolerance;
+            ASSERT_NEAR(val_ref[i], val_opt[i], effective_tolerance)
+                << "tolerance = " << effective_tolerance
+                << "\nbase_tolerance = " << tolerance
                 << "\ni = " << i
                 << "\nref[i] = " << val_ref[i]
                 << "\nopt[i] = " << val_opt[i];
