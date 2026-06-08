@@ -25,6 +25,7 @@ namespace test {
 namespace helpers {
 
 static constexpr size_t MAX_CONTEXT_LEN = 1024;
+static constexpr size_t BLOCK_SIZE = 16; //< Default for standard PA on GPU.
 
 static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& pshape,
                                                         element::Type element_type,
@@ -237,7 +238,7 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
     ov::Tensor token_type_tensor = helpers::GenerateTokenTypeTensor(seq_len);
 
     // Cache tensors with known shapes (matching PrepareModel layout).
-    const size_t block_size = 16;
+    const size_t block_size = helpers::BLOCK_SIZE;
     const size_t block_nums = helpers::MAX_CONTEXT_LEN / block_size;
     ov::Tensor key_cache_tensor = ov::test::utils::create_and_fill_tensor(
         inType,
