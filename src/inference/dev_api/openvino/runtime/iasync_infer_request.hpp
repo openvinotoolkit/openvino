@@ -277,6 +277,7 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
+    mutable std::mutex m_callback_invoke_mutex;
     std::function<void(std::exception_ptr)> m_callback;
 };
 

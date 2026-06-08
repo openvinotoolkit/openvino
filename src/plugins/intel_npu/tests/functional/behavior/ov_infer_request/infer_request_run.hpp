@@ -9,9 +9,12 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <atomic>
+#include <condition_variable>
 #include <cstddef>
 #include <exception>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 #include "behavior/ov_infer_request/inference.hpp"
@@ -253,6 +256,72 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
         inferReqs[i].wait();
         OV_ASSERT_NO_THROW(inferReqs[i].get_tensor(output));
     }
+}
+
+TEST_P(InferRequestRunTests, CallbackStartsNextInferWithSleepWithoutMissingCallbacks) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::CompiledModel compiled_model;
+    ov::InferRequest infer_request;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(input = compiled_model.input());
+    OV_ASSERT_NO_THROW(infer_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request.get_tensor(input));
+
+    constexpr size_t callback_iterations = 10;
+    constexpr auto callback_sleep = std::chrono::milliseconds(50);
+    constexpr auto test_timeout = std::chrono::seconds(30);
+
+    std::atomic<size_t> checkout_count{0};
+    std::atomic<size_t> callback_count{0};
+    std::atomic<size_t> callback_start_failures{0};
+    std::atomic<size_t> callback_exception_count{0};
+
+    std::mutex done_mutex;
+    std::condition_variable done_cv;
+    bool done = false;
+
+    OV_ASSERT_NO_THROW(infer_request.set_callback([&](std::exception_ptr ex) {
+        if (ex != nullptr) {
+            callback_exception_count.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        const auto current_callback = callback_count.fetch_add(1, std::memory_order_relaxed) + 1;
+
+        if (current_callback < callback_iterations) {
+            try {
+                checkout_count.fetch_add(1, std::memory_order_relaxed);
+                infer_request.start_async();
+                std::this_thread::sleep_for(callback_sleep);
+            } catch (...) {
+                callback_start_failures.fetch_add(1, std::memory_order_relaxed);
+                std::lock_guard<std::mutex> lock(done_mutex);
+                done = true;
+                done_cv.notify_one();
+            }
+        } else {
+            std::lock_guard<std::mutex> lock(done_mutex);
+            done = true;
+            done_cv.notify_one();
+        }
+    }));
+
+    checkout_count.fetch_add(1, std::memory_order_relaxed);
+    OV_ASSERT_NO_THROW(infer_request.start_async());
+
+    {
+        std::unique_lock<std::mutex> lock(done_mutex);
+        ASSERT_TRUE(done_cv.wait_for(lock, test_timeout, [&]() {
+            return done;
+        }));
+    }
+
+    OV_ASSERT_NO_THROW(infer_request.wait());
+    EXPECT_EQ(callback_start_failures.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(callback_exception_count.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(checkout_count.load(std::memory_order_relaxed), callback_iterations);
+    EXPECT_EQ(callback_count.load(std::memory_order_relaxed), callback_iterations);
 }
 
 TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanModelsWork) {
