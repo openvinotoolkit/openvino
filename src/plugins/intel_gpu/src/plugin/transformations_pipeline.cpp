@@ -105,6 +105,7 @@
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -1522,6 +1523,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
+        if (!device_info.supports_immad) {
+            manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
+        }
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
