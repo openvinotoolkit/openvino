@@ -12,6 +12,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 #include <openvino/core/except.hpp>
 #include <openvino/reference/xattention.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
@@ -134,6 +135,9 @@ struct PagedAttentionManager {
 
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
+
+    // optional token_type_ids; when empty, a default single-element {0} buffer is used
+    std::vector<int> token_type_ids;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -379,14 +383,17 @@ struct PagedAttentionManager {
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
             key_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
-            const int scale_zp_bytes = is_int4_kv_cache() ? 8 : 4;
+            const int scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
             if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (is_int4_kv_cache()) {
-                    // u4/i4: stored as u8/i8 with head_size halved (2 u4 packed per byte).
-                    // Scale/zp for BY_CHANNEL: 4 fp16 values = 8 bytes appended to block_size dim.
-                    adjusted_head_size = k_head_size / 2;  // pack 2 u4 into 1 u8 byte
+                    // u4/i4 BY_CHANNEL: block_size dim is packed (2 u4 tokens per byte) + scale/zp.
+                    // Shape: [num_blocks, kv_heads, k_head_size, block_size/2 + 4]
+                    // head_size is NOT packed (outer dim), block_size IS packed (inner dim).
+                    adjusted_head_size = k_head_size;  // NOT packed
+                    adjusted_block_size = block_size / 2 + scale_zp_bytes;  // packed + scale/zp
+                } else {
+                    adjusted_block_size += scale_zp_bytes;
                 }
-                adjusted_block_size += scale_zp_bytes;
             } else {
                 if (is_int4_kv_cache()) {
                     // Scale/zp for BY_TOKEN: 2 fp16 values = 4 bytes appended to head_size dim.
@@ -412,68 +419,58 @@ struct PagedAttentionManager {
                     // quantize by channel
                     if (kv_cache_compression && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                         if (is_int4_kv_cache()) {
-                            // INT4 BY_CHANNEL: packed layout [num_blocks, kv_heads, k_head_size/2, block_size+8]
-                            // Each packed dim p corresponds to orig dims p*2 (even) and p*2+1 (odd).
-                            // Each byte holds two u4 values: lower nibble = even dim, upper nibble = odd dim.
-                            // Comp region at [block_size..block_size+7]: 4 fp16 = inv_scale0,zp0,inv_scale1,zp1
-                            const int packed_head_size = k_head_size / 2;
+                            // INT4 BY_CHANNEL: packed layout [num_blocks, kv_heads, k_head_size, block_size/2+4]
+                            // block_size dim is packed: 2 u4 tokens per byte along innermost dim.
+                            // Comp region at [d, block_size/2..block_size/2+3]: 2 fp16 = inv_scale, zp per head dim d.
+                            const int packed_block = block_size / 2;
                             for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
-                                for (int p = 0; p < packed_head_size; p++) {
-                                    const int dim0 = p * 2;
-                                    const int dim1 = p * 2 + 1;
-                                    // Quantize both dims across tokens in this block
-                                    std::vector<float> vals0(block_size, 0.f), vals1(block_size, 0.f);
+                                for (int d = 0; d < k_head_size; d++) {
+                                    // Gather values for this head dim across all tokens in this block
+                                    std::vector<float> vals(block_size, 0.f);
                                     for (int t = 0; t < last_token_idx; ++t) {
                                         size_t in_off = (static_cast<size_t>(block_idx) * block_size + t) * num_kv_heads * k_head_size
                                                       + head_idx * k_head_size;
-                                        vals0[t] = static_cast<float>(key_data[i].data()[in_off + dim0]);
-                                        vals1[t] = static_cast<float>(key_data[i].data()[in_off + dim1]);
+                                        vals[t] = static_cast<float>(key_data[i].data()[in_off + d]);
                                     }
-                                    auto quantize_u4 = [&](const std::vector<float>& vals, int n_vals) {
-                                        float min_v = vals[0], max_v = vals[0];
-                                        for (int t = 1; t < n_vals; ++t) {
-                                            min_v = std::min(min_v, vals[t]);
-                                            max_v = std::max(max_v, vals[t]);
-                                        }
-                                        float range = (max_v == min_v) ? 0.001f : (max_v - min_v);
-                                        const float min_range = std::abs(max_v) * 0.1f;
-                                        if (range <= min_range) range += std::max(1.0f, min_range);
-                                        float scale = 15.0f / range;
-                                        float zp = -min_v * scale;
-                                        std::vector<uint8_t> q(n_vals);
-                                        for (int t = 0; t < n_vals; ++t) {
-                                            int v = static_cast<int>(std::nearbyint(vals[t] * scale + zp));
-                                            v = std::max(0, std::min(15, v));
-                                            q[t] = static_cast<uint8_t>(v);
-                                        }
-                                        return std::make_tuple(q, scale, zp);
-                                    };
-                                    auto [q0, scale0, zp_val0] = quantize_u4(vals0, last_token_idx);
-                                    auto [q1, scale1, zp_val1] = quantize_u4(vals1, last_token_idx);
+                                    // Quantize to u4
+                                    float min_v = vals[0], max_v = vals[0];
+                                    for (int t = 1; t < last_token_idx; ++t) {
+                                        min_v = std::min(min_v, vals[t]);
+                                        max_v = std::max(max_v, vals[t]);
+                                    }
+                                    float range = (max_v == min_v) ? 0.001f : (max_v - min_v);
+                                    const float min_range = std::abs(max_v) * 0.1f;
+                                    if (range <= min_range) range += std::max(1.0f, min_range);
+                                    float scale = 15.0f / range;
+                                    float zp_val = -min_v * scale;
+                                    std::vector<uint8_t> q(last_token_idx);
+                                    for (int t = 0; t < last_token_idx; ++t) {
+                                        int v = static_cast<int>(std::nearbyint(vals[t] * scale + zp_val));
+                                        q[t] = static_cast<uint8_t>(std::max(0, std::min(15, v)));
+                                    }
 
-                                    const size_t output_block_offset =
-                                        static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads * packed_head_size * adjusted_block_size
-                                        + head_idx * packed_head_size * adjusted_block_size;
-                                    const size_t output_offset = output_block_offset + p * adjusted_block_size;
+                                    const size_t block_offset =
+                                        static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads * k_head_size * adjusted_block_size
+                                        + head_idx * k_head_size * adjusted_block_size;
+                                    const size_t row_offset = block_offset + d * adjusted_block_size;
 
-                                    // Pack and write u4 data
-                                    std::vector<uint8_t> packed(last_token_idx);
-                                    for (int t = 0; t < last_token_idx; ++t)
-                                        packed[t] = static_cast<uint8_t>((q0[t] & 0xFu) | ((q1[t] & 0xFu) << 4));
-                                    set_values(test_stream, memory, packed.data(), static_cast<size_t>(last_token_idx), output_offset);
+                                    // Pack 2 u4 tokens per byte: token t0 in lower nibble, t1 in upper nibble
+                                    std::vector<uint8_t> packed_data(packed_block, 0);
+                                    for (int t = 0; t < last_token_idx; ++t) {
+                                        int byte_idx = t / 2;
+                                        if (t % 2 == 0)
+                                            packed_data[byte_idx] = q[t] & 0xFu;
+                                        else
+                                            packed_data[byte_idx] |= (q[t] & 0xFu) << 4;
+                                    }
+                                    set_values(test_stream, memory, packed_data.data(), static_cast<size_t>(packed_block), row_offset);
 
-                                    // Write 4 fp16 comp values: inv_scale0, zp0, inv_scale1, zp1
-                                    // Comp region starts at output_offset + block_size (in u8 elements)
-                                    // Accessed via fp16 lock: divide u8 offset by 2 to get fp16 index
-                                    const size_t comp_offset_fp16 = (output_offset + block_size) / 2;
-                                    ov::float16 inv_scale0 = static_cast<float>(1.0f / scale0);
-                                    ov::float16 fp16_zp0   = static_cast<float>(zp_val0);
-                                    ov::float16 inv_scale1 = static_cast<float>(1.0f / scale1);
-                                    ov::float16 fp16_zp1   = static_cast<float>(zp_val1);
-                                    set_values(test_stream, memory, &inv_scale0, 1, comp_offset_fp16 + 0);
-                                    set_values(test_stream, memory, &fp16_zp0,   1, comp_offset_fp16 + 1);
-                                    set_values(test_stream, memory, &inv_scale1, 1, comp_offset_fp16 + 2);
-                                    set_values(test_stream, memory, &fp16_zp1,   1, comp_offset_fp16 + 3);
+                                    // Write comp: 2 fp16 (inv_scale, zp) at row_offset + packed_block
+                                    const size_t comp_offset_fp16 = (row_offset + packed_block) / 2;
+                                    ov::float16 inv_scale_val = static_cast<float>(1.0f / scale);
+                                    ov::float16 fp16_zp       = static_cast<float>(zp_val);
+                                    set_values(test_stream, memory, &inv_scale_val, 1, comp_offset_fp16 + 0);
+                                    set_values(test_stream, memory, &fp16_zp,       1, comp_offset_fp16 + 1);
                                 }
                             }
                         } else {
@@ -604,11 +601,11 @@ struct PagedAttentionManager {
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
             value_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
-            scale_zp_bytes = is_int4_kv_cache() ? 8 : 4;
+            scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
         }
 
         // For u4 (INT4), values are packed 2 per byte; the physical head size is halved.
-        // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 64 + 8 = 72.
+        // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 32 + 4 = 36.
         const int adjusted_head_size = is_int4_kv_cache() ? (head_size / 2 + scale_zp_bytes) : (head_size + scale_zp_bytes);
 
         const auto num_blocks = block_indices.back() + 1;
@@ -644,16 +641,11 @@ struct PagedAttentionManager {
                             const size_t off = base + static_cast<size_t>(token_idx) * static_cast<size_t>(head_size);
                             set_values(test_stream, memory, src_ptr, head_size, off);
                         } else if (is_int4_kv_cache()) {
-                            // INT4 (u4) BY_TOKEN value cache layout:
+                            // INT4 (u4) BY_TOKEN value cache: inline per-token comp layout.
                             // [num_blocks, kv_heads, block_size, PACKED_ADJUSTED_V_HEAD_SIZE] u8
-                            // where PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 64 + 8 = 72.
-                            // Data: block_base + token * packed_head_size + p (p = 0..packed_head_size-1)
-                            //   Each byte packs pair: byte = (q_even_group & 0xF) | ((q_odd_group & 0xF) << 4)
-                            //   Even group g*2 and odd group g*2+1 of 16 dims each → packed group g of 16 bytes.
-                            // Comp: block_base + packed_head_size * block_size bytes:
-                            //   Scale (inv_scale = 1.0/scale): fp16[token]
-                            //   ZP: fp16[block_size + token]
-                            const int packed_head_size = head_size / 2;  // = 64
+                            // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + 4 = 36 (for v_head_size=64).
+                            // Per token: [packed_data (32 bytes) | scale (fp16) | zp (fp16)] = 36 bytes.
+                            const int packed_head_size = head_size / 2;
 
                             // Quantize entire token: one scale/zp for all head dims (BY_TOKEN)
                             float min_val = std::numeric_limits<float>::max();
@@ -664,11 +656,10 @@ struct PagedAttentionManager {
                                 max_val = std::max(max_val, v);
                             }
                             float diff = (max_val == min_val) ? 0.001f : (max_val - min_val);
-                            // Expand range if too small (matches kernel logic)
                             float min_range = std::abs(max_val * 0.1f);
                             if (diff <= min_range)
                                 diff += std::max(1.0f, min_range);
-                            float scale_val = 15.0f / diff;  // INT4_RANGE = 15 for u4
+                            float scale_val = 15.0f / diff;
                             float zp_val = -min_val * scale_val;
                             ov::float16 inv_scale_fp16 = ov::float16(1.0f / scale_val);
                             ov::float16 zp_fp16 = ov::float16(zp_val);
@@ -678,10 +669,11 @@ struct PagedAttentionManager {
                                 (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) + static_cast<size_t>(head_idx)) *
                                 block_stride;
 
+                            // Token base: each token occupies adjusted_head_size bytes (inline comp)
+                            const size_t token_base = block_base + static_cast<size_t>(token_idx) * static_cast<size_t>(adjusted_head_size);
+
                             // Pack pairs of groups: group (g*2) and (g*2+1), each 16 dims wide.
-                            // Packed byte = (q0 & 0xF) | ((q1 & 0xF) << 4)
-                            // Written at: block_base + token * packed_head_size + p, using u8 element offsets.
-                            const int num_packed_groups = packed_head_size / 16;  // = 4
+                            const int num_packed_groups = packed_head_size / 16;
                             for (int g = 0; g < num_packed_groups; g++) {
                                 for (int lane = 0; lane < 16; lane++) {
                                     int dim_even = (g * 2) * 16 + lane;
@@ -692,19 +684,15 @@ struct PagedAttentionManager {
                                     q1 = std::max(0, std::min(15, q1));
                                     uint8_t packed_byte = static_cast<uint8_t>((q0 & 0xFu) | (static_cast<uint8_t>(q1 & 0xFu) << 4));
                                     const size_t packed_pos = g * 16 + lane;
-                                    const size_t byte_off = block_base + static_cast<size_t>(token_idx) * packed_head_size + packed_pos;
-                                    // set_values for u8 memory: element index = byte offset
-                                    set_values(test_stream, memory, &packed_byte, 1, byte_off);
+                                    set_values(test_stream, memory, &packed_byte, 1, token_base + packed_pos);
                                 }
                             }
 
-                            // Write scale and zp into comp region
-                            const size_t scale_base_bytes = block_base + static_cast<size_t>(packed_head_size) * static_cast<size_t>(block_size);
-                            const size_t zp_base_bytes = scale_base_bytes + static_cast<size_t>(block_size) * sizeof(ov::float16);
-                            const size_t scale_off_f16 = (scale_base_bytes >> 1) + static_cast<size_t>(token_idx);
-                            const size_t zp_off_f16    = (zp_base_bytes >> 1) + static_cast<size_t>(token_idx);
-                            set_values(test_stream, memory, &inv_scale_fp16, 1, scale_off_f16);
-                            set_values(test_stream, memory, &zp_fp16, 1, zp_off_f16);
+                            // Write inline comp: scale (fp16) and zp (fp16) right after packed data
+                            const size_t comp_byte_off = token_base + static_cast<size_t>(packed_head_size);
+                            const size_t comp_f16_off = comp_byte_off / 2;
+                            set_values(test_stream, memory, &inv_scale_fp16, 1, comp_f16_off);
+                            set_values(test_stream, memory, &zp_fp16, 1, comp_f16_off + 1);
                         } else {
                             // Compressed Value cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
@@ -850,8 +838,11 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_token_type_ids_memory() {
-        std::vector<int> token_type_ids = { 0 };
-        return get_memory_from_vec(token_type_ids);
+        if (!token_type_ids.empty()) {
+            return get_memory_from_vec(token_type_ids);
+        }
+        std::vector<int> default_token_type_ids = { 0 };
+        return get_memory_from_vec(default_token_type_ids);
     }
 
     memory::ptr get_qq_bias_memory() {
@@ -1293,36 +1284,6 @@ private:
                                                      {static_cast<size_t>(num_heads), padded_q, static_cast<size_t>(k_head_size)},
                                                      key_padded.data(),
                                                      {static_cast<size_t>(num_heads), padded_k, static_cast<size_t>(k_head_size)});
-
-            // Dump reference block mask for comparison
-#if XATTENTION_DEBUG_VERBOSE
-            if (std::getenv("DUMP_XATTN_TENSORS")) {
-                std::string dump_dir = std::getenv("DUMP_XATTN_TENSORS");
-                size_t q_blocks = padded_q / block_size;
-                size_t k_blocks = padded_k / block_size;
-
-                // Create a dense block mask from retained_blocks
-                std::vector<uint8_t> ref_mask(num_heads * q_blocks * k_blocks, 0);
-                for (int h = 0; h < num_heads; ++h) {
-                    if (h < static_cast<int>(retained_blocks.size())) {
-                        for (const auto& [q_idx, k_idx] : retained_blocks[h]) {
-                            size_t idx = h * q_blocks * k_blocks + q_idx * k_blocks + k_idx;
-                            if (idx < ref_mask.size()) {
-                                ref_mask[idx] = 1;
-                            }
-                        }
-                    }
-                }
-
-                std::string mask_file = dump_dir + "/reference_block_mask.bin";
-                std::ofstream mask_out(mask_file, std::ios::binary);
-                mask_out.write(reinterpret_cast<const char*>(ref_mask.data()), ref_mask.size());
-                mask_out.close();
-                std::cout << "[dump_reference] Saved reference block mask to: " << mask_file << std::endl;
-                std::cout << "[dump_reference]   Shape: [" << num_heads << ", " << q_blocks << ", " << k_blocks << "]" << std::endl;
-                std::cout << "[dump_reference]   Total retained blocks: " << std::count(ref_mask.begin(), ref_mask.end(), 1) << std::endl;
-            }
-#endif
         }
         auto mask_mem = get_mask_mem_combined_multi_head(num_queries,
                                                          num_keys,
@@ -1631,44 +1592,37 @@ private:
         } else {
             if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (pam.is_int4_kv_cache()) {
-                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size/2, block_size+8] u8
-                    // Each packed dim p: byte holds two u4 values (lower=even dim, upper=odd dim).
-                    // Comp at [p, block_size..block_size+7]: 4 fp16 = inv_scale0, zp0, inv_scale1, zp1
+                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+4] u8
+                    // block_size dim is packed: 2 u4 tokens per byte.
+                    // Comp at [d, packed_block..packed_block+3]: 2 fp16 = inv_scale, zp per head dim.
                     mem_lock<uint8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
-                    const int packed_head_size = pam.k_head_size / 2;
-                    const int adj_block_size = pam.block_size + 8;
+                    const int packed_block = pam.block_size / 2;
+                    const int adj_block_size = packed_block + 4;  // block_size/2 + sizeof(fp16)*2
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                         const int physical_block = pam.block_indices[blocks_start + block_idx];
                         const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
 
                         for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
-                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * packed_head_size * adj_block_size
-                                                    + static_cast<size_t>(head_idx) * packed_head_size * adj_block_size;
+                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * pam.k_head_size * adj_block_size
+                                                    + static_cast<size_t>(head_idx) * pam.k_head_size * adj_block_size;
 
-                            for (int p = 0; p < packed_head_size; p++) {
-                                const int dim0 = p * 2;
-                                const int dim1 = p * 2 + 1;
-                                // Read inv_scale and zp for both dims from comp region
-                                const size_t comp_byte_off = cache_base + static_cast<size_t>(p) * adj_block_size + pam.block_size;
+                            for (int d = 0; d < pam.k_head_size; d++) {
+                                // Read inv_scale and zp from comp region
+                                const size_t comp_byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + packed_block;
                                 const ov::float16* comp = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_off]);
-                                float inv_scale0 = static_cast<float>(comp[0]);
-                                float zp0        = static_cast<float>(comp[1]);
-                                float inv_scale1 = static_cast<float>(comp[2]);
-                                float zp1        = static_cast<float>(comp[3]);
+                                float inv_scale = static_cast<float>(comp[0]);
+                                float zp_val    = static_cast<float>(comp[1]);
 
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                     const int token_idx = block_idx * pam.block_size + token_offset;
-                                    const size_t byte_off = cache_base + static_cast<size_t>(p) * adj_block_size + token_offset;
+                                    const size_t byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + token_offset / 2;
                                     uint8_t packed_byte = cache_ptr[byte_off];
-                                    uint8_t q0 = packed_byte & 0xFu;
-                                    uint8_t q1 = (packed_byte >> 4) & 0xFu;
-                                    float dq0 = (static_cast<float>(q0) - zp0) * inv_scale0;
-                                    float dq1 = (static_cast<float>(q1) - zp1) * inv_scale1;
+                                    uint8_t q = (token_offset % 2 == 0) ? (packed_byte & 0xFu) : ((packed_byte >> 4) & 0xFu);
+                                    float dq = (static_cast<float>(q) - zp_val) * inv_scale;
                                     const size_t out_base = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size
                                                           + static_cast<size_t>(token_idx) * pam.k_head_size;
-                                    key_data[out_base + dim0] = ov::float16(dq0);
-                                    key_data[out_base + dim1] = ov::float16(dq1);
+                                    key_data[out_base + d] = ov::float16(dq);
                                 }
                             }
                         }
@@ -1846,9 +1800,12 @@ private:
 template <typename T>
 struct PagedAttentionTest : public ::testing::TestWithParam<T> {
 public:
-    random_generator rg;
+    tests::random_generator rg;
     cldnn::engine& engine = get_test_engine();
     float tolerance = 2e-3;
+    memory::ptr last_key_cache_mem = nullptr;
+    std::vector<int> last_block_indices;
+    std::vector<int> last_block_indices_begins;
 
     void SetUp() override {
         rg.set_seed(GET_SUITE_NAME);
@@ -1856,6 +1813,7 @@ public:
 
     void execute(T& p, bool run_reference = true) {
         ov::element::Type kv_cache_precision = p.kv_cache_precision;
+        
         PagedAttentionManager pam(rg,
                                   get_test_engine(),
                                   get_test_stream(),
@@ -1916,8 +1874,15 @@ public:
             pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
-        if (p.kv_cache_compression)
-            tolerance = 25e-3;
+        if (p.token_type_ids.has_value()) {
+            pam.token_type_ids = p.token_type_ids.value();
+            ASSERT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+        }
+
+        if (p.kv_cache_compression) {
+            // INT4 quantization has larger error than INT8 (~17x larger step size)
+            tolerance = (kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4) ? 75e-3 : 25e-3;
+        }
 
         auto query_mem = pam.get_query_memory();
         auto key_mem = pam.get_key_memory();
@@ -2091,6 +2056,7 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
+        pa_prim.has_token_type_ids = p.token_type_ids.has_value();
 
         int num_outputs = 1;
         if (p.scores_mode != ScoresMode::DISABLED) num_outputs++;
@@ -2199,105 +2165,15 @@ public:
         network->set_input_data("qq_bias", qq_bias);
         network->set_input_data("qq_bias_begins", qq_bias_begins);
 
+        last_key_cache_mem = key_cache_mem;
+        last_block_indices = pam.block_indices;
+        last_block_indices_begins = pam.block_indices_begins;
+
         auto outputs = network->execute();
 
         if (!run_reference) {
             return;
         }
-
-        // Dump tensors for debugging (controlled by environment variable)
-#if XATTENTION_DEBUG_VERBOSE
-        if (std::getenv("DUMP_XATTN_TENSORS")) {
-            std::string dump_dir = std::getenv("DUMP_XATTN_TENSORS");
-            std::cout << "Dumping xattention tensors to: " << dump_dir << std::endl;
-
-            // Helper lambda to dump memory to numpy file
-            auto dump_memory = [&](const std::string& name, memory::ptr mem) {
-                if (!mem) return;
-                mem_lock<uint8_t, mem_lock_type::read> lock(mem, get_test_stream());
-                std::string filepath = dump_dir + "/" + name + ".npy";
-
-                // Get layout info
-                auto layout = mem->get_layout();
-                auto shape = layout.get_partial_shape();
-                size_t elem_size = data_type_traits::size_of(layout.data_type);
-                size_t total_size = mem->count() * elem_size;
-
-                // Write NPY format: magic + version + header length + header + data
-                std::ofstream file(filepath, std::ios::binary);
-                file.write("\x93NUMPY", 6);
-                file.put(1); file.put(0);  // version 1.0
-
-                // Build header
-                std::string dtype;
-                if (layout.data_type == data_types::f16) dtype = "'<f2'";
-                else if (layout.data_type == data_types::f32) dtype = "'<f4'";
-                else if (layout.data_type == data_types::i32) dtype = "'<i4'";
-                else if (layout.data_type == data_types::i8) dtype = "'<i1'";
-                else if (layout.data_type == data_types::u8) dtype = "'<u1'";
-                else dtype = "'<f4'";
-
-                std::string shape_str = "(";
-                for (size_t i = 0; i < shape.size(); i++) {
-                    shape_str += std::to_string(shape[i].get_length());
-                    if (i < shape.size() - 1) shape_str += ",";
-                }
-                if (shape.size() == 1) shape_str += ",";
-                shape_str += ")";
-
-                std::string header = "{'descr': " + dtype + ", 'fortran_order': False, 'shape': " + shape_str + "}";
-                while ((header.size() + 10) % 64 != 0) header += " ";
-                header += "\n";
-
-                uint16_t header_len = header.size();
-                file.write((char*)&header_len, 2);
-                file.write(header.c_str(), header.size());
-                file.write((char*)lock.data(), total_size);
-                file.close();
-
-                std::cout << "  Dumped " << name << " shape=" << shape_str << " dtype=" << dtype << std::endl;
-            };
-
-            dump_memory("query", query_mem);
-            dump_memory("key_cache", key_cache_mem);
-            dump_memory("value_cache", value_cache_mem);
-            dump_memory("past_lens", past_lens_mem);
-            dump_memory("block_indices", block_indices_mem);
-            dump_memory("block_indices_begins", block_indices_begins_mem);
-            dump_memory("scale", scale_mem);
-            dump_memory("xattention_threshold", xattention_threshold_mem);
-            dump_memory("xattention_block_size", xattention_block_size_mem);
-            dump_memory("output_data", outputs.at("output_data").get_memory());
-
-            std::cout << "Tensor dump complete!" << std::endl;
-        }
-
-        // Also dump reference output for comparison
-        if (std::getenv("DUMP_XATTN_TENSORS") && p.has_xattention) {
-            std::string dump_dir = std::getenv("DUMP_XATTN_TENSORS");
-            auto ref_data = PagedAttentionReference(pam).get_reference(key_cache_mem);
-            auto& ref_output = std::get<0>(ref_data);
-
-            // Write reference output as numpy array
-            std::string filepath = dump_dir + "/reference_output.npy";
-            std::ofstream file(filepath, std::ios::binary);
-            file.write("\x93NUMPY", 6);
-            file.put(1); file.put(0);
-
-            std::string shape_str = "(" + std::to_string(ref_output.size()) + ",)";
-            std::string header = "{'descr': '<f2', 'fortran_order': False, 'shape': " + shape_str + "}";
-            while ((header.size() + 10) % 64 != 0) header += " ";
-            header += "\n";
-
-            uint16_t header_len = header.size();
-            file.write((char*)&header_len, 2);
-            file.write(header.c_str(), header.size());
-            file.write((char*)ref_output.data(), ref_output.size() * sizeof(ov::float16));
-            file.close();
-
-            std::cout << "  Dumped reference_output shape=" << shape_str << std::endl;
-        }
-#endif
 
         cldnn::memory::ptr output_data_mem = nullptr;
         cldnn::memory::ptr output_scores_mem = nullptr;
@@ -2310,6 +2186,12 @@ public:
         if (p.has_adaptive_rkv) {
             output_diversity_mem = outputs.at("output_diversity").get_memory();
         }
+
+        // Verify KV cache was correctly written (CM PA path only)
+        // NOTE: This verification is specific to CM PA layout and should NOT run for OCL micro_sdpa
+        // because they use different layouts (key cache is [N,K,H,B] in OCL vs [N,K,B,H] in CM)
+        verify_cm_kv_cache_write(p);
+
         auto ref_data = PagedAttentionReference(pam).get_reference(key_cache_mem);
         if (p.has_xattention) {
             compare_xattention(output_data_mem, output_scores_mem, ref_data, p.num_heads, p.k_head_size);
@@ -2351,215 +2233,27 @@ public:
             ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
             mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
             int mismatch_count = 0;
+
 #if XATTENTION_DEBUG_VERBOSE
-            int catastrophic_count = 0;  // NaN, Inf, or error > 1.0
-            int large_error_count = 0;   // error > 0.1
-            float max_error = 0.0f;
-            float avg_error = 0.0f;
-            float avg_mismatch_error = 0.0f;
-            size_t first_mismatch_idx = 0;
-            float first_mismatch_actual = 0.0f;
-            float first_mismatch_expected = 0.0f;
-            bool found_first = false;
+            XAttentionErrorStats stats;
+            collect_xattention_error_stats(mem_ptr.data(), std::get<0>(ref_data), num_heads, head_size, tolerance, stats);
+            mismatch_count = stats.mismatch_count;
 
-            // Separate counters for different abnormal value types
-            int actual_nan_count = 0;
-            int expected_nan_count = 0;
-            int actual_inf_count = 0;
-            int expected_inf_count = 0;
-            int actual_gt1_count = 0;
-            int expected_gt1_count = 0;
-            int error_gt1_count = 0;
-#endif
-
-            // Collect error statistics
+            // Print detailed statistics on failure
+            if (mismatch_count > int(data_output_mem->count() * 0.04)) {
+                print_xattention_error_details(stats, mem_ptr.data(), std::get<0>(ref_data), num_heads, head_size, tolerance);
+            }
+#else
+            // Simple counting when verbose debug is disabled
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 float actual = static_cast<float>(mem_ptr[i]);
                 float expected = static_cast<float>(std::get<0>(ref_data)[i]);
                 float error = std::fabs(actual - expected);
-
-#if XATTENTION_DEBUG_VERBOSE
-                avg_error += error;
-                max_error = std::max(max_error, error);
-
-                // Separate checks for actual vs expected
-                if (std::isnan(actual)) actual_nan_count++;
-                if (std::isnan(expected)) expected_nan_count++;
-                if (std::isinf(actual)) actual_inf_count++;
-                if (std::isinf(expected)) expected_inf_count++;
-                if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) actual_gt1_count++;
-                if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) expected_gt1_count++;
-                if (error > 1.0f) error_gt1_count++;
-
-                if (std::isnan(actual) || std::isinf(actual) || error > 1.0f) {
-                    catastrophic_count++;
-                }
-                if (error > 0.1f) {
-                    large_error_count++;
-                }
-#endif
-
                 if (error > tolerance) {
-#if XATTENTION_DEBUG_VERBOSE
-                    if (!found_first) {
-                        first_mismatch_idx = i;
-                        first_mismatch_actual = actual;
-                        first_mismatch_expected = expected;
-                        found_first = true;
-                    }
-                    avg_mismatch_error += error;
-#endif
                     mismatch_count++;
                 }
             }
-#if XATTENTION_DEBUG_VERBOSE
-            avg_error /= data_output_mem->count();
-            if (mismatch_count > 0) {
-                avg_mismatch_error /= mismatch_count;
-            }
 #endif
-
-            // Print detailed statistics on failure
-            if (mismatch_count > int(data_output_mem->count() * 0.04)) {
-#if XATTENTION_DEBUG_VERBOSE
-                auto& engine = get_test_engine();
-                auto arch = engine.get_device_info().arch;
-                std::string arch_name = (arch == gpu_arch::xe2) ? "Xe2" : (arch == gpu_arch::xe3) ? "Xe3" : "Xe1";
-
-                std::cout << "\n=== XAttention Data Comparison Failed ===" << std::endl;
-                std::cout << "GPU Architecture: " << arch_name << " (arch=" << static_cast<int>(arch) << ")" << std::endl;
-                std::cout << "Total elements: " << data_output_mem->count() << std::endl;
-                std::cout << "\nError Summary:" << std::endl;
-                std::cout << "  Mismatches (> tolerance): " << mismatch_count << " ("
-                          << (100.0 * mismatch_count / data_output_mem->count()) << "%)" << std::endl;
-                std::cout << "  Allowed mismatches: " << int(data_output_mem->count() * 0.04) << " (4%)" << std::endl;
-                std::cout << "  Large errors (> 0.1): " << large_error_count << " ("
-                          << (100.0 * large_error_count / data_output_mem->count()) << "%)" << std::endl;
-                std::cout << "  Catastrophic (NaN/Inf/>1.0): " << catastrophic_count << std::endl;
-
-                std::cout << "\nAbnormal Value Analysis:" << std::endl;
-                std::cout << "  Actual output (GPU):" << std::endl;
-                std::cout << "    NaN values: " << actual_nan_count << std::endl;
-                std::cout << "    INF values: " << actual_inf_count << std::endl;
-                std::cout << "    Values > 1.0: " << actual_gt1_count << std::endl;
-                std::cout << "  Expected output (CPU reference):" << std::endl;
-                std::cout << "    NaN values: " << expected_nan_count << std::endl;
-                std::cout << "    INF values: " << expected_inf_count << std::endl;
-                std::cout << "    Values > 1.0: " << expected_gt1_count << std::endl;
-                std::cout << "  Error magnitude:" << std::endl;
-                std::cout << "    Errors > 1.0: " << error_gt1_count << std::endl;
-                std::cout << "\nError Magnitudes:" << std::endl;
-                std::cout << "  Tolerance threshold: " << tolerance << std::endl;
-                std::cout << "  Max error: " << max_error << std::endl;
-                std::cout << "  Avg error (all): " << avg_error << std::endl;
-                std::cout << "  Avg error (mismatches only): " << avg_mismatch_error << std::endl;
-                std::cout << "First mismatch at index " << first_mismatch_idx << ":" << std::endl;
-                std::cout << "  Actual: " << first_mismatch_actual << std::endl;
-                std::cout << "  Expected: " << first_mismatch_expected << std::endl;
-                std::cout << "  Error: " << std::fabs(first_mismatch_actual - first_mismatch_expected) << std::endl;
-
-                // Sample first 10 mismatches
-                std::cout << "\nFirst 10 mismatches:" << std::endl;
-                int sample_count = 0;
-                for (size_t i = 0; i < data_output_mem->count() && sample_count < 10; i++) {
-                    float actual = static_cast<float>(mem_ptr[i]);
-                    float expected = static_cast<float>(std::get<0>(ref_data)[i]);
-                    float error = std::fabs(actual - expected);
-                    if (error > tolerance) {
-                        std::cout << "  [" << i << "] actual=" << actual
-                                  << " expected=" << expected
-                                  << " error=" << error << std::endl;
-                        sample_count++;
-                    }
-                }
-
-                // Show catastrophic error locations
-                if (catastrophic_count > 0 && catastrophic_count <= 20) {
-                    std::cout << "\nCatastrophic error locations (NaN/Inf/error>1.0):" << std::endl;
-                    // Use passed parameters for correct dimensions
-                    size_t total_tokens = data_output_mem->count() / (num_heads * head_size);
-
-                    std::cout << "  Dimensions: tokens=" << total_tokens
-                              << " heads=" << num_heads
-                              << " head_size=" << head_size
-                              << " (total=" << data_output_mem->count() << ")" << std::endl;
-
-                    for (size_t i = 0; i < data_output_mem->count(); i++) {
-                        float actual = static_cast<float>(mem_ptr[i]);
-                        float expected = static_cast<float>(std::get<0>(ref_data)[i]);
-                        float error = std::fabs(actual - expected);
-                        if (std::isnan(actual) || std::isnan(expected) || std::isinf(actual) || std::isinf(expected) || error > 1.0f) {
-                            // Memory layout: [token][head][dim] with innermost dimension first
-                            size_t elements_per_token = num_heads * head_size;
-                            size_t token = i / elements_per_token;
-                            size_t within_token = i % elements_per_token;
-                            size_t head = within_token / head_size;
-                            size_t dim = within_token % head_size;
-
-                            std::cout << "  Index[" << i << "]: token=" << token << " head=" << head << " dim=" << dim
-                                      << " | actual=" << actual << " expected=" << expected << " error=" << error;
-
-                            // Tag each type
-                            std::vector<std::string> tags;
-                            if (std::isnan(actual)) tags.push_back("ACTUAL_NaN");
-                            if (std::isnan(expected)) tags.push_back("EXPECTED_NaN");
-                            if (std::isinf(actual)) tags.push_back("ACTUAL_INF");
-                            if (std::isinf(expected)) tags.push_back("EXPECTED_INF");
-                            if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) tags.push_back("ACTUAL_>1.0");
-                            if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) tags.push_back("EXPECTED_>1.0");
-                            if (error > 1.0f) tags.push_back("ERROR_>1.0");
-
-                            if (!tags.empty()) {
-                                std::cout << " [";
-                                for (size_t t = 0; t < tags.size(); t++) {
-                                    if (t > 0) std::cout << ", ";
-                                    std::cout << tags[t];
-                                }
-                                std::cout << "]";
-                            }
-                            std::cout << std::endl;
-                        }
-                    }
-                }
-
-                // Check if errors are clustered or distributed
-                // Analyze error type
-                std::cout << "\nError Analysis:" << std::endl;
-                if (catastrophic_count > 0) {
-                    std::cout << "  ERROR TYPE: CATASTROPHIC - Contains NaN/Inf or very large errors" << std::endl;
-                    std::cout << "  This indicates a serious bug, not just precision issues." << std::endl;
-                } else if (large_error_count > mismatch_count * 0.5) {
-                    std::cout << "  ERROR TYPE: LARGE - Most mismatches have error > 0.1" << std::endl;
-                    std::cout << "  This suggests wrong calculations, not precision drift." << std::endl;
-                } else {
-                    std::cout << "  ERROR TYPE: PRECISION - Most errors are small" << std::endl;
-                    std::cout << "  This suggests accumulated floating-point errors." << std::endl;
-                }
-
-                // Comment on tolerance metric
-                std::cout << "\nTolerance Metric Analysis:" << std::endl;
-                std::cout << "  Using: Absolute error with threshold " << tolerance << std::endl;
-                std::cout << "  Input range: Normal(0, 0.1), typically [-0.3, 0.3]" << std::endl;
-                std::cout << "  Relative error at typical values: ~" << (tolerance / 0.1 * 100) << "%" << std::endl;
-                std::cout << "  Verdict: Tolerance is reasonable for FP16 attention calculations" << std::endl;
-
-                std::cout << "\nError distribution (by 1024-element blocks):" << std::endl;
-                size_t block_size = 1024;
-                for (size_t block = 0; block < (data_output_mem->count() + block_size - 1) / block_size && block < 10; block++) {
-                    int block_mismatches = 0;
-                    size_t start = block * block_size;
-                    size_t end = std::min(start + block_size, data_output_mem->count());
-                    for (size_t i = start; i < end; i++) {
-                        float error = std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(std::get<0>(ref_data)[i]));
-                        if (error > tolerance) block_mismatches++;
-                    }
-                    std::cout << "  Block " << block << " [" << start << "-" << end << "): "
-                              << block_mismatches << "/" << (end - start)
-                              << " (" << (100.0 * block_mismatches / (end - start)) << "%)" << std::endl;
-                }
-                std::cout << "========================================\n" << std::endl;
-#endif
-            }
 
             EXPECT_LE(mismatch_count, int(data_output_mem->count() * 0.04));
         }
@@ -2577,6 +2271,548 @@ public:
         }
     }
 
+private:
+    // Helper: Verify CM PA KV cache was correctly written (CM path only)
+    void verify_cm_kv_cache_write(const T& p) {
+        if (last_key_cache_mem == nullptr || !p.has_xattention) return;
+
+        // Count total tokens for single-token BY_CHANNEL skip logic
+        int total_new_tokens = 0;
+        for (const auto& s : p.subsequences) total_new_tokens += s.num_tokens;
+
+        constexpr int kv_sub_block_size = 16;
+        const bool is_by_channel = p.kv_cache_compression &&
+                                   p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+        const bool is_by_token = p.kv_cache_compression &&
+                                 p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
+
+        // CM cache layout: [num_blocks, num_kv_heads, adjusted_block_size, adjusted_head_size]
+        const int adj_head_size = is_by_token ? (p.k_head_size + 4) : p.k_head_size;
+        const int adj_block_size = is_by_channel ? (p.block_size + (p.block_size / kv_sub_block_size) * 4) : p.block_size;
+        const int elem_size = p.kv_cache_compression ? 1 : 2;
+        const size_t head_region_bytes = static_cast<size_t>(adj_block_size) * adj_head_size * elem_size;
+        const size_t block_stride_bytes = static_cast<size_t>(p.num_kv_heads) * head_region_bytes;
+        const int token_data_stride = p.k_head_size * elem_size;
+
+        mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, get_test_stream());
+
+        int missing_count = 0, nan_count = 0, inf_count = 0, zero_scale_count = 0, out_of_range_zp_count = 0;
+        std::vector<std::tuple<int, int, int, int, int>> nan_locations, inf_locations;
+        std::vector<std::tuple<int, int, int, int, float, float>> zero_scale_locations, out_of_range_zp_locations;
+
+        int total_tokens = 0;
+        for (int i = 0; i < static_cast<int>(p.subsequences.size()); i++) {
+            const int past_len = p.subsequences[i].past_len;
+            const int num_tokens = p.subsequences[i].num_tokens;
+            for (int t = 0; t < num_tokens; t++) {
+                total_tokens++;
+                const int absolute_pos = past_len + t;
+                const int block_idx = absolute_pos / p.block_size;
+                const int token_in_block = absolute_pos % p.block_size;
+                const int physical_block = last_block_indices[last_block_indices_begins[i] + block_idx];
+                const size_t block_base = static_cast<size_t>(physical_block) * block_stride_bytes;
+
+                for (int head = 0; head < p.num_kv_heads; head++) {
+                    const size_t head_base = block_base + static_cast<size_t>(head) * head_region_bytes;
+                    const size_t token_offset = head_base + static_cast<size_t>(token_in_block) * token_data_stride;
+
+                    // Check for missing token write (all-zero data)
+                    bool skip_zero_check = is_by_channel && (total_new_tokens <= 1);
+                    if (!skip_zero_check) {
+                        bool all_zero = true;
+                        for (int b = 0; b < token_data_stride; b++) {
+                            if (cache_lock[token_offset + b] != 0) {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+                        if (all_zero && head == 0) {
+                            missing_count++;
+                            GPU_DEBUG_LOG << "KV cache update MISSING: seq=" << i << " token=" << t
+                                          << " (absolute_pos=" << absolute_pos << ") at byte_offset=" << token_offset << std::endl;
+                        }
+                    }
+
+                    // Check for NaN/INF in data or scale/zp
+                    check_kv_cache_nan_inf(cache_lock.data(), p, is_by_token, is_by_channel,
+                                          head_base, token_in_block, i, t, absolute_pos, head,
+                                          nan_count, inf_count, zero_scale_count, out_of_range_zp_count,
+                                          nan_locations, inf_locations, zero_scale_locations, out_of_range_zp_locations);
+                }
+            }
+        }
+
+        report_kv_cache_issues(nan_count, inf_count, zero_scale_count, out_of_range_zp_count,
+                               nan_locations, inf_locations, zero_scale_locations, out_of_range_zp_locations,
+                               total_tokens, p, is_by_token, is_by_channel);
+        EXPECT_EQ(missing_count, 0) << missing_count << " out of " << total_tokens
+                                    << " tokens were not written to key cache by KV update kernel";
+        EXPECT_EQ(nan_count, 0) << "KV cache contains NaN values";
+        EXPECT_EQ(inf_count, 0) << "KV cache contains INF values";
+        EXPECT_EQ(zero_scale_count, 0) << "KV cache contains zero/near-zero scale values (causes division by zero in dequant)";
+        // ZP can be outside [0, 255] legitimately - see pa-quantization skill for details
+    }
+
+    // Helper: Check for NaN/INF in KV cache token
+    void check_kv_cache_nan_inf(const int8_t* cache_data, const T& p,
+                                 bool is_by_token, bool is_by_channel,
+                                 size_t head_base, int token_in_block,
+                                 int seq_idx, int token_idx, int absolute_pos, int head,
+                                 int& nan_count, int& inf_count, int& zero_scale_count, int& out_of_range_zp_count,
+                                 std::vector<std::tuple<int, int, int, int, int>>& nan_locations,
+                                 std::vector<std::tuple<int, int, int, int, int>>& inf_locations,
+                                 std::vector<std::tuple<int, int, int, int, float, float>>& zero_scale_locations,
+                                 std::vector<std::tuple<int, int, int, int, float, float>>& out_of_range_zp_locations) {
+        constexpr int kv_sub_block_size = 16;
+        const size_t token_offset = head_base + static_cast<size_t>(token_in_block) * p.k_head_size * (p.kv_cache_compression ? 1 : 2);
+
+        if (!p.kv_cache_compression) {
+            // FP16 cache: check data for NaN/INF
+            const ov::float16* fp16_ptr = reinterpret_cast<const ov::float16*>(cache_data + token_offset);
+            for (int dim = 0; dim < p.k_head_size; dim++) {
+                float val = static_cast<float>(fp16_ptr[dim]);
+                if (std::isnan(val)) {
+                    nan_count++;
+                    if (nan_locations.size() < 10) {
+                        nan_locations.push_back(std::make_tuple(seq_idx, token_idx, absolute_pos, head, dim));
+                    }
+                }
+                if (std::isinf(val)) {
+                    inf_count++;
+                    if (inf_locations.size() < 10) {
+                        inf_locations.push_back(std::make_tuple(seq_idx, token_idx, absolute_pos, head, dim));
+                    }
+                }
+            }
+        } else if (is_by_token) {
+            // BY_TOKEN: check scale/zp
+            const size_t scale_offset = head_base + static_cast<size_t>(p.block_size) * p.k_head_size
+                                      + static_cast<size_t>(token_in_block) * 2;
+            const size_t zp_offset = scale_offset + static_cast<size_t>(p.block_size) * 2;
+            const ov::float16* scale_ptr = reinterpret_cast<const ov::float16*>(cache_data + scale_offset);
+            const ov::float16* zp_ptr = reinterpret_cast<const ov::float16*>(cache_data + zp_offset);
+            float scale = static_cast<float>(*scale_ptr);
+            float zp = static_cast<float>(*zp_ptr);
+
+            check_scale_zp_validity(scale, zp, seq_idx, token_idx, absolute_pos, head, -1,
+                                   nan_count, inf_count, zero_scale_count, out_of_range_zp_count,
+                                   nan_locations, inf_locations, zero_scale_locations, out_of_range_zp_locations);
+        } else if (is_by_channel) {
+            // BY_CHANNEL: check scale/zp per channel (only first 4 channels to limit overhead)
+            int sub_block_idx = token_in_block / kv_sub_block_size;
+            int group_num = p.block_size / kv_sub_block_size;
+            for (int ch = 0; ch < std::min(p.k_head_size, 4); ch++) {
+                size_t scale_offset = head_base + static_cast<size_t>(p.block_size) * p.k_head_size
+                                    + (static_cast<size_t>(sub_block_idx) * p.k_head_size + ch) * 2;
+                size_t zp_offset = scale_offset + static_cast<size_t>(group_num) * p.k_head_size * 2;
+                const ov::float16* scale_ptr = reinterpret_cast<const ov::float16*>(cache_data + scale_offset);
+                const ov::float16* zp_ptr = reinterpret_cast<const ov::float16*>(cache_data + zp_offset);
+                float scale = static_cast<float>(*scale_ptr);
+                float zp = static_cast<float>(*zp_ptr);
+
+                check_scale_zp_validity(scale, zp, seq_idx, token_idx, absolute_pos, head, ch,
+                                       nan_count, inf_count, zero_scale_count, out_of_range_zp_count,
+                                       nan_locations, inf_locations, zero_scale_locations, out_of_range_zp_locations);
+            }
+        }
+    }
+
+    // Helper: Check scale/zp for NaN/INF/zero
+    void check_scale_zp_validity(float scale, float zp, int seq_idx, int token_idx, int absolute_pos, int head, int dim,
+                                  int& nan_count, int& inf_count, int& zero_scale_count, int& out_of_range_zp_count,
+                                  std::vector<std::tuple<int, int, int, int, int>>& nan_locations,
+                                  std::vector<std::tuple<int, int, int, int, int>>& inf_locations,
+                                  std::vector<std::tuple<int, int, int, int, float, float>>& zero_scale_locations,
+                                  std::vector<std::tuple<int, int, int, int, float, float>>& out_of_range_zp_locations) {
+        if (std::isnan(scale) || std::isnan(zp)) {
+            nan_count += (std::isnan(scale) ? 1 : 0) + (std::isnan(zp) ? 1 : 0);
+            if (nan_locations.size() < 10) {
+                nan_locations.push_back(std::make_tuple(seq_idx, token_idx, absolute_pos, head, dim));
+            }
+        }
+        if (std::isinf(scale) || std::isinf(zp)) {
+            inf_count += (std::isinf(scale) ? 1 : 0) + (std::isinf(zp) ? 1 : 0);
+            if (inf_locations.size() < 10) {
+                inf_locations.push_back(std::make_tuple(seq_idx, token_idx, absolute_pos, head, dim));
+            }
+        }
+        if (std::fabs(scale) < 1e-6f) {
+            zero_scale_count++;
+            if (zero_scale_locations.size() < 10) {
+                zero_scale_locations.push_back(std::make_tuple(seq_idx, token_idx, absolute_pos, head, scale, zp));
+            }
+        }
+        if (zp < -1.0f || zp > 256.0f) {
+            out_of_range_zp_count++;
+            if (out_of_range_zp_locations.size() < 10) {
+                out_of_range_zp_locations.push_back(std::make_tuple(seq_idx, token_idx, absolute_pos, head, scale, zp));
+            }
+        }
+    }
+
+    // Helper: Report KV cache verification issues
+    void report_kv_cache_issues(int nan_count, int inf_count, int zero_scale_count, int out_of_range_zp_count,
+                                 const std::vector<std::tuple<int, int, int, int, int>>& nan_locations,
+                                 const std::vector<std::tuple<int, int, int, int, int>>& inf_locations,
+                                 const std::vector<std::tuple<int, int, int, int, float, float>>& zero_scale_locations,
+                                 const std::vector<std::tuple<int, int, int, int, float, float>>& out_of_range_zp_locations,
+                                 int total_tokens, const T& p, bool is_by_token, bool is_by_channel) {
+        if (nan_count > 0) {
+            GPU_DEBUG_LOG << "\nKV cache contains " << nan_count << " NaN values:" << std::endl;
+            for (const auto& [seq, tok, abs_pos, h, d] : nan_locations) {
+                GPU_DEBUG_LOG << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos << ") head=" << h;
+                if (d == -1) {
+                    GPU_DEBUG_LOG << " [BY_TOKEN scale/zp]";
+                } else if (d >= 0) {
+                    GPU_DEBUG_LOG << " [BY_CHANNEL scale/zp channel=" << d << "]";
+                } else {
+                    GPU_DEBUG_LOG << " [FP16 dim=" << d << "]";
+                }
+                GPU_DEBUG_LOG << std::endl;
+            }
+            if (nan_locations.size() < static_cast<size_t>(nan_count)) {
+                GPU_DEBUG_LOG << "  ... and " << (nan_count - nan_locations.size()) << " more" << std::endl;
+            }
+        }
+        if (inf_count > 0) {
+            GPU_DEBUG_LOG << "\nKV cache contains " << inf_count << " INF values:" << std::endl;
+            for (const auto& [seq, tok, abs_pos, h, d] : inf_locations) {
+                GPU_DEBUG_LOG << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos << ") head=" << h;
+                if (d == -1) {
+                    GPU_DEBUG_LOG << " [BY_TOKEN scale/zp]";
+                } else if (d >= 0) {
+                    GPU_DEBUG_LOG << " [BY_CHANNEL scale/zp channel=" << d << "]";
+                } else {
+                    GPU_DEBUG_LOG << " [FP16 dim=" << d << "]";
+                }
+                GPU_DEBUG_LOG << std::endl;
+            }
+            if (inf_locations.size() < static_cast<size_t>(inf_count)) {
+                GPU_DEBUG_LOG << "  ... and " << (inf_count - inf_locations.size()) << " more" << std::endl;
+            }
+        }
+        if (zero_scale_count > 0) {
+            GPU_DEBUG_LOG << "\nKV cache contains " << zero_scale_count << " zero/near-zero scale values:" << std::endl;
+            for (const auto& [seq, tok, abs_pos, h, scale, zp] : zero_scale_locations) {
+                GPU_DEBUG_LOG << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos
+                              << ") head=" << h << " scale=" << scale << " zp=" << zp << std::endl;
+            }
+            if (zero_scale_locations.size() < static_cast<size_t>(zero_scale_count)) {
+                GPU_DEBUG_LOG << "  ... and " << (zero_scale_count - zero_scale_locations.size()) << " more" << std::endl;
+            }
+        }
+        if (out_of_range_zp_count > 0) {
+            GPU_DEBUG_LOG << "\nKV cache contains " << out_of_range_zp_count << " ZP values outside typical [0,255] range (NOTE: this is valid for shifted data distributions):" << std::endl;
+            for (const auto& [seq, tok, abs_pos, h, scale, zp] : out_of_range_zp_locations) {
+                GPU_DEBUG_LOG << "  seq=" << seq << " token=" << tok << " (absolute_pos=" << abs_pos
+                              << ") head=" << h << " scale=" << scale << " zp=" << zp << std::endl;
+            }
+            if (out_of_range_zp_locations.size() < static_cast<size_t>(out_of_range_zp_count)) {
+                GPU_DEBUG_LOG << "  ... and " << (out_of_range_zp_count - out_of_range_zp_locations.size()) << " more" << std::endl;
+            }
+        }
+
+        if (nan_count == 0 && inf_count == 0 && zero_scale_count == 0 && out_of_range_zp_count == 0) {
+            GPU_DEBUG_LOG << "\nKV cache verification PASSED: " << total_tokens << " tokens checked";
+            if (p.kv_cache_compression) {
+                GPU_DEBUG_LOG << " (compression mode: "
+                              << (is_by_token ? "BY_TOKEN" : (is_by_channel ? "BY_CHANNEL" : "UNKNOWN")) << ")";
+            } else {
+                GPU_DEBUG_LOG << " (FP16 mode)";
+            }
+            GPU_DEBUG_LOG << std::endl;
+        }
+    }
+
+private:
+    // Helper structure to hold XAttention error statistics
+    struct XAttentionErrorStats {
+        int mismatch_count = 0;
+        int catastrophic_count = 0;  // NaN, Inf, or error > 1.0
+        int large_error_count = 0;   // error > 0.1
+        float max_error = 0.0f;
+        float avg_error = 0.0f;
+        float avg_mismatch_error = 0.0f;
+        size_t first_mismatch_idx = 0;
+        float first_mismatch_actual = 0.0f;
+        float first_mismatch_expected = 0.0f;
+        bool found_first = false;
+
+        // Separate counters for different abnormal value types
+        int actual_nan_count = 0;
+        int expected_nan_count = 0;
+        int actual_inf_count = 0;
+        int expected_inf_count = 0;
+        int actual_gt1_count = 0;
+        int expected_gt1_count = 0;
+        int error_gt1_count = 0;
+
+        // Track coordinates of abnormal values
+        std::vector<std::tuple<size_t, size_t, size_t, float>> actual_nan_coords;    // (token, head, dim, value)
+        std::vector<std::tuple<size_t, size_t, size_t, float>> expected_nan_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> actual_inf_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> expected_inf_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> actual_gt1_coords;
+        std::vector<std::tuple<size_t, size_t, size_t, float>> expected_gt1_coords;
+    };
+
+    // Collect XAttention error statistics by comparing GPU output with CPU reference
+    static void collect_xattention_error_stats(const ov::float16* mem_ptr,
+                                                const std::vector<ov::float16>& ref_output,
+                                                size_t num_heads,
+                                                size_t head_size,
+                                                float tolerance,
+                                                XAttentionErrorStats& stats) {
+        size_t total_elements = ref_output.size();
+        for (size_t i = 0; i < total_elements; i++) {
+            float actual = static_cast<float>(mem_ptr[i]);
+            float expected = static_cast<float>(ref_output[i]);
+            float error = std::fabs(actual - expected);
+
+            stats.avg_error += error;
+            stats.max_error = std::max(stats.max_error, error);
+
+            // Calculate coordinates: output layout is [T, Q * H]
+            size_t head_dim_flat = i % (num_heads * head_size);
+            size_t token_idx = i / (num_heads * head_size);
+            size_t head_idx = head_dim_flat / head_size;
+            size_t dim_idx = head_dim_flat % head_size;
+
+            // Separate checks for actual vs expected with coordinate tracking
+            if (std::isnan(actual)) {
+                stats.actual_nan_count++;
+                stats.actual_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+            }
+            if (std::isnan(expected)) {
+                stats.expected_nan_count++;
+                stats.expected_nan_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+            }
+            if (std::isinf(actual)) {
+                stats.actual_inf_count++;
+                stats.actual_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+            }
+            if (std::isinf(expected)) {
+                stats.expected_inf_count++;
+                stats.expected_inf_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+            }
+            if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) {
+                stats.actual_gt1_count++;
+                stats.actual_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, actual));
+            }
+            if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) {
+                stats.expected_gt1_count++;
+                stats.expected_gt1_coords.push_back(std::make_tuple(token_idx, head_idx, dim_idx, expected));
+            }
+            if (error > 1.0f) stats.error_gt1_count++;
+
+            if (std::isnan(actual) || std::isinf(actual) || error > 1.0f) {
+                stats.catastrophic_count++;
+            }
+            if (error > 0.1f) {
+                stats.large_error_count++;
+            }
+
+            if (error > tolerance) {
+                if (!stats.found_first) {
+                    stats.first_mismatch_idx = i;
+                    stats.first_mismatch_actual = actual;
+                    stats.first_mismatch_expected = expected;
+                    stats.found_first = true;
+                }
+                stats.avg_mismatch_error += error;
+                stats.mismatch_count++;
+            }
+        }
+
+        stats.avg_error /= total_elements;
+        if (stats.mismatch_count > 0) {
+            stats.avg_mismatch_error /= stats.mismatch_count;
+        }
+    }
+
+    // Print coordinates of abnormal values (NaN/INF/large values)
+    static void print_abnormal_value_coords(const std::string& label,
+                                            const std::vector<std::tuple<size_t, size_t, size_t, float>>& coords,
+                                            int count) {
+        GPU_DEBUG_LOG << "    " << label << ": " << count << std::endl;
+        if (count > 0) {
+            GPU_DEBUG_LOG << "      Coordinates (token, head, dim, value):" << std::endl;
+            size_t show_count = std::min(coords.size(), size_t(10));
+            for (size_t j = 0; j < show_count; j++) {
+                auto [t, h, d, v] = coords[j];
+                GPU_DEBUG_LOG << "        [" << t << ", " << h << ", " << d << "] = " << v << std::endl;
+            }
+            if (coords.size() > 10) {
+                GPU_DEBUG_LOG << "        ... and " << (coords.size() - 10) << " more" << std::endl;
+            }
+        }
+    }
+
+    // Print catastrophic error locations with detailed tags
+    static void print_catastrophic_errors(const ov::float16* mem_ptr,
+                                          const std::vector<ov::float16>& ref_output,
+                                          size_t num_heads,
+                                          size_t head_size,
+                                          int catastrophic_count) {
+        if (catastrophic_count > 0 && catastrophic_count <= 20) {
+            GPU_DEBUG_LOG << "\nCatastrophic error locations (NaN/Inf/error>1.0):" << std::endl;
+            size_t total_elements = ref_output.size();
+            size_t total_tokens = total_elements / (num_heads * head_size);
+
+            GPU_DEBUG_LOG << "  Dimensions: tokens=" << total_tokens
+                      << " heads=" << num_heads
+                      << " head_size=" << head_size
+                      << " (total=" << total_elements << ")" << std::endl;
+
+            for (size_t i = 0; i < total_elements; i++) {
+                float actual = static_cast<float>(mem_ptr[i]);
+                float expected = static_cast<float>(ref_output[i]);
+                float error = std::fabs(actual - expected);
+                if (std::isnan(actual) || std::isnan(expected) || std::isinf(actual) || std::isinf(expected) || error > 1.0f) {
+                    // Memory layout: [token][head][dim] with innermost dimension first
+                    size_t elements_per_token = num_heads * head_size;
+                    size_t token = i / elements_per_token;
+                    size_t within_token = i % elements_per_token;
+                    size_t head = within_token / head_size;
+                    size_t dim = within_token % head_size;
+
+                    GPU_DEBUG_LOG << "  Index[" << i << "]: token=" << token << " head=" << head << " dim=" << dim
+                              << " | actual=" << actual << " expected=" << expected << " error=" << error;
+
+                    // Tag each type
+                    std::vector<std::string> tags;
+                    if (std::isnan(actual)) tags.push_back("ACTUAL_NaN");
+                    if (std::isnan(expected)) tags.push_back("EXPECTED_NaN");
+                    if (std::isinf(actual)) tags.push_back("ACTUAL_INF");
+                    if (std::isinf(expected)) tags.push_back("EXPECTED_INF");
+                    if (!std::isnan(actual) && !std::isinf(actual) && std::fabs(actual) > 1.0f) tags.push_back("ACTUAL_>1.0");
+                    if (!std::isnan(expected) && !std::isinf(expected) && std::fabs(expected) > 1.0f) tags.push_back("EXPECTED_>1.0");
+                    if (error > 1.0f) tags.push_back("ERROR_>1.0");
+
+                    if (!tags.empty()) {
+                        GPU_DEBUG_LOG << " [";
+                        for (size_t t = 0; t < tags.size(); t++) {
+                            if (t > 0) {
+                                GPU_DEBUG_LOG << ", ";
+                            }
+                            GPU_DEBUG_LOG << tags[t];
+                        }
+                        GPU_DEBUG_LOG << "]";
+                    }
+                    GPU_DEBUG_LOG << std::endl;
+                }
+            }
+        }
+    }
+
+    // Print error distribution by 1024-element blocks
+    static void print_error_distribution(const ov::float16* mem_ptr,
+                                         const std::vector<ov::float16>& ref_output,
+                                         float tolerance) {
+        GPU_DEBUG_LOG << "\nError distribution (by 1024-element blocks):" << std::endl;
+        size_t block_size = 1024;
+        size_t total_elements = ref_output.size();
+        for (size_t block = 0; block < (total_elements + block_size - 1) / block_size && block < 10; block++) {
+            int block_mismatches = 0;
+            size_t start = block * block_size;
+            size_t end = std::min(start + block_size, total_elements);
+            for (size_t i = start; i < end; i++) {
+                float error = std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(ref_output[i]));
+                if (error > tolerance) block_mismatches++;
+            }
+            GPU_DEBUG_LOG << "  Block " << block << " [" << start << "-" << end << "): "
+                      << block_mismatches << "/" << (end - start)
+                      << " (" << (100.0 * block_mismatches / (end - start)) << "%)" << std::endl;
+        }
+    }
+
+    // Print detailed XAttention error analysis
+    static void print_xattention_error_details(const XAttentionErrorStats& stats,
+                                                const ov::float16* mem_ptr,
+                                                const std::vector<ov::float16>& ref_output,
+                                                size_t num_heads,
+                                                size_t head_size,
+                                                float tolerance) {
+        auto& engine = get_test_engine();
+        auto arch = engine.get_device_info().arch;
+        std::string arch_name = (arch == gpu_arch::xe2) ? "Xe2" : (arch == gpu_arch::xe3) ? "Xe3" : "Xe1";
+        size_t total_elements = ref_output.size();
+        int allowed_mismatches = int(total_elements * 0.04);
+
+        GPU_DEBUG_LOG << "\n=== XAttention Data Comparison Failed ===" << std::endl;
+        GPU_DEBUG_LOG << "GPU Architecture: " << arch_name << " (arch=" << static_cast<int>(arch) << ")" << std::endl;
+        GPU_DEBUG_LOG << "Total elements: " << total_elements << std::endl;
+        GPU_DEBUG_LOG << "\nError Summary:" << std::endl;
+        GPU_DEBUG_LOG << "  Mismatches (> tolerance): " << stats.mismatch_count << " ("
+                      << (100.0 * stats.mismatch_count / total_elements) << "%)" << std::endl;
+        GPU_DEBUG_LOG << "  Allowed mismatches: " << allowed_mismatches << " (4%)" << std::endl;
+        GPU_DEBUG_LOG << "  Large errors (> 0.1): " << stats.large_error_count << " ("
+                      << (100.0 * stats.large_error_count / total_elements) << "%)" << std::endl;
+        GPU_DEBUG_LOG << "  Catastrophic (NaN/Inf/>1.0): " << stats.catastrophic_count << std::endl;
+
+        GPU_DEBUG_LOG << "\nAbnormal Value Analysis:" << std::endl;
+        GPU_DEBUG_LOG << "  Actual output (GPU):" << std::endl;
+        print_abnormal_value_coords("NaN values", stats.actual_nan_coords, stats.actual_nan_count);
+        print_abnormal_value_coords("INF values", stats.actual_inf_coords, stats.actual_inf_count);
+        print_abnormal_value_coords("Values > 1.0", stats.actual_gt1_coords, stats.actual_gt1_count);
+        GPU_DEBUG_LOG << "  Expected output (CPU reference):" << std::endl;
+        print_abnormal_value_coords("NaN values", stats.expected_nan_coords, stats.expected_nan_count);
+        print_abnormal_value_coords("INF values", stats.expected_inf_coords, stats.expected_inf_count);
+        print_abnormal_value_coords("Values > 1.0", stats.expected_gt1_coords, stats.expected_gt1_count);
+        GPU_DEBUG_LOG << "  Error magnitude:" << std::endl;
+        GPU_DEBUG_LOG << "    Errors > 1.0: " << stats.error_gt1_count << std::endl;
+        GPU_DEBUG_LOG << "\nError Magnitudes:" << std::endl;
+        GPU_DEBUG_LOG << "  Tolerance threshold: " << tolerance << std::endl;
+        GPU_DEBUG_LOG << "  Max error: " << stats.max_error << std::endl;
+        GPU_DEBUG_LOG << "  Avg error (all): " << stats.avg_error << std::endl;
+        GPU_DEBUG_LOG << "  Avg error (mismatches only): " << stats.avg_mismatch_error << std::endl;
+        GPU_DEBUG_LOG << "First mismatch at index " << stats.first_mismatch_idx << ":" << std::endl;
+        GPU_DEBUG_LOG << "  Actual: " << stats.first_mismatch_actual << std::endl;
+        GPU_DEBUG_LOG << "  Expected: " << stats.first_mismatch_expected << std::endl;
+        GPU_DEBUG_LOG << "  Error: " << std::fabs(stats.first_mismatch_actual - stats.first_mismatch_expected) << std::endl;
+
+        // Sample first 10 mismatches
+        GPU_DEBUG_LOG << "\nFirst 10 mismatches:" << std::endl;
+        int sample_count = 0;
+        for (size_t i = 0; i < total_elements && sample_count < 10; i++) {
+            float actual = static_cast<float>(mem_ptr[i]);
+            float expected = static_cast<float>(ref_output[i]);
+            float error = std::fabs(actual - expected);
+            if (error > tolerance) {
+                GPU_DEBUG_LOG << "  [" << i << "] actual=" << actual
+                          << " expected=" << expected
+                          << " error=" << error << std::endl;
+                sample_count++;
+            }
+        }
+
+        print_catastrophic_errors(mem_ptr, ref_output, num_heads, head_size, stats.catastrophic_count);
+
+        // Analyze error type
+        GPU_DEBUG_LOG << "\nError Analysis:" << std::endl;
+        if (stats.catastrophic_count > 0) {
+            GPU_DEBUG_LOG << "  ERROR TYPE: CATASTROPHIC - Contains NaN/Inf or very large errors" << std::endl;
+            GPU_DEBUG_LOG << "  This indicates a serious bug, not just precision issues." << std::endl;
+        } else if (stats.large_error_count > stats.mismatch_count * 0.5) {
+            GPU_DEBUG_LOG << "  ERROR TYPE: LARGE - Most mismatches have error > 0.1" << std::endl;
+            GPU_DEBUG_LOG << "  This suggests wrong calculations, not precision drift." << std::endl;
+        } else {
+            GPU_DEBUG_LOG << "  ERROR TYPE: PRECISION - Most errors are small" << std::endl;
+            GPU_DEBUG_LOG << "  This suggests accumulated floating-point errors." << std::endl;
+        }
+
+        // Comment on tolerance metric
+        GPU_DEBUG_LOG << "\nTolerance Metric Analysis:" << std::endl;
+        GPU_DEBUG_LOG << "  Using: Absolute error with threshold " << tolerance << std::endl;
+        GPU_DEBUG_LOG << "  Input range: Normal(0, 0.1), typically [-0.3, 0.3]" << std::endl;
+        GPU_DEBUG_LOG << "  Relative error at typical values: ~" << (tolerance / 0.1 * 100) << "%" << std::endl;
+        GPU_DEBUG_LOG << "  Verdict: Tolerance is reasonable for FP16 attention calculations" << std::endl;
+
+        print_error_distribution(mem_ptr, ref_output, tolerance);
+        GPU_DEBUG_LOG << "========================================\n" << std::endl;
+    }
+
+public:
     static bool check_cm_available() {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
@@ -2610,24 +2846,27 @@ struct paged_attention_test_params {
      
     ov::element::Type kv_cache_precision = ov::element::dynamic;
 
+
     // test query-to-query attention bias
     bool has_qq_bias = false;
     QueryToQueryAttentionDescriptor qq_bias_config = {};
+    bool run_reference = true;
+
+    // optional token_type_ids passed to PagedAttention; if set (non-empty), it is forwarded
+    // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
+    std::optional<std::vector<int>> token_type_ids = std::nullopt;
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
 
-    execute(p);
+    execute(p, p.run_reference);
 }
 
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();
-    if (p.subsequences.size() > 1)
-        GTEST_SKIP() << "Multi-sequence test cases are not supported yet for xattention!";
-
     if (!check_cm_available())
         GTEST_SKIP() << "CM JIT support is required for XAttention tests, and the device must be Xe1 or later";
 
@@ -2650,15 +2889,12 @@ TEST_P(xattention_test, basic) {
         }
     }
 
-    execute(p);
+    execute(p, p.run_reference);
 }
 
 class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_invalid_test, throws_on_invalid_xattention_inputs) {
     auto p = GetParam();
-    if (p.subsequences.size() > 1)
-        GTEST_SKIP() << "Multi-sequence test cases are not supported yet for xattention!";
-
     if (!check_cm_available())
         GTEST_SKIP() << "CM JIT support is required for XAttention tests, and the device must be Xe1 or later";
 
@@ -2714,6 +2950,27 @@ const auto DISABLE_FA_V2 = true;
 const auto ENABLE_DIVERSITY = true;
 const auto DISABLE_DIVERSITY = false;
 const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16}};
+
+static paged_attention_test_params disable_reference_compare(paged_attention_test_params p) {
+    p.run_reference = false;
+    return p;
+}
+
+static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_images, size_t avg_img_len) {
+    std::vector<int32_t> v(seq_len, 0);
+    size_t gap = seq_len / (num_images + 1);
+    for (int img = 0; img < num_images; img++) {
+        size_t center = gap * (img + 1);
+        size_t half = avg_img_len / 2;
+        size_t start = (center > half) ? center - half : 0;
+        size_t end = std::min(seq_len, center + half);
+        for (size_t i = start; i < end; i++)
+            v[i] = 1;
+    }
+
+
+    return v;
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
@@ -2856,24 +3113,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{40, 96}, {30, 50}}, 2, 2, 64, 64, 16, 8, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
     paged_attention_test_params{ {{128, 130}, {256, 60}}, 2, 2, 48, 64, 16, 128, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
 
-    /* INT4 KV-cache compression (u4+BY_CHANNEL) */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token u4+BY_TOKEN
-    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token long u4+BY_TOKEN
+    /* INT4 KV-cache compression (u4+BY_CHANNEL only; BY_TOKEN is not supported for 4-bit) */
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token u4+BY_CHANNEL
     paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token long u4+BY_CHANNEL
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_TOKEN
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_CHANNEL
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token + 2nd token u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token u4+BY_CHANNEL
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token + 2nd token u4+BY_CHANNEL
     paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_CHANNEL
-    /* u4 MIXED mode (generate+prefill in same batch) - covers pa_multi_token sink_ptr fix */
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4+BY_TOKEN
+    /* u4 MIXED mode (generate+prefill in same batch) */
     paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4+BY_CHANNEL
     /* u4 with larger head size */
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_TOKEN
     paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_CHANNEL
     /* u4 with GQA (multi query groups) */
-    paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_TOKEN
     paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_CHANNEL
 
     paged_attention_test_params{ {{1, 4200}}, 8, 2, 64, 64, 16, 8, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 8/2 + scores + sw=8, kv_group_size=4 -> QUERIES_PER_WI=4
@@ -2974,29 +3225,116 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{1, 1023}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/62]
     paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/63]
 
-    //////////////////////////////////////////////////////////////////////////////// multi-seq ////////////////////////////////////////////////////////////////////////
-    // multi-seq prefill
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence prefill [basic/64]
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence prefill [basic/65]
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence prefill [basic/66]
+    //////////////////////////////////////////////////////////////////////////////// diversary head_size and head_ratio + bypass xattention ////////////////////////////////////////////////////////////////////////
+    /////////////////// head_size 96 as phi-3-mini-128k-instruct //////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 96, 96, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 1st token [basic/64]
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 96, 96, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 2nd token [basic/65]
 
-    // multi-seq generate
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/67]
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/68]
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/69]
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   2, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 1st token [basic/66]
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 2nd token [basic/67]
+                
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 1st token [basic/68]
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 2nd token [basic/69]
 
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/70]
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/71]
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/72]
+    /////////////////// head_ratio 16:1 as minicpm4 //////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   32, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 1st token [basic/70]
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   32, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 2nd token [basic/71]
+
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 1st token [basic/72]
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 2nd token [basic/73]
+                
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 1st token [basic/74]
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} }, // 2nd token [basic/75]
+
+    //////////////////////////////////////////////////////////////////////////////// diversary head_size and head_ratio + enable xattention ////////////////////////////////////////////////////////////////////////
+    /////////////////// head_size 96 as phi-3-mini-128k-instruct //////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 96, 96, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token [basic/76]
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 96, 96, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/77]
+
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   2, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token [basic/78]
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/79]
+                
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token [basic/80]
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 96, 96, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/81]
+
+    /////////////////// head_ratio 16:1 as minicpm4 //////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   32, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token [basic/82]
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   32, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/83]
+
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token [basic/84]
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/85]
+                
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token [basic/86]
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   32, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token [basic/87]
+
+    //////////////////////////////////////////////////////////////////////////////// multi-seq + bypass xattention ////////////////////////////////////////////////////////////////////////
+    // multi-seq prefill-only
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence prefill [basic/88]
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence prefill [basic/89]
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence prefill [basic/90]
+
+    // multi-seq generate-only
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/91]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/92]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/93]
 
     // multi-seq mixed
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/73]
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/74]
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/75]
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/94]
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/95]
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/96]
 
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/76]
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/77]
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/78]
+    paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/97]
+    paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/98]
+    paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/99]
+
+    //////////////////////////////////////////////////////////////////////////////// multi-seq + enable xattention ////////////////////////////////////////////////////////////////////////
+    // multi-seq prefill
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/100]
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/101]
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence generate [basic/102]
+
+    // multi-seq generate
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence mixed [basic/103]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence mixed [basic/104]
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} }, // multi-subsequence mixed [basic/105]
+
+    // multi-seq mixed
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/106]
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/107]
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/108]
+
+    paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/109]
+    paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/110]
+    paged_attention_test_params{ {{1, 1024 + 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence mixed [basic/111]
+
+    // Option B: maximally-divergent past_tail to expose by-channel dispatch under-count (basic/112)
+    // past_len=3 => past_tail=3%16=3; cur_tokens 5,7,9 => sub-blocks ceil((3+5)/16)=1, ceil((3+7)/16)=1, ceil((3+9)/16)=1 = 3 sub-blocks
+    // Simple ceil_div(total_tokens=21, 16) would give 2, under-dispatching by 1 sub-block
+    paged_attention_test_params{ {{5, 3}, {7, 3}, {9, 3}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence by-channel divergent [basic/112]
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -3012,6 +3350,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size_invalid, xattention_inva
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::nullopt },
     // Abnormal: user provides empty xattention_block_size tensor
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{} },
+    // Abnormal: user provides invalid number of block sizes (should be 1 or equal to batch size)
+    paged_attention_test_params{ {{16, 0}, {16, 0}, {16, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128, 128} },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_threshold_invalid, xattention_invalid_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -3019,6 +3359,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_threshold_invalid, xattention_inval
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::nullopt, std::vector<int>{128} },
     // Abnormal: user provides empty xattention_threshold tensor
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{}, std::vector<int>{128} },
+    // Abnormal: user provides invalid number of threshold values (should be 1 or equal to batch size)
+    paged_attention_test_params{ {{16, 0}, {16, 0}, {16, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128, 128} },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -3079,3 +3421,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
     // multi sequence with different qq bias patterns
     paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
 }));
+
+// Performance-focused tests with larger sequence lengths, single/multi-subsequences, and CM v.s. OCL/micro path (which is triggered with xattention ON/OFF).
+// These tests are not validating correctness (outputs are not checked), but are intended to be run in a performance benchmarking mode to evaluate kernel performance and behavior of the paged attention implementation.
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // prefill-only
+    disable_reference_compare(paged_attention_test_params{ {{4096, 0}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 4*1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 7*1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 15*1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 23*1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 31*1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+
+    // generate-only
+    disable_reference_compare(paged_attention_test_params{ {{1, 4096}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION,   DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{1, 4*4096}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{1, 8*4096}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    disable_reference_compare(paged_attention_test_params{ {{1, 16*4096}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+
+    // mixed prefill+generate
+    disable_reference_compare(paged_attention_test_params{ {{1, 1*4096}, {1, 1*1024}, {4096, 1024}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+}));
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_cm, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // prefill-only
+    disable_reference_compare(paged_attention_test_params{ {{4096, 0}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 4*1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 7*1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 15*1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 23*1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{4096, 31*1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+
+    // generate-only
+    disable_reference_compare(paged_attention_test_params{ {{1, 4096}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{1, 4*4096}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{1, 8*4096}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+    disable_reference_compare(paged_attention_test_params{ {{1, 16*4096}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{256} }),
+
+    // mixed prefill+generate
+    disable_reference_compare(paged_attention_test_params{ {{1, 1*4096}, {1, 1*1024}, {4096, 1024}}, 32, 8, 128, 128, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{256, 256, 256} }),
+}));
+
+static constexpr int TOKEN_IDS_SEQ_LEN = 8192;
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_token_ids_ocl, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    disable_reference_compare(paged_attention_test_params{ {{TOKEN_IDS_SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(TOKEN_IDS_SEQ_LEN, 3, TOKEN_IDS_SEQ_LEN/4) }),
+    disable_reference_compare(paged_attention_test_params{ {{TOKEN_IDS_SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(TOKEN_IDS_SEQ_LEN, 1, TOKEN_IDS_SEQ_LEN) }),
+}));
+

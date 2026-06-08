@@ -269,47 +269,39 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
             // Loop for qk_index
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL)
+            // INT4 BY_CHANNEL: dim order {0,1,3,2}: [blocks, heads, head_size, packed_block+scales]
+            // Each column (head dim) = COMP_K_OFFSET packed bytes + 4 bytes scale/zp.
+            // Token sglid's u4 value is at packed byte sglid/2, nibble sglid%2.
+            // Lane sglid represents token sglid, reads its nibble from each column.
             MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE) k_vals[K_HEAD_SIZE / KEY_VEC_SIZE];
+            {
+                unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
+                    // Pre-read scale/zp: lane sglid reads scale for head dim (qk_idx*16 + sglid)
+                    const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
+                    const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
+                    INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PACKED_K_BLOCK_SIZE);
+                    INPUT0_TYPE comp_scale = comp_ptr[0];
+                    INPUT0_TYPE comp_zp = comp_ptr[1];
 
-            unroll_for (uint qk_idx = 0; qk_idx < (K_HEAD_SIZE / KEY_VEC_SIZE); qk_idx+=U4_ELEMS_PER_BYTE) {
-                #ifdef IS_KEY_BY_CHANNEL
-                    INPUT0_TYPE comp_scale[U4_ELEMS_PER_BYTE] = {0, };
-                    INPUT0_TYPE comp_zp[U4_ELEMS_PER_BYTE] = {0, };
+                    // Optimized: process 2 adjacent head dims per iteration to halve memory reads
+                    // and eliminate redundant unpack + branch operations.
+                    const uint sglid_byte_offset = sglid / U4_ELEMS_PER_BYTE;
+                    const uint is_odd_lane = sglid % U4_ELEMS_PER_BYTE;
+                    unroll_for (uint i = 0; i < KEY_VEC_SIZE; i += 2) {
+                        const uint head_dim0 = qk_idx * KEY_VEC_SIZE + i;
+                        const uint head_dim1 = head_dim0 + 1;
 
-                    uint key_comp_offset = key_block_offset + (qk_idx / U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
-                    INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
-                    comp_scale[0] = key_comp_ptr[0];
-                    comp_zp[0] = key_comp_ptr[1];
-                    comp_scale[1] = key_comp_ptr[2];
-                    comp_zp[1] = key_comp_ptr[3];
-                #endif
+                        const uint col_base0 = key_block_offset + head_dim0 * hidden_stride;
+                        const uint col_base1 = key_block_offset + head_dim1 * hidden_stride;
+                        char packed0 = key_cache[col_base0 + sglid_byte_offset];
+                        char packed1 = key_cache[col_base1 + sglid_byte_offset];
+                        char u4_val0 = is_odd_lane ? ((uchar)packed0 >> 4) : (packed0 & 0x0F);
+                        char u4_val1 = is_odd_lane ? ((uchar)packed1 >> 4) : (packed1 & 0x0F);
 
-                uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
-                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
-                    uint index = key_block_offset + (qk_idx/U4_ELEMS_PER_BYTE) * hidden_stride * KEY_VEC_SIZE + i * hidden_stride;
-
-                    char packed_cache = BLOCK_READN(INPUT1_TYPE, 1, key_cache, index);
-                    MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_cache);
-
-                    char key_orig = buff.s0;
-                    #ifdef IS_KEY_BY_CHANNEL
-                        INPUT0_TYPE first_scale = sub_group_shuffle(comp_scale[0], i);
-                        INPUT0_TYPE second_scale = sub_group_shuffle(comp_scale[1], i);
-                        INPUT0_TYPE first_zp = sub_group_shuffle(comp_zp[0], i);
-                        INPUT0_TYPE second_zp = sub_group_shuffle(comp_zp[1], i);
-                        k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - first_zp) * first_scale;
-                        if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
-                            key_orig = buff.s1;
-                            k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - second_zp) * second_scale;
-                        }
-                    #else
-                        k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - comp_zp) * comp_scale;
-                        if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
-                            key_orig = buff.s1;
-                            k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - comp_zp) * comp_scale;
-                        }
-                    #endif
+                        k_vals[qk_idx][i]     = ((INPUT0_TYPE)u4_val0 - _sub_group_shuffle(comp_zp, i))     * _sub_group_shuffle(comp_scale, i);
+                        k_vals[qk_idx][i + 1] = ((INPUT0_TYPE)u4_val1 - _sub_group_shuffle(comp_zp, i + 1)) * _sub_group_shuffle(comp_scale, i + 1);
+                    }
                 }
             }
 
@@ -332,7 +324,7 @@ KERNEL(pa_sdpa_opt)(
                 }
             #endif
 
-#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL))
             #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
 #ifdef DISABLE_QK_LOOP_UNROLL
             for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
@@ -341,15 +333,29 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if IS_KV_COMPRESSED
-                #ifdef IS_KEY_BY_CHANNEL
-                    const uint key_comp_offset = key_block_offset + qk_idx * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
-                    INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
-                    INPUT0_TYPE comp_scale = key_comp_ptr[0];
-                    INPUT0_TYPE comp_zp = key_comp_ptr[1];
-                #endif
-
+    #if IS_INT4_COMPRESSED
+                // INT4 BY_TOKEN head-major: [blocks, heads, packed_head_size * block_size, scales, zps]
+                // Each byte packs 2 adjacent head dims (lo nibble, hi nibble)
+                // Use scalar reads (not BLOCK_READN) to avoid subgroup block read issues with byte types
+                KEY_BLOCK_UNCOMPRESSED k_vals;
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE / 2; i++) {
+                    uint packed_h = qk_idx * (KEY_VEC_SIZE / 2) + i;
+                    INPUT1_TYPE packed_byte = key_cache[key_block_offset + packed_h * hidden_stride + sglid];
+                    MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_byte);
+                    k_vals[2 * i]     = ((INPUT0_TYPE)(char)buff.s0 - comp_zp) * comp_scale;
+                    k_vals[2 * i + 1] = ((INPUT0_TYPE)(char)buff.s1 - comp_zp) * comp_scale;
+                }
+    #else
                 KEY_BLOCK_UNCOMPRESSED k_vals;
                 uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
+        #ifdef IS_KEY_BY_CHANNEL
+                // Per-channel scale/zp for i8 BY_CHANNEL: each column has PAGED_ATTENTION_BLOCK_SIZE data bytes + scale(fp16) + zp(fp16)
+                const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
+                const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
+                INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PAGED_ATTENTION_BLOCK_SIZE);
+                INPUT0_TYPE comp_scale = comp_ptr[0];
+                INPUT0_TYPE comp_zp = comp_ptr[1];
+        #endif
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
@@ -358,6 +364,7 @@ KERNEL(pa_sdpa_opt)(
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
                 }
+    #endif  // IS_INT4_COMPRESSED
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
@@ -647,12 +654,17 @@ KERNEL(pa_sdpa_opt)(
 #if IS_KV_COMPRESSED
             const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            const uint head_size_offset = ((head_size_idx / SUBGROUP_SIZE) / U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE + (head_size_idx % SUBGROUP_SIZE);
-            const uint packed_value_offset = packed_block_offset + head_size_offset;
+#if IS_INT4_COMPRESSED
+            // INT4: per-token embedded scales at end of each token's row
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
+            INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
+#else
             const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+#endif
 
 #endif
 
@@ -664,20 +676,18 @@ KERNEL(pa_sdpa_opt)(
 
 
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-            // INT4 compression for value-cache
-            const uint idx_packed = (head_size_idx / SUBGROUP_SIZE) % U4_ELEMS_PER_BYTE;
+            // INT4 adjacent packing: V layout [blocks, heads, block_size, packed_head+scales=68]
+            // packed_byte = head_size_idx/2, nibble = head_size_idx%2
+            // Token stride = phys_adjusted_v_head_size (68)
+            const uint packed_byte_idx = head_size_idx / 2;
+            const uint nibble_sel = head_size_idx & 1;
             VALUE_BLOCK v_vals_packed;
 
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
-                uint index = packed_value_offset + i * phys_v_head_size;
-                char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
-                MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
-
-                if (idx_packed == 0) {
-                    v_vals_packed[i] = buff.s0;
-                } else {
-                    v_vals_packed[i] = buff.s1;
-                }
+                uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
+                char packed_val = value_cache[token_offset];
+                MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_val);
+                v_vals_packed[i] = (nibble_sel == 0) ? buff.s0 : buff.s1;
             }
 
 #else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
@@ -717,22 +727,16 @@ KERNEL(pa_sdpa_opt)(
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
             const uint packed_block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            const uint head_size_offset = ((head_size_idx / SUBGROUP_SIZE) / U4_ELEMS_PER_BYTE) * SUBGROUP_SIZE + (head_size_idx % SUBGROUP_SIZE);
-            const uint packed_value_offset = packed_block_offset + head_size_offset;
 
-            const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
-            INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
-            INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+            // INT4: per-token embedded scales
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
+            INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #elif IS_KV_COMPRESSED && !IS_INT4_COMPRESSED
             const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
-#endif
-
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-            const uint idx_packed = (head_size_idx / SUBGROUP_SIZE) % U4_ELEMS_PER_BYTE;
 #endif
 
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) qk_val;
@@ -741,16 +745,13 @@ KERNEL(pa_sdpa_opt)(
             }
             for (uint i = 0; i < leftovers; i++) {
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-                INPUT2_TYPE value_packed = 0;
-                uint index = packed_value_offset + i * phys_v_head_size;
-                char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
+                // INT4 adjacent packing: scalar read of packed byte + nibble selection
+                const uint packed_byte_idx = head_size_idx / 2;
+                const uint nibble_sel = head_size_idx & 1;
+                uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
+                char packed_value = value_cache[token_offset];
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
-
-                if (idx_packed == 0) {
-                    value_packed = buff.s0;
-                } else {
-                    value_packed = buff.s1;
-                }
+                INPUT2_TYPE value_packed = (nibble_sel == 0) ? buff.s0 : buff.s1;
 
 #else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
                 INPUT2_TYPE value_packed = BLOCK_READN(INPUT2_TYPE, 1, value_cache, value_offset + i * V_HEAD_SIZE);

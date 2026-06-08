@@ -53,7 +53,6 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
