@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstddef>
 #include <memory>
+#include <ostream>
 #include <snippets/utils/utils.hpp>
 #include <sstream>
 #include <string>
@@ -120,7 +121,7 @@ std::string PortDescriptor::serialize() const {
     const auto serialize_container = [&ss](const auto& container) {
         ss << container.size() << " ";
         if (!container.empty()) {
-            ss << ov::util::join(container, " ") << " ";
+            ss << ov::util::join<std::ostream>(container, " ") << " ";
         }
     };
     serialize_container(*m_tensor_shape);

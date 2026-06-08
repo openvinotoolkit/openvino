@@ -229,7 +229,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
     }
-    GPU_DEBUG_INFO << "[GPU] Created L0 stream ("
+    GPU_DEBUG_INFO << "[GPU] Created Level Zero stream ("
         << "index=" << index
         << ", use_cp_offload=" << use_cp_offload
         << ", use_counter_based_events=" << use_counter_based_events

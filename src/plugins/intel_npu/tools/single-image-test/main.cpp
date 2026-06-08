@@ -18,10 +18,12 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <regex>
 #include <sstream>
@@ -29,6 +31,37 @@
 #include <vector>
 
 using TensorMap = std::map<std::string, ov::Tensor>;
+
+// Clamp +/-inf elements to the representable range of the buffer element type.
+template <typename T>
+static void clampInfInBuffer(T* data, size_t count) {
+    const T posMax = std::numeric_limits<T>::max();
+    const T negMin = std::numeric_limits<T>::lowest();
+    for (size_t i = 0; i < count; ++i) {
+        const float val = static_cast<float>(data[i]);
+        if (std::isinf(val)) {
+            data[i] = (val > 0.0f) ? posMax : negMin;
+        }
+    }
+}
+
+// Clamp +/-inf elements in a tensor in-place.
+// Returns true on success; returns false for unsupported (non-float) element types.
+static bool clampInfInTensor(ov::Tensor& tensor) {
+    const auto et = tensor.get_element_type();
+    const size_t count = tensor.get_size();
+    if (et == ov::element::f32) {
+        clampInfInBuffer(tensor.data<float>(), count);
+        return true;
+    } else if (et == ov::element::f16) {
+        clampInfInBuffer(tensor.data<ov::float16>(), count);
+        return true;
+    } else if (et == ov::element::bf16) {
+        clampInfInBuffer(tensor.data<ov::bfloat16>(), count);
+        return true;
+    }
+    return false;
+}
 
 struct TensorDescriptor {
     ov::element::Type precision;
@@ -1528,6 +1561,54 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
 // e.g. '--mode nrmse --nrmse_loss_threshold 0.01'
 // e.g. '--mode nrmse --nrmse_loss_threshold "logits:0.03;pred_boxes:0.05"'
 //
+// Optional per-output prefill slicing for LLM KV cache / hidden state outputs:
+//   --nrmse_prefill_seq_len_axis "<layer>:<axis>;..."
+//   --nrmse_prefill_seq_len_size "<layer>:<N>;..."
+// Keeps only the last N elements along the specified axis before computing NRMSE.
+//
+
+// Return a new contiguous tensor containing the last `len` elements of `src` along `axis`.
+// The element type and all other dimensions are preserved.
+static ov::Tensor sliceLastNAlongAxis(const ov::Tensor& src, size_t axis, size_t len) {
+    const auto& shape = src.get_shape();
+    OPENVINO_ASSERT(axis < shape.size(),
+                    "nrmse_prefill_seq_len_axis ", axis,
+                    " is out of range for tensor of rank ", shape.size());
+    OPENVINO_ASSERT(len > 0 && len <= shape[axis],
+                    "nrmse_prefill_seq_len_size ", len,
+                    " is out of range for axis ", axis, " of size ", shape[axis]);
+    if (len == shape[axis]) {
+        return src;
+    }
+
+    ov::Shape newShape = shape;
+    newShape[axis] = len;
+    ov::Tensor dst(src.get_element_type(), newShape);
+
+    size_t outer = 1;
+    for (size_t i = 0; i < axis; ++i) {
+        outer *= shape[i];
+    }
+    const size_t mid = shape[axis];
+    size_t inner = 1;
+    for (size_t i = axis + 1; i < shape.size(); ++i) {
+        inner *= shape[i];
+    }
+
+    const size_t elemSize = src.get_element_type().size();
+    const size_t innerBytes = inner * elemSize;
+    const size_t srcStart = mid - len;
+
+    const auto* srcData = static_cast<const uint8_t*>(src.data());
+    auto* dstData = static_cast<uint8_t*>(dst.data());
+
+    for (size_t o = 0; o < outer; ++o) {
+        const uint8_t* srcRow = srcData + (o * mid + srcStart) * innerBytes;
+        uint8_t* dstRow = dstData + (o * len) * innerBytes;
+        std::memcpy(dstRow, srcRow, len * innerBytes);
+    }
+    return dst;
+}
 
 bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
     if (output.get_shape() != reference.get_shape()) {
@@ -1745,6 +1826,12 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
     // Parse per-layer thresholds
     auto thresholdMap = utils::parsePerLayerValues(FLAGS_nrmse_loss_threshold, metric_defaults::nrmse_loss_threshold);
 
+    // Parse optional per-layer prefill seq-len axis/size maps used to slice LLM
+    // KV-cache / hidden-state outputs to the last N positions along the sequence axis.
+    // Only entries that appear in BOTH maps are honored; otherwise the full tensor is compared.
+    auto seqLenAxisMap = utils::parsePerLayerValues(FLAGS_nrmse_prefill_seq_len_axis, 0.0);
+    auto seqLenSizeMap = utils::parsePerLayerValues(FLAGS_nrmse_prefill_seq_len_size, 0.0);
+
     bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
@@ -1752,6 +1839,26 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         bool applySoftMax = FLAGS_apply_soft_max;
 
         double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
+
+        // Optional prefill slicing: applied only when both axis and size are explicitly
+        // specified for this layer. When only one of the two is given, the full tensor
+        // is compared and a warning is emitted.
+        ov::Tensor outputForCompare = output;
+        ov::Tensor referenceForCompare = referencesIterator->second;
+        const bool hasAxis = seqLenAxisMap.find(tensorName) != seqLenAxisMap.end();
+        const bool hasSize = seqLenSizeMap.find(tensorName) != seqLenSizeMap.end();
+        if (hasAxis && hasSize) {
+            const size_t axis = static_cast<size_t>(seqLenAxisMap.at(tensorName));
+            const size_t keep = static_cast<size_t>(seqLenSizeMap.at(tensorName));
+            std::cout << "Slicing NRMSE input '" << tensorName << "' to last " << keep
+                      << " element(s) along axis " << axis << std::endl;
+            outputForCompare = sliceLastNAlongAxis(outputForCompare, axis, keep);
+            referenceForCompare = sliceLastNAlongAxis(referenceForCompare, axis, keep);
+        } else if (hasAxis != hasSize) {
+            std::cout << "Warning: only one of --nrmse_prefill_seq_len_axis / "
+                         "--nrmse_prefill_seq_len_size is set for layer '"
+                      << tensorName << "'; comparing full tensor." << std::endl;
+        }
 
         BlobTestMethod blobComparator = [applySoftMax, layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
             if (applySoftMax) {
@@ -1778,8 +1885,8 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         };
 
         if (!test_blobs_in_batch(tensorName,
-                                 splitBatchedTensor(output, tensorName, outputLayouts),
-                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 splitBatchedTensor(outputForCompare, tensorName, outputLayouts),
+                                 splitBatchedTensor(referenceForCompare, tensorName, outputLayouts),
                                  blobComparator)) {
             allPassed = false;
         }
@@ -2763,6 +2870,32 @@ static int runSingleImageTest() {
                     auto layoutIt = outputLayouts.find(tensorName);
                     if (layoutIt != outputLayouts.end()) {
                         filteredOutputLayouts.emplace(tensorName, layoutIt->second);
+                    }
+                }
+
+                // Clamp +/-inf values in the specified output tensors before metric evaluation.
+                if (!FLAGS_clamp_inf_outputs.empty()) {
+                    const auto infClampNames = splitStringList(FLAGS_clamp_inf_outputs, ';');
+                    for (const auto& name : infClampNames) {
+                        const auto outIt = filteredOutputTensors.find(name);
+                        const auto refIt = filteredReferenceTensors.find(name);
+                        if (outIt == filteredOutputTensors.end() && refIt == filteredReferenceTensors.end()) {
+                            std::cerr << "Warning: tensor '" << name
+                                      << "' specified in --clamp_inf_outputs was not found in output tensors"
+                                      << std::endl;
+                            continue;
+                        }
+                        if (outIt != filteredOutputTensors.end()) {
+                            if (!clampInfInTensor(outIt->second)) {
+                                std::cerr << "Warning: tensor '" << name << "' has element type "
+                                          << outIt->second.get_element_type()
+                                          << " which is not supported for inf clamping, skipping" << std::endl;
+                                continue;
+                            }
+                        }
+                        if (refIt != filteredReferenceTensors.end()) {
+                            clampInfInTensor(refIt->second);
+                        }
                     }
                 }
 

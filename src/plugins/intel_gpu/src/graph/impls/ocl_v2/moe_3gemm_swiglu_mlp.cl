@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/sub_group_block_read.cl"
+
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 // Fake group size for compatibility and computation performance balance.
@@ -32,6 +34,14 @@
 // Supported values: 2 (FAKE_GROUP_SIZE = 1 * SUBGROUP_SIZE * 2, e.g. SG=16 + 32),
 // 4 (e.g. SG=32 + FAKE=128 or SG=16 + FAKE=64), and 8 (SG=16 + FAKE=128).
 #define ELEMS_PER_LANE (FAKE_GROUP_SIZE / SUBGROUP_SIZE)
+
+// Experts per token: MAX_TOPK for non-shared, MAX_TOPK+1 with shared expert.
+// Used by batched GEMV to decompose flat workgroup ID into (token_idx, expert_slot).
+#if SHARED_EXPERT_ENABLE
+#define EXPERTS_PER_TOKEN (MAX_TOPK + 1)
+#else
+#define EXPERTS_PER_TOKEN MAX_TOPK
+#endif
 
 // Gate activation: SwiGLU (Swish, default), GeGLU-Tanh, or GeGLU-ERF.
 // GATE_ACT_GELU_ERF takes precedence over GATE_ACT_GELU_TANH when both are set.
@@ -115,7 +125,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -140,7 +150,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
             // Each lane reads 2 K-elements (1 byte = 2 nibbles).
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -160,7 +170,7 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -243,7 +253,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -268,7 +278,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
             // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
             float sum0;
             float sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -288,7 +298,7 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
 #    else
             float4 sum0;
             float4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -446,15 +456,19 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     const __global half* shared_gate_gate_weight,  // [HIDDEN_SIZE] (assuming no scale/zp for now, or pre-dequantized)
     __global MOE_DTYPE* routing_weights,           // Input routing weights, will append shared gate result at end
 #    endif
-    __global MOE_DTYPE* x,    // [1, HIDDEN_SIZE]
-    __global MOE_DTYPE* y) {  // [MAX_TOPK (+1 if shared), INTERMEDIATE_SIZE]
-    // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
-    int expert_no = get_global_id(0);
-    y += expert_no * INTERMEDIATE_SIZE;
+    __global MOE_DTYPE* x,    // [token_num, HIDDEN_SIZE]
+    __global MOE_DTYPE* y) {  // [token_num * EXPERTS_PER_TOKEN, INTERMEDIATE_SIZE]
+    // global: [token_num*EXPERTS_PER_TOKEN, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
+    // Batched GEMV: each workgroup handles one (token, expert) pair.
+    // For single token (token_num=1), flat_id == expert_slot and token_idx == 0.
+    int flat_id = get_global_id(0);
+    int token_idx = flat_id / EXPERTS_PER_TOKEN;
+    int expert_slot = flat_id % EXPERTS_PER_TOKEN;
+    y += flat_id * INTERMEDIATE_SIZE;
 
     // Check if we are processing the Shared Expert
 #    if SHARED_EXPERT_ENABLE
-    bool is_shared = (expert_no == MAX_TOPK);  // Assuming global size was increased by 1
+    bool is_shared = (expert_slot == MAX_TOPK);
 #    else
     bool is_shared = false;
 #    endif
@@ -469,7 +483,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
 #    endif
 
-    int expert_id = expert_list[expert_no];
+    int expert_id = 0;
     // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
     __global MOE_WEI_DT* gate_weight;
     __global MOE_SCALE_DT* gate_scale;
@@ -480,7 +494,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     __global MOE_ZP_DT* up_zp;
 
     if (!is_shared) {
-        expert_id = expert_list[expert_no];
+        expert_id = expert_list[token_idx * MAX_TOPK + expert_slot];
         // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
         gate_weight = (__global MOE_WEI_DT*)(gate_weight_addr + expert_id * expert_wei_size);
         gate_scale = (__global MOE_SCALE_DT*)(gate_scale_addr + expert_id * expert_scale_size);
@@ -526,7 +540,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     int id_sg = get_sub_group_id();
     int num_sg = get_num_sub_groups();
     int id_local = get_sub_group_local_id();
-    half* px = x + id_sg * FAKE_GROUP_SIZE;
+    half* px = x + token_idx * HIDDEN_SIZE + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
 #if HAS_ZP
@@ -553,7 +567,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
     int id_sg = get_sub_group_id();
     int num_sg = get_num_sub_groups();
     int id_local = get_sub_group_local_id();
-    half* px = x + id_sg * FAKE_GROUP_SIZE;
+    half* px = x + token_idx * HIDDEN_SIZE + id_sg * FAKE_GROUP_SIZE;
     half* px2 = x2 + id_sg * FAKE_GROUP_SIZE;
     unroll_for(int i = id_sg; i < HIDDEN_SIZE / FAKE_GROUP_SIZE; i += num_sg, px += num_sg * FAKE_GROUP_SIZE, px2 += num_sg * FAKE_GROUP_SIZE) {
 #if HAS_ZP
@@ -589,7 +603,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
         int thread_id = id_sg * SUBGROUP_SIZE + id_local;
         int total_threads = num_sg * SUBGROUP_SIZE;
         for (int i = thread_id; i < HIDDEN_SIZE; i += total_threads) {
-            gate_val += (float)x[i] * (float)shared_gate_gate_weight[i];
+            gate_val += (float)x[token_idx * HIDDEN_SIZE + i] * (float)shared_gate_gate_weight[i];
         }
 
         // Step 2: intra-subgroup reduction.
@@ -606,7 +620,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
             float final_val = (id_local < num_sg) ? shared_gate_partial[id_local] : 0.0f;
             final_val = sub_group_reduce_add(final_val);
             if (id_local == 0) {
-                routing_weights[MAX_TOPK] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
+                routing_weights[token_idx * EXPERTS_PER_TOKEN + MAX_TOPK] = (MOE_DTYPE)(1.0f / (1.0f + exp(-final_val)));
             }
         }
     }
@@ -663,7 +677,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             half2 sum0;
             half2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -688,7 +702,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
             // Each lane reads 2 K-elements (1 byte = 2 nibbles).
             half sum0;
             half sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar b = intel_sub_group_block_read_uc((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar b2 = intel_sub_group_block_read_uc((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -708,7 +722,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K / 2) + gk * FAKE_GROUP_SIZE / 2));
 
@@ -785,7 +799,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
 #    if ELEMS_PER_LANE == 4
             float2 sum0;
             float2 sum1;
-            half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half4 a = as_half4(_sub_group_block_read_slm_us4((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
@@ -810,7 +824,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
             // Each lane reads 2 K-elements (8-bit weights, 1 byte each).
             float sum0;
             float sum1;
-            half2 a = as_half2(intel_sub_group_block_read_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half2 a = as_half2(_sub_group_block_read_slm_us2((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)B + K + gk * FAKE_GROUP_SIZE);
 
@@ -830,7 +844,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
 #    else
             float4 sum0;
             float4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             uchar8 b = intel_sub_group_block_read_uc8((const __global uchar*)B + gk * FAKE_GROUP_SIZE);
             uchar8 b2 = intel_sub_group_block_read_uc8((const __global uchar*)(B + K + gk * FAKE_GROUP_SIZE));
 
@@ -922,7 +936,7 @@ inline void down_gemv_n2x_f16(const __global half* weight, __global MOE_DTYPE* r
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
+            half8 a = as_half8(_sub_group_block_read_slm_us8((const __local ushort*)x2 + gk * FAKE_GROUP_SIZE));
             half8 b = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + gk * FAKE_GROUP_SIZE));
             half8 b2 = as_half8(intel_sub_group_block_read_us8((const __global ushort*)B + K + gk * FAKE_GROUP_SIZE));
 
@@ -968,16 +982,18 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
                                                                            const __global MOE_SCALE_DT* shared_down_scale,
                                                                            const __global MOE_ZP_DT* shared_down_zp,
 #    endif
-                                                                           const __global MOE_DTYPE* x,          // [MAX_TOPK, INTERMEDIATE_SIZE]
-                                                                           __global MOE_DTYPE* routing_weights,  // [MAX_TOPK]
-                                                                           __global MOE_DTYPE* y) {              // [MAX_TOPK, HIDDEN_SIZE]
-    // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
-    int expert_no = get_global_id(0);
-    x += expert_no * INTERMEDIATE_SIZE;
-    y += expert_no * HIDDEN_SIZE;
+                                                                           const __global MOE_DTYPE* x,          // [token_num * EXPERTS_PER_TOKEN, INTERMEDIATE_SIZE]
+                                                                           __global MOE_DTYPE* routing_weights,  // [token_num * EXPERTS_PER_TOKEN]
+                                                                           __global MOE_DTYPE* y) {              // [token_num * EXPERTS_PER_TOKEN, HIDDEN_SIZE]
+    // global: [token_num*EXPERTS_PER_TOKEN, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
+    int flat_id = get_global_id(0);
+    int token_idx = flat_id / EXPERTS_PER_TOKEN;
+    int expert_slot = flat_id % EXPERTS_PER_TOKEN;
+    x += flat_id * INTERMEDIATE_SIZE;
+    y += flat_id * HIDDEN_SIZE;
 
 #    if SHARED_EXPERT_ENABLE
-    bool is_shared = (expert_no == MAX_TOPK);
+    bool is_shared = (expert_slot == MAX_TOPK);
 #    else
     bool is_shared = false;
 #    endif
@@ -991,7 +1007,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
     const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
 #    endif
-    int expert_id = expert_list[expert_no];
+    int expert_id = 0;
 
     // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
     __global MOE_WEI_DT* weight;
@@ -999,7 +1015,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     __global MOE_ZP_DT* zps;
 
     if (!is_shared) {
-        expert_id = expert_list[expert_no];
+        expert_id = expert_list[token_idx * MAX_TOPK + expert_slot];
         // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
         weight = (__global MOE_WEI_DT*)(down_weight_addr + expert_id * expert_wei_size);
         scales = (__global MOE_SCALE_DT*)(down_scale_addr + expert_id * expert_scale_size);
@@ -1096,8 +1112,10 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 }
 
 #else
-__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [MAX_TOPK, HIDDEN_SIZE]
-                                                                             __global MOE_DTYPE* y) {      // [1, HIDDEN_SIZE]
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [token_num * REDUCE_COUNT, HIDDEN_SIZE]
+                                                                             __global MOE_DTYPE* y) {      // [token_num, HIDDEN_SIZE]
+    // gws={token_num, HIDDEN_SIZE}, lws={1, min(max_wgs, 1024)}
+    int token_idx = get_global_id(0);
     int n = get_global_id(1);
 #    if SHARED_EXPERT_ENABLE
 #        define REDUCE_COUNT (MAX_TOPK + 1)
@@ -1106,11 +1124,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 #    endif
     half sum[REDUCE_COUNT] = {0};
     __attribute__((opencl_unroll_hint(REDUCE_COUNT))) for (int i = 0; i < REDUCE_COUNT; i++) {
-        sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + i * HIDDEN_SIZE + n)));
+        sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + (token_idx * REDUCE_COUNT + i) * HIDDEN_SIZE + n)));
     }
     for (int i = 1; i < REDUCE_COUNT; i++) {
         sum[0] += sum[i];
     }
-    intel_sub_group_block_write_us((__global ushort*)(y + n), as_ushort(sum[0]));
+    intel_sub_group_block_write_us((__global ushort*)(y + token_idx * HIDDEN_SIZE + n), as_ushort(sum[0]));
 }
 #endif

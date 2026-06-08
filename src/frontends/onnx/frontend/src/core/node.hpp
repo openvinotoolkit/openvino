@@ -48,7 +48,7 @@ public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
     Node(const NodeProto& node_proto, Graph* graph);
-    Node(const DecoderBaseOperation& decoder, TranslateSession* translate_session);
+    Node(std::shared_ptr<const DecoderBaseOperation> decoder, TranslateSession* translate_session);
 
     Node(Node&&) noexcept;
     Node(const Node&);
@@ -124,7 +124,7 @@ private:
     // compilation fails; the compiler is unable to parameterize an allocator's
     // default deleter due to incomple type.
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
-    const DecoderBaseOperation* m_decoder;
+    std::shared_ptr<const DecoderBaseOperation> m_decoder;
     TranslateSession* m_translate_session;
 };
 
