@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <tuple>
 
 #include "openvino/util/memory.hpp"
 
@@ -39,10 +40,10 @@ void* vm_reserve(size_t size, std::error_code& ec) noexcept {
 }
 
 void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
+    ec = {};
     if (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
         ec = std::error_code(GetLastError(), std::generic_category());
     }
-    ec = {};
 }
 
 void vm_decommit(void* ptr, size_t size) noexcept {

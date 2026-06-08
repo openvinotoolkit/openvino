@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <tuple>
 
 #include "openvino/util/memory.hpp"
 
@@ -36,10 +37,10 @@ void* vm_reserve(size_t size, std::error_code& ec) noexcept {
 }
 
 void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
+    ec = {};
     if (mprotect(ptr, size, PROT_READ | PROT_WRITE) == -1) {
         ec = std::error_code(errno, std::generic_category());
     }
-    ec = {};
 }
 
 void vm_decommit(void* ptr, size_t size) noexcept {
