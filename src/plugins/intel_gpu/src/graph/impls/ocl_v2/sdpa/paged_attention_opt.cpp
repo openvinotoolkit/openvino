@@ -982,7 +982,6 @@ protected:
                     jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
                 }
                 jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
-                jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             } else if (is_key_by_channel) {
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
@@ -1742,8 +1741,8 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
-                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - " << "matrix: " << total_matrix_elements
+                                       << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;
