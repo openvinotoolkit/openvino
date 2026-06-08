@@ -384,14 +384,15 @@ ov::Output<ov::Node> make_sliding_window_mask_phi3(const ov::Output<ov::Node>& i
     auto attn_bool_4d = std::make_shared<ov::opset11::Unsqueeze>(attn_bool, pad_axes);
     attn_bool_4d->set_friendly_name("model.swp.attn_bool_4d");
 
-    // Multiple BitwiseAnd: BitwiseAnd(any_bool, sliding) → BitwiseAnd(_, causal).
-    auto sliding_and_true = std::make_shared<ov::op::v13::BitwiseAnd>(attn_bool_4d, sliding_bool);
-    sliding_and_true->set_friendly_name("model.swp.sliding_and_true");
+    // Multiple BitwiseAnd: BitwiseAnd(user_attention, sliding) → BitwiseAnd(_, causal).
+    // First operand is the user/padding attention mask (matcher's any_input slot).
+    auto sliding_and_user_attention = std::make_shared<ov::op::v13::BitwiseAnd>(attn_bool_4d, sliding_bool);
+    sliding_and_user_attention->set_friendly_name("model.swp.sliding_and_user_attention");
 
     auto causal_bool = std::make_shared<ov::op::v1::LessEqual>(k_row, q_col);
     causal_bool->set_friendly_name("model.swp.causal_bool");
 
-    auto sliding_and_causal = std::make_shared<ov::op::v13::BitwiseAnd>(sliding_and_true, causal_bool);
+    auto sliding_and_causal = std::make_shared<ov::op::v13::BitwiseAnd>(sliding_and_user_attention, causal_bool);
     sliding_and_causal->set_friendly_name("model.swp.sliding_and_causal");
 
     return sliding_and_causal->output(0);
