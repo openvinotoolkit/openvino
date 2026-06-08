@@ -24,7 +24,7 @@ namespace ov::intel_cpu::pass::x64 {
  */
 class RepackMatMulWeights : public ov::intel_cpu::pass::RepackMatMulWeights {
 public:
-    OPENVINO_MODEL_PASS_RTTI("x64::RepackMatMulWeights");
+    OPENVINO_MODEL_PASS_RTTI("RepackMatMulWeights");
     RepackMatMulWeights(GraphContext::CPtr context,
                         ov::intel_cpu::InputRepackerMap& input_repackers,
                         std::vector<MemoryPtr>& src_mem_ptrs)

@@ -7,8 +7,6 @@
 #include <cstddef>
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -18,19 +16,10 @@
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 
 namespace ov::intel_cpu::pass::aarch64 {
 namespace {
-
-size_t get_packed_size(size_t N, size_t K, const ov::element::Type& precision) {
-    if (precision == ov::element::f16) {
-        return kai_get_rhs_packed_size_rhs_pack_kxn_x16p32x1b_x16_x16_neon(N, K);
-    }
-    if (precision == ov::element::f32) {
-        return kai_get_rhs_packed_size_rhs_pack_kxn_x32p16x1b_x32_x32_neon(N, K);
-    }
-    OPENVINO_THROW("Unsupported precision for aarch64 GEMM weights repacking: ", precision.get_type_name());
-}
 
 ov::snippets::VectorDims get_repacked_offsets(const ov::snippets::VectorDims& planar_shape,
                                               size_t target_rank,
@@ -43,7 +32,7 @@ ov::snippets::VectorDims get_repacked_offsets(const ov::snippets::VectorDims& pl
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N) && !ov::snippets::utils::is_dynamic_value(K),
                     "N and K shape should not be dynamic for pre-packed aarch64 GEMM weights");
 
-    const auto packed_bytes = get_packed_size(N, K, precision);
+    const auto packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(N, K, precision);
     OPENVINO_ASSERT(packed_bytes % precision.size() == 0, "Unexpected packed weights byte size alignment");
 
     auto allocation_shape = planar_shape;

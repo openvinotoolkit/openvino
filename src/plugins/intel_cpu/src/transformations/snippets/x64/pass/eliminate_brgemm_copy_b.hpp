@@ -22,7 +22,7 @@ namespace ov::intel_cpu::pass::x64 {
  */
 class EliminateBrgemmCopyB : public ov::intel_cpu::pass::EliminateCopyB {
 public:
-    OPENVINO_MODEL_PASS_RTTI("x64::EliminateBrgemmCopyB");
+    OPENVINO_MODEL_PASS_RTTI("EliminateBrgemmCopyB");
     explicit EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
                                   bool runtime_repacking_supported = true,
                                   std::set<size_t> compile_time_repacking_idxs = {})

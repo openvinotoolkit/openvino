@@ -22,7 +22,7 @@ namespace ov::intel_cpu::pass::aarch64 {
  */
 class EliminateGemmCopyB : public ov::intel_cpu::pass::EliminateCopyB {
 public:
-    OPENVINO_MODEL_PASS_RTTI("aarch64::EliminateGemmCopyB");
+    OPENVINO_MODEL_PASS_RTTI("EliminateGemmCopyB");
     explicit EliminateGemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
                                 bool runtime_repacking_supported,
                                 std::set<size_t> compile_time_repacking_idxs = {})

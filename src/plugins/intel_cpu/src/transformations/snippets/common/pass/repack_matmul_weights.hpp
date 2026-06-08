@@ -52,6 +52,13 @@ protected:
     [[nodiscard]] static CpuBlockedMemoryDescPtr get_src_cpu_desc(const MatMulWeightsSource& source,
                                                                   ov::element::Type precision);
 
+    /**
+     * @brief Repack a constant MatMul weights input for a backend-specific MatMul/GEMM consumer.
+     * @param consumer Backend MatMul/GEMM node that consumes the constant weights.
+     * @param source Planar weights shape and layout derived from the current input memory descriptor.
+     * @param orig_src_mem_ptr Original constant weights memory.
+     * @return Repacked weights memory with its CPU descriptor, or std::nullopt when this consumer cannot be repacked.
+     */
     [[nodiscard]] virtual std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
                                                                       const MatMulWeightsSource& source,
                                                                       const MemoryPtr& orig_src_mem_ptr) = 0;

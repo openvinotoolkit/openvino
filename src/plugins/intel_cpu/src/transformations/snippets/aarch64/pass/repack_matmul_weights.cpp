@@ -11,8 +11,6 @@
 #include <memory>
 #include <numeric>
 #include <optional>
-#include <sstream>
-#include <string>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -29,20 +27,11 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 #include "transformations/snippets/common/pass/repack_matmul_weights.hpp"
 
 namespace ov::intel_cpu::pass::aarch64 {
 namespace {
-
-size_t get_packed_size(size_t N, size_t K, ov::element::Type precision) {
-    if (precision == ov::element::f16) {
-        return kai_get_rhs_packed_size_rhs_pack_kxn_x16p32x1b_x16_x16_neon(N, K);
-    }
-    if (precision == ov::element::f32) {
-        return kai_get_rhs_packed_size_rhs_pack_kxn_x32p16x1b_x32_x32_neon(N, K);
-    }
-    OPENVINO_THROW("Unsupported precision for aarch64 GEMM weights repacking: ", precision.get_type_name());
-}
 
 CpuBlockedMemoryDescPtr get_dst_cpu_desc(const VectorDims& planar_shape, ov::element::Type precision) {
     OPENVINO_ASSERT(planar_shape.size() >= 2, "GEMM weights must have rank >= 2");
@@ -127,22 +116,17 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
 
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
-    const auto packed_bytes = get_packed_size(N, K, precision);
+    const auto packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(N, K, precision);
     OPENVINO_ASSERT(packed_bytes % precision.size() == 0, "Unexpected packed weights byte size alignment");
     const auto batch =
         std::accumulate(planar_shape.cbegin(), planar_shape.cend() - 2, static_cast<size_t>(1), std::multiplies<>());
-
-    std::stringstream format;
-    format << "snippets_aarch64_gemm_copy_b_" << precision.get_type_name();
-    for (const auto dim : planar_shape) {
-        format << '_' << dim;
-    }
-    format << '_' << packed_bytes;
 
     auto create = [&]() {
         const auto& eng = context->getEngine();
         Memory src_mem{eng, src_desc, orig_src_mem_ptr->getData()};
         Memory planar_mem{eng, std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{planar_shape})};
+        // KAI packers consume dense KxN matrices, while the original constant can keep a plugin-specific layout.
+        // Normalize to planar memory before applying the KAI packing kernel.
         node::Reorder::reorderData(src_mem,
                                    planar_mem,
                                    context->getParamsCache(),
@@ -164,13 +148,8 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
         return dst_mem;
     };
 
-    auto weight_cache = context->getWeightsCache();
-    if (weight_cache != nullptr) {
-        const auto string_hash = format.str() + "_" + std::to_string(orig_src_mem_ptr->getSize()) + "_" +
-                                 std::to_string(reinterpret_cast<uint64_t>(orig_src_mem_ptr->getData()));
-        return MemoryPtr(*weight_cache->findOrCreate(string_hash, create));
-    }
-
+    // Do not use the shared weights cache here: snippets repacks constants once during subgraph compilation, and each
+    // extracted input needs its own Memory object for the runtime configurator.
     return create();
 }
 
