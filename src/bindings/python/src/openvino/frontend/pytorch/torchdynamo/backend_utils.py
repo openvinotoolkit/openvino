@@ -88,50 +88,40 @@ def _is_testing(options) -> Optional[Any]:
     return False
 
 
-# Mega-preset: when options["vllm"] is truthy, expand into individual flags
-# unless the user already set them explicitly. Keeps caller code one-liner.
-_VLLM_PRESET_FLAGS = {
-    "unbind_affinity": True,
-    "paged_attention": True,
-    "pa_translate": True,
-    "no_fallback": True,
-    "fc_decompress": True,
-    "dynamic_shapes": False,
-}
-_VLLM_PRESET_CONFIG = {
-    "KV_CACHE_PRECISION": "bf16",
-    "INFERENCE_PRECISION_HINT": "bf16",
-    "DYNAMIC_QUANTIZATION_GROUP_SIZE": 32,
-}
-
-
-def _is_vllm_preset(options) -> bool:
-    if options is None or "vllm" not in options:
-        return False
-    v = options["vllm"]
-    return bool(v) and str(v).lower() not in ("false", "0")
-
-
+# Caller can opt into a preset of defaults (currently the only one is the
+# vLLM preset, lives in torchdynamo.vllm.preset). The generic backend_utils
+# does not know about specific presets; it just delegates.
 def _bool_opt(options, key: str, default: bool) -> bool:
     """Resolve a boolean plugin option.
 
-    Priority: options[key] > vLLM preset (if active) > default.
+    Priority: options[key] > preset (if active) > default.
     Strings "false"/"0" are treated as False.
     """
     if options is not None and key in options:
         v = options[key]
-    elif _is_vllm_preset(options) and key in _VLLM_PRESET_FLAGS:
-        v = _VLLM_PRESET_FLAGS[key]
     else:
-        return default
+        # Check vLLM preset, if active. Imported lazily so backend_utils
+        # stays usable without the vllm subpackage on disk.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
+        except Exception:
+            _preset = None
+        if _preset is not None and _preset.is_vllm_preset(options) and _preset.has_preset_flag(key):
+            v = _preset.preset_flag(key)
+        else:
+            return default
     return bool(v) and str(v).lower() not in ("false", "0")
 
 
 def _config_with_vllm_defaults(options):
-    """Return options["config"] (or a fresh dict), merged with vLLM preset
-    defaults when options["vllm"] is set. Caller-supplied config keys win."""
+    """Return options["config"] (or a fresh dict), merged with the vLLM preset
+    OV-config defaults when options["vllm"] is set. Caller-supplied config
+    keys take priority."""
     base = dict(_get_config(options) or {})
-    if _is_vllm_preset(options):
-        for k, v in _VLLM_PRESET_CONFIG.items():
-            base.setdefault(k, v)
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
+    except Exception:
+        return base
+    if _preset.is_vllm_preset(options):
+        return _preset.merge_preset_config(base)
     return base
