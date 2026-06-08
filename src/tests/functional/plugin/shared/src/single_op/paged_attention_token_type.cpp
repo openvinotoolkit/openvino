@@ -14,32 +14,15 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/reference/utils/paged_cache_manager_helper.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
-#include "openvino/reference/utils/paged_cache_manager_helper.hpp"
 
 using namespace ov::op;
 
 namespace ov {
 namespace test {
 namespace helpers {
-namespace os {
-void set_env(const char* name, const char* value) {
-#ifdef _WIN32
-    _putenv_s(name, value);
-#else
-    ::setenv(name, value, 1);
-#endif
-}
-
-void unset_env(const char* name) {
-#ifdef _WIN32
-    _putenv_s(name, "");
-#else
-    ::unsetenv(name);
-#endif
-}
-}  // namespace os
 
 static constexpr size_t MAX_CONTEXT_LEN = 1024;
 
@@ -122,7 +105,8 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto sliding_window =
         std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
     auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-    auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{MAX_CONTEXT_LEN});
+    auto max_context_len =
+        std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{MAX_CONTEXT_LEN});
     auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
     auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
@@ -208,41 +192,33 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
 }  // namespace helpers
 
 std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj) {
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = obj.param;
+    const auto& [inType, head_size, head_num, sliding_window_size, seq_len, device] = obj.param;
     std::ostringstream result;
     result << "Prc=" << inType << "_";
     result << "HS=" << head_size << "_";
     result << "HN=" << head_num << "_";
     result << "SW=" << sliding_window_size << "_";
-    result << "SQ=" << pattern.tokenTypes.size() << "_";
+    result << "SQ=" << seq_len << "_";
     result << "Device=" << device << "_";
-    result << "FlashAttnV2=" << (use_flash_attn_v2 ? "ON" : "OFF") << "_";
-    result << "Name=" << pattern.name;
 
     return result.str();
 }
 
 void PagedAttentionTokenTypeTest::SetUp() {
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, seq_len, device] = GetParam();
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
-    helpers::os::set_env("OV_GPU_COULD_USE_FLASHATTN_V2", use_flash_attn_v2 ? "1" : "0");
     targetDevice = device;
-    
-    init_input_shapes({InputShape{PartialShape::dynamic(1), {{pattern.tokenTypes.size()}}}});
+
+    init_input_shapes({InputShape{PartialShape::dynamic(1), {{seq_len}}}});
 
     function = helpers::PrepareModel(inType, head_size, head_num, sliding_window_size);
-}
-
-void PagedAttentionTokenTypeTest::TearDown() {
-    helpers::os::unset_env("OV_GPU_COULD_USE_FLASHATTN_V2");
-    SubgraphBaseTest::TearDown();
 }
 
 void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
 
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = this->GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, seq_length, device] = this->GetParam();
 
     OPENVINO_ASSERT(!targetInputStaticShapes.empty() && targetInputStaticShapes[0].size() == 1,
                     "Expected a single 1-D shape representing seq_len");
@@ -251,28 +227,26 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
 
     using ov::test::utils::InputGenerateData;
 
-    ov::Tensor q_tensor = ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim},
-                                                                  InputGenerateData(-1, 2, 32, 1));
-    ov::Tensor k_tensor = ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim},
-                                                                  InputGenerateData(-1, 2, 32, 2));
-    ov::Tensor v_tensor = ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim},
-                                                                  InputGenerateData(-1, 2, 32, 3));
+    ov::Tensor q_tensor =
+        ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim}, InputGenerateData(-1, 2, 32, 1));
+    ov::Tensor k_tensor =
+        ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim}, InputGenerateData(-1, 2, 32, 2));
+    ov::Tensor v_tensor =
+        ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim}, InputGenerateData(-1, 2, 32, 3));
 
     ov::Tensor token_type_tensor = helpers::GenerateTokenTypeTensor(seq_len);
 
     // Cache tensors with known shapes (matching PrepareModel layout).
     const size_t block_size = 16;
     const size_t block_nums = helpers::MAX_CONTEXT_LEN / block_size;
-    ov::Tensor key_cache_tensor =
-        ov::test::utils::create_and_fill_tensor(inType,
-                                                {block_nums, static_cast<size_t>(head_num),
-                                                 static_cast<size_t>(head_size), block_size},
-                                                InputGenerateData(-1, 2, 32, 5));
-    ov::Tensor value_cache_tensor =
-        ov::test::utils::create_and_fill_tensor(inType,
-                                                {block_nums, static_cast<size_t>(head_num),
-                                                 block_size, static_cast<size_t>(head_size)},
-                                                InputGenerateData(-1, 2, 32, 6));
+    ov::Tensor key_cache_tensor = ov::test::utils::create_and_fill_tensor(
+        inType,
+        {block_nums, static_cast<size_t>(head_num), static_cast<size_t>(head_size), block_size},
+        InputGenerateData(-1, 2, 32, 5));
+    ov::Tensor value_cache_tensor = ov::test::utils::create_and_fill_tensor(
+        inType,
+        {block_nums, static_cast<size_t>(head_num), block_size, static_cast<size_t>(head_size)},
+        InputGenerateData(-1, 2, 32, 6));
 
     // Prefill: past_lens=0, single sequence.
     const size_t batch_size = 1;
