@@ -257,21 +257,15 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     auto candidate_ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
     auto params = candidate_ctx.get_params();
     auto it = params.find(ov::intel_gpu::ocl_context.name());
-    if (it == params.end()) {
-        GTEST_FAIL() << "Failed to get OpenCL context for " << target_device;
-    }
+    ASSERT_TRUE(it != params.end()) << "Failed to get OpenCL context for " << target_device;
 
     // Extract LUID from OpenCL context
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
     std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
-    if (!get_context_device_luid(cl_ctx, cl_luid)) {
-        GTEST_FAIL() << "Failed to get LUID for " << target_device;
-    }
+    ASSERT_TRUE(get_context_device_luid(cl_ctx, cl_luid)) << "Failed to get LUID for " << target_device;
     // Create DX12 context for the selected GPU's LUID
     Dx12TestContext dx12 = create_dx12_test_context(cl_luid);
-    if (!dx12.device) {
-        GTEST_FAIL() << "Failed to create DX12 context for " << target_device;
-    }
+    ASSERT_TRUE(dx12.device) << "Failed to create DX12 context for " << target_device;
 
     std::vector<float> input_init(element_count, 2.0f);
     auto dx_input_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue,

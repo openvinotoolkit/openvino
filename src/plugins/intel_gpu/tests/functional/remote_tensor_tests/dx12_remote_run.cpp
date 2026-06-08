@@ -28,10 +28,6 @@
 #include <iostream>
 #include <sstream>
 
-using CompilationParams = std::tuple<std::string,  // Device name
-                                     ov::AnyMap    // Config
-                                     >;
-
 namespace {
 
 std::shared_ptr<ov::Model> make_model() {
@@ -40,8 +36,7 @@ std::shared_ptr<ov::Model> make_model() {
     return ov::test::utils::make_conv_pool_relu(inputShape, ngPrc);
 }
 
-class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase,
-                           public testing::WithParamInterface<CompilationParams> {
+class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase {
 protected:
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     ov::AnyMap configuration;
@@ -55,25 +50,6 @@ protected:
     HANDLE shared_mem = nullptr;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
-        targetDevice = "GPU";
-
-        std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
-        if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-            }
-        }
-
-        return result.str();
-    }
-
     void SetUp() override {
 #ifndef CL_VERSION_3_0
     GTEST_SKIP() << "OpenCL version 3.0 is required for external memory sharing"; 
@@ -96,9 +72,7 @@ public:
 
     void createDevice() {
         auto res = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "D3D12CreateDevice failed";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "D3D12CreateDevice failed";
     }
 
     void createHeap(const size_t byte_size) {
@@ -115,14 +89,10 @@ public:
         desc_heap.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
         desc_heap.Flags = D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER | D3D12_HEAP_FLAG_SHARED;
         auto res = device->CreateHeap(&desc_heap, IID_PPV_ARGS(heap.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreateHeap failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateHeap failed.";
 
         res = device->CreateSharedHandle(heap.Get(), nullptr, GENERIC_ALL, nullptr, &shared_mem);
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreateSharedHandle failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateSharedHandle failed.";
     }
 
     void createPlacedResources(const size_t byte_size) {
@@ -143,9 +113,7 @@ public:
                                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                                                 nullptr,
                                                 IID_PPV_ARGS(placed_resources.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreatePlacedResource failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreatePlacedResource failed.";
     }
 
     void createComittedResources(const size_t byte_size) {
@@ -169,9 +137,7 @@ public:
                                                    D3D12_RESOURCE_STATE_GENERIC_READ,
                                                    nullptr,
                                                    IID_PPV_ARGS(comitted_resource.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreateCommittedResource failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommittedResource failed.";
     }
 
     void createResources(const size_t byte_size) {
@@ -193,48 +159,33 @@ public:
         desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
         desc.NodeMask = 0;
         auto res = device->CreateCommandQueue(&desc, IID_PPV_ARGS(command_queue.ReleaseAndGetAddressOf()));
-        if (FAILED(res)) {
-            GTEST_FAIL() << "CreateCommandQueue failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommandQueue failed.";
 
         res = device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(fence.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreateFence failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateFence failed.";
 
         res = device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE,
                                                    IID_PPV_ARGS(command_allocator.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreateCommandAllocator failed.";
-        }
-
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommandAllocator failed.";
         res = device->CreateCommandList(0,
                                         D3D12_COMMAND_LIST_TYPE_COMPUTE,
                                         command_allocator.Get(),
                                         nullptr,
                                         IID_PPV_ARGS(command_list.ReleaseAndGetAddressOf()));
-        if(FAILED(res)) {
-            GTEST_FAIL() << "CreateCommandList failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "CreateCommandList failed.";
 
         command_list->CopyBufferRegion(placed_resources.Get(), 0, comitted_resource.Get(), 0, byte_size);
         res = command_list->Close();
-        if(FAILED(res)) {
-            GTEST_FAIL() << "Close command list failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "Close command list failed.";
 
         ID3D12CommandList* command_lists[] = {command_list.Get()};
         command_queue->ExecuteCommandLists(ARRAYSIZE(command_lists), command_lists);
         res = command_queue->Signal(fence.Get(), ++fence_value);
-        if(FAILED(res)) {
-            GTEST_FAIL() << "Signal command queue failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "Signal command queue failed.";
 
         volatile auto event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
         res = fence->SetEventOnCompletion(fence_value, event);
-        if(FAILED(res)) {
-            GTEST_FAIL() << "SetEventOnCompletion failed.";
-        }
+        ASSERT_TRUE(SUCCEEDED(res)) << "SetEventOnCompletion failed.";
         WaitForSingleObject(event, INFINITE);
     }
 };
@@ -283,7 +234,7 @@ TEST_F(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuChangingTensors) {
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.infer());
     // set random input tensor
-    std::vector<float> random_buffer_tensor(byte_size / sizeof(float), 1);
+    std::vector<float> random_buffer_tensor(shape_size(tensor.get_shape()), 1);
     ov::Tensor random_tensor_input{ov::element::f32, tensor.get_shape(), random_buffer_tensor.data()};
 
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(random_tensor_input));
@@ -291,9 +242,8 @@ TEST_F(DX12RemoteRunTests, smoke_CheckRemoteTensorSharedBuChangingTensors) {
 
     // set random output tensor
     auto output_tensor = inference_request.get_output_tensor();
-    const auto output_byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(output_tensor.get_shape()));
 
-    std::vector<float> output_random_buffer_tensor(output_byte_size / sizeof(float), 1);
+    std::vector<float> output_random_buffer_tensor(shape_size(output_tensor.get_shape()), 1);
     ov::Tensor outputrandom_tensor_input{ov::element::f32, output_tensor.get_shape(), output_random_buffer_tensor.data()};
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(outputrandom_tensor_input));
     OV_ASSERT_NO_THROW(inference_request.infer());
@@ -316,7 +266,7 @@ TEST_F(DX12RemoteRunTests, smoke_CheckOutputDataFromMultipleRuns) {
     createResources(byte_size);
     void* mem;
     comitted_resource.Get()->Map(0, nullptr, &mem);
-    for(int i = 0; i < byte_size / sizeof(float); ++i) {
+    for(int i = 0; i < shape_size(shape); ++i) {
         static_cast<float*>(mem)[i] = 99;
     }
     comitted_resource.Get()->Unmap(0, nullptr);
@@ -325,8 +275,7 @@ TEST_F(DX12RemoteRunTests, smoke_CheckOutputDataFromMultipleRuns) {
     auto context = core->get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
 
     auto output_tensor = inference_request.get_output_tensor();
-    const auto output_byte_size = output_tensor.get_byte_size();
-    std::vector<float> output_data_one(output_byte_size / sizeof(float));
+    std::vector<float> output_data_one(output_tensor.get_size());
     ov::Tensor output_data_tensor_one{ov::element::f32, output_tensor.get_shape(), output_data_one.data()};
 
     auto remote_tensor = context.create_tensor(ov::element::f32, shape, shared_mem, ov::intel_gpu::MemType::SHARED_BUF);
@@ -334,17 +283,16 @@ TEST_F(DX12RemoteRunTests, smoke_CheckOutputDataFromMultipleRuns) {
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_one));
     OV_ASSERT_NO_THROW(inference_request.infer());
 
-    std::vector<float> output_data_two(output_byte_size / sizeof(float));
+    std::vector<float> output_data_two(output_tensor.get_size());
     ov::Tensor output_data_tensor_two{ov::element::f32, output_tensor.get_shape(), output_data_two.data()};
 
-    std::vector<float> input_data(byte_size / sizeof(float), 99);
+    std::vector<float> input_data(shape_size(shape), 99);
     ov::Tensor input_data_tensor{ov::element::f32, shape, input_data.data()};
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_data_tensor));
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_data_tensor_two));
     OV_ASSERT_NO_THROW(inference_request.infer());
 
     EXPECT_NE(output_data_one.data(), output_data_two.data());
-    EXPECT_EQ(memcmp(output_data_one.data(), output_data_two.data(), output_byte_size), 0);
     for (size_t i = 0; i < output_data_one.size(); ++i) {
         EXPECT_FLOAT_EQ(output_data_one[i], output_data_two[i]) << "Output mismatch at index " << i << output_data_one[i] << " vs " << output_data_two[i];
     }

@@ -218,22 +218,16 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
     auto params = ctx.get_params();
     auto it = params.find(ov::intel_gpu::ocl_context.name());
-    if (it == params.end()) {
-        GTEST_FAIL() << "Failed to get OpenCL context for " << target_device;
-    }
+    ASSERT_TRUE(it != params.end()) << "Failed to get OpenCL context for " << target_device;
 
     // Extract LUID from OpenCL context
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
     std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
-    if (!get_context_device_luid(cl_ctx, cl_luid)) {
-        GTEST_FAIL() << "Failed to get LUID for " << target_device;
-    }
+    ASSERT_TRUE(get_context_device_luid(cl_ctx, cl_luid)) << "Failed to get LUID for " << target_device;
 
     // Create DX11 context for the selected GPU's LUID
     Dx11TestContext dx11 = create_dx11_test_context(cl_luid);
-    if (!dx11.device) {
-        GTEST_FAIL() << "Failed to create DX11 context for " << target_device;
-    }
+    ASSERT_TRUE(dx11.device != nullptr) << "Failed to create DX11 context for " << target_device;
 
     std::vector<float> input_init(element_count, 2.0f);
     auto dx_input_shared = create_dx11_shared_buffer(dx11.device, byte_size, input_init.data());
@@ -244,15 +238,11 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
 
     auto dx_input_buffer = open_dx11_shared_buffer(dx11.device,
                                                    dx_input_shared.shared_handle);
-    if (dx_input_buffer == nullptr) {
-        GTEST_FAIL() << "Failed to open shared input buffer in DX11 context for " << target_device;
-    }
+    ASSERT_TRUE(dx_input_buffer != nullptr) << "Failed to open shared input buffer in DX11 context for " << target_device;
 
     auto dx_output_buffer = open_dx11_shared_buffer(dx11.device,
                                                     dx_output_shared.shared_handle);
-    if (dx_output_buffer == nullptr) {
-        GTEST_FAIL() << "Failed to open shared output buffer in DX11 context for " << target_device;
-    }
+    ASSERT_TRUE(dx_output_buffer != nullptr) << "Failed to open shared output buffer in DX11 context for " << target_device;
 
     // Initialize opened shared input texture explicitly to avoid driver-dependent init visibility.
     const UINT row_pitch = 4u * static_cast<UINT>(sizeof(float));  // 4 floats per row
