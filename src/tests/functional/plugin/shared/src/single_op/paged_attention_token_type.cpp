@@ -83,18 +83,14 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto k = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
     auto v = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 
-    auto key_cache = MakeParam(PartialShape{ov::Dimension::dynamic(),
-                                            ov::Dimension::dynamic(),
-                                            ov::Dimension::dynamic(),
-                                            ov::Dimension::dynamic()},
-                               data_type,
-                               "key_cache.0");
-    auto value_cache = MakeParam(PartialShape{ov::Dimension::dynamic(),
-                                              ov::Dimension::dynamic(),
-                                              ov::Dimension::dynamic(),
-                                              ov::Dimension::dynamic()},
-                                 data_type,
-                                 "value_cache.0");
+    // GPU plugin expects 4-dim cache with concrete element type
+    // key_cache: [num_blocks, num_kv_heads, head_size, block_size]
+    // value_cache: [num_blocks, num_kv_heads, block_size, head_size]
+    const int64_t block_size = helpers::BLOCK_SIZE;
+    auto key_cache =
+        MakeParam(PartialShape{ov::Dimension::dynamic(), head_num, head_size, block_size}, data_type, "key_cache.0");
+    auto value_cache =
+        MakeParam(PartialShape{ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "value_cache.0");
     auto past_lens = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
     auto subsequence_begins = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
     auto block_indices = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");

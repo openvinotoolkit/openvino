@@ -15,21 +15,11 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionTokenType,
                          PagedAttentionTokenTypeTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
-                                            ::testing::Values(32),                // head_size
-                                            ::testing::Values(1),                 // head_num
-                                            ::testing::Values(0),                 // sliding_window_size
-                                            ::testing::Values(10, 16, 100, 190),  // seq_len
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         PagedAttentionTokenTypeTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionTokenTypeWithSlidingWindow,
-                         PagedAttentionTokenTypeTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
-                                            ::testing::Values(32),                // head_size
-                                            ::testing::Values(1),                 // head_num
-                                            ::testing::Values(5),                 // sliding_window_size
-                                            ::testing::Values(10, 16, 100, 190),  // seq_len
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16, ElementType::bf16),
+                                            ::testing::Values(32),            // head_size
+                                            ::testing::Values(1, 4),          // head_num
+                                            ::testing::Values(0, 9),          // sliding_window_size
+                                            ::testing::Values(10, 100, 190),  // seq_len
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PagedAttentionTokenTypeTest::getTestCaseName);
 
