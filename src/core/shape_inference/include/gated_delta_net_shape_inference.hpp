@@ -45,6 +45,15 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
                            " and ",
                            q_head_size);
 
+    NODE_SHAPE_INFER_CHECK(
+        op,
+        input_shapes,
+        v_head_num.is_dynamic() || q_head_num.is_dynamic() || v_head_num.get_length() % q_head_num.get_length() == 0,
+        "The number of value heads must be a multiple of query/key heads (GQA), but got v_H=",
+        v_head_num,
+        " and qk_H=",
+        q_head_num);
+
     const auto& gate_head_num = gate_ps[2];
     const auto& beta_head_num = beta_ps[2];
 
