@@ -13,7 +13,7 @@ graph {
     output: "output"
     output: "present_key"
     output: "present_value"
-    name: "MultiHeadAttention_14_cache_standard"
+    name: "MultiHeadAttention_19_cache_bias"
     op_type: "MultiHeadAttention"
     attribute {
       name: "num_heads"
@@ -22,7 +22,7 @@ graph {
     }
     domain: "com.microsoft"
   }
-  name: "multi_head_attention_14_cache_standard"
+  name: "multi_head_attention_19_cache_bias"
   input {
     name: "query"
     type { tensor_type { elem_type: 1
