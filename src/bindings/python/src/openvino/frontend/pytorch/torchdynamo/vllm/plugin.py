@@ -146,7 +146,7 @@ def register():
     _disable_layername()
     _patch_cpu_model_runner()
     try:
-        from openvino.frontend.pytorch.torchdynamo import vllm_sampler as _vs
+        from openvino.frontend.pytorch.torchdynamo.vllm import sampler as _vs
         _vs.install()
     except Exception as _e:
         logger.debug("[OV plugin] sampler install skipped: %s", _e)
