@@ -85,7 +85,7 @@ jobs:
       # Tests
       #
 
-      - name: OpenVINO GPU ${{ inputs.test_type }} Tests on ${{ inputs.device }}
+      - name: OpenVINO GPU ${{ inputs.test_type }} Tests
         id: run_tests
         env:
           TEST_TYPE: ${{ inputs.test_type }}
@@ -108,7 +108,8 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter
-        
+
+
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         if: always()
