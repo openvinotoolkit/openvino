@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <climits>
 #include <variant>
-
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -28,7 +27,6 @@ using weights_memory_ptr = std::variant<std::shared_ptr<ov::MappedMemory>, std::
 using offset_const_map_t = std::map<size_t, std::shared_ptr<ov::op::v0::Constant>>;
 using shared_mapped_memory_ptr = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 using constant_memory_ptr = std::variant<shared_mapped_memory_ptr, std::shared_ptr<ov::op::v0::Constant>>;
-
 namespace {
 
 bool is_alloc_host_accessible(const cldnn::allocation_type& alloc_type) {
@@ -173,8 +171,8 @@ struct weightless_cache_manager {
         return true;
     }
 
-    bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<WeightsMemory> weights_memory) {
-        ib >> do_weightless_caching;
+    bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<WeightsMemory> weights_memory, bool weightless_caching) {
+        do_weightless_caching = weightless_caching;
         if (!do_weightless_caching) {
             return false;
         }
@@ -193,7 +191,6 @@ struct weightless_cache_manager {
         } else {
             original_size = dst_mem->size();
         }
-
         bool do_reorder = false;
         ib >> do_reorder;
         if (do_reorder) {
@@ -389,6 +386,10 @@ struct data : public primitive_base<data> {
         bool do_weightless_caching = cache_info->save(ob, data_size);
         if (!do_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
+                if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
+                    std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
+                    ob << make_data(pad.data(), pad.size());
+                }
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
                 std::vector<uint8_t> _buf;
@@ -404,23 +405,40 @@ struct data : public primitive_base<data> {
         primitive_base<data>::load(ib);
     }
 
-    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory) {
+    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, memory_ptr model_tensor_base) {
         layout output_layout = layout();
         ib >> output_layout;
 
         allocation_type _allocation_type = allocation_type::unknown;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-
+        
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
 
-        mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+        bool weightless_caching = false;
+        ib >> weightless_caching;
 
-        bool is_weightless_caching = cache_info->load(ib, mem, weights_memory);
+        bool enable_zero_copy_mode = ib.is_mmap_tensor_4K_aligned() && ib.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
+                                     ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu &&
+                                     _allocation_type == allocation_type::usm_host && !weightless_caching;
+        if (!enable_zero_copy_mode) {
+            mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+        }
+        
+        bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
+                if (!ib.is_encrypted() && !ib.is_offset_sub_buffer_aligned()) {
+                    std::vector<uint8_t> pad(ib.get_bytes_to_sub_buffer_boundary(), 0);
+                    ib >> make_data(pad.data(), pad.size());
+                }
+                if (enable_zero_copy_mode) {
+                    mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
+                    ib.seek_current_ptr(data_size);
+                } else {
+                    ib >> make_data(std::move(mem->buffer_ptr()), data_size);
+                }
             } else {
                 const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
                 auto& eng = ib.get_engine();
@@ -490,8 +508,7 @@ struct data : public primitive_base<data> {
                     while (dst_offset < data_size) {
                         const bool is_blocking = false;
                         const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                         if (buf_flag) {
                             ib >> make_data(_buf1.data(), copy_size);
                             if (ev2 != nullptr) {

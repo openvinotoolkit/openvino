@@ -444,6 +444,7 @@ void update_config_for_whisper(ov::AnyMap& config) {
 void disable_ws_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_FUNCALL_FOR_ALL");
     config.erase("NPUW_FOLD");
+    config.erase("NPUW_FOLD_ONLY");
     config.erase("NPUW_CWAI");
 }
 
