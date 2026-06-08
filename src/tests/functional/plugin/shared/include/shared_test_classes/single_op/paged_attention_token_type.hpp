@@ -38,13 +38,11 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj);
     static std::vector<TestData> GetTestDataForHeadSize32HeadNum1();
     static std::vector<TestData> GetTestDataForHeadSize32HeadNum1SlidingWindowSize5();
-    void run() override;
 
 protected:
     void SetUp() override;
     void TearDown() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    void RunAndValidate();
 };
 
 }  // namespace test
