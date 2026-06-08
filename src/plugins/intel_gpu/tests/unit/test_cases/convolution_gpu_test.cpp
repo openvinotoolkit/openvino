@@ -12776,7 +12776,7 @@ TEST(convolution_gpu_bfyx_f16_1x1, dynamic_padded_input_asymmetric_x_padding) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16)
-        GTEST_SKIP() << "fp16 not supported on this device.";
+        GTEST_SKIP() << "fp16 is not supported on this device.";
 
     const int batch = 1, in_f = 32, out_f = 32, in_h = 7, in_w = 8;
     const int x_pad_after = 4;
@@ -12829,3 +12829,140 @@ TEST(convolution_gpu_bfyx_f16_1x1, dynamic_padded_input_asymmetric_x_padding) {
     for (size_t i = 0; i < out.size(); i++)
         ASSERT_EQ(out[i], ref[i]) << "Mismatch at idx=" << i;
 }
+
+struct forced_fsv16_conv_test_params {
+    ov::Shape in_shape;
+    ov::Shape wei_shape;
+    ov::Strides stride;
+    ov::CoordinateDiff pad_begin;
+    ov::CoordinateDiff pad_end;
+};
+
+class convolution_gpu_bfyx_f16_1x1 : public testing::TestWithParam<forced_fsv16_conv_test_params> {};
+class convolution_gpu_bfyx_f16 : public testing::TestWithParam<forced_fsv16_conv_test_params> {};
+
+TEST_P(convolution_gpu_bfyx_f16_1x1, validate_execution) {
+    auto& engine = get_test_engine();
+    const auto p = GetParam();
+
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "fp16 is not supported on this device.";
+
+    auto input = engine.allocate_memory({p.in_shape, data_types::f16, format::b_fs_yx_fsv16});
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input, rg.generate_random_1d<ov::float16>(ov::shape_size(p.in_shape), -5, 5));
+    set_values(weights, rg.generate_random_1d<ov::float16>(ov::shape_size(p.wei_shape), -5, 5));
+
+    topology topo(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, 1,
+                    p.stride, ov::Strides{1, 1}, p.pad_begin, p.pad_end, false));
+
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl}}
+    }));
+
+    network net_test(engine, topo, cfg_test);
+    net_test.set_input_data("input", input);
+    auto inst = net_test.get_primitive("conv");
+    ASSERT_TRUE(inst != nullptr);
+    ASSERT_TRUE(inst->get_impl() != nullptr);
+    auto out_test = net_test.execute();
+
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl}}
+    }));
+    network net_ref(engine, topo, cfg_ref);
+    net_ref.set_input_data("input", input);
+    auto out_ref = net_ref.execute();
+
+    cldnn::mem_lock<ov::float16> ptr_test(out_test.at("conv").get_memory(), get_test_stream());
+    cldnn::mem_lock<ov::float16> ptr_ref(out_ref.at("conv").get_memory(), get_test_stream());
+    ASSERT_EQ(ptr_test.size(), ptr_ref.size());
+    const float atol = 0.1f;
+    const float rtol = 1e-2f;
+    for (size_t i = 0; i < ptr_test.size(); i++) {
+        const float test_val = float(ptr_test[i]);
+        const float ref_val = float(ptr_ref[i]);
+        const float tol = atol + rtol * std::fabs(ref_val);
+        ASSERT_NEAR(test_val, ref_val, tol) << "Mismatch at idx=" << i;
+    }
+}
+
+TEST_P(convolution_gpu_bfyx_f16, validate_execution) {
+    auto& engine = get_test_engine();
+    const auto p = GetParam();
+
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "fp16 is not supported on this device.";
+
+    auto input = engine.allocate_memory({p.in_shape, data_types::f16, format::b_fs_yx_fsv16});
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input, rg.generate_random_1d<ov::float16>(ov::shape_size(p.in_shape), -5, 5));
+    set_values(weights, rg.generate_random_1d<ov::float16>(ov::shape_size(p.wei_shape), -5, 5));
+
+    topology topo(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, 1,
+                    p.stride, ov::Strides{1, 1}, p.pad_begin, p.pad_end, false));
+
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl}}
+    }));
+
+    network net_test(engine, topo, cfg_test);
+    net_test.set_input_data("input", input);
+    auto inst = net_test.get_primitive("conv");
+    ASSERT_TRUE(inst != nullptr);
+    ASSERT_TRUE(inst->get_impl() != nullptr);
+    auto out_test = net_test.execute();
+
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl}}
+    }));
+    network net_ref(engine, topo, cfg_ref);
+    net_ref.set_input_data("input", input);
+    auto out_ref = net_ref.execute();
+
+    cldnn::mem_lock<ov::float16> ptr_test(out_test.at("conv").get_memory(), get_test_stream());
+    cldnn::mem_lock<ov::float16> ptr_ref(out_ref.at("conv").get_memory(), get_test_stream());
+    ASSERT_EQ(ptr_test.size(), ptr_ref.size());
+    const float atol = 0.5f;
+    const float rtol = 1e-2f;
+    for (size_t i = 0; i < ptr_test.size(); i++) {
+        const float test_val = float(ptr_test[i]);
+        const float ref_val = float(ptr_ref[i]);
+        const float tol = atol + rtol * std::fabs(ref_val);
+        ASSERT_NEAR(test_val, ref_val, tol) << "Mismatch at idx=" << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    convolution_gpu_bfyx_f16_1x1,
+    testing::ValuesIn(std::vector<forced_fsv16_conv_test_params>{
+        {{1, 16, 15, 17}, {16, 16, 1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}},
+        {{1, 32, 32, 32}, {32, 32, 1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}},
+        {{2, 64, 7, 7},   {64, 64, 1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}}
+    })
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    convolution_gpu_bfyx_f16,
+    testing::ValuesIn(std::vector<forced_fsv16_conv_test_params>{
+        {{1, 16, 15, 17}, {16, 16, 3, 3}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}},
+        {{1, 32, 32, 32}, {32, 32, 3, 3}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1}},
+        {{2, 64, 16, 16}, {64, 64, 5, 5}, ov::Strides{1, 1}, ov::CoordinateDiff{2, 2}, ov::CoordinateDiff{2, 2}}
+    })
+);
