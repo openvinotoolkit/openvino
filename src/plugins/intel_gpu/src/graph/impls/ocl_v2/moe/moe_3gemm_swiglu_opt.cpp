@@ -797,6 +797,10 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable grouped_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
                                    << std::endl;
         }
+        if (_lru_expert_num > 0 && batched_gemv_threshold > 1) {
+            batched_gemv_threshold = 1;
+            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): limit batched_gemv_threshold=1 in OTD mode to avoid LRU slot overflow" << std::endl;
+        }
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
         if (routing_type == ov::op::internal::MOECompressed::RoutingType::SOFTMAX) {
