@@ -422,7 +422,7 @@ auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node,
                                     const ov::Input<ov::Node>& sdpa_in) {
     // Find Assign node
     OPENVINO_ASSERT(rv_node->outputs().size() == 1);
-    auto rv_out = rv_node->outputs()[0];
+    auto rv_out = rv_node->output(0);
     ov::NodeVector rv_readers;
     for (const auto& target_in : rv_out.get_target_inputs()) {
         rv_readers.push_back(target_in.get_node()->shared_from_this());
@@ -484,7 +484,7 @@ void expose_runtime_states_as_outputs(const std::shared_ptr<ov::Model>& model) {
         OPENVINO_ASSERT(rv_node->outputs().size() == 1);
         auto rv_in = rv_node->inputs()[0];
         auto x = rv_in.get_source_output();
-        auto rv_out = rv_node->outputs()[0];
+        auto rv_out = rv_node->output(0);
         // Gather all nodes that read from ReadValue, there must be SDPA and Assign
         auto rv_readers = rv_out.get_target_inputs();
         OPENVINO_ASSERT(rv_readers.size() == 2);
@@ -567,7 +567,7 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
     }
 
     for (const auto& rv_node : read_value_nodes) {
-        auto rv_out = rv_node->outputs()[0];
+        auto rv_out = rv_node->output(0);
         auto rv_readers = rv_out.get_target_inputs();
         for (auto rv_reader : rv_readers) {
             bool is_fake_cvt = strstr(rv_reader.get_node()->get_type_name(), "FakeConvert") != nullptr;
@@ -578,7 +578,7 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
                        is_fake_cvt) {
                 auto sdpa_in = rv_reader;
 
-                auto shape = rv_node->get_output_partial_shape(0);
+                const auto& shape = rv_node->get_output_partial_shape(0);
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(rv_node->get_output_element_type(0), shape);
 
                 // In case there's additional FakeConvert node(fp8): ReadValue -> FakeConvert -> SDPA

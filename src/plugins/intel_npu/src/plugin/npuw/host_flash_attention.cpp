@@ -165,7 +165,7 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
     config.is_head = is_first_tile;
     config.is_tail = is_last_tile;
 
-    auto v_shape = v_input->get_output_partial_shape(0);
+    const auto& v_shape = v_input->get_output_partial_shape(0);
     auto rank = v_shape.rank().get_length();
     if (rank != 4)
         OPENVINO_THROW("v_input rank must be 4 for flash attention");
@@ -909,7 +909,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     // Step 2: Extract shape and data type information
     // ========================================================================
-    auto q_shape = q_input->get_output_partial_shape(0);
+    const auto& q_shape = q_input->get_output_partial_shape(0);
     if (q_shape.is_dynamic()) {
         LOG_WARN("Dynamic shapes not yet supported for HFA");
         return std::nullopt;

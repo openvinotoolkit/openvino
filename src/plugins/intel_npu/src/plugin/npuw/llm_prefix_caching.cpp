@@ -460,11 +460,11 @@ void PrefixCachingHelper::copy_cached_kv_data(const std::vector<std::shared_ptr<
         const KVData& block_kv_data = block->get_block_kv_data();
 
         for (size_t idx = 0; idx < block_kv_data.size(); ++idx) {
-            auto kv_per_layer = block_kv_data[idx];
-            auto kv_out_name = kv_per_layer.first;
+            const auto& kv_per_layer = block_kv_data[idx];
+            const auto& kv_out_name = kv_per_layer.first;
             const auto& kv_in_name = m_cached_input_name_map.at(kv_out_name);
 
-            auto kv_tensor = kv_per_layer.second;
+            const auto& kv_tensor = kv_per_layer.second;
             const auto& kv_dim =
                 (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
                     ? 3u

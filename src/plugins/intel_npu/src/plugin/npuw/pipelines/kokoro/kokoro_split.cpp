@@ -246,7 +246,7 @@ std::shared_ptr<ov::Model> ov::npuw::KokoroSplit::create_model_b(const std::shar
     // Shape is [..., channels, time] or similar.
     auto get_channels = [](const std::shared_ptr<ov::Node>& node) -> size_t {
         auto lhs = node->input_value(0);
-        auto shape = lhs.get_partial_shape();
+        const auto& shape = lhs.get_partial_shape();
         OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() >= 2, "MatMul LHS rank must be >= 2");
         auto chan_dim = shape[shape.rank().get_length() - 2];
         OPENVINO_ASSERT(chan_dim.is_static(), "MatMul LHS channel dimension must be static");
