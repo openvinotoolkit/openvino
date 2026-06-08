@@ -24,6 +24,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -45,7 +46,7 @@ namespace {
 ///     `f16_compression_max_abs_error` (RoPE-like high-magnitude values), or
 ///   * the combined count of elements outside the finite FP16 range *plus*
 ///     elements whose relative round-trip error exceeds
-///     `f16_compression_max_rel_error` reaches
+///     the selected relative-error threshold reaches
 ///     `f16_compression_keep_threshold` (75% by default).
 ///
 /// Used by `CompressFloatConstantsImpl` for f64 constants on all platforms and
@@ -55,6 +56,10 @@ template <ov::element::Type_t PREC_FROM>
 std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::Constant>& constant,
                                                             bool postponed = false) {
     using src_type = typename ov::element_type_traits<PREC_FROM>::value_type;
+
+    const bool is_scalar_or_single_elem = ov::op::util::is_scalar_or_single_elem_constant(constant);
+    const double max_relative_error = is_scalar_or_single_elem ? ov::reference::f16_scalar_compression_max_rel_error
+                                                               : ov::reference::f16_tensor_compression_max_rel_error;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = ov::shape_size(constant->get_shape());
@@ -77,7 +82,6 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
             num_rejected++;
         } else {
-            constexpr double max_relative_error = ov::reference::f16_compression_max_rel_error;
             constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
             const auto f16_val = static_cast<ov::float16>(src_data[i]);
             const double src_val = static_cast<double>(src_data[i]);
@@ -97,7 +101,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
 
     // If the combined count of rejected elements (values outside the finite FP16
     // range PLUS in-range values whose FP16 round-trip relative error exceeds
-    // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
+    // the selected relative-error threshold) reaches f16_compression_keep_threshold
     // (inclusive, 75% by default), keep the Constant in its original precision.
     const double rejected_proportion = static_cast<double>(num_rejected) / static_cast<double>(size);
 
@@ -214,7 +218,7 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
             // If the combined count of rejected elements (values outside the finite FP16
             // range PLUS in-range values whose FP16 round-trip relative error exceeds
-            // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
+            // the selected relative-error threshold) reaches f16_compression_keep_threshold
             // (inclusive, 75% by default), keep the Constant in FP32.
             const float rejected_proportion = static_cast<float>(check.rejected_count) / static_cast<float>(size);
             if (rejected_proportion >= ov::reference::f16_compression_keep_threshold)
