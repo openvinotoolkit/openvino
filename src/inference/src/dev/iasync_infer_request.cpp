@@ -106,7 +106,7 @@ void ov::IAsyncInferRequest::cancel() {
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
-    std::lock_guard<std::mutex> callbackLock{m_callback_invoke_mutex};
+    std::lock_guard callbackLock{m_callback_invoke_mutex};
     m_callback = std::move(callback);
 }
 
@@ -160,27 +160,20 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
                     std::promise<void> promise;
-                    std::function<void(std::exception_ptr)> callback;
                     {
-                        std::lock_guard<std::mutex> callbackLock{m_callback_invoke_mutex};
-                        {
-                            std::lock_guard<std::mutex> lock{m_mutex};
-                            m_state = InferState::IDLE;
-                            promise = std::move(m_promise);
-                        }
+                        std::lock_guard<std::mutex> lock{m_mutex};
+                        m_state = InferState::IDLE;
+                        promise = std::move(m_promise);
+                    }
 
-                        std::swap(callback, m_callback);
-                        if (callback) {
-                            try {
-                                callback(currentException);
-                            } catch (...) {
-                                currentException = std::current_exception();
-                            }
-                            if (!m_callback) {
-                                std::swap(callback, m_callback);
-                            }
+                    if (std::lock_guard callbackLock{m_callback_invoke_mutex}; m_callback) {
+                        try {
+                            m_callback(currentException);
+                        } catch (...) {
+                            currentException = std::current_exception();
                         }
                     }
+
                     if (nullptr == currentException) {
                         promise.set_value();
                     } else {
@@ -256,7 +249,7 @@ void ov::IAsyncInferRequest::stop_and_wait() {
         state = m_state;
         if (state != InferState::STOP) {
             {
-                std::lock_guard<std::mutex> callbackLock{m_callback_invoke_mutex};
+                std::lock_guard callbackLock{m_callback_invoke_mutex};
                 m_callback = {};
             }
             m_state = InferState::STOP;
