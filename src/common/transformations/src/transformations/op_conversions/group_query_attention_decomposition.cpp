@@ -127,7 +127,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
 
     if (is_static_input) {
-        // static design is for NPU plugin (valid KV left align)
+        // static design for GQA (KV cache is static max length, valid KVs are left align)
         // inputs are:
         //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
         //   ..., Pn, 0, 0, ...]
