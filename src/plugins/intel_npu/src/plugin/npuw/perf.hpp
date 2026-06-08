@@ -124,8 +124,7 @@ public:
             *this += U::sample(f);
         } else {
             auto t_start = std::chrono::system_clock::now();
-            auto start_us =
-                std::chrono::duration_cast<std::chrono::microseconds>(t_start.time_since_epoch()).count();
+            auto start_us = std::chrono::duration_cast<std::chrono::microseconds>(t_start.time_since_epoch()).count();
             std::time_t start_tt = std::chrono::system_clock::to_time_t(t_start);
             std::tm start_tm{};
 #ifdef _WIN32
@@ -138,8 +137,7 @@ public:
             auto sample_ms = U::sample(f);
             *this += std::move(sample_ms);
             auto t_end = std::chrono::system_clock::now();
-            auto end_us =
-                std::chrono::duration_cast<std::chrono::microseconds>(t_end.time_since_epoch()).count();
+            auto end_us = std::chrono::duration_cast<std::chrono::microseconds>(t_end.time_since_epoch()).count();
             std::time_t end_tt = std::chrono::system_clock::to_time_t(t_end);
             std::tm end_tm{};
 #ifdef _WIN32
@@ -148,9 +146,8 @@ public:
             localtime_r(&end_tt, &end_tm);
 #endif
             LOG_INFO("PROF " << name << " END   @ " << std::put_time(&end_tm, "%Y-%m-%dT%H:%M:%S") << "."
-                             << std::setfill('0') << std::setw(6) << (end_us % 1000000) << " (took "
-                             << std::fixed << std::setprecision(3) << ((end_us - start_us) / 1000.0)
-                             << " ms)");
+                             << std::setfill('0') << std::setw(6) << (end_us % 1000000) << " (took " << std::fixed
+                             << std::setprecision(3) << ((end_us - start_us) / 1000.0) << " ms)");
         }
     }
 
