@@ -39,9 +39,9 @@ OpenVINO 2026.2
 
 |
 
-**OpenVINO is an open-source toolkit** for deploying performant AI solutions in the cloud,
-on-prem, and on the edge alike. Develop your applications with both generative and conventional
-AI models, coming from the most popular model frameworks.
+**OpenVINO is an open-source toolkit** for deploying high-performance AI solutions across 
+cloud, AI PCs, edge devices, and Physical AI alike. Develop your applications 
+with both generative and conventional AI models, coming from the most popular model frameworks. 
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
 There are four main tools in OpenVINO to meet all your deployment needs:
 
