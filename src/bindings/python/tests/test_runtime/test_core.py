@@ -161,6 +161,56 @@ def test_read_model_from_ir_with_user_config(request, tmp_path):
     os.rmdir(cache_path)
 
 
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Windows-specific reproducer for Unicode CACHE_DIR handling",
+)
+def test_read_model_user_cfg_non_ascii_cache_dir(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    core_cache_dir = core.get_property("CACHE_DIR")
+    cache_path = tmp_path / Path("cache_😀_кириллица")
+
+    model = core.read_model(
+        xml_path,
+        bin_path,
+        config={"CACHE_DIR": f"{cache_path}"},
+    )
+
+    assert isinstance(model, Model)
+    assert core_cache_dir == core.get_property("CACHE_DIR")
+    assert os.path.exists(cache_path)
+    os.rmdir(cache_path)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Windows-specific reproducer for Unicode CACHE_DIR handling",
+)
+def test_read_model_user_cfg_non_ascii_cache_dir_path(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    core_cache_dir = core.get_property("CACHE_DIR")
+    cache_path = tmp_path / Path("cache_😀_кириллица_path")
+
+    model = core.read_model(
+        xml_path,
+        bin_path,
+        config={"CACHE_DIR": cache_path},
+    )
+
+    assert isinstance(model, Model)
+    assert core_cache_dir == core.get_property("CACHE_DIR")
+    assert os.path.exists(cache_path)
+    os.rmdir(cache_path)
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_tensor(request, tmp_path):
     core = Core()
