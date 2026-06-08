@@ -472,7 +472,7 @@ AttentionBroadcast4::AttentionBroadcast4() {
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
     auto concat_gather =
         opp::wrap_type<ov::op::v0::Concat>({opp::any_input(), opp::any_input(), opp::any_input(), gather});
-    auto reshape_gather = opp::wrap_type<ov::op::v1::Reshape>({concat_gather, opp::any_input()});
+    auto reshape_gather = opp::wrap_type<ov::op::v1::Reshape>({opp::any_input(), concat_gather});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
