@@ -207,6 +207,7 @@ std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestPara
 
 void PagedAttentionTokenTypeTest::SetUp() {
     const auto& [inType, head_size, head_num, sliding_window_size, seq_len, device] = GetParam();
+    ASSERT_LE(seq_len, helpers::MAX_CONTEXT_LEN);
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
     targetDevice = device;
