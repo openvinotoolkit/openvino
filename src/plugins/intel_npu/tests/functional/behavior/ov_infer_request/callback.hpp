@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <future>
+#include <thread>
 
 #include "common/utils.hpp"
 
@@ -12,6 +14,26 @@ namespace ov {
 namespace test {
 namespace behavior {
 using OVInferRequestCallbackTestsNPU = OVInferRequestTestsNPU;
+
+inline bool throws_on_subsequent_start_async(ov::InferRequest& req) {
+    constexpr size_t max_attempts = 20;
+    constexpr auto retry_delay = std::chrono::milliseconds(10);
+
+    for (size_t attempt = 0; attempt < max_attempts; ++attempt) {
+        try {
+            req.start_async();
+            req.wait();
+        } catch (const ov::Exception&) {
+            return true;
+        }
+
+        if (attempt + 1 < max_attempts) {
+            std::this_thread::sleep_for(retry_delay);
+        }
+    }
+
+    return false;
+}
 
 TEST_P(OVInferRequestCallbackTestsNPU, canCallAsyncWithCompletionCallback) {
     ov::InferRequest req;
@@ -74,11 +96,45 @@ TEST_P(OVInferRequestCallbackTestsNPU, canStartSeveralAsyncInsideCompletionCallb
 TEST_P(OVInferRequestCallbackTestsNPU, returnGeneralErrorIfCallbackThrowException) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(req.set_callback([](std::exception_ptr) {
+    std::promise<void> callback_thrown;
+    auto callback_thrown_future = callback_thrown.get_future();
+    std::atomic_bool callback_thrown_signaled{false};
+    OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr) {
+        if (!callback_thrown_signaled.exchange(true, std::memory_order_relaxed)) {
+            callback_thrown.set_value();
+        }
         OPENVINO_THROW("Throw");
     }));
     OV_ASSERT_NO_THROW(req.start_async());
-    ASSERT_THROW(req.wait(), ov::Exception);
+    OV_ASSERT_NO_THROW(req.wait());
+    callback_thrown_future.wait();
+
+    ASSERT_TRUE(throws_on_subsequent_start_async(req));
+}
+
+TEST_P(OVInferRequestCallbackTestsNPU, callbackExceptionIsDeferredAndThrownOnNextStartAsync) {
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+
+    std::atomic<size_t> callback_calls{0};
+    std::promise<void> callback_thrown;
+    auto callback_thrown_future = callback_thrown.get_future();
+    std::atomic_bool callback_thrown_signaled{false};
+    OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr) {
+        callback_calls.fetch_add(1, std::memory_order_relaxed);
+        if (!callback_thrown_signaled.exchange(true, std::memory_order_relaxed)) {
+            callback_thrown.set_value();
+        }
+        OPENVINO_THROW("Throw");
+    }));
+
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    callback_thrown_future.wait();
+    ASSERT_EQ(callback_calls.load(std::memory_order_relaxed), 1);
+
+    ASSERT_TRUE(throws_on_subsequent_start_async(req));
+    ASSERT_GE(callback_calls.load(std::memory_order_relaxed), 1);
 }
 
 TEST_P(OVInferRequestCallbackTestsNPU, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {

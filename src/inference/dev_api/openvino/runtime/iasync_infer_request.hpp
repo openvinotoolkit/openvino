@@ -228,9 +228,15 @@ private:
     template <typename F>
     void infer_impl(const F& f) {
         check_tensors();
+
+        std::exception_ptr deferred_callback_exception = nullptr;
         InferState state = InferState::IDLE;
         {
             std::lock_guard<std::mutex> lock{m_mutex};
+            if (m_pending_callback_exception != nullptr) {
+                deferred_callback_exception = std::move(m_pending_callback_exception);
+                m_pending_callback_exception = nullptr;
+            }
             state = m_state;
             switch (m_state) {
             case InferState::BUSY:
@@ -238,24 +244,31 @@ private:
             case InferState::CANCELLED:
                 ov::Cancelled::create("Infer Request was canceled");
             case InferState::IDLE: {
-                m_futures.erase(std::remove_if(std::begin(m_futures),
-                                               std::end(m_futures),
-                                               [](const std::shared_future<void>& future) {
-                                                   if (future.valid()) {
-                                                       return (std::future_status::ready ==
-                                                               future.wait_for(std::chrono::milliseconds{0}));
-                                                   } else {
-                                                       return true;
-                                                   }
-                                               }),
-                                m_futures.end());
-                m_promise = {};
-                m_futures.emplace_back(m_promise.get_future().share());
+                if (deferred_callback_exception == nullptr) {
+                    m_futures.erase(std::remove_if(std::begin(m_futures),
+                                                   std::end(m_futures),
+                                                   [](const std::shared_future<void>& future) {
+                                                       if (future.valid()) {
+                                                           return (std::future_status::ready ==
+                                                                   future.wait_for(std::chrono::milliseconds{0}));
+                                                       } else {
+                                                           return true;
+                                                       }
+                                                   }),
+                                    m_futures.end());
+                    m_promise = {};
+                    m_futures.emplace_back(m_promise.get_future().share());
+                }
             } break;
             case InferState::STOP:
                 break;
             }
-            m_state = InferState::BUSY;
+            if (deferred_callback_exception == nullptr) {
+                m_state = InferState::BUSY;
+            }
+        }
+        if (deferred_callback_exception != nullptr) {
+            std::rethrow_exception(deferred_callback_exception);
         }
         if (state != InferState::STOP) {
             try {
@@ -277,8 +290,11 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
-    mutable std::mutex m_callback_invoke_mutex;
+    mutable std::recursive_mutex m_callback_invoke_mutex;
     std::function<void(std::exception_ptr)> m_callback;
+    // Exception thrown by user callback is captured and rethrown on the next start_async()/infer() call.
+    // This avoids deadlocks when callbacks re-enter inference on the same request.
+    std::exception_ptr m_pending_callback_exception = nullptr;
 };
 
 }  // namespace ov
