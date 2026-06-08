@@ -157,7 +157,7 @@ void DynamicPipeline::push() {
 
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "DynamicPipeline::push requires IDynamicGraph");
-    _npu_vm_runtime_handle_t* const vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
@@ -294,7 +294,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
 
     const auto* dynamicGraph = dynamic_cast<const intel_npu::IDynamicGraph*>(&graph);
     OPENVINO_ASSERT(dynamicGraph != nullptr, "DynamicPipeline requires IDynamicGraph");
-    _npu_vm_runtime_handle_t* const vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;

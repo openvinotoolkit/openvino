@@ -211,8 +211,7 @@ void DynamicMemRefType::updateMemRefHandleStatus() {
         _shapeUpdated = (_sizes != deviceSizes);
         _strideUpdated = (_strides != deviceStrides);
     }
-    auto result =
-        npuVMRuntimeSetMemRef(_memRef, _basePtr, _data, _offset, _sizes.data(), _strides.data(), _dimsCount);
+    auto result = npuVMRuntimeSetMemRef(_memRef, _basePtr, _data, _offset, _sizes.data(), _strides.data(), _dimsCount);
     if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to update MemRef handle");
     }
@@ -222,13 +221,8 @@ void DynamicMemRefType::alignWithHandle() {
     if (_memRef == nullptr) {
         return;
     }
-    if (npuVMRuntimeParseMemRef(_memRef,
-                                &_basePtr,
-                                &_data,
-                                &_offset,
-                                _sizes.data(),
-                                _strides.data(),
-                                &_dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeParseMemRef(_memRef, &_basePtr, &_data, &_offset, _sizes.data(), _strides.data(), &_dimsCount) !=
+        NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to parse MemRef handle");
     }
 }
