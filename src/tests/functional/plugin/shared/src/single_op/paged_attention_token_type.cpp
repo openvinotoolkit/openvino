@@ -5,18 +5,14 @@
 #include "shared_test_classes/single_op/paged_attention_token_type.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <random>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/utils/paged_cache_manager_helper.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
 
 using namespace ov::op;
 
@@ -25,7 +21,7 @@ namespace test {
 namespace helpers {
 
 static constexpr size_t MAX_CONTEXT_LEN = 1024;
-static constexpr size_t BLOCK_SIZE = 16; //< Default for standard PA on GPU.
+static constexpr size_t BLOCK_SIZE = 16;  //< Default for standard PA on GPU.
 
 static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& pshape,
                                                         element::Type element_type,
