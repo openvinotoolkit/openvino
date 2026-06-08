@@ -10,7 +10,7 @@ namespace cldnn {
 namespace ze {
 
 
-// L0 counter based event.
+// ze counter based event.
 // Signaled state is inferred from the number of tasks completed on device.
 // Resetting counter based event is not allowed.
 // Start in signaled state and signaling from host is not allowed.
