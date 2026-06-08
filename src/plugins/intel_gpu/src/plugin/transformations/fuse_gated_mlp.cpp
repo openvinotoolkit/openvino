@@ -49,20 +49,6 @@ FuseGatedMLP::FuseGatedMLP() {
         auto gate = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(mm_gate).get_node_shared_ptr());
         auto sw = ov::as_type_ptr<ov::op::v4::Swish>(pm.at(swish).get_node_shared_ptr());
         ov::NodeVector new_ops;
-#if 0
-        // DO NOT MERGE Bisect: OV_GPU_GMLP_BISECT=N → fuse layers 0..N-1 only
-        static int64_t gmlp_count = 0;
-        const char* bisect_env = std::getenv("OV_GPU_GMLP_BISECT");
-        if (bisect_env) {
-            int64_t bisect_val = std::atoll(bisect_env);
-            if (gmlp_count >= bisect_val) {
-                gmlp_count++;
-                return false;
-            }
-            std::cerr << "GMLP_BISECT: fusing layer " << gmlp_count << std::endl;
-        }
-        gmlp_count++;
-#endif
         if (!down || !up || !gate || !sw || transformation_callback(down))
             return false;
 

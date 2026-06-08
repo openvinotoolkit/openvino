@@ -166,6 +166,8 @@ static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_f
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
+static constexpr Property<int64_t, ov::PropertyMutability::RW> gated_mlp_bisect{"GPU_GATED_MLP_BISECT"};
+static constexpr Property<bool, ov::PropertyMutability::RW> dynamic_quantize_gated_mlp{"GPU_DYNAMIC_QUANTIZE_GATED_MLP"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_moe_opt{"GPU_DISABLE_MOE_OPT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};

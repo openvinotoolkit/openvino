@@ -1453,6 +1453,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
+            pass_config->set_callback<ov::intel_gpu::FuseGatedMLP>([=](const_node_ptr& root) -> bool {
+                const int64_t gmlp_bisect = GPU_DEBUG_VALUE_OR(config.get_gated_mlp_bisect(), 0);
+                GPU_DEBUG_IF(gmlp_bisect != std::numeric_limits<int64_t>::max()) {
+                    static int64_t gmlp_count = 0;
+                    if (++gmlp_count > gmlp_bisect) {
+                        return true;
+                    }
+                    GPU_DEBUG_TRACE << "GMLP_BISECT: fusing layer " << (gmlp_count - 1)
+                                   << " " << root->get_friendly_name() << std::endl;
+                }
+                return false;
+            });
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
@@ -1703,10 +1715,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     use_gs128_for_linear_attention);
             }
 
-            // Dynamic quantization for GatedMLP - disabled by default until oneDNN supports it.
-            // Enable via OV_GPU_DYNAMIC_QUANTIZE_GATED_MLP=1 environment variable.
-            const char* dq_gmlp_env = std::getenv("OV_GPU_DYNAMIC_QUANTIZE_GATED_MLP");
-            const bool enable_dq_gmlp = dq_gmlp_env && std::string(dq_gmlp_env) == "1";
+            // Dynamic quantization for GatedMLP - disabled by default.
+            const bool enable_dq_gmlp = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantize_gated_mlp(), false);
             if (enable_dq_gmlp && model_allows_group_size) {
                 pass_config->set_callback<ov::intel_gpu::DynamicQuantizeGatedMLP>([=](const_node_ptr& root) -> bool {
                     for (size_t i = 0; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
