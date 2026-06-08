@@ -21,6 +21,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -43,8 +44,11 @@
 namespace ov {
 namespace test {
 
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>
-build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size_t number_of_experts, size_t topk) {
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    size_t number_of_experts,
+    size_t topk,
+    bool use_per_expert_scale) {
     using namespace ov::op;
 
     auto router_softmax = std::make_shared<v8::Softmax>(routing_weights, 1);
@@ -59,6 +63,15 @@ build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size
                                         true);
     auto scatter_w = ov::Output<ov::Node>{std::make_shared<v1::Divide>(router_topk->output(0), reduce_sm)};
     auto topk_idx = router_topk->output(1);
+
+    if (use_per_expert_scale) {
+        const auto elem_type = routing_weights.get_element_type();
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 42);
+        auto per_expert_scale_const = ov::test::utils::make_constant(elem_type, ov::Shape{number_of_experts}, pes_data);
+        auto gather_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        auto gathered_scales = std::make_shared<v8::Gather>(per_expert_scale_const, topk_idx, gather_axis);
+        scatter_w = std::make_shared<v1::Multiply>(scatter_w, gathered_scales);
+    }
 
     auto shapeof = std::make_shared<v3::ShapeOf>(topk_idx);
     auto gather = std::make_shared<v8::Gather>(shapeof,
@@ -239,7 +252,11 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type,
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
-    const std::optional<int> decompression_group_size) {
+    const std::optional<int> decompression_group_size,
+    size_t gate_idx) {
+    OPENVINO_ASSERT(gate_idx == 0 || gate_idx == 1, "gate_idx must be 0 or 1");
+    const int64_t up_start = static_cast<int64_t>(1 - gate_idx);
+    const int64_t gate_start = static_cast<int64_t>(gate_idx);
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -298,34 +315,42 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
 
     gate_up_matmul->set_friendly_name("GateUpMatMul");
 
+    // Zero-centered bias keeps gate_up away from the clamp cliff (default range [1,10] sits at it).
+    auto small_bias_data = ov::test::utils::InputGenerateData(-0.5, 1, 1000);
     auto gate_up_add = std::make_shared<ov::op::v1::Add>(
         gate_up_matmul,
         ov::test::utils::make_constant(data_precision,
-                                       ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor}));
+                                       ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor},
+                                       small_bias_data));
 
-    // Slice the last axis, every second element
+    // slice1 → clamp → up
     auto slice1 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{up_start}),
         ov::op::v0::Constant::create(ov::element::i64,
                                      ov::Shape{1},
                                      std::vector<int64_t>{std::numeric_limits<int64_t>::max()}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
     auto clamp = std::make_shared<ov::op::v0::Clamp>(slice1, -expert_beta, expert_beta);
-    auto add1 = std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(data_precision, ov::Shape{1}));
+    // SwiGLU "+1" on the up path; fused kernel hardcodes UP_ADD_VAL=1.0.
+    auto add1 = std::make_shared<ov::op::v1::Add>(
+        clamp,
+        ov::op::v0::Constant::create(data_precision, ov::Shape{1}, std::vector<float>{1.0f}));
 
+    // slice2 → min → swish → gate
     auto slice2 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{gate_start}),
         ov::op::v0::Constant::create(ov::element::i64,
                                      ov::Shape{1},
                                      std::vector<int64_t>{std::numeric_limits<int64_t>::max()}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
-    auto minimum1 =
-        std::make_shared<ov::op::v1::Minimum>(slice2,
-                                              ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {10.0f}));
+    // Swish upper bound = clamp range; fused kernel reuses CLAMP_MAX.
+    auto minimum1 = std::make_shared<ov::op::v1::Minimum>(
+        slice2,
+        ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {expert_beta}));
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
 
@@ -350,7 +375,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
 
     auto down_proj_add = std::make_shared<ov::op::v1::Add>(
         down_proj_matmul,
-        ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size}));
+        ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size}, small_bias_data));
 
     auto router_weights = build_matmul_weights(ov::Shape{hidden_size, number_of_experts},
                                                weights_precision,
@@ -369,7 +394,7 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
 
     auto router_bias = std::make_shared<ov::op::v1::Add>(
         reshape_2nd_consumer_router_matmul,
-        ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}));
+        ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}, small_bias_data));
 
     auto router_topk_values_and_indices =
         std::make_shared<ov::op::v11::TopK>(router_bias,
@@ -448,7 +473,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
-    MoERoutingType routing_type) {
+    MoERoutingType routing_type,
+    MoEActivationType activation_type,
+    bool use_per_expert_scale,
+    bool use_layernorm_multiply) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -463,6 +491,14 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     // Create input parameter
     auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
     ov::Output<ov::Node> input_data = input;
+
+    // Gemma4 pattern: layernorm Multiply sits between Parameter and Reshape.
+    // The fused MOE's hidden_states input must be the Multiply output, not the Parameter.
+    if (use_layernorm_multiply) {
+        auto ln_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 99);
+        auto ln_scale = ov::test::utils::make_constant(data_precision, ov::Shape{1, 1, hidden_size}, ln_data);
+        input_data = std::make_shared<ov::op::v1::Multiply>(input_data, ln_scale);
+    }
 
     // Expert processing path - use -1 for dynamic reshape like in reference
     auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
@@ -505,8 +541,15 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     gate_matmul->set_friendly_name("GateMatMul");
 
-    // Apply Swish activation directly to gate
-    auto swish = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    // Apply gate activation (Swish for SwiGLU, Tanh-approximated Gelu for GeGLU, ERF Gelu for GeGLU-ERF)
+    std::shared_ptr<ov::Node> gate_act;
+    if (activation_type == MoEActivationType::GELU) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul, ov::op::GeluApproximationMode::TANH);
+    } else if (activation_type == MoEActivationType::GELU_ERF) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul, ov::op::GeluApproximationMode::ERF);
+    } else {
+        gate_act = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    }
 
     // Second GEMM (up_projection)
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
@@ -525,8 +568,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
 
     up_matmul->set_friendly_name("UpMatMul");
 
-    // Join: Multiply (SwiGLU)
-    auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_matmul);
+    // Join: Multiply (SwiGLU or GeGLU)
+    auto swiglu = std::make_shared<ov::op::v1::Multiply>(gate_act, up_matmul);
 
     // Third GEMM (down_projection)
     auto down_weights_moe3 = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
@@ -558,14 +601,23 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
                                                     reshape_on_decompression,
                                                     decompression_group_size);
 
-    auto router_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights_moe3, false, true);
+    // Gemma-4 style: the router uses a separately RMSNorm-scaled hidden state (different node
+    // from the expert path's experts_reshape).
+    ov::Output<ov::Node> router_input = experts_reshape;
+    if (use_per_expert_scale) {
+        auto pes_data = ov::test::utils::InputGenerateData(0.5, 2, 100, 42);
+        auto router_norm_scale = ov::test::utils::make_constant(data_precision, ov::Shape{1, hidden_size}, pes_data);
+        router_input = std::make_shared<ov::op::v1::Multiply>(experts_reshape, router_norm_scale);
+    }
+    auto router_matmul = std::make_shared<ov::op::v0::MatMul>(router_input, router_weights_moe3, false, true);
 
     std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> routing_outputs;
     switch (routing_type) {
     case MoERoutingType::SOFTMAX:
-        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk);
+        routing_outputs = build_softmax_routing_subgraph(router_matmul, number_of_experts, topk, use_per_expert_scale);
         break;
     case MoERoutingType::SIGMOID_BIAS:
+        OPENVINO_ASSERT(!use_per_expert_scale, "Per-expert scale is only supported for SOFTMAX routing");
         routing_outputs = build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
         break;
     default:

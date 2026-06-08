@@ -12,6 +12,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -35,6 +36,7 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
+namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
 namespace v12 = ov::op::v12;
 
@@ -70,8 +72,8 @@ MOE2GEMMPatternNodes build_2gemm_pattern() {
     MOE2GEMMPatternNodes p;
 
     p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
-    p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()});
-    p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()});
+    p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
+    p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(1));
     p.gate_up_matmul = pattern::wrap_type<v0::MatMul>(
         {p.after_tile_reshape, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
@@ -80,28 +82,31 @@ MOE2GEMMPatternNodes build_2gemm_pattern() {
 
     // Branch 1: Slice_1 -> Clamp -> Add_1
     p.slice1 = pattern::wrap_type<v8::Slice>(
-        {p.gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    p.clamp = pattern::wrap_type<v0::Clamp>({p.slice1});
-    p.add1 = pattern::wrap_type<v1::Add>({p.clamp, pattern::wrap_const()});
+        {p.gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        pattern::consumers_count(1));
+    p.clamp = pattern::wrap_type<v0::Clamp>({p.slice1}, pattern::consumers_count(1));
+    p.add1 = pattern::wrap_type<v1::Add>({p.clamp, pattern::wrap_const()}, pattern::consumers_count(1));
 
     // Branch 2: Slice_2 -> Minimum_1 -> Swish
     p.slice2 = pattern::wrap_type<v8::Slice>(
-        {p.gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    p.minimum1 = pattern::wrap_type<v1::Minimum>({p.slice2, pattern::wrap_const()});
+        {p.gate_up_add, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        pattern::consumers_count(1));
+    p.minimum1 = pattern::wrap_type<v1::Minimum>({p.slice2, pattern::wrap_const()}, pattern::consumers_count(1));
     p.swish_beta = pattern::wrap_const();
-    p.swish = pattern::wrap_type<v4::Swish>({p.minimum1, p.swish_beta});
+    p.swish = pattern::wrap_type<v4::Swish>({p.minimum1, p.swish_beta}, pattern::consumers_count(1));
 
     // Join: Multiply_2
-    p.multiply2 = pattern::wrap_type<v1::Multiply>({p.add1, p.swish});
+    p.multiply2 = pattern::wrap_type<v1::Multiply>({p.add1, p.swish}, pattern::consumers_count(1));
 
     // Down projection
     p.down_proj_matmul = pattern::wrap_type<v0::MatMul>(
         {p.multiply2, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.down_proj_bias = pattern::wrap_const();
-    p.down_proj_add = pattern::wrap_type<v1::Add>({p.down_proj_matmul, p.down_proj_bias});
+    p.down_proj_add = pattern::wrap_type<v1::Add>({p.down_proj_matmul, p.down_proj_bias}, pattern::consumers_count(1));
     p.end_reshape_target_shape = pattern::any_input();
-    p.end_reshape = pattern::wrap_type<v1::Reshape>({p.down_proj_add, p.end_reshape_target_shape});
+    p.end_reshape =
+        pattern::wrap_type<v1::Reshape>({p.down_proj_add, p.end_reshape_target_shape}, pattern::consumers_count(1));
 
     // Routing weights/mask
     p.router_topk_indices = pattern::any_input();
@@ -113,8 +118,10 @@ MOE2GEMMPatternNodes build_2gemm_pattern() {
     p.router_reshape = pattern::wrap_type<v1::Reshape>({p.router_transpose, pattern::any_input()});
     p.optional_unsqueeze = pattern::optional<v0::Unsqueeze>({p.router_reshape, pattern::any_input()});
 
-    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze});
-    p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()}, {{"keep_dims", false}});
+    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze}, pattern::consumers_count(1));
+    p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()},
+                                                     pattern::consumers_count(1),
+                                                     {{"keep_dims", false}});
 
     return p;
 }
@@ -132,28 +139,29 @@ struct MOE3GEMMPatternNodes {
 MOE3GEMMPatternNodes build_3gemm_pattern() {
     MOE3GEMMPatternNodes p;
 
-    p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
-    p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()});
-    p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()});
+    p.experts_input = pattern::any_input();
+    p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
+    p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(2));
 
     // First GEMM (activation gate)
     p.gate_matmul = pattern::wrap_type<v0::MatMul>(
         {p.after_tile_reshape, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
-    p.swish = pattern::wrap_type<v4::Swish>({p.gate_matmul});
+    p.swish = pattern::wrap_type<v4::Swish, v7::Gelu>({p.gate_matmul}, pattern::consumers_count(1));
     // Second GEMM (up_projection)
     p.up_matmul = pattern::wrap_type<v0::MatMul>(
         {p.after_tile_reshape, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     // Join: Multiply (SwiGLU)
-    p.swiglu = pattern::wrap_type<v1::Multiply>({p.swish, p.up_matmul});
+    p.swiglu = pattern::wrap_type<v1::Multiply>({p.swish, p.up_matmul}, pattern::consumers_count(1));
 
     // Third GEMM (down_projection)
     p.down_matmul = pattern::wrap_type<v0::MatMul>(
         {p.swiglu, pattern::any_input()},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.end_reshape_target_shape = pattern::any_input();
-    p.end_reshape = pattern::wrap_type<v1::Reshape>({p.down_matmul, p.end_reshape_target_shape});
+    p.end_reshape =
+        pattern::wrap_type<v1::Reshape>({p.down_matmul, p.end_reshape_target_shape}, pattern::consumers_count(1));
 
     // Routing weights/mask
     p.router_topk_indices = pattern::any_input();
@@ -164,8 +172,10 @@ MOE3GEMMPatternNodes build_3gemm_pattern() {
     p.router_reshape = pattern::wrap_type<v1::Reshape>({p.router_transpose, pattern::any_input()});
     p.optional_unsqueeze = pattern::optional<v0::Unsqueeze>({p.router_reshape, pattern::any_input()});
 
-    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze});
-    p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()}, {{"keep_dims", false}});
+    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze}, pattern::consumers_count(1));
+    p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()},
+                                                     pattern::consumers_count(1),
+                                                     {{"keep_dims", false}});
 
     return p;
 }

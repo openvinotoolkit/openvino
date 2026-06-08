@@ -39,7 +39,11 @@ public:
     ACCESSOR_V(double)
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
+            m_attributes_map.insert({name, a->get()});
+        } else {
+            OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        }
     };
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");

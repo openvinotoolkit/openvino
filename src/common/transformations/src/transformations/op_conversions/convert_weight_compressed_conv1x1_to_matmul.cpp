@@ -233,6 +233,23 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             }
         }
 
+        // If the activation has a static leading dimension of 1, squeeze it.
+        // This is done to allow pre-selection of OCL implementations for non-IMMAD devices, reducing memory pressure.
+        bool squeeze_activation = false;
+        auto act_pshape = activation->get_output_partial_shape(0);
+        if (act_pshape.rank().is_static() && act_pshape.rank().get_length() >= 4 && act_pshape[0].is_static() &&
+            act_pshape[0] == 1) {
+            squeeze_activation = true;
+            auto squeeze_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                       ov::Shape{3},
+                                                       std::vector<int64_t>{1, -1, act_pshape[-1].get_length()});
+            auto squeeze = std::make_shared<ov::op::v1::Reshape>(activation, squeeze_const, false);
+            ov::copy_runtime_info(activation, squeeze);
+            squeeze->set_friendly_name(activation->get_friendly_name() + "_squeeze");
+            activation = squeeze;
+        }
+
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
         ov::copy_runtime_info(conv1x1, matmul);
         std::shared_ptr<Node> matmul_out;
@@ -256,6 +273,18 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             ov::copy_runtime_info(bias_out, matmul_out);
         } else {
             matmul_out = matmul;
+        }
+
+        if (squeeze_activation) {
+            auto shape_out = matmul_out->get_output_partial_shape(0);
+            auto unsqueeze_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                       ov::Shape{4},
+                                                       std::vector<int64_t>{1, 1, -1, shape_out[-1].get_length()});
+            auto unsqueeze = std::make_shared<ov::op::v1::Reshape>(matmul_out, unsqueeze_const, false);
+            ov::copy_runtime_info(matmul_out, unsqueeze);
+            unsqueeze->set_friendly_name(matmul_out->get_friendly_name() + "_unsqueeze");
+            matmul_out = unsqueeze;
         }
 
         if (reshape_out) {

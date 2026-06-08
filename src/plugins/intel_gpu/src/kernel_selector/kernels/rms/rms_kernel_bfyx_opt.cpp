@@ -54,12 +54,20 @@ DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Param
 JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    bool has_dynamic_padding = false;
-    for (const auto& dim : params.inputs[0].GetDims())
-        has_dynamic_padding |= dim.pad.is_dynamic;
+    // Check for any padding (dynamic or static) on input dimensions.
+    // The flat addressing path (data_idx * data_size) assumes contiguous memory,
+    // which breaks when padding introduces gaps between slices (e.g., from in-place crop).
+    // Switch to per-dimension indexed addressing via get_input_index() in that case.
+    bool has_padding = false;
+    for (const auto& dim : params.inputs[0].GetDims()) {
+        if (dim.pad.is_dynamic || dim.pad.before != 0 || dim.pad.after != 0) {
+            has_padding = true;
+            break;
+        }
+    }
 
-    if (has_dynamic_padding)
-        jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_PADDING", 1));
+    if (has_padding)
+        jit.AddConstant(MakeJitConstant("HAS_PADDING", 1));
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];

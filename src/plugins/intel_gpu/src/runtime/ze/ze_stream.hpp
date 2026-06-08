@@ -17,6 +17,7 @@ namespace ze {
 class ze_stream : public stream {
 public:
     ze_command_list_handle_t get_queue() const { return m_command_list; }
+    const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(ze_stream&& other)
@@ -50,6 +51,7 @@ public:
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
+    ze_context_handle_t get_context() const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;

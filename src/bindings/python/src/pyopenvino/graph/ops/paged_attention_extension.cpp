@@ -18,4 +18,5 @@ void regclass_graph_op_PagedAttentionExtension(py::module m) {
     cls.doc() = "Experimental extention for PagedAttention operation. Use with care: no backward compatibility is "
                 "guaranteed in future releases.";
     cls.def(py::init<const ov::OutputVector&>());
+    cls.def("get_write_kv_cache", &PagedAttentionExtension::get_write_kv_cache);
 }

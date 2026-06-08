@@ -44,6 +44,7 @@ const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 const char* MICROSOFT_DOMAIN = "com.microsoft";
 const char* PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 const char* MMDEPLOY_DOMAIN = "mmdeploy";
+const char* AIONNX_ML_DOMAIN = "ai.onnx.ml";
 
 // Central storage of supported translators for operations
 typedef std::unordered_map<std::string, DomainOpset> SupportedOps;
@@ -264,6 +265,9 @@ OperatorsBridge::OperatorsBridge() {
     // custom ops
 }
 
+const std::vector<std::string> get_supported_ops_via_tokenizers() {
+    return {"StringNormalizer", "LabelEncoder", "Tokenizer", "TfIdfVectorizer"};
+}
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
 }  // namespace onnx

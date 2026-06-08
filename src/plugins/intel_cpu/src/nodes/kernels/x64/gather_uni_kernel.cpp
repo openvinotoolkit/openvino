@@ -81,8 +81,14 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
         permMask8bitUni = permMask8bitA5;
         permMask16bitUni = permMask16bitA5;
     }
-    dstStep = is_real16_to_f32 ? 2 * vlen : vlen;
     if (is_real16_to_f32) {
+        dstStep = 2 * vlen;
+    } else if (is_f32_to_bf16) {
+        dstStep = vlen / 2;
+    } else {
+        dstStep = vlen;
+    }
+    if (is_real16_to_f32 || is_f32_to_bf16) {
         convert_emitter =
             std::make_unique<jit_convert_saturation_emitter>(this, isa, jcp.in_prec, jcp.out_prec, ov::element::f32);
     }
@@ -814,6 +820,19 @@ void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
             uni_vmovups(ptr[reg_dst + vlen], ymmTemp);
             uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
         }
+    } else if (is_f32_to_bf16) {
+        if (isa == x64::avx512_core) {
+            Xbyak::Zmm zmmTmp(31);
+            Xbyak::Ymm ymmTmp(31);
+            convert_emitter->emit_code({static_cast<size_t>(vmmSrc.getIdx())}, {static_cast<size_t>(zmmTmp.getIdx())});
+            vmovdqu16(ptr[reg_dst], ymmTmp);
+        } else {
+            Xbyak::Ymm ymmTmp(vmmZeros.getIdx());
+            Xbyak::Xmm xmmTmp(vmmZeros.getIdx());
+            convert_emitter->emit_code({static_cast<size_t>(vmmSrc.getIdx())}, {static_cast<size_t>(ymmTmp.getIdx())});
+            uni_vmovdqu(ptr[reg_dst], xmmTmp);
+            uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
+        }
     } else {
         uni_vmovups(ptr[reg_dst], vmmSrc);
     }
@@ -1066,7 +1085,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
 
         uni_vmovups(vAux0, vmmZeros);
         uniVpGatherDd(vAux0, ptr[regSrc + vSrcShift], kGatherMask);
-        if (jcp.dataTypeSize == 4) {
+        if (jcp.dataTypeSize == 4 && !is_f32_to_bf16) {
             uni_vmovups_tail(ptr[regDst], kAuxMask1, vAux0);
             sub(regWorkAmount, dataElPerVec);
         } else {
@@ -1132,41 +1151,58 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
     Xbyak::Label lEnd;
     Xbyak::Xmm xAux(vAux.getIdx());
     for (size_t j = 0; j < vlen / vlenXmm; j++) {
+        if (is_f32_to_bf16) {
+            Vmm vAuxFull(vAux.getIdx());
+            uni_vpxor(vAuxFull, vAuxFull, vAuxFull);
+        }
         if (isa == x64::avx2) {
             vextracti128(xAux, vmmSrc, j);
         } else if (isa == x64::avx512_core) {
             vextracti64x2(xAux, vmmSrc, j);
         }
 
-        for (int k = 0; k < 4; k++) {
-            cmp(rToStoreCounter, 0);
-            jle(lEnd, T_NEAR);
+        if (is_f32_to_bf16) {
+            convert_emitter->emit_code({static_cast<size_t>(xAux.getIdx())}, {static_cast<size_t>(xmmTemp.getIdx())});
+            for (int k = 0; k < 4; k++) {
+                cmp(rToStoreCounter, 0);
+                jle(lEnd, T_NEAR);
 
-            if (jcp.dataTypeSize == 4) {
-                uni_vpextrd(ptr[rDst], xAux, k);
-            } else if (jcp.dataTypeSize == 2) {
-                if (jcp.in_prec == jcp.out_prec) {
-                    uni_vpextrw(ptr[rDst], xAux, k * 2);
-                } else if (jcp.out_prec == element::f32) {
-                    // xAux should not changed
-                    convert_emitter->emit_code({static_cast<size_t>(xAux.getIdx())},
-                                               {static_cast<size_t>(ymmTemp.getIdx())});
-                    if (k < 2) {
-                        uni_vpextrd(ptr[rDst], xmmTemp, k * 2);
-                    } else {
-                        vperm2f128(ymmTemp, ymmTemp, ymmTemp, 0x1);
-                        uni_vpextrd(ptr[rDst], xmmTemp, k * 2 - 4);
-                    }
-                }
-            } else if (jcp.dataTypeSize == 1) {
-                uni_vpextrb(ptr[rDst], xAux, k * 4);
+                uni_vpextrw(ptr[rDst], xmmTemp, k);
+
+                add(rDst, jcp.out_prec.size());
+                sub(rToStoreCounter, 1);
             }
+        } else {
+            for (int k = 0; k < 4; k++) {
+                cmp(rToStoreCounter, 0);
+                jle(lEnd, T_NEAR);
 
-            add(rDst, jcp.out_prec.size());
-            sub(rToStoreCounter, 1);
+                if (jcp.dataTypeSize == 4) {
+                    uni_vpextrd(ptr[rDst], xAux, k);
+                } else if (jcp.dataTypeSize == 2) {
+                    if (jcp.in_prec == jcp.out_prec) {
+                        uni_vpextrw(ptr[rDst], xAux, k * 2);
+                    } else if (jcp.out_prec == element::f32) {
+                        // xAux should not changed
+                        convert_emitter->emit_code({static_cast<size_t>(xAux.getIdx())},
+                                                   {static_cast<size_t>(ymmTemp.getIdx())});
+                        if (k < 2) {
+                            uni_vpextrd(ptr[rDst], xmmTemp, k * 2);
+                        } else {
+                            vperm2f128(ymmTemp, ymmTemp, ymmTemp, 0x1);
+                            uni_vpextrd(ptr[rDst], xmmTemp, k * 2 - 4);
+                        }
+                    }
+                } else if (jcp.dataTypeSize == 1) {
+                    uni_vpextrb(ptr[rDst], xAux, k * 4);
+                }
+
+                add(rDst, jcp.out_prec.size());
+                sub(rToStoreCounter, 1);
+            }
         }
     }
-    if (is_real16_to_f32) {
+    if (is_real16_to_f32 || is_f32_to_bf16) {
         uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
     }
 

@@ -8,16 +8,24 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include "attention.hpp"
+#include "host_flash_attention.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/runtime/file_handle.hpp"
+#include "orc.hpp"
+#include "pyramid_attention.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -36,7 +44,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.21";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.24";
 
 // Forward declaration
 namespace intel_npu {
@@ -87,8 +95,12 @@ struct MoEDownstream;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
+class Bank;
 }  // namespace weights
 
+// --------------------------------------------------------------------------
+// s11n: context types, helper aliases, and utilities
+// --------------------------------------------------------------------------
 namespace s11n {
 
 class PairHash {
@@ -129,10 +141,11 @@ struct WeightsContext {
 
     WeightsContext() = default;
 
-    // NOTE: This construtor should only be used when exporting blobs
+    // NOTE: This constructor should only be used when exporting blobs.
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    // NOTE: This construtor can and should only be used when importing weightless blobs
+    // NOTE: This constructor is used on blob import to carry the resolved weight source
+    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
@@ -168,217 +181,116 @@ struct SubmodelDeserializeCtx {
           compiled_model(_compiled_model),
           import_config(_import_config) {}
 
+    SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
+                           const ov::SoPtr<ov::ICompiledModel>& _compiled_model,
+                           std::function<std::string(std::size_t)> _device_by_index,
+                           std::function<std::map<std::string, Any>(const std::string&)> _import_config_for_device)
+        : plugin(_plugin),
+          compiled_model(_compiled_model),
+          device_by_index(std::move(_device_by_index)),
+          import_config_for_device(std::move(_import_config_for_device)) {}
+
     std::shared_ptr<const ov::IPlugin> plugin;
     std::string device;
     const ov::SoPtr<ov::ICompiledModel>& compiled_model;
     std::map<std::string, Any> import_config;
+    std::function<std::string(std::size_t)> device_by_index;
+    std::function<std::map<std::string, Any>(const std::string&)> import_config_for_device;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
-// Specific type overloads
-void write(std::ostream& stream, const std::streampos& var);
-void write(std::ostream& stream, const std::string& var);
-void write(std::ostream& stream, const bool& var);
-void write(std::ostream& stream, const float& var);
-void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
-void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
-void write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var);
-void write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var);
-void write(std::ostream& stream, const ov::npuw::compiled::MoEExperts& var);
-void write(std::ostream& stream, const ov::npuw::compiled::MoEDownstream& var);
-void write(std::ostream& stream, const ov::Tensor& var);
-void write(std::ostream& stream, const ::intel_npu::Config& var);
-void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
-void write_any(std::ostream& stream, const ov::Any& var);
-void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
-void write(std::ostream& stream, const ov::CacheMode& var);
-void write(std::ostream& stream, const ov::element::Type& var);
-void write(std::ostream& stream, const std::map<std::string, Any>& var);
-void write(std::ostream& stream, const ov::hint::PerformanceMode& var);
+// The NPUW stream type IS the ORC stream.
+using Stream = ::ov::npuw::orc::Stream;
 
-void read(std::istream& stream, std::streampos& var);
-void read(std::istream& stream, std::string& var);
-void read(std::istream& stream, bool& var);
-void read(std::istream& stream, float& var);
-void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
-void read(std::istream& stream, ov::npuw::compiled::Attention& var);
-void read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var);
-void read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var);
-void read(std::istream& stream, ov::npuw::compiled::MoEExperts& var);
-void read(std::istream& stream, ov::npuw::compiled::MoEDownstream& var);
-void read(std::istream& stream, ov::Tensor& var);
-void read(std::istream& stream, ::intel_npu::Config& var);
-void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
-void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
-void read_any(std::istream& stream, ov::Any& var);
-void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
-void read(std::istream& stream, ov::CacheMode& var);
-void read(std::istream& stream, ov::element::Type& var);
-void read(std::istream& stream, std::map<std::string, Any>& var);
-void read(std::istream& stream, ov::hint::PerformanceMode& var);
+// Bring all orc serialize overloads into s11n namespace so that
+// qualified ov::npuw::s11n::serialize(...) call sites continue to work.
+using ::ov::npuw::orc::serialize;
 
-// Weightless utils
-void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);
-// No allocation needed
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx);
+using TensorAllocator = std::function<ov::Tensor(const ov::element::Type&, const ov::Shape&)>;
 
-// Forward declaration
-template <typename T1, typename T2>
-void write(std::ostream& stream, const std::pair<T1, T2>& var);
 template <typename T>
-void write(std::ostream& stream, const std::vector<T>& var);
-template <typename T, size_t N>
-void write(std::ostream& stream, const std::array<T, N>& var);
-template <typename T1, typename T2>
-void read(std::istream& stream, std::pair<T1, T2>& var);
-template <typename T>
-void read(std::istream& stream, std::vector<T>& var);
-template <typename T, std::size_t N>
-void read(std::istream& stream, std::array<T, N>& var);
-
-// Serialization
-template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 void write(std::ostream& stream, const T& var) {
-    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
-}
-
-template <typename T1, typename T2>
-void write(std::ostream& stream, const std::pair<T1, T2>& var) {
-    write(stream, var.first);
-    write(stream, var.second);
+    auto stream_io = Stream::writer(stream);
+    auto& mutable_var = const_cast<std::remove_const_t<T>&>(var);
+    stream_io & mutable_var;
 }
 
 template <typename T>
-void write(std::ostream& stream, const std::vector<T>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename T, size_t N>
-void write(std::ostream& stream, const std::array<T, N>& var) {
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename T>
-void write(std::ostream& stream, const std::unordered_set<T>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename T, typename H>
-void write(std::ostream& stream, const std::unordered_set<T, H>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename K, typename V>
-void write(std::ostream& stream, const std::map<K, V>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename T>
-void write(std::ostream& stream, const std::optional<T>& var) {
-    if (var) {
-        write(stream, true);
-        write(stream, var.value());
-    } else {
-        write(stream, false);
-    }
-}
-
-// Deserialization
-template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 void read(std::istream& stream, T& var) {
-    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+    auto stream_io = Stream::reader(stream);
+    stream_io & var;
 }
 
-template <typename T1, typename T2>
-void read(std::istream& stream, std::pair<T1, T2>& var) {
-    read(stream, var.first);
-    read(stream, var.second);
+inline void write_any(std::ostream& stream, const ov::Any& var) {
+    write(stream, var);
 }
 
-template <typename T>
-void read(std::istream& stream, std::vector<T>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    var.reserve(var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        T elem;
-        read(stream, elem);
-        var.push_back(std::move(elem));
-    }
-}
-
-template <typename T, std::size_t N>
-void read(std::istream& stream, std::array<T, N>& var) {
-    for (std::size_t i = 0; i < N; ++i) {
-        T elem;
-        read(stream, elem);
-        var[i] = elem;
-    }
-}
-
-template <typename T>
-void read(std::istream& stream, std::unordered_set<T>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        T elem;
-        read(stream, elem);
-        var.insert(std::move(elem));
-    }
-}
-
-template <typename T, typename H>
-void read(std::istream& stream, std::unordered_set<T, H>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        T elem;
-        read(stream, elem);
-        var.insert(std::move(elem));
-    }
-}
-
-template <typename K, typename V>
-void read(std::istream& stream, std::map<K, V>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        std::pair<K, V> elem;
-        read(stream, elem);
-        var[elem.first] = elem.second;
-    }
-}
-
-template <typename T>
-void read(std::istream& stream, std::optional<T>& var) {
-    bool has_value = false;
-    read(stream, has_value);
-    if (has_value) {
-        T val;
-        read(stream, val);
-        var = val;
-    }
+inline void read_any(std::istream& stream, ov::Any& var) {
+    read(stream, var);
 }
 
 }  // namespace s11n
+
+// --------------------------------------------------------------------------
+// NPUW-specific orc serializers (in orc namespace for ADL from orc::Stream)
+// --------------------------------------------------------------------------
+namespace orc {
+
+// Raw stream position — used by the compiled model blob header.
+void serialize(Stream& stream, std::streampos& var);
+
+// NPUW compiled structures
+void serialize(Stream& stream, ov::npuw::compiled::Spatial& var);
+void serialize(Stream& stream, ov::npuw::compiled::Spatial::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::Attention& var);
+void serialize(Stream& stream, ov::npuw::compiled::Attention::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var);
+void serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var);
+void serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var);
+
+// OpenVINO runtime types
+void serialize(Stream& stream, ov::Tensor& var);
+void serialize(Stream& stream, ov::CacheMode& var);
+void serialize(Stream& stream, ov::element::Type& var);
+void serialize(Stream& stream, ov::hint::PerformanceMode& var);
+void serialize(Stream& stream, ov::Any& var);
+void serialize(Stream& stream, ov::AnyMap& var);
+void serialize(Stream& stream, ov::Output<const ov::Node>& var);
+void serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
+void serialize(Stream& stream, std::shared_ptr<ov::Node>& var);
+
+// NPU plugin configuration
+void serialize(Stream& stream, ::intel_npu::Config& var);
+
+// NPUW weight types
+void serialize(Stream& stream, ov::npuw::weights::LazyTensor& var);
+void serialize(Stream& stream, ov::npuw::weights::Bank& var);
+
+// Weightless tensor utilities
+void serialize_weightless(Stream& stream, std::vector<ov::Tensor>& var, const s11n::WeightsContext& ctx);
+void transfer_tensor(Stream& stream, ov::Tensor& var, const s11n::TensorAllocator& allocator = {});
+
+}  // namespace orc
+
+// Reopen s11n for weightless helpers that need the orc declarations above.
+namespace s11n {
+
+inline void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx) {
+    auto stream_io = Stream::writer(stream);
+    auto& mutable_var = const_cast<std::vector<ov::Tensor>&>(var);
+    orc::serialize_weightless(stream_io, mutable_var, ctx);
+}
+
+inline void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx) {
+    auto stream_io = Stream::reader(stream);
+    orc::serialize_weightless(stream_io, var, ctx);
+}
+
+}  // namespace s11n
+
 }  // namespace npuw
 }  // namespace ov
