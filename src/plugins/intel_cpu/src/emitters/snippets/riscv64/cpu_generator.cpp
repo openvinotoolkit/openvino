@@ -98,6 +98,8 @@
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
@@ -284,7 +286,15 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::LoadReorder::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
         emitter_factory.from_expr<jit_load_broadcast_emitter>();
+    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_memory_emitter>();
+    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_store_memory_emitter>();
     jitters[snippets::op::Fill::get_type_info_static()] = emitter_factory.from_expr<jit_fill_emitter>();
 
     // reductions
