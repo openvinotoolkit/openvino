@@ -66,9 +66,22 @@ void DynamicMemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov:
     for (int64_t j = 0; j < _dimsCount; j++) {
         _sizes[j] = static_cast<int64_t>(shape[j]);
     }
+
     auto& strides = tensor->get_strides();
+    if (_dimsCount != static_cast<int64_t>(strides.size())) {
+        OPENVINO_THROW("Stride count mismatch. Current dimension count: ",
+                       _dimsCount,
+                       ", stride count: ",
+                       strides.size());
+    }
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     for (int64_t j = 0; j < _dimsCount; j++) {
+        OPENVINO_ASSERT(strides[j] % elementSize == 0,
+                        "Stride ",
+                        strides[j],
+                        " bytes is not aligned to element size ",
+                        elementSize,
+                        " bytes. Strides must be multiples of element size.");
         _strides[j] = static_cast<int64_t>(strides[j] / elementSize);
     }
 }
@@ -133,6 +146,11 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
             OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
                            slot._dimsCount,
                            ", new dimension count: ",
+                           sizes.size());
+        } else if (strides.size() != static_cast<size_t>(sizes.size())) {
+            OPENVINO_THROW("Stride count mismatch. Current stride count: ",
+                           strides.size(),
+                           ", new stride count: ",
                            sizes.size());
         }
         for (int64_t i = 0; i < slot._dimsCount; i++) {

@@ -4,6 +4,7 @@
 
 #include "dynamic_graph.hpp"
 
+#include <array>
 #include <iostream>
 #include <iterator>
 
@@ -126,8 +127,7 @@ void DynamicGraph::prepare_metadata() {
         // TODO: follow graph ext to support Optional metadata for weightless model
         ze_graph_argument_properties_3_t arg;
         ze_graph_argument_metadata_t meta;
-        std::vector<int64_t> upperBound;
-        upperBound.reserve(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+        std::array<int64_t, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE> upperBound = {};
         if (npuVMRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to get VM runtime metadata");
         }
