@@ -91,7 +91,8 @@ struct jitGatherKernelBase {
           dataElPerVec(vlen / jcp.dataTypeSize),
           idxElPerVec(vlen / indicesTypeSize),
           is_real16_to_f32((jcp.in_prec == element::f16 || jcp.in_prec == element::bf16) &&
-                           jcp.out_prec == element::f32) {}
+                           jcp.out_prec == element::f32),
+          is_f32_to_bf16(jcp.in_prec == element::f32 && jcp.out_prec == element::bf16) {}
     virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
@@ -122,6 +123,7 @@ protected:
     int shortPermIdx[16]{};
     int shortBeforeAxisDiff[16]{};
     const bool is_real16_to_f32 = false;
+    const bool is_f32_to_bf16 = false;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>

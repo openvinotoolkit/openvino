@@ -645,32 +645,30 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
         return "ov::streams::Num";
     }
 
-    // The only supported number for currently supported platforms.
-    // FIXME: update in the future
     static ov::streams::Num defaultValue() {
-        return ov::streams::Num(1);
+        return ov::streams::AUTO;
     }
 
     static ov::streams::Num parse(std::string_view val) {
         std::istringstream stringStream = std::istringstream(std::string(val));
         ov::streams::Num numberOfStreams;
-
         stringStream >> numberOfStreams;
 
         return numberOfStreams;
     }
 
-    static std::string itoString(const ov::streams::Num& val) {
+    static std::string toString(const ov::streams::Num& val) {
         std::ostringstream stringStream;
-
         stringStream << val;
 
         return stringStream.str();
     }
 
     static void validateValue(const ov::streams::Num& num) {
-        if (defaultValue() != num && ov::streams::AUTO != num) {
-            OPENVINO_THROW("NUM_STREAMS can not be set");
+        if (num != ov::streams::AUTO && num < 0) {
+            OPENVINO_THROW("NUM_STREAMS cannot be set to this value: ",
+                           num,
+                           ". Supported values are non-negative integers (including 0) or ov::streams::AUTO");
         }
     }
 
@@ -683,7 +681,7 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     }
 
     static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
+        return ov::PropertyMutability::RW;
     }
 };
 
