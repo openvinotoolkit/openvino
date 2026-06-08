@@ -70,15 +70,15 @@ safe-outputs:
           required: false
           type: string
         db_entries:
-          description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/cache-memory/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
+          description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
           required: true
           type: string
         occurrence_count:
-          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/cache-memory/mq/. Must be >= 1. Report as a positive integer encoded as a string."
+          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
           required: true
           type: string
         statistics:
-          description: "Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/cache-memory/mq/investigations/ and /tmp/gh-aw/cache-memory/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML)."
+          description: "Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/repo-memory/default/mq/investigations/ and /tmp/gh-aw/repo-memory/default/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML)."
           required: true
           type: string
         statistics_json:
@@ -306,8 +306,11 @@ safe-outputs:
 tools:
   github:
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
-  cache-memory: 
-    retention-days: 90
+  repo-memory:
+    branch-name: memory/ci-doctor-mq
+    allowed-extensions: [".json"]
+    max-file-size: 102400
+    max-file-count: 500
 
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
@@ -316,14 +319,14 @@ post-steps:
     with:
       name: ci-doctor-mq-investigations
       path: |
-        /tmp/gh-aw/cache-memory/mq/investigations
-        /tmp/gh-aw/cache-memory/mq/patterns
+        /tmp/gh-aw/repo-memory/default/mq/investigations
+        /tmp/gh-aw/repo-memory/default/mq/patterns
       if-no-files-found: ignore
       retention-days: 90
 
 timeout-minutes: 20
 
-source: githubnext/agentics/workflows/ci-doctor.md@0aa94a6e40aeaf131118476bc6a07e55c4ceb147
+# source: githubnext/agentics/workflows/ci-doctor.md@497230d3867fe453aae74b15d06178d45a39fcce
 ---
 
 # CI Failure Doctor — Merge Queue
@@ -379,7 +382,7 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 ### Phase 3: Historical Context Analysis
 
 1. **Search Investigation History**: Use file-based storage to search for similar failures:
-   - Read from cached investigation files in `/tmp/gh-aw/cache-memory/mq/investigations/` (this is the directory mounted by `tools.cache-memory: true` and persisted across runs via the GitHub Actions cache; do NOT use `/tmp/memory/`, which is not persistent)
+   - Read from investigation files in `/tmp/gh-aw/repo-memory/default/mq/investigations/` (this is the directory mounted by `tools.repo-memory` and persisted indefinitely via a dedicated Git branch `memory/ci-doctor-mq`; files written elsewhere are not persisted across runs)
    - Parse previous failure patterns and solutions
    - Look for recurring error signatures
 2. **Issue History**: Search existing issues for related problems
@@ -443,18 +446,18 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
 
 ### Phase 5: Pattern Storage and Knowledge Building
 
-1. **Store Investigation**: Save structured investigation data to files in the persistent cache-memory directory:
-   - **Persistent path**: `/tmp/gh-aw/cache-memory/` is the only directory mounted from the GitHub Actions cache by `tools.cache-memory: true`. Files written here survive across runs. Files written to `/tmp/memory/` (or anywhere else) are **not** persisted and will be lost.
-   - **MQ-specific subdirectory**: This workflow uses `/tmp/gh-aw/cache-memory/mq/` to keep merge-queue investigations isolated from the main CI Doctor's data.
-   - Create the subdirectory if needed: `mkdir -p /tmp/gh-aw/cache-memory/mq/investigations /tmp/gh-aw/cache-memory/mq/patterns`.
-   - Write the investigation report to `/tmp/gh-aw/cache-memory/mq/investigations/<timestamp>-<run-id>.json`
+1. **Store Investigation**: Save structured investigation data to files in the persistent repo-memory directory:
+   - **Persistent path**: `/tmp/gh-aw/repo-memory/default/` is the directory mounted by `tools.repo-memory` and persisted indefinitely via a dedicated Git branch (`memory/ci-doctor-mq`). Files written here survive across runs permanently. Files written elsewhere are **not** persisted and will be lost.
+   - **MQ-specific subdirectory**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` to keep merge-queue investigations isolated from any other workflows using repo-memory.
+   - Create the subdirectory if needed: `mkdir -p /tmp/gh-aw/repo-memory/default/mq/investigations /tmp/gh-aw/repo-memory/default/mq/patterns`.
+   - Write the investigation report to `/tmp/gh-aw/repo-memory/default/mq/investigations/<timestamp>-<run-id>.json`
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
-     - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not allowed in artifact filenames
-   - Store error patterns in `/tmp/gh-aw/cache-memory/mq/patterns/`
+     - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
+   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/`
    - Maintain an index file of all investigations for fast searching
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
-   Each failure signature gets exactly one JSON file at `/tmp/gh-aw/cache-memory/mq/patterns/<signature-hash>.json`.
+   Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
 
    **Schema:**
 
@@ -483,7 +486,7 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    Concatenate these three strings with `|` separator, then compute a hash (e.g., first 16 chars of SHA-256). Two reruns of the same failure MUST produce the same hash.
 
    **Step B — Read existing file:**
-   Attempt to read `/tmp/gh-aw/cache-memory/mq/patterns/<signature-hash>.json`.
+   Attempt to read `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
    - If the file exists, parse it as JSON into a variable called `existing`.
    - If the file does NOT exist, set `existing = null`.
 
@@ -520,7 +523,7 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    ~~~
 
    **Step D — Write the file:**
-   Write `record` as JSON to `/tmp/gh-aw/cache-memory/mq/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.
+   Write `record` as JSON to `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.
 
    **Step E — MANDATORY verification (read-back check):**
    Immediately after writing, read the file back and verify:
@@ -538,7 +541,7 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    - Setting `first_seen` to NOW when the file already existed
    - Forgetting to include the current timestamp in `recent_timestamps`
 
-3. **Build Statistics Snapshot**: After step 2, aggregate all `.json` files under `/tmp/gh-aw/cache-memory/mq/patterns/` into the statistics fields for `notify_teams`. For each file:
+3. **Build Statistics Snapshot**: After step 2, aggregate all `.json` files under `/tmp/gh-aw/repo-memory/default/mq/patterns/` into the statistics fields for `notify_teams`. For each file:
    - Read and parse the JSON
    - Use the `count`, `first_seen`, `last_seen`, `title`, `category` values AS-IS from the file (do NOT recompute them)
    - The current failure's pattern MUST report `count == notify_teams.occurrence_count`
@@ -556,7 +559,7 @@ After updating the pattern database (Phase 5 step 2), check whether the current 
 **Recurrence detection procedure (follow EXACTLY):**
 
 ~~~pseudocode
-1. FILE_PATH = /tmp/gh-aw/cache-memory/mq/patterns/<signature-hash>.json
+1. FILE_PATH = /tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json
 2. Read FILE_PATH → parse as JSON into `pattern`
 3. NOW = current UTC time
 4. CUTOFF = NOW - 12 hours
@@ -624,9 +627,9 @@ Provide all required fields and include the optional PR-related fields whenever 
 
 - **`author`** (optional) — GitHub login of the PR author or commit author when known. Omit if it cannot be determined from the workflow run / PR metadata.
 
-- **`db_entries`** (required) — Current total number of unique entries in the CI Doctor MQ investigation database. Compute it during Phase 5 by counting distinct files under `/tmp/gh-aw/cache-memory/mq/investigations/` (including the one this run just wrote) and pass the resulting non-negative integer as a string (e.g., `"42"`). If the directory does not yet exist, report `"0"` (or `"1"` if you just created the first entry). Note: counting files under `/tmp/memory/investigations/` or `/tmp/gh-aw/cache-memory/investigations/` will give a wrong result — those paths belong to the main CI Doctor, not the MQ variant.
+- **`db_entries`** (required) — Current total number of unique entries in the CI Doctor MQ investigation database. Compute it during Phase 5 by counting distinct files under `/tmp/gh-aw/repo-memory/default/mq/investigations/` (including the one this run just wrote) and pass the resulting non-negative integer as a string (e.g., `"42"`). If the directory does not yet exist, report `"0"` (or `"1"` if you just created the first entry). Note: counting files under any path other than `/tmp/gh-aw/repo-memory/default/mq/investigations/` will give a wrong result.
 
-- **`occurrence_count`** (required) — How many times **this same issue** has been recorded in the CI Doctor MQ database, including the current investigation. This value MUST be read directly from the `count` field of the pattern file at `/tmp/gh-aw/cache-memory/mq/patterns/<signature-hash>.json` AFTER you have completed the Phase 5 step 2 write and verification. Do NOT compute this independently — read it from the file. Pass as a positive integer encoded as a string (e.g., `"1"`, `"4"`).
+- **`occurrence_count`** (required) — How many times **this same issue** has been recorded in the CI Doctor MQ database, including the current investigation. This value MUST be read directly from the `count` field of the pattern file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json` AFTER you have completed the Phase 5 step 2 write and verification. Do NOT compute this independently — read it from the file. Pass as a positive integer encoded as a string (e.g., `"1"`, `"4"`).
 
 - **`statistics`** (required) — Markdown snapshot of the pattern database, rendered inline in the Teams card. Build it from the per-pattern files maintained in Phase 5. Show the top **20** patterns sorted by reproduction count descending (ties broken by most recent `last_seen`). Use a Markdown table with columns: `Pattern`, `Category`, `Count`, `First seen (UTC)`, `Last seen (UTC)`. Highlight the current failure's row with a leading `▶` marker in the `Pattern` column. Apply the same Teams rendering rules as `description` (no raw HTML, use tilde fences if you need code blocks). Keep total length under ~3 KB so the Adaptive Card renders cleanly. Example:
 
@@ -639,7 +642,7 @@ Provide all required fields and include the optional PR-related fields whenever 
 
 - **`statistics_json`** (required) — Full pattern database serialized as a compact JSON string (single line, no surrounding code fence). Must include **every** pattern currently tracked, not just the top 20. Schema is documented on the input field. This payload is uploaded as the `ci-doctor-mq-statistics` workflow artifact (alongside the rendered Markdown) and is intended for offline analysis or dashboarding. Keep `recent_run_urls` capped at 10 entries per pattern.
 
-  **Count consistency (mandatory):** the `count` value for every pattern in `statistics_json` (and in the rendered `statistics` table) MUST be the persisted `count` read from the corresponding `/tmp/gh-aw/cache-memory/mq/patterns/<signature-hash>.json` file *after* Phase 5 step 2 has updated it. In particular, the current failure's pattern MUST report `count == occurrence_count`. Do NOT emit `count: 1` for every pattern — that is a symptom of either (a) overwriting the persisted record instead of read-modify-write, or (b) generating a fresh signature hash on each run. Validate this invariant before calling `notify_teams`; if it fails, fix the persistence step rather than the reported numbers.
+  **Count consistency (mandatory):** the `count` value for every pattern in `statistics_json` (and in the rendered `statistics` table) MUST be the persisted `count` read from the corresponding `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json` file *after* Phase 5 step 2 has updated it. In particular, the current failure's pattern MUST report `count == occurrence_count`. Do NOT emit `count: 1` for every pattern — that is a symptom of either (a) overwriting the persisted record instead of read-modify-write, or (b) generating a fresh signature hash on each run. Validate this invariant before calling `notify_teams`; if it fails, fix the persistence step rather than the reported numbers.
 
 - **`description`** (required) — Thorough Markdown body. Microsoft Teams Adaptive Cards render only a **limited subset of Markdown** — specifically: headings (`#`/`##`/`###`), bold/italic, inline code, fenced code blocks, ordered/unordered lists, and links. **Do not** use raw HTML tags such as `<details>`, `<summary>`, `<br>`, `<b>`, `<table>`, etc. — they appear as literal text in Teams. Use `###` headings for every section (no collapsibles). Use this structure:
 
@@ -750,14 +753,14 @@ You **MUST** always call at least one safe output tool before finishing:
 
 Example noop call: `{"noop": {"message": "No action needed: [brief explanation]"}}`
 
-## Cache Usage Strategy
+## Memory Strategy
 
-- **Persistent location**: `tools.cache-memory: true` mounts the GitHub Actions cache at `/tmp/gh-aw/cache-memory/`. This is the **only** path that persists across workflow runs. Anything written elsewhere (e.g., `/tmp/memory/`, `/tmp/investigation/`) is discarded when the runner is torn down.
-- Store the investigation database and knowledge patterns in `/tmp/gh-aw/cache-memory/mq/investigations/` and `/tmp/gh-aw/cache-memory/mq/patterns/`.
-- Cache detailed log analysis and artifacts in `/tmp/gh-aw/cache-memory/mq/logs/` and `/tmp/gh-aw/cache-memory/mq/reports/`.
+- **Persistent location**: `tools.repo-memory` mounts a dedicated Git branch (`memory/ci-doctor-mq`) at `/tmp/gh-aw/repo-memory/default/`. This directory persists **indefinitely** across workflow runs with no expiry. Anything written elsewhere (e.g., `/tmp/memory/`, `/tmp/investigation/`) is discarded when the runner is torn down.
+- Store the investigation database and knowledge patterns in `/tmp/gh-aw/repo-memory/default/mq/investigations/` and `/tmp/gh-aw/repo-memory/default/mq/patterns/`.
+- Store detailed log analysis and artifacts in `/tmp/gh-aw/repo-memory/default/mq/logs/` and `/tmp/gh-aw/repo-memory/default/mq/reports/`.
 - Build cumulative knowledge about failure patterns and solutions using structured JSON files.
 - Use file-based indexing for fast pattern matching and similarity detection.
 - **Filename Requirements**: Use filesystem-safe characters only (no colons, quotes, or special characters)
   - ✅ Good: `2026-02-12-11-20-45-458-12345.json`
   - ❌ Bad: `2026-02-12T11:20:45.458Z-12345.json` (contains colons)
-- **Isolated cache**: This workflow uses `/tmp/gh-aw/cache-memory/mq/` as its own subdirectory, separate from the main CI Doctor's `/tmp/gh-aw/cache-memory/investigations/` and `/tmp/gh-aw/cache-memory/patterns/`. This keeps merge-queue failure patterns isolated so that threshold-crossing logic only counts merge-queue occurrences, not all CI failures.
+- **Isolated branch**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` as its own subdirectory within the dedicated `memory/ci-doctor-mq` branch. This keeps merge-queue failure patterns isolated from any other workflows, ensuring threshold-crossing logic only counts merge-queue occurrences.
