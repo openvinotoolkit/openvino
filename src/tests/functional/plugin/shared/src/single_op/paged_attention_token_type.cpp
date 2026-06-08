@@ -4,7 +4,9 @@
 
 #include "shared_test_classes/single_op/paged_attention_token_type.hpp"
 
+#include <algorithm>
 #include <cstdlib>
+#include <random>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
@@ -39,6 +41,8 @@ void unset_env(const char* name) {
 }
 }  // namespace os
 
+static constexpr size_t MAX_CONTEXT_LEN = 1024;
+
 static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& pshape,
                                                         element::Type element_type,
                                                         const std::string& name) {
@@ -46,6 +50,45 @@ static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& psha
     param->set_friendly_name(name);
     param->get_output_tensor(0).set_names({name});
     return param;
+}
+
+static ov::Tensor GenerateTokenTypeTensor(size_t seq_len) {
+    ov::Tensor tensor(ov::element::i32, {seq_len});
+    auto* token_types = tensor.data<int32_t>();
+    std::fill(token_types, token_types + seq_len, 0);
+
+    if (seq_len == 0) {
+        return tensor;
+    }
+
+    std::mt19937 generator(static_cast<std::mt19937::result_type>(5489U + seq_len));
+    const size_t max_group_count = 4;
+    const size_t image_group_count = std::uniform_int_distribution<size_t>(1, max_group_count)(generator);
+
+    std::vector<size_t> group_sizes(image_group_count, 1);
+    std::vector<size_t> gaps(image_group_count + 1, 0);
+    for (size_t i = 1; i < image_group_count; ++i) {
+        gaps[i] = 1;
+    }
+
+    size_t remaining_tokens = seq_len - image_group_count - (image_group_count - 1);
+    std::uniform_int_distribution<size_t> bucket_distribution(0, group_sizes.size() + gaps.size() - 1);
+    while (remaining_tokens-- > 0) {
+        const size_t bucket = bucket_distribution(generator);
+        if (bucket < group_sizes.size()) {
+            ++group_sizes[bucket];
+        } else {
+            ++gaps[bucket - group_sizes.size()];
+        }
+    }
+
+    size_t token_position = gaps.front();
+    for (size_t group_index = 0; group_index < image_group_count; ++group_index) {
+        std::fill(token_types + token_position, token_types + token_position + group_sizes[group_index], 1);
+        token_position += group_sizes[group_index] + gaps[group_index + 1];
+    }
+
+    return tensor;
 }
 
 static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
@@ -79,7 +122,7 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto sliding_window =
         std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
     auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-    auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
+    auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{MAX_CONTEXT_LEN});
     auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
     auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
@@ -204,7 +247,6 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
     OPENVINO_ASSERT(!targetInputStaticShapes.empty() && targetInputStaticShapes[0].size() == 1,
                     "Expected a single 1-D shape representing seq_len");
     const size_t seq_len = targetInputStaticShapes[0][0];
-    std::cout << "Generating inputs for seq_len=" << seq_len << std::endl;
     const size_t hidden_dim = static_cast<size_t>(head_size) * static_cast<size_t>(head_num);
 
     using ov::test::utils::InputGenerateData;
@@ -216,18 +258,11 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
     ov::Tensor v_tensor = ov::test::utils::create_and_fill_tensor(inType, {seq_len, hidden_dim},
                                                                   InputGenerateData(-1, 2, 32, 3));
 
-    ov::Tensor token_type_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i32, {seq_len},
-                                                                           InputGenerateData(0, 2, 1, 4));
-
-    std::cout << "token_type_tensor: ";
-    for (size_t i = 0; i < seq_len; ++i) {
-        std::cout << token_type_tensor.data<int32_t>()[i] << " ";
-    }
-    std::cout << std::endl;
+    ov::Tensor token_type_tensor = helpers::GenerateTokenTypeTensor(seq_len);
 
     // Cache tensors with known shapes (matching PrepareModel layout).
     const size_t block_size = 16;
-    const size_t block_nums = 1024 / block_size;
+    const size_t block_nums = helpers::MAX_CONTEXT_LEN / block_size;
     ov::Tensor key_cache_tensor =
         ov::test::utils::create_and_fill_tensor(inType,
                                                 {block_nums, static_cast<size_t>(head_num),
