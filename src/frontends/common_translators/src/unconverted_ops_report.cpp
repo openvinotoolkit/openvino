@@ -35,18 +35,14 @@ UnconvertedOpsReport collect_unconverted_ops(const std::shared_ptr<ov::Model>& m
         return report;
     }
     for (const auto& node : model->get_ordered_ops()) {
-        // Try framework-specific extractor first.
-        bool claimed = false;
+        // Try framework-specific extractor first; fall back to the universal
+        // FrameworkNode handler for any node the extractor did not claim.
         if (auto result = extractor(node)) {
             report.add(result->first, result->second);
-            claimed = true;
-        }
-
-        // Universal fallback: any FrameworkNode (which the framework-specific
-        // extractor did not claim) left at the end of conversion — typically a
-        // frontend helper like SequenceMark / SequenceAt that no transformation
-        // managed to lower — is an unconverted op too.
-        if (!claimed && ov::is_type<ov::op::util::FrameworkNode>(node)) {
+        } else if (ov::is_type<ov::op::util::FrameworkNode>(node)) {
+            // Any unclaimed FrameworkNode left at the end of conversion —
+            // typically a frontend helper like SequenceMark / SequenceAt that
+            // no transformation managed to lower — is an unconverted op too.
             const auto& ti = node->get_type_info();
             std::string op_name = ti.version_id ? std::string(ti.version_id) + "::" + ti.name : std::string(ti.name);
             report.add(op_name, std::string{});
