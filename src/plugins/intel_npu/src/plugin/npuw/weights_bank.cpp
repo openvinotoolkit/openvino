@@ -196,7 +196,7 @@ bool Bank::is_remote(int64_t uid) const {
     return false;
 }
 
-void Bank::serialize(ov::npuw::s11n::Stream& stream) {
+void Bank::serialize(ov::npuw::orc::Stream& stream) {
     LOG_INFO("Serializing weights bank...");
     LOG_BLOCK();
 
@@ -226,7 +226,7 @@ void Bank::serialize(ov::npuw::s11n::Stream& stream) {
     LOG_INFO("DONE.");
 }
 
-void Bank::read_and_add_tensor(ov::npuw::s11n::Stream& stream, int64_t uid, const std::string& device) {
+void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device) {
     // This method is supposed to be used only during deserialization
     std::unique_lock guard(m_mutex);
 
@@ -261,7 +261,7 @@ std::string Bank::get_name() const {
     return m_bank_name;
 }
 
-void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
     if (stream.output()) {
         var.serialize(stream);
     } else {

@@ -128,7 +128,9 @@ TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
         info[ov::DisableFP16Compression::get_type_info_static()] = ov::DisableFP16Compression{};
     };
     auto check_info = [](const ov::RTMap& info) {
-        const std::string& key = ov::DisableFP16Compression::get_type_info_static();
+        const std::string& legacy_key = ov::DisableFP16Compression::get_type_info_static();
+        const std::string& key = ov::DisablePrecisionConversion::get_type_info_static();
+        ASSERT_FALSE(info.count(legacy_key));
         ASSERT_TRUE(info.count(key));
     };
 
@@ -149,6 +151,163 @@ TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
 
     auto matmul = f->get_results()[0]->get_input_node_ptr(0);
     check_info(matmul->get_rt_info());
+}
+
+TEST_F(RTInfoSerializationTest, rt_info_disable_precision_conversion_roundtrip) {
+    // Set the new attribute directly (not via legacy), serialize, read back, verify contents
+    std::shared_ptr<ov::Model> model;
+    {
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 10});
+        auto data_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 1});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(data_1, data_2);
+        ov::disable_conversion(matmul, ov::element::f16);
+        ov::disable_conversion(matmul, ov::element::f32, ov::element::bf16);
+        ov::disable_conversion(matmul, ov::element::f32, ov::element::f16);
+        auto result = std::make_shared<ov::op::v0::Result>(matmul);
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
+    }
+
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
+    m.run_passes(model);
+
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
+
+    auto matmul = f->get_results()[0]->get_input_node_ptr(0);
+    const auto& rt_info = matmul->get_rt_info();
+
+    ASSERT_FALSE(rt_info.count(ov::DisableFP16Compression::get_type_info_static()));
+
+    ASSERT_TRUE(rt_info.count(ov::DisablePrecisionConversion::get_type_info_static()));
+
+    const auto& attr =
+        rt_info.at(ov::DisablePrecisionConversion::get_type_info_static()).as<ov::DisablePrecisionConversion>();
+    const auto& precisions = attr.m_disabled_precisions;
+
+    // Check dynamic -> {f16}
+    auto it_dynamic = precisions.find(ov::element::dynamic);
+    ASSERT_NE(it_dynamic, precisions.end());
+    ASSERT_EQ(it_dynamic->second.size(), 1);
+    ASSERT_TRUE(it_dynamic->second.count(ov::element::f16));
+
+    // Check f32 -> {bf16, f16}
+    auto it_f32 = precisions.find(ov::element::f32);
+    ASSERT_NE(it_f32, precisions.end());
+    ASSERT_EQ(it_f32->second.size(), 2);
+    ASSERT_TRUE(it_f32->second.count(ov::element::bf16));
+    ASSERT_TRUE(it_f32->second.count(ov::element::f16));
+}
+
+// Pins the serialization format "from:to1,to2;from2:to3,to4". Do not change without updating model compatibility.
+TEST(RTInfoSerialization, disable_precision_conversion_xml_format) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
+<net name="TestModel" version="11">
+	<layers>
+		<layer id="0" name="input_1" type="Parameter" version="opset1">
+			<data shape="1,10" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="input_2" type="Parameter" version="opset1">
+			<data shape="10,1" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>10</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="matmul" type="MatMul" version="opset1">
+			<data transpose_a="false" transpose_b="false" />
+			<rt_info>
+				<attribute name="DisablePrecisionConversion" version="0" value="dynamic:f16;f32:bf16,f16" />
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>10</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="result" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    ov::Core core;
+    auto model = core.read_model(ref_ir_xml, ov::Tensor());
+    ASSERT_NE(nullptr, model);
+
+    auto matmul = model->get_results()[0]->get_input_node_ptr(0);
+    const auto& rt_info = matmul->get_rt_info();
+
+    ASSERT_TRUE(rt_info.count(ov::DisablePrecisionConversion::get_type_info_static()));
+
+    const auto& attr =
+        rt_info.at(ov::DisablePrecisionConversion::get_type_info_static()).as<ov::DisablePrecisionConversion>();
+    const auto& precisions = attr.m_disabled_precisions;
+
+    // Verify dynamic -> {f16}
+    auto it_dynamic = precisions.find(ov::element::dynamic);
+    ASSERT_NE(it_dynamic, precisions.end());
+    ASSERT_EQ(it_dynamic->second.size(), 1);
+    ASSERT_TRUE(it_dynamic->second.count(ov::element::f16));
+
+    // Verify f32 -> {bf16, f16}
+    auto it_f32 = precisions.find(ov::element::f32);
+    ASSERT_NE(it_f32, precisions.end());
+    ASSERT_EQ(it_f32->second.size(), 2);
+    ASSERT_TRUE(it_f32->second.count(ov::element::bf16));
+    ASSERT_TRUE(it_f32->second.count(ov::element::f16));
+
+    // Verify serialization produces the same XML
+    {
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 10});
+        auto data_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 1});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(data_1, data_2);
+        ov::disable_conversion(matmul, ov::element::f16);
+        ov::disable_conversion(matmul, ov::element::f32, ov::element::bf16);
+        ov::disable_conversion(matmul, ov::element::f32, ov::element::f16);
+        auto result = std::make_shared<ov::op::v0::Result>(matmul);
+        auto built_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
+        built_model->set_friendly_name("TestModel");
+        data_1->set_friendly_name("input_1");
+        data_2->set_friendly_name("input_2");
+        matmul->set_friendly_name("matmul");
+        result->set_friendly_name("result");
+
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(built_model);
+        EXPECT_EQ(ref_ir_xml, model_ss.str());
+    }
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {

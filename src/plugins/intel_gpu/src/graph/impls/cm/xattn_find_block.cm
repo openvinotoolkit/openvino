@@ -16,45 +16,52 @@
 
 namespace KERNEL_NAME {
 #include "find_block.hpp"
+#include "xattn_subseq_meta.hpp"
 
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
 #define ATTR_BUF [[type("buffer_t")]]
 #endif
 
-// _GENX_MAIN_ void find_block(
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     svmptr_t kq_max_wg ATTR,
     svmptr_t kq_exp_partial_sum ATTR,
     svmptr_t block_mask ATTR,
-    uint q_len,
-    uint q_stride,
-    uint q_stride_pad,
-    uint q_block_pad,
-    uint k_block_pad,
-    uint causal_start_index,
+    svmptr_t xattn_subseq_meta ATTR,
+    svmptr_t xattn_find_wg_map ATTR,
     float thresh
 #if DEBUG_ACC == 1
     , svmptr_t kq_sum ATTR
 #endif
 ) {
-    // kq_max_wg:          [b, hq, n_groups, q_stride_pad]
-    // kq_exp_partial_sum: [b, hq, q_stride_pad, k_block_pad]
-    // kq_sum:             [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
-    // block_mask:         [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
-    // [1, 32, 256], [1, 32, 64, 256], [1, 32, 256, 64 * 16], A_sum:[1, 32, 32, 64 * 16]
-    // global:            [q_block_pad, hq, b]
+    // GWS: [xattn_find_wg_count, HQ, 1]
     const int TOKEN_IN_BLOCK = BLOCK_SIZE / STRIDE;
     const int TOKEN_SHARE_MAX = BLOCK_SHARE_MAX / TOKEN_IN_BLOCK;
-    uint m = cm_group_id(0);
+    uint wg_flat = cm_group_id(0);
     uint hq = cm_group_id(1);
-    uint b = cm_group_id(2);
-    kq_max_wg += (b * HQ + hq) * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(SOFTMAX_TYPE);
-    kq_exp_partial_sum += (b * HQ + hq) * q_stride_pad * k_block_pad * (uint)sizeof(SOFTMAX_TYPE);
-#if DEBUG_ACC == 1
-    kq_sum += (b * HQ + hq) * (q_stride_pad / TOKEN_IN_BLOCK) * k_block_pad * (uint)sizeof(half);
-#endif
-    block_mask += (b * HQ + hq) * q_block_pad * k_block_pad;
+
+    int* wg_map = (int*)xattn_find_wg_map;
+    int map_base = wg_flat * 2;
+    uint b = (uint)wg_map[map_base + 0];
+    uint m = (uint)wg_map[map_base + 1];
+
+    int* meta = (int*)xattn_subseq_meta;
+    int meta_base = b * XATTN_META_STRIDE;
+
+    uint q_len = (uint)meta[meta_base + XATTN_META_SUBSEQ_Q_LEN];
+    uint q_stride = (uint)meta[meta_base + XATTN_META_M];
+    uint q_stride_pad = (uint)meta[meta_base + XATTN_META_Q_STRIDE_PAD];
+    uint q_block_pad = (uint)meta[meta_base + XATTN_META_Q_BLOCK_PAD];
+    uint k_block_pad = (uint)meta[meta_base + XATTN_META_K_BLOCK_PAD];
+    uint causal_start_index = (uint)meta[meta_base + XATTN_META_CAUSAL_START];
+
+    uint buf_off_kq_max = (uint)meta[meta_base + XATTN_META_BUF_OFF_KQ_MAX];
+    uint buf_off_exp_sum = (uint)meta[meta_base + XATTN_META_BUF_OFF_EXP_SUM];
+    uint buf_off_mask = (uint)meta[meta_base + XATTN_META_BUF_OFF_MASK];
+
+    kq_max_wg += buf_off_kq_max + hq * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(SOFTMAX_TYPE);
+    kq_exp_partial_sum += buf_off_exp_sum + hq * q_stride_pad * k_block_pad * (uint)sizeof(SOFTMAX_TYPE);
+    block_mask += buf_off_mask + hq * q_block_pad * k_block_pad;
 
     const uint slm_size = NUM_THREADS * 16 * sizeof(ushort);
     cm_slm_init(slm_size);

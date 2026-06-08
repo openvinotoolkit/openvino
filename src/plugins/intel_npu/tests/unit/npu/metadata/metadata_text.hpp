@@ -96,6 +96,26 @@ TEST_F(MetadataHumanReadableTests, noLayouts) {
     ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
 }
 
+TEST_F(MetadataHumanReadableTests, compatibilityDescriptor) {
+    const std::string compatDesc = "platform=NPU3720;tiles=2;something=ELSE";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               CURRENT_OPENVINO_VERSION,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compatDesc);
+    const auto text = make_text_string(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_as_text(text));
+
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    EXPECT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
+}
+
 TEST_F(MetadataHumanReadableTests, compilerVersion) {
     const uint32_t compilerVersion = 0xCAFECAFE;
     auto meta = Metadata<METADATA_VERSION_2_4>(0,
@@ -111,6 +131,35 @@ TEST_F(MetadataHumanReadableTests, compilerVersion) {
     OV_ASSERT_NO_THROW(storedMeta = read_as_text(text));
 
     ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
+}
+
+TEST_F(MetadataHumanReadableTests, allTextFields) {
+    const std::vector<uint64_t> initSizes{10, 20, 30};
+    const int64_t batchSize = 8;
+    const uint32_t compilerVersion = 0xDEADBEEF;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;something=ELSE";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               CURRENT_OPENVINO_VERSION,
+                                               initSizes,
+                                               batchSize,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compilerVersion,
+                                               std::nullopt,
+                                               compatDesc);
+    const auto text = make_text_string(meta);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_as_text(text));
+
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_TRUE(storedMeta->get_batch_size().has_value());
+    EXPECT_EQ(storedMeta->get_batch_size().value(), batchSize);
+    ASSERT_FALSE(storedMeta->get_input_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_output_layouts().has_value());
+    ASSERT_FALSE(storedMeta->get_compiler_version().has_value());
+    ASSERT_TRUE(storedMeta->get_compatibility_descriptor().has_value());
+    EXPECT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
 }
 
 TEST_P(MetadataTextTest, Format) {

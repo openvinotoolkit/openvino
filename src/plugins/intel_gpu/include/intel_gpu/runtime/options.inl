@@ -60,7 +60,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold,
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
-
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, pa_mixed_route_mode, std::string("split"), "Mixed route mode for CM paged attention. Supported values: multi, split")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -82,7 +82,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors, ov::intel_gpu::DumpTensors::
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_format, ov::intel_gpu::DumpFormat::text, "Format of the tensors dump. Supported values: binary, text, text_raw")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_layer_names, std::vector<std::string>{}, "Activate dump for specified layers only")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool_path, "", "Save csv file with memory pool info to specified folder")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool, false, "Enable verbose output for memory pool")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool, 0, "Enable verbose output for memory pool. 0 - Disabled, 1 - Dump summary, 2 - Dump detailed entries")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_iterations, std::set<int64_t>{}, "Space separated list of iterations where other dump options should be enabled")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_src_after_exec, false, "Enable source data dump after layer execution. Useful for capturing updated states in stateful models.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, host_time_profiling, 0, "Measure and print host time spent from the beginning of the infer until all host work is done and plugin is ready to block thread on the final clFinish() call")
