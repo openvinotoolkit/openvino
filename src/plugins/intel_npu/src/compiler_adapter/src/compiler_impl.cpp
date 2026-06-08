@@ -4,6 +4,7 @@
 
 #include "compiler_impl.hpp"
 
+#include <algorithm>
 #include <limits>
 #include <mutex>
 
@@ -11,6 +12,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_allocator.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -36,76 +38,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
         usedMinor = loadedVersion.minor;
     }
     return {usedMajor, usedMinor};
-}
-
-struct vcl_allocator : vcl_allocator2_t {
-    vcl_allocator() : vcl_allocator2_t{allocate, deallocate} {}
-
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE));
-        if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
-        }
-        memset(allocatedPtr + size, 0, vclAllocator->m_size - size);
-        vclAllocator->m_allocated = allocatedPtr;
-        return allocatedPtr;
-    }
-
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
-        }
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_allocator.deallocate(ptr, vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE);
-    }
-    ov::Allocator m_allocator;
-    uint8_t* m_allocated = nullptr;
-    size_t m_size = 0;
-};
-
-struct vcl_allocator_2 : vcl_allocator2_t {
-    vcl_allocator_2() : vcl_allocator2_t{allocate, deallocate} {}
-
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
-        size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
-        if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
-        }
-        memset(allocatedPtr + size, 0, alignedSize - size);
-        vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
-        return allocatedPtr;
-    }
-
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
-        }
-        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
-        // 1 is the placeholder value, as size is not needed in deallocate
-        vclAllocator->m_allocator.deallocate(ptr, 1, intel_npu::utils::STANDARD_PAGE_SIZE);
-    }
-    ov::Allocator m_allocator;
-    std::vector<std::pair<uint8_t*, size_t>> m_info;
-};
-
-ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
-    ov::Allocator allocator;
-    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
-    auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator = std::move(allocator), size](uint8_t* p) mutable {
-        if (p == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
-        }
-        allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
-    });
-    impl._so = std::move(ptr);
-    return ov::make_tensor(impl);
 }
 
 }  // namespace
@@ -162,11 +94,13 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl(const std::string& library_dir)
+    : _logHandle(nullptr),
+      _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
-    (void)VCLApi::getInstance();
+    (void)VCLApi::getInstance(library_dir);
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
@@ -294,7 +228,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
     if (usedVersion.Major > 7 || (usedVersion.Major == 7 && usedVersion.Minor >= 7)) {
         // Support only the lastest VCL api
-        vcl_allocator_2 allocator;
+        auto allocator = std::make_shared<vcl_allocator_3>();
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
         uint8_t* compatibilityStringBuffer = nullptr;
@@ -302,15 +236,16 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
         auto result = vclAllocatedExecutableCreate3(_compilerHandle,
                                                     exeDesc,
-                                                    &allocator,
+                                                    allocator.get(),
                                                     &blob,
                                                     &blobSize,
                                                     &compatibilityStringBuffer,
                                                     &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
             // Check if allocations were performed before throwing exception
-            for (const auto& [buffer, size] : allocator.m_info) {
-                allocator.deallocate(&allocator, buffer);
+            auto tracked_allocations = allocator->m_info;
+            for (const auto& [buffer, size] : tracked_allocations) {
+                allocator->deallocate(allocator.get(), buffer);
             }
             OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
                            std::hex,
@@ -323,19 +258,22 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                         "Failed to create VCL executable, the blob size is zero or the blob is null");
 
         // Retrieve the real allocated size for the blob from the allocator
-        size_t alignedBlobSize = 0;
-        for (auto [buffer, size] : allocator.m_info) {
-            if (buffer == blob) {
-                alignedBlobSize = size;
-                break;
-            }
-        }
+        auto it = std::find_if(allocator->m_info.begin(),
+                               allocator->m_info.end(),
+                               [blob](const std::pair<uint8_t*, size_t>& item) {
+                                   return item.first == blob;
+                               });
+
+        OPENVINO_ASSERT(it != allocator->m_info.end(), "Failed to find the allocated blob in the allocator records");
+        size_t alignedBlobSize = it->second;
 
         // The allocated size from VCL will be equal or smaller than the allocated size in allocator
         _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
         _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
 
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize);
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize, allocator);
+        allocator->m_info.erase(it);
+
         std::optional<std::string> compatibilityString;
 
         // Populate compatibility string only when VCL provides a buffer.
@@ -346,7 +284,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
             _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
 
-            allocator.deallocate(&allocator, compatibilityStringBuffer);
+            allocator->deallocate(allocator.get(), compatibilityStringBuffer);
         }
 
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
@@ -411,20 +349,23 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    vcl_allocator_2 allocator;
+    auto allocator = std::make_shared<vcl_allocator_3>();
 
     THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
-                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, &allocator),
+                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, allocator.get()),
                           _logHandle);
 
-    if (allocator.m_info.size() == 0) {
+    if (allocator->m_info.size() == 0) {
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
     std::vector<ov::Tensor> initMainTensors;
-    for (auto& blob : allocator.m_info) {
-        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
+    for (const auto& blob : allocator->m_info) {
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second, allocator));
     }
+    // Clean up m_info, delegating actual physical frees strictly to the Tensor/Deleter from now on.
+    allocator->m_info.clear();
+
     return initMainTensors;
 }
 
