@@ -42,7 +42,11 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
                                    "The number of elements in segment_ids must match the first dimension of data.");
         }
     }
-    const auto segment_ids = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
+    const bool segment_ids_is_empty =
+        is_segment_ids_rank_static && segment_ids_shape[0].is_static() && segment_ids_shape[0].get_length() == 0;
+    const std::optional<std::vector<int64_t>> segment_ids =
+        segment_ids_is_empty ? std::nullopt : ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
+
     if (segment_ids) {
         NODE_VALIDATION_CHECK(op,
                               std::is_sorted(segment_ids->begin(), segment_ids->end()),
