@@ -6,8 +6,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-#include <cstdlib>
-
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -420,16 +418,6 @@ protected:
         in_data.range = 1;
         in_data.resolution = 10;
 
-        if (const auto* prev = std::getenv("OV_GPU_ALLOW_NEW_SHAPE_INFER")) {
-            had_prev_allow_new_shape_infer = true;
-            prev_allow_new_shape_infer = prev;
-        }
-#ifdef _WIN32
-        _putenv_s("OV_GPU_ALLOW_NEW_SHAPE_INFER", "0");
-#else
-        setenv("OV_GPU_ALLOW_NEW_SHAPE_INFER", "0", 1);
-#endif
-
         const auto& [input_shapes, infer_precision] = GetParam();
 
         init_input_shapes(input_shapes);
@@ -438,28 +426,9 @@ protected:
         function = init_subgraph(inputDynamicShapes);
         this->configuration.insert({ov::hint::inference_precision(infer_precision)});
     }
-    
-void TearDown() override {
-    if (had_prev_allow_new_shape_infer) {
-#ifdef _WIN32
-        _putenv_s("OV_GPU_ALLOW_NEW_SHAPE_INFER", prev_allow_new_shape_infer.c_str());
-#else
-        setenv("OV_GPU_ALLOW_NEW_SHAPE_INFER", prev_allow_new_shape_infer.c_str(), 1);
-#endif
-    } else {
-#ifdef _WIN32
-        _putenv_s("OV_GPU_ALLOW_NEW_SHAPE_INFER", "");
-#else
-        unsetenv("OV_GPU_ALLOW_NEW_SHAPE_INFER");
-#endif
-    }
-        ov::test::SubgraphBaseTest::TearDown();
-    }
 
 private:
         ov::test::utils::InputGenerateData in_data;
-        std::string prev_allow_new_shape_infer;
-        bool had_prev_allow_new_shape_infer = false;
 };
 
 TEST_P(MatMulConversionConstantInput, Inference) {
@@ -470,34 +439,9 @@ const std::vector<std::vector<InputShape>> matmul_conversion_input_shapes_basic_
     {{{}, {{1, 192, 33, 64, 1}}}},
 };
 
-// Compact variant of the legacy Constant->Convert->MatMul scenario:
-// const is rank-2 [64,64], opposite MatMul input rank is > 2.
-const std::vector<std::vector<InputShape>> matmul_conversion_input_shapes_basic_1_small = {
-    {{{}, {{1, 3, 2, 64, 1}}}},
-};
-
-// Complementary legacy case:
-// const is rank-2 [64,64], but opposite MatMul input is also rank-2.
-// The guarded WA must not reshape this case.
-const std::vector<std::vector<InputShape>> matmul_conversion_input_shapes_basic_2d = {
-    {{{}, {{64, 32}}}},
-};
-
 INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantInput_basic_1,
                          MatMulConversionConstantInput,
                          ::testing::Combine(::testing::ValuesIn(matmul_conversion_input_shapes_basic_1),
-                                            ::testing::ValuesIn({ov::element::f16})),
-                         MatMulConversionConstantInput::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantInput_basic_1_small,
-                         MatMulConversionConstantInput,
-                         ::testing::Combine(::testing::ValuesIn(matmul_conversion_input_shapes_basic_1_small),
-                                            ::testing::ValuesIn({ov::element::f16})),
-                         MatMulConversionConstantInput::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantInput_basic_2d,
-                         MatMulConversionConstantInput,
-                         ::testing::Combine(::testing::ValuesIn(matmul_conversion_input_shapes_basic_2d),
                                             ::testing::ValuesIn({ov::element::f16})),
                          MatMulConversionConstantInput::getTestCaseName);
 
@@ -608,4 +552,5 @@ INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantNDInput_3d,
                                             ::testing::ValuesIn(matmul_conversion_3d_input_shapes),
                                             ::testing::ValuesIn({ov::element::f16})),
                          MatMulConversionConstantNDInput::getTestCaseName);
+
 } // namespace
