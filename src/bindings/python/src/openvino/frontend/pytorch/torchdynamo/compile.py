@@ -284,21 +284,14 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
-    # KV cache at f32 (verified-correct for PA). Hardware has no bf16 support,
-    # so matmuls run f32 by default — use DYNAMIC_QUANTIZATION_GROUP_SIZE=32
-    # to quantize FC activations to int8 on the fly (vnni int8 GEMM is much
-    # faster than f32 GEMM). Matches OV GenAI's CPU speedup mechanism.
-    if device == "CPU" and "KV_CACHE_PRECISION" not in config:
-        config["KV_CACHE_PRECISION"] = os.environ.get("OV_KV_CACHE_PRECISION", "f32")
-    if device == "CPU" and "DYNAMIC_QUANTIZATION_GROUP_SIZE" not in config:
-        config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = int(
-            os.environ.get("DYNAMIC_QUANTIZATION_GROUP_SIZE", "32"))
-    # Let plugin pick oneDNN fp16 GEMM for FCs (model weights arrive as fp16
-    # from vLLM). PA op is fenced with Convert(f32) in the translator, so it
-    # stays f32 regardless of this hint. Overridable via env.
-    _inf_hint = os.environ.get("OV_INFERENCE_PRECISION_HINT", "f16")
-    if device == "CPU" and "INFERENCE_PRECISION_HINT" not in config and _inf_hint:
-        config["INFERENCE_PRECISION_HINT"] = _inf_hint
+    # vLLM-specific OV-config defaults (KV cache precision, FC dynamic-
+    # quantization group, narrow-float GEMM hint). No-op on non-CPU devices
+    # and on standalone paths where the values are passed explicitly.
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        _vh.apply_kv_cache_config_defaults(config, device, options)
+    except Exception as _ee:
+        logger.debug("vllm.apply_kv_cache_config_defaults skipped: %s", _ee)
 
     if _bool_opt(options, "perf_count", False):
         config["PERF_COUNT"] = "YES"

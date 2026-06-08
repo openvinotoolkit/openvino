@@ -84,3 +84,33 @@ def normalize_concat_ranks(om):
                 return
     except Exception as e:
         logger.debug("concat-rank normalization skipped: %s", e)
+
+
+def apply_kv_cache_config_defaults(config, device, options=None):
+    """Fill vLLM-specific KV-cache and FC-quantization defaults into the OV
+    CPU config dict.
+
+    Only applies when device == "CPU". Caller-supplied entries in `config`
+    take priority. Reads env-var fallbacks for backward compat with the
+    legacy environment-driven setup; new callers should pass the values
+    via options["config"] instead.
+
+    No-op on non-CPU devices.
+    """
+    if device != "CPU":
+        return
+    import os
+    if "KV_CACHE_PRECISION" not in config:
+        # f32 is the verified-correct default for the OV CPU PA op; the
+        # vLLM preset overrides this to bf16 when options["vllm"]=True.
+        config["KV_CACHE_PRECISION"] = os.environ.get("OV_KV_CACHE_PRECISION", "f32")
+    if "DYNAMIC_QUANTIZATION_GROUP_SIZE" not in config:
+        # Quantize FC activations to int8 on the fly (vnni int8 GEMM is
+        # much faster than f32 GEMM). Matches OV GenAI CPU behavior.
+        config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = int(
+            os.environ.get("DYNAMIC_QUANTIZATION_GROUP_SIZE", "32"))
+    inf_hint = os.environ.get("OV_INFERENCE_PRECISION_HINT", "f16")
+    if "INFERENCE_PRECISION_HINT" not in config and inf_hint:
+        # Let the plugin pick its narrow-float GEMM path. PA op is fenced
+        # with Convert(f32) in the translator so it stays f32 regardless.
+        config["INFERENCE_PRECISION_HINT"] = inf_hint
