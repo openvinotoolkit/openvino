@@ -213,33 +213,18 @@ def openvino_execute(
             t = t.contiguous()
         ov_inputs.append(t.numpy())
 
-    # Bind vLLM PagedAttention side-channel Parameters (KV cache / block
-    # tables / past_lens / ...) that the paged_attention C++ translator added
-    # as extra Parameters with names like "__pa__<layer_name>__<field>".
-    # The tensors come from vllm.forward_context.get_forward_context().
-    _pa_inputs_by_pos = {}
-    if any(inp.get_names() and any(n.startswith("__pa__") for n in inp.get_names())
-           for inp in compiled.inputs):
-        _pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
-
-    if _pa_inputs_by_pos:
-        # Use explicit set_tensor for PA inputs so the underlying shared-memory
-        # buffer is bound directly; pass regular tensor inputs via dict.
-        import openvino as _ov_bind
-        _call_kwargs = {}
-        _tensor_pos = 0
-        for i, inp in enumerate(compiled.inputs):
-            _names = inp.get_names()
-            pa_tensor = None
-            for n in _names:
-                if n.startswith("__pa__") and n in _pa_inputs_by_pos:
-                    pa_tensor = _pa_inputs_by_pos[n]
-                    break
-            if pa_tensor is not None:
-                _call_kwargs[inp] = pa_tensor
-            else:
-                _call_kwargs[inp] = ov_inputs[_tensor_pos]
-                _tensor_pos += 1
+    # vLLM PagedAttention side-channel: build a kwargs dict that maps each
+    # __pa__ Parameter to its bound side-channel tensor and each remaining
+    # input position to the next entry in ov_inputs. Returns None on
+    # standalone graphs (no PA Parameters), in which case ov_inputs is
+    # passed positionally.
+    _call_kwargs = None
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
+        _call_kwargs = _rh.build_call_kwargs(compiled, ov_inputs)
+    except Exception:
+        pass
+    if _call_kwargs is not None:
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=False)
     else:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)

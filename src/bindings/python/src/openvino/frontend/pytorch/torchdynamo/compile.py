@@ -134,67 +134,14 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
-        # Register any dangling Parameters created by the paged_attention
-        # translator. These carry side-channel inputs (KV cache / block tables
-        # / past_lens / etc.) that will be bound at infer time from vLLM's
-        # ForwardContext. The translator tags them with friendly-name prefix
-        # "__pa__". Without this registration the Model fails validation with
-        # "unregistered_parameters" errors.
+        # vLLM-specific compile hooks (register __pa__ Parameters, normalize
+        # symint-heavy Concat ranks). Both are no-ops on standalone graphs.
         try:
-            _existing_ids = {id(p) for p in om.get_parameters()}
-            _to_add = []
-            for _node in om.get_ordered_ops():
-                if _node.get_type_name() != "Parameter":
-                    continue
-                if id(_node) in _existing_ids:
-                    continue
-                _fn = _node.get_friendly_name()
-                if _fn.startswith("__pa__"):
-                    _to_add.append(_node)
-            if _to_add:
-                om.add_parameters(_to_add)
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+            _vh.register_pa_parameters(om)
+            _vh.normalize_concat_ranks(om)
         except Exception as _ee:
-            logger.debug(f"PA parameter registration skipped: {_ee}")
-
-        # Some FX graphs (notably vLLM's symint-heavy ones) emit Unsqueeze
-        # wrappers that leave rank-mismatched Concat inputs for list-construct
-        # nodes. Strip redundant Unsqueezes whose inner input is already rank>=1
-        # so that validate_nodes_and_infer_types() succeeds.
-        def _rank_ge_1(_val):
-            _n = _val.get_node()
-            _ps = _val.get_partial_shape()
-            if _ps.rank.is_static and _ps.rank.get_length() >= 1:
-                return True
-            if _n.get_type_name() == "Constant":
-                return len(_n.get_output_shape(0)) >= 1
-            return False
-
-        try:
-            for _ in range(64):
-                try:
-                    om.validate_nodes_and_infer_types()
-                    break
-                except Exception:
-                    pass
-                _made_change = False
-                for _node in list(om.get_ordered_ops()):
-                    if _node.get_type_name() != "Concat":
-                        continue
-                    if _node.get_input_size() < 2:
-                        continue
-                    for _i in range(_node.get_input_size()):
-                        _src = _node.input_value(_i)
-                        _src_node = _src.get_node()
-                        if _src_node.get_type_name() != "Unsqueeze":
-                            continue
-                        _inner = _src_node.input_value(0)
-                        if _rank_ge_1(_inner):
-                            _node.input(_i).replace_source_output(_inner)
-                            _made_change = True
-                if not _made_change:
-                    break
-        except Exception as _ee:
-            logger.debug(f"concat-rank normalization skipped: {_ee}")
+            logger.debug("vllm.compile_hooks unavailable: %s", _ee)
 
         # Rewrite MatMul(X, Transpose(Const_fp16)) to the oneDNN-BRGEMM-friendly
         # form: MatMul(X, Convert(Const_fp16 -> f32)) with transpose_b=true.

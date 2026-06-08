@@ -141,21 +141,17 @@ class Partitioner:
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
 
-        # Rewrite vLLM's auto_functionalized_v2(unified_attention_with_output,
-        # ...) calls into torch.ops.openvino.paged_attention so OV can keep
-        # attention inside its partitions and translate it to
-        # PagedAttentionExtension. No-op on non-vLLM graphs.
-        from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-        if _bool_opt(getattr(self, "_ov_options", None), "paged_attention", True):
-            try:
-                from openvino.frontend.pytorch.torchdynamo.vllm.paged_attention import (
-                    rewrite_unified_attention_to_paged_attention,
-                )
-                n_rewrites = rewrite_unified_attention_to_paged_attention(graph_module)
-                if n_rewrites and _os.environ.get("OV_DUMP_UNSUPPORTED"):
-                    print(f"[OV_VLLM_PA_REWRITES] {n_rewrites}", flush=True)
-            except Exception as _e:
-                logger.debug(f"vLLM paged_attention rewrite skipped: {_e}")
+        # Optional vLLM-specific FX rewrite: convert
+        # auto_functionalized_v2(unified_attention_with_output, ...) HOP nodes
+        # into torch.ops.openvino.paged_attention.default. No-op on non-vLLM
+        # graphs.
+        try:
+            from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
+            n_rewrites = _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
+            if n_rewrites and _os.environ.get("OV_DUMP_UNSUPPORTED"):
+                print(f"[OV_VLLM_PA_REWRITES] {n_rewrites}", flush=True)
+        except Exception as _e:
+            logger.debug("vllm.maybe_rewrite_paged_attention skipped: %s", _e)
 
         if _os.environ.get("OV_DUMP_UNSUPPORTED"):
             unsupp = {}

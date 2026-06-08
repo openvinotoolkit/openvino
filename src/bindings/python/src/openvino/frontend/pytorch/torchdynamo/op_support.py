@@ -285,16 +285,14 @@ class OperatorSupport(OpSupport):
             "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_channel.default": None,
         }
-        # vLLM paged attention support is opt-in until the execute-time binding
-        # of side-channel inputs (KV cache, block tables, past_lens, etc.) is
-        # complete. Without binding the CPU plugin compiles the PA op with
-        # unset side-channel Parameters, which typically triggers a SIGFPE
-        # during warmup. Enable with options["pa_translate"]=True once binding is
-        # plumbed through execute.py.
-        import os as _os_pa_sup
-        from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-        if _bool_opt(getattr(self, "_ov_options", None), "pa_translate", False):
-            support_dict["torch.ops.openvino.paged_attention.default"] = None
+        # Optional vLLM-specific op registration: the OV paged_attention
+        # custom op is added to support_dict only when options["pa_translate"]
+        # is set. No-op on non-vLLM graphs.
+        try:
+            from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
+            _vllm.maybe_register_pa_op(support_dict, getattr(self, "_ov_options", None))
+        except Exception:
+            pass
 
         self.enabled_op_names = []
 
