@@ -13,6 +13,26 @@
 
 namespace ov::util {
 
+namespace {
+
+class FileRegionBuffer : public ov::AlignedBuffer {
+public:
+    FileRegionBuffer(size_t size, size_t source_id, size_t offset, std::shared_ptr<ov::AlignedBuffer> source_handle)
+        : ov::AlignedBuffer(size),
+          m_source_handle(std::move(source_handle)),
+          m_descriptor(ov::create_base_descriptor(source_id, offset, m_source_handle)) {}
+
+    std::shared_ptr<ov::IBufferDescriptor> get_descriptor() const override {
+        return m_descriptor;
+    }
+
+private:
+    std::shared_ptr<ov::AlignedBuffer> m_source_handle;
+    std::shared_ptr<ov::IBufferDescriptor> m_descriptor;
+};
+
+}  // namespace
+
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
     : m_weights(std::move(weights)) {}
 
@@ -52,7 +72,9 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offse
     weights_stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
     OPENVINO_ASSERT(weights_stream.good(), "Failed to seek weights file ", m_weights_path, " to offset ", offset);
 
-    weights_stream.read(m_weights_source_handle->get_ptr<char>(), static_cast<std::streamsize>(size));
+    auto buffer = std::make_shared<FileRegionBuffer>(size, m_weights_source_id, offset, m_weights_source_handle);
+
+    weights_stream.read(buffer->get_ptr<char>(), static_cast<std::streamsize>(size));
     OPENVINO_ASSERT(static_cast<size_t>(weights_stream.gcount()) == size,
                     "Failed to read ",
                     size,
@@ -61,9 +83,9 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offse
                     " at offset ",
                     offset);
 
-    m_loaded_weights_regions.emplace(key, m_weights_source_handle);
+    m_loaded_weights_regions.emplace(key, buffer);
 
-    return m_weights_source_handle;
+    return buffer;
 }
 
 size_t FileWeightsProvider::size() const {
