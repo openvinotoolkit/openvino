@@ -124,12 +124,15 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 }
 
 TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto init_info = [](ov::RTMap& info) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         info[ov::DisableFP16Compression::get_type_info_static()] = ov::DisableFP16Compression{};
+        OPENVINO_SUPPRESS_DEPRECATED_END
     };
     auto check_info = [](const ov::RTMap& info) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const std::string& legacy_key = ov::DisableFP16Compression::get_type_info_static();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const std::string& key = ov::DisablePrecisionConversion::get_type_info_static();
         ASSERT_FALSE(info.count(legacy_key));
         ASSERT_TRUE(info.count(key));
@@ -152,7 +155,6 @@ TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
 
     auto matmul = f->get_results()[0]->get_input_node_ptr(0);
     check_info(matmul->get_rt_info());
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(RTInfoSerializationTest, rt_info_disable_precision_conversion_roundtrip) {

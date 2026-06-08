@@ -11,10 +11,10 @@
 
 namespace ov::util {
 
-ConstantWriter::ConstantWriter(std::ostream& bin_data, bool enable_conversion)
+ConstantWriter::ConstantWriter(std::ostream& bin_data, bool enable_compression)
     : m_hash_to_file_positions{},
       m_binary_output(bin_data),
-      m_enable_conversion(enable_conversion),
+      m_enable_compression(enable_compression),
       m_blob_offset(bin_data.tellp()),
       m_data_hash{} {}
 
@@ -33,7 +33,7 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
     const auto fp16_data = compress_to_fp16 ? compress_data_to_fp16(ptr, size, src_type, new_size) : nullptr;
     const auto data_ptr = compress_to_fp16 ? fp16_data.get() : ptr;
 
-    if (m_enable_conversion) {
+    if (m_enable_compression) {
         // This hash is weak (but efficient). For example current hash algorithms gives
         // the same hash for {2, 2} and {0, 128} arrays.
         // But even strong hashing algorithms sometimes give collisions.
@@ -66,7 +66,7 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
     for (const auto& sv : chunks)
         new_size += sv.size();
 
-    if (m_enable_conversion) {
+    if (m_enable_compression) {
         std::vector<char> tmp(new_size);
         char* dst = tmp.data();
         for (const auto& sv : chunks) {
