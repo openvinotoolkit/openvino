@@ -32,57 +32,64 @@ ov::Output<ov::Node> make_padding_mask(const ov::Output<ov::Node>& attention_mas
     return padding_4d->output(0);
 }
 
-ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_ids_output,
-                                      const ov::Output<ov::Node>& attention_mask_output,
-                                      ov::element::Type prec) {
-    auto padding_4d = make_padding_mask(attention_mask_output, prec);
+CausalBool make_causal_bool(const ov::Output<ov::Node>& seq_source,
+                            const ov::Output<ov::Node>& attention_mask,
+                            const std::string& prefix) {
+    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(seq_source, ov::element::i64);
+    ids_shape->set_friendly_name(prefix + "ids_shape");
 
-    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(input_ids_output, ov::element::i64);
-    ids_shape->set_friendly_name("model.ids_shape");
-
-    auto mask_shape_node = std::make_shared<ov::opset11::ShapeOf>(attention_mask_output, ov::element::i64);
-    mask_shape_node->set_friendly_name("model.mask_shape");
+    auto mask_shape = std::make_shared<ov::opset11::ShapeOf>(attention_mask, ov::element::i64);
+    mask_shape->set_friendly_name(prefix + "mask_shape");
 
     auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
-    auto seq_len_s = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, gather_axis);
-    seq_len_s->set_friendly_name("model.seq_len");
+    auto seq_len = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, axis0);
+    seq_len->set_friendly_name(prefix + "seq_len");
 
-    auto total_seq_s = std::make_shared<ov::opset11::Gather>(mask_shape_node, idx1, gather_axis);
-    total_seq_s->set_friendly_name("model.total_seq");
+    auto total_seq = std::make_shared<ov::opset11::Gather>(mask_shape, idx1, axis0);
+    total_seq->set_friendly_name(prefix + "total_seq");
 
-    auto offset = std::make_shared<ov::opset11::Subtract>(total_seq_s, seq_len_s);
-    offset->set_friendly_name("model.causal_offset");
+    auto offset = std::make_shared<ov::opset11::Subtract>(total_seq, seq_len);
+    offset->set_friendly_name(prefix + "offset");
 
     auto range_start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
     auto range_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
-    auto kv_range = std::make_shared<ov::op::v4::Range>(range_start, total_seq_s, range_step, ov::element::i64);
-    kv_range->set_friendly_name("model.kv_range");
+    auto kv_range = std::make_shared<ov::op::v4::Range>(range_start, total_seq, range_step, ov::element::i64);
+    kv_range->set_friendly_name(prefix + "kv_range");
 
-    auto q_range = std::make_shared<ov::op::v4::Range>(range_start, seq_len_s, range_step, ov::element::i64);
-    q_range->set_friendly_name("model.q_range");
+    auto q_range = std::make_shared<ov::op::v4::Range>(range_start, seq_len, range_step, ov::element::i64);
+    q_range->set_friendly_name(prefix + "q_range");
 
     auto q_abs = std::make_shared<ov::opset11::Add>(q_range, offset);
-    q_abs->set_friendly_name("model.q_abs_positions");
+    q_abs->set_friendly_name(prefix + "q_abs_positions");
 
     auto axis_last = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto axis_first = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
 
     auto q_col = std::make_shared<ov::opset11::Unsqueeze>(q_abs, axis_last);
-    q_col->set_friendly_name("model.q_col");
+    q_col->set_friendly_name(prefix + "q_col");
 
     auto kv_row = std::make_shared<ov::opset11::Unsqueeze>(kv_range, axis_first);
-    kv_row->set_friendly_name("model.kv_row");
+    kv_row->set_friendly_name(prefix + "kv_row");
 
     auto causal_bool = std::make_shared<ov::op::v1::LessEqual>(kv_row, q_col);
-    causal_bool->set_friendly_name("model.causal_bool");
+    causal_bool->set_friendly_name(prefix + "causal_bool");
+
+    return {causal_bool->output(0), q_col->output(0), kv_row->output(0)};
+}
+
+ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_ids_output,
+                                      const ov::Output<ov::Node>& attention_mask_output,
+                                      ov::element::Type prec) {
+    auto padding_4d = make_padding_mask(attention_mask_output, prec);
+    auto cb = make_causal_bool(input_ids_output, attention_mask_output, "model.");
 
     auto select_true = ov::opset11::Constant::create(prec, ov::Shape{}, {0.0f});
     auto select_false = ov::opset11::Constant::create(prec, ov::Shape{}, {kAttentionMaskPadding});
 
-    auto causal_float = std::make_shared<ov::op::v1::Select>(causal_bool, select_true, select_false);
+    auto causal_float = std::make_shared<ov::op::v1::Select>(cb.mask, select_true, select_false);
     causal_float->set_friendly_name("model.causal_mask");
 
     auto unsqueeze_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
@@ -245,47 +252,10 @@ ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_p
 ov::Output<ov::Node> make_causal_mask_boolean(const ov::Output<ov::Node>& input_ids_output,
                                               const ov::Output<ov::Node>& attention_mask_output,
                                               ov::element::Type /*unused*/) {
-    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(input_ids_output, ov::element::i64);
-    ids_shape->set_friendly_name("model.cmb.ids_shape");
-    auto mask_shape = std::make_shared<ov::opset11::ShapeOf>(attention_mask_output, ov::element::i64);
-    mask_shape->set_friendly_name("model.cmb.mask_shape");
-
-    auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-
-    auto seq_len = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, axis0);
-    seq_len->set_friendly_name("model.cmb.seq_len");
-    auto total_seq = std::make_shared<ov::opset11::Gather>(mask_shape, idx1, axis0);
-    total_seq->set_friendly_name("model.cmb.total_seq");
-
-    auto offset = std::make_shared<ov::opset11::Subtract>(total_seq, seq_len);
-    offset->set_friendly_name("model.cmb.offset");
-
-    auto range_start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto range_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-
-    auto kv_range = std::make_shared<ov::op::v4::Range>(range_start, total_seq, range_step, ov::element::i64);
-    kv_range->set_friendly_name("model.cmb.kv_range");
-    auto q_range = std::make_shared<ov::op::v4::Range>(range_start, seq_len, range_step, ov::element::i64);
-    q_range->set_friendly_name("model.cmb.q_range");
-
-    auto q_abs = std::make_shared<ov::opset11::Add>(q_range, offset);
-    q_abs->set_friendly_name("model.cmb.q_abs");
-
-    auto axis_last = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-    auto axis_first = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-
-    auto q_col = std::make_shared<ov::opset11::Unsqueeze>(q_abs, axis_last);
-    q_col->set_friendly_name("model.cmb.q_col");
-    auto kv_row = std::make_shared<ov::opset11::Unsqueeze>(kv_range, axis_first);
-    kv_row->set_friendly_name("model.cmb.kv_row");
-
-    // Causal core: kv <= q (true = attend).
-    auto causal_bool = std::make_shared<ov::op::v1::LessEqual>(kv_row, q_col);
-    causal_bool->set_friendly_name("model.cmb.causal_bool");
+    auto cb = make_causal_bool(input_ids_output, attention_mask_output, "model.cmb.");
 
     auto unsq_2d = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
-    auto causal_4d = std::make_shared<ov::opset11::Unsqueeze>(causal_bool, unsq_2d);
+    auto causal_4d = std::make_shared<ov::opset11::Unsqueeze>(cb.mask, unsq_2d);
     causal_4d->set_friendly_name("model.cmb.causal_4d");
 
     // Boolean padding mask: attention_mask -> bool [batch, 1, 1, total_seq].
@@ -306,61 +276,19 @@ ov::Output<ov::Node> make_sliding_window_mask(const ov::Output<ov::Node>& input_
                                               ov::element::Type prec,
                                               size_t window_size) {
     auto padding_4d = make_padding_mask(attention_mask_output, prec);
-
-    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(input_ids_output, ov::element::i64);
-    ids_shape->set_friendly_name("model.sw.ids_shape");
-
-    auto mask_shape_node = std::make_shared<ov::opset11::ShapeOf>(attention_mask_output, ov::element::i64);
-    mask_shape_node->set_friendly_name("model.sw.mask_shape");
-
-    auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-
-    auto seq_len_s = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, gather_axis);
-    seq_len_s->set_friendly_name("model.sw.seq_len");
-
-    auto total_seq_s = std::make_shared<ov::opset11::Gather>(mask_shape_node, idx1, gather_axis);
-    total_seq_s->set_friendly_name("model.sw.total_seq");
-
-    auto offset = std::make_shared<ov::opset11::Subtract>(total_seq_s, seq_len_s);
-    offset->set_friendly_name("model.sw.offset");
-
-    auto range_start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto range_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
-
-    auto kv_range = std::make_shared<ov::op::v4::Range>(range_start, total_seq_s, range_step, ov::element::i64);
-    kv_range->set_friendly_name("model.sw.kv_range");
-
-    auto q_range = std::make_shared<ov::op::v4::Range>(range_start, seq_len_s, range_step, ov::element::i64);
-    q_range->set_friendly_name("model.sw.q_range");
-
-    auto q_abs = std::make_shared<ov::opset11::Add>(q_range, offset);
-    q_abs->set_friendly_name("model.sw.q_abs");
-
-    auto axis_last = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-    auto axis_first = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-
-    auto q_col = std::make_shared<ov::opset11::Unsqueeze>(q_abs, axis_last);
-    q_col->set_friendly_name("model.sw.q_col");
-
-    auto kv_row = std::make_shared<ov::opset11::Unsqueeze>(kv_range, axis_first);
-    kv_row->set_friendly_name("model.sw.kv_row");
-
-    // Causal: kv <= q (no future tokens)
-    auto causal_bool = std::make_shared<ov::op::v1::LessEqual>(kv_row, q_col);
-    causal_bool->set_friendly_name("model.sw.causal_bool");
+    auto cb = make_causal_bool(input_ids_output, attention_mask_output, "model.sw.");
 
     // Sliding: kv > q - window_size (within window)
     auto window_const =
         ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(window_size)});
-    auto lower_bound = std::make_shared<ov::opset11::Subtract>(q_col, window_const);
+    auto lower_bound = std::make_shared<ov::opset11::Subtract>(cb.q_col, window_const);
     lower_bound->set_friendly_name("model.sw.lower_bound");
 
-    auto sliding_bool = std::make_shared<ov::op::v1::Greater>(kv_row, lower_bound);
+    auto sliding_bool = std::make_shared<ov::op::v1::Greater>(cb.kv_row, lower_bound);
     sliding_bool->set_friendly_name("model.sw.sliding_bool");
 
     // Combined: attend iff causal AND sliding
-    auto combined_bool = std::make_shared<ov::op::v1::LogicalAnd>(causal_bool, sliding_bool);
+    auto combined_bool = std::make_shared<ov::op::v1::LogicalAnd>(cb.mask, sliding_bool);
     combined_bool->set_friendly_name("model.sw.combined_bool");
 
     auto select_true = ov::opset11::Constant::create(prec, ov::Shape{}, {0.0f});

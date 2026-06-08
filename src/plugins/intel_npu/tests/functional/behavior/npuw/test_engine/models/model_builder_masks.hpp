@@ -21,6 +21,19 @@ constexpr float kAttentionMaskPadding = -10000.0f;
 ov::Output<ov::Node> make_padding_mask(const ov::Output<ov::Node>& attention_mask,
                                        ov::element::Type prec);
 
+/// Boolean causal core shared by make_causal_mask / make_causal_mask_boolean /
+/// make_sliding_window_mask. Builds absolute query positions (q_range + offset)
+/// and key positions, returns the 2D boolean relation (kv <= q, true = attend)
+/// plus the two operands the sliding-window variant reuses for its window bound.
+struct CausalBool {
+    ov::Output<ov::Node> mask;    ///< LessEqual(kv_row, q_col), bool [seq, total_seq]
+    ov::Output<ov::Node> q_col;   ///< absolute query positions, [seq, 1]
+    ov::Output<ov::Node> kv_row;  ///< key positions, [1, total_seq]
+};
+CausalBool make_causal_bool(const ov::Output<ov::Node>& seq_source,
+                            const ov::Output<ov::Node>& attention_mask,
+                            const std::string& prefix);
+
 /// Standard causal mask combined with padding. Returns 4D float mask
 /// [batch, 1, seq, total_seq] with 0.0=attend, kAttentionMaskPadding=masked.
 ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& seq_source,
