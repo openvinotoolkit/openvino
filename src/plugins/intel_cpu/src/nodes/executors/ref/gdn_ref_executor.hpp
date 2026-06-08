@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "nodes/executors/executor.hpp"
@@ -16,7 +17,7 @@ class GdnRefExecutor : public Executor {
 public:
     static bool supports(const GatedDeltaNetConfig& config);
 
-    GdnRefExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
+    GdnRefExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, ExecutorContext::CPtr context);
 
     bool update(const MemoryArgs& memory) override;
     void execute(const MemoryArgs& memory) override;

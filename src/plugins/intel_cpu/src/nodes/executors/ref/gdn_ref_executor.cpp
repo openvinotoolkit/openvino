@@ -4,11 +4,18 @@
 
 #include "nodes/executors/ref/gdn_ref_executor.hpp"
 
+#include <cstddef>
 #include <memory>
+#include <utility>
 
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/gated_delta_net_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/kernels/linear_attn/recurrent_linear_attn.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu {
@@ -18,11 +25,9 @@ bool GdnRefExecutor::supports(const GatedDeltaNetConfig& config) {
     return precision == ov::element::f32 || precision == ov::element::f16 || precision == ov::element::bf16;
 }
 
-GdnRefExecutor::GdnRefExecutor(const GatedDeltaNetAttrs& attrs,
-                               const MemoryArgs& memory,
-                               const ExecutorContext::CPtr& context)
+GdnRefExecutor::GdnRefExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, ExecutorContext::CPtr context)
     : m_attrs(attrs),
-      m_context(context) {
+      m_context(std::move(context)) {
     update(memory);
 }
 

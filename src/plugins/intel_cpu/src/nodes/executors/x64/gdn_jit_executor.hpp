@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "nodes/executors/executor.hpp"
@@ -21,7 +22,7 @@ class GdnJitExecutor : public Executor {
 public:
     static bool supports(const GatedDeltaNetConfig& config);
 
-    GdnJitExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
+    GdnJitExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, ExecutorContext::CPtr context);
 
     bool update(const MemoryArgs& memory) override;
     void execute(const MemoryArgs& memory) override;

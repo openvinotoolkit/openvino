@@ -138,10 +138,7 @@ private:
                             size_t elem_size,
                             const Xbyak::Xmm& xmm_tmp0,
                             const Xbyak::Xmm& xmm_tmp1);
-    void dot_product_to_scalar(const Xbyak::Xmm& xmm_dst,
-                               const Xbyak::Reg64& reg_a,
-                               const Xbyak::Reg64& reg_b,
-                               const Xbyak::Reg64& reg_aux);
+    void dot_product_to_scalar(const Xbyak::Xmm& xmm_dst, const Xbyak::Reg64& reg_a, const Xbyak::Reg64& reg_b);
     void multiply_scalar(const Xbyak::Reg64& reg_vec, const Xbyak::Xmm& xmm_scalar);
     void l2norm_inplace(const Xbyak::Reg64& reg_vec,
                         const Xbyak::Xmm& xmm_eps,

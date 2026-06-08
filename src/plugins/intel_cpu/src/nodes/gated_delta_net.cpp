@@ -4,7 +4,6 @@
 
 #include "gated_delta_net.h"
 
-#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -18,11 +17,11 @@
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/gated_delta_net_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 

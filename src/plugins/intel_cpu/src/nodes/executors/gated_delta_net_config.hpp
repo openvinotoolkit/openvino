@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
 
 #include "executor_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -20,7 +20,7 @@ struct GatedDeltaNetAttrs {
 
 using GatedDeltaNetConfig = executor::Config<GatedDeltaNetAttrs>;
 
-enum GatedDeltaNetArgId : int {
+enum GatedDeltaNetArgId : uint8_t {
     ARG_GDN_QUERY = ARG_SRC_0,
     ARG_GDN_KEY = ARG_SRC_1,
     ARG_GDN_VALUE = ARG_SRC_2,

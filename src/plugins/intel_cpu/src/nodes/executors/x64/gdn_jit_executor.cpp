@@ -7,12 +7,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
 
+#include "common/utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_parallel.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/gated_delta_net_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/kernels/x64/gdn_jit_kernel.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 using namespace dnnl::impl::cpu::x64;
@@ -104,7 +113,8 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
 
         if (data_prc == ov::element::f32) {
             auto* init_state_f32 = reinterpret_cast<float*>(state_buffer);
-            auto* recurrent_state_f32 = reinterpret_cast<const float*>(recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
+            const auto* recurrent_state_f32 =
+                reinterpret_cast<const float*>(recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
             for (size_t j = 0; j < K; j++) {
                 const auto* src_row = recurrent_state_f32 + j * recurrent_state_stride_k;
                 for (size_t v_idx = 0; v_idx < gdn_jit_v_tile; v_idx++) {
@@ -113,7 +123,7 @@ void recurrent_linear_attn_jit(const ov::intel_cpu::PlainTensor& query,
             }
         } else {
             auto* init_state_u16 = reinterpret_cast<uint16_t*>(state_buffer);
-            auto* recurrent_state_u16 =
+            const auto* recurrent_state_u16 =
                 reinterpret_cast<const uint16_t*>(recurrent_state.ptr_v(i_b, i_h, 0, i_v_begin));
             for (size_t j = 0; j < K; j++) {
                 const auto* src_row = recurrent_state_u16 + j * recurrent_state_stride_k;
@@ -177,11 +187,9 @@ bool GdnJitExecutor::supports(const GatedDeltaNetConfig& config) {
     return mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16);
 }
 
-GdnJitExecutor::GdnJitExecutor(const GatedDeltaNetAttrs& attrs,
-                               const MemoryArgs& memory,
-                               const ExecutorContext::CPtr& context)
+GdnJitExecutor::GdnJitExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, ExecutorContext::CPtr context)
     : m_attrs(attrs),
-      m_context(context) {
+      m_context(std::move(context)) {
     update(memory);
 }
 
@@ -208,41 +216,40 @@ bool GdnJitExecutor::updateKernelAndScratchpad(const MemoryArgs& memory) {
         return false;
     }
 
-    const bool needRecreateKernel = m_jitKernel == nullptr || m_cachedPrecision != precision ||
-                                    m_cachedHeadSize != headSize || m_cachedVTile != jitVTile;
+    GatedDeltaNetJitKey key{precision,
+                            headSize,
+                            jitVTile,
+                            m_attrs.fuse_qk_l2norm,
+                            m_attrs.q_l2_norm_eps,
+                            m_attrs.k_l2_norm_eps};
 
-    if (needRecreateKernel) {
-        GatedDeltaNetJitKey key{precision,
-                                headSize,
-                                jitVTile,
-                                m_attrs.fuse_qk_l2norm,
-                                m_attrs.q_l2_norm_eps,
-                                m_attrs.k_l2_norm_eps};
+    auto builder = [](const GatedDeltaNetJitKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
+        return kernel::create_gdn_jit_kernel(compile_key.precision,
+                                             compile_key.qk_head_size,
+                                             compile_key.v_tile,
+                                             compile_key.fuse_qk_l2norm,
+                                             compile_key.q_l2_norm_eps,
+                                             compile_key.k_l2_norm_eps);
+    };
 
-        auto builder = [](const GatedDeltaNetJitKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
-            return kernel::create_gdn_jit_kernel(compile_key.precision,
-                                                 compile_key.qk_head_size,
-                                                 compile_key.v_tile,
-                                                 compile_key.fuse_qk_l2norm,
-                                                 compile_key.q_l2_norm_eps,
-                                                 compile_key.k_l2_norm_eps);
-        };
+    auto cache = m_context->getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    m_jitKernel = result.first;
+    OPENVINO_ASSERT(m_jitKernel, "Failed to create GatedDeltaNet JIT kernel");
 
-        auto cache = m_context->getRuntimeCache();
-        auto result = cache->getOrCreate(key, builder);
-        m_jitKernel = result.first;
-        OPENVINO_ASSERT(m_jitKernel, "Failed to create GatedDeltaNet JIT kernel");
-
+    const bool needRecreateScratchpad = m_tmpInpBuffer == nullptr || m_cachedPrecision != precision ||
+                                        m_cachedHeadSize != headSize || m_cachedVTile != jitVTile;
+    if (needRecreateScratchpad) {
         const auto numWorkerThreads = m_context->getCpuParallel()->get_num_worker_threads();
         auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
             precision,
             ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads), (jitVTile + 2) * headSize});
         m_tmpInpBuffer = m_context->getScratchPad()->createScratchPadMem(newMemDesc);
-
-        m_cachedPrecision = precision;
-        m_cachedHeadSize = headSize;
-        m_cachedVTile = jitVTile;
     }
+
+    m_cachedPrecision = precision;
+    m_cachedHeadSize = headSize;
+    m_cachedVTile = jitVTile;
 
     return m_jitKernel != nullptr && m_tmpInpBuffer != nullptr;
 }

@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
 #include <vector>
 
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gated_delta_net_config.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/ref/gdn_ref_executor.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
 
 #if defined(OPENVINO_ARCH_X86_64)

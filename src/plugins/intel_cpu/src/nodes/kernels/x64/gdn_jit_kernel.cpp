@@ -8,10 +8,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <common/float16.hpp>
-#include <common/utils.hpp>
+#include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <memory>
 
@@ -38,14 +38,8 @@ void jit_gdn_kernel<isa>::load(const Vmm& vmm_dst,
     const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
         constexpr cpu_isa_t load_isa = ((isa & zmm_bit) != 0) ? avx512_core : isa;
-        emitters[seed] = std::make_unique<jit_load_emitter>(this,
-                                                            load_isa,
-                                                            src_prc,
-                                                            dst_prc,
-                                                            elt_num,
-                                                            dst_prc,
-                                                            fill,
-                                                            "float_min");
+        emitters[seed] =
+            std::make_unique<jit_load_emitter>(this, load_isa, src_prc, dst_prc, elt_num, dst_prc, fill, "float_min");
     }
     emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
                               {static_cast<size_t>(vmm_dst.getIdx())},
@@ -112,8 +106,7 @@ void jit_gdn_kernel<isa>::dot_product_scalar(const Xbyak::Xmm& xmm_dst,
 template <cpu_isa_t isa>
 void jit_gdn_kernel<isa>::dot_product_to_scalar(const Xbyak::Xmm& xmm_dst,
                                                 const Xbyak::Reg64& reg_a,
-                                                const Xbyak::Reg64& reg_b,
-                                                const Xbyak::Reg64& reg_aux) {
+                                                const Xbyak::Reg64& reg_b) {
     // Dot product dispatcher (f32 vectorized, otherwise scalar) -> scalar xmm_dst
     uni_vpxor(xmm_dst, xmm_dst, xmm_dst);
     const size_t qk = m_jcp.qk_head_size;
@@ -150,7 +143,7 @@ void jit_gdn_kernel<isa>::dot_product_to_scalar(const Xbyak::Xmm& xmm_dst,
 template <cpu_isa_t isa>
 void jit_gdn_kernel<isa>::multiply_scalar(const Xbyak::Reg64& reg_vec, const Xbyak::Xmm& xmm_scalar) {
     // In-place vector scale: reg_vec[i] *= xmm_scalar
-    const int elt_num = static_cast<int>(vec_size);
+    const auto elt_num = static_cast<int>(vec_size);
     const size_t elem_size = m_jcp.data_prc.size();
     const size_t step = static_cast<size_t>(elt_num) * elem_size;
     const size_t vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(elt_num);
@@ -492,7 +485,7 @@ void jit_gdn_kernel<isa>::load_qk(bool is_f32, bool use_registers, int num_regs,
         mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
         mov(reg_query_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
 
-        const int copy_elt_num = static_cast<int>(vec_size);
+        const auto copy_elt_num = static_cast<int>(vec_size);
         const size_t copy_step = static_cast<size_t>(copy_elt_num) * m_jcp.data_prc.size();
         const size_t vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(copy_elt_num);
         const size_t tail = m_jcp.qk_head_size % static_cast<size_t>(copy_elt_num);
@@ -679,7 +672,7 @@ void jit_gdn_kernel<isa>::generate() {
 
                     mov(reg_query_tmp, reg_state);
                     mov(reg_key_tmp, ptr[reg_args + GET_OFF(key_tmp)]);
-                    dot_product_to_scalar(x_hk, reg_query_tmp, reg_key_tmp, reg_aux);
+                    dot_product_to_scalar(x_hk, reg_query_tmp, reg_key_tmp);
                 } else {
                     // Scale H by exp(gate)
                     scale_buffer_native_xf16(reg_state, x_gate, const_cast<Vmm*>(v_h), num_regs, num_chunks);
@@ -711,7 +704,7 @@ void jit_gdn_kernel<isa>::generate() {
 
                 if (is_f32) {
                     // Update: H += K * delta
-                    const int update_elt_num = static_cast<int>(vec_size);
+                    const auto update_elt_num = static_cast<int>(vec_size);
                     const size_t update_step = static_cast<size_t>(update_elt_num) * sizeof(float);
                     const size_t update_vec_cnt = m_jcp.qk_head_size / static_cast<size_t>(update_elt_num);
                     const size_t update_tail = m_jcp.qk_head_size % static_cast<size_t>(update_elt_num);
@@ -737,7 +730,7 @@ void jit_gdn_kernel<isa>::generate() {
 
                     mov(reg_query_tmp, reg_state);
                     mov(reg_key_tmp, ptr[reg_args + GET_OFF(query_tmp)]);
-                    dot_product_to_scalar(x_out, reg_query_tmp, reg_key_tmp, reg_aux);
+                    dot_product_to_scalar(x_out, reg_query_tmp, reg_key_tmp);
                 } else {
                     // Update: H += K * delta
                     for (int chunk = 0; chunk < num_chunks; chunk++) {
