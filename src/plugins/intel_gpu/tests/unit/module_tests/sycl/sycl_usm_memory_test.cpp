@@ -204,6 +204,7 @@ TEST(sycl_usm_memory, copy_between_different_alloc_types) {
     std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
 
     auto src_mem = ctx.sycl_test_engine->allocate_memory(linear_layout, alloc_types[0]);
+    ASSERT_NE(src_mem, nullptr);
     OV_ASSERT_NO_THROW(src_mem->copy_from(*ctx.sycl_test_stream, src_buffer.data(), true));
 
     for (size_t i = 1; i < alloc_types.size(); i++) {
