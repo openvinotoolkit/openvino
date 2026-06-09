@@ -142,7 +142,9 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
             slot._dimsCount = static_cast<int64_t>(sizes.size());
             slot._sizes.resize(sizes.size());
             slot._strides.resize(strides.size());
-        } else if (slot._dimsCount != static_cast<int64_t>(sizes.size())) {
+        }
+
+        if (slot._dimsCount != static_cast<int64_t>(sizes.size())) {
             OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
                            slot._dimsCount,
                            ", new dimension count: ",

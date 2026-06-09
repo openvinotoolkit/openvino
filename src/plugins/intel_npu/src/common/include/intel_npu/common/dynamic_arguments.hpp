@@ -14,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/itensor.hpp"
+// #include "intel_npu/common/network_metadata.hpp"
 
 namespace intel_npu {
 
@@ -76,6 +77,8 @@ private:
 struct DynamicArguments {
     std::vector<DynamicMemRefType> _inputs;
     std::vector<DynamicMemRefType> _outputs;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
     npu_vm_runtime_execution_context_handle_t _executionContext = nullptr;
     // Set by the caller after the first successful @c npuVMRuntimeExecute.
     bool _executedOnce = false;
