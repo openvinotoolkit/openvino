@@ -229,6 +229,8 @@ private:
     void infer_impl(const F& f) {
         check_tensors();
 
+        // If a callback from the previous request threw, surface it on the next user API entry point
+        // (start_async()/infer()) where exceptions are expected to be observed.
         std::exception_ptr deferred_callback_exception = nullptr;
         InferState state = InferState::IDLE;
         {
@@ -290,10 +292,13 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
+    // Callback invocation can be re-entered on the same thread when an inline executor is used
+    // and callback body calls start_async() on the same request.
+    // Recursive mutex avoids self-deadlock while still serializing callback invocations across threads.
     mutable std::recursive_mutex m_callback_invoke_mutex;
     std::function<void(std::exception_ptr)> m_callback;
-    // Exception thrown by user callback is captured and rethrown on the next start_async()/infer() call.
-    // This avoids deadlocks when callbacks re-enter inference on the same request.
+    // Callback exceptions cannot be attached to the already-fulfilled current request promise,
+    // so store and rethrow them on the next start_async()/infer() invocation.
     std::exception_ptr m_pending_callback_exception = nullptr;
 };
 
