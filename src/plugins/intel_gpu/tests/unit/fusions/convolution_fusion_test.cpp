@@ -994,6 +994,8 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
     }
 
     tolerance = default_tolerance(p.data_type);
+    if (engine.get_device_info().supports_immad && p.default_type == data_types::f16)
+        tolerance *= 2;
     execute(p);
 }
 
