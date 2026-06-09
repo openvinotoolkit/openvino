@@ -228,6 +228,7 @@ void Transpose::prepareParams() {
     CPU_NODE_ASSERT(result.first, "Primitive descriptor was not found.");
 
     execPtr = result.first;
+    getSelectedPrimitiveDescriptor()->setImplementationType(execPtr->implType());
 }
 
 void Transpose::createPrimitive() {

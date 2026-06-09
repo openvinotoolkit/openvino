@@ -256,6 +256,16 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
+    // For multi-stream scenario the first graph, that has completed at least one inference, is taken,
+    // so the caller always sees real implementation types.
+    if (m_graphs.size() > 1) {
+        for (auto& graph : m_graphs) {
+            if (graph.inferenceHappened()) {
+                return GraphGuard::Lock(graph)._graph.dump();
+            }
+        }
+    }
+
     return get_graph()._graph.dump();
 }
 
