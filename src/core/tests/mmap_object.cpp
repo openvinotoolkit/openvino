@@ -359,10 +359,11 @@ TEST(MappedMemory, parallel_prefault_whole_file) {
     constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MiB (above 4 MiB threshold)
 
     {
-        std::vector<char> data(file_size);
-        std::iota(data.begin(), data.end(), char{0});
+        std::vector<uint8_t> data(file_size);
+        for (size_t i = 0; i < file_size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
         std::ofstream f(file_path, std::ios::binary);
-        f.write(data.data(), data.size());
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
@@ -373,8 +374,8 @@ TEST(MappedMemory, parallel_prefault_whole_file) {
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
-        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[file_size - 1]),
-                  static_cast<unsigned char>((file_size - 1) & 0xFF));
+        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[file_size - 1]),
+                  static_cast<uint8_t>((file_size - 1) % 251));
     }
 
     std::filesystem::remove(file_path);
@@ -387,10 +388,11 @@ TEST(MappedMemory, parallel_prefault_partial_region) {
     constexpr size_t prefault_size = 5 * 1024 * 1024;
 
     {
-        std::vector<char> data(file_size);
-        std::iota(data.begin(), data.end(), char{0});
+        std::vector<uint8_t> data(file_size);
+        for (size_t i = 0; i < file_size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
         std::ofstream f(file_path, std::ios::binary);
-        f.write(data.data(), data.size());
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
@@ -399,8 +401,8 @@ TEST(MappedMemory, parallel_prefault_partial_region) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
-        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[prefault_offset]),
-                  static_cast<unsigned char>(prefault_offset & 0xFF));
+        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[prefault_offset]),
+                  static_cast<uint8_t>(prefault_offset % 251));
     }
 
     std::filesystem::remove(file_path);
@@ -431,10 +433,11 @@ TEST(MappedMemory, parallel_prefault_with_file_offset) {
     constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
 
     {
-        std::vector<char> data(file_size);
-        std::iota(data.begin(), data.end(), char{0});
+        std::vector<uint8_t> data(file_size);
+        for (size_t i = 0; i < file_size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
         std::ofstream f(file_path, std::ios::binary);
-        f.write(data.data(), data.size());
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
@@ -444,7 +447,7 @@ TEST(MappedMemory, parallel_prefault_with_file_offset) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), static_cast<unsigned char>(map_offset & 0xFF));
+        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[0]), static_cast<uint8_t>(map_offset % 251));
     }
 
     std::filesystem::remove(file_path);
@@ -458,10 +461,11 @@ TEST(MappedMemory, hint_prefetch_with_both_offsets) {
     constexpr size_t pop_size = 5 * 1024 * 1024;    // Populate 5 MB
 
     {
-        std::vector<char> data(file_size);
-        std::iota(data.begin(), data.end(), char{0});
+        std::vector<uint8_t> data(file_size);
+        for (size_t i = 0; i < file_size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
         std::ofstream f(file_path, std::ios::binary);
-        f.write(data.data(), data.size());
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
@@ -471,8 +475,8 @@ TEST(MappedMemory, hint_prefetch_with_both_offsets) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(pop_offset, pop_size));
 
-        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[pop_offset]),
-                  static_cast<unsigned char>((map_offset + pop_offset) & 0xFF));
+        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[pop_offset]),
+                  static_cast<uint8_t>((map_offset + pop_offset) % 251));
     }
 
     std::filesystem::remove(file_path);
@@ -517,10 +521,11 @@ TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
 
     auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
     {
-        std::vector<char> data(file_size);
-        std::iota(data.begin(), data.end(), char{0});
+        std::vector<uint8_t> data(file_size);
+        for (size_t i = 0; i < file_size; ++i)
+            data[i] = static_cast<uint8_t>(i % 251);
         std::ofstream f(file_path, std::ios::binary);
-        f.write(data.data(), data.size());
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
     int fd = ::open(file_path.c_str(), O_RDONLY);
     if (fd >= 0) {
