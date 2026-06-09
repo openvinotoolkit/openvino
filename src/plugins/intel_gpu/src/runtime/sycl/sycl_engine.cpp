@@ -146,6 +146,11 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         OPENVINO_THROW("[GPU] SYCL subbuffer creation failed: ", e.what());
     }
 }
+
+memory_ptr sycl_engine::create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
