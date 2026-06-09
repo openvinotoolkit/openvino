@@ -43,17 +43,18 @@ public:
 
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
-     *
-     * @param section_type_evaluators Indicates all section types known to the NPU plugin. This mapping is used to
-     * evaluate the CRE.
      */
-    void read(const ov::Tensor& source,
-              const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators);
+    void read(const ov::Tensor& source);
 
     /**
      * @brief Register a new section reader for the given section type.
      */
     void register_reader(const SectionType type, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)> reader);
+
+    void register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator);
+
+    void register_section_type_instance_evaluate_fn(const SectionType type,
+                                                    std::function<bool(BlobReaderInterface&)> function);
 
     /**
      * @brief Retrieve a parsed section.
@@ -100,8 +101,7 @@ private:
     std::unordered_map<SectionID, SectionTypeInstanceEvaluator> build_section_type_instance_evaluators(
         const ov::Tensor& source,
         const OffsetsTable& offsets_table,
-        const size_t npu_region_size,
-        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const;
+        const size_t npu_region_size) const;
 
     /**
      * @brief All sections obtained after parsing the compiled model.
@@ -121,6 +121,8 @@ private:
      * @brief All known section readers that can be used to parse the compiled model.
      */
     std::unordered_map<SectionType, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)>> m_readers;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
+    std::unordered_map<SectionType, std::function<bool(BlobReaderInterface&)>> m_section_type_instance_evaluate_fn;
 
     Logger m_logger;
 };

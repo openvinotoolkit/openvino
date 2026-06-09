@@ -17,7 +17,7 @@ BatchSizeSection::BatchSizeSection(const int64_t batch_size, const ov::log::Leve
     m_logger.trace("Section created");
 }
 
-std::vector<CRE::Token> BatchSizeSection::get_compatibility_requirements_subexpression(
+std::vector<CREToken> BatchSizeSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the BATCH_SIZE section type to the CRE");

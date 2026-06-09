@@ -18,7 +18,7 @@ CRESection::CRESection(const CRE& cre, const ov::log::Level log_level)
 void CRESection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
 
-    writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CRE::Token));
+    writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CREToken));
 
     m_logger.debug("%lu tokens written", m_cre.get_expression_length());
 }
@@ -32,20 +32,20 @@ std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     Logger logger("CRESection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
-    OPENVINO_ASSERT(section_length % sizeof(CRE::Token) == 0,
+    OPENVINO_ASSERT(section_length % sizeof(CREToken) == 0,
                     "Received a CRE section length that is not divisible by the CRE token size. Section length: ",
                     section_length,
                     ". CRE token size: ",
-                    sizeof(CRE::Token));
-    size_t number_of_tokens = section_length / sizeof(CRE::Token);
+                    sizeof(CREToken));
+    size_t number_of_tokens = section_length / sizeof(CREToken);
     if (number_of_tokens == 0) {
         logger.warning("The parsed CRE is empty. No compatibility checks will be performed");
     }
 
     logger.debug("Reading %lu tokens", number_of_tokens);
 
-    std::vector<CRE::Token> tokens(number_of_tokens);
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CRE::Token));
+    std::vector<CREToken> tokens(number_of_tokens);
+    blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CREToken));
 
     return std::make_shared<CRESection>(CRE(tokens, logger.level()), logger.level());
 }

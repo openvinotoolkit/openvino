@@ -27,27 +27,25 @@ void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
 
 // TODO should we unit test the reader with precompiled compatibility blobs?
 void reader_register_sections(const std::shared_ptr<BlobReader>& blobReader,
-                              const std::vector<uint16_t> section_types,
-                              std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& capabilities) {
+                              const std::vector<uint16_t> section_types) {
     for (const auto& token : section_types) {
-        capabilities[token] = std::make_shared<SupportedSectionTypeEvaluator>(token);
+        blobReader->register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(token));
     }
 
     blobReader->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 }
 
-std::pair<std::string, std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>> make_simple_blob(
-    int64_t batch_size) {
+std::string make_simple_blob(int64_t batch_size, BlobReader& reader) {
     BlobWriter writer;
     writer.register_section(std::make_shared<BatchSizeSection>(batch_size));
     std::stringstream stream;
     writer.write(stream);
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
-    return {stream.str(), std::move(caps)};
+
+    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE));
+    return stream.str();
 }
 }  // namespace
 
@@ -72,10 +70,10 @@ protected:
         buffer = stream.str();
         tensor = ov::Tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
         reader = std::make_shared<BlobReader>();
-        reader_register_sections(reader, section_types, capabilities);
+        reader_register_sections(reader, section_types);
     }
 
-    std::vector<CRE::Token> expression;
+    std::vector<CREToken> expression;
     std::vector<uint16_t> section_types;
     std::shared_ptr<BlobWriter> writer;
     std::shared_ptr<BlobReader> reader;
@@ -84,14 +82,13 @@ protected:
     std::stringstream stream;
     std::string buffer;
     ov::Tensor tensor;
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> capabilities;
 };
 
 using AllSections = WriterReaderUnitTests;
 
 // all sections except ELF
 TEST_P(AllSections, WriteRead) {
-    ASSERT_NO_THROW(reader->read(tensor, capabilities));
+    ASSERT_NO_THROW(reader->read(tensor));
 
     auto read_batch =
         std::dynamic_pointer_cast<BatchSizeSection>(reader->retrieve_first_section(PredefinedSectionType::BATCH_SIZE));
@@ -108,7 +105,7 @@ TEST_P(AllSections, WriteRead) {
 using IncompatibleCRE = WriterReaderUnitTests;
 
 TEST_P(IncompatibleCRE, ReadThrows) {
-    EXPECT_THROW(reader->read(tensor, capabilities), ov::Exception);
+    EXPECT_THROW(reader->read(tensor), ov::Exception);
 }
 
 using Reader = ::testing::Test;
@@ -132,22 +129,22 @@ TEST_F(Reader, GetROITensor) {
 using WriterReaderEdgeCases = ::testing::Test;
 
 TEST_F(WriterReaderEdgeCases, CorruptedMagicByte) {
-    auto [blob, caps] = make_simple_blob(BATCH);
+    BlobReader reader;
+    auto blob = make_simple_blob(BATCH, reader);
     blob[0] = 'X';
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
-    BlobReader reader;
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    ASSERT_ANY_THROW(reader.read(tensor, caps));
+    ASSERT_ANY_THROW(reader.read(tensor));
 }
 
 TEST_F(WriterReaderEdgeCases, CorruptedFormatVersion) {
     constexpr size_t MAGIC_BYTES_SIZE = 5;  // 'OVNPU'
-    auto [blob, caps] = make_simple_blob(BATCH);
+    BlobReader reader;
+    auto blob = make_simple_blob(BATCH, reader);
     blob[MAGIC_BYTES_SIZE] = static_cast<char>(~static_cast<unsigned char>(blob[MAGIC_BYTES_SIZE]));
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
-    BlobReader reader;
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    ASSERT_ANY_THROW(reader.read(tensor, caps));
+    ASSERT_ANY_THROW(reader.read(tensor));
 }
 
 TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
@@ -161,16 +158,15 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     writer_1.write(stream_1);
     std::string buffer_1 = stream_1.str();
 
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
-
     ov::Tensor tensor_1(ov::element::u8, ov::Shape{buffer_1.size()}, buffer_1.data());
     auto reader_1 = std::make_shared<BlobReader>();
     reader_1->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     reader_1->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
-    ASSERT_NO_THROW(reader_1->read(tensor_1, caps));
+    reader_1->register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader_1->register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE));
+    ASSERT_NO_THROW(reader_1->read(tensor_1));
 
     BlobWriter writer_2(reader_1);
     std::stringstream stream_2;
@@ -181,7 +177,11 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     auto reader_2 = std::make_shared<BlobReader>();
     reader_2->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     reader_2->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
-    ASSERT_NO_THROW(reader_2->read(tensor_2, caps));
+    reader_2->register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader_2->register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE));
+    ASSERT_NO_THROW(reader_2->read(tensor_2));
 
     auto read_batch = std::dynamic_pointer_cast<BatchSizeSection>(
         reader_2->retrieve_first_section(PredefinedSectionType::BATCH_SIZE));
@@ -208,12 +208,11 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    ASSERT_NO_THROW(reader.read(tensor, caps));
+    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE));
+    ASSERT_NO_THROW(reader.read(tensor));
 
     auto sections = reader.retrieve_sections_same_type(PredefinedSectionType::BATCH_SIZE);
     ASSERT_TRUE(sections.has_value());
@@ -230,27 +229,27 @@ TEST_F(WriterReaderEdgeCases, UnknownSectionSkipped) {
     writer.register_section(std::make_shared<IOLayoutsSection>(std::vector<ov::Layout>(), std::vector<ov::Layout>()));
     std::stringstream stream;
     writer.write(stream);
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
+
+    BlobReader reader;
+    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE));
 
     const std::string blob = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
-    BlobReader reader;
 
     // intentionally not registering batch size
-    ASSERT_NO_THROW(reader.read(tensor, caps));
+    ASSERT_NO_THROW(reader.read(tensor));
     EXPECT_EQ(reader.retrieve_first_section(PredefinedSectionType::BATCH_SIZE), nullptr);
 }
 
 TEST_F(WriterReaderEdgeCases, RetrieveSectionByExplicitID) {
-    auto [blob, caps] = make_simple_blob(BATCH);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     BlobReader reader;
+    auto blob = make_simple_blob(BATCH, reader);
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    ASSERT_NO_THROW(reader.read(tensor, caps));
+    ASSERT_NO_THROW(reader.read(tensor));
 
     auto section = reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 0));
     ASSERT_NE(section, nullptr);
@@ -261,18 +260,19 @@ TEST_F(WriterReaderEdgeCases, RetrieveSectionByExplicitID) {
 }
 
 TEST_F(WriterReaderEdgeCases, RetrieveSectionsAbsentType) {
-    auto [blob, caps] = make_simple_blob(BATCH);
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     BlobReader reader;
+    auto blob = make_simple_blob(BATCH, reader);
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    ASSERT_NO_THROW(reader.read(tensor, caps));
+    ASSERT_NO_THROW(reader.read(tensor));
 
     auto absent = reader.retrieve_sections_same_type(PredefinedSectionType::IO_LAYOUTS);
     EXPECT_FALSE(absent.has_value());
 }
 
 TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromTensor) {
-    auto [blob, caps] = make_simple_blob(BATCH);
+    BlobReader reader;
+    auto blob = make_simple_blob(BATCH, reader);
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
 
     const size_t reported = BlobReader::get_npu_region_size(tensor);
@@ -280,7 +280,8 @@ TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromTensor) {
 }
 
 TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromStream) {
-    auto [blob, caps] = make_simple_blob(BATCH);
+    BlobReader reader;
+    auto blob = make_simple_blob(BATCH, reader);
     std::istringstream stream(blob);
 
     const size_t reported = BlobReader::get_npu_region_size(stream);
@@ -288,10 +289,10 @@ TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromStream) {
 }
 
 TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
+    BlobReader reader;
+    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE));
 
     BlobWriter writer;
     constexpr int64_t BATCH_A = 0xDEADBEEF, BATCH_B = 0xDEAFBEEF, BATCH_C = 0x0FFBEEF;
@@ -310,9 +311,8 @@ TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
     writer.write(stream);
     std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
-    BlobReader reader;
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    ASSERT_NO_THROW(reader.read(tensor, caps));
+    ASSERT_NO_THROW(reader.read(tensor));
 
     auto section = reader.retrieve_section(SectionID(PredefinedSectionType::BATCH_SIZE, 0));
     ASSERT_NE(section, nullptr);

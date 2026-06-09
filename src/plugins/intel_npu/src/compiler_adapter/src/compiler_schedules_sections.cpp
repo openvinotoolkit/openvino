@@ -21,7 +21,7 @@ ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule, const o
       m_main_schedule(main_schedule),
       m_logger("ELFMainScheduleSection", log_level) {}
 
-std::vector<CRE::Token> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
+std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_MAIN_SCHEDULE section type to the CRE");
@@ -81,7 +81,7 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_s
       m_init_schedules(std::move(init_schedules)),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
-std::vector<CRE::Token> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
+std::vector<CREToken> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");

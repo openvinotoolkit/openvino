@@ -224,6 +224,11 @@ void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
     blobReader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
     blobReader->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
+
+    for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
+        // TODO move this function within BlobReader, and have a BlobReader inside Plugin?
+        blobReader->register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
+    }
 }
 
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
@@ -346,11 +351,6 @@ namespace intel_npu {
 
 Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
-
-    for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
-        // TODO move this function within BlobReader, and have a BlobReader inside Plugin?
-        register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
-    }
 
     set_device_name("NPU");
 
@@ -942,7 +942,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    blobReader->read(tensorBig, _sectionTypeEvaluators);
+    blobReader->read(tensorBig);
     auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
         blobReader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
     auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
@@ -1026,14 +1026,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     auto blobWriter = std::make_shared<BlobWriter>(blobReader);
 
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
-}
-
-void Plugin::register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator) const {
-    _sectionTypeEvaluators[evaluator->get_section_type()] = evaluator;
-}
-
-std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> Plugin::get_section_type_evaluators() const {
-    return _sectionTypeEvaluators;
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {

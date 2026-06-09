@@ -16,24 +16,25 @@ namespace intel_npu {
  */
 class SectionTypeInstanceEvaluator {
 public:
-    SectionTypeInstanceEvaluator(const std::shared_ptr<ISection>& section, BlobReaderInterface reader);
+    SectionTypeInstanceEvaluator(const std::function<bool(BlobReaderInterface&)>& evaluate_fn,
+                                 BlobReaderInterface reader);
 
     /**
      * @brief Checks whether or not the NPU plugin supports the section type instance.
      * @details After evaluation, the
      * result is stored in "m_supported" for future use.
      */
-    bool check_support();
+    bool check_support() const;
 
 private:
-    std::shared_ptr<ISection> m_section;
+    std::function<bool(BlobReaderInterface&)> m_evaluate_fn;
 
-    BlobReaderInterface m_reader;
+    mutable BlobReaderInterface m_reader;
 
     /**
      * @brief If evaluation is performed, the result will be stored here for future use.
      */
-    std::optional<bool> m_supported;
+    mutable std::optional<bool> m_supported;
 };
 
 }  // namespace intel_npu

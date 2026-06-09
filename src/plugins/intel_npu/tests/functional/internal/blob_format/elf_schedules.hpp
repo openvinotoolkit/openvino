@@ -79,11 +79,10 @@ public:
         reader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         reader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
 
-        std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
         for (auto type : DEFAULT_SUPPORTED_SECTION_TYPES) {
-            caps[type] = std::make_shared<SupportedSectionTypeEvaluator>(type);
+            reader->register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
         }
-        reader->read(blob, caps);
+        reader->read(blob);
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, ov::AnyMap>>& obj) {

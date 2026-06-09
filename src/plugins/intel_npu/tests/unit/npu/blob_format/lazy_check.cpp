@@ -18,10 +18,6 @@ constexpr double VALID_VALUE_3 = VALID_THRESHOLD - 3;
 constexpr double INVALID_VALUE_1 = VALID_THRESHOLD + 1;
 constexpr double INVALID_VALUE_2 = 0xDEADBEEF;
 
-std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
-    return {{PredefinedSectionType::CRE, std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE)}};
-}
-
 std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_ptr<MockSection_1> section_1,
                                                                     std::vector<std::shared_ptr<ISection>> reachables) {
     BlobWriter writer;
@@ -35,7 +31,8 @@ std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
     reader.register_reader(MockTypes::MOCK_3, MockSection_3::read);
     reader.register_reader(MockTypes::MOCK_WITH_TABLE, MockSectionWithTable::read);
-    reader.read(tensor, make_caps());
+    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.read(tensor);
 
     return std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_first_section(MockTypes::MOCK_WITH_TABLE));
 }

@@ -15,7 +15,7 @@ class BatchSizeSection final : public ISection {
 public:
     BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    std::vector<CRE::Token> get_compatibility_requirements_subexpression(
+    std::vector<CREToken> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
             all_registered_sections) const override;
 

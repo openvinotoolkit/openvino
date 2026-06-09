@@ -39,6 +39,17 @@ void BlobReader::register_reader(const SectionType type,
     m_logger.debug("Registered a reader for section type %lu", type);
 }
 
+void BlobReader::register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator) {
+    m_section_type_evaluators[evaluator->get_section_type()] = evaluator;
+    m_logger.debug("Registered a section type evaluator for section type %lu", evaluator->get_section_type());
+}
+
+void BlobReader::register_section_type_instance_evaluate_fn(const SectionType type,
+                                                            std::function<bool(BlobReaderInterface&)> function) {
+    m_section_type_instance_evaluate_fn[type] = function;
+    m_logger.debug("Registered a section type instance evaluation function for section type %lu", type);
+}
+
 std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) {
     auto type_search_result = m_parsed_sections.find(id.type);
     if (type_search_result != m_parsed_sections.end()) {
@@ -62,17 +73,11 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
     }
     return std::nullopt;
 }
-// const ov::Tensor& source,
-//         const size_t section_start,
-//         const size_t section_length,
-//         const size_t npu_region_size,
-//         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-//         const ov::log::Level log_level = ov::log::Level::WARNING);
+
 std::unordered_map<SectionID, SectionTypeInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
     const ov::Tensor& source,
     const OffsetsTable& offsets_table,
-    const size_t npu_region_size,
-    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const {
+    const size_t npu_region_size) const {
     std::unordered_map<SectionID, SectionTypeInstanceEvaluator> instance_evaluators;
     const std::unordered_set<SectionID> all_section_ids = offsets_table.get_all_registered_section_ids();
 
@@ -81,15 +86,23 @@ std::unordered_map<SectionID, SectionTypeInstanceEvaluator> BlobReader::build_se
                                    offsets_table.lookup_offset(section_id).value(),
                                    offsets_table.lookup_length(section_id).value(),
                                    npu_region_size,
-                                   section_type_evaluators,
+                                   m_section_type_evaluators,
                                    m_logger.level());
-        instance_evaluators[section_id] = SectionTypeInstanceEvaluator(TODO, reader);
+
+        // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
+        // by default
+        if (m_section_type_instance_evaluate_fn.count(section_id.type)) {
+            instance_evaluators.emplace(
+                section_id,
+                SectionTypeInstanceEvaluator(m_section_type_instance_evaluate_fn.at(section_id.type),
+                                             std::move(reader)));
+        }
     }
+
+    return instance_evaluators;
 }
 
-void BlobReader::read(
-    const ov::Tensor& source,
-    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) {
+void BlobReader::read(const ov::Tensor& source) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");
 
@@ -135,7 +148,7 @@ void BlobReader::read(
                                   cursor,
                                   offsets_table_size,
                                   npu_region_size,
-                                  section_type_evaluators,
+                                  m_section_type_evaluators,
                                   m_logger.level());
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] = OffsetsTableSection::read(interface);
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
@@ -159,7 +172,7 @@ void BlobReader::read(
                                         cursor,
                                         cre_length.value(),
                                         npu_region_size,
-                                        section_type_evaluators,
+                                        m_section_type_evaluators,
                                         m_logger.level());
         m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
         m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
@@ -167,11 +180,8 @@ void BlobReader::read(
             std::dynamic_pointer_cast<CRESection>(
                 m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
                 ->get_cre()
-                .check_compatibility(section_type_evaluators,
-                                     build_section_type_instance_evaluators(source,
-                                                                            offsets_table,
-                                                                            npu_region_size,
-                                                                            section_type_evaluators));
+                .check_compatibility(m_section_type_evaluators,
+                                     build_section_type_instance_evaluators(source, offsets_table, npu_region_size));
         OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
         m_logger.debug("CRE evaluation passed");
     } else {
@@ -216,7 +226,7 @@ void BlobReader::read(
                                             cursor,
                                             section_length.value(),
                                             npu_region_size,
-                                            section_type_evaluators,
+                                            m_section_type_evaluators,
                                             m_logger.level());
             m_parsed_sections[section_id->type][section_id->type_instance] = m_readers.at(section_id->type)(interface);
             m_parsed_sections[section_id->type][section_id->type_instance]->set_section_type_instance(

@@ -52,7 +52,7 @@ private:
 // TODO rename these as well
 class MockCapability : public ISectionTypeEvaluator {
 public:
-    explicit MockCapability(SectionType type) : ISectionTypeEvaluator(static_cast<CRE::Token>(type)) {}
+    explicit MockCapability(SectionType type) : ISectionTypeEvaluator(static_cast<CREToken>(type)) {}
     MOCK_METHOD(bool, lazy_check_support, (), (const, override));
 };
 
@@ -71,7 +71,7 @@ public:
 class DriverCapability : public ISectionTypeEvaluator {
 public:
     DriverCapability(SectionType type, const IDriver& driver)
-        : ISectionTypeEvaluator(static_cast<CRE::Token>(type)),
+        : ISectionTypeEvaluator(static_cast<CREToken>(type)),
           m_driver(driver),
           m_type(type) {}
 

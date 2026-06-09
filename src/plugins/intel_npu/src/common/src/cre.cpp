@@ -6,15 +6,13 @@
 
 #include <functional>
 
-#include "intel_npu/common/isection_type_evaluator.hpp"
-
 #define CRE_EVAL_ASSERT(...) \
     OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
 
 namespace {
 
-const std::unordered_set<intel_npu::CRE::Token> BINARY_OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
-const std::unordered_set<intel_npu::CRE::Token> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR, intel_npu::CRE::NOT};
+const std::unordered_set<intel_npu::CREToken> BINARY_OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
+const std::unordered_set<intel_npu::CREToken> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR, intel_npu::CRE::NOT};
 
 inline bool and_function(bool a, bool b) {
     return a && b;
@@ -43,14 +41,14 @@ void InvalidCRE::create(const char* file,
 // TODO use the logger more after modifying the algorithm
 CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
-CRE::CRE(const std::vector<Token>& expression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
+CRE::CRE(const std::vector<CREToken>& expression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
     if (!expression.empty()) {
         m_subexpressions.push_back(expression);
     }
 }
 
-bool CRE::subexpression_already_registered(const std::vector<CRE::Token>& subexpression) const {
-    for (const std::vector<CRE::Token>& registered_subexpression : m_subexpressions) {
+bool CRE::subexpression_already_registered(const std::vector<CREToken>& subexpression) const {
+    for (const std::vector<CREToken>& registered_subexpression : m_subexpressions) {
         if (subexpression == registered_subexpression) {
             return true;
         }
@@ -59,13 +57,13 @@ bool CRE::subexpression_already_registered(const std::vector<CRE::Token>& subexp
     return false;
 }
 
-void CRE::append_to_expression(const CRE::Token requirement_token) {
+void CRE::append_to_expression(const CREToken requirement_token) {
     OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
                     "Appending subexpressions should be done through the \"vector\" API");
 
-    const std::vector<CRE::Token> subexpression{requirement_token};
+    const std::vector<CREToken> subexpression{requirement_token};
     if (subexpression_already_registered(subexpression)) {
-        m_logger.trace("Token %u was already registered", requirement_token);
+        m_logger.trace("CREToken %u was already registered", requirement_token);
         return;
     }
 
@@ -73,7 +71,7 @@ void CRE::append_to_expression(const CRE::Token requirement_token) {
     m_logger.trace("Appended token %u", requirement_token);
 }
 
-void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens) {
+void CRE::append_to_expression(const std::vector<CREToken>& requirement_tokens) {
     const size_t subexpression_size = requirement_tokens.size();
     if (!subexpression_size) {
         return;
@@ -81,12 +79,12 @@ void CRE::append_to_expression(const std::vector<CRE::Token>& requirement_tokens
 
     OPENVINO_ASSERT(!BINARY_OPERATORS.count(requirement_tokens.at(0)),
                     "Subexpressions cannot start with a binary operator");
-    const CRE::Token last_token = requirement_tokens.at(subexpression_size - 1);
+    const CREToken last_token = requirement_tokens.at(subexpression_size - 1);
     OPENVINO_ASSERT(!OPERATORS.count(last_token) && last_token != OPEN,
                     "The last token within a subexpression cannot be an operator nor open parrenthesis");
 
     const bool subexpression_enclosed = requirement_tokens.at(0) == CRE::OPEN && last_token == CRE::CLOSE;
-    std::vector<CRE::Token> subexpression;
+    std::vector<CREToken> subexpression;
 
     // At least three tokens are required for a binary operator and its operands. In this case, parrenthesis are
     // required to ensure the correct operator precedence
@@ -114,7 +112,7 @@ size_t CRE::get_expression_length() const {
     }
 
     size_t result = 0;
-    for (const std::vector<Token>& subexpression : m_subexpressions) {
+    for (const std::vector<CREToken>& subexpression : m_subexpressions) {
         result += subexpression.size();
     }
 
@@ -123,14 +121,14 @@ size_t CRE::get_expression_length() const {
     return result;
 }
 
-std::vector<CRE::Token> CRE::get_expression() const {
+std::vector<CREToken> CRE::get_expression() const {
     if (m_subexpressions.empty()) {
         return {};
     }
 
-    std::vector<CRE::Token> expression;
+    std::vector<CREToken> expression;
     size_t index = 0;
-    for (const std::vector<CRE::Token>& subexpression : m_subexpressions) {
+    for (const std::vector<CREToken>& subexpression : m_subexpressions) {
         if (index++ != 0) {
             // All subexpressions at depth level 0 are stitched together using ANDs by convention
             expression.push_back(CRE::AND);
@@ -145,14 +143,14 @@ bool CRE::empty() const {
     return m_subexpressions.empty();
 }
 
-void CRE::advance_iterator(std::vector<Token>::const_iterator& expression_iterator,
-                           const std::vector<Token>::const_iterator& expression_end) const {
+void CRE::advance_iterator(std::vector<CREToken>::const_iterator& expression_iterator,
+                           const std::vector<CREToken>::const_iterator& expression_end) const {
     CRE_EVAL_ASSERT(expression_iterator != expression_end, "The CRE ended unexpectedly");
     expression_iterator++;
 }
 
-bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_iterator,
-                        const std::vector<Token>::const_iterator& expression_end,
+bool CRE::end_condition(const std::vector<CREToken>::const_iterator& expression_iterator,
+                        const std::vector<CREToken>::const_iterator& expression_end,
                         const Delimiter end_delimiter) const {
     switch (end_delimiter) {
     case Delimiter::PARRENTHESIS:
@@ -166,9 +164,10 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
 }
 
 bool CRE::evaluate(
-    std::vector<Token>::const_iterator& expression_iterator,
-    const std::vector<Token>::const_iterator& expression_end,
+    std::vector<CREToken>::const_iterator& expression_iterator,
+    const std::vector<CREToken>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+    const std::unordered_map<SectionID, SectionTypeInstanceEvaluator>& section_type_instance_evaluators,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations) const {
     std::function<bool(bool, bool)> logical_function = first_operand_function;
@@ -202,6 +201,7 @@ bool CRE::evaluate(
             subexpression_result = evaluate(expression_iterator,
                                             expression_end,
                                             section_type_evaluators,
+                                            section_type_instance_evaluators,
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation);
             CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
@@ -236,10 +236,30 @@ bool CRE::evaluate(
             expect_binary_operator = true;  // An operand should be followed by an operator
 
             if (!skip_all_evaluations && !skip_next_evaluation) {
-                bool operand = section_type_evaluators.count(*expression_iterator)
-                                   ? section_type_evaluators.at(*expression_iterator)->check_support()
+                const SectionType section_type = *expression_iterator;
+                bool operand = section_type_evaluators.count(section_type)
+                                   ? section_type_evaluators.at(section_type)->check_support()
                                    : false;
+
+                if (operand) {
+                    // Only if the section type evaluation succeeded, proceed to evaluate the section type instance if
+                    // an instance ID is also found
+                    expression_iterator++;
+
+                    if (expression_iterator != expression_end && !RESERVED_TOKENS.count(*expression_iterator)) {
+                        // Found a section type instance ID. The current section ID is supported only if the instance is
+                        // supported
+                        operand =
+                            section_type_evaluators.count(*expression_iterator)
+                                ? section_type_instance_evaluators.at(SectionID(section_type, *expression_iterator))
+                                      .check_support()
+                                : true;
+                    }
+                    expression_iterator--;
+                }
+
                 operand = negate ? !operand : operand;
+
                 result = logical_function(result, operand);
             }
 
@@ -258,15 +278,20 @@ bool CRE::evaluate(
 }
 
 bool CRE::check_compatibility(
-    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const {
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+    const std::unordered_map<SectionID, SectionTypeInstanceEvaluator>& section_type_instance_evaluators) const {
     if (m_subexpressions.empty()) {
         return true;
     }
 
-    const std::vector<Token> expression = get_expression();
-    std::vector<Token>::const_iterator expression_iterator = expression.begin();
-    const std::vector<Token>::const_iterator expression_end = expression.end();
-    const bool result = evaluate(expression_iterator, expression_end, section_type_evaluators, Delimiter::SIZE);
+    const std::vector<CREToken> expression = get_expression();
+    std::vector<CREToken>::const_iterator expression_iterator = expression.begin();
+    const std::vector<CREToken>::const_iterator expression_end = expression.end();
+    const bool result = evaluate(expression_iterator,
+                                 expression_end,
+                                 section_type_evaluators,
+                                 section_type_instance_evaluators,
+                                 Delimiter::SIZE);
     CRE_EVAL_ASSERT(expression_iterator == expression.end(),
                     "CRE evaluation ended before parsing the whole expression");
     return result;

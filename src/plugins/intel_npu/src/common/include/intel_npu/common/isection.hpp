@@ -11,7 +11,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cre.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -19,6 +18,8 @@ namespace intel_npu {
 
 // TODOs: fix the circular dependencies
 // Consider moving the secion files in dedicated directories
+
+using CREToken = uint16_t;
 
 /**
  * @brief Identifies the type of the section, along with its corresponding read & write handlers.
@@ -123,7 +124,7 @@ public:
      * @param all_registered_sections A map offering access to all sections registered for the current writing section.
      * @return The subexpression describing the requirements of the current section.
      */
-    virtual std::vector<CRE::Token> get_compatibility_requirements_subexpression(
+    virtual std::vector<CREToken> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
             all_registered_sections) const;
 
