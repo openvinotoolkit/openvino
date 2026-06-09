@@ -2981,7 +2981,7 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
 
 // Test class to verify FlashAttnV2 multi-token sink correction is actually active.
 // Runs the same prompt twice with FA_V2 enabled: once with non-zero sinks, once with zero sinks.
-// Asserts outputs differ, proving the sink code at line 2552 in sdpa_opt.cl executes.
+// Asserts outputs differ, proving the sink correction in sdpa_opt.cl executes.
 // This test is platform-independent (works on any GPU with OpenCL support).
 class paged_attention_sink_v2_effect_test : public PagedAttentionTest<paged_attention_test_params> {};
 
