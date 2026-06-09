@@ -4,6 +4,7 @@
 #include "reorder_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "json_object.h"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
@@ -235,6 +236,8 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
     if (is_dynamic())
         return;
 
+    update_padding_fill_flag();
+
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     if (input_layout.is_static() && output_layout.is_static()) {
@@ -265,7 +268,32 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
     }
 }
 
+void reorder_inst::update_padding_fill_flag() {
+    _needs_padding_fill = false;
+    auto output_layout = _impl_params->get_output_layout(0);
+    auto fmt = output_layout.format;
+    for (auto& [dim, bs] : fmt.block_sizes()) {
+        if (dim == 1) {
+            _needs_padding_fill = (output_layout.feature() % bs != 0);
+            break;
+        }
+    }
+}
+
 void reorder_inst::on_execute() {
+    if (!can_be_optimized()) {
+        if (get_flag(ExecutionFlags::SHAPE_CHANGED))
+            update_padding_fill_flag();
+
+        if (_needs_padding_fill && _outputs[0]) {
+            auto& stream = get_network().get_stream();
+            const bool out_of_order_queue = stream.get_queue_type() == QueueTypes::out_of_order;
+            auto dep_events = out_of_order_queue
+                ? std::vector<event::ptr>{stream.enqueue_marker(_impl_params->dep_events)}
+                : std::vector<event::ptr>{};
+            add_dep_event(_outputs[0]->fill(stream, dep_events));
+        }
+    }
     update_output_memory();
 }
 
