@@ -70,7 +70,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
-                                           const WeightFn& bias_fn = {});
+                                           const WeightFn& bias_fn = {},
+                                           const LoRAInjector* lora = nullptr);
 
 /// Takes pre-projected Q, K, V. Handles reshape, QK-norm, RoPE, KV cache, GQA, SDPA, O proj.
 struct Attention {
@@ -84,6 +85,8 @@ struct Attention {
 
     ov::Output<ov::Node> sdpa_mask;
     ov::Output<ov::Node> shared_broadcast_shape;
+
+    const LoRAInjector* lora = nullptr;
 
     std::string o_proj_name = "self_attn.o_proj";
     std::string attn_prefix = "self_attn.";

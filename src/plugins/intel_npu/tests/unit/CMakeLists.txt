@@ -145,6 +145,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lincache_utils_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_builder_lora_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_options_smoke_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pre_compute_test.cpp
