@@ -16,9 +16,11 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
-#if defined(OV_CPU_WITH_KLEIDIAI)
+#if defined(OPENVINO_ARCH_ARM64)
 #    include <cstdint>
 #    include <limits>
+
+#    include "utils/precision_support.h"
 #endif
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -39,7 +41,6 @@
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "shape_inference/custom/gathermatmul.hpp"
 #include "transformations/utils/utils.hpp"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu::node {
 

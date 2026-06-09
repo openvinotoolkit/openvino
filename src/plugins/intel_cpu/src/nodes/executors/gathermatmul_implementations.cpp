@@ -4,8 +4,6 @@
 
 #include <vector>
 
-#include "implementation_utils.hpp"
-#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/implementations.hpp"
@@ -16,8 +14,10 @@
 
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "debug_messages.hpp"
+#    include "implementation_utils.hpp"
 #    include "memory_desc/cpu_memory_desc.h"
 #    include "nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp"
+#    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/executor_config.hpp"
 #    include "nodes/executors/memory_arguments.hpp"
 #    include "nodes/executors/precision_translation.hpp"
@@ -26,8 +26,9 @@
 #endif
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
-#    include <nodes/executors/debug_messages.hpp>
-
+#    include "implementation_utils.hpp"
+#    include "nodes/executors/debug_messages.hpp"
+#    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/kleidiai/kleidiai_gathermatmul.hpp"
 #    include "utils/general_utils.h"
 #endif

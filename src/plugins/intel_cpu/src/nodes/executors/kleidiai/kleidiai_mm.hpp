@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <bitset>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 

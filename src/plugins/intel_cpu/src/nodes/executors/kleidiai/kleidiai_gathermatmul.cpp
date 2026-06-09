@@ -1,4 +1,6 @@
-
+// Copyright (C) 2026 FUJITSU LIMITED
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "kleidiai_gathermatmul.hpp"
 
