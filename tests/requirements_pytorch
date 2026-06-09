@@ -16,6 +16,6 @@ pytest==7.2.0; python_version >= '3.10'
 pytest-html==4.2.0
 pytest-xdist[psutil]==3.6.1
 defusedxml==0.7.1
-packaging==24.1
+packaging==24.2
 protobuf==5.28.3
 wheel==0.44.0

@@ -79,7 +79,8 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             return feature_dim.get_length() % feature_block_size == 0;
         };
 
-        // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
+        // oneDNN blocked format contract requires zero-filled fsv padding lanes for unaligned feature blocks.
+        // Apply the same feature alignment requirement to both input and output layouts.
         if (!is_feature_aligned(out_layout)) {
             return false;
         }
@@ -96,7 +97,7 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
 
-            if (node.is_dynamic() && !is_feature_aligned(in_layout))
+            if (!is_feature_aligned(in_layout))
                 return false;
         }
 

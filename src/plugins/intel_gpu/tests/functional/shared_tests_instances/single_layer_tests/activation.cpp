@@ -55,6 +55,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {ActivationTypes::GeluErf,               {}},
         {ActivationTypes::GeluTanh,              {}},
         {ActivationTypes::SoftSign,              {}},
+        {ActivationTypes::ErfInv,                {}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> big_rank_activation_types = {

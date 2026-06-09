@@ -31,7 +31,8 @@ struct swiglu : public primitive_base<swiglu> {
            const float clamp_max,
            const float swish_beta,
            const float up_add_val,
-           const tensor output_size)
+           const tensor output_size,
+           const float scale_factor = -1.0f)
            : primitive_base(id, {input}),
              axis(axis),
              glu_stride(glu_stride),
@@ -41,6 +42,7 @@ struct swiglu : public primitive_base<swiglu> {
              clamp_max(clamp_max),
              swish_beta(swish_beta),
              up_add_val(up_add_val),
+             scale_factor(scale_factor),
              output_size(output_size) {}
 
     swiglu(const primitive_id& id,
@@ -60,7 +62,8 @@ struct swiglu : public primitive_base<swiglu> {
                  std::numeric_limits<float>::max(),
                  1.0f,
                  0.0f,
-                 output_size) {}
+                 output_size,
+                 -1.0f) {}
 
     int64_t axis = 0;
     int64_t glu_stride = 0;
@@ -70,6 +73,10 @@ struct swiglu : public primitive_base<swiglu> {
     float clamp_max = std::numeric_limits<float>::max();;
     float swish_beta = 1.0f;
     float up_add_val = 0.0f;
+    // Scale multiplied to both gate and value inputs before activation.
+    // Used to compensate when the upstream producer has pre-divided the
+    // activation (paired with weight pre-scaling on the feeding MatMuls).
+    float scale_factor = -1.0f;
     tensor output_size;
 
     size_t hash() const override {
@@ -82,6 +89,7 @@ struct swiglu : public primitive_base<swiglu> {
         seed = hash_combine(seed, clamp_max);
         seed = hash_combine(seed, swish_beta);
         seed = hash_combine(seed, up_add_val);
+        seed = hash_combine(seed, scale_factor);
         return seed;
     }
 
@@ -93,7 +101,8 @@ struct swiglu : public primitive_base<swiglu> {
         return axis == rhs_casted.axis && glu_stride == rhs_casted.glu_stride &&
                glu_type == rhs_casted.glu_type && gate_idx == rhs_casted.gate_idx &&
                clamp_min == rhs_casted.clamp_min && clamp_max == rhs_casted.clamp_max &&
-               swish_beta == rhs_casted.swish_beta && up_add_val == rhs_casted.up_add_val;
+               swish_beta == rhs_casted.swish_beta && up_add_val == rhs_casted.up_add_val &&
+               scale_factor == rhs_casted.scale_factor;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -107,6 +116,7 @@ struct swiglu : public primitive_base<swiglu> {
         ob << clamp_max;
         ob << swish_beta;
         ob << up_add_val;
+        ob << scale_factor;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -120,6 +130,7 @@ struct swiglu : public primitive_base<swiglu> {
         ib >> clamp_max;
         ib >> swish_beta;
         ib >> up_add_val;
+        ib >> scale_factor;
     }
 };
 }  // namespace cldnn

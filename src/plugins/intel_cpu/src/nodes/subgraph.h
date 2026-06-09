@@ -99,7 +99,7 @@ private:
 
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
 
-    // Index of Paramater -> Index of broadcastable dimension from end
+    // Index of Parameter -> Index of broadcastable dimension from end
     std::map<size_t, size_t> broadcastable_inputs;
 
     size_t input_num = 0;

@@ -276,7 +276,7 @@ public:
 
     template <typename dtype>
     void generate_detections(stream& stream, const detection_output_inst& instance,
-                             const int num_of_images,
+                             const int64_t num_of_images,
                              const std::vector<std::vector<std::vector<bounding_box>>>& all_bboxes,
                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
                              std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
@@ -288,11 +288,11 @@ public:
         auto confidence_layout = instance.confidence_memory()->get_layout();
         auto priors_layout = instance.prior_box_memory()->get_layout();
 
-        const int num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
-        const int num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
+        const int64_t num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
+        const int64_t num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
         // Per image -> For each label: Pair (score, prior index)
         std::vector<std::map<int, std::vector<std::pair<float, int>>>> final_detections;
-        for (int image = 0; image < num_of_images; ++image) {
+        for (int64_t image = 0; image < num_of_images; ++image) {
             const std::vector<std::vector<bounding_box>>& bboxes_per_image = all_bboxes[image];
             std::vector<std::vector<std::pair<float, int>>>& conf_per_image = confidences[image];
             std::map<int, std::vector<int>> indices;
@@ -411,18 +411,18 @@ public:
     }
 
     // Compute the linear index taking the padding into account.
-    static inline int get_linear_feature_index(const int batch_id,
-                                               const int feature_id,
-                                               const int input_buffer_size_f,
-                                               const int input_buffer_size_y,
-                                               const int input_buffer_size_x,
-                                               const int input_padding_lower_y,
-                                               const int input_padding_lower_x) {
+    static inline int64_t get_linear_feature_index(const int64_t batch_id,
+                                                  const int64_t feature_id,
+                                                  const int64_t input_buffer_size_f,
+                                                  const int64_t input_buffer_size_y,
+                                                  const int64_t input_buffer_size_x,
+                                                  const int64_t input_padding_lower_y,
+                                                  const int64_t input_padding_lower_x) {
         // This helper function assumes input layout with x_size = 1 and y_size = 1;
         // Location and confidence inputs should be tensors with size {b,f,1,1}.
         // This is validated in detection output primitive instance creation.
 
-        int input_idx = (batch_id * input_buffer_size_f + feature_id) * input_buffer_size_y * input_buffer_size_x;
+        int64_t input_idx = (batch_id * input_buffer_size_f + feature_id) * input_buffer_size_y * input_buffer_size_x;
         input_idx += input_padding_lower_y * input_buffer_size_x + input_padding_lower_x;
 
         return input_idx;
@@ -431,33 +431,33 @@ public:
     template <typename dtype>
     void extract_locations_per_image(stream& stream, const detection_output_inst& instance,
                                      std::vector<std::vector<std::vector<bounding_box>>>& locations,
-                                     const int num_of_priors,
-                                     const int num_loc_classes) {
+                                     const int64_t num_of_priors,
+                                     const int64_t num_loc_classes) {
         const bool share_location = instance.argument->share_location;
         auto input_location = instance.location_memory();
         auto location_layout = input_location->get_layout();
-        const int num_of_images = static_cast<int>(locations.size());
+        const int64_t num_of_images = static_cast<int64_t>(locations.size());
         mem_lock<dtype, mem_lock_type::read> lock{input_location, stream};
         auto location_data = lock.begin();
         assert(num_of_priors * num_loc_classes * PRIOR_BOX_SIZE == input_location->get_layout().feature());
 
         const auto& input_buffer_size = location_layout.get_padded_dims();
-        const int input_buffer_size_x = input_buffer_size[3];
-        const int input_buffer_size_y = input_buffer_size[2];
-        const int input_buffer_size_f = input_buffer_size[1];
+        const int64_t input_buffer_size_x = input_buffer_size[3];
+        const int64_t input_buffer_size_y = input_buffer_size[2];
+        const int64_t input_buffer_size_f = input_buffer_size[1];
         const auto& input_padding = location_layout.data_padding;
-        const int input_padding_lower_x = input_padding._lower_size[2];
-        const int input_padding_lower_y = input_padding._lower_size[3];
+        const int64_t input_padding_lower_x = input_padding._lower_size[2];
+        const int64_t input_padding_lower_y = input_padding._lower_size[3];
 
-        for (int image = 0; image < num_of_images; ++image) {
+        for (int64_t image = 0; image < num_of_images; ++image) {
             std::vector<std::vector<bounding_box>>& label_to_bbox = locations[image];
             label_to_bbox.resize(num_loc_classes);
-            for (int cls = 0; cls < num_loc_classes; ++cls) {
-                int label = share_location ? 0 : cls;
+            for (int64_t cls = 0; cls < num_loc_classes; ++cls) {
+                int64_t label = share_location ? 0 : cls;
                 auto& bboxes = label_to_bbox[label];
                 bboxes.resize(num_of_priors);
-                for (int prior = 0; prior < num_of_priors; ++prior) {
-                    int idx = prior * num_loc_classes * PRIOR_BOX_SIZE;
+                for (int64_t prior = 0; prior < num_of_priors; ++prior) {
+                    int64_t idx = prior * num_loc_classes * PRIOR_BOX_SIZE;
                     bboxes[prior].xmin = static_cast<float>((location_data[get_linear_feature_index(image,
                                                                                         idx + cls * PRIOR_BOX_SIZE,
                                                                                         input_buffer_size_f,
@@ -496,18 +496,18 @@ public:
                                            const bool variance_encoded_in_target,
                                            const int32_t prior_info_size,
                                            const int32_t prior_coordinates_offset,
-                                           const int32_t images_count,
+                                           const int64_t images_count,
                                            std::vector<bounding_box>& prior_bboxes,
                                            std::vector<std::array<float, PRIOR_BOX_SIZE>>& prior_variances) {
         auto input_prior_box = instance.prior_box_memory();
-        const int num_of_priors = static_cast<int>(prior_bboxes.size()) / images_count;
+        const int64_t num_of_priors = static_cast<int64_t>(prior_bboxes.size()) / images_count;
         mem_lock<dtype, mem_lock_type::read> lock{std::move(input_prior_box), stream};
-        for (int i = 0; i < images_count; i++) {
+        for (int64_t i = 0; i < images_count; i++) {
             auto prior_box_data =
                 lock.begin() + i * num_of_priors * prior_info_size * (variance_encoded_in_target ? 1 : 2);
 
-            for (int prior = 0; prior < num_of_priors; ++prior) {
-                int idx = prior * prior_info_size + prior_coordinates_offset;
+            for (int64_t prior = 0; prior < num_of_priors; ++prior) {
+                int64_t idx = prior * prior_info_size + prior_coordinates_offset;
                 prior_bboxes[i * num_of_priors + prior] = bounding_box(static_cast<float>(prior_box_data[idx]),
                                                                        static_cast<float>(prior_box_data[idx + 1]),
                                                                        static_cast<float>(prior_box_data[idx + 2]),
@@ -515,8 +515,8 @@ public:
                 idx += num_of_priors * prior_info_size;
             }
             if (!variance_encoded_in_target) {
-                for (int prior = 0; prior < num_of_priors; ++prior) {
-                    int start_idx = prior * 4;
+                for (int64_t prior = 0; prior < num_of_priors; ++prior) {
+                    int64_t start_idx = prior * 4;
                     std::array<float, PRIOR_BOX_SIZE> var = {0.f, 0.f, 0.f, 0.f};
                     for (int j = 0; j < PRIOR_BOX_SIZE; ++j) {
                         var[j] = (prior_box_data[start_idx + j + num_of_priors * prior_info_size]);
@@ -530,8 +530,8 @@ public:
     template <typename dtype>
     void extract_confidences_per_image_caffe(stream& stream, const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                                             const int num_of_priors, const int num_classes) {
-        const int num_of_images = static_cast<int>(confidences.size());
+                                             const int64_t num_of_priors, const int64_t num_classes) {
+        const int64_t num_of_images = static_cast<int64_t>(confidences.size());
         auto input_confidence = instance.confidence_memory();
         const float confidence_threshold = instance.argument->confidence_threshold;
 
@@ -541,19 +541,19 @@ public:
         assert(num_of_priors * num_classes == input_confidence->get_layout().feature());
 
         const auto& input_buffer_layout = input_confidence->get_layout();
-        const int input_buffer_size_x = input_buffer_layout.spatial(0);
-        const int input_buffer_size_y = input_buffer_layout.spatial(1);
-        const int input_buffer_size_f = input_buffer_layout.feature();
+        const int64_t input_buffer_size_x = input_buffer_layout.spatial(0);
+        const int64_t input_buffer_size_y = input_buffer_layout.spatial(1);
+        const int64_t input_buffer_size_f = input_buffer_layout.feature();
         const auto& input_padding = input_confidence->get_layout().data_padding;
-        const int input_padding_lower_x = input_padding._lower_size[2];
-        const int input_padding_lower_y = input_padding._lower_size[3];
-        const int stride = input_buffer_size_y * input_buffer_size_x;
+        const int64_t input_padding_lower_x = input_padding._lower_size[2];
+        const int64_t input_padding_lower_y = input_padding._lower_size[3];
+        const int64_t stride = input_buffer_size_y * input_buffer_size_x;
 
-        for (int image = 0; image < num_of_images; ++image) {
+        for (int64_t image = 0; image < num_of_images; ++image) {
             std::vector<std::vector<std::pair<float, int>>>& label_to_scores = confidences[image];
             std::vector<std::pair<float, std::pair<int, int>>> score_index_per_prior;
             label_to_scores.resize(num_classes);
-            int idx = get_linear_feature_index(image,
+            int64_t idx = get_linear_feature_index(image,
                                                0,
                                                input_buffer_size_f,
                                                input_buffer_size_y,
@@ -622,10 +622,10 @@ public:
     template <typename dtype>
     void extract_confidences_per_image_mxnet(stream& stream, const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                                             const int num_of_priors, const int num_classes,
+                                             const int64_t num_of_priors, const int64_t num_classes,
                                              std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
         const int background_label_id = instance.argument->background_label_id;
-        const int num_of_images = static_cast<int>(confidences.size());
+        const int64_t num_of_images = static_cast<int64_t>(confidences.size());
         auto input_confidence = instance.confidence_memory();
         const float confidence_threshold = instance.argument->confidence_threshold;
         auto confidence_layout = input_confidence->get_layout();
@@ -635,19 +635,19 @@ public:
 
         assert(num_of_priors * num_classes == confidence_layout.feature());
 
-        const int input_buffer_size_x = confidence_layout.spatial(0);
-        const int input_buffer_size_y = confidence_layout.spatial(1);
-        const int input_buffer_size_f = confidence_layout.feature();
+        const int64_t input_buffer_size_x = confidence_layout.spatial(0);
+        const int64_t input_buffer_size_y = confidence_layout.spatial(1);
+        const int64_t input_buffer_size_f = confidence_layout.feature();
         const auto& input_padding = confidence_layout.data_padding;
-        const int input_padding_lower_x = input_padding._lower_size[2];
-        const int input_padding_lower_y = input_padding._lower_size[3];
-        const int stride = input_buffer_size_y * input_buffer_size_x;
+        const int64_t input_padding_lower_x = input_padding._lower_size[2];
+        const int64_t input_padding_lower_y = input_padding._lower_size[3];
+        const int64_t stride = input_buffer_size_y * input_buffer_size_x;
 
-        for (int image = 0; image < num_of_images; ++image) {
+        for (int64_t image = 0; image < num_of_images; ++image) {
             std::vector<std::vector<std::pair<float, int>>>& label_to_scores = confidences[image];
             std::vector<std::pair<float, std::pair<int, int>>> score_index_per_prior;
             label_to_scores.resize(num_classes);
-            int idx = get_linear_feature_index(image,
+            int64_t idx = get_linear_feature_index(image,
                                                0,
                                                input_buffer_size_f,
                                                input_buffer_size_y,
@@ -757,17 +757,17 @@ public:
         auto confidence_layout = instance.confidence_memory()->get_layout();
         auto priors_layout = instance.prior_box_memory()->get_layout();
 
-        const int num_of_images = static_cast<int>(bboxes.size());
-        const int num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
-        const int num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
-        const int num_loc_classes = args->share_location ? 1 : num_classes;
+        const int64_t num_of_images = static_cast<int64_t>(bboxes.size());
+        const int64_t num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
+        const int64_t num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
+        const int64_t num_loc_classes = args->share_location ? 1 : num_classes;
 
         // Extract locations per image.
         std::vector<std::vector<std::vector<bounding_box>>> locations(
             num_of_images);  // Per image : label -> bounding boxes.
         extract_locations_per_image<dtype>(stream, instance, locations, num_of_priors, num_loc_classes);
 
-        int32_t batches_in_prior_boxes = priors_layout.batch();
+        int64_t batches_in_prior_boxes = priors_layout.batch();
         std::vector<bounding_box> prior_bboxes(batches_in_prior_boxes *
                                                num_of_priors);  // Prior-Boxes (identical for all images since we assume
                                                                 // all images in a batch are of same dimension).
@@ -800,8 +800,8 @@ public:
 
                 for (int i = 0; i < label_loc_preds_size; ++i) {
                     bounding_box decoded_bbox;
-                    int32_t pb_offset = (batches_in_prior_boxes > 1) ? (image * num_of_priors + i) : i;
-                    int32_t var_offset = (batches_in_prior_boxes > 1) ? (image * num_of_priors + i) : i;
+                    int64_t pb_offset = (batches_in_prior_boxes > 1) ? (image * num_of_priors + i) : i;
+                    int64_t var_offset = (batches_in_prior_boxes > 1) ? (image * num_of_priors + i) : i;
                     decode_bounding_box(prior_bboxes[pb_offset],
                                         prior_variances[var_offset],
                                         args->code_type,
@@ -833,7 +833,7 @@ public:
             stream.wait_for_events(events);
         }
 
-        const int num_of_images = instance.location_memory()->get_layout().batch();  // batch size
+        const int64_t num_of_images = instance.location_memory()->get_layout().batch();  // batch size
         // Per image : label -> decoded bounding boxes.
         std::vector<std::vector<std::vector<bounding_box>>> bboxes(num_of_images);
         // Per image : class -> confidences per bounding box.
