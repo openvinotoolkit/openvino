@@ -38,10 +38,30 @@ class DynamicPipeline final : public IPipeline {
         }
 
         /// Allocate per-IO MemRef slots driven by the network metadata. The pipeline ctor fills
-        /// each slot's data/shape/strides via setArgumentProperties; this just sizes the vectors.
-        void bind(const NetworkMetadata& metadata) {
+        /// each slot's data/shape/strides via setArgumentProperties again.
+        void initBinding(const NetworkMetadata& metadata) {
             _binding._inputs.resize(metadata.inputs.size());
+            auto& inputs = _binding._inputs;
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                // Use size as placeholder of stride
+                // For now, only considering the usage and subsequent comparison of dimcount, shape, and strides
+                const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
+                inputs[i]._dimsCount = static_cast<int64_t>(shape.size());
+                inputs[i]._sizes.assign(shape.begin(), shape.end());
+                inputs[i]._strides.resize(shape.size());
+                // Calc real stride
+                inputs[i].updateStride();
+            }
+
             _binding._outputs.resize(metadata.outputs.size());
+            auto& outputs = _binding._outputs;
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
+                outputs[i]._dimsCount = static_cast<int64_t>(shape.size());
+                outputs[i]._sizes.assign(shape.begin(), shape.end());
+                outputs[i]._strides.resize(shape.size());
+                outputs[i].updateStride();
+            }
         }
 
         std::vector<ze_command_list_handle_t>& getHandles() {

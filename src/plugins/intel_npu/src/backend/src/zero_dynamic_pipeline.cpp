@@ -86,7 +86,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     for (size_t i = 0; i < _batch_size; i++) {
         _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
 
-        _command_lists.at(i)->bind(_graph->get_metadata());
+        _command_lists.at(i)->initBinding(_graph->get_metadata());
         auto& graphArguments = _command_lists.at(i)->getBinding();
 
         size_t io_index = 0;
@@ -201,7 +201,7 @@ void DynamicPipeline::push() {
     _logger.debug("push - completed");
 }
 
-void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
+void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                                          DynamicArguments& args,
                                          std::vector<ze_command_list_handle_t>& commandLists,
                                          ze_command_queue_handle_t commandQueue,
@@ -212,23 +212,23 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
     // _executedOnce is true only after a successful npuVMRuntimeExecute below
     const bool firstExecution = !args._executedOnce;
 
-    std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefs;
-    std::vector<npu_vm_runtime_mem_ref_handle_t> outputMemRefs;
-    inputMemRefs.reserve(args._inputs.size());
-    outputMemRefs.reserve(args._outputs.size());
+    args._inputMemRefs.clear();
+    args._outputMemRefs.clear();
+    args._inputMemRefs.reserve(args._inputs.size());
+    args._outputMemRefs.reserve(args._outputs.size());
 
     bool noTensorChange = true;
 
     for (auto& in : args._inputs) {
         in.updateMemRefHandleStatus();
-        inputMemRefs.push_back(in._memRef);
+        args._inputMemRefs.push_back(in._memRef);
         if (in._ptrUpdated || in._shapeUpdated || in._strideUpdated) {
             noTensorChange = false;
         }
     }
     for (auto& out : args._outputs) {
         out.updateMemRefHandleStatus();
-        outputMemRefs.push_back(out._memRef);
+        args._outputMemRefs.push_back(out._memRef);
         if (out._ptrUpdated || out._shapeUpdated || out._strideUpdated) {
             noTensorChange = false;
         }
@@ -261,10 +261,10 @@ void DynamicPipeline::execute_vm_runtime(_npu_vm_runtime_handle_t* vmRuntime,
 
     npu_vm_runtime_execute_params_t params{};
     params.executionContext = args._executionContext;
-    params.pInputs = inputMemRefs.data();
-    params.numOfInputs = static_cast<uint32_t>(inputMemRefs.size());
-    params.pOutputs = outputMemRefs.data();
-    params.numOfOutputs = static_cast<uint32_t>(outputMemRefs.size());
+    params.pInputs = args._inputMemRefs.data();
+    params.numOfInputs = static_cast<uint32_t>(args._inputMemRefs.size());
+    params.pOutputs = args._outputMemRefs.data();
+    params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefs.size());
     params.ctx = _init_structs->getContext();
     params.device = _init_structs->getDevice();
     params.graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
