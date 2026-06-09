@@ -19,9 +19,6 @@
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
-
-#include <string>
-
 namespace ov::intel_gpu::ocl {
 namespace {
 size_t get_subgroup_size(gpu_arch arch) {
