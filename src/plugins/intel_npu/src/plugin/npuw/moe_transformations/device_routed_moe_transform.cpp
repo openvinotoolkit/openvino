@@ -16,8 +16,6 @@ namespace ov {
 namespace npuw {
 namespace pass {
 
-namespace opp = ov::pass::pattern;
-
 namespace {
 
 // ============================================================================
@@ -44,7 +42,6 @@ struct RouterInfo {
     ov::Output<ov::Node> topk_indices_raw;
     ov::Output<ov::Node> router_scores;  // scores from Scatter.input(2), replaces Scatter->Transpose
     int64_t k_value;
-    std::string layer_id;  // for logging only, may be empty for anonymous topologies
     std::shared_ptr<ov::op::v1::Transpose> scatter_transpose;  // the Scatter -> Transpose node
     std::shared_ptr<ov::op::v1::Multiply> output_multiply;     // expert x scores Multiply
 };
@@ -60,22 +57,6 @@ inline ov::Output<ov::Node> get_weight_source(const ov::Output<ov::Node>& input)
         return convert->input_value(0);
     }
     return input;
-}
-
-// Extract layer ID from node name (e.g., "layers.0." from full name)
-std::string extract_layer_id(const std::string& topk_name) {
-    size_t layers_pos = topk_name.find("layers.");
-    if (layers_pos == std::string::npos) {
-        return "";
-    }
-
-    size_t start = layers_pos;
-    size_t end = topk_name.find(".", start + 7);
-    if (end == std::string::npos) {
-        end = topk_name.find("/", start);
-    }
-
-    return (end != std::string::npos) ? topk_name.substr(start, end - start + 1) : "";
 }
 
 // Returns true if the node's output is entirely determined by constants
@@ -95,7 +76,10 @@ bool is_constant_derived(const std::shared_ptr<ov::Node>& n) {
     return false;
 }
 
-// Check if a reshape operation is unsqueeze-like (only inserts dimensions with size 1)
+// Check if a reshape operation is unsqueeze-like (only inserts dimensions with size 1).
+// Used in collect_from_expert_output to detect activation-path Reshapes whose shape
+// is not a Constant node (e.g. driven by ShapeOf chains) but are safe to replace with
+// an Unsqueeze of the data input.
 bool is_unsqueeze_like_reshape(const std::shared_ptr<ov::op::v1::Reshape>& reshape) {
     auto input_shape = reshape->input_value(0).get_partial_shape();
     auto output_shape = reshape->get_output_partial_shape(0);
@@ -203,13 +187,9 @@ std::optional<RouterInfo> detect_router_by_topology(const std::shared_ptr<ov::No
     //    GPT-OSS: Slice(Softmax(TopK.out(0)))   Qwen3: Divide(TopK.out(0), ReduceSum(...))
     auto router_scores = scatter->input_value(2);
 
-    // 8. Optional layer_id from TopK name (for logging; empty for anonymous Qwen3 nodes)
-    std::string layer_id = extract_layer_id(topk_node->get_friendly_name());
+    LOG_INFO("DeviceRoutedMoE: Detected MoE router by topology, K=" << k_value);
 
-    LOG_INFO("DeviceRoutedMoE: Detected MoE router by topology" << (layer_id.empty() ? "" : ", layer=" + layer_id)
-                                                                << ", K=" << k_value);
-
-    return RouterInfo{topk_node, topk_indices_raw, router_scores, k_value, layer_id, transpose, output_multiply};
+    return RouterInfo{topk_node, topk_indices_raw, router_scores, k_value, transpose, output_multiply};
 }
 
 // ============================================================================
@@ -348,7 +328,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
                 nodes.matmuls.push_back(matmul);
             }
         } else if (auto mul_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(weight_node)) {
-            // AWQ: weight x scale — check either input for expert dimension
+            // quantized weight chain: weight x scale — check either input for expert dimension
             for (size_t i = 0; i < 2; ++i) {
                 auto src = get_weight_source(mul_node->input_value(i));
                 if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(src.get_node_shared_ptr())) {
@@ -374,7 +354,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
     }
 
     for (auto& mul : all_multiplies) {
-        // Skip if used as MatMul weight input (AWQ weight x scale, handled by transform_matmuls)
+        // Skip if used as MatMul weight input (quantized weight chain, handled by transform_matmuls)
         bool used_by_matmul = false;
         for (const auto& out : mul->outputs()) {
             for (const auto& ti : out.get_target_inputs()) {
@@ -389,7 +369,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
         if (used_by_matmul)
             continue;
 
-        // Keep only AWQ scale-apply multiplies (one constant input with expert dim, one activation input)
+        // Keep only activation-scale multiplies (one constant input with expert dim, one activation input)
         for (size_t i = 0; i < 2; ++i) {
             auto const_src = get_weight_source(mul->input_value(i));
             if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(const_src.get_node_shared_ptr())) {
@@ -611,9 +591,9 @@ bool apply_layer_transformation(const RouterInfo& router, LayerNodes& nodes) {
     // Validate we have required nodes
     if (!nodes.has_required_nodes()) {
         if (nodes.constant_reshapes.empty() && nodes.dynamic_reshapes.empty()) {
-            LOG_WARN("  Skipping layer " << router.layer_id << ": No Reshape nodes found");
+            LOG_WARN("  Skipping layer: No Reshape nodes found");
         } else {
-            LOG_WARN("  Skipping layer " << router.layer_id << ": No MatMul/Add nodes found");
+            LOG_WARN("  Skipping layer: No MatMul/Add nodes found");
         }
         return false;
     }
@@ -633,7 +613,7 @@ bool apply_layer_transformation(const RouterInfo& router, LayerNodes& nodes) {
     transform_transpose(nodes, router.router_scores);
     transform_router_broadcast_chain(router, nodes.num_experts);
 
-    LOG_INFO("DeviceRoutedMoE transformation successful for " << router.layer_id);
+    LOG_INFO("DeviceRoutedMoE transformation successful");
     LOG_INFO("  Tiles: " << nodes.tiles.size() << ", ConstReshapes: " << nodes.constant_reshapes.size()
                          << ", DynReshapes: " << nodes.dynamic_reshapes.size() << ", MatMuls: " << nodes.matmuls.size()
                          << ", Adds: " << nodes.adds.size() << ", Multiplies: " << nodes.multiplies.size()

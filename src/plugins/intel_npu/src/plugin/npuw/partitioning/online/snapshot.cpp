@@ -744,11 +744,10 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
         pattern_handled = true;                                                         \
     }
-#define HNDL_MOE(p)                                                                                 \
-    if (isolate.pattern == #p) {                                                                    \
-        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag);              \
-        pattern_handled = true;                                                                     \
-        std::cout << "Registered MOE pattern: " << #p << " with tag: " << isolate.tag << std::endl; \
+#define HNDL_MOE(p)                                                                    \
+    if (isolate.pattern == #p) {                                                       \
+        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
+        pattern_handled = true;                                                        \
     }
                 HNDL(RMSNorm);
                 HNDL(RMSNorm2);

@@ -10,7 +10,6 @@
 #include "../moe_transformations/moe_transformation.hpp"
 #include "../partitioning/partitioning.hpp"
 #include "../partitioning/patterns/moe.hpp"
-#include "../partitioning/patterns/sdpa.hpp"
 #include "../serialization.hpp"
 #include "openvino/core/except.hpp"
 
@@ -337,7 +336,7 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     const std::size_t moe_chunk_size) {
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> registrations;
-    registrations.reserve(3);
+    registrations.reserve(5);
 
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Router>().scoped());
