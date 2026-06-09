@@ -171,6 +171,12 @@ private:
      */
     std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
         m_registered_sections;
+    /**
+     * @brief The sections that will be used for building the CRE.
+     * @details Only one instance of each section type is queried for a compatibility subexpression to be appended to
+     * the CRE. This is done to avoid redundancy within the CRE.
+     */
+    std::unordered_map<SectionType, std::shared_ptr<ISection>> m_section_types_representatives;
 
     Logger m_logger;
 };
