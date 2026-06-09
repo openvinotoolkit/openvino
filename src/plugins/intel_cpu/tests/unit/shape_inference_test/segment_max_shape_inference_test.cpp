@@ -116,3 +116,22 @@ INSTANTIATE_TEST_SUITE_P(SegmentMaxStaticShapeInferenceTests,
                                                                 std::vector<int32_t>{2, 6},                         // segment_ids values
                                                                 7,                                                  // num_segments value
                                                                 ov::Shape{7, 6, 24, 1}}));                          // expected output shape
+
+TEST_F(SegmentMaxStaticShapeInferenceTest, empty_segment_ids_with_num_segments_from_tensor_accessor) {
+    const auto data = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape::dynamic());
+    const auto num_segments = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape::dynamic());
+    const auto op = make_op(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
+
+    int64_t num_segments_val[] = {5};
+    auto const_inputs = std::unordered_map<size_t, ov::Tensor>{
+        {1, {ov::element::i64, ov::Shape{0}, static_cast<void*>(nullptr)}},
+        {2, {ov::element::i64, ov::Shape{},  num_segments_val}}};
+
+    const auto input_shapes = StaticShapeVector{{0, 12}, {0}, {}};
+    auto shape_infer = make_shape_inference(op);
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    const auto output_shapes = *shape_infer->infer(input_shape_refs, ov::make_tensor_accessor(const_inputs));
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({5, 12}));
+}
