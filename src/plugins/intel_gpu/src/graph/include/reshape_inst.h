@@ -10,7 +10,6 @@
 #include "mvn_inst.h"
 #include "vl_sdpa_inst.h"
 #include "primitive_inst.h"
-#include <iostream>
 #include <string>
 #include <memory>
 
@@ -63,24 +62,10 @@ public:
                                 tentative_reshape_axis -= 1;
                             }
                         }
-                        std::cout << "[is_runtime_propagatable_padding] " << id()
-                                  << " squeeze mode: crop_axis=" << crop_axis
-                                  << " output_pattern=[";
-                        for (auto v : output_pattern) { std::cout << v << ","; }
-                        std::cout << "] crop_out[" << crop_axis << "]=" << crop_out_ps[crop_axis]
-                                  << " tentative_reshape_axis=" << tentative_reshape_axis;
-                        if (tentative_reshape_axis < 0) {
-                            // crop_axis=0 + squeeze on axis=0 → reshape_axis=-1, prepare_buffer_fusing
-                            // cannot handle this. Deny to avoid assertion failure.
-                            std::cout << " -> DENY (reshape_axis would be <0)\n";
+                        if (tentative_reshape_axis < 0)
                             return false;
-                        }
-                        std::cout << " -> ALLOW (static-1 QKV squeeze pattern)\n";
                         return true;
                     }
-                    std::cout << "[is_runtime_propagatable_padding] " << id()
-                              << " squeeze mode: crop_axis=" << crop_axis
-                              << " crop_out not static-1 -> DENY\n";
                     return false;
                 }
                 // squeeze_axis != crop_axis: squeeze doesn't consume the padded crop dim, safe.
