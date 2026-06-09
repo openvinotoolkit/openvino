@@ -1688,8 +1688,7 @@ public:
         ASSERT_EQ(output_ptr.size(), ref_out_data.size());
 
         for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
-            const float effective_abs_error = fp16_tolerance(static_cast<float>(ref_out_data[i]), static_cast<float>(abs_error));
-            ASSERT_NEAR(output_ptr[i], ref_out_data[i], effective_abs_error) << "at " << i;
+            ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
         }
     }
 
