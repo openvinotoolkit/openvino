@@ -59,20 +59,24 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
     };
 }
 
-void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
-                             ov::npuw::v1::subgraphs::Context& compiled_context,
+}  // namespace
+
+void attach_runtime_behavior(v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                             v1::subgraphs::Context& compiled_context,
                              const BehaviorRole role,
                              const bool handles_function_prologue) {
     compiled_context.put<BehaviorRole>(role);
     compiled_pipeline.registration.group = ov::npuw::patterns::moe::GPTOSSExpert::group_name();
     compiled_pipeline.registration.name = behavior_name(role);
-    ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+    v1::subgraphs::RuntimeBehaviorSpec spec;
     spec.registration = compiled_pipeline.registration;
     spec.context = compiled_context;
     spec.factory = make_runtime_factory();
     spec.handles_function_prologue = handles_function_prologue;
     compiled_pipeline.runtime_behavior = std::move(spec);
 }
+
+namespace {
 
 template <typename T>
 T* get_compiled_state(ov::npuw::v1::subgraphs::Context& context) {
