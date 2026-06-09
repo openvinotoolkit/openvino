@@ -43,27 +43,25 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
     if (b_rank.is_static() && b_rank.get_length() == 3) {
         const std::vector<int32_t> expected_perm{0, 2, 1};
         auto existing_transpose = ov::as_type_ptr<v1::Transpose>(b.get_node_shared_ptr());
-        auto existing_perm = existing_transpose
-                                 ? ov::as_type_ptr<v0::Constant>(existing_transpose->input_value(1).get_node_shared_ptr())
-                                 : nullptr;
+        auto existing_perm =
+            existing_transpose ? ov::as_type_ptr<v0::Constant>(existing_transpose->input_value(1).get_node_shared_ptr())
+                               : nullptr;
         if (existing_perm && existing_perm->cast_vector<int32_t>() == expected_perm) {
             b = existing_transpose->input_value(0);
         } else {
-            auto perm =
-                context.mark_node(v0::Constant::create(element::i32, Shape{3}, expected_perm));
+            auto perm = context.mark_node(v0::Constant::create(element::i32, Shape{3}, expected_perm));
             b = context.mark_node(std::make_shared<v1::Transpose>(b, perm));
         }
     } else if (b_rank.is_static() && b_rank.get_length() == 2) {
         const std::vector<int32_t> expected_perm{1, 0};
         auto existing_transpose = ov::as_type_ptr<v1::Transpose>(b.get_node_shared_ptr());
-        auto existing_perm = existing_transpose
-                                 ? ov::as_type_ptr<v0::Constant>(existing_transpose->input_value(1).get_node_shared_ptr())
-                                 : nullptr;
+        auto existing_perm =
+            existing_transpose ? ov::as_type_ptr<v0::Constant>(existing_transpose->input_value(1).get_node_shared_ptr())
+                               : nullptr;
         if (existing_perm && existing_perm->cast_vector<int32_t>() == expected_perm) {
             b = existing_transpose->input_value(0);
         } else {
-            auto perm =
-                context.mark_node(v0::Constant::create(element::i32, Shape{2}, expected_perm));
+            auto perm = context.mark_node(v0::Constant::create(element::i32, Shape{2}, expected_perm));
             b = context.mark_node(std::make_shared<v1::Transpose>(b, perm));
         }
     }
@@ -93,4 +91,3 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
- 
