@@ -16,6 +16,8 @@
 
 using namespace ov::op;
 
+#define UNUSED(expr) (void)(expr);
+
 namespace ov {
 namespace test {
 namespace helpers {
@@ -51,7 +53,17 @@ static ov::Tensor GenerateTokenTypeTensor(size_t seq_len) {
         gaps[i] = 1;
     }
 
-    size_t remaining_tokens = seq_len - image_group_count - (image_group_count - 1);
+    const size_t min_sequence_len = 2 * image_group_count - 1;
+    OPENVINO_ASSERT(seq_len >= min_sequence_len,
+                    "Sequence length must fit at least one token per image group and separator gap between groups. ",
+                    "seq_len=",
+                    seq_len,
+                    ", image_group_count=",
+                    image_group_count,
+                    ", min_sequence_len=",
+                    min_sequence_len);
+
+    size_t remaining_tokens = seq_len - min_sequence_len;
     std::uniform_int_distribution<size_t> bucket_distribution(0, group_sizes.size() + gaps.size() - 1);
     while (remaining_tokens-- > 0) {
         const size_t bucket = bucket_distribution(generator);
@@ -200,6 +212,11 @@ std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestPara
 
 void PagedAttentionTokenTypeTest::SetUp() {
     const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_len, device] = GetParam();
+    UNUSED(sliding_window_size);
+    // CPU plugin can be supported - it uses different key and value cache layout
+    // plus uses different block size, which was not yet implemented in this
+    // test class.
+    ASSERT_EQ(device, ov::test::utils::DEVICE_GPU);
     ASSERT_LE(seq_len, helpers::MAX_CONTEXT_LEN);
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
@@ -299,3 +316,5 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
 }
 }  // namespace test
 }  // namespace ov
+
+#undef UNUSED
