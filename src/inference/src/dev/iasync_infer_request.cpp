@@ -161,34 +161,33 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
                 auto lastStageTask = [this, currentException]() mutable {
                     std::promise<void> promise;
                     std::function<void(std::exception_ptr)> callback;
-
                     {
                         std::lock_guard lock{m_mutex};
                         m_state = InferState::IDLE;
                         promise = std::move(m_promise);
                     }
-                    if (nullptr == currentException) {
-                        promise.set_value();
-                    } else {
-                        promise.set_exception(currentException);
-                    }
-
-                    std::lock_guard callbackLock{m_callback_invoke_mutex};
                     {
-                        std::lock_guard lock{m_mutex};
-                        std::swap(callback, m_callback);
-                    }
-                    if (callback) {
-                        try {
-                            callback(currentException);
-                        } catch (...) {
+                        std::lock_guard callbackLock{m_callback_invoke_mutex};
+                        {
                             std::lock_guard lock{m_mutex};
-                            m_pending_callback_exception = std::current_exception();
+                            std::swap(callback, m_callback);
+                        }
+                        if (callback) {
+                            try {
+                                callback(currentException);
+                            } catch (...) {
+                                currentException = std::current_exception();
+                            }
                         }
                         std::lock_guard lock{m_mutex};
                         if (!m_callback) {
                             std::swap(callback, m_callback);
                         }
+                    }
+                    if (nullptr == currentException) {
+                        promise.set_value();
+                    } else {
+                        promise.set_exception(currentException);
                     }
                 };
 
