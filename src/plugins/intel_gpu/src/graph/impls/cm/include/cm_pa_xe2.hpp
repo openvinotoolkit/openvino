@@ -115,11 +115,11 @@ void pa_lsc_u8(
             q_tokens_in_tile - 1,
             head_size * sizeof(half) - 1,
             q_pitch - 1,
-            0, worker_offset);
+            0, 0);
 
         #pragma unroll
         for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_K / 2, ri++) {
-            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
@@ -794,10 +794,10 @@ void pa_kernel_lsc_prefetch_u8(
 
     int worker_offset = worker_id * process_head_size;
     if (q_tokens_in_tile > 0) {
-        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, worker_offset);
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
         for (int k = 0, ri = 0; k < process_head_size/2; k += REG_K/2, ri++) {
-            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
@@ -1255,10 +1255,10 @@ void pa_kernel_lsc_prefetch_f16(
     // Each worker loads its 1/num_worker chunk of Q
     int worker_offset = worker_id * process_head_size;
     if (q_tokens_in_tile > 0) {
-        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, worker_offset);
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_in_tile - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
         for(int k = 0, ri = 0; k < process_head_size/2; k += REG_K/2, ri++) {
-            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(worker_offset / 2 + k));
             rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
