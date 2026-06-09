@@ -25,6 +25,9 @@
 #include "graph/include/gemm_inst.h"
 
 #include "ov_ops/vl_sdpa.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/split.hpp"
 
 #include <iostream>
 #include <vector>
@@ -79,6 +82,7 @@ TransposeFusion::TransposeFusion(bool supports_immad) {
     add_matcher<TransposeMatMulMatcher>(supports_immad);
     add_matcher<TransposeSDPAMatcher>();
     add_matcher<TransposeVLSDPAMatcher>();
+    add_matcher<QKVSplitReshapeMatcher>();
 }
 
 TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
@@ -471,5 +475,209 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_i
     auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_c_m, "TransposeMatMulTransposeMatcher");
     this->register_matcher(m, callback);
 }
+
+
+// ===========================================================================
+// QKVSplitReshapeMatcher
+//
+// Matches the following sub-graph produced by VIT-style attention blocks:
+//
+//   FC:  [?, ?, 4224]
+//     → Reshape([0,0,3,H,S]) → [?,?,3,H,S]
+//     → Transpose([2,0,3,1,4])  → [3,?,H,?,S]
+//     → Split(axis=0, num=3)    → [1,?,H,?,S] × 3
+//     → Squeeze(axis=0) × 3    → [?,H,?,S]   × 3
+//     → Transpose([0,2,1,3])   → [?,?,H,S]   × 3  (Q, K, V paths)
+//     → flatten_Reshape([0,0,H*S])            × 3
+//     → downstream (RMSNorm / SDPA)
+//
+// Replaces with:
+//   FC:  [?, ?, 4224]
+//     → Reshape([0,0,3,H,S]) → [?,?,3,H,S]    (kept as-is)
+//     → Split(axis=2, num=3)   → [?,?,1,H,S] × 3
+//     → Squeeze(axis=2) × 3   → [?,?,H,S]   × 3
+//     → flatten_Reshape([0,0,H*S])            × 3  (Transpose([0,2,1,3]) removed)
+//     → downstream (unchanged)
+//
+// Effect:  crop_axis = 2,  reshape_axis = 2 - 1 = 1 >= 0
+//   → prepare_buffer_fusing.cpp existing axis==1 path handles the in-place crop offset
+//   → crop in-place optimization enabled even with dynamic sequence dimension
+// ===========================================================================
+QKVSplitReshapeMatcher::QKVSplitReshapeMatcher() {
+    // NOTE: ov::op::v0::Squeeze is lowered to ov::op::v1::Reshape before TransposeFusion runs.
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({any_input(), wrap_type<ov::op::v0::Constant>()});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(
+            pattern_map.at(transpose_m).get_node_shared_ptr());
+        if (!transpose) {
+            std::cout << "[QKVSplitReshapeMatcher] PRE: null transpose\n" << std::flush;
+            return false;
+        }
+        const bool tc = transformation_callback(transpose);
+        std::cout << "[QKVSplitReshapeMatcher] PRE: " << transpose->get_friendly_name()
+                  << " tc=" << tc << "\n" << std::flush;
+        if (tc)
+            return false;
+
+        std::cout << "[QKVSplitReshapeMatcher] ENTRY: " << transpose->get_friendly_name()
+                  << " in=" << transpose->get_input_partial_shape(0)
+                  << " out=" << transpose->get_output_partial_shape(0) << "\n" << std::flush;
+
+        // [Check 1] Permute order must be [2,0,3,1,4]
+        auto order_const = ov::as_type_ptr<ov::op::v0::Constant>(
+            transpose->get_input_node_shared_ptr(1));
+        if (!order_const) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check1a: no order_const\n" << std::flush;
+            return false;
+        }
+        const auto order = order_const->cast_vector<int64_t>();
+        if (order != std::vector<int64_t>{2, 0, 3, 1, 4}) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check1b: wrong order\n" << std::flush;
+            return false;
+        }
+
+        // [Check 2] Input must be Reshape: rank-5, dim[2]==3, dim[3/4] static
+        auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(
+            transpose->get_input_node_shared_ptr(0));
+        if (!reshape) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check2a: input not Reshape\n" << std::flush;
+            return false;
+        }
+        const auto& reshape_shape = reshape->get_output_partial_shape(0);
+        std::cout << "[QKVSplitReshapeMatcher] reshape_shape=" << reshape_shape << "\n" << std::flush;
+        if (reshape_shape.rank().is_dynamic() || reshape_shape.rank().get_length() != 5 ||
+            reshape_shape[2].is_dynamic() || reshape_shape[2].get_length() != 3 ||
+            reshape_shape[3].is_dynamic() || reshape_shape[4].is_dynamic()) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check2b: shape mismatch\n" << std::flush;
+            return false;
+        }
+        const int64_t H = reshape_shape[3].get_length();
+        const int64_t S = reshape_shape[4].get_length();
+
+        // [Check 3] Transpose -> Split(axis=0, num=3)
+        if (transpose->get_output_target_inputs(0).size() != 1) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check3a: != 1 consumer\n" << std::flush;
+            return false;
+        }
+        auto tp_consumer = (*transpose->get_output_target_inputs(0).begin()).get_node();
+        auto split = ov::as_type_ptr<ov::op::v1::Split>(tp_consumer->shared_from_this());
+        if (!split || split->get_num_splits() != 3) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check3b: no Split or wrong num_splits"
+                      << " type=" << tp_consumer->get_type_name() << "\n" << std::flush;
+            return false;
+        }
+        auto split_axis_const = ov::as_type_ptr<ov::op::v0::Constant>(
+            split->get_input_node_shared_ptr(1));
+        if (!split_axis_const) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check3c: no split_axis_const\n" << std::flush;
+            return false;
+        }
+        const auto split_axis_vec = split_axis_const->cast_vector<int64_t>();
+        if (split_axis_vec.empty() || split_axis_vec[0] != 0) {
+            std::cout << "[QKVSplitReshapeMatcher] FAIL Check3d: wrong split axis=" << (split_axis_vec.empty() ? -99 : split_axis_vec[0]) << "\n" << std::flush;
+            return false;
+        }
+        std::cout << "[QKVSplitReshapeMatcher] Check3 PASS\n" << std::flush;
+
+        // [Check 4 - relaxed] Each Split output -> Squeeze/Reshape (rank 5->4, dim[0]==1 static).
+        // In STATIC compile v0::Squeeze is pre-lowered to v1::Reshape; in DYNAMIC it stays v0::Squeeze.
+        // Downstream can be:
+        //   a) Transpose([0,2,1,3]) -> Reshape  (Q/K path)
+        //   b) Anything else, e.g. SDPA         (V path)
+        std::array<std::shared_ptr<ov::Node>, 3>              sq_reshapes;      // v1::Reshape OR v0::Squeeze
+        std::array<std::shared_ptr<ov::op::v1::Transpose>, 3> qkv_transposes;   // nullptr = V path
+
+        for (size_t i = 0; i < 3; ++i) {
+            if (split->get_output_target_inputs(i).size() != 1) {
+                std::cout << "[QKVSplitReshapeMatcher] FAIL Check4a[" << i << "]: != 1 consumer\n" << std::flush;
+                return false;
+            }
+            auto sq_node_raw = (*split->get_output_target_inputs(i).begin()).get_node();
+            auto sq_node = sq_node_raw->shared_from_this();
+            // Accept v1::Reshape (static-lowered Squeeze) OR v0::Squeeze (dynamic path)
+            const bool is_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(sq_node) != nullptr;
+            const bool is_squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(sq_node) != nullptr;
+            if (!is_reshape && !is_squeeze) {
+                std::cout << "[QKVSplitReshapeMatcher] FAIL Check4b[" << i << "]: type=" << sq_node_raw->get_type_name() << "\n" << std::flush;
+                return false;
+            }
+            const auto& sq_in  = split->get_output_partial_shape(i);
+            const auto& sq_out = sq_node->get_output_partial_shape(0);
+            std::cout << "[QKVSplitReshapeMatcher] Check4[" << i << "] sq_in=" << sq_in << " sq_out=" << sq_out << "\n" << std::flush;
+            if (sq_in.rank().is_dynamic()  || sq_in.rank().get_length()  != 5 ||
+                sq_out.rank().is_dynamic() || sq_out.rank().get_length() != 4 ||
+                sq_in[0].is_dynamic()      || sq_in[0].get_length()      != 1) {
+                std::cout << "[QKVSplitReshapeMatcher] FAIL Check4c[" << i << "]\n" << std::flush;
+                return false;
+            }
+            sq_reshapes[i] = sq_node;
+
+            // Check if downstream is Transpose([0,2,1,3]) (Q/K path)
+            qkv_transposes[i] = nullptr;
+            if (sq_node->get_output_target_inputs(0).size() == 1) {
+                auto sq_out_node = (*sq_node->get_output_target_inputs(0).begin()).get_node();
+                auto qkv_tp = ov::as_type_ptr<ov::op::v1::Transpose>(sq_out_node->shared_from_this());
+                if (qkv_tp) {
+                    auto tp_ord_const = ov::as_type_ptr<ov::op::v0::Constant>(
+                        qkv_tp->get_input_node_shared_ptr(1));
+                    if (tp_ord_const) {
+                        const auto tp_ord = tp_ord_const->cast_vector<int64_t>();
+                        if (tp_ord == std::vector<int64_t>{0, 2, 1, 3})
+                            qkv_transposes[i] = qkv_tp;
+                    }
+                }
+            }
+        }
+
+        // === All checks passed — transform ===
+        std::cout << "[QKVSplitReshapeMatcher] MATCH at " << transpose->get_friendly_name()
+                  << "  H=" << H << " S=" << S << "\n" << std::flush;
+
+        // New Split(axis=2): [?,?,3,H,S] -> [?,?,1,H,S] x3
+        auto new_split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2LL});
+        auto new_split = std::make_shared<ov::op::v1::Split>(reshape->output(0), new_split_axis, 3);
+        new_split->set_friendly_name(split->get_friendly_name());
+        ov::copy_runtime_info(split, new_split);
+
+        for (size_t i = 0; i < 3; ++i) {
+            // New Squeeze(axis=2): [?,?,1,H,S] -> [?,?,H,S]
+            // GPU: crop_axis=2, output_pattern={2}, tentative_reshape_axis=1>=0 -> ALLOW in-place
+            auto new_sq_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2LL});
+            auto new_squeeze = std::make_shared<ov::op::v0::Squeeze>(new_split->output(i), new_sq_axes);
+            new_squeeze->set_friendly_name(sq_reshapes[i]->get_friendly_name());
+            ov::copy_runtime_info(sq_reshapes[i], new_squeeze);
+
+            if (qkv_transposes[i]) {
+                // Q/K path: new_squeeze output [?,?,H,S] == old qkv_tp output [?,?,H,S].
+                // Use replace_node to swap qkv_tp -> new_squeeze in one atomic step.
+                ov::replace_node(qkv_transposes[i], new_squeeze);
+                std::cout << "[QKVSplitReshapeMatcher] [" << i << "] Q/K: Squeeze(axis=2) "
+                          << "replaces Transpose([0,2,1,3])\n" << std::flush;
+            } else {
+                // V path: consumers expect old sq_reshape output [?,H,?,S].
+                // new_squeeze outputs [?,?,H,S]. Add compensating Transpose([0,2,1,3]).
+                auto v_tp_order = ov::op::v0::Constant::create(
+                    ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
+                auto new_v_tp = std::make_shared<ov::op::v1::Transpose>(
+                    new_squeeze->output(0), v_tp_order);
+                new_v_tp->set_friendly_name(sq_reshapes[i]->get_friendly_name() + "/tp_v");
+                ov::copy_runtime_info(sq_reshapes[i], new_v_tp);
+                // replace_node atomically replaces all consumers of sq_reshape[i] with new_v_tp
+                ov::replace_node(sq_reshapes[i], new_v_tp);
+                std::cout << "[QKVSplitReshapeMatcher] [" << i << "] V: Squeeze(axis=2) -> "
+                          << "Transpose([0,2,1,3]): replaces old sq_reshape\n" << std::flush;
+            }
+        }
+
+        std::cout << "[QKVSplitReshapeMatcher] Done\n" << std::flush;
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_m, "QKVSplitReshapeMatcher");
+    this->register_matcher(m, callback);
+}
+
 
 }  // namespace ov::intel_gpu

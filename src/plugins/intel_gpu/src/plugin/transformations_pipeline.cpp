@@ -464,6 +464,8 @@ bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Nod
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
+    std::cout << "[TransformationsPipeline::apply] START is_dynamic=" << func->is_dynamic()
+              << " n_nodes=" << func->get_ops().size() << "\n" << std::flush;
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
@@ -1709,7 +1711,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
         manager.register_pass<ov::pass::Validate>();
+        std::cout << "[TransformationsPipeline] GPU:PostLPT run_passes START is_dynamic=" << func->is_dynamic()
+                  << " n_ops=" << func->get_ops().size() << "\n" << std::flush;
         manager.run_passes(func);
+        std::cout << "[TransformationsPipeline] GPU:PostLPT run_passes DONE\n" << std::flush;
     }
 }
 }  // namespace ov::intel_gpu

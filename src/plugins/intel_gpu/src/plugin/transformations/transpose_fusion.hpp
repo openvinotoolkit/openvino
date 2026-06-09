@@ -38,4 +38,16 @@ public:
     TransposeVLSDPAMatcher();
 };
 
+// QKVSplitReshapeMatcher: Optimize QKV Split in VIT-style attention blocks.
+// Matches:   FC -> Reshape([0,0,3,H,S]) -> Transpose([2,0,3,1,4]) -> Split(axis=0,num=3)
+//              -> 3x Squeeze(axis=0) -> downstream
+// Replaces:  FC -> Reshape([0,0,3,H,S]) -> Split(axis=2,num=3)
+//              -> 3x Squeeze(axis=2) -> same downstream
+// Effect: crop_axis=2, reshape_axis=2-1=1>=0 -> existing prepare_buffer_fusing path works
+class QKVSplitReshapeMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("QKVSplitReshapeMatcher");
+    QKVSplitReshapeMatcher();
+};
+
 }   // namespace ov::intel_gpu
