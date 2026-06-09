@@ -72,7 +72,8 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
     auto weight_output = weight_fn(name + ".weight", ov::Shape{out_features, in_features}, precision);
 
     auto matmul = std::make_shared<ov::opset11::MatMul>(input, weight_output, false, true);
-    matmul->set_friendly_name(name);
+    // optimum-style name so GenAI dynamic-LoRA state ids carry "MatMul" (NPUW pins rank static on it).
+    matmul->set_friendly_name(name + "/MatMul");
 
     ov::Output<ov::Node> result = matmul->output(0);
 
