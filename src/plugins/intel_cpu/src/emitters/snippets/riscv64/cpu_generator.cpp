@@ -30,6 +30,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
@@ -61,6 +62,7 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/round.hpp"
@@ -96,6 +98,8 @@
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
@@ -282,7 +286,15 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::LoadReorder::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
         emitter_factory.from_expr<jit_load_broadcast_emitter>();
+    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_memory_emitter>();
+    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_store_memory_emitter>();
     jitters[snippets::op::Fill::get_type_info_static()] = emitter_factory.from_expr<jit_fill_emitter>();
 
     // reductions
@@ -322,6 +334,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_node<jit_mod_emitter>();
     jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_node<jit_multiply_emitter>();
     jitters[snippets::op::PowerStatic::get_type_info_static()] = emitter_factory.from_node<jit_power_static_emitter>();
+    jitters[op::v1::Power::get_type_info_static()] = emitter_factory.from_node<jit_power_dynamic_emitter>();
     jitters[op::v0::SquaredDifference::get_type_info_static()] =
         emitter_factory.from_node<jit_squared_difference_emitter>();
     jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_node<jit_subtract_emitter>();
@@ -343,6 +356,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
     // unary operations
     jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_node<jit_abs_emitter>();
+    jitters[ov::op::v0::Ceiling::get_type_info_static()] = emitter_factory.from_node<jit_ceil_emitter>();
     jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<jit_clamp_emitter>();
     jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<jit_elu_emitter>();
     jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_node<jit_erf_emitter>();
