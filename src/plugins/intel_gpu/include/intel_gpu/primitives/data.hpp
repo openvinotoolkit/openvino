@@ -420,7 +420,8 @@ struct data : public primitive_base<data> {
 
         bool enable_zero_copy_mode = ib.is_mmap_tensor_4K_aligned() && ib.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
                                      ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu &&
-                                     _allocation_type == allocation_type::usm_host && !weightless_caching;
+                                     _allocation_type == allocation_type::usm_host && !weightless_caching &&
+                                     model_tensor_base != nullptr;
         if (!enable_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
