@@ -29,6 +29,7 @@
 #include "openvino/op/relu.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
@@ -2116,7 +2117,8 @@ jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
                                      float alpha,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc), alpha_(alpha) {
+    : jit_emitter(host, host_isa, exec_prc),
+      alpha_(alpha) {
     prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc);
     push_arg_entry_of("swish_alpha", dnnl::impl::float2int(alpha_));
