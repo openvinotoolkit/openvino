@@ -15,6 +15,8 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/identity.hpp"
@@ -93,6 +95,49 @@ std::pair<ov::ParameterVector, std::vector<InvariantInput>> partition_body_param
     }
 
     return {std::move(canonical), std::move(invariants)};
+}
+
+/// \brief Materialises a SequenceMark value into a real OV tensor so it can be passed as a
+///        Loop invariant input.
+///
+/// When the outer scope contains a SplitToSequence that produced a dynamic-length sequence, the
+/// result is a SequenceMark wrapping the *full input tensor* and carrying a "stacked" attribute.
+/// Passing the SequenceMark's virtual output port directly as a Loop invariant would produce a
+/// broken runtime graph because SequenceMark is a frontend-only node.  This helper converts it
+/// to a real tensor that SequenceAt's Gather fallback can use.
+///
+/// For static sequences (where all elements are listed in the SequenceMark), the elements are
+/// Unsqueeze'd and Concat'd along axis 0 to form a single stacked tensor.
+///
+/// \param value Output to (potentially) materialise.
+/// \return A real OV output, or the original value if it was already a real tensor.
+static ov::Output<ov::Node> materialise_if_sequence_mark(const ov::Output<ov::Node>& value) {
+    const auto seq_mark = ov::as_type_ptr<ov::frontend::SequenceMark>(value.get_node_shared_ptr());
+    if (!seq_mark) {
+        return value;
+    }
+
+    const auto& attrs = seq_mark->get_attrs();
+    if (attrs.find("stacked") != attrs.end() && seq_mark->get_input_size() == 1) {
+        // Dynamic-sequence path: the SequenceMark wraps the full input tensor.
+        // Return that inner tensor directly — it is a real OV node.
+        return seq_mark->input_value(0);
+    }
+
+    // Static-sequence path: stack the individual elements along a new axis 0.
+    const auto n = seq_mark->get_input_size();
+    if (n == 0) {
+        // Empty sequence — nothing useful to return; fall back to the SequenceMark output.
+        return value;
+    }
+
+    const auto axis_const = ov::op::v0::Constant::create(ov::element::i64, {1}, {0LL});
+    ov::OutputVector unsqueezed;
+    unsqueezed.reserve(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        unsqueezed.push_back(std::make_shared<ov::op::v0::Unsqueeze>(seq_mark->input_value(i), axis_const));
+    }
+    return std::make_shared<ov::op::v0::Concat>(unsqueezed, 0);
 }
 }  // namespace
 
@@ -234,7 +279,7 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     for (auto in_from_parent_it = inputs_from_parent.begin();
          body_inputs_it != body_inputs.end() && in_from_parent_it != inputs_from_parent.end();
          ++body_inputs_it, ++in_from_parent_it) {
-        loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
+        loop->set_invariant_input(*body_inputs_it, materialise_if_sequence_mark(*in_from_parent_it));
     }
 
     // Set-up scan outputs
@@ -420,7 +465,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     for (const auto& [param, value] : invariant_inputs) {
         FRONT_END_GENERAL_CHECK(value.get_node() != nullptr,
                                 "Non-existent connection in body-graph to " + param->get_friendly_name());
-        loop->set_invariant_input(param, value);
+        loop->set_invariant_input(param, materialise_if_sequence_mark(value));
     }
 
     // Set-up scan outputs
