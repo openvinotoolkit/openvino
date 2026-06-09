@@ -85,7 +85,7 @@ void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
     _commandQueueDesc.set_priority(zeModelPriority);
 }
 
-ze_graph_handle_t Graph::get_handle() const {
+void* Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
@@ -282,7 +282,9 @@ std::optional<bool> Graph::is_profiling_blob() const {
     ze_graph_properties_3_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
 
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(
+        static_cast<ze_graph_handle_t>(get_handle()),
+        &graphProperties);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
     return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;

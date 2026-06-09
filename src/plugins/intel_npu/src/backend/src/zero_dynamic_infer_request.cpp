@@ -4,7 +4,6 @@
 
 #include "zero_dynamic_infer_request.hpp"
 
-#include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -219,10 +218,7 @@ void ZeroDynamicInferRequest::predict_shapes(std::vector<DynamicMemRefType>& out
     // But reshape ZeroTensor can be used to avoid recreate pipeline now
     // bool reCreatePipeline = false;
     // Predict output shapes based on current inputs
-    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "ZeroDynamicInferRequest::predict_shapes requires IDynamicGraph");
-
-    if (dynamicGraph->get_vm_runtime_handle() != nullptr && _isTensorChanged) {
+    if (_graph->get_handle() != nullptr && _isTensorChanged) {
         std::vector<DynamicMemRefType> inputPros(_metadata.inputs.size());
         outputProps.clear();
         outputProps.resize(_metadata.outputs.size());
