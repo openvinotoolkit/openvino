@@ -6,6 +6,10 @@
 #include "ocl/ocl_device_detector.hpp"
 #include "ze/ze_device_detector.hpp"
 
+#ifdef OV_GPU_WITH_SYCL_RT
+#include "sycl/sycl_device_detector.hpp"
+#endif
+
 #include <map>
 
 namespace cldnn {
@@ -17,7 +21,7 @@ engine_types device_query::get_default_engine_type() {
     engine_type = engine_types::ze;
 #elif defined(OV_GPU_WITH_OCL_RT)
     engine_type = engine_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL)
+#elif defined(OV_GPU_WITH_SYCL_RT)
     engine_type = engine_types::sycl;
 #endif
     return engine_type;
@@ -28,6 +32,8 @@ runtime_types device_query::get_default_runtime_type() {
     rt_type = runtime_types::ze;
 #elif defined(OV_GPU_WITH_OCL_RT)
     rt_type = runtime_types::ocl;
+#elif defined(OV_GPU_WITH_SYCL_RT)
+    rt_type = runtime_types::sycl;
 #endif
     return rt_type;
 }
@@ -66,6 +72,14 @@ device_query::device_query(engine_types engine_type,
         OPENVINO_ASSERT(engine_type == engine_types::ze);
         ze::ze_device_detector ze_detector;
         _available_devices = ze_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
+        break;
+    }
+#endif
+#ifdef OV_GPU_WITH_SYCL_RT
+    case runtime_types::sycl: {
+        OPENVINO_ASSERT(engine_type == engine_types::sycl);
+        sycl::sycl_device_detector sycl_detector;
+        _available_devices = sycl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
         break;
     }
 #endif
