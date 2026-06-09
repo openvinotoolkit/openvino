@@ -345,7 +345,7 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(
+bool ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(
         const std::shared_ptr<const ov::Model>& model) {
     using namespace ov::op;
     using namespace ov::pass::pattern;
@@ -360,7 +360,7 @@ bool ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(
 
     auto mult_pattern = wrap_type<v1::Multiply>({weight_cvt_pattern, scale_cvt_pattern});
 
-    auto m = std::make_shared<Matcher>(mult_pattern, "doesModelContainMXFPPatterns");
+    auto m = std::make_shared<Matcher>(mult_pattern, "does_model_contain_mxfp_patterns");
 
     const auto ops = model->get_ops();
     for (const auto& n : ops) {

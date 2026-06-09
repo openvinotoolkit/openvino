@@ -94,7 +94,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     RTInfoCache rt_info_cache;
     rt_info_cache.store(model);
 
-    auto get_manager = [&]() {
+    auto get_manager = [&model]() {
         Manager manager("pre_post_processing");
         manager.set_per_pass_validation(false);
 
@@ -119,7 +119,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
             MarkDequantization,
             TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f8e4m3, f8e5m2, f4e2m1, f8e8m0},
             false);
-        if (ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(model)) {
+        if (ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(model)) {
             REGISTER_PASS(manager, MarkDequantization, TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0}, false, false);
         }
         REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);

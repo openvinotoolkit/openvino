@@ -149,7 +149,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         manager.register_pass<ov::pass::MarkDequantization>(
             TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f8e4m3, f8e5m2, f4e2m1, f8e8m0},
             false);
-        if (ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(f)) {
+        if (ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(f)) {
             manager.register_pass<ov::pass::MarkDequantization>(TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0},
                                                                 false,
                                                                 false);

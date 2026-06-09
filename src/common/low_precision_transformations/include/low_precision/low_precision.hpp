@@ -76,7 +76,7 @@ public:
         const std::set<levels>& supported_levels = all_levels,
         bool check_fake_convert = false);
 
-    static bool doesModelContainMXFPPatterns(const std::shared_ptr<const ov::Model>& model);
+    static bool does_model_contain_mxfp_patterns(const std::shared_ptr<const ov::Model>& model);
 
     template <typename T, class... Args>
     std::shared_ptr<T> add_main(Args&&... args) {
