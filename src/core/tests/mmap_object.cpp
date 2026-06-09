@@ -230,4 +230,123 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
 
+class HintEvictTest : public ::testing::Test {
+protected:
+    std::filesystem::path m_file_path;
+    std::vector<uint8_t> m_expected;
+    // 10 granules (10 × 64 KiB): partial_evict uses quarter = 160 KiB
+    static constexpr size_t k_hint_evict_file_size = 64 * 1024 * 10;
+
+    void SetUp() override {
+        m_expected.resize(k_hint_evict_file_size);
+        for (size_t i = 0; i < k_hint_evict_file_size; ++i) {
+            // Prime-modulo pattern: easy to spot any byte corruption in failure output.
+            m_expected[i] = static_cast<uint8_t>(i % 251);
+        }
+        m_file_path = utils::generateTestFilePrefix() + "_hint_evict";
+        std::ofstream out(m_file_path, std::ios::binary);
+        ASSERT_TRUE(out.is_open()) << "Failed to create temp file: " << m_file_path;
+        out.write(reinterpret_cast<const char*>(m_expected.data()), k_hint_evict_file_size);
+        ASSERT_TRUE(out.good());
+    }
+
+    void TearDown() override {
+        std::filesystem::remove(m_file_path);
+    }
+
+    static std::vector<uint8_t> read_mapped(MappedMemory& mm) {
+        return {reinterpret_cast<uint8_t*>(mm.data()), reinterpret_cast<uint8_t*>(mm.data()) + mm.size()};
+    }
+};
+
+TEST_F(HintEvictTest, full_evict_then_read_matches_original) {
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size);
+
+    // Verify initial content before eviction.
+    ASSERT_EQ(read_mapped(*mm), m_expected);
+
+    // Evict all mapped pages.
+    mm->hint_evict(0, auto_size);
+
+    // All bytes must be transparently restored and unchanged.
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, partial_evict_then_read_matches_original) {
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size);
+
+    const size_t quarter = k_hint_evict_file_size / 4;
+    mm->hint_evict(quarter, k_hint_evict_file_size / 2);
+
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, multiple_evict_cycles_are_idempotent) {
+    // Use a page-aligned but not granularity-aligned offset to exercise head_pad on each cycle.
+    constexpr size_t k_offset = 4096;
+    auto mm = load_mmap_object(m_file_path, k_offset, auto_size);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size - k_offset);
+
+    const std::vector<uint8_t> expected_slice(m_expected.begin() + k_offset, m_expected.end());
+
+    for (int cycle = 0; cycle < 3; ++cycle) {
+        mm->hint_evict(0, auto_size);
+        EXPECT_EQ(read_mapped(*mm), expected_slice) << "Data mismatch after evict cycle " << cycle;
+    }
+}
+
+TEST_F(HintEvictTest, evict_then_read_via_file_handle_matches_original) {
+    const auto handle = utils::open_ro_file(m_file_path);
+    auto mm = load_mmap_object(handle, 0, auto_size);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size);
+
+    mm->hint_evict(0, auto_size);
+
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, evict_with_anonymous_tail_matches_original) {
+    // Append extra bytes so the file size is not a multiple of the 64 KiB granularity.
+    constexpr size_t k_extra = 4096;
+    m_expected.resize(k_hint_evict_file_size + k_extra);
+    for (size_t i = k_hint_evict_file_size; i < m_expected.size(); ++i)
+        m_expected[i] = static_cast<uint8_t>(i % 251);
+    {
+        std::ofstream out(m_file_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(out.is_open());
+        out.write(reinterpret_cast<const char*>(m_expected.data()), m_expected.size());
+        ASSERT_TRUE(out.good());
+    }
+
+    auto mm = load_mmap_object(m_file_path);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), m_expected.size());
+
+    mm->hint_evict(0, auto_size);
+
+    EXPECT_EQ(read_mapped(*mm), m_expected);
+}
+
+TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
+    // Use an offset that is page-aligned but NOT granularity-aligned.
+    constexpr size_t k_offset = 4096;
+    ASSERT_LT(k_offset, k_hint_evict_file_size);
+
+    auto mm = load_mmap_object(m_file_path, k_offset, auto_size);
+    ASSERT_NE(mm, nullptr);
+    ASSERT_EQ(mm->size(), k_hint_evict_file_size - k_offset);
+
+    const std::vector<uint8_t> expected_slice(m_expected.begin() + k_offset, m_expected.end());
+
+    mm->hint_evict(0, auto_size);
+
+    EXPECT_EQ(read_mapped(*mm), expected_slice);
+}
+
 }  // namespace ov::test

@@ -86,6 +86,7 @@ protected:
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("SHARED_EXPERT_ENABLE", desc->_config.num_shared_expert > 0 ? 1 : 0);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -113,6 +114,7 @@ protected:
         jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("SHARED_EXPERT_ENABLE", desc->_config.num_shared_expert > 0 ? 1 : 0);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -430,6 +432,22 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
     GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
                            << ", down_group_size=" << down_group_size << std::endl;
+
+    // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
+    // Smaller values have no kernel branch and would silently produce wrong results.
+    {
+        const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
+        const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
+        OPENVINO_ASSERT(fake_gs >= 2 * sg,
+                        "MoE GEMV kernel does not support group_size=",
+                        gate_up_group_size,
+                        " on this hardware (SUBGROUP_SIZE=",
+                        sg,
+                        "). Minimum supported group_size is ",
+                        2 * sg,
+                        ". Use a larger quantization group size.");
+    }
+
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
@@ -679,6 +697,7 @@ public:
     bool use_micro_gemm_prefill = false;
     bool use_gpu_mask_gen_prefill = false;
     bool use_grouped_gemm_prefill = false;
+    size_t batched_gemv_threshold = 32;  // token_num <= threshold uses batched GEMV path
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -737,6 +756,15 @@ public:
         }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
+
+        auto batched_gemv_threshold_str = std::getenv("MOE_BATCHED_GEMV_THRESHOLD");
+        if (batched_gemv_threshold_str) {
+            batched_gemv_threshold = std::stoul(batched_gemv_threshold_str);
+            if (batched_gemv_threshold <= 0) {
+                batched_gemv_threshold = 1;
+            }
+            GPU_DEBUG_TRACE_DETAIL << "MOE_BATCHED_GEMV_THRESHOLD = " << batched_gemv_threshold << std::endl;
+        }
 
         // Don't change the order of stages
         auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
@@ -1003,8 +1031,20 @@ public:
         _shared_down_proj->forward(stream, batch, gate_mem_dnnl, output_dnnl, scalar_gate_dnnl);
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        PrimitiveImplOCL::save(ob);
+        ob << use_micro_gemm_prefill;
+        ob << use_gpu_mask_gen_prefill;
+        ob << use_grouped_gemm_prefill;
+    }
+
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
+        // Read execution-path flags before init() so any future init() logic
+        // that depends on them sees the deserialized (not default) values.
+        ib >> use_micro_gemm_prefill;
+        ib >> use_gpu_mask_gen_prefill;
+        ib >> use_grouped_gemm_prefill;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         init(impl_params->typed_desc<moe_3gemm_fused_compressed>());
     }
@@ -1019,6 +1059,7 @@ public:
         cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
         cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
         cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
+        cur_moe->batched_gemv_threshold = batched_gemv_threshold;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
@@ -1130,6 +1171,15 @@ public:
         scratch.moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
         scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
 
+        // For symmetric quantization (has_zp=false), ZP inputs are element::dynamic placeholders
+        // with zero-count layout. Use scale memory as a dummy to avoid null pointer issues.
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        if (!config.has_zp) {
+            scratch.moe_fusion_wei_addr.zp[0] = scratch.moe_fusion_wei_addr.scale[0];
+            scratch.moe_fusion_wei_addr.zp[1] = scratch.moe_fusion_wei_addr.scale[1];
+            scratch.moe_fusion_wei_addr.zp[2] = scratch.moe_fusion_wei_addr.scale[2];
+        }
+
         // shared expert
         size_t dep_count = instance.dependencies().size();
         if (dep_count >= static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT) + 1) {
@@ -1150,6 +1200,13 @@ public:
 
             // Scalar Gate - f16
             scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
+
+            // For symmetric quantization, shared expert ZPs are also element::dynamic placeholders
+            if (!config.has_zp) {
+                scratch.moe_fusion_wei_addr.shared_zp[0] = scratch.moe_fusion_wei_addr.shared_scale[0];
+                scratch.moe_fusion_wei_addr.shared_zp[1] = scratch.moe_fusion_wei_addr.shared_scale[1];
+                scratch.moe_fusion_wei_addr.shared_zp[2] = scratch.moe_fusion_wei_addr.shared_scale[2];
+            }
         }
     }
 
@@ -1283,9 +1340,13 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_token(const std::vector<cldnn::event::ptr>& events,
+    // Batched GEMV path: handles token_num >= 1 with optimized GEMV kernels.
+    // Each workgroup processes one (token, expert) pair. Avoids gather/scatter/CPU-sync overhead of prefill paths.
+    // Supports shared expert: EXPERTS_PER_TOKEN = MAX_TOPK + 1 when shared expert is enabled.
+    cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                        scratch_buffers& scratch) {
+                                        scratch_buffers& scratch,
+                                        size_t token_num) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
@@ -1339,8 +1400,12 @@ public:
                                scratch.moe_fusion_wei_addr.shared_scale[2],
                                scratch.moe_fusion_wei_addr.shared_zp[2]};
         }
+
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << ", has_shared=" << _has_shared_expert
+                               << std::endl;
+
         {
-            // scratch.up = up(x) * silu(gate(x))
+            // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
             std::vector<memory::ptr> args_gate_up =
                 {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
             if (_has_shared_expert)
@@ -1352,10 +1417,10 @@ public:
                                            *stage_gate_up,
                                            args_gate_up,
                                            {scratch.up},
-                                           {compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                                           {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                                            {1, subgroup_size, SUBGROUP_NUM});
 
-            // scratch.y = down(scratch.up) * weight[expert_no]
+            // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
             std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
             if (_has_shared_expert)
                 args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
@@ -1366,16 +1431,16 @@ public:
                                       *stage_down,
                                       args_down,
                                       {scratch.y},
-                                      {compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                      {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                                       {1, subgroup_size, SUBGROUP_NUM});
 
-            // final = sum(scratch.y)
+            // Per-token reduction: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
             ret = execute_stage({ret_event},
                                 instance,
                                 *stage_reduce,
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
-                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                                {token_num, static_cast<size_t>(_hidden_size)},
                                 {1, std::min(max_work_group_size, size_t{1024})},
                                 instance.needs_completion_event());
         }
@@ -2261,10 +2326,10 @@ public:
             OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
         }
 
-        // Single token is a special case, we don't need to do gather/scatter,
-        // and we can apply optimal kernels against memory bound to improve performance.
-        if (token_num == 1) {
-            return exec_single_token({topk_event}, instance, scratch);
+        // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
+        // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
+        if (token_num <= batched_gemv_threshold) {
+            return exec_batched_gemv({topk_event}, instance, scratch, token_num);
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);

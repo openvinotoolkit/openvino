@@ -195,23 +195,12 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, (int)input_batch, 10});
         act_node = std::make_shared<ov::opset1::Reshape>(act_node, reshape_const, false);
     }
-    if (input_batch == 1 ||
-        ((p.activation_op_type == "Reshape" || p.activation_op_type == "Reshape_None") && p.with_act_new_reshape)) {
-        auto squeeze_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{3}, {1, (int)input_batch, 10});
-        act_node = std::make_shared<ov::opset1::Reshape>(act_node, squeeze_const, false);
-    }
     auto matmul = std::make_shared<ov::op::v0::MatMul>(act_node, mul, false, true);
     current_node = matmul;
 
     if (p.with_bias) {
         auto bias_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 1, 15}, {1});
         current_node = std::make_shared<ov::opset1::Add>(current_node, bias_const);
-    }
-    if (input_batch == 1 ||
-        (((p.activation_op_type == "Reshape" || p.activation_op_type == "Reshape_None")) && p.with_act_new_reshape)) {
-        auto unsqueeze_const =
-            ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, (int)input_batch, 15});
-        current_node = std::make_shared<ov::opset1::Reshape>(current_node, unsqueeze_const, false);
     }
     if (p.with_convert) {
         current_node = std::make_shared<ov::op::v0::Convert>(current_node, ov::element::f32);
