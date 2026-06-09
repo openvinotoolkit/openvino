@@ -41,6 +41,13 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         const auto& out_layout = fc_node.get_output_layout(0);
         auto in0_dt = in_layout.data_type;
         auto wei_dt = fc_node.weights().get_output_layout(false).data_type;
+
+        // GGUF weights are opaque blocks of bytes consumed only by ocl::FCGGUFOpt, which decodes them
+        // in-kernel. OneDNN cannot read these blocks and would repack/misinterpret their bytes, so it
+        // must never be selected for a GGUF-weight FC (see SPEC.md §3.5, SUMMARY.md §4.2).
+        if (ov::element::is_gguf_block(wei_dt))
+            LOG_AND_RETURN_FALSE(node);
+
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 
