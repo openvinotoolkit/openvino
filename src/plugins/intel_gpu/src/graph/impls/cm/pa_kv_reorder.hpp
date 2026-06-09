@@ -29,19 +29,10 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
         if (!(desc->cache_dt == cldnn::data_types::f16 || desc->cache_dt == cldnn::data_types::i8 || desc->cache_dt == cldnn::data_types::u8)) {
             return false;
         }
-
-        // CM PA writes K cache token-major: [num_blocks, num_kv_heads, BLOCK_SIZE_with_tail, head_size].
-        // OCL plain PA writes head-major:   [num_blocks, num_kv_heads, head_size, BLOCK_SIZE].
-        // Distinguish by checking which inner dim is BLOCK_SIZE-aligned to the CM xattn block size (256).
-        const auto& key_layout = node.get_input_layout(cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE);
-        const auto& key_shape = key_layout.get_partial_shape();
-        if (key_shape.size() != 4 || !key_shape[2].is_static() || !key_shape[3].is_static()) {
-            return true; // force to cm impl
-        }
-        const size_t shape2 = static_cast<size_t>(key_shape[2].get_length());
-        const size_t shape3 = static_cast<size_t>(key_shape[3].get_length());
-        const bool token_major = shape2 >= shape3;  // CM places BLOCK_SIZE (>=128 typically) in shape[2]
-        return token_major;
+        // CM PA materializes a token-major KV layout for sparse-attention pipelines
+        // (XAttention / qq_bias). The OCL reorder handles the legacy head-major layout.
+        // The flag is set in ops/pa_kv_reorder.cpp from the model rt_info "sparse_enabled".
+        return desc->is_sparse;
     }
 };
 

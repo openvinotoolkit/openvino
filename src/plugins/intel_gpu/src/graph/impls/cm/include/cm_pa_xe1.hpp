@@ -296,25 +296,8 @@ void pa_lsc_u8(
                 for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             }
 #if HAS_QQ_BIAS
-            // Speculative tree mask. qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
-            if (qq_bias_num > 0) {
-                const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
-                #pragma unroll
-                for (int k_row = 0; k_row < kv_step; ++k_row) {
-                    const int key_local = kv_pos + k_row;
-                    const int key_spec = key_local - (int)past_lens;
-                    if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
-                    #pragma unroll
-                    for (int q_col = 0; q_col < q_step; ++q_col) {
-                        const int query_spec = q_start + q_col;
-                        if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
-                        const int qq_off = query_spec * qq_bias_spec_num + key_spec;
-                        if (qq_bias_ptr[qq_off] == 0) {
-                            St[k_row][q_col] = -3.4e38f;
-                        }
-                    }
-                }
-            }
+            apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                                    kv_pos, q_start, (int)past_lens);
 #endif
             auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
@@ -535,25 +518,8 @@ void pa_kernel_lsc_prefetch_f16(
         }
 
 #if HAS_QQ_BIAS
-        // qq_bias layout: u8 row-major [spec_num, spec_num], 0 = masked.
-        if (qq_bias_num > 0) {
-            const uchar* qq_bias_ptr = reinterpret_cast<const uchar*>(qq_bias_base);
-            #pragma unroll
-            for (int k_row = 0; k_row < kv_step; ++k_row) {
-                const int key_local = kv_pos + k_row;
-                const int key_spec = key_local - (int)past_lens;
-                if (key_spec < 0 || key_spec >= qq_bias_spec_num) continue;
-                #pragma unroll
-                for (int q_col = 0; q_col < q_step; ++q_col) {
-                    const int query_spec = q_start + q_col;
-                    if (query_spec < 0 || query_spec >= qq_bias_spec_num) continue;
-                    const int qq_off = query_spec * qq_bias_spec_num + key_spec;
-                    if (qq_bias_ptr[qq_off] == 0) {
-                        St[k_row][q_col] = -3.4e38f;
-                    }
-                }
-            }
-        }
+        apply_qq_bias_tree_mask(St, qq_bias_base, qq_bias_num, qq_bias_spec_num,
+                                kv_pos, q_start, (int)past_lens);
 #endif
 
         // show(St);
