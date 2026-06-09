@@ -226,7 +226,6 @@ void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 
     for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
-        // TODO move this function within BlobReader, and have a BlobReader inside Plugin?
         blobReader->register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
     }
 }

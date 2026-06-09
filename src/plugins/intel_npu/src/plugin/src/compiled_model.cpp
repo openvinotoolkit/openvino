@@ -56,7 +56,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                       itt::domains::NPUPlugin,
                       "CompiledModel::CompiledModel",
                       "register the IOLayoutsSection");
-    // TODO more logs, more ITT traces
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }

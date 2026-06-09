@@ -38,7 +38,6 @@ void InvalidCRE::create(const char* file,
     throw InvalidCRE(make_what(file, line, check_string, context_info, explanation));
 }
 
-// TODO use the logger more after modifying the algorithm
 CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
 CRE::CRE(const std::vector<CREToken>& expression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
@@ -241,6 +240,8 @@ bool CRE::evaluate(
                                    ? section_type_evaluators.at(section_type)->check_support()
                                    : false;
 
+                m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
+
                 if (operand) {
                     // Only if the section type evaluation succeeded, proceed to evaluate the section type instance if
                     // an instance ID is also found
@@ -249,11 +250,12 @@ bool CRE::evaluate(
                     if (expression_iterator != expression_end && !RESERVED_TOKENS.count(*expression_iterator)) {
                         // Found a section type instance ID. The current section ID is supported only if the instance is
                         // supported
-                        operand =
-                            section_type_evaluators.count(*expression_iterator)
-                                ? section_type_instance_evaluators.at(SectionID(section_type, *expression_iterator))
-                                      .check_support()
-                                : true;
+                        const SectionID section_id(section_type, *expression_iterator);
+                        operand = section_type_evaluators.count(*expression_iterator)
+                                      ? section_type_instance_evaluators.at(section_id).check_support()
+                                      : true;
+
+                        m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
                     }
                     expression_iterator--;
                 }
@@ -294,6 +296,8 @@ bool CRE::check_compatibility(
                                  Delimiter::SIZE);
     CRE_EVAL_ASSERT(expression_iterator == expression.end(),
                     "CRE evaluation ended before parsing the whole expression");
+
+    m_logger.debug("Expression evaluated to %d", result);
     return result;
 }
 

@@ -13,8 +13,6 @@ namespace intel_npu {
 OffsetsTable::OffsetsTable(const ov::log::Level log_level) : m_logger("OffsetsTable", log_level) {}
 
 void OffsetsTable::add_entry(const SectionID id, const uint64_t offset, const uint64_t length) {
-    // TODO maybe add some message when failing
-    // "Section ID already existing in the table: printf(id)"
     OPENVINO_ASSERT(!m_table.count(id), "The section ID already exists within the table of offsets. ID: ", id);
     OPENVINO_ASSERT(!m_reversed_table.count(offset),
                     "The offset is already in-use within the table of offsets. Offset: ",

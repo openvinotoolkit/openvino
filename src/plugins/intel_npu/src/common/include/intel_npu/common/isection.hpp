@@ -68,7 +68,6 @@ enum : SectionType {
 };
 };
 
-// TODO any point in adding the offsets table as well?
 static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
     PredefinedSectionType::CRE,
     PredefinedSectionType::ELF_MAIN_SCHEDULE,
@@ -132,7 +131,7 @@ public:
      * @brief Evaluate whether or not the current section instance is compatible with the current environment based on
      * the content of the section.
      * @details The first step in determining the compatibility of a section is by evaluating the compatibility of its
-     * type (see TODO). The second step is this function, which evaluates the compatibility of the current instance.
+     * type. The second step is this function, which evaluates the compatibility of the current instance.
      *
      * The section writers are able to handle additional compatibility requirements by using the content of their own
      * section. This function is meant to evaluate the said content if the case is applicable.
