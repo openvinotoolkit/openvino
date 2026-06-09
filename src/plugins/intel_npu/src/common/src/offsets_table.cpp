@@ -61,6 +61,15 @@ size_t OffsetsTable::get_number_of_entries() const {
     return m_table.size();
 }
 
+std::unordered_set<SectionID> OffsetsTable::get_all_registered_section_ids() const {
+    std::unordered_set<SectionID> ids;
+
+    for (const auto& [key, value] : m_table) {
+        ids.insert(key);
+    }
+    return ids;
+}
+
 bool OffsetsTable::empty() const {
     return m_table.empty();
 }

@@ -31,6 +31,8 @@ public:
 
     size_t get_number_of_entries() const;
 
+    std::unordered_set<SectionID> get_all_registered_section_ids() const;
+
     bool empty() const;
 
 private:

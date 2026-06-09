@@ -53,15 +53,6 @@ std::vector<CRE::Token> ISection::get_compatibility_requirements_subexpression(
     return {};
 }
 
-bool ISection::check_compatibility_based_on_section_content(BlobReaderInterface& reader) {
-    if (m_type_instance_supported.has_value()) {
-        return m_type_instance_supported.value();
-    }
-
-    m_type_instance_supported = evaluate_compatibility_based_on_section_content(reader);
-    return m_type_instance_supported.value();
-}
-
 bool ISection::evaluate_compatibility_based_on_section_content(BlobReaderInterface& /*reader*/) {
     return true;
 }

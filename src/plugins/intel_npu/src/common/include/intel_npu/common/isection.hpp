@@ -127,14 +127,6 @@ public:
         const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
             all_registered_sections) const;
 
-    bool check_compatibility_based_on_section_content(BlobReaderInterface& reader);
-
-private:
-    // Access required to set the section type instance ID
-    friend class BlobWriter;
-    friend class BlobWriterInterface;
-    friend class BlobReader;
-
     /**
      * @brief Evaluate whether or not the current section instance is compatible with the current environment based on
      * the content of the section.
@@ -147,6 +139,12 @@ private:
      * this object.
      */
     virtual bool evaluate_compatibility_based_on_section_content(BlobReaderInterface& reader);
+
+private:
+    // Access required to set the section type instance ID
+    friend class BlobWriter;
+    friend class BlobWriterInterface;
+    friend class BlobReader;
 
     /**
      * @note Only BlobWriters & BlobReaders should be allowed to manipulate the type instance ID. This is because the
