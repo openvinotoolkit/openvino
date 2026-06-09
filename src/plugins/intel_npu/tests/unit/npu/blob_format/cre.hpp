@@ -33,7 +33,7 @@ protected:
     }
 
     CRE cre;
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> supported_capabilities;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> supported_capabilities;
     bool is_compatible;
 
 public:
@@ -116,7 +116,7 @@ TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
     cre.append_to_expression(PredefinedSectionType::ELF_MAIN_SCHEDULE);
     cre.append_to_expression(PredefinedSectionType::BATCH_SIZE);
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::ELF_MAIN_SCHEDULE] =
         std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::ELF_MAIN_SCHEDULE);
     caps[PredefinedSectionType::BATCH_SIZE] =
@@ -262,7 +262,7 @@ TEST_F(CREAppendToken, MixedAppend) {
                                                      PredefinedSectionType::ELF_INIT_SCHEDULES,
                                                      CRE::CLOSE});
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::ELF_MAIN_SCHEDULE] =
         std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::ELF_MAIN_SCHEDULE);
     caps[PredefinedSectionType::BATCH_SIZE] =
@@ -288,7 +288,7 @@ protected:
     std::shared_ptr<MockCapability> cap_1;
     std::shared_ptr<MockCapability> cap_2;
     std::shared_ptr<MockCapability> cap_3;
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
 };
 
 TEST_F(CREOperandsEvaluation, Depth0ORs) {

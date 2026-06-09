@@ -79,7 +79,7 @@ public:
         reader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         reader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
 
-        std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+        std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
         for (auto type : DEFAULT_SUPPORTED_SECTION_TYPES) {
             caps[type] = std::make_shared<SupportedSectionTypeEvaluator>(type);
         }

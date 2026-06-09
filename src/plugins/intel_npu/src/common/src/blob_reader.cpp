@@ -32,7 +32,7 @@ BlobReaderInterface::BlobReaderInterface(
     const size_t section_start,
     const size_t section_length,
     const size_t npu_region_size,
-    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const ov::log::Level log_level)
     : m_source(source),
       m_cursor(section_start),
@@ -96,7 +96,7 @@ size_t BlobReaderInterface::get_section_length() const {
     return m_section_end - m_section_start;
 }
 
-std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>
+std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>
 BlobReaderInterface::get_section_type_evaluators() const {
     return m_section_type_evaluators;
 }
@@ -143,7 +143,7 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
 
 void BlobReader::read(
     const ov::Tensor& source,
-    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) {
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");
 

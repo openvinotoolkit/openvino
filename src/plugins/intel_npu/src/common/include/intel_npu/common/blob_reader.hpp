@@ -27,7 +27,7 @@ public:
         const size_t section_start,
         const size_t section_length,
         const size_t npu_region_size,
-        const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
@@ -58,7 +58,7 @@ public:
 
     size_t get_section_length() const;
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> get_section_type_evaluators() const;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> get_section_type_evaluators() const;
 
     ov::log::Level get_log_level() const;
 
@@ -73,7 +73,7 @@ private:
     size_t m_section_start;
     size_t m_section_end;
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
 
     Logger m_logger;
 };
@@ -103,11 +103,11 @@ public:
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
      *
-     * @param section_type_evaluators Indicates all capabilities of the NPU plugin. This mapping is used to evaluate the
-     * CRE.
+     * @param section_type_evaluators Indicates all section types known to the NPU plugin. This mapping is used to
+     * evaluate the CRE.
      */
     void read(const ov::Tensor& source,
-              const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators);
+              const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators);
 
     /**
      * @brief Register a new section reader for the given section type.

@@ -38,9 +38,9 @@ std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
                     ". CRE token size: ",
                     sizeof(CRE::Token));
     size_t number_of_tokens = section_length / sizeof(CRE::Token);
-    OPENVINO_ASSERT(number_of_tokens != 0,
-                    "Read \"0\" as the number of CRE tokens. This value is invalid since at least one token (the CRE "
-                    "capability) is expected");
+    if (number_of_tokens == 0) {
+        logger.warning("The parsed CRE is empty. No compatibility checks will be performed");
+    }
 
     logger.debug("Reading %lu tokens", number_of_tokens);
 

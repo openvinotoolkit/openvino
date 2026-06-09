@@ -6,10 +6,10 @@
 
 namespace intel_npu {
 
-ISectionTypeEvaluator::ISectionTypeEvaluator(const CRE::Token token) : m_token(token) {}
+ISectionTypeEvaluator::ISectionTypeEvaluator(const CRE::Token section_type) : m_section_type(section_type) {}
 
-CRE::Token ISectionTypeEvaluator::get_token() const {
-    return m_token;
+SectionType ISectionTypeEvaluator::get_section_type() const {
+    return m_section_type;
 }
 
 bool ISectionTypeEvaluator::check_support() const {

@@ -11,7 +11,7 @@ using namespace intel_npu;
 
 namespace {
 
-std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
+std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> make_caps() {
     return {{PredefinedSectionType::CRE, std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE)}};
 }
 

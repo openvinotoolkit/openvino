@@ -11,6 +11,7 @@
 
 namespace intel_npu {
 
+using SectionType = uint16_t;
 class ISectionTypeEvaluator;
 
 class InvalidCRE final : public ov::AssertFailure {
@@ -60,17 +61,17 @@ public:
     bool empty() const;
 
     /**
-     * @brief Evaluates the expression against the given NPU plugin capabilities.
-     * @details The plugin capabilities are evaluated in a lazy manner: the check support function is called only upon
-     * encountering the corresponding CRE token.
+     * @brief Evaluates the expression against all known section types.
+     * @details The support for section types is evaluated in a lazy manner: the check support function is called only
+     * upon encountering the corresponding CRE token.
      *
      * @param section_type_evaluators A mapping between CRE tokens and their (lazy) evaluators.
      */
     bool check_compatibility(
-        const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const;
+        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const;
 
 private:
-    enum class Delimiter { PARRENTHESIS, SIZE, NOT_CAPABILITY_ID };
+    enum class Delimiter { PARRENTHESIS, SIZE };
 
     bool subexpression_already_registered(const std::vector<Token>& subexpression) const;
 
@@ -97,11 +98,12 @@ private:
      * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped.
      * However, CRE validity checks will still be performed.
      */
-    bool evaluate(std::vector<Token>::const_iterator& expression_iterator,
-                  const std::vector<Token>::const_iterator& expression_end,
-                  const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-                  const Delimiter end_delimiter,
-                  const bool skip_all_evaluations = false) const;
+    bool evaluate(
+        std::vector<Token>::const_iterator& expression_iterator,
+        const std::vector<Token>::const_iterator& expression_end,
+        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+        const Delimiter end_delimiter,
+        const bool skip_all_evaluations = false) const;
 
     std::vector<std::vector<Token>> m_subexpressions;
 

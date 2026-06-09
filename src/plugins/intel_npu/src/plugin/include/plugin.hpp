@@ -64,9 +64,9 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    void register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& capability) const;
+    void register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator) const;
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> get_capabilities() const;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> get_section_type_evaluators() const;
 
 private:
     void update_log_level(const ov::AnyMap& properties) const;
@@ -96,7 +96,7 @@ private:
     mutable Logger _logger;
     std::unique_ptr<Properties> _propertiesManager;
 
-    mutable std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> _capabilities;
+    mutable std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> _sectionTypeEvaluators;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

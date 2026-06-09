@@ -160,15 +160,15 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
     case Delimiter::SIZE:
         return expression_iterator == expression_end;
     default:
-        // Delimiter::NOT_CAPABILITY
-        return RESERVED_TOKENS.count(*expression_iterator) || expression_iterator == expression_end;
+        // This is a logic error, not an "invalid CRE" one
+        OPENVINO_THROW("Received an unknown value for the end condition delimiter");
     }
 }
 
 bool CRE::evaluate(
     std::vector<Token>::const_iterator& expression_iterator,
     const std::vector<Token>::const_iterator& expression_end,
-    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations) const {
     std::function<bool(bool, bool)> logical_function = first_operand_function;
@@ -230,7 +230,7 @@ bool CRE::evaluate(
             skip_next_evaluation = result == true ? true : false;
             break;
         default:
-            // A capability token was found
+            // A section type (instance) token was found
             CRE_EVAL_ASSERT(!expect_binary_operator,
                             "A capability token was found when a binary operator was expected");
             expect_binary_operator = true;  // An operand should be followed by an operator
@@ -258,7 +258,7 @@ bool CRE::evaluate(
 }
 
 bool CRE::check_compatibility(
-    const std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const {
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators) const {
     if (m_subexpressions.empty()) {
         return true;
     }

@@ -222,21 +222,19 @@ void BlobWriter::write(std::ostream& stream) const {
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t.
     // the content of the payload)
+
+    // Write the CRESection. This section doesn't have to be the first one, but we write it first to emphasize the fact
+    // that section writers cannot append to the "global" CRE
+    const auto cre_section = std::make_shared<CRESection>(build_cre(), m_logger.level());
+    cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
+    write_section(stream, cre_section, stream_npu_region_start, offsets_table);
+
     while (!write_queue.empty()) {
         const std::shared_ptr<ISection>& section = write_queue.front();
         write_queue.pop();
 
         write_section(stream, section, stream_npu_region_start, offsets_table);
     }
-
-    // Write the CRESection
-    // Note: this was left near the end jic some writers had to register some more capability IDs for some reason
-    // TODO: in that case, reading this blob and then writing it again would add redundant CRE tokens. Maybe a
-    // redesign would be useful here.
-    // TODO update this
-    const auto cre_section = std::make_shared<CRESection>(build_cre(), m_logger.level());
-    cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(stream, cre_section, stream_npu_region_start, offsets_table);
 
     // Write the table of offsets
     offsets_table_location = get_offset_relative_to_npu_region(stream, stream_npu_region_start);

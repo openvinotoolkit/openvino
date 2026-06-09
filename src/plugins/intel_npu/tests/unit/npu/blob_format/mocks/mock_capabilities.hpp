@@ -49,6 +49,7 @@ private:
     std::shared_ptr<MockSection_3> m_section;
 };
 
+// TODO rename these as well
 class MockCapability : public ISectionTypeEvaluator {
 public:
     explicit MockCapability(SectionType type) : ISectionTypeEvaluator(static_cast<CRE::Token>(type)) {}

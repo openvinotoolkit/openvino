@@ -31,7 +31,7 @@ void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
 // TODO should we unit test the reader with precompiled compatibility blobs?
 void reader_register_sections(const std::shared_ptr<BlobReader>& blobReader,
                               const std::vector<uint16_t> section_types,
-                              std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>& capabilities) {
+                              std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& capabilities) {
     for (const auto& token : section_types) {
         capabilities[token] = std::make_shared<SupportedSectionTypeEvaluator>(token);
     }
@@ -40,13 +40,13 @@ void reader_register_sections(const std::shared_ptr<BlobReader>& blobReader,
     blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 }
 
-std::pair<std::string, std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>>> make_simple_blob(
+std::pair<std::string, std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>> make_simple_blob(
     int64_t batch_size) {
     BlobWriter writer;
     writer.register_section(std::make_shared<BatchSizeSection>(batch_size));
     std::stringstream stream;
     writer.write(stream);
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
     return {stream.str(), std::move(caps)};
 }
@@ -85,7 +85,7 @@ protected:
     std::stringstream stream;
     std::string buffer;
     ov::Tensor tensor;
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> capabilities;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> capabilities;
 };
 
 using AllSections = WriterReaderUnitTests;
@@ -162,7 +162,7 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     writer_1.write(stream_1);
     std::string buffer_1 = stream_1.str();
 
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
 
     ov::Tensor tensor_1(ov::element::u8, ov::Shape{buffer_1.size()}, buffer_1.data());
@@ -207,7 +207,7 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     ASSERT_NO_THROW(reader.read(tensor, caps));
@@ -275,7 +275,7 @@ TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromStream) {
 }
 
 TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
-    std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
 
     BlobWriter writer;

@@ -510,7 +510,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     update_log_level(properties);
 
-    // Created at this stage to allow functions to register blob sections & capability requirements on the fly
+    // Created at this stage to allow functions to register blob sections on the fly
     auto blobWriter = std::make_shared<BlobWriter>();
 
     // Before going any further: if
@@ -942,7 +942,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    blobReader->read(tensorBig, _capabilities);
+    blobReader->read(tensorBig, _sectionTypeEvaluators);
     auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
         blobReader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
     auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
@@ -1028,12 +1028,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
 }
 
-void Plugin::register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& capability) const {
-    _capabilities[capability->get_token()] = capability;
+void Plugin::register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator) const {
+    _sectionTypeEvaluators[evaluator->get_section_type()] = evaluator;
 }
 
-std::unordered_map<CRE::Token, std::shared_ptr<ISectionTypeEvaluator>> Plugin::get_capabilities() const {
-    return _capabilities;
+std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> Plugin::get_section_type_evaluators() const {
+    return _sectionTypeEvaluators;
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
