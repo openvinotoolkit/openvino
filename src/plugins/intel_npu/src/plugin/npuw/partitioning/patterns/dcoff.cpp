@@ -855,7 +855,7 @@ CWAI1::CWAI1(CWAI1::Results scales) {
             LOG_DEBUG("Matched: " << matched_valueC);
             scales.get().push_back(matched_valueC);
         }
-        return true;
+        return false;  // passive collector - graph unchanged, let other matchers run on the same root
     };  // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI1"), std::move(matcher_callback));
@@ -908,7 +908,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
             LOG_DEBUG("Matched: " << matched_valueC);
             scales.get().push_back(matched_valueC);
         }
-        return true;
+        return false;  // passive collector - graph unchanged, let other matchers run on the same root
     };  // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), std::move(matcher_callback));
@@ -1122,6 +1122,72 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
         return false;  // root node hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape"), std::move(callback));
+}
+
+// Soft CWAI for asymmetric per-channel quantization. Unlike the active
+// DCOFFPassReshape above, this is a passive collector: it identifies the
+// zero-point and scale Constants feeding the dequantization chain and
+// asks the partitioner to keep them as Constants in the function body
+// (via consts_to_keep). Only the quantized weight Const is then cut to
+// a Parameter and routed to the shared bank, so prefill/decode dedup the
+// large weight tensors while the NPU compiler still sees a fully
+// const-folded dequant chain at the MatMul input.
+//
+//   "tensor"     "zero point" "scale"
+//   Const:A      Const:B      Const:C
+//      u2|u4|u8     f32         f16|f32
+//        :          :            :
+//        V          :            :
+//      Convert      :            :
+//       f32         :            :
+//        :          :            :
+//        V          V            :
+//        Subtract                :
+//          f32                   :
+//           :                    :
+//           V                    V
+//           Multiply
+//            f16|f32
+//
+CWAI::CWAI(CWAI::Results to_keep) {
+    auto constA = opp::wrap_type<ov::op::v0::Constant>();
+    auto constB = opp::wrap_type<ov::op::v0::Constant>();
+    auto constC = opp::wrap_type<ov::op::v0::Constant>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
+    auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
+
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
+
+        auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
+        auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+        auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+
+        const auto& tA = matched_valueA->get_element_type();
+        const auto& tB = matched_valueB->get_element_type();
+        const auto& tC = matched_valueC->get_element_type();
+
+        const bool weight_ok = (tA == ov::element::u2 || tA == ov::element::u4 || tA == ov::element::u8);
+        const bool zp_ok = (tB == ov::element::f32);
+        const bool scale_ok = (tC == ov::element::f16 || tC == ov::element::f32);
+
+        if (weight_ok && zp_ok && scale_ok) {
+            LOG_DEBUG("Matched (asymm CWAI): keep ZP " << matched_valueB << " and scale " << matched_valueC);
+            to_keep.get().push_back(matched_valueB);
+            to_keep.get().push_back(matched_valueC);
+        }
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagAsymmCWAI"), std::move(matcher_callback));
 }
 }  // namespace AsymmZP
 }  // namespace patterns
