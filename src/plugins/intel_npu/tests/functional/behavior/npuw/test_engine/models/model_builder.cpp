@@ -807,21 +807,23 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     // Wire linear-mixer runtime inputs once — all layers share the same graph plumbing.
     if (config.is_linear_layer) {
-        config.linear_attn.seq_source = seq_source;
-        config.linear_attn.beam_idx = beam_idx_output;
-        config.short_conv.seq_source = seq_source;
-        config.short_conv.beam_idx = beam_idx_output;
+        OPENVINO_ASSERT(config.linear_mixer, "Hybrid models require config.linear_mixer to be set");
+        config.linear_mixer->seq_source = seq_source;
+        config.linear_mixer->beam_idx = beam_idx_output;
     }
 
     size_t linear_layer_count = 0;
     size_t attn_layer_count = 0;
 
     auto build_full_attn_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+        // Local copy so per-layer kv_cache_fn wiring never mutates the shared `attn`.
+        Attention layer_attn = attn;
         if (config.use_kv_cache && config.is_linear_layer) {
+            // Hybrid attention layers use per-attn-layer cache_params naming (separate from conv/ssm).
             auto attn_idx = attn_layer_count;
-            attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
-                                             const ov::Output<ov::Node>& v_proj,
-                                             size_t /*layer*/) {
+            layer_attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
+                                                   const ov::Output<ov::Node>& v_proj,
+                                                   size_t /*layer*/) {
                 auto idx_str = std::to_string(attn_idx);
                 auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
                                                     make_cache_params_var_id("key", idx_str), prec);
@@ -834,7 +836,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         }
         ++attn_layer_count;
         auto fn = [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-            return attn(normed, {}, pfx, layer);
+            return layer_attn(normed, {}, pfx, layer);
         };
         return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
                                : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
@@ -843,14 +845,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     auto build_linear_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t /*layer*/) {
         auto lin_idx = linear_layer_count++;
         auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-            if (config.linear_mixer == LLMConfig::LinearMixer::ShortConv) {
-                auto r = config.short_conv(normed, pfx, lin_idx);
-                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.conv_assign));
-                return r.output;
-            }
-            auto r = config.linear_attn(normed, pfx, lin_idx);
-            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.conv_assign));
-            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.recurrent_assign));
+            MixerResult r = config.linear_mixer->build(normed, pfx, lin_idx);
+            m_sinks.insert(m_sinks.end(), r.sinks.begin(), r.sinks.end());
             return r.output;
         };
         return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
