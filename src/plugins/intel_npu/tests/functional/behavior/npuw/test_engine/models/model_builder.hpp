@@ -166,15 +166,13 @@ struct LLMConfig : public BaseModelConfig {
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
 
-    /// Hybrid scheduling. Empty predicate = pure attention. Layers where it returns true use the
-    /// linear mixer, the rest use full SDPA. Hybrid models require use_kv_cache = true.
+    /// Hybrid scheduling. Empty predicate (or null linear_mixer) = pure attention. Layers where it
+    /// returns true use linear_mixer, the rest use full SDPA. Hybrid models require use_kv_cache = true.
     std::function<bool(size_t /*layer_idx*/)> is_linear_layer;
 
-    /// Which mixer the linear layers use: GatedDeltaNet recurrence (Qwen3.5) or LFM2 short conv.
-    enum class LinearMixer { GatedDeltaNet, ShortConv };
-    LinearMixer linear_mixer = LinearMixer::GatedDeltaNet;
-    LinearAttention linear_attn;  ///< used when linear_mixer == GatedDeltaNet
-    GatedShortConv short_conv;    ///< used when linear_mixer == ShortConv
+    /// Token mixer for linear layers (e.g. GatedDeltaNetMixer or ShortConvMixer). build_llm wires
+    /// its seq_source/beam_idx. A new mixer type needs no build_llm change.
+    std::shared_ptr<LinearMixer> linear_mixer;
 };
 
 struct WhisperConfig : public BaseModelConfig {

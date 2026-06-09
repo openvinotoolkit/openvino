@@ -134,13 +134,14 @@ inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
     auto cfg = make_test_model_config();
     cfg.num_layers = 4;
     cfg.is_linear_layer = make_mamba_schedule(1);
-    cfg.linear_attn.hidden_size = cfg.hidden_size;
-    cfg.linear_attn.num_heads = cfg.num_heads;
-    cfg.linear_attn.key_head_dim = cfg.head_dim;
-    cfg.linear_attn.value_head_dim = cfg.head_dim;
-    cfg.linear_attn.precision = cfg.precision;
-    cfg.linear_attn.weight_fn = cfg.weight;
-    cfg.linear_attn.out_norm = RMSNorm(cfg.linear_attn.value_dim(), cfg.precision);
+    auto mixer = std::make_shared<GatedDeltaNetMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->num_heads = cfg.num_heads;
+    mixer->key_head_dim = cfg.head_dim;
+    mixer->value_head_dim = cfg.head_dim;
+    cfg.linear_mixer = mixer;
     ModelBuilder mb;
     return mb.build_llm(cfg);
 }
@@ -151,11 +152,12 @@ inline std::shared_ptr<ov::Model> build_lfm2_llm_test_model() {
     auto cfg = make_test_model_config();
     cfg.num_layers = 4;
     cfg.is_linear_layer = make_mamba_schedule(1);
-    cfg.linear_mixer = LLMConfig::LinearMixer::ShortConv;
-    cfg.short_conv.hidden_size = cfg.hidden_size;
-    cfg.short_conv.conv_dim = cfg.hidden_size;
-    cfg.short_conv.precision = cfg.precision;
-    cfg.short_conv.weight_fn = cfg.weight;
+    auto mixer = std::make_shared<ShortConvMixer>();
+    mixer->hidden_size = cfg.hidden_size;
+    mixer->precision = cfg.precision;
+    mixer->weight_fn = cfg.weight;
+    mixer->conv_dim = cfg.hidden_size;
+    cfg.linear_mixer = mixer;
     ModelBuilder mb;
     return mb.build_llm(cfg);
 }

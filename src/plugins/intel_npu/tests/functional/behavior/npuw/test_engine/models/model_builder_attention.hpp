@@ -12,6 +12,7 @@
 #include "model_builder_types.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/util/variable.hpp"
 
 namespace ov {
@@ -119,22 +120,34 @@ FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
                                   ov::element::Type precision = ov::element::f32,
                                   const ov::Output<ov::Node>& beam_idx = {});
 
+/// Post-convolution activation. SiLU matches GatedDeltaNet exports; None matches LFM2 (gated externally).
+enum class ConvActivation { None, SiLU };
+
+/// Depthwise conv weight topology. PlainFloat (Const→Convert) matches LFM2; U8Decompress
+/// (u8→Convert→Subtract(zp)→Multiply(scale)) matches the Qwen3.5/DCOFF export path.
+enum class ConvWeightMode { PlainFloat, U8Decompress };
+
 /// Causal depthwise convolution with sliding-window state.
 /// Input/output: [batch, seq, channels]. State: [batch, channels, kernel].
 struct CausalConvResult {
-    ov::Output<ov::Node> output;       ///< [batch, seq, channels] (post-SiLU if apply_silu)
+    ov::Output<ov::Node> output;       ///< [batch, seq, channels] (post-activation)
     std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+struct CausalConvConfig {
+    size_t channels = 0;
+    size_t kernel_size = 0;
+    ov::element::Type precision = ov::element::f32;
+    ConvActivation activation = ConvActivation::SiLU;
+    ConvWeightMode weight_mode = ConvWeightMode::U8Decompress;
 };
 
 CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
                                   const ov::Output<ov::Node>& seq_source,
                                   const ov::Output<ov::Node>& beam_idx,
-                                  size_t channels,
-                                  size_t kernel_size,
                                   const std::string& state_name,
                                   const std::string& prefix,
-                                  ov::element::Type prec,
-                                  bool apply_silu = true);
+                                  const CausalConvConfig& cfg);
 
 /// Recurrent SSM state via OV Loop. Body implements the GDN delta rule for FuseGDNLoop.
 struct RecurrentStateResult {
@@ -142,35 +155,61 @@ struct RecurrentStateResult {
     std::shared_ptr<ov::Node> assign;  ///< state update Assign
 };
 
-RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
-                                          const ov::Output<ov::Node>& key,
-                                          const ov::Output<ov::Node>& value,
-                                          const ov::Output<ov::Node>& gate_input,
-                                          const ov::Output<ov::Node>& beta_input,
+/// Per-timestep SSM inputs (all [batch, seq, *]) — grouped so callers can't transpose same-typed args.
+struct RecurrentStateInputs {
+    ov::Output<ov::Node> query;
+    ov::Output<ov::Node> key;
+    ov::Output<ov::Node> value;
+    ov::Output<ov::Node> gate;
+    ov::Output<ov::Node> beta;
+};
+
+struct RecurrentStateDims {
+    size_t num_heads = 0;
+    size_t key_head_dim = 0;
+    size_t value_head_dim = 0;
+};
+
+RecurrentStateResult make_recurrent_state(const RecurrentStateInputs& inputs,
+                                          const RecurrentStateDims& dims,
                                           const ov::Output<ov::Node>& seq_source,
                                           const ov::Output<ov::Node>& beam_idx,
-                                          size_t num_heads,
-                                          size_t key_head_dim,
-                                          size_t value_head_dim,
                                           const std::string& state_name,
                                           const std::string& prefix,
                                           ov::element::Type prec);
 
-/// GatedDeltaNet-style linear attention: causal conv + L2-normed Q/K + recurrent SSM + output gating.
-struct LinearAttention {
-    size_t hidden_size = 0;
-    size_t num_heads = 0;
-    size_t key_head_dim = 0;
-    size_t value_head_dim = 0;
-    size_t conv_kernel = 4;
+/// Uniform result for any linear-token mixer. `sinks` already holds the state Assign nodes —
+/// the builder appends them with no knowledge of how many a given mixer produces.
+struct MixerResult {
+    ov::Output<ov::Node> output;
+    ov::SinkVector sinks;
+};
 
+/// Common runtime plumbing every linear mixer needs, wired once by build_llm.
+struct LinearMixer {
+    size_t hidden_size = 0;
     ov::element::Type precision = ov::element::f32;
     WeightFn weight_fn;
-    NormFn out_norm;  ///< post-flatten norm (typically RMSNorm over value_dim())
 
     // Wired by the builder once for all layers.
     ov::Output<ov::Node> seq_source;
     ov::Output<ov::Node> beam_idx;
+
+    virtual ~LinearMixer() = default;
+
+    virtual MixerResult build(const ov::Output<ov::Node>& input,
+                              const std::string& prefix,
+                              size_t linear_layer_idx) const = 0;
+};
+
+/// GatedDeltaNet (Qwen3.5-style): causal conv + L2-normed Q/K + recurrent SSM + output gating.
+struct GatedDeltaNetMixer : LinearMixer {
+    size_t num_heads = 0;
+    size_t key_head_dim = 0;
+    size_t value_head_dim = 0;
+    size_t conv_kernel = 4;
+    NormFn qk_norm;   ///< empty → L2Norm
+    NormFn out_norm;  ///< empty → RMSNorm over value_dim()
 
     size_t key_dim() const {
         return num_heads * key_head_dim;
@@ -182,42 +221,23 @@ struct LinearAttention {
         return 2 * key_dim() + value_dim();
     }
 
-    struct Result {
-        ov::Output<ov::Node> output;
-        std::shared_ptr<ov::Node> conv_assign;
-        std::shared_ptr<ov::Node> recurrent_assign;
-    };
-
-    Result operator()(const ov::Output<ov::Node>& input,
+    MixerResult build(const ov::Output<ov::Node>& input,
                       const std::string& prefix,
-                      size_t linear_layer_idx) const;
+                      size_t linear_layer_idx) const override;
 };
 
-/// LFM2-style gated short convolution mixer (no recurrence, conv state only):
+/// LFM2-style gated short convolution (no recurrence, conv state only):
 /// in_proj(h → 3*conv_dim) → split(B, C, x) → B*x → causal conv → C*conv → out_proj.
-struct GatedShortConv {
-    size_t hidden_size = 0;
-    size_t conv_dim = 0;     ///< mixer width (LFM2-1.2B: 2048)
+struct ShortConvMixer : LinearMixer {
+    size_t conv_dim = 0;  ///< mixer width (LFM2-1.2B: 2048)
     size_t conv_kernel = 3;
 
-    ov::element::Type precision = ov::element::f32;
-    WeightFn weight_fn;
-
-    // Wired by the builder once for all layers.
-    ov::Output<ov::Node> seq_source;
-    ov::Output<ov::Node> beam_idx;
-
-    struct Result {
-        ov::Output<ov::Node> output;
-        std::shared_ptr<ov::Node> conv_assign;
-    };
-
-    Result operator()(const ov::Output<ov::Node>& input,
+    MixerResult build(const ov::Output<ov::Node>& input,
                       const std::string& prefix,
-                      size_t linear_layer_idx) const;
+                      size_t linear_layer_idx) const override;
 };
 
-/// `mamba_ratio` linear-attention layers per 1 full-attention layer (0 → empty = pure attention).
+/// `mamba_ratio` linear-mixer layers per 1 full-attention layer (0 → empty = pure attention).
 std::function<bool(size_t)> make_mamba_schedule(size_t mamba_ratio);
 
 /// Schedule from an explicit attention-layer index list — full attention at those indices,
