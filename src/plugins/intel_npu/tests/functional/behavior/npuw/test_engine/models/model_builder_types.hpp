@@ -49,13 +49,16 @@ using KVCacheFn =
 ///   output = base_linear_out + (input @ A^T * alpha) @ B^T
 /// Names follow the NPUW lora_state_* convention.
 struct LoRAInjector {
-    size_t max_rank;
+    size_t max_rank = 0;
     std::vector<std::string> targets;
-    ov::element::Type precision;
+    ov::element::Type precision = ov::element::f32;
     bool stateful = false;
     ov::SinkVector* sinks = nullptr;
 
     bool should_adapt(const std::string& name) const {
+        if (max_rank == 0) {
+            return false;
+        }
         if (targets.empty()) {
             // Default target set
             static const std::vector<std::string> defaults =

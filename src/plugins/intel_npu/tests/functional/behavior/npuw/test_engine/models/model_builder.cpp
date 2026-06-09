@@ -83,8 +83,8 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
         result = add->output(0);
     }
 
-    // LoRA injection: input -> MatMul(A^T) -> Multiply(alpha) -> MatMul(B^T) -> Add(base_output)
-    // Parameter names match NPUW lora_state_* pattern.
+    // LoRA injection: input -> MatMul(A^T) -> Multiply(alpha) -> MatMul(B^T) -> Add(base).
+    // Names match the NPUW lora_state_* convention.
     if (lora && lora->should_adapt(name)) {
         const size_t R = lora->max_rank;
         const auto prec = lora->precision;
@@ -833,20 +833,22 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     const auto hs = config.hidden_size;
     const auto kv_heads = config.get_kv_heads();
 
-    // Set up LoRA injector if requested
-    std::unique_ptr<LoRAInjector> lora_ptr;
-    if (config.lora_rank > 0) {
-        lora_ptr = std::make_unique<LoRAInjector>();
-        lora_ptr->max_rank = config.lora_rank;
-        lora_ptr->targets = config.lora_targets;
-        lora_ptr->precision = prec;
-        lora_ptr->stateful = config.lora_stateful;
-        lora_ptr->sinks = &m_sinks;
-        // Recreate only the default dense FFN with LoRA injection; preserve custom and MoE FFN graphs.
-        if (!has_custom_ffn && config.num_experts == 0)
-            config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, prec, config.weight, lora_ptr.get());
+    LoRAInjector lora_injector;
+    const bool lora_enabled = config.lora_rank > 0;
+    if (lora_enabled) {
+        lora_injector.max_rank = config.lora_rank;
+        lora_injector.targets = config.lora_targets;
+        lora_injector.precision = prec;
+        lora_injector.stateful = config.lora_stateful;
+        lora_injector.sinks = &m_sinks;
+        // FFN is a functor (FFNFn); LoRA reaches it only through a struct that
+        // forwards the injector. Recreate the default dense FFN as a LoRA-aware
+        // SwiGLU; custom and MoE FFN graphs are left untouched.
+        if (!has_custom_ffn && config.num_experts == 0) {
+            config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, prec, config.weight, &lora_injector);
+        }
     }
-    const LoRAInjector* lora = lora_ptr.get();
+    const LoRAInjector* lora = lora_enabled ? &lora_injector : nullptr;
 
     Attention attn{};
     attn.hidden_size = hs;

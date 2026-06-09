@@ -168,6 +168,18 @@ inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_
     return mb.build_llm(cfg);
 }
 
+inline std::shared_ptr<ov::Model> build_lora_adapter_test_model() {
+    ModelBuilder mb;
+    return mb.build_lora_adapter(make_test_model_config<LoRAConfig>());
+}
+
+inline std::shared_ptr<ov::Model> build_lora_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.lora_rank = 8;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_token_type_ids_test_model(size_t window_size = 512,
                                                                   size_t sliding_to_full_ratio = 1,
                                                                   const SlidingMaskFn& sliding_mask_fn = {}) {
