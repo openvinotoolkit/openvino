@@ -33,6 +33,17 @@ public:
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false);
 
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 bool b_transposed,
+                 ov::element::Type srcType,
+                 ov::element::Type weiType,
+                 bool b_accumulate);
+
     virtual ~BrgemmKernel() = default;
 
     // execute by m_blk
@@ -84,6 +95,20 @@ protected:
                  ov::element::Type DType,
                  ScaleType bScaleType,
                  bool b_accumulate);
+
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 size_t ldd,
+                 bool b_transposed,
+                 ov::element::Type srcType,
+                 ov::element::Type weiType,
+                 ov::element::Type DType,
+                 ScaleType bScaleType,
+                 bool b_accumulate);
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;
@@ -93,6 +118,7 @@ protected:
     size_t packedASize = 0;
     ov::element::Type inType;
     ov::element::Type DType;
+    ov::element::Type origWeiType;
     ov::element::Type weiType;
     ov::element::Type srcType;
     ScaleType bScaleType = ScaleType::NONE;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -15,7 +16,8 @@
 
 namespace ov::intel_cpu {
 
-class ExternalDecompressionKernelBase;
+class FCWeightDecompressionKernelBase;
+class FCSourceQuantizationKernelBase;
 
 class BrgemmFCExternalDecompressionExecutor : public Executor {
 public:
@@ -42,7 +44,11 @@ private:
 
     void rebuildDecompressionKernel(const MemoryArgs& memory);
 
+    void rebuildSourceQuantizationKernel(const MemoryArgs& memory);
+
     void refreshDecompressedWeights(const MemoryArgs& memory);
+
+    void refreshDynamicQuantWeights(const MemoryArgs& memory);
 
     [[nodiscard]] bool requiresPackedWeights() const;
 
@@ -53,15 +59,27 @@ private:
     FCAttrs m_attrs;
     ExecutorContext::CPtr m_context;
     MemoryPtr m_decompressedWeights;
-    std::unique_ptr<ExternalDecompressionKernelBase> m_jitDecompressionKernel;
+    std::unique_ptr<FCWeightDecompressionKernelBase> m_jitDecompressionKernel;
+    std::unique_ptr<FCWeightDecompressionKernelBase> m_jitWeightUnpackKernel;
+    std::unique_ptr<FCSourceQuantizationKernelBase> m_jitSourceQuantKernel;
     std::shared_ptr<BrgemmKernel> m_brgemmKernel;
+    std::shared_ptr<BrgemmKernel> m_brgemmTailKernel;
     std::vector<uint8_t> m_packedWeights;
     std::vector<uint8_t> m_scratchA;
     std::vector<uint8_t> m_wsp;
     std::vector<float> m_accum;
+    std::vector<int32_t> m_groupAccum;
+    std::vector<int8_t> m_dynamicQuantizedSrc;
+    std::vector<float> m_dynamicQuantScales;
+    std::vector<int32_t> m_dynamicQuantGroupedSums;
+    std::vector<uint8_t> m_dynamicQuantWeights;
+    std::vector<float> m_dynamicQuantWeightScales;
+    std::vector<float> m_dynamicQuantWeightZeroPoints;
+    ov::element::Type m_dynamicQuantWeightsType = ov::element::dynamic;
     size_t m_m = 0;
     size_t m_n = 0;
     size_t m_k = 0;
+    size_t m_brgemmNBlock = 0;
     size_t m_threads = 0;
 };
 
