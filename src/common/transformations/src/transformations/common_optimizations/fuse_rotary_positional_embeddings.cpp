@@ -1363,8 +1363,7 @@ bool is_interleaved_last_axis_read(const ov::Output<ov::Node>& output, int64_t e
             !scalar(slice->input_value(3), step) || !scalar(slice->input_value(4), axis)) {
             return false;
         }
-        return ov::util::normalize_axis(axis, r) == static_cast<size_t>(r - 1) && step == 2 &&
-               begin == expected_begin;
+        return ov::util::normalize_axis(axis, r) == static_cast<size_t>(r - 1) && step == 2 && begin == expected_begin;
     }
     if (auto ss = ov::as_type_ptr<v1::StridedSlice>(node)) {  // data, begin, end, strides + masks
         std::vector<int64_t> begin, strides;
@@ -1424,17 +1423,17 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     auto x_low_slice = pattern::wrap_type<v8::Slice>(
         {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
         even_pred);
-    auto x_low_strided = pattern::wrap_type<v1::StridedSlice>(
-        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()},
-        even_pred);
+    auto x_low_strided =
+        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()},
+                                             even_pred);
     auto x_low = std::make_shared<pattern::op::Or>(OutputVector{x_low_slice, x_low_strided});
 
     auto x_high_slice = pattern::wrap_type<v8::Slice>(
         {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
         odd_pred);
-    auto x_high_strided = pattern::wrap_type<v1::StridedSlice>(
-        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()},
-        odd_pred);
+    auto x_high_strided =
+        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()},
+                                             odd_pred);
     auto x_high = std::make_shared<pattern::op::Or>(OutputVector{x_high_slice, x_high_strided});
 
     auto mul_low_cos = pattern::wrap_type<v1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
