@@ -10,7 +10,6 @@
 #include <sstream>
 
 #include "intel_npu/common/dynamic_arguments.hpp"
-#include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -67,9 +66,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     }
     _logger.debug("DynamicPipeline - event pool and command queue setup completed");
 
-    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "DynamicPipeline requires IDynamicGraph");
-    uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
+    const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
 
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
@@ -155,9 +152,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 void DynamicPipeline::push() {
     _logger.debug("push - started");
 
-    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "DynamicPipeline::push requires IDynamicGraph");
-    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
@@ -292,9 +287,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
     logger.debug("predict_output_shape - started");
 
-    const auto* dynamicGraph = dynamic_cast<const intel_npu::IDynamicGraph*>(&graph);
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "DynamicPipeline requires IDynamicGraph");
-    const npu_vm_runtime_handle_t vmRuntime = dynamicGraph->get_vm_runtime_handle();
+    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(graph.get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;

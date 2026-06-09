@@ -156,7 +156,7 @@ void DynamicGraph::initialize_engine() {
         create_execution_engine();
         prepare_metadata();
         _engineInitialized = true;
-        _num_of_subgraphs = _engineProperties.numOfSubGraphs;
+        _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
 
         _logger.debug("num of subgraphs: %d inputs: %d outputs: %d",
                       _engineProperties.numOfSubGraphs,
@@ -297,9 +297,8 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
     _commandQueueDesc.set_priority(zeModelPriority);
 }
 
-ze_graph_handle_t DynamicGraph::get_handle() const {
-    _logger.warning("DynamicGraph does not support get_handle() method.");
-    return nullptr;
+void* DynamicGraph::get_handle() const {
+    return _engine;
 }
 
 void DynamicGraph::initialize_impl(const FilteredConfig& config) {
@@ -434,14 +433,6 @@ DynamicGraph::~DynamicGraph() {
         npuVMRuntimeDestroy(_engine);
         _engine = nullptr;
     }
-}
-
-npu_vm_runtime_handle_t DynamicGraph::get_vm_runtime_handle() const {
-    return _engine;
-}
-
-uint64_t DynamicGraph::get_num_subgraphs() const {
-    return _num_of_subgraphs;
 }
 
 std::optional<bool> DynamicGraph::is_profiling_blob() const {

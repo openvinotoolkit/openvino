@@ -8,14 +8,14 @@
 
 #include <mutex>
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class DynamicGraph final : public IDynamicGraph {
+class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
@@ -24,7 +24,11 @@ public:
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
-    ze_graph_handle_t get_handle() const override;
+    void* get_handle() const override;
+
+    bool is_dynamic() const override {
+        return true;
+    }
 
     ~DynamicGraph() override;
 
@@ -44,10 +48,6 @@ public:
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
-    npu_vm_runtime_handle_t get_vm_runtime_handle() const override;
-
-    uint64_t get_num_subgraphs() const override;
-
     std::optional<bool> is_profiling_blob() const override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
@@ -65,12 +65,6 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     NetworkMetadata _metadata;
-
-    /**
-     * @brief Stores the number of subgraphs for dynamic models
-     * @note the number of subgraphs will be one for static models
-     */
-    uint64_t _num_of_subgraphs = 1;
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;

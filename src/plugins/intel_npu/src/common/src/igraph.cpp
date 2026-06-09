@@ -46,7 +46,7 @@ const NetworkMetadata& IGraph::get_metadata() const {
     OPENVINO_THROW("get_metadata not implemented");
 }
 
-ze_graph_handle_t IGraph::get_handle() const {
+void* IGraph::get_handle() const {
     OPENVINO_THROW("get_handle not implemented");
 }
 
