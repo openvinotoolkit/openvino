@@ -776,10 +776,12 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         };
     }
 
-    // Wire LinearAttention runtime inputs once — all layers share the same graph plumbing.
+    // Wire linear-mixer runtime inputs once — all layers share the same graph plumbing.
     if (config.is_linear_layer) {
         config.linear_attn.seq_source = seq_source;
         config.linear_attn.beam_idx = beam_idx_output;
+        config.short_conv.seq_source = seq_source;
+        config.short_conv.beam_idx = beam_idx_output;
     }
 
     size_t linear_layer_count = 0;
@@ -812,6 +814,11 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     auto build_linear_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t /*layer*/) {
         auto lin_idx = linear_layer_count++;
         auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            if (config.linear_mixer == LLMConfig::LinearMixer::ShortConv) {
+                auto r = config.short_conv(normed, pfx, lin_idx);
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.conv_assign));
+                return r.output;
+            }
             auto r = config.linear_attn(normed, pfx, lin_idx);
             m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.conv_assign));
             m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(r.recurrent_assign));

@@ -122,7 +122,7 @@ FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
 /// Causal depthwise convolution with sliding-window state.
 /// Input/output: [batch, seq, channels]. State: [batch, channels, kernel].
 struct CausalConvResult {
-    ov::Output<ov::Node> output;       ///< [batch, seq, channels] after SiLU
+    ov::Output<ov::Node> output;       ///< [batch, seq, channels] (post-SiLU if apply_silu)
     std::shared_ptr<ov::Node> assign;  ///< state update Assign
 };
 
@@ -133,7 +133,8 @@ CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
                                   size_t kernel_size,
                                   const std::string& state_name,
                                   const std::string& prefix,
-                                  ov::element::Type prec);
+                                  ov::element::Type prec,
+                                  bool apply_silu = true);
 
 /// Recurrent SSM state via OV Loop. Body implements the GDN delta rule for FuseGDNLoop.
 struct RecurrentStateResult {
@@ -192,8 +193,37 @@ struct LinearAttention {
                       size_t linear_layer_idx) const;
 };
 
+/// LFM2-style gated short convolution mixer (no recurrence, conv state only):
+/// in_proj(h → 3*conv_dim) → split(B, C, x) → B*x → causal conv → C*conv → out_proj.
+struct GatedShortConv {
+    size_t hidden_size = 0;
+    size_t conv_dim = 0;     ///< mixer width (LFM2-1.2B: 2048)
+    size_t conv_kernel = 3;
+
+    ov::element::Type precision = ov::element::f32;
+    WeightFn weight_fn;
+
+    // Wired by the builder once for all layers.
+    ov::Output<ov::Node> seq_source;
+    ov::Output<ov::Node> beam_idx;
+
+    struct Result {
+        ov::Output<ov::Node> output;
+        std::shared_ptr<ov::Node> conv_assign;
+    };
+
+    Result operator()(const ov::Output<ov::Node>& input,
+                      const std::string& prefix,
+                      size_t linear_layer_idx) const;
+};
+
 /// `mamba_ratio` linear-attention layers per 1 full-attention layer (0 → empty = pure attention).
 std::function<bool(size_t)> make_mamba_schedule(size_t mamba_ratio);
+
+/// Schedule from an explicit attention-layer index list — full attention at those indices,
+/// linear everywhere else. Mirrors how LFM2/hybrid configs declare per-layer `layer_types`
+/// (e.g. LFM2-1.2B attention at {2, 5, 8, 10, 12, 14}); no closed-form ratio fits.
+std::function<bool(size_t)> make_schedule_with_attention_at(std::vector<size_t> attn_layers);
 
 }  // namespace npuw
 }  // namespace test
