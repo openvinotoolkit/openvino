@@ -43,8 +43,10 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
 }
 
 LazyBuffer::~LazyBuffer() {
-    util::vm_release(m_aligned_buffer, m_byte_size);
-    m_aligned_buffer = nullptr;
+    if (m_aligned_buffer) {
+        util::vm_release(m_aligned_buffer, m_byte_size);
+        m_aligned_buffer = nullptr;
+    }
     m_byte_size = 0;
 }
 
