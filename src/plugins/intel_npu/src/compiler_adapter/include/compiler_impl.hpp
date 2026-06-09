@@ -19,7 +19,7 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl();
+    VCLCompilerImpl(const std::string& library_dir);
     ~VCLCompilerImpl();
 
     /**

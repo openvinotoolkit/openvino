@@ -655,7 +655,7 @@ public:
 
 #if FIND_DEBUG_ACC
                 auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
-                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 11: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f32);  // 11: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
