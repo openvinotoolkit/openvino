@@ -282,6 +282,139 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
 }
 
+// Asymmetric channel-wise quantized MatMul - keep weights quantized at the
+// MatMul input and apply zero-point + scale post-MatMul.
+//
+// FROM:
+//     Param(W, u2/u4/u8) -> Convert(f32) ┐
+//     Param(Z, f32, [N,1]) ──────────────► Subtract -> Multiply -> MatMul -> ...
+//     Param(S, f32, [N,1]) ──────────────────────────► ↑           ↑
+//     ???(Act, f32, [..,K]) ────────────────────────────────────►
+//
+// TO:
+//     Param(W, u2/u4/u8) -> Convert(f32) ┐
+//                                        │   (NPU compiler folds Convert+MatMul
+//                                        ▼    into a native quant-MatMul kernel)
+//     ???(Act) ─────────────────────────► MatMul -> Subtract -> Multiply -> ...
+//     S(reshaped [1,N]) ──────────────────────────────────────────► ↑
+//     ReduceSum(Act, last_axis) * Z(reshaped [1,N]) ──► ↑
+//
+// Math:
+//     dequant(W) = (cast(W,f32) - Z) * S
+//     out = Act @ dequant(W).T
+//         = (Act @ cast(W,f32).T) * S.T - (Act @ Z.T) * S.T
+// With Z, S of shape [N,1]:
+//     Act @ Z.T = ReduceSum(Act, last_axis, keepdims) * Z.squeeze()  (broadcast over N)
+//     Act @ cast(W,f32).T = MatMul(Act, W, transpose_b) (compiler fuses Convert)
+//     out = (MatMul - ReduceSum * Z_b) * S_b      (S_b, Z_b shape [1, N])
+DQMatMulCWuAsymm::DQMatMulCWuAsymm(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qzerop});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qmuls});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_out_mmi = node_to_output.at(qmmi);
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        const auto& qw_type = matched_qweight->get_element_type();
+        const auto& qw_shape = matched_qweight->get_partial_shape();
+        const auto& qz_shape = matched_qzerop->get_partial_shape();
+        const auto& qs_shape = matched_qcoeff->get_partial_shape();
+
+        // Type / shape preconditions
+        const bool weight_type_ok = (qw_type == ov::element::u2 ||
+                                     qw_type == ov::element::u4 ||
+                                     qw_type == ov::element::u8 ||
+                                     qw_type == ov::element::i4 ||
+                                     qw_type == ov::element::i8);
+        if (!weight_type_ok) {
+            return false;
+        }
+        if (matched_qzerop->get_element_type() != ov::element::f32 ||
+            matched_qcoeff->get_element_type() != ov::element::f32) {
+            return false;
+        }
+        if (qw_shape.rank().is_dynamic() || qw_shape.size() != 2 ||
+            qz_shape.rank().is_dynamic() || qz_shape.size() != 2 ||
+            qs_shape.rank().is_dynamic() || qs_shape.size() != 2) {
+            return false;
+        }
+        if (qz_shape[1].is_dynamic() || qz_shape[1].get_length() != 1 ||
+            qs_shape[1].is_dynamic() || qs_shape[1].get_length() != 1) {
+            return false;  // need [N, 1] zp/scale
+        }
+        if (matched_matmul->get_transpose_a() || !matched_matmul->get_transpose_b()) {
+            return false;  // expect Act @ W^T
+        }
+        if (qw_shape[0].is_dynamic()) {
+            return false;
+        }
+
+        const auto N = static_cast<std::size_t>(qw_shape[0].get_length());
+
+        // Build the new subgraph.
+        // 1) Quant MatMul: Act @ cast(W, f32)^T  (NPU compiler should fuse Convert+MatMul
+        //    into a native quant-MatMul kernel).
+        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
+        auto new_mm = std::make_shared<ov::op::v0::MatMul>(matched_out_mmi, matched_node_cvtw,
+                                                           false /*transpose_a*/, true /*transpose_b*/);
+
+        // 2) ReduceSum(Act, last_axis, keep_dims=true)  - shape [..., 1]
+        const auto act_rank = matched_out_mmi.get_partial_shape().size();
+        std::vector<int64_t> reduce_axes = {static_cast<int64_t>(act_rank) - 1};
+        auto reduce_axes_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, reduce_axes);
+        auto act_sum =
+            std::make_shared<ov::op::v1::ReduceSum>(matched_out_mmi, reduce_axes_const, true /*keep_dims*/);
+
+        // 3) Reshape Z and S from [N, 1] to [1, N] so they broadcast on the MatMul output's last dim.
+        std::vector<int64_t> new_zs_shape = {1, static_cast<int64_t>(N)};
+        auto z_reshape_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, new_zs_shape);
+        auto s_reshape_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, new_zs_shape);
+        auto z_reshaped =
+            std::make_shared<ov::op::v1::Reshape>(matched_qzerop, z_reshape_const, false);
+        auto s_reshaped =
+            std::make_shared<ov::op::v1::Reshape>(matched_qcoeff, s_reshape_const, false);
+
+        // 4) zp_term = act_sum * z_reshaped (broadcast: [..., 1] * [1, N] = [..., N])
+        auto zp_term = std::make_shared<ov::op::v1::Multiply>(act_sum, z_reshaped);
+
+        // 5) (new_mm - zp_term) * s_reshaped
+        auto sub_zp = std::make_shared<ov::op::v1::Subtract>(new_mm, zp_term);
+        auto out = std::make_shared<ov::op::v1::Multiply>(sub_zp, s_reshaped);
+
+        // Replace MatMul's readers with `out`. The old chain (Convert -> Subtract ->
+        // Multiply -> MatMul) becomes unreachable from the model's outputs and will
+        // be cleaned up by the standard graph-rewrite finalizer.
+        for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
+            r.replace_source_output(out);
+        }
+        return true;
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWuAsymm"), std::move(callback));
+
+    // ctx is currently unused by this pattern (no permute / cvt-f16 / etc.)
+    (void)ctx;
+}
+
 // FROM:
 //     ???(Act) ----------------------------------------------->
 //     Param(W) -------> to(f16/f32) -> Multiply -> Transpose -> MatMul

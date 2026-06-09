@@ -86,6 +86,24 @@ public:
     explicit DQMatMulCWi(Context::Ref ctx);
 };
 
+// Asymmetric channel-wise quantized MatMul:
+//
+//     Param(W, quant) -> Convert(f32) ─┐
+//     Param(Z, f32, [N,1]) ────────────► Subtract -> Multiply -> MatMul(transpose_b)
+//     Param(S, f32, [N,1]) ─────────────────────────► ↑           ↑
+//     ???(Act) ──────────────────────────────────────────────────►
+//
+// Restructure to keep weights quantized at the MatMul input (so the NPU
+// compiler can run a native quant-MatMul kernel) and apply the zero-point
+// and scale corrections post-MatMul on small tensors:
+//
+//     out = MatMul(Act, W) * S - ReduceSum(Act, last) * Z * S
+class DQMatMulCWuAsymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWuAsymm");
+    explicit DQMatMulCWuAsymm(Context::Ref ctx);
+};
+
 class DQMatMulCWi_Transpose : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWi_Transpose");
