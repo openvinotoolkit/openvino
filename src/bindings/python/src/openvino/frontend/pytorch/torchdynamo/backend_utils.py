@@ -112,16 +112,3 @@ def _bool_opt(options, key: str, default: bool) -> bool:
             return default
     return bool(v) and str(v).lower() not in ("false", "0")
 
-
-def _config_with_vllm_defaults(options):
-    """Return options["config"] (or a fresh dict), merged with the vLLM preset
-    OV-config defaults when options["vllm"] is set. Caller-supplied config
-    keys take priority."""
-    base = dict(_get_config(options) or {})
-    try:
-        from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
-    except Exception:
-        return base
-    if _preset.is_vllm_preset(options):
-        return _preset.merge_preset_config(base)
-    return base

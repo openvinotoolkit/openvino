@@ -21,7 +21,6 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import (
     _get_config,
     _is_cache_dir_in_config,
     _bool_opt,
-    _config_with_vllm_defaults,
 )
 
 logger = logging.getLogger(__name__)
@@ -202,7 +201,11 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
     om.validate_nodes_and_infer_types()
 
-    config = _config_with_vllm_defaults(options)
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import config_with_vllm_defaults as _cwvd
+        config = _cwvd(options)
+    except Exception:
+        config = dict(_get_config(options) or {})
 
     if model_hash_str is not None:
         if not _is_cache_dir_in_config(options):

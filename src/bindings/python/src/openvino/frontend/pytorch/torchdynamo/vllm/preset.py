@@ -55,3 +55,16 @@ def merge_preset_config(base: Optional[dict]) -> dict:
     for k, v in _PRESET_CONFIG.items():
         out.setdefault(k, v)
     return out
+
+
+def config_with_vllm_defaults(options):
+    """Return options["config"] (or a fresh dict), merged with the vLLM
+    preset OV-config defaults when options["vllm"] is set. Caller-supplied
+    config keys take priority. Returns the unchanged config when the vLLM
+    preset is not active.
+    """
+    from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_config
+    base = dict(_get_config(options) or {})
+    if is_vllm_preset(options):
+        return merge_preset_config(base)
+    return base
