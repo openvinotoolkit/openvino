@@ -13,6 +13,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -1329,6 +1330,74 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+// Predicate for the llama.cpp interleaved even/odd read on the last axis: even = x[..., 0::2],
+// odd = x[..., 1::2]. Accepts opset8 Slice (scalar start/stop/step/axis) and its v1::StridedSlice
+// canonicalization (per-axis begin/end/strides + masks). expected_begin is 0 for even, 1 for odd.
+bool is_interleaved_last_axis_read(const ov::Output<ov::Node>& output, int64_t expected_begin) {
+    const auto node = output.get_node_shared_ptr();
+    const auto rank = output.get_partial_shape().rank();
+    if (!rank.is_static()) {
+        return false;
+    }
+    const int64_t r = rank.get_length();
+    auto scalar = [](const ov::Output<ov::Node>& o, int64_t& v) {
+        auto c = ov::as_type_ptr<v0::Constant>(o.get_node_shared_ptr());
+        if (!c || shape_size(c->get_shape()) != 1) {
+            return false;
+        }
+        v = c->cast_vector<int64_t>()[0];
+        return true;
+    };
+    auto vec = [](const ov::Output<ov::Node>& o, std::vector<int64_t>& v) {
+        auto c = ov::as_type_ptr<v0::Constant>(o.get_node_shared_ptr());
+        if (!c) {
+            return false;
+        }
+        v = c->cast_vector<int64_t>();
+        return true;
+    };
+    if (auto slice = ov::as_type_ptr<v8::Slice>(node)) {  // data, start, stop, step, axis
+        int64_t begin = 0, step = 0, axis = 0;
+        if (slice->get_input_size() != 5 || !scalar(slice->input_value(1), begin) ||
+            !scalar(slice->input_value(3), step) || !scalar(slice->input_value(4), axis)) {
+            return false;
+        }
+        return ov::util::normalize_axis(axis, r) == static_cast<size_t>(r - 1) && step == 2 &&
+               begin == expected_begin;
+    }
+    if (auto ss = ov::as_type_ptr<v1::StridedSlice>(node)) {  // data, begin, end, strides + masks
+        std::vector<int64_t> begin, strides;
+        if (!vec(ss->input_value(1), begin) || !vec(ss->input_value(3), strides) ||
+            static_cast<int64_t>(begin.size()) != r || static_cast<int64_t>(strides.size()) != r) {
+            return false;
+        }
+        auto any_set = [](const std::vector<int64_t>& m) {
+            return std::any_of(m.begin(), m.end(), [](int64_t v) {
+                return v != 0;
+            });
+        };
+        if (any_set(ss->get_new_axis_mask()) || any_set(ss->get_shrink_axis_mask()) ||
+            any_set(ss->get_ellipsis_mask())) {
+            return false;
+        }
+        auto mask_set = [](const std::vector<int64_t>& m, size_t i) {
+            return i < m.size() && m[i] == 1;
+        };
+        const auto& begin_mask = ss->get_begin_mask();
+        const auto& end_mask = ss->get_end_mask();
+        const size_t last = static_cast<size_t>(r - 1);
+        for (size_t i = 0; i < last; ++i) {  // non-last axes must be left untouched
+            if (strides[i] != 1 || !mask_set(begin_mask, i) || !mask_set(end_mask, i)) {
+                return false;
+            }
+        }
+        return strides[last] == 2 && begin[last] == expected_begin && !mask_set(begin_mask, last);
+    }
+    return false;
+}
+}  // namespace
+
 RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     MATCHER_SCOPE(RoPEFusionLlamaCpp);
     // llama.cpp OV serializer RoPE (stateful, rank-3 input). Interleaved (GPT-J) rotation written as an
@@ -1336,26 +1405,36 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
     //   even/odd = Slice(x, {0,1}, end, step=2, axis=-1)
     //   stack    = Concat(Unsqueeze((even*cos - odd*sin), -2), Unsqueeze((even*sin + odd*cos), -2), -2)
     //   out      = Reshape(stack, [1, -1, head_cnt, head_size])
-    // The interleaved read + half-split write is mapped to config.interleaved_input in the callback,
-    // which also re-validates the slice attrs left unconstrained below. Stateless emits a different
+    // The interleaved read + half-split write is mapped to config.interleaved_input in the callback.
+    // The even/odd step-2 read is enforced by the slice predicates below. Stateless emits a different
     // 5D-stack topology and is intentionally not matched.
     auto x = pattern::any_input(pattern::rank_equals(3));
     auto t_cos = pattern::any_input();
     auto t_sin = pattern::any_input();
 
-    // Last-axis even/odd slice. The llama.cpp serializer emits Slice, but a prior pass canonicalizes
-    // it to StridedSlice, so accept both; attrs (step==2, begins {0,1}, last axis) are validated in the
-    // callback (see is_interleaved_slice).
+    // Last-axis even/odd read: even = x[..., 0::2], odd = x[..., 1::2]. The llama.cpp serializer emits
+    // Slice, but a prior pass canonicalizes it to StridedSlice, so accept both; the step-2/begin/axis
+    // attrs are checked by the predicate (interleaved_input below is only correct for this read).
+    auto even_pred = [](const ov::Output<ov::Node>& out) {
+        return is_interleaved_last_axis_read(out, 0);
+    };
+    auto odd_pred = [](const ov::Output<ov::Node>& out) {
+        return is_interleaved_last_axis_read(out, 1);
+    };
     auto x_low_slice = pattern::wrap_type<v8::Slice>(
-        {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_low_strided =
-        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        even_pred);
+    auto x_low_strided = pattern::wrap_type<v1::StridedSlice>(
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        even_pred);
     auto x_low = std::make_shared<pattern::op::Or>(OutputVector{x_low_slice, x_low_strided});
 
     auto x_high_slice = pattern::wrap_type<v8::Slice>(
-        {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto x_high_strided =
-        pattern::wrap_type<v1::StridedSlice>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        odd_pred);
+    auto x_high_strided = pattern::wrap_type<v1::StridedSlice>(
+        {x, pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        odd_pred);
     auto x_high = std::make_shared<pattern::op::Or>(OutputVector{x_high_slice, x_high_strided});
 
     auto mul_low_cos = pattern::wrap_type<v1::Multiply>({x_low, t_cos}, {{"auto_broadcast", "numpy"}});
@@ -1393,103 +1472,14 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             return false;
         }
 
-        // Only the matched OR-branch (Slice or StridedSlice) is present in the pattern map.
-        auto matched_or = [&](const std::shared_ptr<ov::Node>& a,
-                              const std::shared_ptr<ov::Node>& b) -> ov::Output<ov::Node> {
-            auto it = pattern_map.find(a);
-            if (it != pattern_map.end()) {
-                return it->second;
-            }
-            it = pattern_map.find(b);
-            return it != pattern_map.end() ? it->second : ov::Output<ov::Node>{};
-        };
-        auto x_low_out = matched_or(x_low_slice, x_low_strided);
-        auto x_high_out = matched_or(x_high_slice, x_high_strided);
-        if (!x_low_out.get_node_shared_ptr() || !x_high_out.get_node_shared_ptr()) {
-            return false;
-        }
+        // The Or returns the matched branch's output; the even/odd step-2 read was already verified by
+        // the slice predicates, so half_ndims comes straight from x_low's (static) last dim.
+        auto x_low_out = pattern_map.at(x_low);
         const auto x_low_pshape = x_low_out.get_partial_shape();
         if (!x_low_pshape.rank().is_static() || x_low_pshape[x_low_pshape.size() - 1].is_dynamic()) {
             return false;
         }
         const int64_t half_ndims_val = x_low_pshape[x_low_pshape.size() - 1].get_length();
-
-        // Re-validate the slice attrs (left unconstrained in the pattern): the callback sets
-        // interleaved_input=true unconditionally, which is only correct for the llama.cpp interleaved
-        // read even = x[..., 0::2], odd = x[..., 1::2]. Otherwise a half-split (step==1) slice would
-        // fuse with wrong semantics. Both Slice and its StridedSlice canonicalization are validated.
-        const int64_t x_low_rank = x_low_pshape.rank().get_length();
-        auto as_scalar_const = [](const ov::Output<ov::Node>& o, int64_t& out) -> bool {
-            auto c = ov::as_type_ptr<v0::Constant>(o.get_node_shared_ptr());
-            if (!c || shape_size(c->get_shape()) != 1) {
-                return false;
-            }
-            out = c->cast_vector<int64_t>()[0];
-            return true;
-        };
-        auto as_vector_const = [](const ov::Output<ov::Node>& o, std::vector<int64_t>& out) -> bool {
-            auto c = ov::as_type_ptr<v0::Constant>(o.get_node_shared_ptr());
-            if (!c) {
-                return false;
-            }
-            out = c->cast_vector<int64_t>();
-            return true;
-        };
-        // Slice(data, start, stop, step, axis): scalar attrs, explicit axis.
-        auto is_interleaved_v8 = [&](const v8::Slice* slice, int64_t expected_begin) -> bool {
-            int64_t begin = 0, step = 0, axis = 0;
-            if (slice->get_input_size() != 5 || !as_scalar_const(slice->input_value(1), begin) ||
-                !as_scalar_const(slice->input_value(3), step) || !as_scalar_const(slice->input_value(4), axis)) {
-                return false;
-            }
-            const int64_t norm_axis = axis < 0 ? axis + x_low_rank : axis;
-            return norm_axis == x_low_rank - 1 && step == 2 && begin == expected_begin;
-        };
-        // StridedSlice(data, begin, end, strides): per-axis vectors + masks. Require a pure last-axis
-        // step-2 read: last axis has stride 2, begin expected_begin (begin_mask off so it applies); all
-        // other axes untouched (stride 1, begin/end fully masked). Reject axis-adding/removing masks.
-        auto mask_set = [](const std::vector<int64_t>& m, size_t i) {
-            return i < m.size() && m[i] == 1;
-        };
-        auto is_interleaved_strided = [&](const v1::StridedSlice* ss, int64_t expected_begin) -> bool {
-            std::vector<int64_t> begin, strides;
-            if (!as_vector_const(ss->input_value(1), begin) || !as_vector_const(ss->input_value(3), strides) ||
-                static_cast<int64_t>(begin.size()) != x_low_rank ||
-                static_cast<int64_t>(strides.size()) != x_low_rank) {
-                return false;
-            }
-            auto any_set = [](const std::vector<int64_t>& m) {
-                return std::any_of(m.begin(), m.end(), [](int64_t v) {
-                    return v != 0;
-                });
-            };
-            if (any_set(ss->get_new_axis_mask()) || any_set(ss->get_shrink_axis_mask()) ||
-                any_set(ss->get_ellipsis_mask())) {
-                return false;
-            }
-            const auto& begin_mask = ss->get_begin_mask();
-            const auto& end_mask = ss->get_end_mask();
-            const size_t last = static_cast<size_t>(x_low_rank - 1);
-            for (size_t i = 0; i < last; ++i) {  // non-last axes must be left untouched
-                if (strides[i] != 1 || !mask_set(begin_mask, i) || !mask_set(end_mask, i)) {
-                    return false;
-                }
-            }
-            return strides[last] == 2 && begin[last] == expected_begin && !mask_set(begin_mask, last);
-        };
-        auto is_interleaved_slice = [&](const ov::Output<ov::Node>& slice_out, int64_t expected_begin) -> bool {
-            auto node = slice_out.get_node_shared_ptr();
-            if (auto s = ov::as_type_ptr<v8::Slice>(node)) {
-                return is_interleaved_v8(s.get(), expected_begin);
-            }
-            if (auto ss = ov::as_type_ptr<v1::StridedSlice>(node)) {
-                return is_interleaved_strided(ss.get(), expected_begin);
-            }
-            return false;
-        };
-        if (!is_interleaved_slice(x_low_out, 0) || !is_interleaved_slice(x_high_out, 1)) {
-            return false;
-        }
 
         // Stack must be one rank above the final Reshape, concatenating on the next-to-last axis.
         auto stack_node = ov::as_type_ptr<v0::Concat>(pattern_map.at(stack).get_node_shared_ptr());
@@ -1510,8 +1500,7 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         if (stacked_rank != out_rank + 1) {
             return false;
         }
-        const auto normalized_axis = stack_axis < 0 ? stack_axis + stacked_rank : stack_axis;
-        if (normalized_axis != stacked_rank - 2) {
+        if (ov::util::normalize_axis(stack_axis, stacked_rank) != static_cast<size_t>(stacked_rank - 2)) {
             return false;
         }
 
@@ -1523,12 +1512,16 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             if (it == pattern_map.end()) {
                 return true;  // Reshape branch matched instead; nothing to check here.
             }
-            int64_t axis = 0;
-            if (!as_scalar_const(it->second.get_node_shared_ptr()->input_value(1), axis)) {
+            auto axis_in = it->second.get_node_shared_ptr()->input_value(1);
+            auto axis_c = ov::as_type_ptr<v0::Constant>(axis_in.get_node_shared_ptr());
+            if (!axis_c || shape_size(axis_c->get_shape()) != 1) {
                 return false;
             }
-            const int64_t norm = axis < 0 ? axis + stacked_rank : axis;
-            return norm == stacked_rank - 2;
+            const int64_t axis = axis_c->cast_vector<int64_t>()[0];
+            if (axis < -stacked_rank || axis >= stacked_rank) {
+                return false;
+            }
+            return ov::util::normalize_axis(axis, stacked_rank) == static_cast<size_t>(stacked_rank - 2);
         };
         if (!unsqueeze_axis_ok(unsq_low_via_unsq) || !unsqueeze_axis_ok(unsq_high_via_unsq)) {
             return false;
@@ -1596,7 +1589,7 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
         new_node->set_friendly_name(root->get_friendly_name());
 
         ov::NodeVector rt_from{x_low_out.get_node_shared_ptr(),
-                               x_high_out.get_node_shared_ptr(),
+                               pattern_map.at(x_high).get_node_shared_ptr(),
                                pattern_map.at(mul_low_cos).get_node_shared_ptr(),
                                pattern_map.at(mul_low_sin).get_node_shared_ptr(),
                                pattern_map.at(mul_high_cos).get_node_shared_ptr(),
