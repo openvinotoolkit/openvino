@@ -1471,8 +1471,6 @@ RoPEFusionLlamaCpp::RoPEFusionLlamaCpp() {
             return false;
         }
 
-        // The Or returns the matched branch's output; the even/odd step-2 read was already verified by
-        // the slice predicates, so half_ndims comes straight from x_low's (static) last dim.
         auto x_low_out = pattern_map.at(x_low);
         const auto x_low_pshape = x_low_out.get_partial_shape();
         if (!x_low_pshape.rank().is_static() || x_low_pshape[x_low_pshape.size() - 1].is_dynamic()) {
