@@ -134,15 +134,10 @@ jobs:
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
-          # diffusers is GPU-only (Flux is skipped on CPU per
-          # test_transformations.py:run_flux_test). diffusers 0.34
-          # registers cogview4 in its auto-pipeline, which imports
-          # GlmModel from transformers (added in 4.49). The runner's
-          # setup-python venv ships transformers 4.45.1, and
-          # optimum-intel==1.27.0 accepts >=4.45,<4.58 so pip won't
-          # auto-upgrade — bump it explicitly into a window that
-          # satisfies both diffusers cogview4 and optimum-intel.
-          python3 -m pip install 'diffusers==0.34.0' 'transformers>=4.49,<4.58'
+          # GPU-only extra deps (diffusers + transformers bump). Kept in a
+          # dedicated file rather than inline here / in the shared rope.txt
+          # (which the CPU RoPE flow also installs) — see rope_gpu.txt header.
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
 
       - name: OpenVINO GPU RoPE Tests
         env:
