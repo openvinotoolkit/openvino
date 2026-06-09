@@ -18,11 +18,11 @@ namespace tests {
 static const uint32_t DEFAULT_SEED = 0;
 
 // Use a deterministic FNV-1a hash instead of std::hash algorithm
-inline uint32_t stable_string_seed(std::string_view seed) {
-    uint32_t hash = 2166136261u;
+inline uint64_t stable_string_seed(std::string_view seed) {
+    uint64_t hash = 14695981039346656037ull;
     for (unsigned char ch : seed) {
         hash ^= ch;
-        hash *= 16777619u;
+        hash *= 1099511628211ull;
     }
     return hash;
 }
