@@ -237,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
 
 TEST(MappedMemory, parallel_prefault_whole_file) {
     auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
-    constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MB (above 4 MB threshold)
+    constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MiB (above 4 MiB threshold)
 
     {
         std::vector<char> data(file_size);

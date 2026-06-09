@@ -86,14 +86,14 @@ namespace {
  * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
  *
  * Spawns worker threads that each read one byte per page in their assigned range.
- * No-op if data is null or size is below 4 MB. Below that threshold the overhead of spawning
+ * No-op if data is null or size is below 4 MiB. Below that threshold the overhead of spawning
  * threads exceeds the benefit.
  *
  * @param data  Pointer to the start of the memory region.
  * @param size  Number of bytes in the region.
  */
 void populate_pages(void* data, size_t size) {
-    constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
+    constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MiB
     if (data == nullptr || size < prefault_threshold)
         return;
 
@@ -105,7 +105,7 @@ void populate_pages(void* data, size_t size) {
     const std::size_t pages = (total_length + page - 1) / page;
 
     const std::size_t hw_threads = std::thread::hardware_concurrency();
-    constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
+    constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MiB per thread minimum
     constexpr std::size_t max_prefault_threads = 10;
     const std::size_t num_threads =
         std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, total_length / min_chunk_size)});
