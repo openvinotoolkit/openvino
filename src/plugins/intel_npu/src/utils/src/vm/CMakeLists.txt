@@ -30,4 +30,3 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
 
-ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
