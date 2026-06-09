@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <unordered_map>
 
 #include "model_builder_internal.hpp"
@@ -37,26 +38,94 @@ void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& 
 }
 }  // namespace
 
+// Create one LoRA tensor as either a Parameter (stateless) or a
+// ReadValue/Assign state pair (stateful) per LoRAInjector::stateful.
+static ov::Output<ov::Node> make_lora_value(const LoRAInjector& lora,
+                                            ov::element::Type type,
+                                            const ov::PartialShape& shape,
+                                            const std::string& name) {
+    if (!lora.stateful) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->set_friendly_name(name);
+        param->output(0).set_names({name});
+        return param->output(0);
+    }
+
+    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, type, name});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
+    read_value->set_friendly_name(name);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+    assign->set_friendly_name(name + ".assign");
+    OPENVINO_ASSERT(lora.sinks, "Stateful LoRA requires a sink collection");
+    lora.sinks->push_back(assign);
+    return read_value->output(0);
+}
+
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t in_features,
                                  size_t out_features,
                                  const std::string& name,
                                  ov::element::Type precision,
                                  const WeightFn& weight_fn,
-                                 const WeightFn& bias_fn) {
+                                 const WeightFn& bias_fn,
+                                 const LoRAInjector* lora) {
     auto weight_output = weight_fn(name + ".weight", ov::Shape{out_features, in_features}, precision);
 
     auto matmul = std::make_shared<ov::opset11::MatMul>(input, weight_output, false, true);
     matmul->set_friendly_name(name);
 
+    ov::Output<ov::Node> result = matmul->output(0);
+
     if (bias_fn) {
         auto bias = bias_fn(name + ".bias", ov::Shape{out_features}, precision);
-        auto add = std::make_shared<ov::opset11::Add>(matmul, bias);
+        auto add = std::make_shared<ov::opset11::Add>(result, bias);
         add->set_friendly_name(name + "_bias_add");
-        return add->output(0);
+        result = add->output(0);
     }
 
-    return matmul->output(0);
+    // LoRA injection: input -> MatMul(A^T) -> Multiply(alpha) -> MatMul(B^T) -> Add(base_output)
+    // Parameter names match NPUW lora_state_* pattern.
+    if (lora && lora->should_adapt(name)) {
+        const size_t R = lora->max_rank;
+        const auto prec = lora->precision;
+        const std::string state_prefix = "lora_state_" + name;
+
+        const int64_t Ri = static_cast<int64_t>(R);
+        auto lora_a = make_lora_value(*lora,
+                                      prec,
+                                      ov::PartialShape{Ri, static_cast<int64_t>(in_features)},
+                                      state_prefix + ".MatMul.A");
+        auto lora_b = make_lora_value(*lora,
+                                      prec,
+                                      ov::PartialShape{static_cast<int64_t>(out_features), Ri},
+                                      state_prefix + ".MatMul.B");
+        auto lora_alpha =
+            make_lora_value(*lora, ov::element::f32, ov::PartialShape{1, Ri}, state_prefix + ".MatMul.alpha");
+
+        // input @ A^T -> [batch, seq, R]
+        auto mm_a = std::make_shared<ov::opset11::MatMul>(input, lora_a, false, true);
+        mm_a->set_friendly_name(state_prefix + ".mm_a");
+
+        // Multiply by alpha -> [batch, seq, R]  (broadcast alpha [1,R] over batch/seq)
+        ov::Output<ov::Node> alpha = lora_alpha;
+        if (alpha.get_element_type() != mm_a->get_output_element_type(0)) {
+            auto alpha_convert = std::make_shared<ov::opset11::Convert>(alpha, mm_a->get_output_element_type(0));
+            alpha_convert->set_friendly_name(state_prefix + ".alpha_convert");
+            alpha = alpha_convert->output(0);
+        }
+        auto scaled = std::make_shared<ov::opset11::Multiply>(mm_a, alpha);
+        scaled->set_friendly_name(state_prefix + ".scale");
+
+        // scaled @ B^T -> [batch, seq, out_features]
+        auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, lora_b, false, true);
+        mm_b->set_friendly_name(state_prefix + ".mm_b");
+
+        auto lora_add = std::make_shared<ov::opset11::Add>(result, mm_b);
+        lora_add->set_friendly_name(name + ".lora_add");
+        result = lora_add->output(0);
+    }
+
+    return result;
 }
 
 
@@ -676,6 +745,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     LLMConfig config = config_in;
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
+    const bool has_custom_ffn = static_cast<bool>(config.ffn);
     if (!config.ffn) {
         if (config.num_experts > 0) {
             size_t moe_inter = config.moe_intermediate_size > 0
@@ -734,6 +804,21 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     const auto hs = config.hidden_size;
     const auto kv_heads = config.get_kv_heads();
 
+    // Set up LoRA injector if requested
+    std::unique_ptr<LoRAInjector> lora_ptr;
+    if (config.lora_rank > 0) {
+        lora_ptr = std::make_unique<LoRAInjector>();
+        lora_ptr->max_rank = config.lora_rank;
+        lora_ptr->targets = config.lora_targets;
+        lora_ptr->precision = prec;
+        lora_ptr->stateful = config.lora_stateful;
+        lora_ptr->sinks = &m_sinks;
+        // Recreate only the default dense FFN with LoRA injection; preserve custom and MoE FFN graphs.
+        if (!has_custom_ffn && config.num_experts == 0)
+            config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, prec, config.weight, lora_ptr.get());
+    }
+    const LoRAInjector* lora = lora_ptr.get();
+
     Attention attn{};
     attn.hidden_size = hs;
     attn.num_heads = config.num_heads;
@@ -746,6 +831,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.rope_fn = config.rope;
     attn.sdpa_mask = sdpa_mask;
     attn.shared_broadcast_shape = shared_broadcast;
+    attn.lora = lora;
 
     if (config.use_kv_cache) {
         attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
