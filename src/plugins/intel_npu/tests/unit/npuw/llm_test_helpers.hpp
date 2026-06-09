@@ -145,6 +145,21 @@ inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+/// LFM2-style hybrid: gated short-conv mixer layers interleaved with full attention.
+/// 4 layers → layers 0,2 short-conv; layers 1,3 full attention.
+inline std::shared_ptr<ov::Model> build_lfm2_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.is_linear_layer = make_mamba_schedule(1);
+    cfg.linear_mixer = LLMConfig::LinearMixer::ShortConv;
+    cfg.short_conv.hidden_size = cfg.hidden_size;
+    cfg.short_conv.conv_dim = cfg.hidden_size;
+    cfg.short_conv.precision = cfg.precision;
+    cfg.short_conv.weight_fn = cfg.weight;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
     return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());

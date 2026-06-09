@@ -4,8 +4,10 @@
 
 #include "model_builder_attention.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "model_builder.hpp"
@@ -374,7 +376,8 @@ CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
                                   size_t kernel_size,
                                   const std::string& state_name,
                                   const std::string& prefix,
-                                  ov::element::Type prec) {
+                                  ov::element::Type prec,
+                                  bool apply_silu) {
     // [batch, seq, C] -> [batch, C, seq]
     auto input_t = std::make_shared<ov::opset11::Transpose>(
         input, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
@@ -452,11 +455,15 @@ CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
         ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     sliced->set_friendly_name(prefix + "sliced");
 
-    auto activated = std::make_shared<ov::opset11::Swish>(sliced);
-    activated->set_friendly_name(prefix + "silu");
+    ov::Output<ov::Node> conv_out = sliced->output(0);
+    if (apply_silu) {
+        auto activated = std::make_shared<ov::opset11::Swish>(sliced);
+        activated->set_friendly_name(prefix + "silu");
+        conv_out = activated->output(0);
+    }
 
     auto output = std::make_shared<ov::opset11::Transpose>(
-        activated, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
+        conv_out, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
     output->set_friendly_name(prefix + "transpose_out");
 
     CausalConvResult result;
@@ -607,6 +614,40 @@ std::function<bool(size_t)> make_mamba_schedule(size_t mamba_ratio) {
     return [mamba_ratio](size_t layer_idx) {
         return (layer_idx % (mamba_ratio + 1)) < mamba_ratio;
     };
+}
+
+std::function<bool(size_t)> make_schedule_with_attention_at(std::vector<size_t> attn_layers) {
+    return [attn = std::move(attn_layers)](size_t layer_idx) {
+        return std::find(attn.begin(), attn.end(), layer_idx) == attn.end();
+    };
+}
+
+GatedShortConv::Result GatedShortConv::operator()(const ov::Output<ov::Node>& input,
+                                                  const std::string& prefix,
+                                                  size_t linear_layer_idx) const {
+    auto layer_str = std::to_string(linear_layer_idx);
+    auto ap = prefix + "conv.";
+    const auto cd = static_cast<int64_t>(conv_dim);
+
+    // in_proj: hidden -> 3*conv_dim, split into B, C, x gates.
+    auto in_proj = make_linear(input, hidden_size, 3 * conv_dim, ap + "in_proj", precision, weight_fn);
+    auto split_lens = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{cd, cd, cd});
+    auto bcx = std::make_shared<ov::opset11::VariadicSplit>(
+        in_proj, ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {-1}), split_lens);
+    bcx->set_friendly_name(ap + "split");
+
+    // Bx = B * x, then causal conv (no SiLU — gating is external), then C * conv.
+    auto bx = std::make_shared<ov::opset11::Multiply>(bcx->output(0), bcx->output(2));
+    bx->set_friendly_name(ap + "B_mul_x");
+
+    auto conv = make_causal_conv(bx, seq_source, beam_idx, conv_dim, conv_kernel,
+                                 make_cache_params_var_id("conv", layer_str), ap, precision, /*apply_silu=*/false);
+
+    auto gated = std::make_shared<ov::opset11::Multiply>(bcx->output(1), conv.output);
+    gated->set_friendly_name(ap + "C_mul_conv");
+
+    auto output = make_linear(gated->output(0), conv_dim, hidden_size, ap + "out_proj", precision, weight_fn);
+    return {output, conv.assign};
 }
 
 LinearAttention::Result LinearAttention::operator()(const ov::Output<ov::Node>& input,

@@ -187,10 +187,15 @@ struct LLMConfig : public BaseModelConfig {
     bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
     SlidingMaskFn sliding_mask_fn;       ///< Empty = default float SWA (matches no NPUW pass; set make_sliding_window_mask_phi3 for Phi-3/Gemma-2/Gemma-3).
 
-    /// Hybrid scheduling. Empty predicate = pure attention. Layers where it returns true use
-    /// `linear_attn`, the rest use full SDPA. Hybrid models require use_kv_cache = true.
+    /// Hybrid scheduling. Empty predicate = pure attention. Layers where it returns true use the
+    /// linear mixer, the rest use full SDPA. Hybrid models require use_kv_cache = true.
     std::function<bool(size_t /*layer_idx*/)> is_linear_layer;
-    LinearAttention linear_attn;
+
+    /// Which mixer the linear layers use: GatedDeltaNet recurrence (Qwen3.5) or LFM2 short conv.
+    enum class LinearMixer { GatedDeltaNet, ShortConv };
+    LinearMixer linear_mixer = LinearMixer::GatedDeltaNet;
+    LinearAttention linear_attn;  ///< used when linear_mixer == GatedDeltaNet
+    GatedShortConv short_conv;    ///< used when linear_mixer == ShortConv
 };
 
 struct WhisperConfig : public BaseModelConfig {
