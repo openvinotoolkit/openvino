@@ -14,15 +14,16 @@
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 #include <openvino/core/except.hpp>
-#include <openvino/reference/xattention.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
+#include <openvino/reference/xattention.hpp>
+#include <optional>
+
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
-
-#include <optional>
+#include "test_utils/test_data/paged_attention_token_type_test_data.h"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -1811,6 +1812,32 @@ public:
         rg.set_seed(GET_SUITE_NAME);
     }
 
+    static std::vector<ov::float16> to_float16(const std::vector<float>& data) {
+        std::vector<ov::float16> result(data.size());
+        std::transform(data.begin(), data.end(), result.begin(), [](float value) {
+            return ov::float16(value);
+        });
+        return result;
+    }
+
+    void apply_token_type_test_data(PagedAttentionManager& pam, const T& p, const test::TestData& data) {
+        ASSERT_EQ(p.subsequences.size(), 1);
+        ASSERT_EQ(p.subsequences[0].past_len, 0);
+
+        const size_t seq_len = data.tokenTypes.size();
+        const size_t hidden_dim = static_cast<size_t>(p.num_heads) * static_cast<size_t>(p.k_head_size);
+        ASSERT_EQ(static_cast<size_t>(p.subsequences[0].num_tokens), seq_len);
+        ASSERT_EQ(data.qData.size(), seq_len * hidden_dim);
+        ASSERT_EQ(data.kData.size(), seq_len * hidden_dim);
+        ASSERT_EQ(data.vData.size(), seq_len * hidden_dim);
+        ASSERT_EQ(data.expectedOutput.size(), seq_len * hidden_dim);
+
+        pam.query_data = {to_float16(data.qData)};
+        pam.key_data = {to_float16(data.kData)};
+        pam.value_data = {to_float16(data.vData)};
+        pam.token_type_ids.assign(data.tokenTypes.begin(), data.tokenTypes.end());
+    }
+
     void execute(T& p, bool run_reference = true) {
         ov::element::Type kv_cache_precision = p.kv_cache_precision;
         
@@ -1877,6 +1904,10 @@ public:
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
             ASSERT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+        }
+
+        if (p.token_type_test_data.has_value()) {
+            apply_token_type_test_data(pam, p, p.token_type_test_data.value());
         }
 
         if (p.kv_cache_compression) {
@@ -2187,6 +2218,11 @@ public:
             output_diversity_mem = outputs.at("output_diversity").get_memory();
         }
 
+        if (p.token_type_test_data.has_value()) {
+            compare_token_type_output(output_data_mem, p.token_type_test_data->expectedOutput);
+            return;
+        }
+
         // Verify KV cache was correctly written (CM PA path only)
         // NOTE: This verification is specific to CM PA layout and should NOT run for OCL micro_sdpa
         // because they use different layouts (key cache is [N,K,H,B] in OCL vs [N,K,B,H] in CM)
@@ -2225,6 +2261,16 @@ public:
             for (size_t i = 0; i < diversity_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<2>(ref_data)[i], diversity_tolerance) << " at index=" << i;
             }
+        }
+    }
+
+    void compare_token_type_output(memory::ptr data_output_mem, const std::vector<float>& expected_output) {
+        ASSERT_TRUE(data_output_mem);
+        ASSERT_EQ(data_output_mem->count(), expected_output.size());
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
+        constexpr float token_type_tolerance = 1e-2f;
+        for (size_t i = 0; i < data_output_mem->count(); i++) {
+            ASSERT_NEAR(static_cast<float>(mem_ptr[i]), expected_output[i], token_type_tolerance) << " at index=" << i;
         }
     }
 
@@ -2855,6 +2901,9 @@ struct paged_attention_test_params {
     // optional token_type_ids passed to PagedAttention; if set (non-empty), it is forwarded
     // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
     std::optional<std::vector<int>> token_type_ids = std::nullopt;
+
+    // optional deterministic data for token type feature validation
+    std::optional<test::TestData> token_type_test_data = std::nullopt;
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2916,6 +2965,13 @@ TEST_P(qq_bias_test, basic) {
     execute(p);
 }
 
+class paged_attention_token_type_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(paged_attention_token_type_test, basic) {
+    auto p = GetParam();
+
+    execute(p);
+}
+
 const auto ENABLE_CACHE_COMPRESSION = true;
 const auto DISABLE_CACHE_COMPRESSION = false;
 const auto DISABLE_SCORES = ScoresMode::DISABLED;
@@ -2937,6 +2993,42 @@ static paged_attention_test_params disable_reference_compare(paged_attention_tes
     return p;
 }
 
+static paged_attention_test_params make_token_type_test_param(const test::TestData& data, int sliding_window_size, bool disable_flashattn_v2) {
+    paged_attention_test_params p{{{static_cast<int>(data.tokenTypes.size()), 0}},
+                                  1,
+                                  1,
+                                  32,
+                                  32,
+                                  16,
+                                  sliding_window_size,
+                                  DISABLE_CACHE_COMPRESSION,
+                                  ov::internal::CacheQuantMode::BY_TOKEN,
+                                  STATIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  disable_flashattn_v2};
+    p.token_type_ids = std::vector<int>(data.tokenTypes.begin(), data.tokenTypes.end());
+    p.token_type_test_data = data;
+    return p;
+}
+
+static std::vector<paged_attention_test_params> make_token_type_test_params(const std::vector<test::TestData>& test_data, int sliding_window_size) {
+    std::vector<paged_attention_test_params> params;
+    params.reserve(test_data.size() * 2);
+    for (const auto& data : test_data) {
+        params.push_back(make_token_type_test_param(data, sliding_window_size, ENABLE_FA_V2));
+        params.push_back(make_token_type_test_param(data, sliding_window_size, DISABLE_FA_V2));
+    }
+    return params;
+}
+
+static std::string get_token_type_test_name(const testing::TestParamInfo<paged_attention_test_params>& obj) {
+    const auto& p = obj.param;
+    OPENVINO_ASSERT(p.token_type_test_data.has_value());
+    return p.token_type_test_data->name + "_SW" + std::to_string(p.sliding_window_size) +
+           (p.disable_flashattn_v2 == DISABLE_FA_V2 ? "_FlashAttnV2Disabled" : "_FlashAttnV2Enabled");
+}
+
 static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_images, size_t avg_img_len) {
     std::vector<int32_t> v(seq_len, 0);
     size_t gap = seq_len / (num_images + 1);
@@ -2952,6 +3044,17 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
 
     return v;
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type,
+                         paged_attention_token_type_test,
+                         ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestDataForHeadSize32HeadNum1(), 0)),
+                         get_token_type_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_token_type_sliding_window,
+    paged_attention_token_type_test,
+    ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestDataForHeadSize32HeadNum1SlidingWindowSize5(), 5)),
+    get_token_type_test_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
