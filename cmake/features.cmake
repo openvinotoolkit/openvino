@@ -42,7 +42,7 @@ else()
 endif()
 
 # Set default GPU runtime to OCL
-set(OV_GPU_DEFAULT_RT "OCL")
+set(OV_GPU_DEFAULT_RT "ZE")
 if (ENABLE_INTEL_GPU)
     ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL, SYCL and ZE (L0 is accepted as ZE alias)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL)
     if(GPU_RT_TYPE STREQUAL "L0")
