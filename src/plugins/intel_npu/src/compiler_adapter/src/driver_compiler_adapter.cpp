@@ -94,13 +94,23 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
+    std::optional<std::string> compatibilityDescriptor;
+    if (is_option_supported(RUNTIME_REQUIREMENTS::key().data())) {
+        compatibilityDescriptor = get_runtime_requirements(graphDesc);
+        if (compatibilityDescriptor.has_value()) {
+            _logger.debug("Obtained runtime requirements from driver: %s", compatibilityDescriptor.value().c_str());
+        } else {
+            _logger.debug("Driver did not return runtime requirements for this blob");
+        }
+    }
+
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
                                    updatedConfig,
-                                   /* compatibilityDescriptor = */ std::nullopt);
+                                   /* compatibilityDescriptor = */ compatibilityDescriptor);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -303,7 +313,7 @@ bool DriverCompilerAdapter::is_option_supported(std::string optName, std::option
                            RUNTIME_REQUIREMENTS::key(),
                            "' is a read-only property and does not accept any value.");
 
-        return zeDeviceGetRuntimeRequirements != nullptr;
+        return ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements != nullptr;
     }
     // The COMPATIBILITY_CHECK option is used to signal if compiler adapter supports
     // the validateCompatibilityDescriptor method
@@ -311,7 +321,7 @@ bool DriverCompilerAdapter::is_option_supported(std::string optName, std::option
         if (optValue.has_value())
             OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
 
-        return zeDeviceValidateRuntimeRequirements != nullptr;
+        return ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements != nullptr;
     }
 
     auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
@@ -344,8 +354,6 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
     }
 
     if (compatibilityDescriptor.empty()) {
-        std::cout
-            << "validate_compatibility_descriptor(): Empty compatibility descriptor provided, skipping validation\n";
         return false;
     }
 
@@ -357,8 +365,6 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
         zeDeviceValidateRuntimeRequirements(_zeroInitStruct->getDevice(), compatibilityDescriptor.c_str(), &output);
 
     if (result != ZE_RESULT_SUCCESS) {
-        std::cout << "zeDeviceValidateRuntimeRequirements returned error: 0x" << std::hex
-                  << static_cast<uint32_t>(result) << "\n";
         _logger.warning("zeDeviceValidateRuntimeRequirements returned error: 0x%x", static_cast<uint32_t>(result));
         return false;
     }
@@ -370,7 +376,7 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
 std::optional<std::string> DriverCompilerAdapter::get_runtime_requirements(
     const GraphDescriptor& graphDescriptor) const {
     if (zeDeviceGetRuntimeRequirements == nullptr) {
-        std::cout << "zeDeviceGetRuntimeRequirements not supported by this driver\n";
+        _logger.debug("zeDeviceGetRuntimeRequirements is not supported by this driver");
         return std::nullopt;
     }
 
@@ -382,24 +388,24 @@ std::optional<std::string> DriverCompilerAdapter::get_runtime_requirements(
     size_t size = 0;
     ze_result_t result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &graphDesc, &size, nullptr);
     if (result != ZE_RESULT_SUCCESS) {
-        std::cout << "zeDeviceGetRuntimeRequirements (size query) returned error: 0x" << std::hex
-                  << static_cast<uint32_t>(result) << "\n";
         _logger.warning("zeDeviceGetRuntimeRequirements (size query) returned error: 0x%x",
                         static_cast<uint32_t>(result));
+        return std::nullopt;
+    }
+
+    if (size == 0) {
+        _logger.debug("zeDeviceGetRuntimeRequirements returned size=0: no requirements embedded in this blob");
         return std::nullopt;
     }
 
     std::string requirements(size, '\0');
     result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &graphDesc, &size, requirements.data());
     if (result != ZE_RESULT_SUCCESS) {
-        std::cout << "zeDeviceGetRuntimeRequirements (data query) returned error: 0x" << std::hex
-                  << static_cast<uint32_t>(result) << "\n";
         _logger.warning("zeDeviceGetRuntimeRequirements (data query) returned error: 0x%x",
                         static_cast<uint32_t>(result));
         return std::nullopt;
     }
 
-    // requirements.resize(std::strlen(requirements.c_str()));
     return requirements;
 }
 
