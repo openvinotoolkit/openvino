@@ -169,6 +169,13 @@ using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::No
                                                          ov::element::Type,
                                                          size_t)>;
 
+/// Minimal standalone LoRA adapter model config (no attention/KV/RoPE).
+struct LoRAConfig : public BaseModelConfig {
+    size_t lora_rank = 8;
+    std::vector<std::string> lora_targets;  ///< Empty = q,k,v,o,gate,up,down.
+    bool lora_stateful = false;             ///< true = ReadValue/Assign states.
+};
+
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
@@ -257,6 +264,7 @@ public:
                                                      const std::string& name);
 
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
+    std::shared_ptr<ov::Model> build_lora_adapter(const LoRAConfig& config = {});
     std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);

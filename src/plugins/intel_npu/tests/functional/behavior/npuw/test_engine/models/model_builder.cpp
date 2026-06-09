@@ -930,6 +930,39 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     return make_model(final_norm, "last_hidden_state", model_name);
 }
 
+std::shared_ptr<ov::Model> ModelBuilder::build_lora_adapter(const LoRAConfig& config) {
+    clear();
+    const auto prec = config.precision;
+    const auto hs = config.hidden_size;
+
+    LoRAInjector lora;
+    lora.max_rank = config.lora_rank;
+    lora.targets = config.lora_targets;
+    lora.precision = prec;
+    lora.stateful = config.lora_stateful;
+    lora.sinks = &m_sinks;
+
+    const std::vector<std::string> targets =
+        config.lora_targets.empty()
+            ? std::vector<std::string>{"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"}
+            : config.lora_targets;
+
+    auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
+    ov::Output<ov::Node> hidden =
+        make_embedding(input_ids->output(0), config.vocab_size, hs, "model.embed_tokens", prec);
+
+    for (size_t layer = 0; layer < config.num_layers; ++layer) {
+        const std::string prefix = "model.layers." + std::to_string(layer) + ".";
+        for (const auto& tgt : targets) {
+            const bool is_attn = tgt == "q_proj" || tgt == "k_proj" || tgt == "v_proj" || tgt == "o_proj";
+            const std::string name = prefix + (is_attn ? "self_attn." : "mlp.") + tgt;
+            hidden = make_linear(hidden, hs, hs, name, prec, config.weight, WeightFn{}, &lora);
+        }
+    }
+
+    return make_model(hidden, "output", "lora_adapter");
+}
+
 std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConfig& config_in) {
     clear();
     WhisperConfig config = config_in;
