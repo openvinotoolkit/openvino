@@ -427,40 +427,31 @@ uint cos_sin_p = p;
 
     res = cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
     output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
-#elif defined(INTERLEAVED_INPUT)
-    // Vectorized interleaved read (see VEC_SIZE==1 branch above): two VEC_SIZE-wide loads at 2*r span
-    // the 2*VEC_SIZE interleaved elements, then UNPACK de-interleaves into even (in1) / odd (in2). The
-    // rotation and half-split write are unchanged from plain RotateHalf.
-    INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + 2 * r);
-    INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + 2 * r + VEC_SIZE);
+#else
     INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
     INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
     INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
     INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
 
+    INPUT_VEC_TYPE in1, in2;
+#ifdef INTERLEAVED_INPUT
+    // Vectorized interleaved read (see VEC_SIZE==1 branch above): two VEC_SIZE-wide loads at 2*r span
+    // the 2*VEC_SIZE interleaved elements, then UNPACK de-interleaves into even (in1) / odd (in2).
+    INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + 2 * r);
+    INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + 2 * r + VEC_SIZE);
 #if VEC_SIZE == 8
-    float8 in1, in2;
     UNPACK_FLOAT_VEC_1(in1, inv1, inv2);
     UNPACK_FLOAT_VEC_2(in2, inv1, inv2);
 #else  // VEC_SIZE == 16
-    INPUT_VEC_TYPE in1, in2;
     UNPACK_HALF16_VEC_1(in1, inv1, inv2);
     UNPACK_HALF16_VEC_2(in2, inv1, inv2);
 #endif
-
-    OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
-    OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
-
-    *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
-    *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
 #else
-    INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
-    INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
-    INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
-    INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
-    INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
-    INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
+    in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
+    in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
+#endif
 
+    // Rotation and half-split write, shared by the interleaved and plain reads above.
     OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
     OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
 
