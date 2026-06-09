@@ -39,6 +39,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_gpu {

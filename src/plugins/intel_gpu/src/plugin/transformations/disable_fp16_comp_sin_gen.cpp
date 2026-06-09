@@ -16,6 +16,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_gpu {
 DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {

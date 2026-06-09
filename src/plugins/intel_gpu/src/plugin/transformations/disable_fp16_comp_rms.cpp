@@ -10,6 +10,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 #include <memory>
 

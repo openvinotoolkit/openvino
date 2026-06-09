@@ -12,6 +12,7 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/rt_info/disable_precision_conversion.hpp>
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cum_sum.hpp"
