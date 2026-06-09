@@ -4,9 +4,6 @@
 
 #include "io_layouts.hpp"
 
-// TODO: check if we need more test cases here
-// are **SCALAR**, '?', and '...' supported?
-// see src/core/src/layout.cpp
 INSTANTIATE_TEST_SUITE_P(
     IOLayoutsSectionUnitTests,
     ValidLayouts,
@@ -36,6 +33,9 @@ INSTANTIATE_TEST_SUITE_P(
                                                 ov::Layout("NC"),
                                                 ov::Layout("NH"),
                                                 ov::Layout("NDHWC")}),
+        std::make_tuple(std::vector<ov::Layout>{ov::Layout("?N...C?"),
+                                                ov::Layout("[?, N, CHANNELS, ?, ?, Custom_dim_name]")},
+                        std::vector<ov::Layout>{ov::Layout("...3?456"), ov::Layout::scalar()}),
         std::make_tuple(std::vector<ov::Layout>{}, std::vector<ov::Layout>{ov::Layout("NCHW")}),
         std::make_tuple(std::vector<ov::Layout>{ov::Layout("NCHW")}, std::vector<ov::Layout>{}),
         std::make_tuple(std::vector<ov::Layout>{}, std::vector<ov::Layout>{})));
