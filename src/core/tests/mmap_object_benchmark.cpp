@@ -14,13 +14,12 @@
 #include <numeric>
 #include <string>
 #include <vector>
-#include <unistd.h> // Required for sleep()
+#include <unistd.h>
 
 #include "openvino/util/mmap_object.hpp"
 
 #ifdef __linux__
 #    include <fcntl.h>
-#    include <unistd.h>
 #endif
 
 #include "common_test_utils/common_utils.hpp"
@@ -29,8 +28,13 @@
 namespace ov::test {
 
 static std::filesystem::path generate_test_file(size_t size_bytes) {
-    auto path = std::filesystem::path(utils::generateTestFilePrefix() + "_bench_" +
+    auto path = std::filesystem::path("file_bench_" +
                                       std::to_string(size_bytes / (1024 * 1024)) + "mb.bin");
+    
+    if (std::filesystem::exists(path)) {
+        std::cout<< "Test file already exists: " << path << ", skipping generation." << std::endl;
+        return path;
+    }
     std::vector<char> chunk(1024 * 1024);
     std::iota(chunk.begin(), chunk.end(), char{0});
     std::ofstream f(path, std::ios::binary);
@@ -49,18 +53,39 @@ static long long measure_ms(const std::function<void()>& fn) {
 }
 
 static void evict_cache(const std::filesystem::path& path, size_t file_size) {
-    // #ifdef __linux__
-    // posix_fadvise(DONTNEED) evicts pages from page cache (best-effort, kernel may ignore under pressure)
-    int fd = open(path.c_str(), O_RDONLY);
-    if (fd >= 0) {
-        posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
-        close(fd);
+    // Prefer /proc/sys/vm/drop_caches (requires root / CAP_SYS_ADMIN, available when the container
+    // is started with --privileged or --cap-add SYS_ADMIN).  Writing "3" flushes the host page
+    // cache, dentries, and inodes — the only fully reliable way to guarantee a cold-cache run.
+    // Fallback: posix_fadvise(DONTNEED) is best-effort; the kernel may ignore it under pressure.
+    static const bool have_drop_caches = [] {
+        int fd = ::open("/proc/sys/vm/drop_caches", O_WRONLY);
+        if (fd >= 0) {
+            ::close(fd);
+            return true;
+        }
+        return false;
+    }();
+
+    if (have_drop_caches) {
+        ::sync();  // commit all dirty pages before dropping
+        int fd = ::open("/proc/sys/vm/drop_caches", O_WRONLY);
+        if (fd >= 0) {
+            std::ignore = ::write(fd, "3", 1);
+            ::close(fd);
+        }
+        sleep(1);  // give the kernel a moment to settle
+        return;
+    } else {
+        std::cout<< "No access to /proc/sys/vm/drop_caches, falling back to posix_fadvise(DONTNEED)" << std::endl;
     }
-    // #else
-    //     auto mapped = load_mmap_object(path);
-    //     mapped->hint_evict();
-    //     (void)file_size;
-    // #endif
+
+    // Fallback: best-effort fadvise.
+    int fd = ::open(path.c_str(), O_RDONLY);
+    if (fd >= 0) {
+        std::cout<< "posix_fadvise(DONTNEED) in use, kernel might ignore it" << std::endl;
+        posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
+        ::close(fd);
+    }
 }
 
 static long long bench(const std::function<void()>& fn,
@@ -87,7 +112,7 @@ static double throughput_mbs(size_t size_mb, long long ms) {
     return static_cast<double>(size_mb) * 1000.0 / static_cast<double>(ms);
 }
 
-// Strategy: hint_prefetch (mmap, parallel prefault + fadvise hints)
+
 static void strategy_hint_prefetch(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch();
@@ -102,10 +127,8 @@ static void strategy_hint_prefetch(const std::filesystem::path& path, size_t fil
     }
 }
 
-// Strategy: mmap + no prefault (sequential page fault)
 static void strategy_no_prefault(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
-    // Copy in chunks to support large files without excessive memory allocation
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
     std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
@@ -117,19 +140,12 @@ static void strategy_no_prefault(const std::filesystem::path& path, size_t file_
     }
 }
 
-// Strategy: sequential read via ifstream
-static void strategy_ifstream_read(const std::filesystem::path& path, size_t /*file_size*/) {
+static void strategy_ifstream_read(const std::filesystem::path& path, size_t file_size) {
+    std::vector<char> read_buffer(file_size);
     std::ifstream f(path, std::ios::binary);
-    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
-    std::vector<char> read_buffer(chunk_size);
-    std::vector<char> copy_buffer(chunk_size);
-    volatile char sink = 0;
-    while (f.read(read_buffer.data(), static_cast<std::streamsize>(read_buffer.size())) || f.gcount() > 0) {
-        const auto count = static_cast<size_t>(f.gcount());
-        std::memcpy(copy_buffer.data(), read_buffer.data(), count);
-        // Sample multiple positions to prevent memcpy optimization
-        sink += copy_buffer[0] + copy_buffer[count / 2] + copy_buffer[count - 1];
-    }
+    f.read(read_buffer.data(), static_cast<std::streamsize>(file_size));
+    volatile char sink = read_buffer[0] + read_buffer[file_size / 2] + read_buffer[file_size - 1];
+    (void)sink;
 }
 
 // Strategy: mmap + hint_prefetch only — measures time to make all data accessible
@@ -196,7 +212,7 @@ static void strategy_direct_read_dos(const std::filesystem::path& path, size_t f
 }
 #endif
 
-// Strategy: hint_prefetch with partial region
+
 static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
                                            size_t /*file_size*/,
                                            size_t offset,
@@ -224,8 +240,8 @@ class MmapBenchmark : public ::testing::Test {};
 
 TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
     const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
-    constexpr int warmup = 1;
-    constexpr int runs = 5;
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
 
     // Generate all test files
     struct TestFile {
@@ -240,7 +256,6 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
         tf.size_bytes = mb * 1024 * 1024;
         tf.path = generate_test_file(tf.size_bytes);
         evict_cache(tf.path, tf.size_bytes);  // Flush dirty pages from file generation
-        sleep(3);
         files.push_back(tf);
     }
 
@@ -256,9 +271,9 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
     for (const auto& tf : files) {
         Row r{};
         r.mb = tf.size_mb;
-        r.t_hint_prefetch = bench(
+        r.t_ifstream = bench(
             [&]() {
-                strategy_hint_prefetch(tf.path, tf.size_bytes);
+                strategy_ifstream_read(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
@@ -272,9 +287,9 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
             tf.size_bytes,
             warmup,
             runs);
-        r.t_ifstream = bench(
+        r.t_hint_prefetch = bench(
             [&]() {
-                strategy_ifstream_read(tf.path, tf.size_bytes);
+                strategy_hint_prefetch(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
@@ -303,10 +318,6 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
                throughput_mbs(r.mb, r.t_ifstream));
     }
 
-    // Cleanup
-    for (const auto& tf : files) {
-        std::filesystem::remove(tf.path);
-    }
 }
 
 TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
@@ -444,15 +455,13 @@ TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
     }
 #endif
 
-    for (const auto& tf : files)
-        std::filesystem::remove(tf.path);
 }
 
 TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
     constexpr size_t file_size_mb = 1200;
     constexpr size_t file_size = file_size_mb * 1024 * 1024;
-    constexpr int warmup = 1;
-    constexpr int runs = 5;
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
 
     auto file_path = generate_test_file(file_size);
     evict_cache(file_path, file_size);  // Flush dirty pages from file generation
@@ -498,7 +507,6 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
         printf("\n");
     }
 
-    std::filesystem::remove(file_path);
 }
 
 }  // namespace ov::test
