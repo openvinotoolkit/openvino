@@ -331,7 +331,8 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
 
         // dynamic quantization with symmetric quantized weights needs unsigned weights
         uint64_t dynQuantGroupSize = 0;
-        attr.get_src_dyn_quant_params(dynQuantGroupSize);
+        // TODO
+        // attr.get_src_dyn_quant_params(dynQuantGroupSize);
         if (dynQuantGroupSize > 0) {
             if (wdt == dnnl::memory::data_type::s8) {
                 wdt = memory::data_type::u8;
@@ -344,9 +345,13 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         wdt = memory::data_type::s8;
     }
 
-    const dnnl::memory::desc weightsDesc =
-        useSparseWeights ? dnnl::memory::desc::packed_v0(normalizedWeightDesc.get_dims(), wdt)
-                         : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
+    // const dnnl::memory::desc weightsDesc =
+    //     useSparseWeights ? dnnl::memory::desc::packed_v0(normalizedWeightDesc.get_dims(), wdt)
+    //                      : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
+    if (useSparseWeights) {
+        std::runtime_error("useSparseWeights is NOT suppported for now!!");
+    }
+    const dnnl::memory::desc weightsDesc = dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
     return {engine,
             dnnl::prop_kind::forward_inference,

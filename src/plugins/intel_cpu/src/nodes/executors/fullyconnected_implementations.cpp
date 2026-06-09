@@ -22,6 +22,7 @@
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/x64/dnnl_fc_external_decompression.hpp"
 #if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/executors/mlas/mlas_gemm.hpp"
 #endif
@@ -438,11 +439,34 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     context,
                     false);
             })
+        OV_CPU_INSTANCE_X64(
+            "fullyconnected_brgemm_external_decompression",
+            ExecutorType::Jit,
+            OperationType::FullyConnected,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(BrgemmFCExternalDecompressionExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
+            },
+            HasNoOptimalConfig<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
+            CreateDefault<BrgemmFCExternalDecompressionExecutor, FCAttrs>{}
+            )
         OV_CPU_INSTANCE_DNNL(
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,
             OperationType::FullyConnected,
-            SupportsAnyConfig<FCAttrs>{},
+            [](const FCConfig& config) -> bool {
+                if (noPostOps(config) &&
+                    noSparseDecompression(config) &&
+                    BrgemmFCExternalDecompressionExecutor::supports(config)) {
+                    return false;
+                }
+
+                return true;
+            },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return createOptimalConfigCommon(config,
