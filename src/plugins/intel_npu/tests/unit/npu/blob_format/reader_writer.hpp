@@ -19,10 +19,7 @@ constexpr int64_t BATCH = 0xDEADBEEF;
 
 // TODO interface tests as well
 void prepare_writer(const std::shared_ptr<BlobWriter>& blobWriter,
-                    const std::vector<CRE::Token>& expression,
                     const std::vector<std::shared_ptr<ISection>> sections) {
-    // TODO how to test this without the interface?
-    // blobWriter->append_compatibility_requirement(expression);
     for (const auto& section : sections) {
         blobWriter->register_section(section);
     }
@@ -48,11 +45,13 @@ std::pair<std::string, std::unordered_map<SectionType, std::shared_ptr<ISectionT
     writer.write(stream);
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
+    caps[PredefinedSectionType::BATCH_SIZE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
     return {stream.str(), std::move(caps)};
 }
 }  // namespace
 
-using WriterReaderParams = std::tuple<std::vector<CRE::Token>, std::vector<uint16_t>>;
+using WriterReaderParams = std::vector<uint16_t>;
 
 // should we randomize the order of serialized sections?
 class WriterReaderUnitTests : public ::testing::TestWithParam<WriterReaderParams> {
@@ -61,13 +60,13 @@ protected:
     const std::vector<ov::Layout> OUTPUT_LAYOUTS = {ov::Layout("NHWC")};
 
     void SetUp() override {
-        std::tie(expression, section_types) = GetParam();
+        section_types = GetParam();
 
         batch_section = std::make_shared<BatchSizeSection>(BATCH);
         io_section = std::make_shared<IOLayoutsSection>(INPUT_LAYOUTS, OUTPUT_LAYOUTS);
 
         writer = std::make_shared<BlobWriter>();
-        prepare_writer(writer, expression, {batch_section, io_section});
+        prepare_writer(writer, {batch_section, io_section});
         writer->write(stream);
 
         buffer = stream.str();
@@ -164,6 +163,8 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
 
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
+    caps[PredefinedSectionType::BATCH_SIZE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
 
     ov::Tensor tensor_1(ov::element::u8, ov::Shape{buffer_1.size()}, buffer_1.data());
     auto reader_1 = std::make_shared<BlobReader>();
@@ -209,6 +210,8 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
     BlobReader reader;
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
+    caps[PredefinedSectionType::BATCH_SIZE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
     ASSERT_NO_THROW(reader.read(tensor, caps));
 
@@ -223,7 +226,17 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
 }
 
 TEST_F(WriterReaderEdgeCases, UnknownSectionSkipped) {
-    auto [blob, caps] = make_simple_blob(BATCH);
+    BlobWriter writer;
+    writer.register_section(std::make_shared<IOLayoutsSection>(std::vector<ov::Layout>(), std::vector<ov::Layout>()));
+    std::stringstream stream;
+    writer.write(stream);
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
+    caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
+    caps[PredefinedSectionType::BATCH_SIZE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
+
+    const std::string blob = stream.str();
+
     ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()}, blob.data());
     BlobReader reader;
 
@@ -277,6 +290,8 @@ TEST_F(WriterReaderEdgeCases, GetNpuRegionSizeFromStream) {
 TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
     caps[PredefinedSectionType::CRE] = std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE);
+    caps[PredefinedSectionType::BATCH_SIZE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
 
     BlobWriter writer;
     constexpr int64_t BATCH_A = 0xDEADBEEF, BATCH_B = 0xDEAFBEEF, BATCH_C = 0x0FFBEEF;
