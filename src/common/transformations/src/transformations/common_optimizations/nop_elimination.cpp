@@ -162,6 +162,12 @@ static bool only_first_dim_dynamic(const PartialShape& pshape) {
 static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
     auto input = node->input_value(0);
 
+    // GGUF block constants are opaque blocks of bytes whose shape carries no per-element meaning.
+    // Never rewrite a Reshape that consumes one (see SPEC.md §5.2).
+    if (input.get_element_type().is_gguf_block()) {
+        return false;
+    }
+
     if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().same_scheme(1)) {
         if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0)))
             return replace_output_update_name(node->output(0), input);
@@ -224,6 +230,10 @@ static size_t count_unknown_dims(const PartialShape& ps) {
 }
 
 static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
+    // GGUF block constants are opaque; never rewrite Squeeze/Unsqueeze feeding from one (SPEC.md §5.2).
+    if (node->get_input_element_type(0).is_gguf_block()) {
+        return false;
+    }
     auto shape_ps = node->get_output_partial_shape(0);
     if (shape_ps.rank().get_length() == 0) {
         return false;

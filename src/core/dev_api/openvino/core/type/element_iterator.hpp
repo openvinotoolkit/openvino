@@ -64,7 +64,7 @@ constexpr bool is_split_bit_type(Type_t et) {
  * @return True if element type use byte(s) for its value, false otherwise.
  */
 constexpr bool is_byte_type(Type_t et) {
-    return !is_bit_type(et) && !is_split_bit_type(et) && !is_nibble_type(et) && et != string;
+    return !is_bit_type(et) && !is_split_bit_type(et) && !is_nibble_type(et) && !is_gguf_block(et) && et != string;
 }
 
 /**

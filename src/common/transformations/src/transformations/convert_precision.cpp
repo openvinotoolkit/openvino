@@ -1324,6 +1324,11 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
     if (is_keep_const_precision(node))
         return false;
 
+    // GGUF block constants are opaque blocks of bytes: their element type and byte content must be
+    // preserved exactly. Never convert their precision (see SPEC.md §5.2).
+    if (node->get_element_type().is_gguf_block())
+        return false;
+
     auto from = node->get_element_type();
     auto it = precisions.find(from);
     if (it == precisions.end())
