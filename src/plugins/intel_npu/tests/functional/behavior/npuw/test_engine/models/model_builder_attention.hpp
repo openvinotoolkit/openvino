@@ -85,7 +85,6 @@ struct Attention {
 
     ov::Output<ov::Node> sdpa_mask;
     ov::Output<ov::Node> shared_broadcast_shape;
-
     const LoRAInjector* lora = nullptr;
 
     std::string o_proj_name = "self_attn.o_proj";

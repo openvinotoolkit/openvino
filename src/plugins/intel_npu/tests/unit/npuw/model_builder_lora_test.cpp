@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "model_builder.hpp"
+#include "llm_test_helpers.hpp"
 
 namespace {
 
@@ -21,15 +21,7 @@ bool has_param(const std::shared_ptr<ov::Model>& m, const std::string& needle) {
 }
 
 TEST(ModelBuilderLoraTest, StatelessAdapterExposesLoraParameters) {
-    ov::test::npuw::ModelBuilder builder;
-    ov::test::npuw::LoRAConfig config;
-    config.num_layers = 1;
-    config.hidden_size = 8;
-    config.vocab_size = 32;
-    config.precision = ov::element::f16;
-    config.lora_targets = {"q_proj", "v_proj"};
-
-    auto model = builder.build_lora_adapter(config);
+    auto model = ov::test::npuw::build_lora_adapter_test_model();
     ASSERT_TRUE(model);
     EXPECT_TRUE(has_param(model, "lora_state_"));
     EXPECT_TRUE(has_param(model, "q_proj.MatMul.A"));
@@ -40,17 +32,25 @@ TEST(ModelBuilderLoraTest, StatelessAdapterExposesLoraParameters) {
 
 TEST(ModelBuilderLoraTest, StatefulAdapterExposesLoraStates) {
     ov::test::npuw::ModelBuilder builder;
-    ov::test::npuw::LoRAConfig config;
-    config.num_layers = 1;
-    config.hidden_size = 8;
-    config.vocab_size = 32;
-    config.precision = ov::element::f16;
-    config.lora_targets = {"q_proj"};
+    auto config = ov::test::npuw::make_test_model_config<ov::test::npuw::LoRAConfig>();
     config.lora_stateful = true;
 
     auto model = builder.build_lora_adapter(config);
     ASSERT_TRUE(model);
     EXPECT_FALSE(model->get_sinks().empty());
+}
+
+TEST(ModelBuilderLoraTest, BuildLlmInjectsLoraIntoAttentionAndFfn) {
+    auto model = ov::test::npuw::build_lora_llm_test_model();
+    ASSERT_TRUE(model);
+    EXPECT_TRUE(has_param(model, "q_proj.MatMul.A"));
+    EXPECT_TRUE(has_param(model, "down_proj.MatMul.A"));
+}
+
+TEST(ModelBuilderLoraTest, BuildLlmWithoutLoraHasNoLoraParameters) {
+    auto model = ov::test::npuw::build_llm_test_model();
+    ASSERT_TRUE(model);
+    EXPECT_FALSE(has_param(model, "lora_state_"));
 }
 
 }  // namespace

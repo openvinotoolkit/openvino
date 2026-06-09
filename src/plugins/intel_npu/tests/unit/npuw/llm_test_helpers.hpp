@@ -155,6 +155,18 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+inline std::shared_ptr<ov::Model> build_lora_adapter_test_model() {
+    ModelBuilder mb;
+    return mb.build_lora_adapter(make_test_model_config<LoRAConfig>());
+}
+
+inline std::shared_ptr<ov::Model> build_lora_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.lora_rank = 8;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 
 class NullPlugin : public ov::IPlugin {
 public:
