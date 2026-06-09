@@ -2116,20 +2116,23 @@ jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
                                      float alpha,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc),
-      alpha_(alpha) {
+    : jit_emitter(host, host_isa, exec_prc), alpha_(alpha) {
+    prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc);
     push_arg_entry_of("swish_alpha", dnnl::impl::float2int(alpha_));
 }
+
 jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     ov::element::Type exec_prc)
-    : jit_swish_emitter(host, 1.0F, host_isa, exec_prc) {}
-jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
-                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
+                                     const std::shared_ptr<ov::Node>& node,
                                      ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
+    const auto swish = ov::as_type_ptr<SwishNode>(node);
+    if (swish == nullptr) {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
+    }
+    alpha_ = swish->get_alpha();
+    prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc);
 }
 
@@ -2187,6 +2190,10 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 std::set<std::vector<element::Type>> jit_swish_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
+}
+
+void jit_swish_emitter::register_table_entries() {
+    push_arg_entry_of("swish_alpha", dnnl::impl::float2int(alpha_));
 }
 
 void jit_swish_emitter::emit_data() const {

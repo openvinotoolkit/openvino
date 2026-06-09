@@ -526,10 +526,7 @@ public:
     jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                       float alpha,
                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                      ov::element::Type exec_prc = ov::element::f32);
-    jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
-                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                      ov::element::Type exec_prc = ov::element::f32);
+                      ov::element::Type exec_prc = ov::element::f32); 
     jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& node,
@@ -543,6 +540,8 @@ public:
     size_t aux_vecs_count() const override;
 
     size_t aux_fp_gprs_count() const override;
+
+    void register_table_entries() override;
 
     void emit_data() const override;
 
