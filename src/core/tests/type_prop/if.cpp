@@ -447,3 +447,39 @@ TEST(type_prop, if_invalid_false_body) {
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
 }
+
+// One If branch produces a rank-dynamic output while the other is rank-static.
+// Both branches feed the same output and only one runs at runtime, so a single
+// rank-dynamic branch reflects upstream shape-inference imprecision, not a real
+// rank variation. resolve_shape must recover the rank-static branch's shape
+// instead of demoting the whole If output to rank-dynamic.
+TEST(type_prop, if_one_branch_rank_dynamic_takes_rank_static_branch) {
+    auto cond = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{1});
+
+    // Each branch is fed its own input so body-parameter shapes are not unified by the
+    // shared outer input: then gets a rank-dynamic input, else a rank-static (rank 3) one.
+    auto Xdyn = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xstat =
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
+
+    // then branch: rank-dynamic passthrough.
+    auto Xt = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto then_res = make_shared<ov::op::v0::Result>(Xt);
+    auto then_body = make_shared<ov::Model>(OutputVector{then_res}, ParameterVector{Xt});
+
+    // else branch: rank-static (rank 3) with dynamic dims.
+    auto Xe =
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
+    auto else_res = make_shared<ov::op::v0::Result>(Xe);
+    auto else_body = make_shared<ov::Model>(OutputVector{else_res}, ParameterVector{Xe});
+
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(Xdyn, Xt, nullptr);
+    if_op->set_input(Xstat, nullptr, Xe);
+    auto res = if_op->set_output(then_res, else_res);
+    auto result = make_shared<ov::op::v0::Result>(res);
+
+    EXPECT_EQ(result->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()}));
+}

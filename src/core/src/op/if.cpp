@@ -27,10 +27,19 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     auto then_rank = then_pshape.rank();
     auto else_rank = else_pshape.rank();
 
-    // if rangs of shapes are not equal or rang of one of them is dynamic function
-    // return shape with dynamic rank
-    if (then_rank.is_dynamic() || else_rank.is_dynamic()) {
+    // If exactly one branch is rank-dynamic, take the rank-static branch's shape. Both branches
+    // feed the same If output and only one executes at runtime, so a single rank-dynamic branch
+    // is upstream shape-inference imprecision rather than a real rank variation; the static
+    // branch is a valid description of the output. Without this the whole If output becomes
+    // rank-dynamic, which downstream consumers (notably the CPU plugin) reject.
+    if (then_rank.is_dynamic() && else_rank.is_dynamic()) {
         return ov::PartialShape::dynamic();
+    }
+    if (then_rank.is_dynamic()) {
+        return else_pshape;
+    }
+    if (else_rank.is_dynamic()) {
+        return then_pshape;
     }
     if (then_rank.get_length() != else_rank.get_length()) {
         auto is_one_element = [](const ov::PartialShape& pshape) {
