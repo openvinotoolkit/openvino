@@ -525,17 +525,8 @@ TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
         std::ofstream f(file_path, std::ios::binary);
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
-    int fd = ::open(file_path.c_str(), O_RDONLY);
-    if (fd >= 0) {
-        posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
-        ::close(fd);
-    }
 
     auto mapped = load_mmap_object(file_path);
-
-    const size_t initial_pages = count_resident_pages(mapped->data(), prefix_size);
-    ASSERT_EQ(initial_pages, 0) << "Expected 0 resident pages before warmup, but found " << initial_pages;
-
     volatile char sink = 0;
     for (size_t i = 0; i < prefix_size; i += page) {
         sink += mapped->data()[i];

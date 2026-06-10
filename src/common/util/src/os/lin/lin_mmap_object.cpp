@@ -66,14 +66,14 @@ namespace {
  * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
  *
  * Spawns worker threads that each read one byte per page in their assigned range.
- * No-op if data is null or size is below 4 MiB. Below that threshold the overhead of spawning
- * threads exceeds the benefit.
+ * No-op if data is null or size is below the prefault threshold. Below that threshold the overhead
+ * of spawning threads exceeds the benefit.
  *
- * @param data  Pointer to the start of the memory region.
- * @param size  Number of bytes in the region.
+ * @param data                Pointer to the start of the memory region.
+ * @param size                Number of bytes in the region.
+ * @param prefault_threshold  Minimum size in bytes to trigger parallel prefaulting (default 4 MiB).
  */
-void populate_pages(void* data, size_t size) {
-    constexpr size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MiB
+void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 1024 * 1024) {
     if (data == nullptr || size < prefault_threshold)
         return;
 
