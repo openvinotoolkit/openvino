@@ -39,8 +39,12 @@ namespace test {
 namespace intel_gpu {
 
 using namespace ov::test;
+using AT = ov::op::internal::MOE::Activation_type;
 
-using FuseMOE3GemmCompressedTestParams = std::tuple<MoERoutingType, bool /* reshape_on_moe_input */, bool /* with_routed_scale */>;
+using FuseMOE3GemmCompressedTestParams = std::tuple<MoERoutingType,
+                                                    bool,  // reshape_on_moe_input
+                                                    bool,  // with_routed_scale
+                                                    ov::op::internal::MOE::Activation_type>;
 
 class FuseMOE3GemmCompressedTest : public TransformationTestsF, public ::testing::WithParamInterface<FuseMOE3GemmCompressedTestParams> {
 public:
@@ -60,25 +64,51 @@ public:
             name += "_ReshapeOnMoeInput";
         if (std::get<2>(info.param))
             name += "_RoutedScalingFactor";
+        switch (std::get<3>(info.param)) {
+        case AT::SWIGLU:
+            break;
+        case AT::GEGLU_TANH:
+            name += "_GeluTanh";
+            break;
+        case AT::GEGLU_ERF:
+            name += "_GeluErf";
+            break;
+        }
         return name;
     }
 };
 
-// Softmax routing: MatMul → Softmax → TopK → ReduceSum → Divide → Transpose → Unsqueeze.
-static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights, size_t topk) {
+// Softmax routing: MatMul → Softmax → TopK → ReduceSum → Divide
+//   [→ Convert(i32) → Gather(per_expert_scale, topk_idx) → Multiply(norm, gathered)  when per_expert_scale is set]
+//   → Transpose → Unsqueeze.
+static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_softmax_routing_for_fuse_test(const ov::Output<ov::Node>& routing_weights,
+                                                                                                 size_t topk,
+                                                                                                 size_t number_of_experts = 0,
+                                                                                                 std::optional<float> per_expert_scale = std::nullopt) {
     auto softmax = std::make_shared<ov::op::v8::Softmax>(routing_weights, 1);
     auto k = op::v0::Constant::create(element::i32, Shape{}, {static_cast<int32_t>(topk)});
     auto topk_node = std::make_shared<ov::op::v11::TopK>(softmax, k, 1, ov::op::v11::TopK::Mode::MAX, ov::op::v11::TopK::SortType::SORT_VALUES);
 
     auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
     auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(topk_node->output(0), reduce_axis, true);
-    auto norm = std::make_shared<ov::op::v1::Divide>(topk_node->output(0), reduce_sum);
+    ov::Output<ov::Node> norm = std::make_shared<ov::op::v1::Divide>(topk_node->output(0), reduce_sum);
+
+    ov::Output<ov::Node> topk_indices = topk_node->output(1);
+    if (per_expert_scale.has_value()) {
+        auto convert_topk = std::make_shared<ov::op::v0::Convert>(topk_node->output(1), element::i32);
+        auto scale_const = op::v0::Constant::create(routing_weights.get_element_type(), Shape{number_of_experts}, {*per_expert_scale});
+        auto gather_axis = op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto gathered = std::make_shared<ov::op::v8::Gather>(scale_const, convert_topk, gather_axis, 0);
+        norm = std::make_shared<ov::op::v1::Multiply>(norm, gathered);
+        topk_indices = convert_topk;
+    }
+
     auto transpose_order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(norm, transpose_order);
     auto unsqueeze_const = op::v0::Constant::create(element::i64, Shape{1}, {-1});
     auto unsqueeze_moe = std::make_shared<ov::op::v0::Unsqueeze>(transpose, unsqueeze_const);
 
-    return {unsqueeze_moe, topk_node->output(1)};
+    return {unsqueeze_moe, topk_indices};
 }
 
 // Sigmoid+bias routing: Sigmoid → Add → TopK → Convert → GatherElements → ReduceSum → Add(eps) → Divide
@@ -122,10 +152,11 @@ static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_routi
 }
 
 TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
-    const auto& [routing_type, reshape_on_moe_input, with_routed_scale] = GetParam();
+    const auto& [routing_type, reshape_on_moe_input, with_routed_scale, activation_type] = GetParam();
     constexpr float routed_scale_value = 2.5f;
-    // routed_scaling_factor only applies to the SIGMOID_BIAS branch.
-    ASSERT_TRUE(!with_routed_scale || routing_type == MoERoutingType::SIGMOID_BIAS);
+    // SOFTMAX uses per-expert scale (Gather+Multiply, folded into scale_down in the reference).
+    // SIGMOID_BIAS uses a global routed_scaling_factor Multiply (re-emitted as a post-op in the reference).
+    constexpr auto data_precision = element::f32;
 
     // ── MoE shape parameters (shared between input model and reference model) ──
     constexpr size_t batch = 4;
@@ -140,20 +171,27 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
     constexpr size_t down_groups = inter_size / group_size;      // down weight grouped along K=inter_size
 
     {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch, seq_len, hidden_size});
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_precision, Shape{batch, seq_len, hidden_size});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {static_cast<int32_t>(tokens), static_cast<int32_t>(hidden_size)});
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{hidden_size, num_experts}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+        auto routers = op::v0::Constant::create(data_precision, Shape{hidden_size, num_experts}, {0.2});
 
-        // Build post-GatherMatmul routing (no ScatterElementsUpdate)
-        std::optional<float> scale_opt;
-        if (with_routed_scale) {
-            scale_opt = routed_scale_value;
+        // Gemma-4 style: the router MatMul uses a separately-normed hidden state while
+        // MOECompressed input[0] uses the plain reshape. Only applies to SOFTMAX+per-expert scale.
+        ov::Output<ov::Node> router_input = hidden_states_reshape;
+        if (routing_type == MoERoutingType::SOFTMAX && with_routed_scale) {
+            auto norm_scale = op::v0::Constant::create(data_precision, Shape{1, 1, hidden_size}, {1.0f});
+            auto hidden_normed = std::make_shared<ov::op::v1::Multiply>(hidden_states, norm_scale);
+            router_input = std::make_shared<ov::op::v1::Reshape>(hidden_normed, flatten_shape, false);
         }
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(router_input, routers);
+        const std::optional<float> softmax_per_expert_scale =
+            (routing_type == MoERoutingType::SOFTMAX && with_routed_scale) ? std::optional<float>{routed_scale_value} : std::nullopt;
+        const std::optional<float> sigmoid_scale =
+            (routing_type == MoERoutingType::SIGMOID_BIAS && with_routed_scale) ? std::optional<float>{routed_scale_value} : std::nullopt;
         auto [unsqueeze_moe, topk_indices] = routing_type == MoERoutingType::SOFTMAX
-                                                 ? build_softmax_routing_for_fuse_test(routing_weights, top_k)
-                                                 : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, num_experts, top_k, scale_opt);
+                                                 ? build_softmax_routing_for_fuse_test(routing_weights, top_k, num_experts, softmax_per_expert_scale)
+                                                 : build_sigmoid_routing_for_fuse_test(routing_weights, data_precision, num_experts, top_k, sigmoid_scale);
 
         // Compressed weights: 4-D weight = {experts, N, num_groups, group_size};
         // 3-D scale/zp = {experts, N, num_groups}. K = num_groups * group_size.
@@ -169,6 +207,7 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
 
         ov::op::internal::MOECompressed::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.activation_type = activation_type;
         config.has_zp = true;
         config.hidden_size = hidden_size;
         config.inter_size = inter_size;
@@ -187,11 +226,19 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
     }
     manager.register_pass<FuseMOE3GemmCompressed>();
     {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch, seq_len, hidden_size});
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_precision, Shape{batch, seq_len, hidden_size});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {static_cast<int32_t>(tokens), static_cast<int32_t>(hidden_size)});
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{hidden_size, num_experts}, {0.2});
-        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+        auto routers = op::v0::Constant::create(data_precision, Shape{hidden_size, num_experts}, {0.2});
+
+        // Mirror the normed router input from the input model.
+        ov::Output<ov::Node> router_input = hidden_states_reshape;
+        if (routing_type == MoERoutingType::SOFTMAX && with_routed_scale) {
+            auto norm_scale = op::v0::Constant::create(data_precision, Shape{1, 1, hidden_size}, {1.0f});
+            auto hidden_normed = std::make_shared<ov::op::v1::Multiply>(hidden_states, norm_scale);
+            router_input = std::make_shared<ov::op::v1::Reshape>(hidden_normed, flatten_shape, false);
+        }
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(router_input, routers);
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_groups, group_size}, {1});
         auto scale_gate = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_groups}, {0.01f});
@@ -200,11 +247,14 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto scale_up = op::v0::Constant::create(element::f16, Shape{num_experts, inter_size, gate_up_groups}, {0.01f});
         auto zp_up = op::v0::Constant::create(element::u4, Shape{num_experts, inter_size, gate_up_groups}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{num_experts, hidden_size, down_groups, group_size}, {1});
-        auto scale_down = op::v0::Constant::create(element::f16, Shape{num_experts, hidden_size, down_groups}, {0.01f});
+        // SOFTMAX + with_routed_scale: per-expert scale is folded into scale_down by the transformation.
+        const float scale_down_val = (routing_type == MoERoutingType::SOFTMAX && with_routed_scale) ? 0.01f * routed_scale_value : 0.01f;
+        auto scale_down = op::v0::Constant::create(element::f16, Shape{num_experts, hidden_size, down_groups}, {scale_down_val});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{num_experts, hidden_size, down_groups}, {0});
 
         ov::op::internal::MOECompressed::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.activation_type = activation_type;
         config.has_zp = true;
         config.hidden_size = hidden_size;
         config.inter_size = inter_size;
@@ -220,29 +270,39 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
             OPENVINO_THROW("Unsupported routing type");
         }
 
-        ov::OutputVector args{hidden_states_reshape, routing_weights, wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down};
+        // When SOFTMAX+with_routed_scale and no reshape on MOE input, the transformation binds
+        // hidden_state_reshape (optional) to hidden_states (3D, a Parameter) because the normed
+        // router uses its own separate Reshape. So hs_reshaped = hidden_states, and
+        // moe_compressed->input_value(0) == hs_reshaped => no reshape-back is emitted.
+        const bool normed_router_no_reshape = (routing_type == MoERoutingType::SOFTMAX && with_routed_scale && !reshape_on_moe_input);
+        ov::Output<ov::Node> fused_hs_input = normed_router_no_reshape ? ov::Output<ov::Node>(hidden_states) : ov::Output<ov::Node>(hidden_states_reshape);
+        ov::OutputVector args{fused_hs_input, routing_weights, wei_gate, scale_gate, zp_gate, wei_up, scale_up, zp_up, wei_down, scale_down, zp_down};
         if (routing_type == MoERoutingType::SIGMOID_BIAS) {
-            auto routing_bias = op::v0::Constant::create(element::f16, Shape{1, num_experts}, {0.1f});
+            auto routing_bias = op::v0::Constant::create(data_precision, Shape{1, num_experts}, {0.1f});
             args.push_back(routing_bias);
-            auto routing_eps = op::v0::Constant::create(element::f16, Shape{1, 1}, {1e-6f});
+            auto routing_eps = op::v0::Constant::create(data_precision, Shape{1, 1}, {1e-6f});
             args.push_back(routing_eps);
         }
 
         std::shared_ptr<ov::Node> result = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, config);
 
-        // When reshape_on_moe_input is false, MOE3GemmFusedCompressed takes reshaped input from routing subgraph,
-        // so the transformation inserts a reshape-back to restore the original shape. The reshape-back is
-        // emitted before the post-op Multiply in the callback, so mirror that order here.
-        if (!reshape_on_moe_input) {
+        // When reshape_on_moe_input is false AND the router uses hidden_states_reshape (not a separate
+        // normed reshape), hs_reshaped = hidden_states_reshape != moe_compressed->input_value(0), so the
+        // transformation inserts a reshape-back. For the normed router path (SOFTMAX+with_routed_scale),
+        // hs_reshaped = hidden_states (3D) == moe_compressed->input_value(0), so no reshape-back.
+        if (!reshape_on_moe_input && !normed_router_no_reshape) {
             auto hidden_state_shape = std::make_shared<ov::op::v3::ShapeOf>(hidden_states);
             result = std::make_shared<ov::op::v1::Reshape>(result, hidden_state_shape, false);
         }
 
-        // The transformation re-applies the absorbed routed_scaling_factor as a post-op Multiply.
-        // Scale is already f16, so no Convert insertion is expected.
-        if (with_routed_scale) {
-            auto post_scale = op::v0::Constant::create(element::f16, Shape{1, 1}, {routed_scale_value});
-            result = std::make_shared<ov::op::v1::Multiply>(result, post_scale);
+        // SIGMOID_BIAS: the transformation re-applies the absorbed routed_scaling_factor as a post-op Multiply.
+        // When the scale dtype (data_precision=f32) != MOE output dtype (f16), the transformation
+        // inserts a Convert so the Multiply inputs have matching types. Mirror that here.
+        // SOFTMAX: the per-expert scale is folded into scale_down above; no post-op Multiply.
+        if (with_routed_scale && routing_type == MoERoutingType::SIGMOID_BIAS) {
+            auto post_scale = op::v0::Constant::create(data_precision, Shape{1, 1}, {routed_scale_value});
+            auto post_scale_converted = std::make_shared<ov::op::v0::Convert>(post_scale, element::f16);
+            result = std::make_shared<ov::op::v1::Multiply>(result, post_scale_converted);
         }
 
         model_ref = std::make_shared<ov::Model>(result, ov::ParameterVector{hidden_states});
@@ -251,16 +311,10 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          FuseMOE3GemmCompressedTest,
-                         ::testing::ValuesIn(std::vector<FuseMOE3GemmCompressedTestParams>{
-                             // {routing_type, reshape_on_moe_input, with_routed_scale}
-                             {MoERoutingType::SOFTMAX, false, false},
-                             {MoERoutingType::SOFTMAX, true, false},
-                             {MoERoutingType::SIGMOID_BIAS, false, false},
-                             {MoERoutingType::SIGMOID_BIAS, true, false},
-                             // trinity-mini afmoe: SIGMOID_BIAS + extra Multiply(routed_scaling_factor)
-                             {MoERoutingType::SIGMOID_BIAS, false, true},
-                             {MoERoutingType::SIGMOID_BIAS, true, true},
-                         }),
+                         ::testing::Combine(::testing::Values(MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS),
+                                            ::testing::Bool(),  // reshape_on_moe_input
+                                            ::testing::Bool(),  // with_routed_scale (per-expert for SOFTMAX, global Multiply for SIGMOID_BIAS)
+                                            ::testing::Values(AT::SWIGLU, AT::GEGLU_TANH, AT::GEGLU_ERF)),
                          FuseMOE3GemmCompressedTest::get_test_case_name);
 
 TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {

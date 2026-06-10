@@ -906,3 +906,38 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_construct_concat) {
     test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
     test_case.run();
 }
+
+/// @brief Test SequenceConstruct -> SequenceInsert chain -> ConcatFromSequence pattern
+/// Reproduces the pattern produced by exporters for vision transformer style models
+/// (ConvNeXt, Swin family) where a sequence is built up via repeated SequenceInsert calls
+/// outside any Loop and then collapsed by ConcatFromSequence. Verifies that
+/// SequenceMark::get_sequence() correctly walks the chain of SequenceInsert nodes.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_concat) {
+    const auto model = convert_model("controlflow/sequence_insert_chain_concat.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // Four input tensors of shape [2]
+    test_case.add_input<float>({1.f, 2.f});  // input_a
+    test_case.add_input<float>({3.f, 4.f});  // input_b
+    test_case.add_input<float>({5.f, 6.f});  // input_c
+    test_case.add_input<float>({7.f, 8.f});  // input_d
+
+    // axis=0, new_axis=0: concatenate four [2] tensors -> [8]
+    test_case.add_expected_output<float>(Shape{8}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.run();
+}
+
+/// @brief Test SequenceEmpty -> SequenceInsert chain -> ConcatFromSequence with new_axis=1
+/// Exercises the same chain pattern starting from an empty sequence and stacking along a new axis.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_new_axis) {
+    const auto model = convert_model("controlflow/sequence_insert_chain_new_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.f, 2.f});  // input_a
+    test_case.add_input<float>({3.f, 4.f});  // input_b
+    test_case.add_input<float>({5.f, 6.f});  // input_c
+
+    // axis=0, new_axis=1: stack three [2] tensors -> [3, 2]
+    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.run();
+}

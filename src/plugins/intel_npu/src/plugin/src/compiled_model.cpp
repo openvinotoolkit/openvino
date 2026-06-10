@@ -9,6 +9,8 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "executor.hpp"
+#include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
@@ -16,13 +18,9 @@
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace intel_npu {
-
-using intel_npu::envVarStrToBool;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -30,7 +28,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
                              const std::optional<int64_t>& batchSize)
-    : ICompiledModel(model, plugin),
+    : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
@@ -48,18 +46,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
 
-    configure_stream_executors();
-
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
-}
-
-CompiledModel::~CompiledModel() {
-    _logger.debug("~CompiledModel()");
-    std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor())->cpu_reset();
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
+
+    std::call_once(_streamExecutorsInitFlag, [this] {
+        const_cast<CompiledModel*>(this)->configure_stream_executors();
+    });
 
     // sanity check
     OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
@@ -74,10 +69,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                     "Graph is unavailable or failed to initialize. The driver may be missing or too old to run "
                     "inference for this blob.");
 
-    const std::shared_ptr<InferRequest>& syncInferRequest =
+    const std::shared_ptr<InferRequest>& inferRequest =
         _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
 
-    return std::make_shared<AsyncInferRequest>(syncInferRequest,
+    return std::make_shared<AsyncInferRequest>(inferRequest,
                                                get_task_executor(),
                                                _resultExecutor,
                                                get_callback_executor());
@@ -229,9 +224,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // Reading the (dummy) property content to check if it is supported
         _propertiesManager->getProperty(name);
 
-        _logger.debug("Runtime requirements from the graph %s length: %zu",
-                      _graph->get_compatibility_descriptor().value(),
-                      _graph->get_compatibility_descriptor().value().size());
+        auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
+        if (compatibilityDescriptor.has_value()) {
+            const auto descriptorView = compatibilityDescriptor.value();
+            _logger.debug("Runtime requirements from the graph %.*s length: %zu",
+                          static_cast<int>(descriptorView.size()),
+                          descriptorView.data(),
+                          descriptorView.size());
+        }
 
         std::ostringstream requirementsString;
         Metadata<CURRENT_METADATA_VERSION>(
@@ -243,7 +243,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             std::nullopt,  // output_layouts are not relevant for the compatibility check
             std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
             std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            _graph->get_compatibility_descriptor())
+            compatibilityDescriptor)
             .write_as_text(requirementsString);
         _logger.debug("Runtime requirements string: %s length: %zu",
                       requirementsString.str().c_str(),
@@ -271,25 +271,43 @@ void CompiledModel::release_memory() {
 }
 
 void CompiledModel::configure_stream_executors() {
-    std::shared_ptr<ov::threading::ITaskExecutor> task_executor;
-    if (get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>()) {
-        task_executor = ov::threading::executor_manager()->get_executor("NPU");
-    } else if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
-        auto executor_config = ov::threading::IStreamsExecutor::Config{
-            /* name = */ "Intel NPU plugin executor",
-            /* streams = */ get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
-            /* threads_per_stream = */ 1,
-            /* thread_preferred_core_type = */ ov::hint::SchedulingCoreType::PCORE_ONLY,
-            /* cpu_reservation = */ true};
-        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
-    } else {
-        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
+    const FilteredConfig& config = get_config();
+
+    // In case of sequential execution of async requests for the same compiled model, the compiled model must use
+    // dedicated executors with a single thread to ensure sequential execution of its async requests.
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
+        _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
+
+        return;
     }
 
-    set_task_executor(std::move(task_executor));
-    const auto executorId = _graph->get_metadata().name + "_NPUResultExecutor";
-    _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
+    const auto numStreams = config.get<NUM_STREAMS>();
+    if (numStreams > 0) {
+        // Use a single thread for start executors to reduce contention on the shared task queue, while scaling wait
+        // executor workers with num_streams to improve result fetch throughput. Callbacks intentionally run on wait
+        // threads.
+        const size_t workers = static_cast<size_t>(numStreams);
+
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
+        _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", workers);
+    } else if (numStreams == 0) {
+        // For special case when num_streams is explicitly set to 0, start inference will happen in the same thread as
+        // the call to InferRequest::start_async, while wait executor will still be created with a single worker.
+        // Callback execution is intentionally done on that wait thread.
+        set_task_executor(make_executor("Intel NPU plugin start inferences executor", 0));
+        _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
+    } else {
+        // Auto mode (default): workers are created on demand. The baseline number of workers that stay alive during
+        // idle periods (30 s timeout) is derived from the optimal number of parallel infer requests recommended for
+        // the current platform in THROUGHPUT mode. The pool can then grow dynamically to match runtime workload.
+        const size_t keepWorkers = static_cast<size_t>(
+            utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(),
+                                                             ov::hint::PerformanceMode::THROUGHPUT));
+
+        set_task_executor(make_executor("Intel NPU plugin run inferences executor", keepWorkers, true));
+        _resultExecutor = nullptr;
+    }
 }
 
 }  // namespace intel_npu

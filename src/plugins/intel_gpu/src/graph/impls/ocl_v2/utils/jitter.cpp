@@ -320,6 +320,21 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "4";
         is_fp = true;
         break;
+    case ov::element::dynamic:
+        type = "uchar";
+        max_val = "UCHAR_MAX";
+        min_val = "0";
+        val_one = "(uchar) 1";
+        val_zero = "(uchar) 0";
+        to_type = "convert_uchar(v)";
+        to_type_sat = "convert_uchar_sat(v)";
+        as_type = "as_uchar(v)";
+        max_func = "max";
+        min_func = "min";
+        abs_func = "abs";
+        type_size = "1";
+        is_fp = false;
+        break;
     default:
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);
     }
