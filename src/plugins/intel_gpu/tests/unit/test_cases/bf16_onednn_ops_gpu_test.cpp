@@ -5,6 +5,8 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#include "intel_gpu/runtime/internal_properties.hpp"
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
@@ -53,11 +55,18 @@ static void compare_outputs(const std::vector<float>& ref, const std::vector<flo
 }
 
 // Helper: run a network and get output as f32 vector
+// If force_onednn_for is non-empty, forces the given primitive to use oneDNN implementation.
 static std::vector<float> run_network_get_f32_output(engine& eng, topology& tp,
                                                       const std::string& input_name, memory::ptr input_mem,
-                                                      const std::string& output_name) {
+                                                      const std::string& output_name,
+                                                      const std::string& force_onednn_for = "") {
     ExecutionConfig config = get_test_default_config(eng);
     config.set_property(ov::intel_gpu::optimize_data(true));
+    if (!force_onednn_for.empty()) {
+        ov::intel_gpu::ImplementationDesc onednn_impl = { format::bfyx, "", impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ {force_onednn_for, onednn_impl} }));
+    }
     network net(eng, tp, config);
     net.set_input_data(input_name, input_mem);
     auto outputs = net.execute();
@@ -99,7 +108,7 @@ TEST(bf16_onednn_ops, convolution_bf16) {
     tp_bf16.add(convolution("conv", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
     tp_bf16.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
 
-    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output");
+    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "conv");
 
     // F32 reference path
     auto input_mem_f32 = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, in_f, in_x, in_y } });
@@ -154,6 +163,9 @@ TEST(bf16_onednn_ops, gemm_bf16) {
 
     ExecutionConfig config_bf16 = get_test_default_config(engine);
     config_bf16.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc gemm_onednn_impl = { format::bfyx, "", impl_types::onednn };
+    config_bf16.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_onednn_impl} }));
     network net_bf16(engine, tp_bf16, config_bf16);
     net_bf16.set_input_data("input0", mem0_bf16);
     net_bf16.set_input_data("input1", mem1_bf16);
@@ -219,7 +231,7 @@ TEST(bf16_onednn_ops, fully_connected_bf16) {
     tp_bf16.add(fully_connected("fc", input_info("input"), "weights"));
     tp_bf16.add(reorder("output", input_info("fc"), format::bfyx, data_types::f32));
 
-    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output");
+    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "fc");
 
     // F32 reference path
     auto input_mem_f32 = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, input_f, 1, 1 } });
@@ -263,7 +275,7 @@ TEST(bf16_onednn_ops, pooling_avg_bf16) {
     tp_bf16.add(pooling("pool", input_info("input"), pooling_mode::average, { 2, 2 }, { 2, 2 }));
     tp_bf16.add(reorder("output", input_info("pool"), format::bfyx, data_types::f32));
 
-    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output");
+    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "pool");
 
     // F32 reference path
     auto input_mem_f32 = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, features, in_x, in_y } });
@@ -311,6 +323,9 @@ TEST(bf16_onednn_ops, concatenation_bf16) {
 
     ExecutionConfig config_bf16 = get_test_default_config(engine);
     config_bf16.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc concat_onednn_impl = { format::bfyx, "", impl_types::onednn };
+    config_bf16.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{ {"concat", concat_onednn_impl} }));
     network net_bf16(engine, tp_bf16, config_bf16);
     net_bf16.set_input_data("in1", mem1_bf16);
     net_bf16.set_input_data("in2", mem2_bf16);
@@ -370,7 +385,7 @@ TEST(bf16_onednn_ops, reduce_sum_bf16) {
     tp_bf16.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
     tp_bf16.add(reorder("output", input_info("reduce"), format::bfyx, data_types::f32));
 
-    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output");
+    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "reduce");
 
     // F32 reference
     auto input_mem_f32 = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, features, in_x, in_y } });
@@ -420,7 +435,7 @@ TEST(bf16_onednn_ops, deconvolution_bf16) {
     tp_bf16.add(deconvolution("deconv", input_info("input"), "weights", ""));
     tp_bf16.add(reorder("output", input_info("deconv"), format::bfyx, data_types::f32));
 
-    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output");
+    auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "deconv");
 
     // F32 reference
     auto input_mem_f32 = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, in_f, in_x, in_y } });
