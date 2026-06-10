@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"91cd84df99efa88db235aafe3b0cf35364c4b458a2aafbc8bb29a553ba67a9cc","compiler_version":"v0.76.1","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"cca7b69192b589988ca7b952b28d93ea61a0d638ed5bee6579e5bdf19384cafa","compiler_version":"v0.76.1","strict":true,"agent_id":"copilot","agent_model":"gpt-5-mini"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"actions/upload-artifact","sha":"b7c566a772e6b6bfb58ed0dc250532a479d7789f","version":"b7c566a772e6b6bfb58ed0dc250532a479d7789f"},{"repo":"github/gh-aw-actions/setup","sha":"46d564922b082d0db93244972e8005ea6904ee5f","version":"v0.76.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.55"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.55"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.55"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.19"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4","digest":"sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
-=======
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"59269af30feac095a27e17463ad448c7540b05837a127ffb7efa9618f3b295db","compiler_version":"v0.76.1","strict":true,"agent_id":"copilot","agent_model":"gpt-5-mini"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"actions/upload-artifact","sha":"b7c566a772e6b6bfb58ed0dc250532a479d7789f","version":"b7c566a772e6b6bfb58ed0dc250532a479d7789f"},{"repo":"github/gh-aw-actions/setup","sha":"46d564922b082d0db93244972e8005ea6904ee5f","version":"v0.76.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.55"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.55"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.55"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.19"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4","digest":"sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
->>>>>>> upstream/master
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -224,37 +219,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-<<<<<<< HEAD
-          cat << 'GH_AW_PROMPT_16f2a696dfb4dd69_EOF'
+          cat << 'GH_AW_PROMPT_90a930d7c8249820_EOF'
           <system>
-          GH_AW_PROMPT_16f2a696dfb4dd69_EOF
-=======
-          cat << 'GH_AW_PROMPT_55146fbc4e1c2bdf_EOF'
-          <system>
-          GH_AW_PROMPT_55146fbc4e1c2bdf_EOF
->>>>>>> upstream/master
+          GH_AW_PROMPT_90a930d7c8249820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-<<<<<<< HEAD
-          cat << 'GH_AW_PROMPT_16f2a696dfb4dd69_EOF'
+          cat << 'GH_AW_PROMPT_90a930d7c8249820_EOF'
           <safe-output-tools>
           Tools: missing_tool, missing_data, noop, notify_teams, notify_teams_recurring
           </safe-output-tools>
-          GH_AW_PROMPT_16f2a696dfb4dd69_EOF
+          GH_AW_PROMPT_90a930d7c8249820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_16f2a696dfb4dd69_EOF'
-=======
-          cat << 'GH_AW_PROMPT_55146fbc4e1c2bdf_EOF'
-          <safe-output-tools>
-          Tools: missing_tool, missing_data, noop, notify_teams, notify_teams_recurring
-          </safe-output-tools>
-          GH_AW_PROMPT_55146fbc4e1c2bdf_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_55146fbc4e1c2bdf_EOF'
->>>>>>> upstream/master
+          cat << 'GH_AW_PROMPT_90a930d7c8249820_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -283,21 +262,12 @@ jobs:
           {{/if}}
           </github-context>
           
-<<<<<<< HEAD
-          GH_AW_PROMPT_16f2a696dfb4dd69_EOF
+          GH_AW_PROMPT_90a930d7c8249820_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_16f2a696dfb4dd69_EOF'
+          cat << 'GH_AW_PROMPT_90a930d7c8249820_EOF'
           </system>
           {{#runtime-import .github/workflows/ci-doctor-mq.md}}
-          GH_AW_PROMPT_16f2a696dfb4dd69_EOF
-=======
-          GH_AW_PROMPT_55146fbc4e1c2bdf_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_55146fbc4e1c2bdf_EOF'
-          </system>
-          {{#runtime-import .github/workflows/ci-doctor-mq.md}}
-          GH_AW_PROMPT_55146fbc4e1c2bdf_EOF
->>>>>>> upstream/master
+          GH_AW_PROMPT_90a930d7c8249820_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -550,15 +520,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-<<<<<<< HEAD
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_f653510eb14829cf_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_521846c76599439c_EOF'
           {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notify-teams":{"description":"Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure.","inputs":{"author":{"default":null,"description":"GitHub login of the PR author or commit author, if known. Omit otherwise.","required":false,"type":"string"},"db_entries":{"default":null,"description":"Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string.","required":true,"type":"string"},"description":{"default":null,"description":"Thorough markdown description of the problem: root cause, failed jobs, key error messages, and recommended actions.","required":true,"type":"string"},"failed_workflow":{"default":null,"description":"Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor MQ workflow name.","required":true,"type":"string"},"occurrence_count":{"default":null,"description":"How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be \u003e= 1. Report as a positive integer encoded as a string.","required":true,"type":"string"},"pipeline_url":{"default":null,"description":"URL of the failed GitHub Actions workflow run.","required":true,"type":"string"},"pr_number":{"default":null,"description":"Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise.","required":false,"type":"string"},"pr_url":{"default":null,"description":"Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise.","required":false,"type":"string"},"statistics":{"default":null,"description":"Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/repo-memory/default/mq/investigations/ and /tmp/gh-aw/repo-memory/default/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML).","required":true,"type":"string"},"statistics_json":{"default":null,"description":"Full statistics database serialized as a compact JSON string. Must be a JSON object of the form {\"generated_at\": \u003cISO8601 UTC\u003e, \"total_patterns\": \u003cint\u003e, \"total_investigations\": \u003cint\u003e, \"patterns\": [{\"signature\": \u003cstr\u003e, \"title\": \u003cstr\u003e, \"category\": \u003cstr\u003e, \"count\": \u003cint\u003e, \"first_seen\": \u003cISO8601 UTC\u003e, \"last_seen\": \u003cISO8601 UTC\u003e, \"recent_run_urls\": [\u003cstr\u003e, ...]}]}. Include ALL known patterns, not just the top N. This payload is uploaded as a workflow artifact for offline analysis.","required":true,"type":"string"},"title":{"default":null,"description":"Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers.","required":true,"type":"string"}},"output":"Notification sent to Microsoft Teams."},"notify-teams-recurring":{"description":"Send a recurring merge-queue failure escalation alert to Microsoft Teams. Call this ONLY when the same failure pattern has 3 or more occurrences in the last 12 hours. Do NOT call this for every failure.","inputs":{"affected_prs":{"default":null,"description":"Markdown-formatted list of affected PR numbers/links from the merge queue that hit this failure in the last 12 hours. One PR per line, e.g. '- [#1234](https://github.com/org/repo/pull/1234)'. Include up to 10 most recent PRs.","required":true,"type":"string"},"description":{"default":null,"description":"Concise markdown gist of the recurring problem: what keeps failing, suspected root cause, and recommended escalation actions. Use Teams-safe markdown only (no raw HTML).","required":true,"type":"string"},"failed_workflow":{"default":null,"description":"Name of the GitHub Actions workflow with the recurring failure.","required":true,"type":"string"},"pipeline_url":{"default":null,"description":"URL of the current (latest) failed workflow run.","required":true,"type":"string"},"recent_count":{"default":null,"description":"Number of times this failure pattern has occurred in the last 12 hours, including the current run. Report as a positive integer encoded as a string (e.g., '3', '5').","required":true,"type":"string"},"recent_run_urls":{"default":null,"description":"Markdown-formatted list of workflow run URLs that exhibited this failure in the last 12 hours. One URL per line, e.g. '- [Run 12345](https://github.com/org/repo/actions/runs/12345)'. Include up to 10 most recent runs.","required":true,"type":"string"},"title":{"default":null,"description":"Short, searchable description of the recurring failure pattern (same as notify_teams.title).","required":true,"type":"string"}},"output":"Recurring failure escalation sent to Microsoft Teams."},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":500,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_f653510eb14829cf_EOF
-=======
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_fa858bc323b00800_EOF'
-          {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notify-teams":{"description":"Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure.","inputs":{"author":{"default":null,"description":"GitHub login of the PR author or commit author, if known. Omit otherwise.","required":false,"type":"string"},"db_entries":{"default":null,"description":"Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/cache-memory/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string.","required":true,"type":"string"},"description":{"default":null,"description":"Thorough markdown description of the problem: root cause, failed jobs, key error messages, and recommended actions.","required":true,"type":"string"},"failed_workflow":{"default":null,"description":"Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor MQ workflow name.","required":true,"type":"string"},"occurrence_count":{"default":null,"description":"How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/cache-memory/mq/. Must be \u003e= 1. Report as a positive integer encoded as a string.","required":true,"type":"string"},"pipeline_url":{"default":null,"description":"URL of the failed GitHub Actions workflow run.","required":true,"type":"string"},"pr_number":{"default":null,"description":"Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise.","required":false,"type":"string"},"pr_url":{"default":null,"description":"Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise.","required":false,"type":"string"},"statistics":{"default":null,"description":"Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/cache-memory/mq/investigations/ and /tmp/gh-aw/cache-memory/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML).","required":true,"type":"string"},"statistics_json":{"default":null,"description":"Full statistics database serialized as a compact JSON string. Must be a JSON object of the form {\"generated_at\": \u003cISO8601 UTC\u003e, \"total_patterns\": \u003cint\u003e, \"total_investigations\": \u003cint\u003e, \"patterns\": [{\"signature\": \u003cstr\u003e, \"title\": \u003cstr\u003e, \"category\": \u003cstr\u003e, \"count\": \u003cint\u003e, \"first_seen\": \u003cISO8601 UTC\u003e, \"last_seen\": \u003cISO8601 UTC\u003e, \"recent_run_urls\": [\u003cstr\u003e, ...]}]}. Include ALL known patterns, not just the top N. This payload is uploaded as a workflow artifact for offline analysis.","required":true,"type":"string"},"title":{"default":null,"description":"Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers.","required":true,"type":"string"}},"output":"Notification sent to Microsoft Teams."},"notify-teams-recurring":{"description":"Send a recurring merge-queue failure escalation alert to Microsoft Teams. Call this ONLY when the same failure pattern has 3 or more occurrences in the last 12 hours. Do NOT call this for every failure.","inputs":{"affected_prs":{"default":null,"description":"Markdown-formatted list of affected PR numbers/links from the merge queue that hit this failure in the last 12 hours. One PR per line, e.g. '- [#1234](https://github.com/org/repo/pull/1234)'. Include up to 10 most recent PRs.","required":true,"type":"string"},"description":{"default":null,"description":"Concise markdown gist of the recurring problem: what keeps failing, suspected root cause, and recommended escalation actions. Use Teams-safe markdown only (no raw HTML).","required":true,"type":"string"},"failed_workflow":{"default":null,"description":"Name of the GitHub Actions workflow with the recurring failure.","required":true,"type":"string"},"pipeline_url":{"default":null,"description":"URL of the current (latest) failed workflow run.","required":true,"type":"string"},"recent_count":{"default":null,"description":"Number of times this failure pattern has occurred in the last 12 hours, including the current run. Report as a positive integer encoded as a string (e.g., '3', '5').","required":true,"type":"string"},"recent_run_urls":{"default":null,"description":"Markdown-formatted list of workflow run URLs that exhibited this failure in the last 12 hours. One URL per line, e.g. '- [Run 12345](https://github.com/org/repo/actions/runs/12345)'. Include up to 10 most recent runs.","required":true,"type":"string"},"title":{"default":null,"description":"Short, searchable description of the recurring failure pattern (same as notify_teams.title).","required":true,"type":"string"}},"output":"Recurring failure escalation sent to Microsoft Teams."},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_fa858bc323b00800_EOF
->>>>>>> upstream/master
+          GH_AW_SAFE_OUTPUTS_CONFIG_521846c76599439c_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -840,11 +804,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-<<<<<<< HEAD
-          cat << GH_AW_MCP_CONFIG_83d61b94f73f0f0b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
-=======
-          cat << GH_AW_MCP_CONFIG_b4412de17f68e3be_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
->>>>>>> upstream/master
+          cat << GH_AW_MCP_CONFIG_ab5ab952dc94bdb5_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -885,11 +845,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-<<<<<<< HEAD
-          GH_AW_MCP_CONFIG_83d61b94f73f0f0b_EOF
-=======
-          GH_AW_MCP_CONFIG_b4412de17f68e3be_EOF
->>>>>>> upstream/master
+          GH_AW_MCP_CONFIG_ab5ab952dc94bdb5_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
