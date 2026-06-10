@@ -912,6 +912,16 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                                                         ov::npuw::attn::BehaviorKind::Pyramid);
             } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
                 ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+            } else if (ov::npuw::moe::get_compiled_experts(pipeline.context) != nullptr) {
+                ov::npuw::moe::attach_runtime_behavior(pipeline,
+                                                       pipeline.context,
+                                                       ov::npuw::moe::BehaviorRole::EXPERTS,
+                                                       true);
+            } else if (ov::npuw::moe::get_compiled_downstream(pipeline.context) != nullptr) {
+                ov::npuw::moe::attach_runtime_behavior(pipeline,
+                                                       pipeline.context,
+                                                       ov::npuw::moe::BehaviorRole::DOWNSTREAM,
+                                                       true);
             }
         }
     }

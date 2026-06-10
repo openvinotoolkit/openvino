@@ -386,8 +386,7 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
 }
 
 DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
-    constexpr size_t wg_size = PagedAttentionGeneratorMultiToken::_wg_size;
-    return DispatchDataFunc{[wg_size](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
@@ -403,8 +402,8 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         const size_t wg_count = rtp->multi_token_wg_count;
         OPENVINO_ASSERT(wg_count > 0, "Invalid multi_token_wg_count in runtime params");
 
-        wgs.global = {1, heads_num, wg_count * wg_size};
-        wgs.local = {1, 1, wg_size};
+        wgs.global = {1, heads_num, wg_count * PagedAttentionGeneratorMultiToken::_wg_size};
+        wgs.local = {1, 1, PagedAttentionGeneratorMultiToken::_wg_size};
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
