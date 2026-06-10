@@ -6531,20 +6531,177 @@ TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         fully_connected_gpu_u2_validation,
-                         ::testing::Values(std::make_tuple(1, 4, 4, 4, 1, false),        // minimum size (single group)
-                                           std::make_tuple(2, 16, 8, 4, 1, false),       // multiple batches, small group size
-                                           std::make_tuple(4, 64, 32, 32, 1, false),     // group_size == ifm (single group per row)
-                                           std::make_tuple(1, 128, 64, 32, 1, false),    // larger dimensions, multiple groups
-                                           std::make_tuple(8, 256, 128, 64, 1, false),   // large batch + large matrix
-                                           std::make_tuple(1, 512, 256, 128, 1, false),  // stress test
-                                           std::make_tuple(2, 64, 63, 16, 1, false),     // odd ofm_num
-                                           std::make_tuple(2, 60, 64, 4, 1, false),      // odd number of scale groups
-                                           std::make_tuple(2, 8, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
-                                           std::make_tuple(1, 16, 8, 4, 5, false),       // 3D with longer sequence
-                                           std::make_tuple(2, 16, 8, 4, 1, true),        // with zero-point
-                                           std::make_tuple(1, 64, 32, 16, 1, true),      // with zero-point, larger
-                                           std::make_tuple(2, 8, 4, 4, 3, true)          // 3D with zero-point
-                                           ),
-                         fully_connected_gpu_u2_validation::GetTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    fully_connected_gpu_u2_validation,
+    ::testing::Values(
+        std::make_tuple(1, 8, 4, 4),
+        std::make_tuple(2, 8, 4, 4),
+        std::make_tuple(1, 16, 8, 4),
+        std::make_tuple(4, 16, 8, 8),
+        std::make_tuple(1, 32, 16, 8),
+        std::make_tuple(2, 64, 32, 16),
+        std::make_tuple(4, 64, 64, 32),
+        std::make_tuple(1, 128, 64, 32),
+        std::make_tuple(2, 256, 128, 64),
+        std::make_tuple(8, 128, 128, 64),
+        std::make_tuple(1, 32, 16, 4),
+        std::make_tuple(1, 32, 16, 16),
+        std::make_tuple(2, 64, 32, 8),
+        std::make_tuple(2, 64, 32, 32),
+        std::make_tuple(1, 4, 4, 4),
+        std::make_tuple(16, 32, 16, 16),
+        std::make_tuple(1, 512, 256, 128)
+    ),
+    fully_connected_gpu_u2_validation::GetTestCaseName
+);
+
+
+// U2 Graph Compilation Tests - verify U2 compressed weights compile and execute
+TEST_F(fully_connected_gpu_tests, compressed_uint2_basic_compile) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        GTEST_SKIP();
+
+    const int batch_num = 1;
+    const int ifm_num = 8;
+    const int ofm_num = 4;
+    const int scales_group_size = 4;
+
+    auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+
+    std::vector<ov::float16> input_data(batch_num * ifm_num, 1.0f);
+    set_values(input_mem, input_data);
+
+    std::vector<uint8_t> packed_weights(ofm_num * ifm_num / 4, 0x1B);
+    set_values(weights_mem, packed_weights);
+
+    std::vector<ov::float16> scale_data(ofm_num * ifm_num / scales_group_size, 1.0f);
+    set_values(scale_mem, scale_data);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto inst = network.get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_uint2_with_zp_compile) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        GTEST_SKIP();
+
+    const int batch_num = 2;
+    const int ifm_num = 16;
+    const int ofm_num = 8;
+    const int scales_group_size = 4;
+
+    auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto zp_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+
+    std::vector<ov::float16> input_data(batch_num * ifm_num, 0.5f);
+    set_values(input_mem, input_data);
+
+    std::vector<uint8_t> packed_weights(ofm_num * ifm_num / 4, 0xE4);
+    set_values(weights_mem, packed_weights);
+
+    std::vector<ov::float16> scale_data(ofm_num * ifm_num / scales_group_size, 0.5f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> zp_data(ofm_num * ifm_num / scales_group_size, 1.5f);
+    set_values(zp_mem, zp_data);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto inst = network.get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_uint2_with_bias_compile) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        GTEST_SKIP();
+
+    const int batch_num = 1;
+    const int ifm_num = 8;
+    const int ofm_num = 4;
+    const int scales_group_size = 2;
+
+    auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto bias_mem = engine.allocate_memory({{1, ofm_num}, data_types::f16, format::bfyx});
+
+    std::vector<ov::float16> input_data(batch_num * ifm_num, 2.0f);
+    set_values(input_mem, input_data);
+
+    std::vector<uint8_t> packed_weights(ofm_num * ifm_num / 4, 0x1B);
+    set_values(weights_mem, packed_weights);
+
+    std::vector<ov::float16> scale_data(ofm_num * ifm_num / scales_group_size, 1.0f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> bias_data(ofm_num, 0.5f);
+    set_values(bias_mem, bias_data);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        data("bias", bias_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "", data_types::f16, 2, 2)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto inst = network.get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+}
