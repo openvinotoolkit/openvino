@@ -1508,7 +1508,7 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
     }
 
     static bool defaultValue() {
-        return true;
+        return false;
     }
 
     static OptionMode mode() {
