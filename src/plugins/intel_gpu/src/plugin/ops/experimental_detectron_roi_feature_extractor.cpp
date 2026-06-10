@@ -20,9 +20,9 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
     if (p.use_new_shape_infer()) {
         cldnn::experimental_detectron_roi_feature_extractor prim(layer_type_name_ID(op),
                                                                  inputs,
-                                                                 operation_attributes.output_size,
+                                                                 static_cast<int>(operation_attributes.output_size),
                                                                  operation_attributes.pyramid_scales,
-                                                                 operation_attributes.sampling_ratio,
+                                                                 static_cast<int>(operation_attributes.sampling_ratio),
                                                                  operation_attributes.aligned);
         prim.num_outputs = op->get_output_size();
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
@@ -46,9 +46,9 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
 
         cldnn::experimental_detectron_roi_feature_extractor experimentalDetectronPrim(layerName,
                                                                                     inputs,
-                                                                                    operation_attributes.output_size,
+                                                                                    static_cast<int>(operation_attributes.output_size),
                                                                                     operation_attributes.pyramid_scales,
-                                                                                    operation_attributes.sampling_ratio,
+                                                                                    static_cast<int>(operation_attributes.sampling_ratio),
                                                                                     operation_attributes.aligned);
         p.add_primitive(*op, experimentalDetectronPrim);
 

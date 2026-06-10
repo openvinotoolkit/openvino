@@ -71,8 +71,8 @@ private:
     std::filesystem::path m_file_path;
 
     struct BlobInfo {
-        std::streampos offset;
-        std::streamoff size;
+        uint64_t offset;
+        uint64_t size;
         std::string model_name;
     };
     std::unordered_map<BlobIdType, BlobInfo> m_blob_index;
@@ -80,7 +80,7 @@ private:
     bool build_content_index(std::ifstream& stream);
 
     static BlobIdType convert_blob_id(const std::string& blob_id);
-    void write_blob_entry(std::ofstream& stream, BlobIdType blob_id, StreamWriter& writer);
+    void write_blob_entry(std::fstream& stream, BlobIdType blob_id, StreamWriter& writer);
     bool has_blob_id(BlobIdType blob_id) const;
 };
 }  // namespace ov::runtime
