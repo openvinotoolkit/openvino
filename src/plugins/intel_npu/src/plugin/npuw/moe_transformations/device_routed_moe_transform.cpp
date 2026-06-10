@@ -320,25 +320,44 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
 
     nodes.dynamic_reshapes = std::move(all_dyn_reshapes);
 
-    for (auto& matmul : all_matmuls) {
-        auto weight_source = get_weight_source(matmul->input_value(1));
-        auto weight_node = weight_source.get_node_shared_ptr();
-        if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(weight_node)) {
-            if (!c->get_shape().empty() && c->get_shape()[0] == nodes.num_experts) {
-                nodes.matmuls.push_back(matmul);
-            }
-        } else if (auto mul_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(weight_node)) {
-            // quantized weight chain: weight x scale — check either input for expert dimension
-            for (size_t i = 0; i < 2; ++i) {
-                auto src = get_weight_source(mul_node->input_value(i));
-                if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(src.get_node_shared_ptr())) {
-                    if (!c->get_shape().empty() && c->get_shape()[0] == nodes.num_experts) {
-                        nodes.matmuls.push_back(matmul);
-                        break;
-                    }
-                }
-            }
+    // Returns true if a constant somewhere in the weight chain has shape[0] == expert_dim.
+    // Recursively peels Convert and both inputs of Multiply (the two recognized chain patterns).
+    // Returns false for any unrecognized node type, signalling an unknown weight chain.
+    std::function<bool(const ov::Output<ov::Node>&, size_t, bool&)> weight_has_expert_dim;
+    weight_has_expert_dim = [&](const ov::Output<ov::Node>& input, size_t expert_dim, bool& chain_recognized) -> bool {
+        auto node = input.get_node_shared_ptr();
+        if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(node)) {
+            return !c->get_shape().empty() && c->get_shape()[0] == expert_dim;
         }
+        if (auto conv = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+            return weight_has_expert_dim(conv->input_value(0), expert_dim, chain_recognized);
+        }
+        if (auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(node)) {
+            return weight_has_expert_dim(mul->input_value(0), expert_dim, chain_recognized) ||
+                   weight_has_expert_dim(mul->input_value(1), expert_dim, chain_recognized);
+        }
+        // Unrecognized node in weight chain (e.g. Reshape, Gather, custom op).
+        chain_recognized = false;
+        return false;
+    };
+
+    for (auto& matmul : all_matmuls) {
+        bool chain_recognized = true;
+        bool has_expert_dim = weight_has_expert_dim(matmul->input_value(1), nodes.num_experts, chain_recognized);
+        if (!has_expert_dim) {
+            continue;  // weight doesn't use expert dimension — not an expert MatMul
+        }
+        if (!chain_recognized) {
+            // Weight has the expert dimension but through an unrecognized chain: we cannot safely
+            // insert a Gather into it. Transforming other nodes (Tile, Reshape) without transforming
+            // this MatMul's weight would produce a shape mismatch at inference time.
+            LOG_WARN("collect_from_expert_output: MatMul '" << matmul->get_friendly_name()
+                                                            << "' has expert-dim weight through an unrecognized chain; "
+                                                               "skipping transformation for this layer");
+            nodes.matmuls.clear();
+            return nodes;
+        }
+        nodes.matmuls.push_back(matmul);
     }
 
     for (auto& add : all_adds) {
