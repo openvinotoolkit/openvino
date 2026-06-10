@@ -26,6 +26,11 @@ public:
      */
     bool check_support() const;
 
+    /**
+     * @brief Tells whether or not the section type instance has already been evaluated.
+     */
+    bool evaluated() const;
+
 private:
     std::function<bool(BlobReaderInterface&)> m_evaluate_fn;
 

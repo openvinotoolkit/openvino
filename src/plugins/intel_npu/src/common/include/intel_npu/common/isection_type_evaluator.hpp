@@ -35,6 +35,11 @@ public:
      */
     virtual bool lazy_check_support() const = 0;
 
+    /**
+     * @brief Tells whether or not the section type has already been evaluated.
+     */
+    bool evaluated() const;
+
 private:
     SectionType m_section_type;
     /**

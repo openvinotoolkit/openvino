@@ -102,6 +102,26 @@ std::unordered_map<SectionID, SectionTypeInstanceEvaluator> BlobReader::build_se
     return instance_evaluators;
 }
 
+void BlobReader::parse_section(const SectionID section_id,
+                               const ov::Tensor& source,
+                               size_t cursor,
+                               const size_t section_length,
+                               const size_t npu_region_size,
+                               const bool include_in_sections_order) {
+    BlobReaderInterface interface(source,
+                                  cursor,
+                                  section_length,
+                                  npu_region_size,
+                                  m_section_type_evaluators,
+                                  m_logger.level());
+
+    m_parsed_sections[section_id.type][section_id.type_instance] = m_readers.at(section_id.type)(interface);
+    m_parsed_sections[section_id.type][section_id.type_instance]->set_section_type_instance(section_id.type_instance);
+    if (include_in_sections_order) {
+        m_parsed_sections_order.push_back(section_id);
+    }
+}
+
 void BlobReader::read(const ov::Tensor& source) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");
@@ -144,15 +164,13 @@ void BlobReader::read(const ov::Tensor& source) {
 
     cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
 
-    BlobReaderInterface interface(source,
-                                  cursor,
-                                  offsets_table_size,
-                                  npu_region_size,
-                                  m_section_type_evaluators,
-                                  m_logger.level());
-    m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] = OffsetsTableSection::read(interface);
-    m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
-        FIRST_INSTANCE_ID);
+    parse_section(SectionID(PredefinedSectionType::OFFSETS_TABLE, FIRST_INSTANCE_ID),
+                  source,
+                  cursor,
+                  offsets_table_size,
+                  npu_region_size,
+                  /*include_in_sections_order*/ false);
+
     // The offset table is required only within the scope of the read method
     OffsetsTable offsets_table = std::dynamic_pointer_cast<OffsetsTableSection>(
                                      m_parsed_sections.at(PredefinedSectionType::OFFSETS_TABLE).at(FIRST_INSTANCE_ID))
@@ -164,24 +182,26 @@ void BlobReader::read(const ov::Tensor& source) {
     std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
 
+    std::unordered_map<SectionID, SectionTypeInstanceEvaluator> section_type_instance_evaluators =
+        build_section_type_instance_evaluators(source, offsets_table, npu_region_size);
+
     // TODO test the negative branch as well
+    // TODO safeguards for multiple offsets tables/CREs?
     if (cre_location.has_value()) {
         cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
 
-        interface = BlobReaderInterface(source,
-                                        cursor,
-                                        cre_length.value(),
-                                        npu_region_size,
-                                        m_section_type_evaluators,
-                                        m_logger.level());
-        m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(interface);
-        m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
+        parse_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID),
+                      source,
+                      cursor,
+                      cre_length.value(),
+                      npu_region_size,
+                      /*include_in_sections_order*/ false);
+
         const bool is_compatible =
             std::dynamic_pointer_cast<CRESection>(
                 m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
                 ->get_cre()
-                .check_compatibility(m_section_type_evaluators,
-                                     build_section_type_instance_evaluators(source, offsets_table, npu_region_size));
+                .check_compatibility(m_section_type_evaluators, section_type_instance_evaluators);
         OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
         m_logger.debug("CRE evaluation passed");
     } else {
@@ -218,22 +238,74 @@ void BlobReader::read(const ov::Tensor& source) {
                        cursor,
                        section_length.value());
 
-        // Read the section if we have a reader for it. Otherwise, skip it.
-        if (m_readers.count(section_id->type)) {
-            m_logger.debug("Parsing section ID ", section_id);
+        // The section is considered for parsing only if the BlobReader has a reader registered for its type. Then, how
+        // the section wil be handled depends on the type & type instance evaluators:
+        //  * Case 1: evaluated & supported type, evaluated & supported instance - the section is mandatory. It is read
+        //  without a try-catch block.
+        //  * Case 2: evaluated & supported type, evaluated & unsupported instance - the section is unsupported. It's
+        //  parsing is skipped.
+        //  * Case 3: evaluated & supported type, unevaluated instance - the section is optional. It is read within a
+        //  try-catch block.
+        //  * Case 4: evaluated & unsupported type - the section is unsupported. It's parsing is skipped.
+        //  * Case 5: unevaluated type, unevaluated instance - the section is optional. It is read within a try-catch
+        //  block.
+        if (!m_readers.count(section_id->type)) {
+            m_logger.debug("No section reader found for section %s. Skipping", section_id);
+            cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);
+            continue;
+        }
 
-            interface = BlobReaderInterface(source,
-                                            cursor,
-                                            section_length.value(),
-                                            npu_region_size,
-                                            m_section_type_evaluators,
-                                            m_logger.level());
-            m_parsed_sections[section_id->type][section_id->type_instance] = m_readers.at(section_id->type)(interface);
-            m_parsed_sections[section_id->type][section_id->type_instance]->set_section_type_instance(
-                section_id->type_instance);
-            m_parsed_sections_order.push_back(section_id.value());
+        m_logger.trace("Found a reader for section ", section_id);
+
+        const std::shared_ptr<ISectionTypeEvaluator> type_evaluator = m_section_type_evaluators.at(section_id->type);
+        const SectionTypeInstanceEvaluator& type_instance_evaluator =
+            section_type_instance_evaluators.at(section_id.value());
+
+        if (type_evaluator->evaluated() && type_evaluator->check_support()) {
+            if (type_instance_evaluator.evaluated() && type_instance_evaluator.check_support()) {
+                // Case 1
+                m_logger.trace("Parsing mandatory section ", section_id);
+                parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
+            } else if (type_instance_evaluator.evaluated() && !type_instance_evaluator.check_support()) {
+                // Case 2
+                m_logger.debug("The parsing of section ID ",
+                               section_id,
+                               " has been skipped. The section type instance is not supported");
+            } else {
+                // Case 3
+                m_logger.trace("The section type instance corresponding to section ID ",
+                               section_id,
+                               " was not evaluated");
+
+                try {
+                    parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
+                } catch (std::exception& e) {
+                    m_logger.warning("The parsing of optional section ",
+                                     section_id.value(),
+                                     " has failed. Error message: ",
+                                     e.what());
+                }
+            }
+        } else if (type_evaluator->evaluated() && !type_evaluator->check_support()) {
+            // Case 4
+            m_logger.debug("The parsing of section ID ",
+                           section_id,
+                           " has been skipped. The section type is not supported");
         } else {
-            m_logger.debug("No section reader found for section type %lu. Skipping", section_id->type);
+            // Case 5
+            m_logger.trace("Section type ", section_id->type, " not evaluated");
+            OPENVINO_ASSERT(
+                !type_instance_evaluator.evaluated(),
+                "Found a section type instance that was evaluated without evaluating the section type first");
+
+            try {
+                parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
+            } catch (std::exception& e) {
+                m_logger.warning("The parsing of optional section ",
+                                 section_id.value(),
+                                 " has failed. Error message: ",
+                                 e.what());
+            }
         }
 
         cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);

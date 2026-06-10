@@ -20,4 +20,8 @@ bool SectionTypeInstanceEvaluator::check_support() const {
     return m_supported.value();
 }
 
+bool SectionTypeInstanceEvaluator::evaluated() const {
+    return m_supported.has_value();
+}
+
 }  // namespace intel_npu

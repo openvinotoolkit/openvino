@@ -103,6 +103,13 @@ private:
         const OffsetsTable& offsets_table,
         const size_t npu_region_size) const;
 
+    void parse_section(const SectionID section_id,
+                       const ov::Tensor& source,
+                       size_t cursor,
+                       const size_t section_length,
+                       const size_t npu_region_size,
+                       const bool include_in_sections_order = true);
+
     /**
      * @brief All sections obtained after parsing the compiled model.
      */
