@@ -20,6 +20,7 @@
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -36,6 +37,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
@@ -1079,13 +1081,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
         apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
 
-        // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
-        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
+        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
+        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
+        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
+            for (auto&& model_variant : generate_model_variants) {
+                ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+            }
+        } else if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
+            // transformations)
             for (auto&& model_variant : generate_model_variants) {
                 ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
-            LOG_INFO("DEVICE_ROUTED MoE transformations completed");
+        } else {
+            OPENVINO_THROW("Unsupported MoE hint: " + std::to_string(static_cast<int>(generate_moe_hint)));
         }
     }
 
