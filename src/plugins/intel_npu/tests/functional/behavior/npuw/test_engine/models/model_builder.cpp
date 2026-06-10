@@ -36,14 +36,13 @@ void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& 
         offset += c->get_byte_size();
     }
 }
-}  // namespace
 
 // Create one LoRA tensor as either a Parameter (stateless) or a
 // ReadValue/Assign state pair (stateful) per LoRAInjector::stateful.
-static ov::Output<ov::Node> make_lora_value(const LoRAInjector& lora,
-                                            ov::element::Type type,
-                                            const ov::PartialShape& shape,
-                                            const std::string& name) {
+ov::Output<ov::Node> make_lora_value(const LoRAInjector& lora,
+                                     ov::element::Type type,
+                                     const ov::Shape& shape,
+                                     const std::string& name) {
     if (!lora.stateful) {
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name(name);
@@ -51,15 +50,54 @@ static ov::Output<ov::Node> make_lora_value(const LoRAInjector& lora,
         return param->output(0);
     }
 
+    OPENVINO_ASSERT(lora.sinks, "Stateful LoRA requires a sink collection");
     auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, type, name});
     auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
     read_value->set_friendly_name(name);
     auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
     assign->set_friendly_name(name + ".assign");
-    OPENVINO_ASSERT(lora.sinks, "Stateful LoRA requires a sink collection");
     lora.sinks->push_back(assign);
     return read_value->output(0);
 }
+
+// LoRA branch: input -> MatMul(A^T) -> Multiply(alpha) -> MatMul(B^T) -> Add(base).
+// State names match the NPUW lora_state_* convention.
+ov::Output<ov::Node> inject_lora(const ov::Output<ov::Node>& input,
+                                 const ov::Output<ov::Node>& base,
+                                 size_t in_features,
+                                 size_t out_features,
+                                 const std::string& name,
+                                 const LoRAInjector& lora) {
+    const size_t rank = lora.max_rank;
+    const std::string state_prefix = "lora_state_" + name;
+
+    auto lora_a = make_lora_value(lora, lora.precision, ov::Shape{rank, in_features}, state_prefix + ".MatMul.A");
+    auto lora_b = make_lora_value(lora, lora.precision, ov::Shape{out_features, rank}, state_prefix + ".MatMul.B");
+    auto lora_alpha = make_lora_value(lora, ov::element::f32, ov::Shape{1, rank}, state_prefix + ".MatMul.alpha");
+
+    // input @ A^T -> [batch, seq, rank]
+    auto mm_a = std::make_shared<ov::opset11::MatMul>(input, lora_a, false, true);
+    mm_a->set_friendly_name(name + "_lora_a");
+
+    // Multiply by alpha [1, rank], broadcast over batch/seq; alpha is always f32 (set from host)
+    ov::Output<ov::Node> alpha = lora_alpha;
+    if (alpha.get_element_type() != mm_a->get_output_element_type(0)) {
+        auto alpha_convert = std::make_shared<ov::opset11::Convert>(alpha, mm_a->get_output_element_type(0));
+        alpha_convert->set_friendly_name(name + "_lora_alpha_cvt");
+        alpha = alpha_convert->output(0);
+    }
+    auto scaled = std::make_shared<ov::opset11::Multiply>(mm_a, alpha);
+    scaled->set_friendly_name(name + "_lora_scale");
+
+    // scaled @ B^T -> [batch, seq, out_features]
+    auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, lora_b, false, true);
+    mm_b->set_friendly_name(name + "_lora_b");
+
+    auto lora_add = std::make_shared<ov::opset11::Add>(base, mm_b);
+    lora_add->set_friendly_name(name + "_lora_add");
+    return lora_add->output(0);
+}
+}  // namespace
 
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t in_features,
@@ -84,51 +122,12 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
         result = add->output(0);
     }
 
-    // LoRA injection: input -> MatMul(A^T) -> Multiply(alpha) -> MatMul(B^T) -> Add(base).
-    // Names match the NPUW lora_state_* convention.
     if (lora && lora->should_adapt(name)) {
-        const size_t R = lora->max_rank;
-        const auto prec = lora->precision;
-        const std::string state_prefix = "lora_state_" + name;
-
-        const int64_t Ri = static_cast<int64_t>(R);
-        auto lora_a = make_lora_value(*lora,
-                                      prec,
-                                      ov::PartialShape{Ri, static_cast<int64_t>(in_features)},
-                                      state_prefix + ".MatMul.A");
-        auto lora_b = make_lora_value(*lora,
-                                      prec,
-                                      ov::PartialShape{static_cast<int64_t>(out_features), Ri},
-                                      state_prefix + ".MatMul.B");
-        auto lora_alpha =
-            make_lora_value(*lora, ov::element::f32, ov::PartialShape{1, Ri}, state_prefix + ".MatMul.alpha");
-
-        // input @ A^T -> [batch, seq, R]
-        auto mm_a = std::make_shared<ov::opset11::MatMul>(input, lora_a, false, true);
-        mm_a->set_friendly_name(state_prefix + ".mm_a");
-
-        // Multiply by alpha -> [batch, seq, R]  (broadcast alpha [1,R] over batch/seq)
-        ov::Output<ov::Node> alpha = lora_alpha;
-        if (alpha.get_element_type() != mm_a->get_output_element_type(0)) {
-            auto alpha_convert = std::make_shared<ov::opset11::Convert>(alpha, mm_a->get_output_element_type(0));
-            alpha_convert->set_friendly_name(state_prefix + ".alpha_convert");
-            alpha = alpha_convert->output(0);
-        }
-        auto scaled = std::make_shared<ov::opset11::Multiply>(mm_a, alpha);
-        scaled->set_friendly_name(state_prefix + ".scale");
-
-        // scaled @ B^T -> [batch, seq, out_features]
-        auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, lora_b, false, true);
-        mm_b->set_friendly_name(state_prefix + ".mm_b");
-
-        auto lora_add = std::make_shared<ov::opset11::Add>(result, mm_b);
-        lora_add->set_friendly_name(name + ".lora_add");
-        result = lora_add->output(0);
+        result = inject_lora(input, result, in_features, out_features, name, *lora);
     }
 
     return result;
 }
-
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t vocab_size,
@@ -197,7 +196,6 @@ ov::Output<ov::Node> make_conv1d(const ov::Output<ov::Node>& input,
     return add->output(0);
 }
 
-
 ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial,
                                              size_t num_layers,
                                              const std::string& prefix_base,
@@ -209,8 +207,6 @@ ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial
     }
     return current;
 }
-
-
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
@@ -749,17 +745,17 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     const bool has_custom_ffn = static_cast<bool>(config.ffn);
     if (!config.ffn) {
         if (config.num_experts > 0) {
-            size_t moe_inter = config.moe_intermediate_size > 0
-                                   ? config.moe_intermediate_size
-                                   : config.intermediate_size;
-            size_t moe_k = config.num_experts_per_tok > 0
-                               ? config.num_experts_per_tok
-                               : std::min<size_t>(2, config.num_experts);
+            size_t moe_inter =
+                config.moe_intermediate_size > 0 ? config.moe_intermediate_size : config.intermediate_size;
+            size_t moe_k =
+                config.num_experts_per_tok > 0 ? config.num_experts_per_tok : std::min<size_t>(2, config.num_experts);
             OPENVINO_ASSERT(moe_k >= 1 && moe_k <= config.num_experts,
                             "Invalid MoE config: num_experts_per_tok (",
-                            moe_k, ") must be in [1, num_experts (", config.num_experts, ")]");
-            config.ffn = MoEFFN(config.hidden_size, moe_inter, config.num_experts,
-                                moe_k, config.precision);
+                            moe_k,
+                            ") must be in [1, num_experts (",
+                            config.num_experts,
+                            ")]");
+            config.ffn = MoEFFN(config.hidden_size, moe_inter, config.num_experts, moe_k, config.precision);
         } else {
             config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
         }
@@ -945,10 +941,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_lora_adapter(const LoRAConfig& co
     lora.stateful = config.lora_stateful;
     lora.sinks = &m_sinks;
 
-    const std::vector<std::string> targets =
-        config.lora_targets.empty()
-            ? std::vector<std::string>{"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"}
-            : config.lora_targets;
+    const auto& targets = config.lora_targets.empty() ? LoRAInjector::default_targets() : config.lora_targets;
 
     auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     ov::Output<ov::Node> hidden =
@@ -1047,7 +1040,6 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
 
     return make_model(encoder_output, "last_hidden_state", "synthetic_whisper_encoder");
 }
-
 
 std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();
