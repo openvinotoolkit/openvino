@@ -17,6 +17,18 @@ namespace frontend {
 namespace tensorflow_lite {
 
 namespace {
+void validate_tensor_name(const tflite::Tensor* tensor) {
+    FRONT_END_GENERAL_CHECK(tensor != nullptr, "TensorFlow Lite Frontend: tensor pointer is null.");
+    FRONT_END_GENERAL_CHECK(tensor->name() != nullptr,
+                            "TensorFlow Lite Frontend: tensor has no 'name' field "
+                            "(malformed flatbuffer: optional 'name' string is absent).");
+}
+
+std::string safe_tensor_name(const tflite::Tensor* tensor) {
+    validate_tensor_name(tensor);
+    return tensor->name()->str();
+}
+
 TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     TensorMetaInfo tensor_meta_info;
     const auto tensor = tensor_info.tensor;
@@ -36,7 +48,7 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
                                                                                    tensor_data_size);
     tensor_meta_info.m_tensor_data = tensor_data;
     tensor_meta_info.m_tensor_data_size = tensor_data_size;
-    tensor_meta_info.m_tensor_name = tensor->name()->str();
+    tensor_meta_info.m_tensor_name = safe_tensor_name(tensor);
 
     return tensor_meta_info;
 }
@@ -60,8 +72,7 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                             inputs->size());
     auto input_tensor_idx = (*inputs)[static_cast<flatbuffers::uoffset_t>(input_port_idx)];
     auto tensor = m_input_info.at(input_port_idx).tensor;
-    std::string name = (*tensor).name()->str();
-    producer_name = name;
+    producer_name = safe_tensor_name(tensor);
     producer_output_port_index = input_tensor_idx;
 }
 
@@ -79,7 +90,7 @@ size_t DecoderFlatBuffer::get_output_size() const {
 
 std::string DecoderFlatBuffer::get_input_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
-    return m_input_info.at(idx).tensor->name()->str();
+    return safe_tensor_name(m_input_info.at(idx).tensor);
 }
 
 ov::element::Type DecoderFlatBuffer::get_input_tensor_type(size_t idx) const {
@@ -89,7 +100,7 @@ ov::element::Type DecoderFlatBuffer::get_input_tensor_type(size_t idx) const {
 
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
-    return m_output_info.at(idx).tensor->name()->str();
+    return safe_tensor_name(m_output_info.at(idx).tensor);
 }
 
 ov::element::Type DecoderFlatBuffer::get_output_tensor_type(size_t idx) const {
@@ -115,7 +126,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
     const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,
     const ov::frontend::InputModel& model) const {
     const auto tensor = tensor_info.tensor;
-    std::vector<std::string> names = {tensor->name()->str()};
+    std::vector<std::string> names = {safe_tensor_name(tensor)};
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
     const size_t tensor_data_size =

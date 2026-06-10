@@ -12,6 +12,7 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -196,6 +197,8 @@ public:
 
     std::optional<bool> is_profiling_blob() const override;
 
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
+
 private:
     void initialize_impl(const FilteredConfig& config) override;
 
@@ -205,6 +208,11 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     NetworkMetadata _metadata;
+
+    // Preserve previous behavior: when shared common queue is disabled and a new queue is created due to a priority
+    // change, keep the same workload type to avoid creating a queue with an unexpected workload.
+    std::optional<ov::WorkloadType> _workloadType = std::nullopt;
+    std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
     /**
      * @brief Stores the number of subgraphs for dynamic models

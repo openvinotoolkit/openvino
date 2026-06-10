@@ -5,11 +5,68 @@
 namespace KERNEL_NAME {
 
 #include "cm_attention_common.hpp"
+#include "xattn_subseq_meta.hpp"
 #ifdef CM_HAS_LSC_UNTYPED_2D
 #include "cm_pa_xe2.hpp"
 #else
 #include "cm_pa_xe1.hpp"
 #endif
+
+// ----------------------------------------------------------------------------
+// Dispatch and host-mapping summary
+//
+// 1) Workload dispatch across workgroups and threads
+//    Host launches:
+//      gws = [1, num_heads, wg_count * wg_size]
+//      lws = [1, 1, wg_size]
+//    Therefore each workgroup is identified by:
+//      - cm_group_id(1) -> attention head `h`
+//      - cm_group_id(2) -> query-block workgroup id `wg_id`
+//    and each thread/lane in that workgroup is:
+//      - cm_local_id(2) -> `wg_local_id`
+//
+//    Query processing granularity:
+//      - each lane handles up to `q_step` query tokens
+//      - each workgroup covers up to `wg_seq_len` query tokens, where:
+//          wg_seq_len = CMPA_WG_SEQ_LEN (optimized path), or
+//          wg_seq_len = local_size * q_step (dynamic path)
+//
+//    For one (subsequence, query-block-start), lane-local query start is:
+//      q_start_local = (block_start_pos - subseq_q_begin) + wg_local_id * q_step
+//
+//    Notes:
+//      - U8/compressed path requires full-workgroup participation due to
+//        workgroup barriers; out-of-range lanes use q_len_sg=0.
+//      - FP16 path returns early for out-of-range lanes.
+//
+// 2) Multi-subsequence dispatch and host-side preparation of
+//    `blocked_q_starts_and_subseq_mapping`
+//
+//    Kernel consumes packed pairs from this int32 array:
+//      [block_start_pos_0, subsequence_id_0,
+//       block_start_pos_1, subsequence_id_1,
+//       ...]
+//    with length = 2 * wg_count.
+//
+//    Each `wg_id` reads one pair:
+//      blocked_query_idx = wg_id * 2
+//      block_start_pos = mapping[blocked_query_idx]
+//      subsequence_id  = mapping[blocked_query_idx + 1]
+//
+//    Host should build pairs in execution order as:
+//      for each selected subsequence_id:
+//          subseq_q_begin = subsequence_begins[subsequence_id]
+//          subseq_q_end   = subsequence_begins[subsequence_id + 1]
+//          subseq_q_len   = subseq_q_end - subseq_q_begin
+//          subseq_wg_cnt  = ceil_div(subseq_q_len, wg_seq_len)
+//          for k in [0 .. subseq_wg_cnt):
+//              append (subseq_q_begin + k * wg_seq_len, subsequence_id)
+//
+//    This allows one kernel launch to mix multiple subsequences: each workgroup
+//    resolves its own `subsequence_id`, then fetches sequence-local metadata via
+//    `subsequence_begins`, `past_lens`, `block_indices_begins`, and
+//    `block_indices`.
+// ----------------------------------------------------------------------------
 
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //query [q_len, num_heads, S]
@@ -39,13 +96,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int32_t* block_indices [[type("svmptr_t")]],
     int32_t* block_indices_begins [[type("svmptr_t")]],
     int32_t* subsequence_begins [[type("svmptr_t")]],
+    int32_t* blocked_q_starts_and_subseq_mapping [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
     int q_len
 #if SPARSE_BLOCK_SIZE > 1
     , bool* sparse_block_mask [[type("svmptr_t")]],
     bool* sparse_block_mask_wg [[type("svmptr_t")]],
-    int num_q_blocks,
-    int num_k_blocks
+    int32_t* xattn_subseq_meta [[type("svmptr_t")]]
 #endif
     ) {
     constexpr int is_causal = CMFLA_IS_CAUSAL;
@@ -73,27 +130,69 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     auto batch = cm_group_id(0);
     auto h = cm_group_id(1);
     auto hkv = h / (num_heads/num_kv_heads);
-    auto wg_id = cm_group_id(2); // each work-group handles a sequence
+    auto wg_id = cm_group_id(2);
     auto wg_local_id = cm_local_id(2);
     int local_size = cm_local_size(2);
 
-    int q_start_sg, kv_start, kv_seq_len, q_len_sg;
+    int q_start_sg, kv_start, kv_seq_len, q_tokens_in_tile_sg;
 
     // multiple work-groups are required to split a sequence,
     // need to figure out which part of query-tokens to process
-#if defined(CMPA_WG_SEQ_LEN)
-    constexpr int wg_seq_len = CMPA_WG_SEQ_LEN;
+    // Hybrid dispatch selection:
+    // - dynamic path: derive wg_seq_len from runtime local_size
+    // - optimized path: pass compile-time CMPA_WG_SEQ_LEN in build options
+#if defined(CMPA_WG_SEQ_LEN) && (CMPA_WG_SEQ_LEN > 0)
+    const int wg_seq_len = CMPA_WG_SEQ_LEN;
 #else
-    int wg_seq_len = local_size * q_step;
+    const int wg_seq_len = local_size * q_step;
 #endif
-    int past_q_lens = past_lens[0];
-    kv_start = 0;
-    kv_seq_len = q_len + past_q_lens;
-    q_start_sg = (wg_id * local_size + wg_local_id) * q_step;
-    q_len_sg = q_step;
-    if (q_start_sg + q_len_sg > q_len) {
-        q_len_sg = q_len - q_start_sg;
+
+    const int blocked_query_idx = wg_id * 2;
+    int block_start_pos = blocked_q_starts_and_subseq_mapping[blocked_query_idx];
+    int subsequence_id = blocked_q_starts_and_subseq_mapping[blocked_query_idx + 1];
+    int subseq_q_begin = subsequence_begins[subsequence_id];
+    if (subseq_q_begin >= q_len) {
+        return;
     }
+    int subseq_q_end = subsequence_begins[subsequence_id + 1];
+    if (subseq_q_end > q_len) {
+        subseq_q_end = q_len;
+    }
+    int subseq_q_len = subseq_q_end - subseq_q_begin;
+    if (subseq_q_len <= 0) {
+        return;
+    }
+
+    int past_q_lens = past_lens[subsequence_id];
+    kv_start = 0;
+    kv_seq_len = subseq_q_len + past_q_lens;
+
+    int q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
+#if KV_CACHE_COMPRESSION
+    // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
+    // the workgroup must participate. For out-of-range lanes, pass q_tokens_in_tile_sg=0
+    // so no output is written while still participating in synchronization.
+    bool lane_active = (q_start_local < subseq_q_len);
+    q_start_sg = subseq_q_begin + q_start_local;
+    q_tokens_in_tile_sg = q_step;
+    if (lane_active) {
+        if (q_start_local + q_tokens_in_tile_sg > subseq_q_len) {
+            q_tokens_in_tile_sg = subseq_q_len - q_start_local;
+        }
+    } else {
+        q_start_sg = subseq_q_begin + subseq_q_len;
+        q_tokens_in_tile_sg = 0;
+    }
+#else
+    if (q_start_local >= subseq_q_len) {
+        return;
+    }
+    q_start_sg = subseq_q_begin + q_start_local;
+    q_tokens_in_tile_sg = q_step;
+    if (q_start_local + q_tokens_in_tile_sg > subseq_q_len) {
+        q_tokens_in_tile_sg = subseq_q_len - q_start_local;
+    }
+#endif
 
     // qkv is fused
     int kv_stop = kv_seq_len;
@@ -122,9 +221,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         //todo:kv_stop is wg level, should we change to sg level?
                sglevel would cause sgs in one wg diverge. so leave for now. also one wg has same kvstop makes eaiser for kv copying/loading into SLM/cache.
     */
-        kv_stop = (wg_id + 1) * wg_seq_len + past_q_lens;
+        kv_stop = (block_start_pos - subseq_q_begin) + wg_seq_len + past_q_lens;
         if (kv_stop > kv_seq_len) kv_stop = kv_seq_len;
     }
+
+    int32_t* block_indices_base = block_indices + block_indices_begins[subsequence_id];
 
     //Q/O[B, L, H, S]
     uint q_offset = (q_start_sg*num_heads + h)*head_size;
@@ -132,12 +233,25 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
 #if SPARSE_BLOCK_SIZE > 1
     bool *block_mask_base, *wg_block_mask_base;
-    //# sparse_block_mask [num_heads, num_q_blocks, num_k_blocks]
-    //# sparse_block_mask_wg [num_heads, wg_count_along_query, num_k_blocks]
-    auto q_start_block = q_start_sg/ SPARSE_BLOCK_SIZE;
-    block_mask_base = sparse_block_mask + (h * num_q_blocks + q_start_block) * num_k_blocks;
-    wg_block_mask_base = sparse_block_mask_wg + (h * cm_group_count(2) + wg_id) * num_k_blocks;
- #endif
+    {
+        int meta_base_pa = subsequence_id * XATTN_META_STRIDE;
+        int mask_offset = xattn_subseq_meta[meta_base_pa + XATTN_META_BUF_OFF_MASK];
+        int mask_wg_offset = xattn_subseq_meta[meta_base_pa + XATTN_META_BUF_OFF_MASK_WG];
+        int subseq_num_q_blocks = xattn_subseq_meta[meta_base_pa + XATTN_META_Q_BLOCK_PAD];
+        int subseq_num_k_blocks = xattn_subseq_meta[meta_base_pa + XATTN_META_K_BLOCK_PAD];
+        if (subseq_num_q_blocks > 0 && subseq_num_k_blocks > 0) {
+            auto q_start_block = q_start_local / SPARSE_BLOCK_SIZE;
+            block_mask_base = sparse_block_mask + mask_offset + (h * subseq_num_q_blocks + q_start_block) * subseq_num_k_blocks;
+            int blocks_per_wg = wg_seq_len / SPARSE_BLOCK_SIZE;
+            int subseq_merged_q_blocks = (subseq_num_q_blocks + blocks_per_wg - 1) / blocks_per_wg;
+            int local_wg_idx = (block_start_pos - subseq_q_begin) / wg_seq_len;
+            wg_block_mask_base = sparse_block_mask_wg + mask_wg_offset + (h * subseq_merged_q_blocks + local_wg_idx) * subseq_num_k_blocks;
+        } else {
+            block_mask_base = 0;
+            wg_block_mask_base = 0;
+        }
+    }
+#endif
 
 #if KV_CACHE_COMPRESSION
 #if KV_CACHE_COMPRESSION == 1
@@ -154,9 +268,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             slm_V,
                             wg_local_id,
                             local_size,
-                            q_start_sg, //q_start for SG,
+                            q_start_local, //q_start within current subsequence,
                             kv_stop,
-                            q_len_sg, //q_step,
+                            q_tokens_in_tile_sg,
                             kv_seq_len, //kv_len,
 #ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
@@ -177,7 +291,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
-                            block_indices);
+                            block_indices_base);
 #else
     uint kv_offset = hkv*head_size*pa_block_sz;
 #ifndef CM_HAS_LSC_UNTYPED_2D
@@ -185,9 +299,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
     pa_kernel_lsc_prefetch_f16<is_causal, num_heads, num_kv_heads, head_size, 0, 16>(
                             wg_local_id,
-                            q_start_sg, //q_start for SG,
+                            q_start_local, //q_start within current subsequence,
                             kv_stop,
-                            q_len_sg, //q_step,
+                            q_tokens_in_tile_sg,
                             kv_seq_len, //kv_len,
 #ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
@@ -208,7 +322,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
-                            block_indices);
+                            block_indices_base);
 #endif
 }
 } // namespace KERNEL_NAME
