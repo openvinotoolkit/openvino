@@ -5,7 +5,6 @@ on:
     workflows:
       - "Linux (Ubuntu 22.04, Python 3.11)"
       - "Linux (Ubuntu 24.04, Python 3.12)"
-      - "Debian 10 ARM"
       - "Android ARM64 with vcpkg"
       - "Android x64"
       - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
