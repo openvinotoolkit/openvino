@@ -1743,11 +1743,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
 
+                    uint64_t adj_group_size = dynamic_quantization_group_size;
+                    const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+                    if (ov::intel_gpu::DynamicQuantizeGatedMLP::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
+                        adj_group_size = 128;
+                    }
+                    const bool is_grouped = adj_group_size != UINT64_MAX;
+                    if (is_grouped && !group_dyn_quan_allowed) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name() << " GatedMLP dyn_quan is turned off:"
+                                                                        " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
+                        return true;
+                    }
+
                     return false;
                 });
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeGatedMLP>(dynamic_quantization_group_size,
                                                                               asymmetric_dyn_quant,
-                                                                              precomputed_reduction);
+                                                                              precomputed_reduction,
+                                                                              use_gs128_for_int8_per_token,
+                                                                              use_gs128_for_linear_attention);
             }
         }
 

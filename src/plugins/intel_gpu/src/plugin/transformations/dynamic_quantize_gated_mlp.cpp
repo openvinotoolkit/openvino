@@ -6,6 +6,7 @@
 
 #include "intel_gpu/op/gated_mlp.hpp"
 #include "intel_gpu/op/placeholder.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 #include "openvino/core/rt_info.hpp"
@@ -16,7 +17,7 @@
 
 namespace ov::intel_gpu {
 
-DynamicQuantizeGatedMLP::DynamicQuantizeGatedMLP(uint64_t group_size, bool asymmetric, bool precomputed_reduction)
+DynamicQuantizeGatedMLP::DynamicQuantizeGatedMLP(uint64_t group_size, bool asymmetric, bool precomputed_reduction, bool use_gs128_for_int8_per_token, bool use_gs128_for_linear_attention)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
@@ -54,13 +55,26 @@ DynamicQuantizeGatedMLP::DynamicQuantizeGatedMLP(uint64_t group_size, bool asymm
         const bool has_wzp = !ov::is_type<ov::intel_gpu::op::Placeholder>(m_gmlp->get_input_node_shared_ptr(7));
         const bool has_static_wzp = has_wzp && m_gmlp->get_input_partial_shape(7).rank().is_static();
 
+        // For INT8 per-token quantization, use gs=128 for better performance with precomputed_reduction
+        const bool is_wei_i8u8 = cldnn::one_of(m_gmlp->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+
+        if (DynamicQuantizeGatedMLP::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
+            GPU_DEBUG_LOG << "GatedMLP Dynamic quantization: adjusting group_size from " << adj_group_size << " to 128" << std::endl;
+            adj_group_size = 128;
+        }
+
         // Add precomputed_reduction connection, if possible
         if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_gmlp->get_input_partial_shape(7);  // zp_gate
             auto weight_scale_shape = m_gmlp->get_input_partial_shape(4);  // scale_gate
-            const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_gmlp->get_input_shape(7)) == 1;
-            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
-            const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
+
+            // GatedMLP fusion transposes scale/zp from [OC, ngroups] to [ngroups, OC].
+            // So the first dimension is ngroups (not last, unlike FullyConnected).
+            const auto scale_ngroups = weight_scale_shape[0].get_length();
+            const auto zp_ngroups = weight_zp_shape[0].get_length();
+            const bool is_zp_scalar = ov::shape_size(m_gmlp->get_input_shape(7)) == 1;
+            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / zp_ngroups;
+            const size_t wei_scale_group_size = innermost_size / scale_ngroups;
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
                 GPU_DEBUG_LOG << "GatedMLP Dynamic quantization: adjusting group_size " << adj_group_size
@@ -79,7 +93,7 @@ DynamicQuantizeGatedMLP::DynamicQuantizeGatedMLP(uint64_t group_size, bool asymm
 
         if (adj_group_size != UINT64_MAX &&
             (adj_group_size == 0 || (innermost_size % adj_group_size != 0 && innermost_size > adj_group_size))) {
-            GPU_DEBUG_TRACE << "GatedMLP Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
+            GPU_DEBUG_LOG << "GatedMLP Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
             return false;
         }
 

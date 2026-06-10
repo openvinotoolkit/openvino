@@ -352,15 +352,17 @@ protected:
                 const int64_t src_group_size = src_innermost / src_scale_ngroups;
 
                 attr->set_scales(DNNL_ARG_SRC, grouped_mask, dnnl::memory::dims{1, src_group_size}, act_scale_dt);
+                act_idx++;
 
                 if (prim->activation_zero_point.is_valid()) {
-                    const auto& act_zp_layout = impl_params.get_input_layout(act_idx + 1);
+                    const auto& act_zp_layout = impl_params.get_input_layout(act_idx);
                     attr->set_zero_points(DNNL_ARG_SRC, grouped_mask, dnnl::memory::dims{1, src_group_size},
                                           onednn::convert_data_type(act_zp_layout.data_type));
+                    act_idx++;
                 }
 
                 if (prim->activation_precomputed_reduction.is_valid()) {
-                    const auto& act_red_layout = impl_params.get_input_layout(act_idx + 2);
+                    const auto& act_red_layout = impl_params.get_input_layout(act_idx);
                     attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped_mask, dnnl::memory::dims{1, src_group_size},
                                                     onednn::convert_data_type(act_red_layout.data_type));
                 }
