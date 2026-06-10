@@ -25,12 +25,30 @@ namespace attn {
 class SDPA : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::SDPA");
+    static constexpr const char* pattern_name() {
+        return "SDPA";
+    }
+    static constexpr const char* isolation_tag() {
+        return "attn";
+    }
+    static constexpr const char* group_name() {
+        return "attn";
+    }
     SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class SDPADecomposed : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::SDPADecomposed");
+    static constexpr const char* pattern_name() {
+        return "SDPADecomposed";
+    }
+    static constexpr const char* isolation_tag() {
+        return "attn";
+    }
+    static constexpr const char* group_name() {
+        return "attn";
+    }
     SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
@@ -48,6 +66,12 @@ class AttentionBroadcast2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast2");
     AttentionBroadcast2();
+};
+
+class AttentionBroadcast3 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast3");
+    AttentionBroadcast3();
 };
 
 class ShapeOfParameter : public ov::pass::MatcherPass {

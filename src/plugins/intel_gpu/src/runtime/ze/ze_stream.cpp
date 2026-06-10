@@ -66,14 +66,22 @@ ze_result_t set_kernel_arg(ze_kernel_handle_t& kernel, uint32_t idx, cldnn::memo
     if (!mem)
         return ZE_RESULT_ERROR_INVALID_ARGUMENT;
 
-    OPENVINO_ASSERT(memory_capabilities::is_usm_type(mem->get_allocation_type()), "Unsupported alloc type");
-    const auto& buf = std::dynamic_pointer_cast<const ze::gpu_usm>(mem)->get_buffer();
-    auto mem_type = std::dynamic_pointer_cast<const ze::gpu_usm>(mem)->get_allocation_type();
-    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (" << mem_type << ") " << idx
+    if (mem->get_layout().format.is_image_2d()) {
+        auto &image = downcast<const ze::gpu_image2d>(*mem);
+        auto handle = image.get_handle();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (image) " << idx << " mem: " << handle << " size: " << mem->size() << std::endl;
+        return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(handle), &handle);
+    } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
+        auto &usm = downcast<const ze::gpu_usm>(*mem);
+        const auto& buf = usm.get_buffer();
+        auto mem_type = usm.get_allocation_type();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg (" << mem_type << ") " << idx
                             << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
-
-    auto ptr = buf.get();
-    return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(ptr), &ptr);
+        auto ptr = buf.get();
+        return ze::zeKernelSetArgumentValue(kernel, idx, sizeof(ptr), &ptr);
+    } else {
+        return ZE_RESULT_ERROR_INVALID_ARGUMENT;
+    }
 }
 
 void set_arguments_impl(ze_kernel_handle_t kernel,
@@ -221,7 +229,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
     }
-    GPU_DEBUG_INFO << "[GPU] Created L0 stream ("
+    GPU_DEBUG_INFO << "[GPU] Created Level Zero stream ("
         << "index=" << index
         << ", use_cp_offload=" << use_cp_offload
         << ", use_counter_based_events=" << use_counter_based_events
@@ -348,7 +356,7 @@ std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector
 }
 
 void ze_stream::flush() const {
-    // Immediate Command List submits commands immediately - no flush impl
+    GPU_DEBUG_TRACE << "Immediate Command List submits commands immediately - no flush impl" << std::endl;
 }
 
 void ze_stream::finish() const {
@@ -398,6 +406,10 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
         m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_user_event(true));
         m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
     }
+}
+
+ze_context_handle_t ze_stream::get_context() const {
+    return _engine.get_context();
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

@@ -74,6 +74,7 @@ private:
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
     int32_t value;
+    size_t byte_size = 0;
 };
 
 }  // namespace ov::intel_cpu::riscv64

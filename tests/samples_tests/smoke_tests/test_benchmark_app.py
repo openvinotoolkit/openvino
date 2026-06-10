@@ -268,6 +268,175 @@ def test_benchmark_app_no_warmup_help(sample_language):
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
+def test_compile_only_via_niter_0(sample_language, device, cache, tmp_path):
+    """Test that -niter 0 compiles the model and exits without running inference."""
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+    assert '(skipped)' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_niter_0_dynamic_shape(sample_language, device, tmp_path):
+    """Test that -niter 0 compiles a dynamic-shape model without requiring -data_shape or -i."""
+    param = opset.parameter([-1, -1, 3, -1], ov.Type.f32, name='input')
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'dynamic_model')
+
+    model_path = tmp_path / 'dynamic_model.xml'
+    ov.save_model(model, model_path)
+
+    output = get_cmd_output(
+        get_executable(sample_language),
+        '-m', model_path,
+        '-d', device,
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+
+
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_niter_0_dynamic_shape_with_batch(device, tmp_path):
+    """Test that -b combined with -niter 0 and a dynamic-shape model is handled correctly.
+
+    C++: dataShape is empty for dynamic inputs in compile_only mode (no -data_shape/-i provided).
+         The batch update block must not access dataShape.at(batch_index) — it should warn and
+         skip instead.
+    Python: batch update uses partial_shape (always populated from the model), so -b is applied
+            correctly without any special handling or warning.
+    """
+    param = opset.parameter([-1, 3, -1, -1], ov.Type.f32, name='input')
+    param.set_layout(ov.Layout('NCHW'))
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'dynamic_model_with_batch')
+
+    model_path = tmp_path / 'dynamic_model.xml'
+    ov.save_model(model, model_path)
+
+    # C++: -b is ignored (cannot update empty dataShape), a warning is emitted
+    cpp_output = get_cmd_output(
+        get_executable('C++'),
+        '-m', model_path,
+        '-d', device,
+        '-niter', '0',
+        '-b', '4',
+    )
+    assert 'FPS' not in cpp_output
+    assert 'Model compiled successfully' in cpp_output
+    assert 'Skipping inference due to -niter 0' in cpp_output
+    assert '-b option is ignored in compile_only mode' in cpp_output
+
+    # Python: -b is applied to partial_shape before compilation — compiles successfully, no warning
+    py_output = get_cmd_output(
+        get_executable('Python'),
+        '-m', model_path,
+        '-d', device,
+        '-niter', '0',
+        '-b', '4',
+    )
+    assert 'FPS' not in py_output
+    assert 'Model compiled successfully' in py_output
+    assert 'Skipping inference due to -niter 0' in py_output
+    assert '-b option is ignored in compile_only mode' not in py_output
+
+
+# Note: devices which do not support export_model() are excluded.
+@pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))
+def test_compile_only_niter_0_compiled_blob(device, tmp_path):
+    """Test that -niter 0 works with a pre-compiled blob model (C++ only, blob path)."""
+    param = opset.parameter([1, 3, 224, 224], ov.Type.f32, name='input')
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'static_model')
+
+    blob_path = tmp_path / 'model.blob'
+    core = ov.Core()
+    blob_path.write_bytes(core.compile_model(model, device).export_model().getvalue())
+
+    output = get_cmd_output(
+        get_executable('C++'),
+        '-m', blob_path,
+        '-d', device,
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+
+
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_via_long_form_number_iterations(device, cache, tmp_path):
+    """Test that --number_iterations 0 (long form) also triggers compile-only mode in Python.
+    Previously only the short -niter flag was detected; this covers the fix that uses
+    args.number_iterations == 0 instead of is_flag_set_in_command_line('niter')."""
+    output = get_cmd_output(
+        get_executable('Python'),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '--number_iterations', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+    assert '(skipped)' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_sync_nireq_skips_validation(sample_language, device, cache, tmp_path):
+    """Both C++ and Python: -api sync -nireq 2 -niter 0 must not raise the nireq > niter
+    validation error.
+    """
+    # compile-only: nireq > niter is allowed, inference is entirely skipped
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-api', 'sync',
+        '-nireq', '2',
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+
+    # sanity-check: the nireq > niter guard must still fire for normal runs
+    try:
+        get_cmd_output(
+            get_executable(sample_language),
+            *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+            '-d', device,
+            '-api', 'sync',
+            '-nireq', '2',
+            '-niter', '1',
+        )
+        pytest.fail('Expected an error for nireq > niter in sync mode, but no error was raised')
+    except Exception as e:
+        error_text = str(getattr(e, 'output', str(e)))
+        # C++ message: "Number of iterations should be greater than number of infer requests when using sync API."
+        # Python message: "Number of infer requests should be less than or equal to number of iterations in sync mode."
+        assert ('Number of iterations should be greater than number of infer requests' in error_text or
+                'Number of infer requests should be less than or equal to number of iterations' in error_text)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+def test_niter_0_in_help(sample_language):
+    """Test that -niter help text documents the compile-only special case."""
+    output = get_cmd_output(get_executable(sample_language), '-h')
+    assert '-niter' in output
+    assert 'niter 0' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
 @pytest.mark.parametrize('api', ['sync', 'async'])
 def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, cache, tmp_path):
     """Test -no_warmup flag works with different API modes"""

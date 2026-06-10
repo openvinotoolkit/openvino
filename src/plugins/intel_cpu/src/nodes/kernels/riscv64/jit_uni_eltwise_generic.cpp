@@ -247,7 +247,7 @@ void jit_uni_eltwise_generic<isa>::update_vlen(const Xbyak_riscv::Reg& gpr_work_
     current_lmul = lmul;
     current_sew = sew;
 
-    const auto byte_shift = static_cast<const uint32_t>(sew2bytes(sew) >> 1);
+    const auto byte_shift = static_cast<uint32_t>(sew2bytes(sew) >> 1);
     slli(reg_bvlen, reg_vlen, byte_shift);
 }
 
@@ -492,6 +492,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_softsign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
@@ -516,6 +517,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
               OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
               OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
+              OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
               OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
@@ -653,6 +655,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_softsign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
               OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
@@ -677,6 +680,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
               OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
               OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
+              OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
               OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),

@@ -5,16 +5,19 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 TEST(GraphComparatorTests, AllEnablePositiveCheck) {
     FunctionsComparator comparator(FunctionsComparator::no_default());
@@ -697,4 +700,31 @@ TEST(GraphComparatorTests, CheckConsumersCountNegative) {
     comparator.enable(FunctionsComparator::NODES).enable(FunctionsComparator::CONSUMERS_COUNT);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
+}
+
+TEST(InferOnTemplateTests, ShapeMismatchDiagnosticContainsPortInfo) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+    input->set_friendly_name("my_param");
+    input->get_output_tensor(0).set_names({"my_tensor"});
+    auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input});
+
+    ov::Tensor wrong_shape_tensor(ov::element::f32, ov::Shape{8});
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs{{input, wrong_shape_tensor}};
+
+    std::string what;
+    try {
+        ov::test::utils::infer_on_template(model, inputs);
+        FAIL() << "infer_on_template was expected to throw on shape mismatch";
+    } catch (const std::exception& ex) {
+        what = ex.what();
+    }
+
+    EXPECT_NE(what.find("infer_on_template: set_tensor failed"), std::string::npos) << what;
+    EXPECT_NE(what.find("my_param"), std::string::npos) << what;
+    EXPECT_NE(what.find("my_tensor"), std::string::npos) << what;
+    EXPECT_NE(what.find("expected_shape="), std::string::npos) << what;
+    EXPECT_NE(what.find("got_tensor_shape="), std::string::npos) << what;
+    EXPECT_NE(what.find("Compiled model inputs:"), std::string::npos) << what;
+    EXPECT_NE(what.find("Original error:"), std::string::npos) << what;
 }
