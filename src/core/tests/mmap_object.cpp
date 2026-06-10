@@ -486,7 +486,7 @@ TEST(MappedMemory, hint_prefetch_with_both_offsets) {
 static size_t count_resident_pages(const void* data, size_t size) {
     if (!data || size == 0)
         return 0;
-    const size_t page = static_cast<size_t>(sysconf(_SC_PAGE_SIZE));
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
     const auto base_addr = reinterpret_cast<uintptr_t>(data);
     const auto aligned = (base_addr / page) * page;
     const auto gap = base_addr - aligned;
@@ -503,18 +503,18 @@ static size_t count_resident_pages(const void* data, size_t size) {
 // Investigates whether calling hint_prefetch(offset, size) and POSIX_FADV_SEQUENTIAL
 // on a subregion of an already-cached file evicts pages *outside* that region
 TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
-    constexpr size_t file_size_mb = 1024;
+    constexpr size_t file_size_mb = 128;
     constexpr size_t file_size = file_size_mb * 1024 * 1024;
 
-    constexpr size_t prefetch_offset_mb = 600;
-    constexpr size_t prefetch_size_mb = 100;
+    constexpr size_t prefetch_offset_mb = 80;
+    constexpr size_t prefetch_size_mb = 16;
     constexpr size_t prefetch_offset = prefetch_offset_mb * 1024 * 1024;
     constexpr size_t prefetch_size = prefetch_size_mb * 1024 * 1024;
 
-    constexpr size_t prefix_mb = 500;
+    constexpr size_t prefix_mb = 64;
     constexpr size_t prefix_size = prefix_mb * 1024 * 1024;
 
-    const size_t page = static_cast<size_t>(sysconf(_SC_PAGE_SIZE));
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
     const size_t total_prefix_pages = prefix_size / page;
 
     auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
