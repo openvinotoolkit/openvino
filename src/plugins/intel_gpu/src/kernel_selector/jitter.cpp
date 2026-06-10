@@ -1454,6 +1454,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string min_func = "undefined";
     std::string abs_func = "undefined";
     std::string type_size = "undefined";
+    std::string compute_type;
+    std::string to_compute_type;
     bool is_fp;
     switch (dataType) {
         case Datatype::INT8:
@@ -1596,6 +1598,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(ushort) 0";
             to_type = "_convert_bfloat16_as_ushort(v)";
             to_type_sat = "_convert_bfloat16_as_ushort(v)";
+            compute_type = "float";
+            to_compute_type = "_convert_as_bfloat16_float(v)";
             type_size = "2";
             is_fp = false;
             break;
@@ -1616,6 +1620,11 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
     }
 
+    if (compute_type.empty())
+        compute_type = type;
+    if (to_compute_type.empty())
+        to_compute_type = to_type;
+
     return JitConstants{
         MakeJitConstant(macroName + "_TYPE", type),
         MakeJitConstant(macroName + "_VAL_MAX", max_val),
@@ -1630,6 +1639,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_ABS_FUNC", abs_func),
         MakeJitConstant(macroName + "_TYPE_SIZE", type_size),
         MakeJitConstant(macroName + "_IS_FP", is_fp),
+        MakeJitConstant(macroName + "_COMPUTE_TYPE", compute_type),
+        MakeJitConstant("TO_" + macroName + "_COMPUTE_TYPE(v)", to_compute_type),
     };
 }
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName) {

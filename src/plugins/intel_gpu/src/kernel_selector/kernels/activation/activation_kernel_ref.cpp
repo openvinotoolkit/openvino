@@ -14,11 +14,13 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
     k.EnableActivationAdditionalParamsAsInput();
@@ -33,7 +35,7 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
 
 JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData dispatchData) const {
     auto jit = ActivationKernelBase::GetJitConstants(params, dispatchData);
-    auto input_dt = params.inputs[0].GetDType();
+    auto input_dt = GetComputeDatatype(params.inputs[0].GetDType());
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;

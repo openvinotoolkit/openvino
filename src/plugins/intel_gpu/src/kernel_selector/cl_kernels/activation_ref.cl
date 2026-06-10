@@ -125,20 +125,22 @@ KERNEL(activation)(
     #endif
     #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
 
-    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
+    INPUT0_COMPUTE_TYPE dst = ACTIVATION_KERNEL(TO_INPUT0_COMPUTE_TYPE(input[src_index]), PARAMETERIZED_ACTIVATION_PARAMS);
     #if HAS_FUSED_OPS
         FUSED_OPS;
-        output[dst_index] = FUSED_OPS_RESULT;
+		OUTPUT_COMPUTE_TYPE out = FUSED_OPS_RESULT;
+        output[dst_index] = TO_OUTPUT_TYPE(out);
     #else
-        output[dst_index] = dst;
+        output[dst_index] = TO_OUTPUT_TYPE(dst);
     #endif
 #else
-    INPUT0_TYPE dst = ACTIVATION_KERNEL(input[src_index], ACTIVATION_PARAMS);
+    INPUT0_COMPUTE_TYPE dst = ACTIVATION_KERNEL(TO_INPUT0_COMPUTE_TYPE(input[src_index]), ACTIVATION_PARAMS);
     #if HAS_FUSED_OPS
         FUSED_OPS;
-        output[dst_index] = FUSED_OPS_RESULT;
+        OUTPUT_COMPUTE_TYPE out = FUSED_OPS_RESULT;
+        output[dst_index] = TO_OUTPUT_TYPE(out);
     #else
-        output[dst_index] = dst;
+        output[dst_index] = TO_OUTPUT_TYPE(dst);
     #endif
 #endif
 }
