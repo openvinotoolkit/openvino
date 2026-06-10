@@ -8,7 +8,6 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -816,4 +815,3 @@ TEST(OnlinePartitioningTest, IsRegularCrossGroupConsumerCase_Gemma4KVSharingPatt
     // (block 5 has external consumer, others do not) → irregular_io=true.
     EXPECT_TRUE(ens.irregular_io);
 }
-
