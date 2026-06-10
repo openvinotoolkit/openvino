@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
@@ -55,23 +56,20 @@ struct LoRAInjector {
     bool stateful = false;
     ov::SinkVector* sinks = nullptr;
 
+    static const std::vector<std::string>& default_targets() {
+        static const std::vector<std::string> defaults =
+            {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"};
+        return defaults;
+    }
+
     bool should_adapt(const std::string& name) const {
         if (max_rank == 0) {
             return false;
         }
-        if (targets.empty()) {
-            // Default target set
-            static const std::vector<std::string> defaults =
-                {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"};
-            for (const auto& t : defaults)
-                if (name.find(t) != std::string::npos)
-                    return true;
-            return false;
-        }
-        for (const auto& t : targets)
-            if (name.find(t) != std::string::npos)
-                return true;
-        return false;
+        const auto& list = targets.empty() ? default_targets() : targets;
+        return std::any_of(list.begin(), list.end(), [&name](const std::string& t) {
+            return name.find(t) != std::string::npos;
+        });
     }
 };
 
