@@ -187,10 +187,11 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
     }
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
+        }
+    }   
+   
     return true;
 }
 
