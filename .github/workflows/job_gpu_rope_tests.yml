@@ -131,29 +131,21 @@ jobs:
 
       - name: Install RoPE test requirements
         run: |
+          # rope_gpu.txt holds GPU-only deps (diffusers + transformers bump);
+          # kept out of the shared rope.txt because the CPU RoPE flow installs
+          # that file too and diffusers breaks optimum-intel there — see
+          # rope_gpu.txt. All three resolved in one pip pass so transformers is
+          # not installed then re-installed (faster, single consistent resolve).
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
-          # GPU-only extra deps (diffusers + transformers bump). Kept in a
-          # dedicated file rather than inline here / in the shared rope.txt
-          # (which the CPU RoPE flow also installs) — see rope_gpu.txt header.
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
 
       - name: OpenVINO GPU RoPE Tests
         env:
           TEST_DEVICE: GPU
           PYTHONPATH: ${{ github.workspace }}/install/tests/model_hub_tests
         run: |
-          # We are testing the pip-wheel distribution (matches the CPU RoPE
-          # flow in job_pytorch_models_tests.yml). Unlike the non-RoPE flow,
-          # which sources setupvars.sh to set LD_LIBRARY_PATH=<install>/runtime/lib,
-          # `pip install openvino` does not patch the dynamic linker — its
-          # shared libs live under <site-packages>/openvino/libs. Without this
-          # export the GPU plugin loads but discovers 0 devices on the iGPU
-          # runner.
-          OV_LIBS_DIR=$(python3 -c "import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), 'libs'))")
-          export LD_LIBRARY_PATH="${OV_LIBS_DIR}:${LD_LIBRARY_PATH}"
-
           # Fail fast if the iGPU runner did not expose a GPU (clinfo earlier
           # is informational and does not fail the step when 0 platforms are
           # found). Without this gate, all 35 pytest cases would fail with the
