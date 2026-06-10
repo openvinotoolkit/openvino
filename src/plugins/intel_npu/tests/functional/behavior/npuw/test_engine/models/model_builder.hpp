@@ -161,6 +161,14 @@ struct LLMConfig : public BaseModelConfig {
     bool pre_norm = true;
     bool force_gqa_broadcast = false;  ///< force 5-input SDPA (needed for SDPA isolation pattern matching)
 
+    /// Qwen3.5-style gated attention: q_proj is 2x wide ([q | gate] per head) and
+    /// Sigmoid(gate) scales the flattened SDPA output before o_proj.
+    bool attn_output_gate = false;
+
+    /// Partial RoPE: rotate only the first rotary_dim of each head (0 = full head_dim).
+    /// Only applies when build_llm auto-creates the RoPE functor.
+    size_t rotary_dim = 0;
+
     // MoE configuration (num_experts=0 means dense, no MoE)
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.

@@ -654,7 +654,12 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
     }
     // config.rope set without position_ids means RoPE was pre-built with position_ids baked in
     if (position_ids_output.get_node() && !config.rope) {
-        config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        if (config.rotary_dim > 0 && config.rotary_dim < config.head_dim) {
+            config.rope =
+                PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
+        } else {
+            config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        }
     }
 
     return position_ids_output;
@@ -748,6 +753,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.rope_fn = config.rope;
     attn.sdpa_mask = sdpa_mask;
     attn.shared_broadcast_shape = shared_broadcast;
+    attn.output_gate = config.attn_output_gate;
 
     // Non-hybrid: standard past_key_values naming. Hybrid full-attention layers get
     // per-attn-layer cache_params naming (set below inside build_full_attn_layer).
