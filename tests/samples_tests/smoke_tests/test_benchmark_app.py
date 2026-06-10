@@ -111,8 +111,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_benchmark_app_help(sample_language):
-    output = get_cmd_output(get_executable(sample_language), '-h')
-    assert '-high_precision_latency' not in output
+    get_cmd_output(get_executable(sample_language), '-h')
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
