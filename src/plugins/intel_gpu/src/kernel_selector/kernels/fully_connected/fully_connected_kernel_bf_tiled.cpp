@@ -170,6 +170,34 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
     return dynamic_quantization_group_size;
 }
 
+bool would_use_slm_with_internal_dq(const slm_dq_eligibility_params& params,
+                                    size_t runtime_batch,
+                                    size_t standalone_dq_group_size) {
+    if (params.device_type != dev_type::integrated_gpu)
+        return false;
+
+    if (!is_weight_dyn_quantizable(params.is_4bit_weight, params.is_8bit_asym_weight))
+        return false;
+
+    constexpr size_t min_required_slm = 2 * simd * 1 * simd * 2;
+    if (params.max_local_mem_size < min_required_slm)
+        return false;
+
+    constexpr size_t default_alignment = 16;
+    if (runtime_batch + default_alignment <= min_slm_size)
+        return false;
+
+    const auto fc_internal_group_size = get_dynamic_quantize_group_size(params.dq_group_size,
+                                                                        params.scale_group_size,
+                                                                        params.zp_group_size,
+                                                                        params.has_decompression_zp,
+                                                                        params.is_8bit_asym_weight);
+    return fc_internal_group_size != 0 &&
+           params.weight_ifm != 0 &&
+           params.weight_ifm % fc_internal_group_size == 0 &&
+           fc_internal_group_size == standalone_dq_group_size;
+}
+
 bool should_dynamic_quantize(const fully_connected_params& params) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 

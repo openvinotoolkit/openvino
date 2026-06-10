@@ -15,17 +15,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
-static bool fc_bf_tiled_uses_internal_dynamic_quantize(const fully_connected_node& fc_node, size_t input_batch) {
-    // Mirror FullyConnected_bf_tiled runtime dispatch: internal DynamicQuantize is used only by the SLM kernel.
-    if (fc_node.get_program().get_engine().get_device_info().dev_type != device_type::integrated_gpu) {
-        return false;
-    }
-
-    constexpr size_t default_alignment = 16;
-    constexpr size_t min_slm_size = 256;
-    return input_batch + default_alignment > min_slm_size;
-}
-
 static size_t get_static_last_dim(const layout& layout) {
     const auto& shape = layout.get_partial_shape();
     if (shape.rank().is_dynamic() || shape.size() == 0 || shape[shape.size() - 1].is_dynamic()) {
@@ -85,29 +74,13 @@ static size_t get_fc_zp_group_size(const fully_connected_node& fc_node) {
     return ifm_size / zp_groups;
 }
 
-static size_t get_fc_internal_dynamic_quantize_group_size(const fully_connected_node& fc_node) {
-    const auto weight_type = fc_node.weights().get_output_layout().data_type;
-    const bool has_zp = has_fc_decompression_zp(fc_node);
-    const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_zp;
-
-    return kernel_selector::fc_kernel_bf_tiled_utils::get_dynamic_quantize_group_size(
-        fc_node.get_program().get_config().get_dynamic_quantization_group_size(),
-        get_fc_scale_group_size(fc_node),
-        get_fc_zp_group_size(fc_node),
-        has_zp,
-        is_8bit_asym_weight);
-}
-
-static bool fc_bf_tiled_supports_internal_dynamic_quantize(const fully_connected_node& fc_node) {
-    const auto weight_type = fc_node.weights().get_output_layout().data_type;
-    const bool is_4bit_weight = weight_type == data_types::i4 || weight_type == data_types::u4;
-    const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_fc_decompression_zp(fc_node);
-
-    return kernel_selector::fc_kernel_bf_tiled_utils::is_weight_dyn_quantizable(is_4bit_weight, is_8bit_asym_weight);
-}
-
 static bool is_fc_bf_tiled_kernel(const std::string& kernel_name) {
     return kernel_name == "fully_connected_gpu_bf_tiled";
+}
+
+static kernel_selector::dev_type to_kernel_selector_device_type(device_type type) {
+    return type == device_type::discrete_gpu ? kernel_selector::dev_type::discrete_gpu
+                                             : kernel_selector::dev_type::integrated_gpu;
 }
 
 static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
@@ -125,7 +98,13 @@ static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
         return false;
     }
 
-    if (act_layout.data_type != data_types::f16 || !fc_bf_tiled_supports_internal_dynamic_quantize(fc_node)) {
+    for (size_t i = 0; i + 1 < attrs.group_sizes.size(); ++i) {
+        if (attrs.group_sizes[i] != 1) {
+            return false;
+        }
+    }
+
+    if (act_layout.data_type != data_types::f16) {
         return false;
     }
 
@@ -154,14 +133,34 @@ static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
         return false;
     }
 
-    const auto fc_internal_group_size = get_fc_internal_dynamic_quantize_group_size(fc_node);
     const auto input_features = get_static_last_dim(act_layout);
+    const auto weight_layout = fc_node.weights().get_output_layout();
+    const auto weight_ifm = get_static_last_dim(weight_layout);
+    if (input_features == 0 || weight_ifm == 0 || input_features != weight_ifm) {
+        return false;
+    }
+
+    const auto weight_type = weight_layout.data_type;
+    const bool has_zp = has_fc_decompression_zp(fc_node);
+    const bool is_4bit_weight = weight_type == data_types::i4 || weight_type == data_types::u4;
+    const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_zp;
+    const auto& device_info = fc_node.get_program().get_engine().get_device_info();
+
+    kernel_selector::fc_kernel_bf_tiled_utils::slm_dq_eligibility_params eligibility;
+    eligibility.device_type = to_kernel_selector_device_type(device_info.dev_type);
+    eligibility.max_local_mem_size = device_info.max_local_mem_size;
+    eligibility.is_4bit_weight = is_4bit_weight;
+    eligibility.is_8bit_asym_weight = is_8bit_asym_weight;
+    eligibility.weight_ifm = weight_ifm;
+    eligibility.scale_group_size = get_fc_scale_group_size(fc_node);
+    eligibility.zp_group_size = get_fc_zp_group_size(fc_node);
+    eligibility.has_decompression_zp = has_zp;
+    eligibility.dq_group_size = fc_node.get_program().get_config().get_dynamic_quantization_group_size();
+
     return has_equivalent_fc_fast_path &&
-           fc_internal_group_size != 0 &&
-           input_features != 0 &&
-           input_features % fc_internal_group_size == 0 &&
-           fc_internal_group_size == attrs.group_sizes.back() &&
-           fc_bf_tiled_uses_internal_dynamic_quantize(fc_node, input_batch);
+           kernel_selector::fc_kernel_bf_tiled_utils::would_use_slm_with_internal_dq(eligibility,
+                                                                                     input_batch,
+                                                                                     attrs.group_sizes.back());
 }
 
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function only when the
