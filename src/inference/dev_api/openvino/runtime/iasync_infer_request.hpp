@@ -198,6 +198,8 @@ protected:
 private:
     enum InferState { IDLE, BUSY, CANCELLED, STOP };
     using Futures = std::vector<std::shared_future<void>>;
+    using Callback = std::function<void(std::exception_ptr)>;
+    using CallbackPtr = std::shared_ptr<Callback>;
     enum Stage_e : std::uint8_t { EXECUTOR, TASK };
     InferState m_state = InferState::IDLE;
     Futures m_futures;
@@ -207,14 +209,15 @@ private:
     struct DisableCallbackGuard {
         explicit DisableCallbackGuard(IAsyncInferRequest* this_) : _this{this_} {
             std::lock_guard<std::mutex> lock{_this->m_mutex};
-            std::swap(m_callback, _this->m_callback);
+            m_callback = _this->m_callback;
+            _this->m_callback = nullptr;
         }
         ~DisableCallbackGuard() {
             std::lock_guard<std::mutex> lock{_this->m_mutex};
             _this->m_callback = m_callback;
         }
         IAsyncInferRequest* _this = nullptr;
-        std::function<void(std::exception_ptr)> m_callback;
+        CallbackPtr m_callback;
     };
 
     void run_first_stage(const Pipeline::iterator itBeginStage,
@@ -277,11 +280,7 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
-    // Callback invocation can be re-entered on the same thread when an inline executor is used
-    // and callback body calls start_async() on the same request.
-    // Recursive mutex avoids self-deadlock while still serializing callback invocations across threads.
-    mutable std::recursive_mutex m_callback_invoke_mutex;
-    std::function<void(std::exception_ptr)> m_callback;
+    CallbackPtr m_callback;
 };
 
 }  // namespace ov

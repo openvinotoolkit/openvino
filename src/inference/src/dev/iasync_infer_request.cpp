@@ -107,7 +107,7 @@ void ov::IAsyncInferRequest::cancel() {
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     check_state();
     std::lock_guard lock{m_mutex};
-    m_callback = std::move(callback);
+    m_callback = callback ? std::make_shared<Callback>(std::move(callback)) : nullptr;
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
@@ -160,28 +160,18 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
                     std::promise<void> promise;
-                    std::function<void(std::exception_ptr)> callback;
+                    CallbackPtr callback;
                     {
                         std::lock_guard lock{m_mutex};
                         m_state = InferState::IDLE;
                         promise = std::move(m_promise);
+                        callback = m_callback;
                     }
-                    {
-                        std::lock_guard callbackLock{m_callback_invoke_mutex};
-                        {
-                            std::lock_guard lock{m_mutex};
-                            std::swap(callback, m_callback);
-                        }
-                        if (callback) {
-                            try {
-                                callback(currentException);
-                            } catch (...) {
-                                currentException = std::current_exception();
-                            }
-                        }
-                        std::lock_guard lock{m_mutex};
-                        if (!m_callback) {
-                            std::swap(callback, m_callback);
+                    if (callback) {
+                        try {
+                            (*callback)(currentException);
+                        } catch (...) {
+                            currentException = std::current_exception();
                         }
                     }
                     if (nullptr == currentException) {
@@ -258,7 +248,7 @@ void ov::IAsyncInferRequest::stop_and_wait() {
         std::lock_guard<std::mutex> lock{m_mutex};
         state = m_state;
         if (state != InferState::STOP) {
-            m_callback = {};
+            m_callback = nullptr;
             m_state = InferState::STOP;
             futures = std::move(m_futures);
         }

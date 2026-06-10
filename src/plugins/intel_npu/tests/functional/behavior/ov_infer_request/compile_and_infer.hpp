@@ -519,7 +519,9 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back([this, &exceptions, &exceptions_mutex, &compiled_models, i]() {
             try {
-                compiled_models[i] = core->compile_model(function, target_device, configuration);
+                ov::AnyMap model_configuration = configuration;
+                model_configuration[intel_npu::shared_common_queue.name()] = false;
+                compiled_models[i] = core->compile_model(function, target_device, model_configuration);
                 // Stagger threads to desynchronize property setting and expose race conditions
                 std::this_thread::sleep_for(std::chrono::milliseconds(i % 10));
                 if (i % 2 == 0) {
