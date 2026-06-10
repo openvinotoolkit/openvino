@@ -313,7 +313,15 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
+
+
     auto& fc_params = static_cast<const fully_connected_params&>(params);
+    GPU_DEBUG_TRACE_DETAIL << "bf_tiled::Validate called, weights type=" << static_cast<int>(fc_params.weights.GetDType()) << std::endl;
+    if (fc_params.weights.GetDType() == WeightsType::UINT2) {
+       // GPU_DEBUG_TRACE_DETAIL << "bf_tiled rejecting UINT2" << std::endl;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+
     auto& input = fc_params.inputs[0];
     auto& output = fc_params.outputs[0];
     auto& weights = fc_params.weights;

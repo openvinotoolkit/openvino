@@ -22,6 +22,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "compressed_weights_pattern.hpp"
 
@@ -46,6 +47,24 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
+        // === ADD THIS ===
+        std::shared_ptr<ov::Node> weight_ptr = pattern_map.count(weights_const_m) ? pattern_map.at(weights_const_m).get_node_shared_ptr() : pattern_map.at(weights_param_m).get_node_shared_ptr();
+        auto wt_et = weight_ptr->get_element_type();
+        GPU_DEBUG_COUT << "ConvertFCToCompressed MATCHED: " << fc->get_friendly_name() << " weights_type=" << wt_et
+                       << " weights_shape=" << fc->get_input_shape(1) << std::endl;
+        {
+            auto scale_node = pattern_map.at(mul_const_m).get_node_shared_ptr();
+            GPU_DEBUG_COUT << "  scale: type=" << scale_node->get_element_type() << " shape=" << scale_node->get_output_shape(0) << std::endl;
+        }
+
+        // ZP — present only if Subtract matched
+        if (pattern_map.count(sub_const_m)) {
+            auto zp_node = pattern_map.at(sub_const_m).get_node_shared_ptr();
+            GPU_DEBUG_COUT << "  zp:    type=" << zp_node->get_element_type() << " shape=" << zp_node->get_output_shape(0) << std::endl;
+        } else {
+            GPU_DEBUG_COUT << "  zp:    <none / symmetric>" << std::endl;
+        }
+        // === END ADD ===
         bool has_transpose = pattern_map.count(transpose_m);
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
@@ -55,8 +74,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool grouped = scale_shape.size() == weight_shape.size() + 1;
 
         bool weight_u8 = false;
-        std::shared_ptr<ov::Node> weight_ptr =
-            pattern_map.count(weights_const_m) ? pattern_map.at(weights_const_m).get_node_shared_ptr() : pattern_map.at(weights_param_m).get_node_shared_ptr();
+        //std::shared_ptr<ov::Node> weight_ptr =
+          //  pattern_map.count(weights_const_m) ? pattern_map.at(weights_const_m).get_node_shared_ptr() : pattern_map.at(weights_param_m).get_node_shared_ptr();
         if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8)
             weight_u8 = true;
 
