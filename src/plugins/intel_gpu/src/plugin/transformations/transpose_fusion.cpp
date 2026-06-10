@@ -560,13 +560,17 @@ QKVSplitReshapeMatcher::QKVSplitReshapeMatcher() {
             return false;
         }
 
-        // [Check 4 - relaxed] Each Split output -> Squeeze/Reshape (rank 5->4, dim[0]==1 static).
+        // [Check 4] Each Split output -> Squeeze/Reshape (rank 5->4, dim[0]==1 static).
         // In STATIC compile v0::Squeeze is pre-lowered to v1::Reshape; in DYNAMIC it stays v0::Squeeze.
         // Downstream can be:
-        //   a) Transpose([0,2,1,3]) -> Reshape  (Q/K path)
-        //   b) Anything else, e.g. SDPA         (V path)
+        //   a) Transpose([0,2,1,3]) -> flatten Reshape (rank 3)  (Q/K path)
+        //   b) Anything else, e.g. SDPA                          (V path)
         std::array<std::shared_ptr<ov::Node>, 3>              sq_reshapes;      // v1::Reshape OR v0::Squeeze
         std::array<std::shared_ptr<ov::op::v1::Transpose>, 3> qkv_transposes;   // nullptr = V path
+        // [Check 5] Optional flatten Reshape ([?,?,H*S]) right after Q/K Transpose.
+        // Matched when present; included in the replacement so old Squeeze+Transpose+flatten
+        // are all eliminated together and replaced by new_squeeze+new_flatten.
+        std::array<std::shared_ptr<ov::op::v1::Reshape>, 3>   flatten_reshapes{}; // nullptr = not found
 
         for (size_t i = 0; i < 3; ++i) {
             if (split->get_output_target_inputs(i).size() != 1) {
@@ -604,6 +608,21 @@ QKVSplitReshapeMatcher::QKVSplitReshapeMatcher() {
                     }
                 }
             }
+
+            // [Check 5] Detect flatten/Reshape (rank 3) right after Q/K Transpose.
+            // Only single-consumer Transpose -> Reshape chains are matched.
+            if (qkv_transposes[i] &&
+                qkv_transposes[i]->get_output_target_inputs(0).size() == 1) {
+                auto tp_consumer_node =
+                    (*qkv_transposes[i]->get_output_target_inputs(0).begin()).get_node();
+                auto flat = ov::as_type_ptr<ov::op::v1::Reshape>(
+                    tp_consumer_node->shared_from_this());
+                if (flat) {
+                    const auto& flat_out = flat->get_output_partial_shape(0);
+                    if (!flat_out.rank().is_dynamic() && flat_out.rank().get_length() == 3)
+                        flatten_reshapes[i] = flat;
+                }
+            }
         }
 
         // === All checks passed — transform ===
@@ -615,27 +634,41 @@ QKVSplitReshapeMatcher::QKVSplitReshapeMatcher() {
         ov::copy_runtime_info(split, new_split);
 
         for (size_t i = 0; i < 3; ++i) {
-            // New Squeeze(axis=2): [?,?,1,H,S] -> [?,?,H,S]
-            // GPU: crop_axis=2, output_pattern={2}, tentative_reshape_axis=1>=0 -> ALLOW in-place
+            if (qkv_transposes[i] && flatten_reshapes[i]) {
+                // Q/K path with flatten: skip the intermediate Squeeze and create a single
+                // base-mode Reshape from Split output [?,?,1,H,S] directly to [?,?,H*S].
+                // The middle-axis (axis=2, dim==1) + trailing dims are merged in one step.
+                // crop in-place is preserved via the base-mode middle-axis path in reshape_inst.h
+                // and prepare_buffer_fusing.cpp, which sets padding = k * H * S on the merged
+                // last logical output dim (physical y-axis for rank-3 bfyx).
+                auto flat_shape_const = flatten_reshapes[i]->get_input_node_shared_ptr(1);
+                auto new_combined = std::make_shared<ov::op::v1::Reshape>(
+                    new_split->output(i), flat_shape_const, flatten_reshapes[i]->get_special_zero());
+                new_combined->set_friendly_name(flatten_reshapes[i]->get_friendly_name());
+                ov::copy_runtime_info({sq_reshapes[i], qkv_transposes[i], flatten_reshapes[i]}, new_combined);
+                ov::replace_node(flatten_reshapes[i], new_combined);
+                continue;
+            }
+
+            // All remaining paths use an intermediate Squeeze(axis=2).
+            // GPU: crop_axis=2, output_pattern={2}, reshape_axis=2-1=1>=0 -> ALLOW in-place
             auto new_sq_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2LL});
             auto new_squeeze = std::make_shared<ov::op::v0::Squeeze>(new_split->output(i), new_sq_axes);
             new_squeeze->set_friendly_name(sq_reshapes[i]->get_friendly_name());
             ov::copy_runtime_info(sq_reshapes[i], new_squeeze);
 
             if (qkv_transposes[i]) {
-                // Q/K path: new_squeeze output [?,?,H,S] == old qkv_tp output [?,?,H,S].
-                // Use replace_node to swap qkv_tp -> new_squeeze in one atomic step.
+                // Q/K path without flatten: replace old Transpose directly with new_squeeze.
                 ov::replace_node(qkv_transposes[i], new_squeeze);
             } else {
-                // V path: consumers expect old sq_reshape output [?,H,?,S].
-                // new_squeeze outputs [?,?,H,S]. Add compensating Transpose([0,2,1,3]).
+                // V path: consumers expect [?,H,?,S]; new_squeeze outputs [?,?,H,S].
+                // Add compensating Transpose([0,2,1,3]) to restore the expected shape.
                 auto v_tp_order = ov::op::v0::Constant::create(
                     ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
                 auto new_v_tp = std::make_shared<ov::op::v1::Transpose>(
                     new_squeeze->output(0), v_tp_order);
                 new_v_tp->set_friendly_name(sq_reshapes[i]->get_friendly_name() + "/tp_v");
                 ov::copy_runtime_info(sq_reshapes[i], new_v_tp);
-                // replace_node atomically replaces all consumers of sq_reshape[i] with new_v_tp
                 ov::replace_node(sq_reshapes[i], new_v_tp);
             }
         }

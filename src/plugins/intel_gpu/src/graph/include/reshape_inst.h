@@ -53,6 +53,23 @@ public:
                     const bool is_static_one = !crop_out_ps[crop_axis].is_dynamic() &&
                                                crop_out_ps[crop_axis].get_length() == 1;
                     if (is_static_one) {
+                        // The downstream consumer must be able to apply a runtime-propagated
+                        // padding offset. mvn canonicalizes input strides and vl_sdpa (CM kernel)
+                        // reads raw SVM pointers without shape_info, so neither can consume the
+                        // propagated dynamic padding. Keep the same guard the base mode uses below.
+                        if (get_users().size() == 1 &&
+                            (get_users().front()->is_type<mvn>() || get_users().front()->is_type<vl_sdpa>()))
+                            return false;
+
+                        // The crop-axis padding offset equals k * product(dims after crop_axis).
+                        // That offset must be a compile-time constant, so every dimension trailing
+                        // the crop axis has to be static; otherwise the stride cannot be computed
+                        // at build time and the propagated offset would be wrong.
+                        for (size_t d = static_cast<size_t>(crop_axis) + 1; d < crop_out_ps.size(); d++) {
+                            if (crop_out_ps[d].is_dynamic())
+                                return false;
+                        }
+
                         // Compute tentative reshape_axis to ensure prepare_buffer_fusing can handle it.
                         // For squeeze mode: reshape_axis = crop_axis - (# output_pattern values <= crop_axis).
                         // If reshape_axis < 0, prepare_buffer_fusing would crash, so deny.
@@ -112,6 +129,37 @@ public:
 
         auto input_rank = input_pshape.size();
         auto input_last_dim = static_cast<int64_t>(input_rank - 1);
+
+        // Special case: middle-axis crop merged with all trailing dims into a single output dim.
+        // Pattern: crop produces [?,seq,1,H,S] with axis=2, base-mode Reshape outputs [?,seq,H*S].
+        // Requirements:
+        //   - output rank == axis+1 (prefix preserved + one merged trailing dim),
+        //   - crop dim is static 1 (no per-slice stride gap, so padding offset is exact),
+        //   - all trailing input dims are static (needed for stride computation),
+        //   - the merged output dim equals product(input[axis..end]), i.e. the whole tail is
+        //     flattened into a single dim. This rejects ambiguous splits like [?,seq,1,H,S] ->
+        //     [?,seq*H,S], where the trailing dim would not carry the full crop-axis padding.
+        // The padding propagation uses the merged last logical output dim (see prepare_buffer_fusing.cpp).
+        if (axis > 0 && axis < input_last_dim) {
+            const auto& out_ps = prim->output_partial_shape;
+            if (!out_ps.rank().is_dynamic() &&
+                out_ps.rank().get_length() == axis + 1 &&
+                !input_pshape[axis].is_dynamic() &&
+                input_pshape[axis].get_length() == 1) {
+                int64_t trailing_product = 1;
+                bool all_static = true;
+                for (int64_t d = axis; d <= input_last_dim; d++) {
+                    if (input_pshape[d].is_dynamic()) { all_static = false; break; }
+                    trailing_product *= input_pshape[d].get_length();
+                }
+                if (!all_static)
+                    return false;
+                const auto& merged_dim = out_ps[axis];
+                return !merged_dim.is_dynamic() && merged_dim.get_length() == trailing_product;
+            }
+            return false;
+        }
+
         if (axis != input_last_dim || input_pshape[input_last_dim].is_dynamic())
             return false;
 
