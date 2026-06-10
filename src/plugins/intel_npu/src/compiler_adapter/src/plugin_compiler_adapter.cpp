@@ -301,6 +301,14 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
 }
 
 bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    // An empty descriptor carries no requirements to validate. Reject it up front so this path
+    // matches the compiler-in-driver adapter's contract
+    // (see DriverCompilerAdapter::validate_compatibility_descriptor) instead of forwarding an empty
+    // option string to the VCL compiler, where the behaviour is undefined.
+    if (compatibilityDescriptor.empty()) {
+        return false;
+    }
+
     if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
         ze_device_properties_t device_properties = {};
         device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;

@@ -270,6 +270,15 @@ uint32_t Graph::get_last_submitted_id() const {
 }
 
 void Graph::set_compatibility_descriptor(std::optional<std::string> descriptor) {
+    // An empty string from the driver/compiler means "no runtime requirements". Normalize it to
+    // std::nullopt so every producer path (CID fetch, CIP compile, import) and the
+    // RUNTIME_REQUIREMENTS property represent the no-requirement state identically. This mirrors the
+    // metadata layer, which never serializes an empty descriptor (see
+    // Metadata<METADATA_VERSION_2_6>::write_as_text), keeping a live model consistent with its
+    // exported/imported counterpart.
+    if (descriptor.has_value() && descriptor->empty()) {
+        descriptor.reset();
+    }
     _compatibilityDescriptor = std::move(descriptor);
 }
 

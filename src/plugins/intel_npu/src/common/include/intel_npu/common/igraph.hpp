@@ -83,6 +83,8 @@ public:
      *          metadata, returned by the VCL/plugin compiler, or fetched from the driver by the
      *          compiler adapter on the compiler-in-driver path. If never set, no descriptor is
      *          available for this graph.
+     * @note An empty descriptor means "no runtime requirements" and is treated the same as no
+     *       descriptor at all (a subsequent can_provide_compatibility_descriptor() returns false).
      * @note The base implementation is a no-op; only subclasses that support compatibility
      *       descriptors (e.g. Graph) override it. Subclasses that do not override it silently
      *       ignore the descriptor.
