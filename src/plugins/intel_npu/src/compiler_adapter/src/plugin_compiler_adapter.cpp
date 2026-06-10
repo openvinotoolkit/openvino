@@ -96,14 +96,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
 
-    auto graph = std::make_shared<Graph>(
-        _zeGraphExt,
-        _zeroInitStruct,
-        graphDesc,
-        std::move(networkMeta),
-        std::move(tensor),
-        config,
-        /* persistentBlob = */ true);
+    auto graph = std::make_shared<Graph>(_zeGraphExt,
+                                         _zeroInitStruct,
+                                         graphDesc,
+                                         std::move(networkMeta),
+                                         std::move(tensor),
+                                         config,
+                                         /* persistentBlob = */ true);
     graph->set_compatibility_descriptor(compatibilityDescriptor);
     return graph;
 }
