@@ -68,7 +68,8 @@ TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallback
     auto future = data.promise.get_future();
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    future.wait();
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(30)), std::future_status::ready)
+        << "Timed out waiting for callback completion";
     auto callbackStatus = future.get();
     ASSERT_TRUE(callbackStatus);
     auto dataNumIter = data.numIter - 1;
