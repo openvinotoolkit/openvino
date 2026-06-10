@@ -111,8 +111,8 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DGPU_RT_TYPE=L0
 
-  Arc_B50_dGPU:
-    name: Arc B50 dGPU Tests Level Zero
+  Arc_B50_dGPU_unit:
+    name: Arc B50 dGPU Unit Tests Level Zero
     needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     uses: ./.github/workflows/job_gpu_tests.yml
@@ -125,9 +125,23 @@ jobs:
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
       test_filter: '*fully_connected*'
 
+  Arc_B50_dGPU_func:
+      name: Arc B50 dGPU Functional Tests Level Zero
+      needs: [ Build, Docker, Smart_CI ]
+      if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+      uses: ./.github/workflows/job_gpu_tests.yml
+      with:
+        device: 'dgpu'
+        test_type: 'func'
+        runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
+        runner-group: 'Intel-GPU'
+        image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+        options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+        test_filter: 'smoke_MatMulCompressedWeights_corner_cases*'
+
   Overall_Status:
     name: ci/gha_overall_status_dev_gpu_linux_level_zero
-    needs: [ Smart_CI, Docker, Build, Arc_B50_dGPU ]
+    needs: [ Smart_CI, Docker, Build, Arc_B50_dGPU_unit, Arc_B50_dGPU_func ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
