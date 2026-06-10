@@ -40,6 +40,27 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
     return element_strides;
 };
 
+std::vector<size_t> get_contiguous_element_strides(const ov::Shape& shape) {
+    std::vector<size_t> strides(shape.size());
+    size_t stride = 1;
+
+    for (size_t dim = shape.size(); dim > 0; --dim) {
+        const auto index = dim - 1;
+        strides[index] = stride;
+        stride *= shape[index];
+    }
+
+    return strides;
+}
+
+std::vector<size_t> get_tensor_strides(const std::shared_ptr<ov::ITensor>& tensor, size_t element_size) {
+    if (tensor->get_element_type().bitwidth() < 8) {
+        return get_contiguous_element_strides(tensor->get_shape());
+    }
+
+    return get_strides(tensor->get_strides(), element_size);
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -101,7 +122,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                 graphArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                      tensor->data(),
                                                      tensor->get_shape(),
-                                                     get_strides(tensor->get_strides(), elementSize));
+                                                     get_tensor_strides(tensor, elementSize));
                 ++io_index;
                 continue;
             }
@@ -114,13 +135,13 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
                     tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                    get_tensor_strides(tensor, elementSize));
             } else {
                 graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                    get_tensor_strides(tensor, elementSize));
             }
             ++io_index;
         }
@@ -135,13 +156,13 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
                     tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                    get_tensor_strides(tensor, elementSize));
             } else {
                 graphArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
+                    get_tensor_strides(tensor, elementSize));
             }
             ++io_index;
         }
@@ -368,13 +389,13 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
             _command_lists.at(i)->updateMutableCommandList(index,
                                                            static_cast<const unsigned char*>(zeroTensor->data()) +
                                                                (i * tensor->get_byte_size()) / number_of_command_lists,
-                                                           get_strides(tensor->get_strides(), elementSize),
+                                                           get_tensor_strides(tensor, elementSize),
                                                            tensor->get_shape());
         } else {
             _command_lists.at(i)->updateMutableCommandList(
                 index,
                 static_cast<const unsigned char*>(zeroTensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), elementSize),
+                get_tensor_strides(tensor, elementSize),
                 tensor->get_shape());
         }
     }
@@ -403,7 +424,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     _command_lists.at(batch_index)
         ->updateMutableCommandList(index,
                                    zeroTensor->data(),
-                                   get_strides(tensor->get_strides(), elementSize),
+                                   get_tensor_strides(tensor, elementSize),
                                    tensor->get_shape());
 }
 

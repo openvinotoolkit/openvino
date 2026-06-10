@@ -130,6 +130,8 @@ void IPipeline::enable_profiling() {
 
     if (profiling_pool->create()) {
         _profiling_query->create(profiling_pool);
+    } else {
+        _logger.warning("enable_profiling - failed to create profiling pool, profiling will not be available");
     }
 }
 
