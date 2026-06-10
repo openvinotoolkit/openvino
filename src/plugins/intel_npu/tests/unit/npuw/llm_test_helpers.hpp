@@ -130,9 +130,12 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
 
 /// Hybrid LLM: alternating linear-attention / full-attention layers.
 /// 4 layers → layers 0,2 linear; layers 1,3 full attention.
+/// Attention layers are Qwen3.5-style: output-gated, partial RoPE.
 inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
     auto cfg = make_test_model_config();
     cfg.num_layers = 4;
+    cfg.attn_output_gate = true;
+    cfg.rotary_dim = cfg.head_dim / 4;
     cfg.is_linear_layer = make_mamba_schedule(1);
     auto mixer = std::make_shared<GatedDeltaNetMixer>();
     mixer->hidden_size = cfg.hidden_size;

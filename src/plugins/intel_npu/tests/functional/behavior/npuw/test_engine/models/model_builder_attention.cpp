@@ -258,7 +258,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
-                                           const WeightFn& bias_fn) {
+                                           const WeightFn& bias_fn,
+                                           const ov::Output<ov::Node>& output_gate) {
     auto attn_trans = make_attention_transpose(sdpa_output, name + "_transpose");
 
     auto reshape_shape = ov::opset11::Constant::create(ov::element::i64,
@@ -267,7 +268,16 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
     auto attn_reshaped = std::make_shared<ov::opset11::Reshape>(attn_trans, reshape_shape, true);
     attn_reshaped->set_friendly_name(name + "_reshape");
 
-    return make_linear(attn_reshaped->output(0), attn_dim, hidden_size, name, precision, weight_fn, bias_fn);
+    ov::Output<ov::Node> o_proj_in = attn_reshaped->output(0);
+    if (output_gate.get_node()) {
+        auto sig = std::make_shared<ov::opset11::Sigmoid>(output_gate);
+        sig->set_friendly_name(name + "_gate_sigmoid");
+        auto gated = std::make_shared<ov::opset11::Multiply>(o_proj_in, sig);
+        gated->set_friendly_name(name + "_gated");
+        o_proj_in = gated->output(0);
+    }
+
+    return make_linear(o_proj_in, attn_dim, hidden_size, name, precision, weight_fn, bias_fn);
 }
 
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
@@ -275,7 +285,32 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
                                            const ov::Output<ov::Node>& v,
                                            const std::string& prefix,
                                            size_t layer_idx) const {
-    auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + attn_prefix + "q_reshape");
+    // Gated attention (Qwen3.5): q carries [q | gate] per head — reshape to
+    // [B, S, H, 2D], split into the attention half and the flat output gate.
+    ov::Output<ov::Node> q_reshaped;
+    ov::Output<ov::Node> gate_flat;
+    if (output_gate) {
+        auto qg = make_multihead_reshape(q, num_heads, 2 * head_dim, prefix + attn_prefix + "q_gate_reshape");
+        auto split_lens = ov::opset11::Constant::create(ov::element::i64,
+                                                        ov::Shape{2},
+                                                        std::vector<int64_t>(2, static_cast<int64_t>(head_dim)));
+        auto qg_split = std::make_shared<ov::opset11::VariadicSplit>(
+            qg,
+            ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {-1}),
+            split_lens);
+        qg_split->set_friendly_name(prefix + attn_prefix + "q_gate_split");
+        q_reshaped = qg_split->output(0);
+
+        auto gate_shape =
+            ov::opset11::Constant::create(ov::element::i64,
+                                          ov::Shape{3},
+                                          std::vector<int64_t>{0, 0, static_cast<int64_t>(num_heads * head_dim)});
+        auto gate_reshaped = std::make_shared<ov::opset11::Reshape>(qg_split->output(1), gate_shape, true);
+        gate_reshaped->set_friendly_name(prefix + attn_prefix + "gate_flat");
+        gate_flat = gate_reshaped->output(0);
+    } else {
+        q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + attn_prefix + "q_reshape");
+    }
     auto k_reshaped = make_multihead_reshape(k, num_kv_heads, head_dim, prefix + attn_prefix + "k_reshape");
     auto v_reshaped = make_multihead_reshape(v, num_kv_heads, head_dim, prefix + attn_prefix + "v_reshape");
 
@@ -320,7 +355,8 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
                                  prefix + o_proj_name,
                                  precision,
                                  weight_fn,
-                                 bias_fn);
+                                 bias_fn,
+                                 gate_flat);
 }
 
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
@@ -328,7 +364,7 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
                                            const std::string& prefix,
                                            size_t layer_idx) const {
     auto kv_src = kv_input.get_node() ? kv_input : input;
-    size_t q_dim = num_heads * head_dim;
+    size_t q_dim = (output_gate ? 2 : 1) * num_heads * head_dim;
     size_t kv_dim = num_kv_heads * head_dim;
     auto q = make_linear(input, hidden_size, q_dim, prefix + attn_prefix + "q_proj", precision, weight_fn, bias_fn);
     auto k = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "k_proj", precision, weight_fn, bias_fn);

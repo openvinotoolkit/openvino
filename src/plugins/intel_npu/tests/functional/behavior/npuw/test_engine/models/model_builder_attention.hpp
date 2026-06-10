@@ -71,13 +71,16 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
                                size_t head_dim_for_scale = 0);
 
 /// `attn_dim = num_heads * head_dim`. May differ from `hidden_size` for rectangular projections.
+/// `output_gate` (flat [batch, seq, attn_dim]) applies Sigmoid-gating between the flatten
+/// and the O projection, as in the Qwen3.5 gated-attention export.
 ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
                                            size_t hidden_size,
                                            size_t attn_dim,
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
-                                           const WeightFn& bias_fn = {});
+                                           const WeightFn& bias_fn = {},
+                                           const ov::Output<ov::Node>& output_gate = {});
 
 /// Takes pre-projected Q, K, V. Handles reshape, QK-norm, RoPE, KV cache, GQA, SDPA, O proj.
 struct Attention {
@@ -91,6 +94,10 @@ struct Attention {
 
     ov::Output<ov::Node> sdpa_mask;
     ov::Output<ov::Node> shared_broadcast_shape;
+
+    /// Qwen3.5-style gated attention: q_proj carries [q | gate] per head (2x width),
+    /// split after the per-head reshape; Sigmoid(gate) scales the flattened SDPA output.
+    bool output_gate = false;
 
     std::string o_proj_name = "self_attn.o_proj";
     std::string attn_prefix = "self_attn.";
