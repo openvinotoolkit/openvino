@@ -141,6 +141,7 @@ ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial
 }
 
 
+
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
@@ -732,8 +733,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     ov::Output<ov::Node> sliding_mask;
 
     if (has_full_layers) {
-        full_mask = config.causal_mask_fn ? config.causal_mask_fn(seq_source, attention_mask->output(0), prec)
-                                          : make_causal_mask(seq_source, attention_mask->output(0), prec);
+        full_mask = config.boolean_causal_mask ? make_causal_mask_boolean(seq_source, attention_mask->output(0), prec)
+                                               : make_causal_mask(seq_source, attention_mask->output(0), prec);
     }
     if (has_sliding) {
         const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
@@ -741,7 +742,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     }
 
     // Apply VLM bidirectional modifier for image tokens
-    if (config.use_token_type_ids && token_type_ids_output.get_node()) {
+    if (token_type_ids_output.get_node()) {
         if (full_mask.get_node())
             full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, seq_source, prec);
         if (sliding_mask.get_node())
@@ -969,13 +970,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
                                                            d,
                                                            prec,
                                                            "model.decoder.");
-    // Detect bool intent: user wires causal_mask_fn = make_causal_mask_boolean.
-    using CausalFnPtr = ov::Output<ov::Node> (*)(const ov::Output<ov::Node>&,
-                                                 const ov::Output<ov::Node>&,
-                                                 ov::element::Type);
-    auto* fn_target = config.causal_mask_fn.target<CausalFnPtr>();
-    const bool boolean_mask = fn_target && *fn_target == &make_causal_mask_boolean;
-    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", boolean_mask);
+    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", config.boolean_causal_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
     Attention self_attn{};

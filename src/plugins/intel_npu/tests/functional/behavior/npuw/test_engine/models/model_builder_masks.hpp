@@ -59,16 +59,15 @@ CachePositionResult make_cache_position_ids(const ov::Output<ov::Node>& input_id
 /// (different shape from make_causal_mask). Includes the structural Slice that
 /// AttentionMaskInput (prefill) requires on SDPA input[3].
 /// boolean_output = true skips the Select-to-float so a bool mask reaches SDPA,
-/// exercising the boolean handler at prepare_whisper_model.cpp:140.
+/// exercising NPUW's boolean-mask handling in the Whisper decoder preparation.
 ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& cache_pos,
                                               const std::string& prefix,
                                               bool boolean_output = false);
 
 /// Boolean variant of the causal mask: 4D bool (true = attend), no Select-to-float.
-/// Element type argument is ignored. Exists to test NPUW handlers that lift bool
-/// SDPA masks to float via Select(mask, 0, -inf) — see optimize_value_tensors.cpp:271
-/// and prepare_whisper_model.cpp:140. Shape: causal LessEqual + bool padding combined
-/// via BitwiseAnd.
+/// Element type argument is ignored. Exists to test the NPUW handlers that lift
+/// bool SDPA masks to float via Select(mask, 0, -inf). Shape: causal LessEqual +
+/// bool padding combined via BitwiseAnd.
 ov::Output<ov::Node> make_causal_mask_boolean(const ov::Output<ov::Node>& seq_source,
                                               const ov::Output<ov::Node>& attention_mask,
                                               ov::element::Type /*unused*/);
@@ -87,9 +86,11 @@ ov::Output<ov::Node> make_sliding_window_mask(const ov::Output<ov::Node>& seq_so
 ///
 /// Pattern features (all matter for the matcher):
 ///   - past_kv_len obtained via Gather (anchored on a Gather node + optional Squeeze).
-///   - Two SEPARATE Add nodes computing full_ctx_len: one for Q range
-///     (past_kv_len + seq_len, operand order matters), one for K range
-///     (seq_len + past_kv_len).
+///   - Two SEPARATE Add nodes computing full_ctx_len: one for the Q range,
+///     one for the K range — both past_kv_len + seq_len, past FIRST (operand
+///     order matters: the matcher's commutative permutation binds its
+///     past_kv_len Gather anchor against operand 0 first, and seq_len is
+///     also a bare Gather, so past second mis-binds the anchor).
 ///   - Q range = Range(past_kv_len, full_ctx_len_q) — absolute positions.
 ///   - K range = Range(0, full_ctx_len_k).
 ///   - 3x Unsqueeze chain on each range (axes are "any" in matcher).
@@ -104,10 +105,34 @@ ov::Output<ov::Node> make_sliding_window_mask_phi3(const ov::Output<ov::Node>& s
                                                    ov::element::Type /*unused*/,
                                                    size_t window_size);
 
-/// Modify a float base mask so image tokens (token_type_ids==1) get bidirectional
+/// Sliding window + causal mask, Gemma-4 shape (matches NPUW's
+/// Gemma4SlidingMaskMatcher). Same boolean skeleton as the Phi-3 variant —
+/// the difference is the Q side: cache_position = Add(Range(0, seq_len),
+/// past_kv_len), i.e. the past offset is added AFTER the Range instead of
+/// being its start. Window constant is a [1,1,1,1] negative i64 like the
+/// real Gemma-4 export. Output is boolean (true = attend).
+ov::Output<ov::Node> make_sliding_window_mask_gemma4(const ov::Output<ov::Node>& seq_source,
+                                                     const ov::Output<ov::Node>& attention_mask,
+                                                     ov::element::Type /*unused*/,
+                                                     size_t window_size);
+
+/// Sliding window mask, legacy Phi-3 / transformers 4.51 shape (matches NPUW's
+/// OldPhi3SlidingMaskMatcher). INVERTED boolean domain combined via BitwiseOr
+/// (true = masked out): Greater(K, Q.T) | LessEqual(K, Q.T - window), with the
+/// Q column built via Reshape[-1,1] (not Unsqueeze), the K range double-
+/// Converted (i32 → i64 → f32), and a float Q Range. The inverted mask feeds
+/// Select(inv, padding, 0) so the SDPA input is a float mask of type `prec`.
+ov::Output<ov::Node> make_sliding_window_mask_phi3_legacy(const ov::Output<ov::Node>& seq_source,
+                                                          const ov::Output<ov::Node>& attention_mask,
+                                                          ov::element::Type prec,
+                                                          size_t window_size);
+
+/// Modify a base mask so image tokens (token_type_ids==1) get bidirectional
 /// attention among themselves. Used for Gemma 3 VLM. base_mask shape is
-/// [batch, 1, seq, total_seq]. token_type_ids is [batch, total_seq] i64. With
-/// KV cache, seq < total_seq — Q-side token types are the LAST seq_len entries.
+/// [batch, 1, seq, total_seq], float (attend = Select to 0.0/prec) or boolean
+/// (attend = Select to true, e.g. on top of make_sliding_window_mask_phi3).
+/// token_type_ids is [batch, total_seq] i64. With KV cache, seq < total_seq —
+/// Q-side token types are the LAST seq_len entries.
 ov::Output<ov::Node> make_vlm_bidirectional_modifier(const ov::Output<ov::Node>& base_mask,
                                                      const ov::Output<ov::Node>& token_type_ids,
                                                      const ov::Output<ov::Node>& seq_source,
