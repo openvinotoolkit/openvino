@@ -37,6 +37,7 @@
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/common/shape_inference.hpp"
 #include "utils/general_utils.h"
@@ -69,6 +70,7 @@
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
 #    include "executors/riscv64/subgraph.hpp"
 #    include "openvino/core/except.hpp"
+#    include "snippets/lowered/pass/insert_loops.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -83,7 +85,6 @@
 #endif
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 #    include "snippets/pass/propagate_precision.hpp"
-#    include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -680,7 +681,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 Subgraph::ControlFlowPasses
 Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functions-to-static)
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(SNIPPETS_DEBUG_CAPS)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
@@ -748,6 +749,9 @@ Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functio
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::InsertLoops,
                                           ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::After,
+                                            ov::snippets::lowered::pass::InsertLoops,
+                                            ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::lowered::pass::InsertBuffers,
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
