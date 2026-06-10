@@ -189,7 +189,7 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
                 return std::move(impl.second);
             });
     } else {
-        GPU_DEBUG_COUT << "No implementation for " << params.layerID << " because of kernel type mismatch" << std::endl;
+        //GPU_DEBUG_COUT << "No implementation for " << params.layerID << " because of kernel type mismatch" << std::endl;
     }
 
     return result;
