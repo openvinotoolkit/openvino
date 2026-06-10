@@ -344,7 +344,8 @@ protected:
 
             // Dynamic quantized activation (src scales/zp/precomputed_reduction)
             if (prim->dynamic_quantized_activation && prim->activation_scale.is_valid()) {
-                int act_idx = 10;  // activation_scale is at index 10
+                // src(0) + weights(1-3) + scales(4-6) = 7, + zp(7-9) if present
+                int act_idx = prim->decompression_zero_point_gate.is_valid() ? 10 : 7;
                 const auto& act_scale_layout = impl_params.get_input_layout(act_idx);
                 const auto act_scale_dt = onednn::convert_data_type(act_scale_layout.data_type);
                 const auto src_innermost = impl_params.get_input_layout(0).get_dim(impl_params.get_input_layout(0).get_partial_shape().size() - 1);
