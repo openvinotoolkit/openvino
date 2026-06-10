@@ -82,6 +82,12 @@ GgufTranscodeTarget transcode_target(element::Type_t t) {
 // =================================================================================================
 // Memory-bound (decode) GEMV kernel generator — unchanged native path, handles any M.
 // =================================================================================================
+
+// Subgroup width for the K-split GEMV: one subgroup (this many lanes) cooperatively computes one
+// output, the reduction blocks of a row striped across its lanes. 16 matches the BMG/Xe2 native
+// SIMD width and divides every shape's blocks-per-row (K is a multiple of 256 -> >= 16 blocks).
+constexpr int GGUF_GEMV_SG_SIZE = 16;
+
 class FCGGUFOptGenerator : public KernelGenerator {
 public:
     FCGGUFOptGenerator() : KernelGenerator("fc_gguf_opt") {}
@@ -118,6 +124,7 @@ protected:
             make_jit_constant("N_SIZE", static_cast<int>(N)),
             make_jit_constant("GGUF_BLOCK_ELEM", static_cast<int>(wt.block_elem_count())),
             make_jit_constant("GGUF_BLOCK_BYTES", static_cast<int>(wt.block_byte_size())),
+            make_jit_constant("SG_SIZE", GGUF_GEMV_SG_SIZE),
             make_jit_constant(gguf_type_jit_flag(in1.data_type), 1),
         });
 
@@ -144,9 +151,12 @@ protected:
             const size_t N = in1.get_shape()[0];
             const size_t BM = derive_bm(params.input_layouts[0].get_shape());
 
+            // K-split: one subgroup (GGUF_GEMV_SG_SIZE lanes) per output. global[0] = N * SG_SIZE,
+            // local[0] = SG_SIZE keeps exactly one subgroup per work-group (max work-groups -> best
+            // occupancy, critical for the small-N k/v projections).
             auto& wgs = kd.params.workGroups;
-            wgs.global = {N, BM, 1};
-            wgs.local = {1, 1, 1};
+            wgs.global = {N * GGUF_GEMV_SG_SIZE, BM, 1};
+            wgs.local = {GGUF_GEMV_SG_SIZE, 1, 1};
         }};
     }
 };
@@ -202,6 +212,87 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
 };
+
+// =================================================================================================
+// Activation int8 pre-quant generator (Q5_K dp4a decode path). Explicit-args, keyed by the static
+// activation dtype + K, N; dispatched with the concrete M at execute time (no shape-info arg).
+// =================================================================================================
+class FCGGUFPrequantGenerator : public KernelGenerator {
+public:
+    FCGGUFPrequantGenerator() : KernelGenerator("fc_gguf_prequant") {}
+
+protected:
+    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
+        const auto& in0 = params.input_layouts[0];
+        const auto& in1 = params.input_layouts[1];
+        const size_t N = in1.get_shape()[0];
+        const size_t K = in1.get_shape()[1];
+        return get_kernel_name() + "_" + element::Type(in0.data_type).get_type_name() + "_K" +
+               std::to_string(K) + "_N" + std::to_string(N);
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        const auto& in0 = params.input_layouts[0];
+        const auto& in1 = params.input_layouts[1];
+        const size_t K = in1.get_shape()[1];
+        jit.add(make_type_jit_constants("INPUT0", in0.data_type));
+        jit.add({make_jit_constant("K_SIZE", static_cast<int>(K))});
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+
+// =================================================================================================
+// Q5_K SWAR dp4a GEMV generator (int8-activation decode path). Explicit-args; output dtype + static
+// K, N + block geometry baked in. SG_SIZE matches the K-split GEMV.
+// =================================================================================================
+class FCGGUFDp4aGenerator : public KernelGenerator {
+public:
+    FCGGUFDp4aGenerator() : KernelGenerator("fc_gguf_dp4a") {}
+
+protected:
+    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
+        const auto& in1 = params.input_layouts[1];
+        const size_t N = in1.get_shape()[0];
+        const size_t K = in1.get_shape()[1];
+        return get_kernel_name() + "_" + element::Type(in1.data_type).get_type_name() + "_K" +
+               std::to_string(K) + "_N" + std::to_string(N);
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        const auto& in1 = params.input_layouts[1];
+        const auto& shape_w = in1.get_shape();
+        const size_t N = shape_w[0];
+        const size_t K = shape_w[1];
+        const element::Type wt(in1.data_type);
+        jit.add(make_type_jit_constants("OUTPUT", params.output_layouts[0].data_type));
+        jit.add({
+            make_jit_constant("K_SIZE", static_cast<int>(K)),
+            make_jit_constant("N_SIZE", static_cast<int>(N)),
+            make_jit_constant("GGUF_BLOCK_ELEM", static_cast<int>(wt.block_elem_count())),
+            make_jit_constant("GGUF_BLOCK_BYTES", static_cast<int>(wt.block_byte_size())),
+            make_jit_constant("SG_SIZE", GGUF_GEMV_SG_SIZE),
+        });
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 class FCGGUFOptImpl : public PrimitiveImplOCL {
@@ -213,11 +304,19 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Compute-bound transcode stage (prefill / large M) — feeds a direct dnnl::matmul.
     Stage::Ptr transcode_stage = make_stage<FCGGUFTranscodeGenerator>();
+    // Q5_K int8-activation dp4a decode path (small M): one-shot activation prequant + SWAR dp4a GEMV.
+    Stage::Ptr prequant_stage = make_stage<FCGGUFPrequantGenerator>();
+    Stage::Ptr dp4a_stage = make_stage<FCGGUFDp4aGenerator>();
 #endif
 
     // Activation rows above which the transcode + OneDNN WOQ GEMM path is used (SUMMARY §5,
     // M_MEM_BOUND_THRESHOLD). Overridable via OV_GPU_GGUF_PREFILL_THRESHOLD for tuning.
     size_t m_prefill_threshold = 32;
+
+    // Q5_K dp4a int8-activation decode path: on by default for Q5_K weights, disabled by setting
+    // OV_GPU_GGUF_Q5K_DP4A=0. m_q5k_dp4a records whether this node actually instantiated the path.
+    bool m_use_q5k_dp4a = true;
+    bool m_q5k_dp4a = false;
 
     FCGGUFOptImpl() : PrimitiveImplOCL(FCGGUFOpt::get_type_info_static()) {
         if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_THRESHOLD")) {
@@ -226,17 +325,28 @@ public:
                 m_prefill_threshold = static_cast<size_t>(v);
             }
         }
+        if (const char* env = std::getenv("OV_GPU_GGUF_Q5K_DP4A")) {
+            m_use_q5k_dp4a = (std::atol(env) != 0);
+        }
     }
     FCGGUFOptImpl(const program_node& node, const RuntimeParams& params) : FCGGUFOptImpl() {
         add_stage(gguf_stage, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
         add_stage(transcode_stage, params);
+        if (m_use_q5k_dp4a && params.input_layouts[1].data_type == element::Type_t::gguf_q5_k) {
+            m_q5k_dp4a = true;
+            add_stage(prequant_stage, params);
+            add_stage(dp4a_stage, params);
+        }
 #endif
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         auto copy = make_deep_copy<FCGGUFOptImpl>(this);
-        static_cast<FCGGUFOptImpl*>(copy.get())->m_prefill_threshold = m_prefill_threshold;
+        auto* c = static_cast<FCGGUFOptImpl*>(copy.get());
+        c->m_prefill_threshold = m_prefill_threshold;
+        c->m_use_q5k_dp4a = m_use_q5k_dp4a;
+        c->m_q5k_dp4a = m_q5k_dp4a;
         return copy;
     }
 
@@ -281,6 +391,17 @@ public:
         // [1] per-group scale: f16 [K/group, N].
         bufs.emplace_back(cldnn::layout(ov::Shape{num_groups, N}, data_types::f16, cldnn::format::bfyx),
                           /*lockable=*/false);
+        // [2],[3] Q5_K dp4a scratch: int8 activation [Mmax, K] + per-32 f32 scale [Mmax, K/32], sized
+        // for the decode cap Mmax = m_prefill_threshold (dp4a only runs for M <= threshold), so they
+        // are M-independent and allocated once.
+        if (m_q5k_dp4a) {
+            const size_t Mmax = std::max<size_t>(m_prefill_threshold, 1);
+            bufs.emplace_back(cldnn::layout(ov::Shape{Mmax, K}, data_types::i8, cldnn::format::bfyx),
+                              /*lockable=*/false);
+            bufs.emplace_back(cldnn::layout(ov::Shape{Mmax, K / GGUF_REQUANT_GROUP}, data_types::f32,
+                                            cldnn::format::bfyx),
+                              /*lockable=*/false);
+        }
         return bufs;
     }
 #endif
@@ -295,6 +416,9 @@ public:
             const size_t M = derive_bm(in0.get_shape());
             if (M > m_prefill_threshold) {
                 return execute_transcode_plus_onednn_woq(events, instance, M);
+            }
+            if (m_q5k_dp4a) {
+                return execute_prequant_plus_dp4a(events, instance, M);
             }
         }
 #endif
@@ -469,6 +593,48 @@ private:
             stream.finish();
         }
         return transcode_ev;
+    }
+
+    // Q5_K decode: one-shot int8 activation prequant -> SWAR dp4a GEMV. Both stages are dispatched
+    // with the concrete M (decode M is tiny), so no shape-info arg is needed. The int8 activation +
+    // per-32 scale scratch are the last two internal buffers.
+    cldnn::event::ptr execute_prequant_plus_dp4a(const std::vector<cldnn::event::ptr>& events,
+                                                 cldnn::primitive_inst& instance,
+                                                 size_t M) {
+        const auto& params = *instance.get_impl_params();
+        const auto& in1 = params.get_input_layout(1);
+        const auto& shape_w = in1.get_shape();
+        const size_t N = shape_w[0];
+        const size_t K = shape_w[1];
+
+        auto* fc_inst = dynamic_cast<cldnn::fully_connected_inst*>(&instance);
+        const auto& intermediates = instance.get_intermediates_memories();
+        OPENVINO_ASSERT(intermediates.size() >= 2,
+                        "[GPU] FCGGUFOpt: Q5_K dp4a scratch not allocated (expected >= 2 internal buffers).");
+        auto aq_scratch = intermediates[intermediates.size() - 2];   // int8 activation [Mmax, K]
+        auto asc_scratch = intermediates[intermediates.size() - 1];  // f32 per-32 scale [Mmax, K/32]
+
+        auto act = instance.dep_memory_ptr(0);
+        auto weight = fc_inst ? fc_inst->weights_memory() : instance.dep_memory_ptr(1);
+        auto out = instance.output_memory_ptr(0);
+
+        // Stage 1: prequant. One work-item per (group, row): global = [K/32, M, 1].
+        auto pq_ev = execute_stage(events,
+                                   instance,
+                                   *prequant_stage,
+                                   /*inputs=*/{act},
+                                   /*outputs=*/{aq_scratch, asc_scratch},
+                                   /*global=*/{K / GGUF_REQUANT_GROUP, M, 1},
+                                   /*local=*/{1, 1, 1});
+
+        // Stage 2: SWAR dp4a GEMV. One subgroup per (n, row): global = [N*SG, M, 1], local = [SG,1,1].
+        return execute_stage({pq_ev},
+                             instance,
+                             *dp4a_stage,
+                             /*inputs=*/{aq_scratch, asc_scratch, weight},
+                             /*outputs=*/{out},
+                             /*global=*/{N * GGUF_GEMV_SG_SIZE, M, 1},
+                             /*local=*/{GGUF_GEMV_SG_SIZE, 1, 1});
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 };
