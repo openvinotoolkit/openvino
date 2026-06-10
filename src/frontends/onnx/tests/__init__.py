@@ -52,8 +52,7 @@ xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Axes input must be constant")
 skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
-xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
-xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
+xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported 5 dimensions")
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
 xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
@@ -67,7 +66,6 @@ xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
 xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
@@ -178,7 +176,5 @@ skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 
 # ONNX 1.18
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
-xfail_issue_171768 = pytest.mark.skip(reason="Unsupported feature: RMSNormalization")
-xfail_issue_171770 = pytest.mark.skip(reason="Unsupported feature: RotaryEmbedding")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
 xfail_issue_171772 = pytest.mark.skip(reason="Mismatches in tests: AveragePool")

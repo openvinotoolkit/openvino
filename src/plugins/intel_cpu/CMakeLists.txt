@@ -215,6 +215,15 @@ if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
 endif ()
 
+if(NOT ENABLE_CPU_DEBUG_CAPS)
+    list(APPEND EXCLUDE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_capabilities.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/memory_stats_dump.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/node_dumper.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/verbose.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp)
+endif()
+
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
@@ -340,6 +349,14 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
         API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
         NAME        recurrent_linear_attn recurrent_linear_attn_paged
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/paged_causal_conv1d.cpp
+        API         src/nodes/kernels/paged_causal_conv1d.hpp
+        NAME        paged_causal_conv1d_exec
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
