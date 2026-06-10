@@ -9,6 +9,8 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
+#include "common_utils/parallel_mem_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -16,6 +18,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+
 
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -234,10 +237,13 @@ void program::init_program() {
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
-    _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+    if (_engine.runtime_type() != runtime_types::sycl) {
+        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
+                                                                          kernel_selector::KernelBase::get_db().get_batch_headers()));
+
+        _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+    }
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -267,6 +273,7 @@ void program::init_primitives() {
 }
 
 kernels_cache& program::get_kernels_cache() const {
+    OPENVINO_ASSERT(_engine.runtime_type() != runtime_types::sycl, "[GPU] Kernels cache is not available for SYCL runtime");
     return *_kernels_cache;
 }
 
@@ -1836,6 +1843,10 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    if (_engine.runtime_type() == runtime_types::sycl) {
+        OPENVINO_THROW("[GPU] program::save is not supported for SYCL runtime");
+    }
+
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
 
@@ -1943,7 +1954,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << allocating_order.size();
-    for (auto const& node_id : allocating_order) {
+    for (const auto& node_id : allocating_order) {
         ob << node_id;
     }
 
@@ -1952,11 +1963,20 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
+
+    if (!ob.is_encrypted() && !ob.is_offset_page_aligned()) {
+        std::vector<uint8_t> pad(ob.get_bytes_to_page_boundary(), 0);
+        ob << make_data(pad.data(), pad.size());
+    }
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
+    if (_engine.runtime_type() == runtime_types::sycl) {
+        OPENVINO_THROW("[GPU] program::load is not supported for SYCL runtime");
+    }
+
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
@@ -1975,9 +1995,36 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 
+    const bool can_use_mmap_zero_copy = ib.is_mmap_tensor_4K_aligned() && _engine.get_device_info().arch >= gpu_arch::xe2 &&
+                                        _engine.get_device_info().dev_type == device_type::integrated_gpu && !_config.get_enable_weightless();
+    memory_ptr model_tensor_base_ptr = nullptr;
+    if (can_use_mmap_zero_copy) {
+        model_tensor_base_ptr =
+            ib.get_engine().create_mmap_hostbuffer(ib.get_mmap_tensor(),
+                                                   ib.get_stream_size(),
+                                                   allocation_type::usm_host,
+                                                   layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+    }
+
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
+
+    // Prefetch hook: if the backing streambuf is ParallelReadStreamBuf (or
+    // ParallelMemStreamBuf wrapping one for a file-backed mmap), ask it to
+    // collapse the upcoming thousands of small ib >> ... reads for data
+    // primitives into one bulk parallel pread.  The cap keeps the up-front
+    // dispatch/allocation cost bounded; reads that fall outside the prefetched
+    // window transparently fall back to file I/O.
+    {
+        auto* rdbuf = ib.get_streambuf();
+        if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
+            prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
+            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        }
+    }
+
     for (size_t i = 0; i < num_nodes; ++i) {
         ib >> is_valid_data_node;
         if (!is_valid_data_node)
@@ -1986,11 +2033,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory);
+            data_prim->load_weights(ib, weights_memory, model_tensor_base_ptr);
         }
         get_or_create(prim);
     }
-
     size_t num_output_sharing_mutable_datas;
     ib >> num_output_sharing_mutable_datas;
     for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {
@@ -2003,6 +2049,18 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
         md_node2.typed_desc()->mem = md_node1.typed_desc()->mem;
         md_node2.replace_memory(md_node2.typed_desc()->mem);
+    }
+
+    // Same prefetch hook for the post-load loop: node_post_load is dominated by
+    // ~15 small ib >> ... calls per node across thousands of nodes, which maps
+    // to thousands of single_read dispatches if left unbatched.
+    {
+        auto* rdbuf = ib.get_streambuf();
+        if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
+            prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
+            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        }
     }
 
     for (size_t i = 0; i < num_nodes; ++i) {
@@ -2133,4 +2191,11 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> initializers;
         state_initializers[variable_id] = initializers;
     }
+
+    // At the end of load
+    if (!ib.is_encrypted() && !ib.is_offset_page_aligned()) {
+        std::vector<uint8_t> pad(ib.get_bytes_to_page_boundary(), 0);
+        ib >> make_data(pad.data(), pad.size());
+    }
 }
+

@@ -290,7 +290,7 @@ TEST(type_prop, transpose_order_as_parameter_shape) {
     EXPECT_EQ(r->get_output_partial_shape(v1::Transpose::ARG_T), PartialShape({Dimension(4, 16), 6, Dimension(2, 8)}));
 }
 
-/** \brief Transpose with order as paramater shape dimensions after multiple transformations. */
+/** \brief Transpose with order as parameter shape dimensions after multiple transformations. */
 TEST(type_prop, transpose_order_as_parameter_shape_after_transformation) {
     const auto arg = make_shared<v0::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
 

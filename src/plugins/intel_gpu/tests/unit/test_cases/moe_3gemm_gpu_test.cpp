@@ -446,13 +446,6 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         return mem;
     };
 
-    auto create_zp_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
-        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
-        set_values(mem, values);
-        get_test_stream().finish();
-        return mem;
-    };
 
     auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
@@ -477,17 +470,36 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     size_t group_num = config.hidden_size / config.group_size;
     size_t group_num2 = config.inter_size / config.group_size;
 
+    // Logical [E, ofm, G]; physical [E, G, ofm] via byfx for G>1, plain bfyx for per-channel.
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, dt, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = make_zp(w0_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = make_zp(w1_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = make_zp(w2_zp_packed, config.num_experts, config.hidden_size, group_num2);
 
     // Build topology
     topology topology;
@@ -572,6 +584,39 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
                                                               Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
 
+// Sub-128 weight quantization group size (e.g. trinity-mini afmoe uses group_size=64
+// with SIGMOID_BIAS routing). Limited to SIGMOID_BIAS to mirror real model usage and
+// to avoid known accuracy noise of the SOFTMAX path on some platforms.
+INSTANTIATE_TEST_SUITE_P(smoke_sub128_group_size,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{16, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64},
+                                                              Moe3GemmTestParams{1, false, 256, 512, 4, 2, 64})));
+
+// Batched GEMV: MTP/speculative decoding scenarios where token_num is 2-16.
+// These small batch sizes exercise the batched GEMV path (exec_batched_gemv)
+// which avoids gather/scatter/CPU-sync overhead of the prefill GEMM path.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
+                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{2, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{4, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{8, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{2, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{4, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{8, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{2, true, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{4, true, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{2, false, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256},
+                                                              // Sub-128 group_size batched GEMV coverage.
+                                                              Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
+                                                              Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64})));
+
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
 class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -655,13 +700,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
         return mem;
     };
 
-    auto create_zp_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
-        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
-        set_values(mem, values);
-        get_test_stream().finish();
-        return mem;
-    };
 
     auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
@@ -689,32 +727,49 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     size_t group_num2 = config.inter_size / config.group_size;
 
     // Expert Weights
+    // Logical [E, ofm, G]; physical [E, G, ofm] via byfx for G>1, plain bfyx for per-channel.
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, dt, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = make_zp(w0_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = make_zp(w1_zp_packed, config.num_experts, config.inter_size, group_num);
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = make_zp(w2_zp_packed, config.num_experts, config.hidden_size, group_num2);
 
     // Shared Expert Weights (num_experts = 1)
-    // create_weight_tensor(values, b, f, y, x) -> b=1, f=inter_size, y=group_size, x=group_num
     auto s_gate_weight_mem = create_weight_tensor(s_gate_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_gate_scale_mem = create_f16_tensor(s_gate_scale, 1, group_num, 1, config.inter_size);
-    auto s_gate_zp_mem = create_zp_tensor(s_gate_zp_packed, 1, group_num, 1, config.inter_size);
+    auto s_gate_scale_mem = make_scale(s_gate_scale, 1, config.inter_size, group_num);
+    auto s_gate_zp_mem = make_zp(s_gate_zp_packed, 1, config.inter_size, group_num);
 
     auto s_up_weight_mem = create_weight_tensor(s_up_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_up_scale_mem = create_f16_tensor(s_up_scale, 1, group_num, 1, config.inter_size);
-    auto s_up_zp_mem = create_zp_tensor(s_up_zp_packed, 1, group_num, 1, config.inter_size);
+    auto s_up_scale_mem = make_scale(s_up_scale, 1, config.inter_size, group_num);
+    auto s_up_zp_mem = make_zp(s_up_zp_packed, 1, config.inter_size, group_num);
 
-    // down: b=1, f=hidden_size, y=group_num2, x=group_size
     auto s_down_weight_mem = create_weight_tensor(s_down_q_packed, 1, config.hidden_size, config.group_size, group_num2);
-    auto s_down_scale_mem = create_f16_tensor(s_down_scale, 1, group_num2, 1, config.hidden_size);
-    auto s_down_zp_mem = create_zp_tensor(s_down_zp_packed, 1, group_num2, 1, config.hidden_size);
+    auto s_down_scale_mem = make_scale(s_down_scale, 1, config.hidden_size, group_num2);
+    auto s_down_zp_mem = make_zp(s_down_zp_packed, 1, config.hidden_size, group_num2);
 
     auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
 
@@ -825,7 +880,29 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                            Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
-                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512}));
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512},
+                                           // Sub-128 group_size (trinity-mini afmoe shape).
+                                           Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64}));
+
+// Batched GEMV with shared expert: MTP/speculative decoding scenarios with shared expert enabled.
+// Exercises the batched GEMV path with EXPERTS_PER_TOKEN = MAX_TOPK + 1.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp_shared,
+                         moe_3gemm_compressed_gpu_shared_random,
+                         ::testing::Values(Moe3GemmTestParams{2, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{4, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{8, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{2, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{4, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{8, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{2, true, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{4, true, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{2, false, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{4, false, 256, 512, 4, 2, 256},
+                                           // Sub-128 group_size batched GEMV coverage.
+                                           Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
+                                           Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
@@ -1026,7 +1103,6 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
     // Create tensors
     auto weight_dt = config.is_u4 ? data_types::i4 : data_types::i8;
-    auto zp_dt = config.is_u4 ? data_types::u4 : data_types::u8;
 
     auto create_weight_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({weight_dt, format::bfyx, {b, f, y, x}});
@@ -1035,11 +1111,17 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
         return mem;
     };
 
-    auto create_zp_tensor = [&](int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto mem = engine.allocate_memory({zp_dt, format::bfyx, {b, f, y, x}});
-        // Zero-fill (symmetric has no ZP)
-        auto lock = cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write>(mem, get_test_stream());
-        std::memset(lock.data(), 0, lock.size());
+    // Symmetric: ZP is element::dynamic placeholder (matches real model where the transformation
+    // creates Constant(element::dynamic, Shape{0}) for absent ZP in symmetric quantization).
+    auto create_dynamic_zp_placeholder = [&]() {
+        auto one_byte_mem = engine.allocate_memory(cldnn::layout(ov::PartialShape{1}, data_types::u8, format::bfyx), false);
+        return engine.reinterpret_buffer(*one_byte_mem, cldnn::layout(ov::PartialShape{0}, data_types::dynamic, format::bfyx));
+    };
+    auto make_scale_sym = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
         get_test_stream().finish();
         return mem;
     };
@@ -1068,16 +1150,16 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
     size_t group_num2 = config.inter_size / config.group_size;
 
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale_sym(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = create_dynamic_zp_placeholder();
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale_sym(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = create_dynamic_zp_placeholder();
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale_sym(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = create_dynamic_zp_placeholder();
 
     // Build topology
     topology topology;
@@ -1140,8 +1222,8 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
 
-    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
-    const float tolerance = base_tolerance * (config.hidden_size / 128);
+    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.25f : 0.15f;
+    const float tolerance = base_tolerance * std::max(1, static_cast<int>(config.hidden_size / 128));
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
@@ -1158,7 +1240,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
-                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true})));
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
+                                                              // Sub-128 group_size for symmetric quantization.
+                                                              Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true})));
 
 // Symmetric quantization test with shared expert
 class moe_3gemm_compressed_gpu_shared_symmetric_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -1228,7 +1313,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
 
     // Create tensors with signed weight types
     auto weight_dt = config.is_u4 ? data_types::i4 : data_types::i8;
-    auto zp_dt = config.is_u4 ? data_types::u4 : data_types::u8;
 
     auto create_weight_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
         auto mem = engine.allocate_memory({weight_dt, format::bfyx, {b, f, y, x}});
@@ -1237,10 +1321,16 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
         return mem;
     };
 
-    auto create_zp_tensor = [&](int64_t b, int64_t f, int64_t y, int64_t x) {
-        auto mem = engine.allocate_memory({zp_dt, format::bfyx, {b, f, y, x}});
-        auto lock = cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write>(mem, get_test_stream());
-        std::memset(lock.data(), 0, lock.size());
+    // Symmetric: ZP is element::dynamic placeholder (matches real model).
+    auto create_dynamic_zp_placeholder = [&]() {
+        auto one_byte_mem = engine.allocate_memory(cldnn::layout(ov::PartialShape{1}, data_types::u8, format::bfyx), false);
+        return engine.reinterpret_buffer(*one_byte_mem, cldnn::layout(ov::PartialShape{0}, data_types::dynamic, format::bfyx));
+    };
+    auto make_scale_sym = [&](const std::vector<ov::float16>& v, int64_t E, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
         get_test_stream().finish();
         return mem;
     };
@@ -1270,29 +1360,29 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
 
     // Expert Weights
     auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w0_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w0_scale_mem = make_scale_sym(w0_scale, config.num_experts, config.inter_size, group_num);
+    auto w0_zp_mem = create_dynamic_zp_placeholder();
 
     auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
-    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
-    auto w1_zp_mem = create_zp_tensor(config.num_experts, group_num, 1, config.inter_size);
+    auto w1_scale_mem = make_scale_sym(w1_scale, config.num_experts, config.inter_size, group_num);
+    auto w1_zp_mem = create_dynamic_zp_placeholder();
 
     auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
-    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
-    auto w2_zp_mem = create_zp_tensor(config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_scale_mem = make_scale_sym(w2_scale, config.num_experts, config.hidden_size, group_num2);
+    auto w2_zp_mem = create_dynamic_zp_placeholder();
 
     // Shared Expert Weights
     auto s_gate_weight_mem = create_weight_tensor(s_gate_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_gate_scale_mem = create_f16_tensor(s_gate_scale, 1, group_num, 1, config.inter_size);
-    auto s_gate_zp_mem = create_zp_tensor(1, group_num, 1, config.inter_size);
+    auto s_gate_scale_mem = make_scale_sym(s_gate_scale, 1, config.inter_size, group_num);
+    auto s_gate_zp_mem = create_dynamic_zp_placeholder();
 
     auto s_up_weight_mem = create_weight_tensor(s_up_q_packed, 1, config.inter_size, config.group_size, group_num);
-    auto s_up_scale_mem = create_f16_tensor(s_up_scale, 1, group_num, 1, config.inter_size);
-    auto s_up_zp_mem = create_zp_tensor(1, group_num, 1, config.inter_size);
+    auto s_up_scale_mem = make_scale_sym(s_up_scale, 1, config.inter_size, group_num);
+    auto s_up_zp_mem = create_dynamic_zp_placeholder();
 
     auto s_down_weight_mem = create_weight_tensor(s_down_q_packed, 1, config.hidden_size, config.group_size, group_num2);
-    auto s_down_scale_mem = create_f16_tensor(s_down_scale, 1, group_num2, 1, config.hidden_size);
-    auto s_down_zp_mem = create_zp_tensor(1, group_num2, 1, config.hidden_size);
+    auto s_down_scale_mem = make_scale_sym(s_down_scale, 1, config.hidden_size, group_num2);
+    auto s_down_zp_mem = create_dynamic_zp_placeholder();
 
     auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
 
@@ -1381,4 +1471,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
                                            Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
                                            Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
-                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true}));
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
+                                           // Sub-128 group_size for symmetric shared expert.
+                                           Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
+                                           Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64, true}));

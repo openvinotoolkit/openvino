@@ -19,11 +19,15 @@ namespace ocl {
 struct lockable_gpu_mem {
     lockable_gpu_mem() :
         _lock_count(0),
-        _mapped_ptr(nullptr) {}
+        _mapped_ptr(nullptr),
+        _copy_back_to_device(false),
+        _host_buffer_has_device_data(false) {}
 
     std::mutex _mutex;
     unsigned _lock_count;
     void* _mapped_ptr;
+    bool _copy_back_to_device;
+    bool _host_buffer_has_device_data;
 };
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
