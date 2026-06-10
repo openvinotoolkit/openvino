@@ -151,6 +151,7 @@ void BevPoolV2::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, m_input_channels > 0, "input_channels must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_output_channels > 0, "output_channels must be greater than zero.");
+    NODE_VALIDATION_CHECK(this, m_output_channels <= m_input_channels, "output_channels must be less than or equal to input_channels.");
     NODE_VALIDATION_CHECK(this, m_image_width > 0, "image_width must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_image_height > 0, "image_height must be greater than zero.");
     NODE_VALIDATION_CHECK(this, m_feature_width > 0, "feature_width must be greater than zero.");
