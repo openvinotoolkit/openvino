@@ -91,6 +91,7 @@
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
+#include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
@@ -105,6 +106,7 @@
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -1522,7 +1524,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
+        if (!device_info.supports_immad) {
+            manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
+        }
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
         const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);

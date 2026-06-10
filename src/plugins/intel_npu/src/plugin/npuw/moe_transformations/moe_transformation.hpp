@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -24,6 +25,13 @@
 
 namespace ov {
 namespace npuw {
+
+// Holds original-model index (for prologue matching / param_mapping lookup)
+// and compiled-model index (for direct port binding after transformation).
+struct ParamIndex {
+    std::optional<size_t> original;  // index in original model
+    std::optional<size_t> compiled;  // index in compiled/transformed model
+};
 
 namespace function {
 
@@ -184,9 +192,9 @@ struct MoEExperts {
     // For EXPERT_BATCH: single model with chunk_size = 0 (no chunking, K active experts)
     std::map<size_t, std::shared_ptr<ov::Model>> _transformed_models;
 
-    // Parameter indices
-    std::optional<size_t> _router_scores_idx;       // Parameter index for router scores
-    std::optional<size_t> _expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
+    // Parameter indices (original = in original model, compiled = in compiled/transformed model)
+    ParamIndex _router_scores;  // router scores input parameter
+    ParamIndex _expert_input;   // expert activation input parameter
 
     // Parameter mapping: original_param_idx -> [unrolled_param_indices]
     // For EXPERT_ITERATIVE mode: no unrolling, so this will be empty or identity mapping
@@ -197,7 +205,7 @@ struct MoEExperts {
     // Validation helpers
     bool is_valid() const {
         return _num_experts > 0 && _expert_hidden_dim > 0 && !_transformed_models.empty() &&
-               _router_scores_idx.has_value();
+               _router_scores.original.has_value();
     }
 
     size_t num_experts() const {
@@ -235,14 +243,6 @@ struct MoEExperts {
         return nullptr;
     }
 
-    std::optional<size_t> router_scores_idx() const {
-        return _router_scores_idx;
-    }
-
-    std::optional<size_t> expert_input_param_idx() const {
-        return _expert_input_param_idx;
-    }
-
     const std::map<size_t, std::vector<size_t>>& param_mapping() const {
         return _param_mapping;
     }
@@ -277,10 +277,10 @@ struct MoEExperts {
     // Store models temporarily for compilation (chunk_size -> model)
     std::map<size_t, std::shared_ptr<ov::Model>> _models_to_compile;
 
-    // Router scores parameter index (from Multiply in output path)
-    std::optional<size_t> _router_scores_idx;
-    // Expert input parameter index (token embeddings)
-    std::optional<size_t> _expert_input_param_idx;
+    // Router scores / expert input parameter indices
+    // (.original = in original model; .compiled = in compiled/transformed model)
+    ParamIndex _router_scores;
+    ParamIndex _expert_input;
 
     // Parameter mapping: original_param_idx -> [unrolled_param_indices]
     // Same for all chunk sizes (unrolling only in EXPERT_BATCH mode)
