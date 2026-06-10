@@ -53,11 +53,18 @@ ov::Output<ov::Node> RMSNorm::operator()(const ov::Output<ov::Node>& input, cons
 
     auto mean_eps = std::make_shared<ov::opset11::Add>(mean, eps_const);
 
-    auto rsqrt = std::make_shared<ov::opset11::Sqrt>(mean_eps);
+    auto sqrt = std::make_shared<ov::opset11::Sqrt>(mean_eps);
 
-    auto normalized = std::make_shared<ov::opset11::Divide>(input, rsqrt);
+    // rsqrt-style apply (Divide(1, Sqrt) -> Multiply(x) -> Multiply(weight)), as exported.
+    // When x is a residual Add this hits NPUW's strongest compute pattern (RMSNorm,
+    // which also isolates the weight Multiply); the direct-Divide form only hit RMSNorm4.
+    auto one = ov::opset11::Constant::create(precision, ov::Shape{}, {1.0f});
+    auto rsqrt = std::make_shared<ov::opset11::Divide>(one, sqrt);
+    rsqrt->set_friendly_name(name + "/rsqrt");
 
-    auto scaled = std::make_shared<ov::opset11::Multiply>(normalized, weight);
+    auto normalized = std::make_shared<ov::opset11::Multiply>(input, rsqrt);
+
+    auto scaled = std::make_shared<ov::opset11::Multiply>(weight, normalized);
     scaled->set_friendly_name(name);
 
     return scaled->output(0);
