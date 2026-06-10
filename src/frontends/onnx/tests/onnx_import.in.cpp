@@ -7619,6 +7619,48 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_split_to_sequence_explicit_split_1d) {
     test_case.run();
 }
 
+/// @brief Testing ONNX SequenceLength operator via SequenceConstruct fast path.
+/// All inputs are graph initializers (constants), so SequenceLength is constant-folded
+/// at conversion time to the scalar value 3.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_length_constant_sequence) {
+    const auto model = convert_model("sequence_length_3_elements.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_expected_output<int64_t>(Shape{}, {3});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX SequenceErase operator: fast path, erase middle element.
+/// Graph: SequenceConstruct(a, b, c) -> SequenceErase(pos=1) -> SequenceAt(pos=0) -> a.
+/// After erasing element at index 1 (b), the sequence is [a, c]; SequenceAt(0) returns a.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_erase_middle_element) {
+    const auto model = convert_model("sequence_erase_middle.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2}, {10., 20.});  // a
+    test_case.add_input<float>(Shape{2}, {30., 40.});  // b (erased)
+    test_case.add_input<float>(Shape{2}, {50., 60.});  // c
+    test_case.add_expected_output<float>(Shape{2}, {10., 20.});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX SequenceErase operator: fast path, erase last element (no position input).
+/// Graph: SequenceConstruct(a, b, c) -> SequenceErase() -> SequenceAt(pos=1) -> b.
+/// After erasing the last element (c), the sequence is [a, b]; SequenceAt(1) returns b.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_erase_last_element) {
+    const auto model = convert_model("sequence_erase_last.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2}, {10., 20.});  // a
+    test_case.add_input<float>(Shape{2}, {30., 40.});  // b
+    test_case.add_input<float>(Shape{2}, {50., 60.});  // c (erased)
+    test_case.add_expected_output<float>(Shape{2}, {30., 40.});
+
+    test_case.run();
+}
+
 /// @brief Testing ONNX BitShift with an Y output of uint32 type
 /// The input model was taken from a bug report, where parsing the type of the Y input
 /// failed.

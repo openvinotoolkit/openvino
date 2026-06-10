@@ -924,4 +924,16 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#216296 -->
+    <skip_config>
+        <message>Test failed with compile error.</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*SerializationTestNPUW.CompiledModelPhase0CompatibilityExportSucceedsWithStaticAttention.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

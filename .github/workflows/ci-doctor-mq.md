@@ -30,6 +30,10 @@ if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.c
 
 permissions: read-all
 
+engine:
+  id: copilot
+  model: gpt-5-mini
+
 network: defaults
 
 safe-outputs:
@@ -306,7 +310,8 @@ safe-outputs:
 tools:
   github:
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
-  cache-memory: true
+  cache-memory: 
+    retention-days: 90
 
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
