@@ -141,11 +141,14 @@ void permute_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
+    build_deps();
+
+    if (input_memory_ptr() == nullptr)
+        return;
+
     if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
-
-    build_deps();
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

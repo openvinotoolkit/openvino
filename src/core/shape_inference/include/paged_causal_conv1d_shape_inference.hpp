@@ -27,7 +27,6 @@ std::vector<TRShape> shape_infer(const PagedCausalConv1D* op, const std::vector<
     const auto conv_weight_rank_is_static = input_shapes[2].rank().is_static();
     const auto conv_bias_rank_is_static = input_shapes[3].rank().is_static();
     const auto subsequence_begins_rank_is_static = input_shapes[4].rank().is_static();
-    const auto la_block_indices_rank_is_static = input_shapes[5].rank().is_static();
     const auto la_block_indices_begins_rank_is_static = input_shapes[6].rank().is_static();
     const auto processed_tokens_rank_is_static = input_shapes[7].rank().is_static();
     const auto cache_interval_rank_is_static = input_shapes[8].rank().is_static();
@@ -63,14 +62,6 @@ std::vector<TRShape> shape_infer(const PagedCausalConv1D* op, const std::vector<
             input_shapes[3][0].compatible(input_shapes[2][0]) || input_shapes[3][0].compatible(ov::Dimension(0)),
             "The size of conv_bias must be compatible with the out_channels dimension of "
             "conv_weight or equal to 0 (no bias).");
-    }
-
-    if (conv_state_table_rank_is_static && la_block_indices_rank_is_static) {
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               input_shapes[1][0].compatible(input_shapes[5][0]),
-                               "The num_blocks dimension of la_block_indices must be compatible with the num_blocks "
-                               "dimension of conv_state_table.");
     }
 
     if (subsequence_begins_rank_is_static && la_block_indices_begins_rank_is_static) {

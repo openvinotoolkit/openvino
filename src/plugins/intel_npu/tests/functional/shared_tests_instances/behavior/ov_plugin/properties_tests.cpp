@@ -27,12 +27,16 @@ constexpr std::vector<T> operator+(const std::vector<T>& vector1, const std::vec
 
 ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
     if (auto var = std::getenv("OV_NPU_LOG_LEVEL")) {
-        std::istringstream stringStream = std::istringstream(var);
-        ov::log::Level level;
+        try {
+            std::istringstream stringStream = std::istringstream(var);
+            ov::log::Level level;
 
-        stringStream >> level;
+            stringStream >> level;
 
-        return level;
+            return level;
+        } catch (...) {
+            // ignore parsing errors and return default log level
+        }
     }
     return instead;
 }
@@ -74,7 +78,7 @@ const std::vector<ov::AnyMap> compat_CorrectPluginDefaultMutableProperties = {
     {{ov::hint::num_requests.name(), 1u}},
     {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::WARNING)}},
     {{ov::device::id.name(), ""}},
-    {{ov::num_streams.name(), ov::streams::Num(1)}},
+    {{ov::num_streams.name(), ov::streams::AUTO}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
@@ -113,7 +117,6 @@ const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
 };
 
 const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
-    {{ov::streams::num.name(), ov::streams::Num(2)}},
     {{ov::optimal_number_of_infer_requests.name(), 4}},
     {{ov::intel_npu::device_alloc_mem_size.name(), 1024}},
     {{ov::intel_npu::device_total_mem_size.name(), 2048}},

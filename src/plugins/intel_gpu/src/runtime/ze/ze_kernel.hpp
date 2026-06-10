@@ -30,7 +30,7 @@ public:
             ZE_STRUCTURE_TYPE_KERNEL_DESC, nullptr, flags, nullptr};
         for (auto name_cstr : kernel_names) {
             auto name = std::string(name_cstr);
-            // L0 returns Intel_Symbol_Table_Void_Program that does not correspond to actual kernel
+            // ZE returns Intel_Symbol_Table_Void_Program that does not correspond to actual kernel
             if (name == "Intel_Symbol_Table_Void_Program") {
                 continue;
             }
