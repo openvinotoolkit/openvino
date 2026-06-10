@@ -668,7 +668,6 @@ void prepare_quantization::run(program& p) {
             auto weights_dtype = fc_node.get_input_layout(1).data_type;
             if (weights_dtype != data_types::u2)
                 optimize_weights_decompression_parameters(fc_node, p);
-            //optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
         } else if (node->is_type<gather_matmul>()) {
             optimize_gather_matmul_decompression_parameters(node->as<gather_matmul>(), p);
         } else if (node->is_type<moe_gemm>()) {

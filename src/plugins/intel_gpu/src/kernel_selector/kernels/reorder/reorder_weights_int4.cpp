@@ -12,10 +12,8 @@ namespace kernel_selector {
 
 ParamsKey ReorderWeightsKernelInt4::GetSupportedKey() const {
     ParamsKey k;
-    //k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::UINT4);
-    //k.EnableOutputWeightsType(WeightsType::UINT2);
     k.EnableOutputWeightsType(WeightsType::UINT4);
     k.EnableOutputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);

@@ -78,8 +78,6 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
-
-   
     if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
     } else if (wt == WeightsType::UINT2) {
@@ -109,12 +107,10 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
             res.emplace_back(kd[0]);
         }
     }
-
     return res;
 }
 
-bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
-                         
+bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {                     
     if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -125,7 +121,6 @@ bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
-
 
     return true;
 }
