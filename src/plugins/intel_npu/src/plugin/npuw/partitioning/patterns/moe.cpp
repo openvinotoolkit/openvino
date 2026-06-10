@@ -132,20 +132,47 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
         auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
 
-        // Check if this is decoding stage by examining shape[rank-2]
+        // Check if this is decoding stage by scanning the middle dimensions of
+        // output_multiply for a non-1 token count.  The shape is always rank-4
+        // [num_experts, ..., hidden] with exactly one "token" dim and one singleton
+        // among dims 1..rank-2.
+        //
+        // GPT-OSS: [N, token, 1, H]  - prefill: token > 1; decoding: token = 1
+        // Qwen:    [N, 1, token, H]  - same semantics, different layout
+        //
+        // Strategy: scan dims 1..rank-2 for the first non-1 value.
+        //   - Found non-1 value  → that is the token count; if > 1 it's prefill.
+        //   - No non-1 found     → all middle dims are 1 (decoding, token_count == 1).
+        // Note: a token_count of exactly 1 always falls into the "not found" case
+        // since both middle dims are 1, and the fallback correctly sets is_decoding.
         auto output_shape = matched_output_multiply->get_output_partial_shape(0);
         LOG_DEBUG("Expert Multiply output_shape: " << output_shape);
         bool is_decoding = false;
 
-        if (output_shape.rank().is_static() && output_shape.rank().get_length() >= 2) {
-            auto rank = output_shape.rank().get_length();
-            auto token_dim = output_shape[rank - 2];
-
-            if (token_dim.is_static() && token_dim.get_length() == 1) {
+        if (output_shape.rank().is_static()) {
+            const auto rank = output_shape.rank().get_length();
+            // Scan middle dims (skip dim 0 = num_experts, skip last = hidden_dim)
+            bool found_token_dim = false;
+            for (int64_t i = 1; i < rank - 1; ++i) {
+                const auto& d = output_shape[i];
+                if (!d.is_static()) {
+                    continue;
+                }
+                const auto val = d.get_length();
+                if (val != 1) {
+                    // This is the token dimension and val > 1: prefill stage.
+                    // (val == 1 never reaches here; that case is handled by fallback.)
+                    is_decoding = false;
+                    LOG_DEBUG("GPT-OSS Expert pattern matched (Prefill stage): token_count=" << val);
+                    found_token_dim = true;
+                    break;
+                }
+                // val == 1: singleton layout dim, keep scanning
+            }
+            if (!found_token_dim) {
+                // All middle dims are 1 (token_count == 1): decoding stage.
                 is_decoding = true;
                 LOG_DEBUG("GPT-OSS Expert pattern matched (Decoding stage): single token");
-            } else if (token_dim.is_static()) {
-                LOG_DEBUG("GPT-OSS Expert pattern matched (Prefill stage): token_count=" << token_dim.get_length());
             }
         }
 
@@ -212,29 +239,39 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 }
 
 /*
-    GPT-OSS Router Pattern:
+    GPT-OSS Router Pattern (constant-folded variant):
 
-    Matches MoE router layer (16 nodes: 9 pattern-matched + 7 manual retrieval)
-    Pattern: weights -> Multiply -> Convert -> MatMul -> Add -> TopK -> Softmax -> Slice
-                                                             \-> Convert -> ShapeOf -/
-    Manual: Add -> ShapeOf -> Broadcast -> Scatter -> Transpose -> Reshape -> Unsqueeze
+    All ShapeOf nodes in the router are constant-folded before this pattern runs.
+    The resulting graph is:
+
+        weights -> Multiply -> Convert -> MatMul -> Add -> TopK
+                                                          |\-> output(0) values -> Softmax -> Slice
+                                                          \-> output(1) indices -> Convert (indices)
+
+    Slice -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
+    Broadcast (zero base for Scatter, shape fed by folded Const)
+
+    Pattern-matched (6): Multiply, Convert, MatMul, Add, TopK, Softmax, Slice
+    Manually retrieved (4): topk_convert (indices Convert), Broadcast, Scatter,
+                            Transpose, Reshape, Unsqueeze
 */
 GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     LOG_DEBUG("GPTOSSRouter pattern matcher registered with tag: " << isol_tag);
 
-    // Pattern-matched nodes (9 total)
+    // Pattern-matched nodes (7): Multiply, Convert, MatMul, Add, TopK, Softmax, Slice
+    // topk_convert (indices Convert) is retrieved manually - TopK has two outputs and
+    // wrap_type always binds output(0), so output(1)->Convert cannot be expressed inline.
     auto weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
     auto weights_convert2 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), weights_convert2});
     auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
     auto topk = opp::wrap_type<ov::op::v11::TopK>({add, opp::any_input()});
-    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({topk});
-    auto topk_convert = opp::wrap_type<ov::op::v0::Convert>({topk});
-    auto shapeof_topk = opp::wrap_type<ov::op::v3::ShapeOf>({topk_convert});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({topk});  // connects to topk->output(0)
 
-    // Pattern root
+    // Pattern root: Slice data input is Softmax output; all shape inputs are any_input()
+    // because ShapeOf nodes are constant-folded before this pattern runs.
     auto slice = opp::wrap_type<ov::op::v8::Slice>(
-        {softmax, opp::any_input(), shapeof_topk, opp::any_input(), opp::any_input()});
+        {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -264,9 +301,18 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
         auto matched_add = node_to_output.at(add).get_node_shared_ptr();
         auto matched_softmax = node_to_output.at(softmax).get_node_shared_ptr();
-        auto matched_topk_convert = node_to_output.at(topk_convert).get_node_shared_ptr();
-        auto matched_shapeof_topk = node_to_output.at(shapeof_topk).get_node_shared_ptr();
         auto matched_slice = node_to_output.at(slice).get_node_shared_ptr();
+
+        // topk_convert: Convert on TopK indices output (output(1)).  Not in the formal
+        // pattern because TopK has two outputs and wrap_type always binds output(0).
+        std::shared_ptr<ov::Node> matched_topk_convert = nullptr;
+        for (auto& target : matched_topk->output(1).get_target_inputs()) {
+            auto consumer = target.get_node()->shared_from_this();
+            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(consumer)) {
+                matched_topk_convert = consumer;
+                break;
+            }
+        }
 
         // Manual retrieval (7 nodes): helper function
         auto find_consumer_by_type =
@@ -297,19 +343,6 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(broadcast_node);
         if (!matched_broadcast) {
             LOG_DEBUG("Router pattern: Broadcast not found");
-            return false;
-        }
-
-        std::shared_ptr<ov::Node> matched_shapeof = nullptr;
-        for (size_t i = 0; i < matched_broadcast->inputs().size(); ++i) {
-            auto input_node = matched_broadcast->input_value(i).get_node_shared_ptr();
-            if (std::dynamic_pointer_cast<ov::op::v3::ShapeOf>(input_node)) {
-                matched_shapeof = input_node;
-                break;
-            }
-        }
-        if (!matched_shapeof) {
-            LOG_DEBUG("Router pattern: ShapeOf not found");
             return false;
         }
 
@@ -352,9 +385,7 @@ GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         isolate_if_exists(matched_topk);
         isolate_if_exists(matched_softmax);
         isolate_if_exists(matched_topk_convert);
-        isolate_if_exists(matched_shapeof_topk);
         isolate_if_exists(matched_slice);
-        isolate_if_exists(matched_shapeof);
         isolate_if_exists(matched_broadcast);
         isolate_if_exists(matched_scatter);
         isolate_if_exists(matched_transpose);

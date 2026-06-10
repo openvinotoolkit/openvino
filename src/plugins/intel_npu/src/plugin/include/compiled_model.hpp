@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <optional>
 
 #include "intel_npu/common/icompiled_model.hpp"
@@ -25,9 +26,8 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
-     * @param profiling Flag indicating if profiling was requested. Setting this to "true" will lead to storing the
-     * "compiler" parameter inside the newly created "CompiledModel".
      * @param config Custom configuration object
+     * @param batchSize Optional batch size value.
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -40,7 +40,7 @@ public:
 
     CompiledModel& operator=(const CompiledModel&) = delete;
 
-    ~CompiledModel() override;
+    ~CompiledModel() override = default;
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -61,15 +61,17 @@ public:
     void release_memory() override;
 
 private:
+    // For special config, stream executors must be set accordingly to ensure correct behavior.
     void configure_stream_executors();
 
     Logger _logger;
+
     const std::shared_ptr<IDevice> _device;
-    std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
-
     std::unique_ptr<Properties> _propertiesManager;
-
     std::shared_ptr<IGraph> _graph;
+
+    std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
+    mutable std::once_flag _streamExecutorsInitFlag;
 
     std::optional<int64_t> _batchSize;
 };

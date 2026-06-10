@@ -891,16 +891,38 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
         quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
-    ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
-    ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+    // Function calls share pipeline.context with their function body at runtime.
+    // There is no need to serialize the compiled moe/attn state for each call –
+    // doing so would re-import NPU blobs for every repeated layer (one per call),
+    // causing O(N_layers) memory growth on import.  Only the function body
+    // (compiled_model is set, or replaced_by is absent) writes/reads state.
+    const bool is_fcall = replaced_by.has_value() && !static_cast<bool>(compiled_model);
+    if (!is_fcall) {
+        ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+        ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
 
-    if (stream.input()) {
-        if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
-            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
-        } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
-            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
-        } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
-            ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+        if (stream.input()) {
+            if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
+                ov::npuw::attn::attach_runtime_behavior(pipeline,
+                                                        pipeline.context,
+                                                        ov::npuw::attn::BehaviorKind::Dynamic);
+            } else if (ov::npuw::attn::get_compiled_pyramid(pipeline.context) != nullptr) {
+                ov::npuw::attn::attach_runtime_behavior(pipeline,
+                                                        pipeline.context,
+                                                        ov::npuw::attn::BehaviorKind::Pyramid);
+            } else if (ov::npuw::attn::get_compiled_hfa(pipeline.context) != nullptr) {
+                ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+            } else if (ov::npuw::moe::get_compiled_experts(pipeline.context) != nullptr) {
+                ov::npuw::moe::attach_runtime_behavior(pipeline,
+                                                       pipeline.context,
+                                                       ov::npuw::moe::BehaviorRole::EXPERTS,
+                                                       true);
+            } else if (ov::npuw::moe::get_compiled_downstream(pipeline.context) != nullptr) {
+                ov::npuw::moe::attach_runtime_behavior(pipeline,
+                                                       pipeline.context,
+                                                       ov::npuw::moe::BehaviorRole::DOWNSTREAM,
+                                                       true);
+            }
         }
     }
 
