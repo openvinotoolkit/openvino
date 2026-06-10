@@ -590,7 +590,7 @@ std::shared_ptr<Model> create_qwen3_moe_graph(size_t num_experts = 4,
 
     // Scatter back to full expert dimension
     auto zero = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
-    auto bcast_shp = op::v0::Constant::create(element::i64, Shape{2}, {1LL, (int64_t)num_experts});
+    auto bcast_shp = op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1LL, (int64_t)num_experts});
     auto broadcast = std::make_shared<op::v3::Broadcast>(zero, bcast_shp);
     auto sc_ax = op::v0::Constant::create(element::i64, Shape{1}, {1});
     auto scatter = std::make_shared<op::v12::ScatterElementsUpdate>(broadcast, topk->output(1), divide, sc_ax);
@@ -600,7 +600,7 @@ std::shared_ptr<Model> create_qwen3_moe_graph(size_t num_experts = 4,
     auto transpose = std::make_shared<op::v1::Transpose>(scatter, tp_ord);
 
     // Reshape [N,1] -> [N,1,1]  (shape[0] = num_experts, fixed by transform_router_broadcast_chain)
-    auto r_shp = op::v0::Constant::create(element::i64, Shape{3}, {(int64_t)num_experts, 1LL, 1LL});
+    auto r_shp = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{(int64_t)num_experts, 1LL, 1LL});
     auto router_reshape = std::make_shared<op::v1::Reshape>(transpose, r_shp, false);
 
     // Unsqueeze dim 3: [N,1,1] -> [N,1,1,1]
@@ -618,11 +618,13 @@ std::shared_ptr<Model> create_qwen3_moe_graph(size_t num_experts = 4,
     };
 
     // Tile [1,H] -> [N,H]
-    auto tile_rep = op::v0::Constant::create(element::i64, Shape{2}, {(int64_t)num_experts, 1LL});
+    auto tile_rep = op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{(int64_t)num_experts, 1LL});
     auto tile = std::make_shared<op::v0::Tile>(input, tile_rep);
 
     // Reshape [N,H] -> [N,1,H]  (shape[0] = num_experts)
-    auto rs1_shp = op::v0::Constant::create(element::i64, Shape{3}, {(int64_t)num_experts, 1LL, (int64_t)hidden_dim});
+    auto rs1_shp = op::v0::Constant::create(element::i64,
+                                            Shape{3},
+                                            std::vector<int64_t>{(int64_t)num_experts, 1LL, (int64_t)hidden_dim});
     auto reshape1 = std::make_shared<op::v1::Reshape>(tile, rs1_shp, false);
 
     // Gate: [N,I,H] weights -> [N,1,H] x [N,I,H]^T -> [N,1,I] -> Swish
@@ -642,8 +644,9 @@ std::shared_ptr<Model> create_qwen3_moe_graph(size_t num_experts = 4,
     auto matmul_down = std::make_shared<op::v0::MatMul>(swiglu, down_w, false, true);
 
     // Reshape [N,1,H] -> [N,1,1,H]  (shape[0] = num_experts)
-    auto rs2_shp =
-        op::v0::Constant::create(element::i64, Shape{4}, {(int64_t)num_experts, 1LL, 1LL, (int64_t)hidden_dim});
+    auto rs2_shp = op::v0::Constant::create(element::i64,
+                                            Shape{4},
+                                            std::vector<int64_t>{(int64_t)num_experts, 1LL, 1LL, (int64_t)hidden_dim});
     auto reshape2 = std::make_shared<op::v1::Reshape>(matmul_down, rs2_shp, false);
 
     // Output multiply: [N,1,1,H] * [N,1,1,1] -> [N,1,1,H]
