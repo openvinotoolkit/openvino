@@ -21,16 +21,31 @@
 
 namespace ov::intel_cpu {
 
+namespace {
+
+ov::element::Type dataTypeToDescriptorPrecision(const dnnl::memory::data_type dataType) {
+    if (dataType == dnnl::memory::data_type::undef) {
+        return ov::element::dynamic;
+    }
+    return DnnlExtensionUtils::DataTypeToElementType(dataType);
+}
+
+}  // namespace
+
 DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) : DnnlMemoryDesc(desc.get()) {}
 
 DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc)
     : MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims)), Dnnl),
-      desc(DnnlExtensionUtils::clone_desc(cdesc)) {
+      desc(DnnlExtensionUtils::clone_desc(cdesc)),
+      precision(dataTypeToDescriptorPrecision(static_cast<dnnl::memory::data_type>(cdesc->data_type))) {
     OPENVINO_ASSERT(getFormatKind() != dnnl::memory::format_kind::any, "Unexpected: Memory format any is prohibited!");
 }
 
 ov::element::Type DnnlMemoryDesc::getPrecision() const {
-    return DnnlExtensionUtils::DataTypeToElementType(getDataType());
+    if (precision != ov::element::dynamic) {
+        return precision;
+    }
+    return dataTypeToDescriptorPrecision(getDataType());
 }
 
 MemoryDescPtr DnnlMemoryDesc::clone() const {

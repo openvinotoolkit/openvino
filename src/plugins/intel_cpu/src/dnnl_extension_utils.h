@@ -40,6 +40,9 @@ public:
     static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType,
                                                          throw_tag tag = throw_tag{});
 
+    static dnnl::memory::data_type ElementTypeToDataTypeForMemory(const ov::element::Type& elementType,
+                                                                  throw_tag tag = throw_tag{});
+
     static std::optional<dnnl::memory::data_type> ElementTypeToDataType(const ov::element::Type& elementType,
                                                                         nothrow_tag tag) noexcept;
 

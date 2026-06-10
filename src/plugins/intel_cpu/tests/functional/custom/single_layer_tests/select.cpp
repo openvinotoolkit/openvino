@@ -5,7 +5,11 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/select.hpp"
+
+#include <array>
+#include <cstdint>
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -15,6 +19,20 @@ using selectParams = std::tuple<std::vector<InputShape>,    // input shapes
                                 ElementType,                // Then/Else precision
                                 ov::op::AutoBroadcastSpec,  // broadcast
                                 fusingSpecificParams>;
+
+using selectI64ConstParams = std::tuple<InputShape,                // condition input shape
+                                        ov::Shape,                 // then constant shape
+                                        ov::Shape,                 // else constant shape
+                                        ov::op::AutoBroadcastSpec  // broadcast
+                                        >;
+
+static std::vector<int64_t> make_i64_values(const ov::Shape& shape, const std::array<int64_t, 4>& values) {
+    std::vector<int64_t> data(ov::shape_size(shape));
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] = values[i % values.size()];
+    }
+    return data;
+}
 
 class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>,
                            virtual public SubgraphBaseTest,
@@ -47,7 +65,8 @@ protected:
         const auto& [shapes, precision, broadcast, fusingParams] = this->GetParam();
         init_input_shapes(shapes);
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
-        selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
+        selectedType = precision == ov::element::i64 ? makeSelectedTypeStr("ref", precision)
+                                                     : makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
 
         ov::element::TypeVector types{ov::element::boolean, precision, precision};
         ov::ParameterVector parameters;
@@ -63,6 +82,38 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& modelInputs = function->inputs();
+        if (modelInputs[1].get_element_type() == ov::element::i64) {
+            ov::Tensor condTensor{modelInputs[0].get_element_type(), targetInputStaticShapes[0]};
+            ov::Tensor thenTensor{modelInputs[1].get_element_type(), targetInputStaticShapes[1]};
+            ov::Tensor elseTensor{modelInputs[2].get_element_type(), targetInputStaticShapes[2]};
+
+            auto* condData = condTensor.data<bool>();
+            auto* thenData = thenTensor.data<int64_t>();
+            auto* elseData = elseTensor.data<int64_t>();
+            const std::array<int64_t, 4> thenValues = {(1LL << 45) + 123,
+                                                       (1LL << 52) + 7,
+                                                       (1LL << 55) + 31,
+                                                       (1LL << 60) + 9};
+            const std::array<int64_t, 4> elseValues = {(1LL << 44) + 5,
+                                                       (1LL << 46) + 11,
+                                                       (1LL << 53) + 17,
+                                                       (1LL << 54) + 23};
+            for (size_t i = 0; i < ov::shape_size(targetInputStaticShapes[0]); ++i) {
+                condData[i] = i != 2;
+            }
+            for (size_t i = 0; i < ov::shape_size(targetInputStaticShapes[1]); ++i) {
+                thenData[i] = thenValues[i % thenValues.size()];
+            }
+            for (size_t i = 0; i < ov::shape_size(targetInputStaticShapes[2]); ++i) {
+                elseData[i] = elseValues[i % elseValues.size()];
+            }
+
+            inputs.insert({modelInputs[0].get_node_shared_ptr(), condTensor});
+            inputs.insert({modelInputs[1].get_node_shared_ptr(), thenTensor});
+            inputs.insert({modelInputs[2].get_node_shared_ptr(), elseTensor});
+            return;
+        }
+
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = -1;
         in_data.range = 3;
@@ -85,6 +136,68 @@ protected:
 };
 
 TEST_P(SelectLayerCPUTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
+}
+
+class SelectI64ConstLayerCPUTest : public testing::WithParamInterface<selectI64ConstParams>,
+                                   virtual public SubgraphBaseTest,
+                                   public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<selectI64ConstParams>& obj) {
+        const auto& [conditionShape, thenShape, elseShape, broadcast] = obj.param;
+        std::ostringstream result;
+        result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << ElementType::i64 << "_";
+        result << "Condition_IS=" << conditionShape.first << "_TS=(";
+        for (const auto& shape : conditionShape.second) {
+            result << ov::test::utils::vec2str(shape) << "_";
+        }
+        result << ")_ThenConst=" << ov::test::utils::vec2str(thenShape) << "_";
+        result << "ElseConst=" << ov::test::utils::vec2str(elseShape) << "_";
+        result << "Broadcast=" << broadcast.m_type;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        abs_threshold = 0;
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        const auto& [conditionShape, thenShape, elseShape, broadcast] = this->GetParam();
+        init_input_shapes({conditionShape});
+        selectedType = makeSelectedTypeStr("ref", ov::element::i64);
+
+        auto condition = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, inputDynamicShapes[0]);
+        const std::array<int64_t, 4> thenValues = {(1LL << 45) + 123,
+                                                   (1LL << 52) + 7,
+                                                   (1LL << 55) + 31,
+                                                   (1LL << 60) + 9};
+        const std::array<int64_t, 4> elseValues = {(1LL << 44) + 5,
+                                                   (1LL << 46) + 11,
+                                                   (1LL << 53) + 17,
+                                                   (1LL << 54) + 23};
+        auto thenConstant =
+            ov::op::v0::Constant::create(ov::element::i64, thenShape, make_i64_values(thenShape, thenValues));
+        auto elseConstant =
+            ov::op::v0::Constant::create(ov::element::i64, elseShape, make_i64_values(elseShape, elseValues));
+        auto select = std::make_shared<ov::op::v1::Select>(condition, thenConstant, elseConstant, broadcast);
+
+        ov::ParameterVector parameters{condition};
+        function = create_ov_model(ov::element::i64, parameters, select, "Eltwise");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& modelInputs = function->inputs();
+        ov::Tensor condTensor{modelInputs[0].get_element_type(), targetInputStaticShapes[0]};
+        auto* condData = condTensor.data<bool>();
+        for (size_t i = 0; i < ov::shape_size(targetInputStaticShapes[0]); ++i) {
+            condData[i] = i % 2 == 0;
+        }
+        inputs.insert({modelInputs[0].get_node_shared_ptr(), condTensor});
+    }
+};
+
+TEST_P(SelectI64ConstLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
@@ -162,6 +275,52 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic,
                          SelectLayerCPUTest,
                          noneCases,
                          SelectLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> inShapesI64 = {
+    {
+        {{{4}}, {{4}}},
+        {{{4}}, {{4}}},
+        {{{4}}, {{4}}},
+    },
+};
+
+const std::vector<std::vector<InputShape>> inShapesI64Numpy = {
+    {
+        {{1, 3}, {{1, 3}}},
+        {{2, 3}, {{2, 3}}},
+        {{1, 1}, {{1, 1}}},
+    },
+};
+
+const auto i64Cases = ::testing::Combine(::testing::ValuesIn(inShapesI64),
+                                         ::testing::Values(ElementType::i64),
+                                         ::testing::Values(ov::op::AutoBroadcastType::NONE),
+                                         ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_i64,
+                         SelectLayerCPUTest,
+                         i64Cases,
+                         SelectLayerCPUTest::getTestCaseName);
+
+const auto i64NumpyCases = ::testing::Combine(::testing::ValuesIn(inShapesI64Numpy),
+                                              ::testing::Values(ElementType::i64),
+                                              ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
+                                              ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_i64_Broadcast,
+                         SelectLayerCPUTest,
+                         i64NumpyCases,
+                         SelectLayerCPUTest::getTestCaseName);
+
+const auto i64ConstCases = ::testing::Combine(::testing::Values(InputShape{{1, 3}, {{1, 3}}}),
+                                             ::testing::Values(ov::Shape{2, 3}),
+                                             ::testing::Values(ov::Shape{1, 1}),
+                                             ::testing::Values(ov::op::AutoBroadcastType::NUMPY));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_i64_ConstBroadcast,
+                         SelectI64ConstLayerCPUTest,
+                         i64ConstCases,
+                         SelectI64ConstLayerCPUTest::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

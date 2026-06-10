@@ -52,6 +52,10 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
                   Algorithm::EltwiseBitwiseRightShift);
 }
 
+static bool isBitwiseAndAlgorithm(const EltwiseConfig& config) {
+    return config.attrs.data.algo == Algorithm::EltwiseBitwiseAnd;
+}
+
 [[maybe_unused]] static bool isChannelFirstApplicable(const EltwiseConfig& config) {
     auto acceptableRank = [](const size_t rank) {
         return any_of(rank, 1U, 2U, 3U, 4U, 5U);
@@ -133,6 +137,8 @@ static const MappingNotation eltwiseMappingNotation{{ARG_SRC, 0},
                                                     // Support for more than 10 inputs can be added if necessary
                                                     {ARG_DST, 1}};
 
+static const MappingNotation selectMappingNotation{{ARG_SRC, 0}, {ARG_SRC_1, 1}, {ARG_SRC_2, 1}, {ARG_DST, 2}};
+
 // clang-format off
 static const TypeMapping eltwiseTypeMapping {
     // {src, dst}         pt<src, dst>
@@ -148,6 +154,18 @@ static const TypeMapping bitwiseReferenceTypeMapping {
     // {src, dst}         pt<src, dst>
     {{_u8 | _i8 | _u16 | _i16 | _i32, _u8 | _i8 | _u16 | _i16 | _i32},        {bypass(), bypass()}},
     {{_any, _any}, {just<f32>(), just<f32>()}},
+};
+
+static const TypeMapping bitwiseAndReferenceTypeMapping {
+    // {src, dst}         pt<src, dst>
+    {{_u8 | _i8 | _u16 | _i16 | _i32 | _i64, _u8 | _i8 | _u16 | _i16 | _i32 | _i64},        {bypass(), bypass()}},
+    {{_any, _any}, {just<f32>(), just<f32>()}},
+};
+
+static const TypeMapping selectReferenceTypeMapping {
+    // {condition, then/else, dst}         pt<condition, then/else, dst>
+    {{_boolean | _u8 | _i64, _i64, _i64}, {use<1>(), bypass(), bypass()}},
+    {{_any, _any, _any},                  {just<f32>(), just<f32>(), just<f32>()}},
 };
 
 static const TypeMapping aclEltwiseTypeMapping {
@@ -381,9 +399,20 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                if (config.attrs.data.algo == Algorithm::EltwiseSelect) {
+                    return createOptimalConfigCommon(config,
+                                                     selectReferenceTypeMapping,
+                                                     LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
+                                                     selectMappingNotation);
+                }
+                const TypeMapping* typeMapping = &eltwiseReferenceTypeMapping;
+                if (isBitwiseAndAlgorithm(config)) {
+                    typeMapping = &bitwiseAndReferenceTypeMapping;
+                } else if (isBitwiseAlgorithm(config)) {
+                    typeMapping = &bitwiseReferenceTypeMapping;
+                }
                 return createOptimalConfigCommon(config,
-                                                 typeMapping,
+                                                 *typeMapping,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                  eltwiseMappingNotation);
             },
@@ -401,9 +430,20 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                if (config.attrs.data.algo == Algorithm::EltwiseSelect) {
+                    return createOptimalConfigCommon(config,
+                                                     selectReferenceTypeMapping,
+                                                     LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc},
+                                                     selectMappingNotation);
+                }
+                const TypeMapping* typeMapping = &eltwiseReferenceTypeMapping;
+                if (isBitwiseAndAlgorithm(config)) {
+                    typeMapping = &bitwiseAndReferenceTypeMapping;
+                } else if (isBitwiseAlgorithm(config)) {
+                    typeMapping = &bitwiseReferenceTypeMapping;
+                }
                 return createOptimalConfigCommon(config,
-                                                 typeMapping,
+                                                 *typeMapping,
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                  eltwiseMappingNotation);
             },

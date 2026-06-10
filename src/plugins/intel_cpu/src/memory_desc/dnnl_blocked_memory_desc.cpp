@@ -35,6 +35,8 @@ namespace ov::intel_cpu {
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
+    setLogicalPrecision(prc);
+
     const auto ndims = shape.getRank();
     const auto& dims = shape.getDims();
 
@@ -45,7 +47,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape&
             OPENVINO_THROW("Can't create DnnlBlockedMemoryDesc with zero dim, but with non zero strides");
         }
         desc = {DnnlExtensionUtils::convertToDnnlDims(dims),
-                DnnlExtensionUtils::ElementTypeToDataType(prc),
+                DnnlExtensionUtils::ElementTypeToDataTypeForMemory(prc),
                 DnnlExtensionUtils::convertToDnnlDims(strides)};
     } else {
         dnnl::memory::dims plain_strides;
@@ -63,7 +65,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape&
         }
 
         desc = {DnnlExtensionUtils::convertToDnnlDims(dims),
-                DnnlExtensionUtils::ElementTypeToDataType(prc),
+                DnnlExtensionUtils::ElementTypeToDataTypeForMemory(prc),
                 plain_strides};
     }
 
@@ -101,11 +103,13 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
                                              const VectorDims& offsetPaddingToData,
                                              const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
+    setLogicalPrecision(prc);
+
     using namespace dnnl;
     // scalar case
     if (shape.getRank() == 0) {
         desc.get()->format_kind = dnnl_blocked;
-        desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataType(prc));
+        desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataTypeForMemory(prc));
         desc.get()->ndims = 1;
         desc.get()->dims[0] = 1;
         desc.get()->padded_dims[0] = 1;
@@ -193,7 +197,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     // Fill general memory desc fields
     desc.get()->format_kind = dnnl_blocked;
     desc.get()->extra.flags = 0;
-    desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataType(prc));
+    desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataTypeForMemory(prc));
     desc.get()->ndims = dims.size();
     desc.get()->offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
     std::copy(dims.begin(), dims.end(), desc.get()->dims);
@@ -259,6 +263,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
     } else {
         desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dims), dataType, format);
     }
+    setLogicalPrecision(DnnlExtensionUtils::DataTypeToElementType(dataType));
 
     VectorDims perm;
     VectorDims inner_blks;
@@ -507,7 +512,9 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims)
         }
     }
 
-    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order).get()));
+    auto clonedDesc = DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order).get()));
+    clonedDesc->setLogicalPrecision(getPrecision());
+    return clonedDesc;
 }
 
 bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {

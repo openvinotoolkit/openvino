@@ -115,6 +115,15 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
     return result.value();
 }
 
+dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataTypeForMemory(
+    const ov::element::Type& elementType,
+    [[maybe_unused]] DnnlExtensionUtils::throw_tag tag) {
+    if (elementType == ov::element::i64) {
+        return memory::data_type::f64;
+    }
+    return ElementTypeToDataType(elementType);
+}
+
 ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::data_type& dataType) {
     switch (dataType) {
     case memory::data_type::f32:

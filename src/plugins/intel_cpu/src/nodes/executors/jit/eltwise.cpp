@@ -404,6 +404,16 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
+    const auto hasI64 = [](const std::vector<ov::element::Type>& precisions) {
+        return std::find(precisions.begin(), precisions.end(), ov::element::i64) != precisions.end();
+    };
+    if (any_of(algorithm,
+               Algorithm::EltwiseSelect,
+               Algorithm::EltwiseBitwiseAnd) &&
+        (hasI64(input_precisions) || hasI64(output_precisions))) {
+        return false;
+    }
+
     return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)

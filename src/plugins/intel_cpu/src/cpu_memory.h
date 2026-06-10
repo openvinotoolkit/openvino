@@ -214,7 +214,7 @@ public:
     }
 
     [[nodiscard]] dnnl::memory::data_type getDataType() const {
-        return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
+        return DnnlExtensionUtils::ElementTypeToDataTypeForMemory(getDesc().getPrecision());
     }
 
     template <typename T,
