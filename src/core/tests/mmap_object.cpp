@@ -374,8 +374,7 @@ TEST(MappedMemory, parallel_prefault_whole_file) {
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
         EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
-        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[file_size - 1]),
-                  static_cast<uint8_t>((file_size - 1) % 251));
+        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[file_size - 1]), static_cast<uint8_t>((file_size - 1) % 251));
     }
 
     std::filesystem::remove(file_path);
@@ -401,8 +400,7 @@ TEST(MappedMemory, parallel_prefault_partial_region) {
 
         EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
-        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[prefault_offset]),
-                  static_cast<uint8_t>(prefault_offset % 251));
+        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[prefault_offset]), static_cast<uint8_t>(prefault_offset % 251));
     }
 
     std::filesystem::remove(file_path);
