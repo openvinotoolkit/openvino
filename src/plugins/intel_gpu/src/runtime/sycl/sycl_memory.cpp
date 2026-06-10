@@ -218,7 +218,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
                 auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
                     ::sycl::accessor<std::byte, 1, ::sycl::access::mode::write> dst_acc(_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(dst_offset));
                     cgh.parallel_for(::sycl::range<1>(size), [=](::sycl::id<1> idx) {
-                        dst_acc[idx] = src_ptr[idx];
+                        dst_acc[idx] = src_ptr[idx[0]];
                     });
                 });
                 if (blocking) {
@@ -512,7 +512,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
                 auto ev = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
                     ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read> src_acc(src_buffer, cgh, ::sycl::range<1>(size), ::sycl::id<1>(src_offset));
                     cgh.parallel_for(::sycl::range<1>(size), [=](::sycl::id<1> idx) {
-                        dst_ptr[idx] = src_acc[idx];
+                        dst_ptr[idx[0]] = src_acc[idx];
                     });
                 });
                 if (blocking) {
