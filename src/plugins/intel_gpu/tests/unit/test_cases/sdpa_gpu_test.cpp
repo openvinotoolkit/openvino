@@ -13,9 +13,12 @@
 #include "openvino/util/file_util.hpp"
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <iostream>
+#include <optional>
+#include <string>
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
@@ -282,6 +285,164 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     auto p = GetParam();
     execute(p, true);
 }
+
+struct onednn_sdpa_test_params {
+    int batch;
+    int num_heads;
+    int sequence_length_q;
+    int sequence_length_kv;
+    int head_size;
+    std::optional<float> scale_val;
+};
+
+struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    void fill_random(const memory::ptr& mem) {
+        const auto shape = mem->get_layout().get_shape();
+        const size_t elements_num = ov::shape_size(shape);
+        auto data = rg.generate_random_1d<ov::float16>(elements_num, -0.5f, 0.5f);
+        set_values(mem, data);
+    }
+
+    network::ptr build_network(const layout& q_layout,
+                               const layout& k_layout,
+                               const layout& v_layout,
+                               bool use_onednn,
+                               const std::optional<float>& scale_val) {
+        auto& engine = get_test_engine();
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+
+        auto sdpa = scaled_dot_product_attention("sdpa",
+                                                 {input_info("q"), input_info("k"), input_info("v")},
+                                                 false,
+                                                 -1,
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {},
+                                                 false);
+        if (scale_val.has_value()) {
+            sdpa.scale_val = scale_val.value();
+        }
+
+        topo.add(sdpa);
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::use_onednn(use_onednn));
+        if (use_onednn) {
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::enable_onednn_sdpa_primitive(true));
+        }
+        if (!use_onednn) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, "sdpa_ref", impl_types::ocl}}
+            }));
+        }
+
+        return get_network(engine, topo, config, get_test_stream_ptr(), false);
+    }
+
+    static void assert_onednn_sdpa_selected(const network::ptr& net) {
+        auto inst = net->get_primitive("sdpa");
+        ASSERT_NE(inst, nullptr);
+        auto impl = inst->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_NE(impl->m_manager, nullptr);
+        EXPECT_TRUE(impl->is_onednn());
+        EXPECT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+        EXPECT_STREQ(impl->m_manager->get_type_info().name, "onednn::sdpa");
+    }
+
+    void execute() {
+        const auto p = GetParam();
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad) {
+            GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU";
+        }
+
+        const layout q_layout({p.batch, p.num_heads, p.sequence_length_q, p.head_size}, data_types::f16, format::bfyx);
+        const layout k_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
+        const layout v_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(k_layout);
+        auto v_mem = engine.allocate_memory(v_layout);
+
+        fill_random(q_mem);
+        fill_random(k_mem);
+        fill_random(v_mem);
+
+        auto ref_net = build_network(q_layout, k_layout, v_layout, false, p.scale_val);
+        auto onednn_net = build_network(q_layout, k_layout, v_layout, true, p.scale_val);
+        assert_onednn_sdpa_selected(onednn_net);
+
+        for (auto& net : {ref_net, onednn_net}) {
+            net->set_input_data("q", q_mem);
+            net->set_input_data("k", k_mem);
+            net->set_input_data("v", v_mem);
+        }
+
+        auto ref_output = ref_net->execute().at("sdpa").get_memory();
+        auto onednn_output = onednn_net->execute().at("sdpa").get_memory();
+
+        mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_output, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> onednn_data(onednn_output, get_test_stream());
+
+        ASSERT_EQ(ref_data.size(), onednn_data.size());
+
+        float max_abs_diff = 0.0f;
+        float mean_abs_diff = 0.0f;
+        for (size_t idx = 0; idx < ref_data.size(); ++idx) {
+            ASSERT_FALSE(std::isnan(static_cast<float>(ref_data[idx]))) << "NaN in OCL reference output at " << idx;
+            ASSERT_FALSE(std::isnan(static_cast<float>(onednn_data[idx]))) << "NaN in oneDNN output at " << idx;
+
+            const auto diff = std::abs(static_cast<float>(ref_data[idx]) - static_cast<float>(onednn_data[idx]));
+            max_abs_diff = std::max(max_abs_diff, diff);
+            mean_abs_diff += diff;
+        }
+        mean_abs_diff /= static_cast<float>(ref_data.size());
+
+        EXPECT_LT(max_abs_diff, 0.06f);
+        EXPECT_LT(mean_abs_diff, 0.01f);
+    }
+
+    static std::string PrintToStringParamName(const testing::TestParamInfo<onednn_sdpa_test_params>& info) {
+        std::string result = "onednn_sdpa_" + std::to_string(info.param.batch) + "_" +
+                             std::to_string(info.param.num_heads) + "_" +
+                             std::to_string(info.param.sequence_length_q) + "_" +
+                             std::to_string(info.param.sequence_length_kv) + "_" +
+                             std::to_string(info.param.head_size);
+        if (info.param.scale_val.has_value()) {
+            result += "_scale_" + std::to_string(static_cast<int>(info.param.scale_val.value() * 1000));
+        } else {
+            result += "_default_scale";
+        }
+        return result;
+    }
+};
+
+TEST_P(onednn_sdpa_gpu_test, selects_onednn_and_matches_ocl_ref) {
+    execute();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_onednn_sdpa_gpu_test,
+    onednn_sdpa_gpu_test,
+    ::testing::Values(
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, 0.125f}
+    ),
+    onednn_sdpa_gpu_test::PrintToStringParamName);
 #endif
 
 TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
