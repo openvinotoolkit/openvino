@@ -310,6 +310,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
+    bool firstInference = argsImpl->_executeParams.graphDdiTableExt == nullptr;
     bool noTensorChange = true;
     npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
     for (auto& in : args._inputs) {
@@ -320,7 +321,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
             in._impl = inImpl;
         }
         inImpl->UpdateMemRefHandleStatus(in);
-        if (args._impl == nullptr) {
+        if (firstInference) {
             argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
         } else if (inImpl->_ptrUpdated || inImpl->_shapeUpdated || inImpl->_strideUpdated) {
             noTensorChange = false;
@@ -334,14 +335,14 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
             out._impl = outImpl;
         }
         outImpl->UpdateMemRefHandleStatus(out);
-        if (args._impl == nullptr) {
+        if (firstInference) {
             argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
         } else if (outImpl->_ptrUpdated || outImpl->_shapeUpdated || outImpl->_strideUpdated) {
             noTensorChange = false;
         }
     }
 
-    if (args._impl == nullptr || !noTensorChange) {
+    if (firstInference || !noTensorChange) {
         _logger.debug("Reset command list to run with runtime");
         // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
         // list with update
