@@ -32,7 +32,7 @@ void aligned_free(void* ptr) noexcept {
 void* vm_reserve(size_t size, std::error_code& ec) noexcept {
     const auto p = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
     if (p == NULL) {
-        ec = std::error_code(GetLastError(), std::generic_category());
+        ec = std::error_code(GetLastError(), std::system_category());
         return nullptr;
     }
     ec = {};
@@ -41,7 +41,7 @@ void* vm_reserve(size_t size, std::error_code& ec) noexcept {
 
 void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
     if (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
-        ec = std::error_code(GetLastError(), std::generic_category());
+        ec = std::error_code(GetLastError(), std::system_category());
     } else {
         ec = {};
     }
