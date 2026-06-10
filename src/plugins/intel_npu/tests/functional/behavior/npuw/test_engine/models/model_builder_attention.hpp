@@ -124,13 +124,14 @@ FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
 enum class ConvActivation { None, SiLU };
 
 /// Depthwise conv weight topology. PlainFloat (Const→Convert) matches LFM2; U8Decompress
-/// (u8→Convert→Subtract(zp)→Multiply(scale)) matches the Qwen3.5/DCOFF export path.
+/// (u8→Convert→Subtract(zp)→Multiply(scale) in f16, then Convert) matches the Qwen3.5 export path.
 enum class ConvWeightMode { PlainFloat, U8Decompress };
 
 /// Causal depthwise convolution with sliding-window state.
-/// Input/output: [batch, seq, channels]. State: [batch, channels, kernel].
+/// Input/output: [batch, seq, channels] ([batch, channels, seq] when channel_first).
+/// State: [batch, channels, kernel].
 struct CausalConvResult {
-    ov::Output<ov::Node> output;       ///< [batch, seq, channels] (post-activation)
+    ov::Output<ov::Node> output;       ///< same layout as input (post-activation)
     std::shared_ptr<ov::Node> assign;  ///< state update Assign
 };
 
@@ -140,6 +141,9 @@ struct CausalConvConfig {
     ov::element::Type precision = ov::element::f32;
     ConvActivation activation = ConvActivation::SiLU;
     ConvWeightMode weight_mode = ConvWeightMode::U8Decompress;
+    /// Input/output already [batch, channels, seq] — skip the internal layout transposes.
+    /// LFM2 transposes before its B/C/x split; GDN feeds [batch, seq, channels].
+    bool channel_first = false;
 };
 
 CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
@@ -149,13 +153,16 @@ CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
                                   const std::string& prefix,
                                   const CausalConvConfig& cfg);
 
-/// Recurrent SSM state via OV Loop. Body implements the GDN delta rule for FuseGDNLoop.
+/// Recurrent SSM state via OV Loop. Body replicates the GDN delta rule of the
+/// Qwen3.5 export (op-for-op, including Loop port order and back-edges).
 struct RecurrentStateResult {
     ov::Output<ov::Node> output;       ///< [batch, seq, num_heads, value_head_dim]
     std::shared_ptr<ov::Node> assign;  ///< state update Assign
 };
 
-/// Per-timestep SSM inputs (all [batch, seq, *]) — grouped so callers can't transpose same-typed args.
+/// Per-timestep SSM inputs — grouped so callers can't transpose same-typed args.
+/// query/key: [batch, seq, H, key_head_dim] (already L2-normed per head);
+/// value: [batch, seq, H, value_head_dim]; gate/beta: [batch, seq, H].
 struct RecurrentStateInputs {
     ov::Output<ov::Node> query;
     ov::Output<ov::Node> key;

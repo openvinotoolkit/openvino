@@ -64,8 +64,10 @@ ov::Output<ov::Node> RMSNorm::operator()(const ov::Output<ov::Node>& input, cons
 }
 
 ov::Output<ov::Node> L2Norm::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto two = ov::opset11::Constant::create(precision, ov::Shape{}, {2.0f});
-    auto squared = std::make_shared<ov::opset11::Power>(input, two);
+    // Mirrors the exported GDN q/k norm: square via self-Multiply (not Power), then
+    // rsqrt-style apply — Divide(1, Sqrt) followed by Multiply with the input.
+    auto squared = std::make_shared<ov::opset11::Multiply>(input, input);
+    squared->set_friendly_name(name + "/square");
 
     auto axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
     auto sum = std::make_shared<ov::opset11::ReduceSum>(squared, axes, true);
@@ -75,7 +77,11 @@ ov::Output<ov::Node> L2Norm::operator()(const ov::Output<ov::Node>& input, const
 
     auto norm = std::make_shared<ov::opset11::Sqrt>(sum_eps);
 
-    auto out = std::make_shared<ov::opset11::Divide>(input, norm);
+    auto one = ov::opset11::Constant::create(precision, ov::Shape{}, {1.0f});
+    auto rsqrt = std::make_shared<ov::opset11::Divide>(one, norm);
+    rsqrt->set_friendly_name(name + "/rsqrt");
+
+    auto out = std::make_shared<ov::opset11::Multiply>(input, rsqrt);
     out->set_friendly_name(name);
     return out->output(0);
 }
