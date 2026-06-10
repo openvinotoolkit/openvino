@@ -50,17 +50,16 @@ namespace {
 // so cpu_convert and cpu_parallel_convert share the same conversion bodies.
 struct ParallelLoopPolicy {
     template <typename Body>
-    static void run(size_t iterations, Body&& body) {
-        parallel_for(iterations, std::forward<Body>(body));
+    static void run(size_t iterations, const Body& body) {
+        parallel_for(iterations, body);
     }
 };
 
 struct SequentialLoopPolicy {
     template <typename Body>
-    static void run(size_t iterations, Body&& body) {
-        auto&& fn = std::forward<Body>(body);
+    static void run(size_t iterations, const Body& body) {
         for (size_t i = 0; i < iterations; ++i) {
-            fn(i);
+            body(i);
         }
     }
 };
