@@ -17,7 +17,6 @@ from tests import (
     xfail_issue_38699,
     xfail_issue_38701,
     xfail_issue_38706,
-    xfail_issue_38710,
     xfail_issue_38713,
     xfail_issue_38724,
     xfail_issue_38734,
@@ -153,9 +152,6 @@ tests_expected_to_fail = [
         xfail_issue_33596,
         "OnnxBackendSimpleModelTest.test_sequence_model1_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model3_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model6_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model8_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model2_cpu",
         "OnnxBackendNodeModelTest.test_identity_sequence_cpu",
         "OnnxBackendNodeModelTest.test_if_seq_cpu",
         "OnnxBackendNodeModelTest.test_if_opt_cpu",  # Optional, SequenceConstruct
@@ -286,10 +282,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_gru_batchwise_cpu",
         "OnnxBackendNodeModelTest.test_lstm_batchwise_cpu",
         "OnnxBackendNodeModelTest.test_simple_rnn_batchwise_cpu",
-    ),
-    (
-        xfail_issue_38710,
-        "OnnxBackendNodeModelTest.test_reshape_allowzero_reordered_cpu",
     ),
     (
         skip_dynamic_model,

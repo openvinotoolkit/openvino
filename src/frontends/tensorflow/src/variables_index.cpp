@@ -372,7 +372,19 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                                         std::map<std::string, std::string>& variables_map,
                                         HashTableKeysValuesMap& hash_table_keys_map,
                                         HashTableKeysValuesMap& hash_table_values_map) {
-    std::map<std::string, PtrNode::SharedPtrNode> nodes;
+    using Nodes = std::map<std::string, PtrNode::SharedPtrNode>;
+    Nodes nodes;
+
+    // Removing cross-links, otherwise memory leak will be caused by lost shared pointers
+    auto cross_link_deleter = [](Nodes* const nodes) {
+        for (auto& node : *nodes) {
+            node.second->inputs.clear();
+            node.second->outputs.clear();
+        }
+        nodes->clear();
+    };
+
+    std::unique_ptr<Nodes, decltype(cross_link_deleter)> cross_link_guard(&nodes, cross_link_deleter);
 
     for (const auto& node : graph_def->node()) {
         auto shared_node = std::make_shared<PtrNode>(node);
@@ -525,14 +537,6 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
             hash_table_values_map[hash_tablev2_name] = values_const;
         }
     }
-
-    // Removing cross-links, otherwise memory leak will be caused by lost shared pointers
-    for (auto node : nodes) {
-        node.second->inputs.clear();
-        node.second->outputs.clear();
-    }
-
-    nodes.clear();
 }
 
 }  // namespace tensorflow

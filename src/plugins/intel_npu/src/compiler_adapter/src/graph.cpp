@@ -13,6 +13,7 @@
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace intel_npu {
 
@@ -65,6 +66,16 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
+
+    if (_commandQueue && zeWorkloadType.has_value()) {
+        // When shared common queue is disabled, workload type is set per command queue.
+        // Update the existing queue if it has already been created.
+        _commandQueue->setWorkloadType(zeWorkloadType.value());
+        _workloadType = workloadType;
+
+        return;
+    }
+
     if (_commandQueueDesc.workload() == zeWorkloadType) {
         return;
     }
@@ -82,6 +93,18 @@ void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
         return;
     }
     _commandQueueDesc.set_priority(zeModelPriority);
+
+    if (_commandQueue) {
+        // When shared common queue is disabled, workload type is set per command queue.
+        // Recreate the queue with the new priority while preserving the current workload type.
+        if (_workloadType.has_value()) {
+            auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(_workloadType.value());
+            _commandQueueDesc.set_workload(zeWorkloadType);
+            _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
+        }
+
+        _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+    }
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -142,7 +165,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    auto compiler = std::make_shared<VCLCompilerImpl>();
+    auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
+    auto compiler = std::make_shared<VCLCompilerImpl>(ov_lib_path);
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
@@ -195,6 +219,11 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             this,
             config.get<SHARED_COMMON_QUEUE>(),
         };
+
+        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+            // Keep it alive per compiled model when the shared common queue feature is disabled.
+            _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+        }
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);
