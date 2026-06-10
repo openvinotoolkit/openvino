@@ -105,7 +105,7 @@ void test_d2411_axisB(bool is_caching_test) {
 
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 3.f, 6.f, 5.f, 4.f,
@@ -186,7 +186,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
@@ -279,7 +279,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 9.f, 10.f, 11.f,
@@ -406,7 +406,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 21.f, 31.f,
@@ -519,7 +519,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 40.f, 20.f, 30.f,
@@ -680,7 +680,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -806,7 +806,7 @@ TEST(scatter_update_gpu_fp32, d2214_axisX) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 30.f, 1.f, 20.f, 40.f,
@@ -908,7 +908,7 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 1, 2,
@@ -1007,7 +1007,7 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 30, 1, 20, 200, 40,
@@ -1091,7 +1091,7 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
             auto outputs = network.execute();
 
             auto output = outputs.at("out").get_memory();
-            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             std::vector<float> expected_results = {
                     2.f, 0.f, 1.f, 0.f,
@@ -1197,7 +1197,7 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
         auto outputs = network.execute();
 
         auto output = outputs.at("scatter_update").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 40, 30, 20, 3, 50,
@@ -1289,7 +1289,7 @@ TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
             auto outputs = network.execute();
 
             auto output = outputs.at("out").get_memory();
-            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             std::vector<float> expected_results = {
                     30.f, 40.f, 2.f, 10.f, 20.f,
@@ -1394,7 +1394,7 @@ TEST(scatter_update_gpu_fp32, d1252_axisY_bfwzyx) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -1484,7 +1484,7 @@ TEST(scatter_update_gpu_int32, d2115_axisX_bfwzyx) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<int> expected_results = {
                 0, 30, 20, 50, 40,
@@ -1578,7 +1578,7 @@ void test_d21214_bfzyx_axisX_bfwzyx(bool is_caching_test) {
             auto outputs = network->execute();
 
             auto output = outputs.at("out").get_memory();
-            cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             std::vector<float> expected_results = {
                     0.f, 40.f, 30.f, 20.f,
@@ -1639,6 +1639,253 @@ TEST(scatter_update_gpu_fp32, dynamic) {
         120.f, 130.f,
         140.f, 150.f,
         160.f, 170.f
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1_layout));
+    topology.add(input_layout("InputText", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+
+    topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), format::bfyx, data_types::f32));
+    topology.add(reorder("TextReordered", input_info("InputText"), format::bfyx, data_types::f32));
+    topology.add(scatter_update("scatter_update",
+                                input_info("DictionaryReordered"),
+                                input_info("TextReordered"),
+                                input_info("InputUpdates"),
+                                axis)
+    );
+    topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
+        120.f, 130.f, 12.f, 13.f, 100.f, 110.f, 140.f, 150.f, 160.f, 170.f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(scatter_update_gpu_fp32, static_input_padding) {
+    //  Dictionary : 1x2x5x2
+    //  Indexes : 2x1x2x1
+    //  Updates : 1x2x2x1x2x2
+    //  Axis : 2
+    //  Output : 1x2x5x2
+    //  Input values in fp32
+
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ov::PartialShape{1, 2, 5, 2}, data_types::f32, format::bfyx};
+    auto input2_layout = layout{ov::PartialShape{2, 1, 2, 1}, data_types::f32, format::bfyx};
+    auto input3_layout = layout{ov::PartialShape{1, 2, 2, 1, 2, 2}, data_types::f32, format::bfwzyx, padding({0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0})};
+
+    auto input1 = engine.allocate_memory({{1, 2, 5, 2},       data_types::f32, format::bfyx});   // Dictionary
+    auto input2 = engine.allocate_memory({{2, 1, 2, 1},       data_types::f32, format::bfyx});   // Indices
+    auto input3 = engine.allocate_memory({{1, 2, 2, 1, 2, 2}, data_types::f32, format::bfwzyx, padding({0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0})});  // Updates
+    auto axis = 2;
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f
+    });
+
+    set_values(input2, {
+        2.f, 0.f,
+        3.f, 4.f
+    });
+
+    set_values(input3, {
+        0.f, 20.f, 30.f,
+        0.f, 40.f, 50.f,
+        0.f, 60.f, 70.f,
+        0.f, 80.f, 90.f,
+        0.f, 100.f, 110.f,
+        0.f, 120.f, 130.f,
+        0.f, 140.f, 150.f,
+        0.f, 160.f, 170.f
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1_layout));
+    topology.add(input_layout("InputText", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+
+    topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), format::bfyx, data_types::f32));
+    topology.add(reorder("TextReordered", input_info("InputText"), format::bfyx, data_types::f32));
+    topology.add(scatter_update("scatter_update",
+                                input_info("DictionaryReordered"),
+                                input_info("TextReordered"),
+                                input_info("InputUpdates"),
+                                axis)
+    );
+    topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
+        120.f, 130.f, 12.f, 13.f, 100.f, 110.f, 140.f, 150.f, 160.f, 170.f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(scatter_update_gpu_fp32, dynamic_with_static_input_padding) {
+    //  Dictionary : 1x2x5x2
+    //  Indexes : 2x1x2x1
+    //  Updates : 1x2x2x1x2x2
+    //  Axis : 2
+    //  Output : 1x2x5x2
+    //  Input values in fp32
+
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input2_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input3_layout = layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx, padding({0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0})};
+
+    auto input1 = engine.allocate_memory({{1, 2, 5, 2},       data_types::f32, format::bfyx});   // Dictionary
+    auto input2 = engine.allocate_memory({{2, 1, 2, 1},       data_types::f32, format::bfyx});   // Indices
+    auto input3 = engine.allocate_memory({{1, 2, 2, 1, 2, 2}, data_types::f32, format::bfwzyx, padding({0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0})});  // Updates
+    auto axis = 2;
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f
+    });
+
+    set_values(input2, {
+        2.f, 0.f,
+        3.f, 4.f
+    });
+
+    set_values(input3, {
+        0.f, 20.f, 30.f,
+        0.f, 40.f, 50.f,
+        0.f, 60.f, 70.f,
+        0.f, 80.f, 90.f,
+        0.f, 100.f, 110.f,
+        0.f, 120.f, 130.f,
+        0.f, 140.f, 150.f,
+        0.f, 160.f, 170.f
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1_layout));
+    topology.add(input_layout("InputText", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+
+    topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), format::bfyx, data_types::f32));
+    topology.add(reorder("TextReordered", input_info("InputText"), format::bfyx, data_types::f32));
+    topology.add(scatter_update("scatter_update",
+                                input_info("DictionaryReordered"),
+                                input_info("TextReordered"),
+                                input_info("InputUpdates"),
+                                axis)
+    );
+    topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
+        120.f, 130.f, 12.f, 13.f, 100.f, 110.f, 140.f, 150.f, 160.f, 170.f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(scatter_update_gpu_fp32, dynamic_with_dynamic_input_padding) {
+    //  Dictionary : 1x2x5x2
+    //  Indexes : 2x1x2x1
+    //  Updates : 1x2x2x1x2x2
+    //  Axis : 2
+    //  Output : 1x2x5x2
+    //  Input values in fp32
+
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input2_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    padding::DynamicDimsMask mask;
+    mask.set(5);
+    auto input3_layout = layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx, padding({}, mask)};
+
+    auto input1 = engine.allocate_memory({{1, 2, 5, 2},       data_types::f32, format::bfyx});   // Dictionary
+    auto input2 = engine.allocate_memory({{2, 1, 2, 1},       data_types::f32, format::bfyx});   // Indices
+    auto input3 = engine.allocate_memory({{1, 2, 2, 1, 2, 2}, data_types::f32, format::bfwzyx, padding({0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0}, mask)});  // Updates
+    auto axis = 2;
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f
+    });
+
+    set_values(input2, {
+        2.f, 0.f,
+        3.f, 4.f
+    });
+
+    set_values(input3, {
+        0.f, 20.f, 30.f,
+        0.f, 40.f, 50.f,
+        0.f, 60.f, 70.f,
+        0.f, 80.f, 90.f,
+        0.f, 100.f, 110.f,
+        0.f, 120.f, 130.f,
+        0.f, 140.f, 150.f,
+        0.f, 160.f, 170.f
     });
 
     topology topology;
@@ -1753,7 +2000,7 @@ TEST(scatter_update_gpu_fp32, mixed_input_with_dynamic_static) {
 
     auto outputs = network.execute();
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -1836,7 +2083,7 @@ TEST(scatter_update_cpu_impl_fp32, dynamic) {
 
     auto outputs = network.execute();
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
@@ -1938,7 +2185,7 @@ TEST(scatter_update_gpu_fp32, output_padding) {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 30.f,   1.f,    20.f,   40.f,
@@ -2028,7 +2275,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_first_iteration_kernel_check) {
 
         auto output = outputs.at("out").get_memory();
         ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<float> expected_results = {
                 1.0f, 2.0f, 3.0f, 4.0f, 9.0f, 6.0f, 7.0f, 8.0f

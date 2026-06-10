@@ -1959,6 +1959,63 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding) {
     test_case.run_with_tolerance_as_fp(0.01f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding_fp16) {
+    // Load the existing rotary_embedding model and change input types to float16
+    // to verify that neg_one constant type matches input element type
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/rotary_embedding.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("input"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("cos_cache"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("sin_cache"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> input = {
+        f16(-1.1258f), f16(-1.1524f), f16(-0.2506f), f16(-0.4339f), f16(0.8487f),  f16(0.6920f),  f16(-0.3160f),
+        f16(-2.1152f), f16(0.3223f),  f16(-1.2633f), f16(0.3500f),  f16(0.3081f),  f16(0.1198f),  f16(1.2377f),
+        f16(1.1168f),  f16(-0.2473f), f16(-1.3527f), f16(-1.6959f), f16(0.5667f),  f16(0.7935f),  f16(0.5988f),
+        f16(-1.5551f), f16(-0.3414f), f16(1.8530f),  f16(0.7502f),  f16(-0.5855f), f16(-0.1734f), f16(0.1835f),
+        f16(1.3894f),  f16(1.5863f),  f16(0.9463f),  f16(-0.8437f),
+    };
+    std::vector<int64_t> position_ids = {0, 1};
+    std::vector<f16> cos_cache = {
+        f16(0.8437f),
+        f16(-0.7849f),
+        f16(-0.7829f),
+        f16(0.4581f),
+        f16(-0.9870f),
+        f16(0.6273f),
+        f16(-0.9483f),
+        f16(-0.9962f),
+    };
+    std::vector<f16> sin_cache = {
+        f16(0.5368f),
+        f16(0.6196f),
+        f16(-0.6222f),
+        f16(0.8889f),
+        f16(0.1605f),
+        f16(-0.7788f),
+        f16(0.3174f),
+        f16(-0.0872f),
+    };
+
+    std::vector<f16> expected_output = {
+        f16(-1.4054f), f16(0.4758f), f16(-0.0004f), f16(1.6814f),  f16(0.1117f), f16(-1.2572f), f16(0.4033f),
+        f16(-1.3547f), f16(0.2076f), f16(0.2247f),  f16(0.4209f),  f16(0.361f),  f16(0.2741f),  f16(-1.7542f),
+        f16(-1.0921f), f16(0.1606f), f16(1.239f),   f16(-2.275f),  f16(-0.429f), f16(-0.6289f), f16(-0.8081f),
+        f16(0.3453f),  f16(0.5036f), f16(-1.9152f), f16(-0.9634f), f16(0.8681f), f16(-0.1359f), f16(-0.2564f),
+        f16(-1.2509f), f16(1.4511f), f16(-0.9524f), f16(0.8245f),
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 2, 16}, input);
+    test_case.add_input<int64_t>(Shape{1, 2}, position_ids);
+    test_case.add_input<f16>(Shape{2, 4}, cos_cache);
+    test_case.add_input<f16>(Shape{2, 4}, sin_cache);
+    test_case.add_expected_output<f16>(Shape{1, 2, 16}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
 
@@ -2046,6 +2103,116 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
     test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_fp16) {
+    // Load the existing GQA rotary model and change float inputs to float16
+    // to verify that neg_one constant type matches input element type in GQA decomposition
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_rotary.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("cos_cache"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("sin_cache"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> query = {
+        f16(-1.1258f), f16(-1.1524f), f16(-0.2506f), f16(-0.4339f), f16(0.8487f),  f16(0.6920f),  f16(-0.3160f),
+        f16(-2.1152f), f16(0.3223f),  f16(-1.2633f), f16(0.3500f),  f16(0.3081f),  f16(0.1198f),  f16(1.2377f),
+        f16(1.1168f),  f16(-0.2473f), f16(-1.3527f), f16(-1.6959f), f16(0.5667f),  f16(0.7935f),  f16(0.5988f),
+        f16(-1.5551f), f16(-0.3414f), f16(1.8530f),  f16(0.7502f),  f16(-0.5855f), f16(-0.1734f), f16(0.1835f),
+        f16(1.3894f),  f16(1.5863f),  f16(0.9463f),  f16(-0.8437f), f16(1.6459f),  f16(-1.3602f), f16(0.3446f),
+        f16(0.5199f),  f16(-2.6133f), f16(-1.6965f), f16(-0.2282f), f16(0.2800f),  f16(0.2469f),  f16(0.0769f),
+        f16(0.3380f),  f16(0.4544f),  f16(0.4569f),  f16(-0.8654f), f16(0.7813f),  f16(-0.9268f), f16(-0.2188f),
+        f16(-2.4351f), f16(-0.0729f), f16(-0.0340f), f16(0.9625f),  f16(0.3492f),  f16(-0.9215f), f16(-0.0562f),
+        f16(-0.6227f), f16(-0.4637f), f16(1.9218f),  f16(-0.4025f), f16(0.1239f),  f16(1.1648f),  f16(0.9234f),
+        f16(1.3873f),
+    };
+    std::vector<f16> past_key = {};
+    std::vector<f16> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<int> total_sequence_length = {1};
+    std::vector<f16> cos_cache = {
+        f16(0.8437f),
+        f16(-0.7849f),
+        f16(-0.7829f),
+        f16(0.4581f),
+        f16(-0.9870f),
+        f16(0.6273f),
+        f16(-0.9483f),
+        f16(-0.9962f),
+    };
+    std::vector<f16> sin_cache = {
+        f16(0.5368f),
+        f16(0.6196f),
+        f16(-0.6222f),
+        f16(0.8889f),
+        f16(0.1605f),
+        f16(-0.7788f),
+        f16(0.3174f),
+        f16(-0.0872f),
+    };
+
+    std::vector<f16> expected_output = {
+        f16(-0.2188f), f16(-2.4351f), f16(-0.0729f), f16(-0.034f),  f16(0.9625f),  f16(0.3492f), f16(-0.9215f),
+        f16(-0.0562f), f16(-0.6227f), f16(-0.4637f), f16(1.9218f),  f16(-0.4025f), f16(0.1239f), f16(1.1648f),
+        f16(0.9234f),  f16(1.3873f),  f16(-0.2188f), f16(-2.4351f), f16(-0.0729f), f16(-0.034f), f16(0.9625f),
+        f16(0.3492f),  f16(-0.9215f), f16(-0.0562f), f16(-0.6227f), f16(-0.4637f), f16(1.9218f), f16(-0.4025f),
+        f16(0.1239f),  f16(1.1648f),  f16(0.9234f),  f16(1.3873f),
+    };
+
+    std::vector<f16> expected_present_key = {
+        f16(1.2561098f),
+        f16(1.0199738f),
+        f16(-0.05948371f),
+        f16(-0.16574995f),
+        f16(2.5059946f),
+        f16(-1.738188f),
+        f16(-0.03158256f),
+        f16(-0.35975295f),
+        f16(1.0918287f),
+        f16(-0.90313876f),
+        f16(-0.4790303f),
+        f16(0.67029977f),
+        f16(-0.87039495f),
+        f16(0.7783688f),
+        f16(-0.81333745f),
+        f16(0.89886224f),
+    };
+
+    std::vector<f16> expected_present_value = {
+        f16(-0.2188f),
+        f16(-2.4351f),
+        f16(-0.0729f),
+        f16(-0.034f),
+        f16(0.9625f),
+        f16(0.3492f),
+        f16(-0.9215f),
+        f16(-0.0562f),
+        f16(-0.6227f),
+        f16(-0.4637f),
+        f16(1.9218f),
+        f16(-0.4025f),
+        f16(0.1239f),
+        f16(1.1648f),
+        f16(0.9234f),
+        f16(1.3873f),
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 1, 64}, query);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<f16>(Shape{1, 8}, cos_cache);
+    test_case.add_input<f16>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<f16>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<f16>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<f16>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp(0.01f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_posid) {
@@ -2941,6 +3108,129 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_minimum_inputs_passes) {
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_static_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_static_rotary.onnx");
+
+    // Packed QKV input [1, 1, 64]: Q(2*16) + K(1*16) + V(1*16)
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+
+    // Past KV [1, 1, 8, 16]: left-aligned, first 4 seqlen valid, last 4 zeros
+    std::vector<float> past_key = {
+        -0.6136f, 0.0316f,  -0.4927f, 0.2484f,  0.4397f,  0.1124f,  0.6408f,  0.4412f,  -0.1023f, 0.7924f,  -0.2897f,
+        0.0525f,  0.5229f,  2.3022f,  -1.4689f, -1.5867f, 0.2300f,  0.5100f,  -0.3200f, 0.1100f,  0.7800f,  -0.4500f,
+        0.6700f,  0.3300f,  -0.1200f, 0.8900f,  -0.5600f, 0.4400f,  0.2100f,  -0.7800f, 0.9300f,  -0.1500f, 0.4100f,
+        -0.2300f, 0.8500f,  -0.6100f, 0.1900f,  0.7200f,  -0.3800f, 0.5500f,  -0.4700f, 0.6300f,  -0.1800f, 0.9100f,
+        -0.2700f, 0.3600f,  -0.8100f, 0.4800f,  0.3500f,  -0.6500f, 0.7100f,  0.2200f,  -0.8900f, 0.4300f,  -0.1600f,
+        0.5800f,  -0.7300f, 0.2800f,  0.6400f,  -0.5200f, 0.1400f,  -0.3300f, 0.8700f,  -0.4100f, 0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+    };
+    std::vector<float> past_value = {
+        -0.5692f, 0.9200f,  1.1108f,  1.2899f,  -1.4782f, 2.5672f,  -0.4731f, 0.3356f,  -1.6293f, -0.5497f, -0.4798f,
+        -0.4997f, -1.0670f, 1.1149f,  -0.1407f, 0.8058f,  0.1500f,  -0.3200f, 0.7800f,  0.4500f,  -0.6100f, 0.2800f,
+        0.9300f,  -0.1200f, 0.5400f,  -0.8700f, 0.3100f,  0.6600f,  -0.2300f, 0.4100f,  -0.7500f, 0.1800f,  0.6200f,
+        -0.4100f, 0.2700f,  -0.8300f, 0.5500f,  0.1300f,  -0.6800f, 0.9100f,  -0.3500f, 0.7400f,  -0.1600f, 0.4800f,
+        -0.9200f, 0.2100f,  0.6300f,  -0.5700f, 0.8400f,  -0.2600f, 0.3900f,  0.7100f,  -0.1500f, 0.5200f,  -0.8800f,
+        0.3300f,  -0.4300f, 0.6700f,  -0.5100f, 0.2400f,  -0.7600f, 0.1100f,  0.8500f,  -0.3700f, 0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+    };
+
+    // seqlens_k = 4 means 4 valid past tokens (positions 0-3)
+    std::vector<int> seqlens_k = {4};
+    std::vector<int> total_sequence_length = {8};
+
+    // cos/sin cache [8, 8] (max_seq_len=8, head_size/2=8)
+    std::vector<float> cos_cache = {
+        -0.2509198f, 0.9014286f,  0.4639879f,  0.1973170f,  -0.6879627f, -0.6880109f, -0.8838328f, 0.7323523f,
+        0.2022300f,  0.4161451f,  -0.9588310f, 0.9398197f,  0.6648853f,  -0.5753218f, -0.6363501f, -0.6331910f,
+        -0.3915155f, 0.0495129f,  -0.1361100f, -0.4175417f, 0.2237058f,  -0.7210123f, -0.4157107f, -0.2672763f,
+        -0.0878600f, 0.5703519f,  -0.6006525f, 0.0284689f,  0.1848291f,  -0.9070992f, 0.2150897f,  -0.6589518f,
+        -0.8698968f, 0.8977711f,  0.9312640f,  0.6167947f,  -0.3907725f, -0.8046558f, 0.3684660f,  -0.1196950f,
+        -0.7559235f, -0.0096462f, -0.9312230f, 0.8186408f,  -0.4824400f, 0.3250446f,  -0.3765779f, 0.0401360f,
+        0.0934206f,  -0.6302911f, 0.9391692f,  0.5502657f,  0.8789979f,  0.7896547f,  0.1958000f,  0.8437485f,
+        -0.8230150f, -0.6080343f, -0.9095454f, -0.3493393f, -0.2226454f, -0.4573019f, 0.6574750f,  -0.2864934f,
+    };
+    std::vector<float> sin_cache = {
+        -0.4381310f, 0.0853922f,  -0.7181516f, 0.6043940f,  -0.8508987f, 0.9737739f,  0.5444896f,  -0.6025686f,
+        -0.9889557f, 0.6309229f,  0.4137147f,  0.4580143f,  0.5425407f,  -0.8519107f, -0.2830685f, -0.7682619f,
+        0.7262068f,  0.2465962f,  -0.3382039f, -0.8728833f, -0.3780354f, -0.3496334f, 0.4592124f,  0.2751150f,
+        0.7744255f,  -0.0555701f, -0.7608115f, 0.4264896f,  0.5215701f,  0.1225544f,  0.5419344f,  -0.0124088f,
+        0.0454657f,  -0.1449180f, -0.9491618f, -0.7842171f, -0.9371417f, 0.2728208f,  -0.3712880f, 0.0171414f,
+        0.8151330f,  -0.5014156f, -0.1792341f, 0.5111023f,  -0.5424037f, -0.8460402f, -0.4204971f, -0.6775574f,
+        0.8593953f,  0.6162407f,  0.2668075f,  0.7429212f,  0.6073442f,  -0.6268599f, 0.7851180f,  0.0786845f,
+        0.6148803f,  0.7921826f,  -0.3639930f, -0.7798961f, -0.5441297f, -0.1457844f, 0.6360295f,  0.7214612f,
+    };
+
+    // Expected output [1, 1, 32]
+    std::vector<float> expected_output = {
+        0.4162956f,  -0.4182589f, 0.4727696f,  0.2936685f, -0.1128318f, 0.5199768f, -0.3651099f, 0.3073604f,
+        -0.2850454f, 0.1067962f,  -0.0051489f, 0.2774143f, -0.6051727f, 0.3807620f, 0.3404019f,  -0.0230611f,
+        0.3233508f,  -0.7579141f, 0.3853467f,  0.1999806f, 0.0748156f,  0.4330993f, -0.3911937f, 0.2431847f,
+        -0.2730540f, -0.0074681f, 0.3233708f,  0.2087932f, -0.4696053f, 0.4899607f, 0.3912313f,  0.1830239f,
+    };
+
+    // Expected present_key [1, 1, 8, 16]: past seqlen 0-3 unchanged, seqlen 4 = K_rotary, seqlen 5-7 = 0
+    std::vector<float> expected_present_key = {
+        -0.6136f, 0.0316f,  -0.4927f, 0.2484f,  0.4397f,  0.1124f,  0.6408f,  0.4412f,  -0.1023f, 0.7924f,  -0.2897f,
+        0.0525f,  0.5229f,  2.3022f,  -1.4689f, -1.5867f, 0.2300f,  0.5100f,  -0.3200f, 0.1100f,  0.7800f,  -0.4500f,
+        0.6700f,  0.3300f,  -0.1200f, 0.8900f,  -0.5600f, 0.4400f,  0.2100f,  -0.7800f, 0.9300f,  -0.1500f, 0.4100f,
+        -0.2300f, 0.8500f,  -0.6100f, 0.1900f,  0.7200f,  -0.3800f, 0.5500f,  -0.4700f, 0.6300f,  -0.1800f, 0.9100f,
+        -0.2700f, 0.3600f,  -0.8100f, 0.4800f,  0.3500f,  -0.6500f, 0.7100f,  0.2200f,  -0.8900f, 0.4300f,  -0.1600f,
+        0.5800f,  -0.7300f, 0.2800f,  0.6400f,  -0.5200f, 0.1400f,  -0.3300f, 0.8700f,  -0.4100f, -1.4430f, -1.2100f,
+        0.6417f,  0.6770f,  1.4494f,  1.6012f,  0.2060f,  -0.0176f, -0.1399f, 0.2662f,  -0.0123f, -0.1274f, 2.2705f,
+        0.2335f,  0.3726f,  0.1157f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+    };
+
+    // Expected present_value [1, 1, 8, 16]: past seqlen 0-3 unchanged, seqlen 4 = V, seqlen 5-7 = 0
+    std::vector<float> expected_present_value = {
+        -0.5692f, 0.9200f,  1.1108f,  1.2899f,  -1.4782f, 2.5672f,  -0.4731f, 0.3356f,  -1.6293f, -0.5497f, -0.4798f,
+        -0.4997f, -1.0670f, 1.1149f,  -0.1407f, 0.8058f,  0.1500f,  -0.3200f, 0.7800f,  0.4500f,  -0.6100f, 0.2800f,
+        0.9300f,  -0.1200f, 0.5400f,  -0.8700f, 0.3100f,  0.6600f,  -0.2300f, 0.4100f,  -0.7500f, 0.1800f,  0.6200f,
+        -0.4100f, 0.2700f,  -0.8300f, 0.5500f,  0.1300f,  -0.6800f, 0.9100f,  -0.3500f, 0.7400f,  -0.1600f, 0.4800f,
+        -0.9200f, 0.2100f,  0.6300f,  -0.5700f, 0.8400f,  -0.2600f, 0.3900f,  0.7100f,  -0.1500f, 0.5200f,  -0.8800f,
+        0.3300f,  -0.4300f, 0.6700f,  -0.5100f, 0.2400f,  -0.7600f, 0.1100f,  0.8500f,  -0.3700f, -0.2188f, -2.4351f,
+        -0.0729f, -0.0340f, 0.9625f,  0.3492f,  -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,
+        1.1648f,  0.9234f,  1.3873f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+        0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,  0.0000f,
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{8, 8}, cos_cache);
+    test_case.add_input<float>(Shape{8, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 8, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 8, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
     try {
         convert_model("com.microsoft/gqa_oob.onnx");
@@ -3269,5 +3559,197 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm_channels_last) {
     test_case.add_input<float>(scale);
     test_case.add_input<float>(bias);
     test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_phase1_bifurcates) {
+    // src=[10,20,30,40,50], cur=[99], prev_idx=0, pred=[10,20,99]
+    // Phase 1: pred matches src at k=0,1; mismatch at k=2 -> bifur_idx=2
+    //          tokens = cur ++ pred[0:3] = [99,10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {10, 20, 30, 40, 50});
+    test_case.add_input<int64_t>(Shape{1}, {99});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_input<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{4}, {99, 10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_no_pred_unique_suffix) {
+    // src=[1,2,3,4,5], cur=[1,2], prev_idx=-1, no pred
+    // Phase 1: tokens = cur = [1,2]
+    // Phase 2 (n=1): suffix=[2] found uniquely at idx=1; candidate=2; count==1 -> suffix_idx=2
+    //         (n=2): suffix=[1,2] found uniquely at idx=0; candidate=2; count==1 -> suffix_idx=2
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_expected_output<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<int64_t>(Shape{}, {2});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_no_pred_ambiguous_suffix) {
+    // src=[1,2,3,1,2], cur=[9,1,2], prev_idx=-1, no pred
+    // Phase 1: tokens = cur = [9,1,2]
+    // Phase 2 (n=1): suffix=[2] found at idx 1 and 4 -> count>=2 -> suffix_idx=-1
+    //         (n=2): suffix=[1,2] found at idx 0 and 3 -> count>=2 -> suffix_idx=-1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {1, 2, 3, 1, 2});
+    test_case.add_input<int64_t>(Shape{3}, {9, 1, 2});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_expected_output<int64_t>(Shape{3}, {9, 1, 2});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_bifurcation_at_first_token) {
+    // src=[1,2,3], cur=[10,20], prev_idx=0, pred=[99,2,3,0]
+    // Phase 1: pred[0]=99 != src[0]=1 -> bifur_idx=0, take=1, pred_kept=[99]
+    //          tokens = cur ++ [99] = [10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_input<int64_t>(Shape{4}, {99, 2, 3, 0});
+    test_case.add_expected_output<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_full_match_no_bifurcation) {
+    // src=[10,20,30], cur=[5], prev_idx=0, pred=[10,20,30,99]
+    // Phase 1: n=min(4,3)=3. pred[0..2] all match src[0..2] -> bifur_idx=3 (full match)
+    //          take=4, pred_kept=[10,20,30,99], tokens=[5,10,20,30,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {10, 20, 30});
+    test_case.add_input<int64_t>(Shape{1}, {5});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_input<int64_t>(Shape{4}, {10, 20, 30, 99});
+    test_case.add_expected_output<int64_t>(Shape{5}, {5, 10, 20, 30, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_prev_idx_at_boundary) {
+    // src=[1,5,3,4], cur=[10,20], prev_idx=4 (==src_len), pred=[99]
+    // Phase 1: n=min(1, 4-4)=0 -> bifur_idx=0, take=1, pred_kept=pred[0:1]=[99]
+    //          tokens = cur ++ [99] = [10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{4}, {1, 5, 3, 4});
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{}, {4});
+    test_case.add_input<int64_t>(Shape{1}, {99});
+    test_case.add_expected_output<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_bifurcation_and_suffix_match_combined) {
+    // src=[10,20,30,40,50,60], cur=[5,8], prev_idx=3, pred=[40,50,99,0]
+    // Phase 1: n=min(4, 6-3)=3. pred[0..2]=[40,50,99] vs src[3..5]=[40,50,60]
+    //          match at k=0,1; mismatch at k=2 -> bifur_idx=2, take=3
+    //          pred_kept=[40,50,99], tokens=[5,8,40,50,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{6}, {10, 20, 30, 40, 50, 60});
+    test_case.add_input<int64_t>(Shape{2}, {5, 8});
+    test_case.add_input<int64_t>(Shape{}, {3});
+    test_case.add_input<int64_t>(Shape{4}, {40, 50, 99, 0});
+    test_case.add_expected_output<int64_t>(Shape{5}, {5, 8, 40, 50, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_suffix_match_at_end_of_src) {
+    // src=[1,2,3], cur=[5,3], prev_idx=0, no pred
+    // Phase 1: tokens = cur = [5,3]
+    // Phase 2 (n=1): suffix=[3] unique at src[2]; candidate=3 == src_len -> out_of_range,
+    //                assign suffix_idx=3 then stop.
+    //         (n=2): stopped -> suffix_idx stays 3
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{2}, {5, 3});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {5, 3});
+    test_case.add_expected_output<int64_t>(Shape{}, {3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_ngram_exceeds_tokens_len) {
+    // src=[1..10], cur=[5,3], prev_idx=0, no pred, min_ngram=5, max_ngram=7
+    // Phase 1: tokens = cur = [5,3] (len 2)
+    // Phase 2: n=5 > tokens_len=2 -> n_too_large -> skip, stop. Same for n=6,7.
+    //          suffix_idx stays at initial -1.
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred_ngram_5_7.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    test_case.add_input<int64_t>(Shape{2}, {5, 3});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {5, 3});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_with_pred_negative_prev_idx) {
+    // src=[10,20,30,40,50], cur=[99], prev_idx=-1, pred=[10,20,99]
+    // prev_suffix_match_idx=-1 must be clamped to 0 before slicing (a raw -1 would be
+    // interpreted by Slice as an index from the end and corrupt Phase 1).
+    // Phase 1 (prev_idx->0): pred matches src at k=0,1; mismatch at k=2 -> bifur_idx=2
+    //          tokens = cur ++ pred[0:3] = [99,10,20,99]
+    // Phase 2 (n=1): suffix=[99] not in src -> suffix_idx stays -1
+    const auto model = convert_model("com.microsoft/bifurcation_detector_with_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {10, 20, 30, 40, 50});
+    test_case.add_input<int64_t>(Shape{1}, {99});
+    test_case.add_input<int64_t>(Shape{}, {-1});
+    test_case.add_input<int64_t>(Shape{3}, {10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{4}, {99, 10, 20, 99});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_empty_src) {
+    // src=[] (empty), cur=[1,2], prev_idx=0, no pred
+    // Phase 1: tokens = cur = [1,2]
+    // Phase 2 (n=1,2): src_len=0 < n -> no_match for every n; the Gather over src must
+    //          stay in-bounds (regression: empty src previously produced an invalid
+    //          Gather index). suffix_idx stays at initial -1.
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{0}, {});
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bifurcation_detector_src_shorter_than_ngram) {
+    // src=[1,2,3], cur=[1,2,3,4,5,6], prev_idx=0, no pred, min_ngram=5, max_ngram=7
+    // Phase 1: tokens = cur = [1,2,3,4,5,6] (len 6)
+    // Phase 2: n=5 <= tokens_len=6 but n > src_len=3, so a length-n substring cannot
+    //          exist in src -> no_match (regression: clamped windows must not be
+    //          reported as a false match). Same for n=6,7. suffix_idx stays -1.
+    const auto model = convert_model("com.microsoft/bifurcation_detector_no_pred_ngram_5_7.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{6}, {1, 2, 3, 4, 5, 6});
+    test_case.add_input<int64_t>(Shape{}, {0});
+    test_case.add_expected_output<int64_t>(Shape{6}, {1, 2, 3, 4, 5, 6});
+    test_case.add_expected_output<int64_t>(Shape{}, {-1});
     test_case.run();
 }
