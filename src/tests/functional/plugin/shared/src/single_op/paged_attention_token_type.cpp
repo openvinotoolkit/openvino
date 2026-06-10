@@ -118,7 +118,7 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto rotation_trig_lut = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
     auto xattention_threshold = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
     auto xattention_block_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-    auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
+    auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto sinks = std::static_pointer_cast<v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
     auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto adaptive_rkv_evictable_sizes =
@@ -212,7 +212,6 @@ std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestPara
 
 void PagedAttentionTokenTypeTest::SetUp() {
     const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_len, device] = GetParam();
-    UNUSED(sliding_window_size);
     // CPU plugin can be supported - it uses different key and value cache layout
     // plus uses different block size, which was not yet implemented in this
     // test class.
@@ -231,6 +230,9 @@ void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& 
     inputs.clear();
 
     const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_length, device] = this->GetParam();
+
+    UNUSED(sliding_window_size);
+    UNUSED(device);
 
     OPENVINO_ASSERT(!targetInputStaticShapes.empty() && targetInputStaticShapes[0].size() == 1,
                     "Expected a single 1-D shape representing total token count");
