@@ -9,12 +9,9 @@
 #include <gtest/gtest.h>
 
 #include <array>
-#include <atomic>
-#include <condition_variable>
 #include <cstddef>
 #include <exception>
 #include <memory>
-#include <mutex>
 #include <thread>
 
 #include "behavior/ov_infer_request/inference.hpp"

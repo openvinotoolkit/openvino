@@ -198,8 +198,6 @@ protected:
 private:
     enum InferState { IDLE, BUSY, CANCELLED, STOP };
     using Futures = std::vector<std::shared_future<void>>;
-    using Callback = std::function<void(std::exception_ptr)>;
-    using CallbackPtr = std::shared_ptr<Callback>;
     enum Stage_e : std::uint8_t { EXECUTOR, TASK };
     InferState m_state = InferState::IDLE;
     Futures m_futures;
@@ -209,15 +207,14 @@ private:
     struct DisableCallbackGuard {
         explicit DisableCallbackGuard(IAsyncInferRequest* this_) : _this{this_} {
             std::lock_guard<std::mutex> lock{_this->m_mutex};
-            m_callback = _this->m_callback;
-            _this->m_callback = nullptr;
+            std::swap(m_callback, _this->m_callback);
         }
         ~DisableCallbackGuard() {
             std::lock_guard<std::mutex> lock{_this->m_mutex};
             _this->m_callback = m_callback;
         }
         IAsyncInferRequest* _this = nullptr;
-        CallbackPtr m_callback;
+        std::shared_ptr<std::function<void(std::exception_ptr)>> m_callback;
     };
 
     void run_first_stage(const Pipeline::iterator itBeginStage,
@@ -280,7 +277,7 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
-    CallbackPtr m_callback;
+    std::shared_ptr<std::function<void(std::exception_ptr)>> m_callback;
 };
 
 }  // namespace ov
