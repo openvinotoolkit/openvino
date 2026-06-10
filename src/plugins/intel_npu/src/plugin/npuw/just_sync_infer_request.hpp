@@ -90,6 +90,7 @@ public:
     bool is_subrequest_pipelined(size_t idx) const;
     std::size_t history_size() const;
     bool subgraph_needs_copy(std::size_t idx) const;
+    bool attention_no_copy() const;
     const ov::SoPtr<ov::ICompiledModel>& compiled_submodel(size_t idx) const;
     const ov::npuw::v1::subgraphs::CompiledPipeline& subgraph_pipeline(size_t idx) const;
     std::size_t subgraph_param_base(size_t idx) const;

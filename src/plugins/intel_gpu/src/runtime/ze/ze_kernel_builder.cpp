@@ -26,13 +26,13 @@ void ze_kernel_builder::init_ocl_builder() const {
             m_ocl_device = ocl_dev;
         }
     }
-    OPENVINO_ASSERT(m_ocl_device != nullptr, "[GPU] L0 kernel builder was not able to find matching OCL device");
+    OPENVINO_ASSERT(m_ocl_device != nullptr, "[GPU] Level Zero kernel builder was not able to find matching OCL device");
     if (!m_ocl_device->is_initialized())
         m_ocl_device->initialize();
     m_ocl_builder = std::make_shared<ocl_kernel_builder>(*m_ocl_device);
 }
 
-bool ze_kernel_builder::check_l0_build_support() const {
+bool ze_kernel_builder::check_ze_build_support() const {
     static std::unordered_map<ze_device_handle_t, bool> cache;
     static std::mutex m;
     // Prevent multiple threads from checking support at the same time
@@ -44,16 +44,16 @@ bool ze_kernel_builder::check_l0_build_support() const {
         return cache.at(dev_handle);
     }
     try {
-        build_module_l0(src, src_bytes, KernelFormat::SOURCE, "");
+        build_module_ze(src, src_bytes, KernelFormat::SOURCE, "");
         cache[dev_handle] = true;
     } catch (std::exception&) {
-        GPU_DEBUG_INFO << "[GPU] Device(" << dev_handle << ") does not support kernel compilation from source through L0" << std::endl;
+        GPU_DEBUG_INFO << "[GPU] Device(" << dev_handle << ") does not support kernel compilation from source through Level Zero" << std::endl;
         cache[dev_handle] = false;
     }
     return cache.at(dev_handle);
 }
 
-std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
+std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_ze(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
     ze_module_desc_t module_desc = {
             ZE_STRUCTURE_TYPE_MODULE_DESC,
             nullptr,
@@ -96,18 +96,18 @@ std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void 
 }
 
 std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options) const {
-    OPENVINO_ASSERT(src_format == KernelFormat::SOURCE, "[GPU] L0 kernel builder should only fallback to OCL when building kernels from source");
-    OPENVINO_ASSERT(m_ocl_builder != nullptr, "[GPU] L0 kernel builder expected initialized OCL builder");
+    OPENVINO_ASSERT(src_format == KernelFormat::SOURCE, "[GPU] Level Zero kernel builder should only fallback to OCL when building kernels from source");
+    OPENVINO_ASSERT(m_ocl_builder != nullptr, "[GPU] Level Zero kernel builder expected initialized OCL builder");
     std::vector<kernel::ptr> tmp;
     m_ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
-    OPENVINO_ASSERT(tmp.size() > 0, "[GPU] L0 kernel builder expected non-empty module");
+    OPENVINO_ASSERT(tmp.size() > 0, "[GPU] Level Zero kernel builder expected non-empty module");
     auto binary = tmp[0]->get_binary();
-    return build_module_l0(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, options);
+    return build_module_ze(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, options);
 }
 
 void ze_kernel_builder::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
     std::shared_ptr<ze_module_holder> module_holder;
-    if (src_format == KernelFormat::SOURCE && !check_l0_build_support()) {
+    if (src_format == KernelFormat::SOURCE && !check_ze_build_support()) {
         {
             std::lock_guard lock(this->m_mutex);
             // Prevent ocl builder init call from multiple threads
@@ -117,7 +117,7 @@ void ze_kernel_builder::build_kernels(const void *src, size_t src_bytes, KernelF
         }
         module_holder = build_module_ocl(src, src_bytes, src_format, options);
     } else {
-        module_holder = build_module_l0(src, src_bytes, src_format, options);
+        module_holder = build_module_ze(src, src_bytes, src_format, options);
     }
     ze_kernel::create_kernels_from_module(module_holder, out);
 }
