@@ -404,7 +404,9 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
                   compatibilityDescriptor.c_str(),
                   compatibilityDescriptor.length());
 
-    // Implement only the fallback path for now through the PLUGIN compiler type
+    // Validate through the compiler type selected by determineCompilerTypeForCompatibilityCheck():
+    // the compiler-in-driver (CID) path is preferred when the driver implements the runtime
+    // requirements extension, otherwise the plugin falls back to the compiler-in-plugin (CIP) path.
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     CompilerAdapterFactory factory;
     try {

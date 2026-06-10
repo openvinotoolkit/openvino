@@ -5,6 +5,7 @@
 #include "graph.hpp"
 
 #include <iterator>
+#include <mutex>
 
 #include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
@@ -23,7 +24,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
-             const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
              const bool calledFromWeightlessGraph)
     : IGraph(),
@@ -32,7 +32,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
-      _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -268,6 +267,14 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
+}
+
+void Graph::set_compatibility_descriptor(std::optional<std::string> descriptor) {
+    _compatibilityDescriptor = std::move(descriptor);
+}
+
+bool Graph::can_provide_compatibility_descriptor() const {
+    return _compatibilityDescriptor.has_value();
 }
 
 std::optional<std::string_view> Graph::get_compatibility_descriptor() const {

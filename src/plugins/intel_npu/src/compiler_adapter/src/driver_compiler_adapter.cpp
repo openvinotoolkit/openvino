@@ -5,6 +5,8 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -94,23 +96,17 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
-    std::optional<std::string> compatibilityDescriptor;
-    if (is_option_supported(RUNTIME_REQUIREMENTS::key().data())) {
-        compatibilityDescriptor = get_runtime_requirements(graphDesc);
-        if (compatibilityDescriptor.has_value()) {
-            _logger.debug("Obtained runtime requirements from driver: %s", compatibilityDescriptor.value().c_str());
-        } else {
-            _logger.debug("Driver did not return runtime requirements for this blob");
-        }
-    }
-
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphDesc,
-                                   std::move(networkMeta),
-                                   /* blob = */ std::nullopt,
-                                   updatedConfig,
-                                   /* compatibilityDescriptor = */ compatibilityDescriptor);
+    auto graph = std::make_shared<Graph>(_zeGraphExt,
+                                         _zeroInitStruct,
+                                         graphDesc,
+                                         std::move(networkMeta),
+                                         /* blob = */ std::nullopt,
+                                         updatedConfig);
+    // Compiler-in-driver path: the runtime requirements (compatibility descriptor) are produced by
+    // the driver alongside the compiled graph. Fetch them eagerly here so Graph stays a plain
+    // holder, symmetric with the CIP and import paths that also set the descriptor at creation time.
+    graph->set_compatibility_descriptor(fetch_compatibility_descriptor(graphDesc._handle));
+    return graph;
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -349,7 +345,7 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 }
 
 bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    if (zeDeviceValidateRuntimeRequirements == nullptr) {
+    if (ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements == nullptr) {
         OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
     }
 
@@ -369,44 +365,48 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
         return false;
     }
 
+    // Only REQUIREMENTS_MET and MET_RECOMPILATION_ADVISABLE are treated as compatible.
+    // NOT_APPLICABLE (the descriptor does not apply to this device) and REQUIREMENTS_NOT_MET are
+    // intentionally treated as incompatible, since neither guarantees the blob runs correctly here.
     return output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET ||
            output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
 }
 
-std::optional<std::string> DriverCompilerAdapter::get_runtime_requirements(
-    const GraphDescriptor& graphDescriptor) const {
-    if (zeDeviceGetRuntimeRequirements == nullptr) {
-        _logger.debug("zeDeviceGetRuntimeRequirements is not supported by this driver");
+std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
+    if (_zeroInitStruct == nullptr || graphHandle == nullptr ||
+        ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements == nullptr) {
         return std::nullopt;
     }
 
-    ze_runtime_requirements_graph_desc_t graphDesc = {};
-    graphDesc.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_GRAPH_DESC;
-    graphDesc.pNext = nullptr;
-    graphDesc.requirementsSrc = graphDescriptor._handle;
+    ze_runtime_requirements_graph_desc_t requirementsDesc = {};
+    requirementsDesc.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_GRAPH_DESC;
+    requirementsDesc.pNext = nullptr;
+    requirementsDesc.requirementsSrc = graphHandle;
 
     size_t size = 0;
-    ze_result_t result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &graphDesc, &size, nullptr);
+    ze_result_t result =
+        zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, nullptr);
     if (result != ZE_RESULT_SUCCESS) {
         _logger.warning("zeDeviceGetRuntimeRequirements (size query) returned error: 0x%x",
                         static_cast<uint32_t>(result));
         return std::nullopt;
     }
-
     if (size == 0) {
-        _logger.debug("zeDeviceGetRuntimeRequirements returned size=0: no requirements embedded in this blob");
         return std::nullopt;
     }
 
-    std::string requirements(size, '\0');
-    result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &graphDesc, &size, requirements.data());
+    // The driver writes a null-terminated string of 'size' bytes (terminator included); the stored
+    // descriptor keeps that exact byte layout so it round-trips identically through blob metadata.
+    std::string descriptor(size, '\0');
+    result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, descriptor.data());
     if (result != ZE_RESULT_SUCCESS) {
         _logger.warning("zeDeviceGetRuntimeRequirements (data query) returned error: 0x%x",
                         static_cast<uint32_t>(result));
         return std::nullopt;
     }
 
-    return requirements;
+    _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
+    return descriptor;
 }
 
 }  // namespace intel_npu

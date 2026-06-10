@@ -96,15 +96,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
 
-    return std::make_shared<Graph>(
+    auto graph = std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
         std::move(networkMeta),
         std::move(tensor),
         config,
-        compatibilityDescriptor,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true);
+    graph->set_compatibility_descriptor(compatibilityDescriptor);
+    return graph;
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,

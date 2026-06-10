@@ -69,14 +69,15 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                                                     : false;
 
     if (!initBlobs.has_value()) {
-        return std::make_shared<Graph>(_zeGraphExt,
-                                       _zeroInitStruct,
-                                       mainGraphDesc,
-                                       std::move(mainNetworkMetadata),
-                                       mainBlob,
-                                       config,
-                                       compatibilityDescriptor,
-                                       blobIsPersistent);
+        auto graph = std::make_shared<Graph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             mainGraphDesc,
+                                             std::move(mainNetworkMetadata),
+                                             mainBlob,
+                                             config,
+                                             blobIsPersistent);
+        graph->set_compatibility_descriptor(compatibilityDescriptor);
+        return graph;
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific

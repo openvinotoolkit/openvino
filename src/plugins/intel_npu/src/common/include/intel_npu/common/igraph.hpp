@@ -77,6 +77,28 @@ public:
 
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
+    /**
+     * @brief Stores the compatibility descriptor for this graph.
+     * @details The descriptor is determined when the graph is created: imported from blob
+     *          metadata, returned by the VCL/plugin compiler, or fetched from the driver by the
+     *          compiler adapter on the compiler-in-driver path. If never set, no descriptor is
+     *          available for this graph.
+     * @note The base implementation is a no-op; only subclasses that support compatibility
+     *       descriptors (e.g. Graph) override it. Subclasses that do not override it silently
+     *       ignore the descriptor.
+     */
+    virtual void set_compatibility_descriptor(std::optional<std::string> /*descriptor*/) {}
+
+    /**
+     * @brief Returns whether a compatibility descriptor is available for this graph.
+     * @note The base implementation returns false; only subclasses that support compatibility
+     *       descriptors (e.g. Graph) override it.
+     * @return true if a descriptor was set for this graph, false otherwise.
+     */
+    virtual bool can_provide_compatibility_descriptor() const {
+        return false;
+    }
+
 protected:
     virtual void initialize_impl(const FilteredConfig& config);
 
