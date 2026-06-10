@@ -613,9 +613,26 @@ RecurrentStateResult make_recurrent_state(const RecurrentStateInputs& inputs,
 
     // q/k/v arrive per-head [batch, seq, H, D] (q/k already L2-normed by the caller,
     // as in the real export) — only the [B,H,seq,D] loop layout transpose happens here.
-    auto q_mh = make_attention_transpose(inputs.query, prefix + "q_mh");
+    auto q_t = make_attention_transpose(inputs.query, prefix + "q_mh");
     auto k_mh = make_attention_transpose(inputs.key, prefix + "k_mh");
     auto v_mh = make_attention_transpose(inputs.value, prefix + "v_mh");
+
+    // q is scaled by key_head_dim^-0.5 before entering the Loop. The export computes
+    // sqrt(head_dim) dynamically: ShapeOf -> Gather(3) -> Convert -> Power(0.5) -> Divide.
+    auto q_shape = std::make_shared<ov::opset11::ShapeOf>(q_t, ov::element::i64);
+    q_shape->set_friendly_name(prefix + "q_shapeof");
+    auto q_head_dim =
+        std::make_shared<ov::opset11::Gather>(q_shape,
+                                              ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {3}),
+                                              ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    q_head_dim->set_friendly_name(prefix + "q_head_dim");
+    auto q_head_dim_f = std::make_shared<ov::opset11::Convert>(q_head_dim, prec);
+    q_head_dim_f->set_friendly_name(prefix + "q_head_dim_f");
+    auto sqrt_head_dim =
+        std::make_shared<ov::opset11::Power>(q_head_dim_f, ov::opset11::Constant::create(prec, ov::Shape{}, {0.5f}));
+    sqrt_head_dim->set_friendly_name(prefix + "sqrt_head_dim");
+    auto q_mh = std::make_shared<ov::opset11::Divide>(q_t, sqrt_head_dim)->output(0);
+    q_mh.get_node()->set_friendly_name(prefix + "q_scaled");
 
     // gate/beta: [batch, seq, H] -> [batch, H, seq]
     auto gate_mh = std::make_shared<ov::opset11::Transpose>(inputs.gate, swap_last_two_axes_perm());
@@ -717,11 +734,12 @@ MixerResult ShortConvMixer::build(const ov::Output<ov::Node>& input,
     auto gated = std::make_shared<ov::opset11::Multiply>(bcx->output(1), conv.output);
     gated->set_friendly_name(ap + "C_mul_conv");
 
-    auto gated_t = std::make_shared<ov::opset11::Transpose>(gated, swap_last_two_axes_perm());
-    gated_t->set_friendly_name(ap + "transpose_out");
-
-    auto output = make_linear(gated_t->output(0), conv_dim, hidden_size, ap + "out_proj", precision, weight_fn);
-    return {output, {std::dynamic_pointer_cast<ov::op::Sink>(conv.assign)}};
+    // The export folds the [B, C, seq] -> [B, seq, C] layout swap into out_proj via
+    // transpose_a=true — there is no output Transpose op.
+    auto out_w = weight_fn(ap + "out_proj.weight", ov::Shape{hidden_size, conv_dim}, precision);
+    auto output = std::make_shared<ov::opset11::MatMul>(gated, out_w, true, true);
+    output->set_friendly_name(ap + "out_proj");
+    return {output->output(0), {std::dynamic_pointer_cast<ov::op::Sink>(conv.assign)}};
 }
 
 MixerResult GatedDeltaNetMixer::build(const ov::Output<ov::Node>& input,
