@@ -4,10 +4,14 @@
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 
+#include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include "compare.hpp"
 #include "itt.hpp"
@@ -804,6 +808,261 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
     return slice_node->clone_with_new_inputs(new_slice_inputs);
 }
 
+// --- Dynamic (structural) elimination of a Concat -> Slice NOPE subgraph ---------------------
+//
+// The static algorithm above proves the no-op by integer index arithmetic over a fully static
+// Concat shape, so it bails the moment the Concat (and its slice bounds) are dynamic. The
+// Gated-Delta-Net export produces exactly such a dynamic case: `Loop -> Reshape(.,[-1]) ->
+// Concat(axis=0) -> Slice -> Reshape`, where the slice boundary is a runtime
+// `ReduceProd(ShapeOf(...))` rather than a foldable constant.
+//
+// For that idiom the no-op is proven STRUCTURALLY, not arithmetically, with the same trust model
+// as ov::pass::RemoveConcatSliceAfterLoop (fuse_gated_delta_net.cpp): the boundary node shared
+// between adjacent slices makes the partition contiguous by construction, and each slice's
+// Reshape-back consumer (which restores the pre-flatten producer's shape) pins the chunk length to
+// that producer's element count under the standard "input model is valid" assumption. The dynamic
+// dimensions themselves are trusted via the idiom; the guards below reject everything that is not
+// exactly this shape, so a non-NOPE Concat is never rewired.
+
+// Matches `out = Reshape(src, [-1])` flattening to rank 1 and reports `src`. special_zero is
+// irrelevant because a [-1] target carries no 0 entry.
+bool match_flatten_to_1d(const ov::Output<ov::Node>& out, ov::Output<ov::Node>& src) {
+    const auto reshape = ov::as_type_ptr<v1::Reshape>(out.get_node_shared_ptr());
+    if (!reshape)
+        return false;
+    const auto& out_shape = reshape->get_output_partial_shape(0);
+    if (out_shape.rank().is_dynamic() || out_shape.size() != 1)
+        return false;
+    const auto& target = ov::util::get_constant_from_source(reshape->input_value(1));
+    if (!target)
+        return false;
+    const auto target_values = target->cast_vector<int64_t>();
+    if (target_values.size() != 1 || target_values[0] != -1)
+        return false;
+    src = reshape->input_value(0);
+    return true;
+}
+
+// Folds a single-element integer Output to its scalar value.
+bool fold_scalar_int(const ov::Output<ov::Node>& out, int64_t& value) {
+    const auto& constant = ov::util::get_constant_from_source(out);
+    if (!constant)
+        return false;
+    const auto values = constant->cast_vector<int64_t>();
+    if (values.size() != 1)
+        return false;
+    value = values[0];
+    return true;
+}
+
+// Begin/end Outputs of a slice along axis 0 of a rank-1 dynamic Concat, plus whether they fold to
+// the "0" and "to-end" sentinels. begin/end stay as Outputs so adjacent slices can be chained by
+// producer identity rather than by their (unknown) runtime values.
+struct DynamicSliceBounds {
+    ov::Output<ov::Node> begin;
+    ov::Output<ov::Node> end;
+    bool begin_is_zero = false;
+    bool end_is_to_end = false;
+    bool has_explicit_begin = false;
+};
+
+// Validates `user` is a unit-step slice covering only axis 0 of a rank-1 Concat. Partial shapes
+// only — never calls get_shape() (which throws on a dynamic Concat).
+bool validate_dynamic_axis_slice(const std::shared_ptr<ov::Node>& user, DynamicSliceBounds& bounds) {
+    constexpr int64_t to_end = std::numeric_limits<int64_t>::max();
+    if (const auto slice = ov::as_type_ptr<v8::Slice>(user)) {
+        const auto& data_shape = slice->get_input_partial_shape(0);
+        if (data_shape.rank().is_dynamic() || data_shape.size() != 1)
+            return false;
+        int64_t step = 0;
+        if (!fold_scalar_int(slice->input_value(3), step) || step != 1)
+            return false;
+        if (slice->get_input_size() == 5) {
+            int64_t axis = 0;
+            if (!fold_scalar_int(slice->input_value(4), axis) || ov::util::normalize(axis, 1) != 0)
+                return false;
+        }
+        bounds.begin = slice->input_value(1);
+        bounds.end = slice->input_value(2);
+        bounds.has_explicit_begin = true;
+        int64_t begin_value = 0;
+        if (fold_scalar_int(bounds.begin, begin_value)) {
+            if (begin_value < 0)
+                return false;
+            bounds.begin_is_zero = (begin_value == 0);
+        }
+        int64_t end_value = 0;
+        if (fold_scalar_int(bounds.end, end_value))
+            bounds.end_is_to_end = (end_value >= to_end);
+        return true;
+    }
+    if (const auto strided = ov::as_type_ptr<v1::StridedSlice>(user)) {
+        const auto& data_shape = strided->get_input_partial_shape(0);
+        if (data_shape.rank().is_dynamic() || data_shape.size() != 1)
+            return false;
+        const auto all_zero = [](const std::vector<int64_t>& mask) {
+            return std::all_of(mask.begin(), mask.end(), [](int64_t v) {
+                return v == 0;
+            });
+        };
+        if (!all_zero(strided->get_shrink_axis_mask()) || !all_zero(strided->get_new_axis_mask()) ||
+            !all_zero(strided->get_ellipsis_mask()))
+            return false;
+        if (strided->get_input_size() == 4) {
+            int64_t stride = 0;
+            if (!fold_scalar_int(strided->input_value(3), stride) || stride != 1)
+                return false;
+        }
+        const auto& begin_mask = strided->get_begin_mask();
+        const auto& end_mask = strided->get_end_mask();
+        const bool begin_explicit = begin_mask.empty() || begin_mask[0] == 0;
+        const bool end_explicit = end_mask.empty() || end_mask[0] == 0;
+        if (begin_explicit) {
+            bounds.begin = strided->input_value(1);
+            bounds.has_explicit_begin = true;
+            int64_t begin_value = 0;
+            if (fold_scalar_int(bounds.begin, begin_value)) {
+                if (begin_value < 0)
+                    return false;
+                bounds.begin_is_zero = (begin_value == 0);
+            }
+        } else {
+            bounds.begin_is_zero = true;  // begin_mask selects the start of the dimension
+        }
+        if (end_explicit) {
+            bounds.end = strided->input_value(2);
+            int64_t end_value = 0;
+            if (fold_scalar_int(bounds.end, end_value))
+                bounds.end_is_to_end = (end_value >= to_end);
+        } else {
+            bounds.end_is_to_end = true;  // end_mask selects the end of the dimension
+        }
+        return true;
+    }
+    return false;
+}
+
+// Structural dynamic-Concat NOPE elimination — see the comment block above. Rewires each
+// Reshape-back directly to its pre-flatten producer and lets dead-node cleanup drop the slices and
+// the Concat. Returns false (no change) for anything that is not exactly the flatten / Concat /
+// contiguous-slice / Reshape-back idiom.
+bool try_eliminate_dynamic_concat_slice(const std::shared_ptr<v0::Concat>& concat, int64_t concat_axis) {
+    // G1: the idiom is a rank-1 Concat along axis 0 (1-D flattened inputs).
+    if (concat_axis != 0)
+        return false;
+    const auto concat_inputs = concat->input_values();
+    const size_t num_inputs = concat_inputs.size();
+    if (num_inputs < 2)
+        return false;
+
+    // G2: every Concat input is `Reshape(Y_i, [-1])`; collect the pre-flatten producers Y_i.
+    std::vector<ov::Output<ov::Node>> pre_flatten(num_inputs);
+    for (size_t i = 0; i < num_inputs; ++i) {
+        const auto& input_shape = concat_inputs[i].get_partial_shape();
+        if (input_shape.rank().is_dynamic() || input_shape.size() != 1)
+            return false;
+        if (!match_flatten_to_1d(concat_inputs[i], pre_flatten[i]))
+            return false;
+    }
+
+    // G6 (Concat side): the Concat's only users are slice-like ops slicing it as their data input,
+    // one per Concat input.
+    const auto concat_users = concat->get_users();
+    if (concat_users.size() != num_inputs)
+        return false;
+    std::vector<DynamicSliceBounds> bounds(num_inputs);
+    for (size_t i = 0; i < num_inputs; ++i) {
+        if (concat_users[i]->input_value(0).get_node_shared_ptr() != concat)
+            return false;
+        if (!validate_dynamic_axis_slice(concat_users[i], bounds[i]))
+            return false;
+    }
+
+    // G5: order the slices into a contiguous partition [0 .. end) via the shared-boundary identity
+    // chain — slice_0 begins at 0, slice_k.begin is the SAME Output as slice_{k-1}.end, and only
+    // the last slice reaches the end.
+    int first = -1;
+    for (size_t i = 0; i < num_inputs; ++i) {
+        if (bounds[i].begin_is_zero) {
+            if (first != -1)
+                return false;  // more than one slice starts at 0
+            first = static_cast<int>(i);
+        }
+    }
+    if (first == -1)
+        return false;
+
+    std::vector<size_t> order{static_cast<size_t>(first)};
+    std::vector<bool> used(num_inputs, false);
+    used[first] = true;
+    for (size_t k = 1; k < num_inputs; ++k) {
+        const auto& prev = bounds[order.back()];
+        if (prev.end_is_to_end)
+            return false;  // a non-last slice already reaches the end
+        int next = -1;
+        for (size_t i = 0; i < num_inputs; ++i) {
+            if (used[i] || !bounds[i].has_explicit_begin)
+                continue;
+            if (bounds[i].begin == prev.end) {  // Output identity == shared boundary node
+                if (next != -1)
+                    return false;  // ambiguous boundary
+                next = static_cast<int>(i);
+            }
+        }
+        if (next == -1)
+            return false;
+        order.push_back(static_cast<size_t>(next));
+        used[next] = true;
+    }
+    if (!bounds[order.back()].end_is_to_end)
+        return false;  // the last slice must cover the dimension end
+
+    // G3 + G6 (slice side): each slice feeds exactly one Reshape-back whose output shape matches the
+    // corresponding pre-flatten producer Y_k. Collect all rewrites first; commit only if every slice
+    // in the partition passes. The k-th tiling region (concat_users[order[k]]) reconstructs the k-th
+    // Concat input: the partition is contiguous from 0 and each boundary is pinned to a Concat-input
+    // numel by the Reshape-back below (under the valid-model assumption), so tiling order and input
+    // order align one-to-one — hence it is paired with pre_flatten[k], not pre_flatten[order[k]].
+    std::vector<std::pair<std::shared_ptr<ov::Node>, ov::Output<ov::Node>>> rewrites;
+    rewrites.reserve(num_inputs);
+    for (size_t k = 0; k < num_inputs; ++k) {
+        const auto& slice = concat_users[order[k]];
+        const auto& producer = pre_flatten[k];
+        const auto slice_users = slice->get_users();
+        if (slice_users.size() != 1)
+            return false;
+        const auto reshape_back = ov::as_type_ptr<v1::Reshape>(slice_users[0]);
+        if (!reshape_back)
+            return false;
+        const auto& back_shape = reshape_back->get_output_partial_shape(0);
+        const auto& producer_shape = producer.get_partial_shape();
+        if (back_shape.rank().is_dynamic() || producer_shape.rank().is_dynamic() ||
+            back_shape.size() != producer_shape.size())
+            return false;
+        // The Reshape-back may be less shape-refined than Y_k at this pipeline stage (its target is a
+        // runtime ShapeOf, not yet fully inferred), so require only that every dim it DOES pin
+        // statically agrees with Y_k; a dim it leaves dynamic is trusted via the idiom (cf.
+        // RemoveConcatSliceAfterLoop). This still rejects a Reshape-back that restores a different,
+        // statically-incompatible shape.
+        for (size_t d = 0; d < back_shape.size(); ++d) {
+            if (back_shape[d].is_static() &&
+                (producer_shape[d].is_dynamic() || back_shape[d] != producer_shape[d]))
+                return false;
+        }
+        rewrites.emplace_back(reshape_back, producer);
+    }
+
+    // Commit: rewire every Reshape-back to its pre-flatten producer (mirrors the rewiring in
+    // ov::pass::RemoveConcatSliceAfterLoop). replace_output_update_name() declines when the output
+    // feeds a Result and the producer already has several users, so fall back to a plain replace —
+    // the producer keeps its own name. The slices and the Concat become dead afterwards.
+    for (const auto& rewrite : rewrites) {
+        if (!ov::replace_output_update_name(rewrite.first->output(0), rewrite.second))
+            rewrite.first->output(0).replace(rewrite.second);
+    }
+    return true;
+}
+
 }  // namespace
 
 EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
@@ -813,11 +1072,14 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(pattern_concat));
-        if (concat->is_dynamic())
-            return false;
 
         const auto concat_axis =
             ov::util::normalize(concat->get_axis(), concat->get_output_partial_shape(0).rank().get_length());
+
+        // Dynamic Concat: the static index arithmetic below cannot run; prove the no-op
+        // structurally instead (Gated-Delta-Net flatten/Concat/Slice/Reshape idiom).
+        if (concat->is_dynamic())
+            return try_eliminate_dynamic_concat_slice(concat, concat_axis);
 
         const auto concat_users = concat->get_users();
         if (concat_users.size() == 1)
