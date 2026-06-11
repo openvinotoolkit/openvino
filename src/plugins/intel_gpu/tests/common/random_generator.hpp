@@ -5,11 +5,13 @@
 #pragma once
 
 #include <cstdint>
+#include <iostream>
 #include <random>
 #include <set>
 #include <string>
 #include <string_view>
 #include <vector>
+
 
 #define GET_SUITE_NAME  (std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) + \
                          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()))
@@ -17,15 +19,16 @@
 namespace tests {
 static const uint32_t DEFAULT_SEED = 0;
 
-// Use a deterministic FNV-1a hash instead of std::hash algorithm
-inline uint32_t stable_string_seed(std::string_view seed) {
-    uint32_t hash = 2166136261u;
+
+inline uint64_t stable_string_seed(std::string_view seed) {
+    uint64_t hash = 14695981039346656037ull;
     for (unsigned char ch : seed) {
         hash ^= ch;
-        hash *= 16777619u;
+        hash *= 1099511628211ull;
     }
     return hash;
 }
+
 
 class random_generator {
 public:
@@ -40,11 +43,19 @@ public:
     }
 
     void set_seed(const std::string& seed) {
-        set_seed(stable_string_seed(seed));
+        const auto seed_hash = stable_string_seed(seed);
+        set_seed(seed_hash);
     }
 
     void set_seed(const uint32_t seed) {
-        generator = std::default_random_engine{seed};
+        generator.seed(seed);
+    }
+
+    void set_seed(const uint64_t seed) {
+        const uint32_t seed_lo = static_cast<uint32_t>(seed);
+        const uint32_t seed_hi = static_cast<uint32_t>(seed >> 32);
+        std::seed_seq seed_seq{seed_lo, seed_hi};
+        generator.seed(seed_seq);
     }
 
     template<typename ReturnType>
