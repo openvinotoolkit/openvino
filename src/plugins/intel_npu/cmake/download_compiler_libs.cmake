@@ -4,14 +4,12 @@
 
 # This script resolves the prebuilt NPU Plugin Compiler dependency by downloading and extracting the appropriate
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
-#     vcl version: 7.7.0
-#     release: releases/unified/2026/20
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-7_7_0-a282305.zip
+#         windows2022: npu_compiler_vcl_windows_2022-<compiler_version>-<compiler_commit_sha>.zip
 #     LINUX:
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_7_0-a282305.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_7_0-a282305.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-<compiler_version>-<compiler_commit_sha>.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-<compiler_version>-<compiler_commit_sha>.tar.gz
 #
 # This script replicates cmake/dependencies.cmake common OV dependency resolution logic including:
 #     THIRDPARTY_SERVER_PATH environment variable or cmake options support that allows
@@ -48,13 +46,13 @@ endfunction()
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Resolving prebuilt NPU Plugin Compiler dependencies...")
 
-    set(PLUGIN_COMPILER_VERSION_MAJOR 7)
-    set(PLUGIN_COMPILER_VERSION_MINOR 7)
+    set(PLUGIN_COMPILER_VERSION_MAJOR 8)
+    set(PLUGIN_COMPILER_VERSION_MINOR 2)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA a282305)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM aa94213af3deed2aaab216c7d39e0787cff002156428a432d1395f94cf23ca6f)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM 789572fb15dc580484fac1b2f542842f5eb2834234410d059f0977ca14bbeb6a)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM faece2ee29de4905301c80d872177527c4011e98639bbed6445b70e5ce543d5f)
+    set(PLUGIN_COMPILER_COMMIT_SHA 4fd12bb)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM e43aa2fdd9b51d08901ca14f32048a9b3d6e26aeb6ddd68059966dda599196ee)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM ea8cbeb32d56962ccea808fa177f95fafb39ec83acbb6f19c545ed7f007b4bdb)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM ec943662b847ec7659fab52eb2c4e32c105a5fd59e1d4bccfe738aca57a92825)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
@@ -68,8 +66,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
         set(PLUGIN_COMPILER_PACKAGE_EXT "zip")
         set(PLUGIN_COMPILER_ARCHIVE_TYPE "ARCHIVE_WIN")
         set(PLUGIN_COMPILER_LIB_NAME "openvino_intel_npu_compiler.dll")
+        set(PLUGIN_COMPILER_PDB_NAME "openvino_intel_npu_compiler.pdb")
         set(PLUGIN_COMPILER_LOADER_LIB_NAME "openvino_intel_npu_compiler_loader.dll")
-    elseif(UNIX AND NOT APPLE)
+        set(PLUGIN_COMPILER_LOADER_PDB_NAME "openvino_intel_npu_compiler_loader.pdb")
+    elseif(UNIX AND NOT APPLE AND NOT ANDROID)
         # Get the OS name and OS version
         execute_process(COMMAND lsb_release -is OUTPUT_VARIABLE OS_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
         execute_process(COMMAND lsb_release -rs OUTPUT_VARIABLE OS_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -113,6 +113,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
         print_build_manifest("${NPU_PLUGIN_COMPILER}/build_manifest.json")
 
         set(PLUGIN_COMPILER_LIB_PATH "${NPU_PLUGIN_COMPILER}/lib")
+        set(PLUGIN_COMPILER_PDB_PATH "${NPU_PLUGIN_COMPILER}/pdb")
 
         if(USE_BUILD_TYPE_SUBFOLDER)
             set(PLUGIN_COMPILER_LIB_DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
@@ -129,6 +130,17 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
         install(FILES ${PLUGIN_COMPILER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
         install(FILES ${PLUGIN_COMPILER_LOADER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
+        if(WIN32)
+            set(PLUGIN_COMPILER_PDB "${PLUGIN_COMPILER_PDB_PATH}/${PLUGIN_COMPILER_PDB_NAME}")
+            set(PLUGIN_COMPILER_LOADER_PDB "${PLUGIN_COMPILER_PDB_PATH}/${PLUGIN_COMPILER_LOADER_PDB_NAME}")
+            file(COPY "${PLUGIN_COMPILER_PDB}" DESTINATION "${PLUGIN_COMPILER_LIB_DESTINATION}")
+            file(COPY "${PLUGIN_COMPILER_LOADER_PDB}" DESTINATION "${PLUGIN_COMPILER_LIB_DESTINATION}")
+            message(STATUS "Copying prebuilt Plugin compiler PDB files from ${PLUGIN_COMPILER_PDB_PATH} to ${PLUGIN_COMPILER_LIB_DESTINATION}")
+
+            install(FILES ${PLUGIN_COMPILER_PDB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT pdb EXCLUDE_FROM_ALL)
+            install(FILES ${PLUGIN_COMPILER_LOADER_PDB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT pdb EXCLUDE_FROM_ALL)
+        endif()
     else()
         message(FATAL_ERROR "Failed to download prebuilt NPU Plugin Compiler libraries. Can not use plugin compiler libraries!")
     endif()
