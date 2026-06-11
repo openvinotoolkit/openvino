@@ -174,7 +174,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Make attention mask
     std::shared_ptr<ov::Node> mask;
     auto has_mask_input = node->get_input_size() > 10 && !is_null(node->input_value(10));
-    auto use_default_mask = !has_mask_input && !is_static_input && scale == 1.0f;
+    auto use_default_mask = !has_mask_input && !is_static_input && scale == 0.0f;
     if (has_mask_input) {
         auto original_mask = node->input_value(10).get_node_shared_ptr();
         // Extract mask [num_heads, curr_seqlen, concat_kv_len] from 4D mask [1, num_heads, curr_seqlen, max_kv_len]
@@ -221,7 +221,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (use_default_mask) {
         qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, true);
     } else {
-        if (scale != 1.0f) {
+        if (scale != 0.0f) {
             auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
             qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
         } else {

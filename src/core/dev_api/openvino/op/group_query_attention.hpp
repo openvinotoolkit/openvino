@@ -42,7 +42,7 @@ public:
 private:
     int64_t m_num_heads = 0;
     int64_t m_kv_num_heads = 0;
-    float m_scale = 1.0f;
+    float m_scale = 0;
     bool m_do_rotary = false;
     bool m_rotary_interleaved = false;
 };
