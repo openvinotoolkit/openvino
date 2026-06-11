@@ -21,9 +21,8 @@ on:
     types:
       - completed
 
-rate-limit:
-  max: 5 # Maximum runs per window
-  window: 60 # Time window in minutes
+concurrency:
+  group: gh-aw-${{ github.workflow }}
 
 # Only trigger for merge-queue failures, or manual workflow_dispatch for testing
 if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group') }}
