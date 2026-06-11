@@ -5777,8 +5777,6 @@ TEST(convolution_f16_fsv16, grouped_conv_bfyx_f16_multi_group_per_subgroup) {
         const int ic_per_group = tc.input_f / tc.groups;
         const int oc_per_group = tc.output_f / tc.groups;
 
-        const int output_xy = 1 + (tc.input_xy + 2 * tc.pad - tc.filter_xy) / tc.stride;
-
         // Generate random input [batch, IC, H, W]
         auto input_data = rg.generate_random_4d<ov::float16>(tc.batch_num, tc.input_f, tc.input_xy, tc.input_xy, -1, 1);
         auto input_data_bfyx = flatten_4d(format::bfyx, input_data);

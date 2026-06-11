@@ -308,22 +308,8 @@ KERNEL(convolution_bfyx_f16)(
 #if GROUPED
                     if (groups_per_sub_group > 1) {
                             uint correct_lane = sglid % FILTER_OFM_NUM;
-                            wei0.s0 = sub_group_shuffle(wei0.s0, correct_lane);
-                            wei0.s1 = sub_group_shuffle(wei0.s1, correct_lane);
-                            wei0.s2 = sub_group_shuffle(wei0.s2, correct_lane);
-                            wei0.s3 = sub_group_shuffle(wei0.s3, correct_lane);
-                            wei0.s4 = sub_group_shuffle(wei0.s4, correct_lane);
-                            wei0.s5 = sub_group_shuffle(wei0.s5, correct_lane);
-                            wei0.s6 = sub_group_shuffle(wei0.s6, correct_lane);
-                            wei0.s7 = sub_group_shuffle(wei0.s7, correct_lane);
-                            wei1.s0 = sub_group_shuffle(wei1.s0, correct_lane);
-                            wei1.s1 = sub_group_shuffle(wei1.s1, correct_lane);
-                            wei1.s2 = sub_group_shuffle(wei1.s2, correct_lane);
-                            wei1.s3 = sub_group_shuffle(wei1.s3, correct_lane);
-                            wei1.s4 = sub_group_shuffle(wei1.s4, correct_lane);
-                            wei1.s5 = sub_group_shuffle(wei1.s5, correct_lane);
-                            wei1.s6 = sub_group_shuffle(wei1.s6, correct_lane);
-                            wei1.s7 = sub_group_shuffle(wei1.s7, correct_lane);
+                          wei0 = _sub_group_shuffle(wei0, correct_lane);
+                          wei1 = _sub_group_shuffle(wei1, correct_lane);
 
                             // Zero weights for lanes not in this group
                             if (g != my_group) {
