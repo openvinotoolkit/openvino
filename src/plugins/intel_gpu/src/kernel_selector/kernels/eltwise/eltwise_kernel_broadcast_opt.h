@@ -24,5 +24,6 @@ protected:
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const eltwise_params& params) const override;
     DispatchData SetDefault(const eltwise_params& params) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

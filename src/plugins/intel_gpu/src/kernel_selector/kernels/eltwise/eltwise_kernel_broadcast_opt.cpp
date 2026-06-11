@@ -55,8 +55,6 @@ bool analyze(const eltwise_params& p, int& full_idx, int& bc_idx, size_t& period
             return false;                    // suffix must match the output exactly
     }
     period = bc.LogicalSize();
-    if (period % 8 != 0)                      // suffix includes X -> multiple of 8 expected
-        return false;
     kind = 2;
     return true;
 }
@@ -98,11 +96,6 @@ bool EltwiseKernelBroadcastOpt::Validate(const Params& p) const {
         }
     }
 
-    // Output element count must be a multiple of the half8 vector width.
-    if (ew.outputs[0].LogicalSize() % 8 != 0) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
     int full_idx, bc_idx, kind;
     size_t period;
     if (!analyze(ew, full_idx, bc_idx, period, kind)) {
@@ -119,9 +112,6 @@ JitConstants EltwiseKernelBroadcastOpt::GetJitConstants(const eltwise_params& pa
     analyze(params, full_idx, bc_idx, period, kind);
 
     jit.AddConstant(MakeJitConstant("FULL_IS_INPUT0", full_idx == 0 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("BCAST_SCALAR", kind == 0 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("BCAST_SAME_SHAPE", kind == 1 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("PERIOD", static_cast<int>(period)));
     return jit;
 }
 
@@ -130,12 +120,79 @@ EltwiseKernelBase::DispatchData EltwiseKernelBroadcastOpt::SetDefault(const eltw
     const size_t total = params.outputs[0].LogicalSize();
     const size_t n_work_items = (total + 7) / 8;  // one half8 per work-item
     dispatchData.gws = {n_work_items, 1, 1};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = {512, 1, 1};
     return dispatchData;
 }
 
+void EltwiseKernelBroadcastOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const eltwise_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        int full_idx, bc_idx, kind;
+        size_t period;
+        analyze(prim_params, full_idx, bc_idx, period, kind);
+        const size_t total = prim_params.outputs[0].LogicalSize();
+
+        if (kd.kernels[0].params.scalars.size() >= 2) {
+            kd.kernels[0].params.scalars[0].v.u32 = static_cast<uint32_t>(total);
+            kd.kernels[0].params.scalars[1].v.u32 = static_cast<uint32_t>(period);
+        }
+    };
+}
+
 KernelsData EltwiseKernelBroadcastOpt::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    if (!Validate(params)) {
+        return {};
+    }
+
+    KernelData kd = KernelData::Default<eltwise_params>(params);
+    eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
+
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
+    auto cldnn_jit = GetJitConstants(newParams);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    GetUpdateDispatchDataFunc(kd);
+
+    DispatchData dispatchData = SetDefault(newParams);
+
+    auto& kernel = kd.kernels[0];
+
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
+
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    const bool is_dynamic = newParams.is_shape_agnostic;
+    kernel.params.arguments = GetArgsDesc(static_cast<uint32_t>(newParams.inputs.size()),
+                                          false,
+                                          false,
+                                          GetFusedPrimitiveInputsCount(params),
+                                          1,
+                                          is_dynamic);
+
+    int full_idx, bc_idx, kind;
+    size_t period;
+    analyze(newParams, full_idx, bc_idx, period, kind);
+    const size_t total = newParams.outputs[0].LogicalSize();
+
+    ScalarDescriptor total_scalar;
+    total_scalar.t = ScalarDescriptor::Types::UINT32;
+    total_scalar.v.u32 = static_cast<uint32_t>(total);
+    kernel.params.scalars.push_back(total_scalar);
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+
+    ScalarDescriptor period_scalar;
+    period_scalar.t = ScalarDescriptor::Types::UINT32;
+    period_scalar.v.u32 = static_cast<uint32_t>(period);
+    kernel.params.scalars.push_back(period_scalar);
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1});
+
+    return {kd};
 }
 
 KernelsPriority EltwiseKernelBroadcastOpt::GetKernelsPriority(const Params& /*params*/) const {
