@@ -548,7 +548,6 @@ void PositionIDs::prepare(int64_t past_len) {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
-    const auto elem_type = in_tensor->get_element_type();
 
     m_current_length = current_length_from_position_ids(in_tensor, in_dims);
     m_past_length = get_past_length_for_case(m_case, m_current_length, m_pyramid_step);
