@@ -27,6 +27,7 @@ public:
     };
 
     struct layer_ids {
+        static constexpr uint32_t INPUT_IDS_BATCH_DIM = 0;
         static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
         static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
