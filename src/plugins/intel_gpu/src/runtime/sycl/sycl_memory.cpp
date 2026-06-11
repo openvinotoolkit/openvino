@@ -177,7 +177,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = static_cast<const char*>(data_ptr) + src_offset;
+    auto src_ptr = static_cast<const std::byte*>(data_ptr) + src_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
@@ -271,7 +271,7 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     // const qualifier should be removed to construct ::sycl::accessor
     auto& src_buffer = const_cast<::sycl::buffer<std::byte, 1>&>(_buffer);
-    auto dst_ptr = static_cast<char*>(data_ptr) + dst_offset;
+    auto dst_ptr = static_cast<std::byte*>(data_ptr) + dst_offset;
 
     try {
         auto event = sycl_stream.get_sycl_queue().submit([&](::sycl::handler& cgh) {
@@ -476,8 +476,8 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
-    auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+    auto src_ptr = static_cast<const std::byte*>(data_ptr) + src_offset;
+    auto dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
 
     try {
         auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
@@ -525,12 +525,12 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
             }
         }
 
-        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
+        auto dst_ptr = static_cast<std::byte*>(buffer_ptr());
         return sycl_mem_buffer.copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
     } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
         auto& usm_mem = downcast<const gpu_usm>(src_mem);
-        auto src_ptr = reinterpret_cast<const char*>(usm_mem.buffer_ptr()) + src_offset;
-        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+        auto src_ptr = static_cast<const std::byte*>(usm_mem.buffer_ptr()) + src_offset;
+        auto dst_ptr = static_cast<std::byte*>(buffer_ptr()) + dst_offset;
 
         try {
             auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
@@ -544,7 +544,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
     } else {
-        std::vector<char> tmp_buf;
+        std::vector<std::byte> tmp_buf;
         tmp_buf.resize(size);
         src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
 
@@ -561,8 +561,8 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_usm::copy_to(void*)");
 
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
-    auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
-    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
+    auto src_ptr = static_cast<const std::byte*>(buffer_ptr()) + src_offset;
+    auto dst_ptr = static_cast<std::byte*>(data_ptr) + dst_offset;
 
     try {
         auto ev = sycl_stream.get_sycl_queue().memcpy(dst_ptr, src_ptr, size);
@@ -581,7 +581,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem = dnnl::sycl_interop::make_memory(desc, onednn_engine, dnnl::sycl_interop::memory_kind::usm,
-        reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
+        static_cast<std::byte*>(_buffer.get()) + offset);
     return dnnl_mem;
 }
 #endif

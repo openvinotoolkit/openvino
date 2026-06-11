@@ -98,7 +98,7 @@ public:
         if (is_empty()) {
             return nullptr;
         }
-        return reinterpret_cast<uint8_t*>(_usm_pointer->ptr()) + _offset;
+        return static_cast<std::byte*>(_usm_pointer->ptr()) + _offset;
     }
 
     bool is_empty() const { return _usm_pointer.get() == nullptr; }
