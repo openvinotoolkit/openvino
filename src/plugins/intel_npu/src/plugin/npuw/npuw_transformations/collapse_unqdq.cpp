@@ -36,6 +36,18 @@ bool is_all_zero_constant(const ov::Output<ov::Node>& output) {
     });
 }
 
+ov::Output<ov::Node> preserve_output_type(const ov::Output<ov::Node>& replacement,
+                                          const ov::element::Type& expected_type,
+                                          const std::string& friendly_name) {
+    if (replacement.get_element_type() == expected_type) {
+        return replacement;
+    }
+
+    auto convert = std::make_shared<ov::op::v0::Convert>(replacement, expected_type);
+    convert->set_friendly_name(friendly_name);
+    return convert;
+}
+
 bool is_pointwise_kernel_shape(const ov::Shape& shape) {
     return shape.size() == 4 && shape[2] == 1 && shape[3] == 1;
 }
@@ -54,18 +66,6 @@ std::size_t element_count(const ov::Shape& shape) {
 
 std::shared_ptr<ov::op::v0::Constant> make_i32_shape_constant(const std::vector<int32_t>& dims) {
     return ov::op::v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
-}
-
-ov::Output<ov::Node> preserve_output_type(const ov::Output<ov::Node>& replacement,
-                                          const ov::element::Type& expected_type,
-                                          const std::string& friendly_name) {
-    if (replacement.get_element_type() == expected_type) {
-        return replacement;
-    }
-
-    auto convert = std::make_shared<ov::op::v0::Convert>(replacement, expected_type);
-    convert->set_friendly_name(friendly_name);
-    return convert;
 }
 
 bool has_permutation(const ov::Output<ov::Node>& output, const std::vector<int64_t>& expected) {
