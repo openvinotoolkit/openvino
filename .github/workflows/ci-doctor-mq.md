@@ -21,8 +21,6 @@ on:
     types:
       - completed
 
-timeout-minutes: 60  # Apply 60-minute timeout to the agent execution step
-
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
