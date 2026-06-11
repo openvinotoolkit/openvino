@@ -93,8 +93,9 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
-#include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
+#include "plugin/transformations/fuse_moe_router.hpp"
+#include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
@@ -580,17 +581,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
                 std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
                                                ov::element::i8, ov::element::u8});
+            manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
             if (!disable_moe_opt) {
                 // PA models flatten batch into seq.
                 const bool has_batch_dim = !is_pa;
-                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
-                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
-                // MOE3GemmFusedCompressed kernel dispatches expert GEMMs through
+                // MOE3GemmCompressed kernel dispatches expert GEMMs through
                 // oneDNN, which requires an in-order OCL queue.  If oneDNN is
                 // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
                 // queue stays out-of-order and the oneDNN stream creation may assert.
-                manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
+                manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
