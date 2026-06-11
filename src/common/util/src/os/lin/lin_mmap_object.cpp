@@ -88,7 +88,6 @@ void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 102
     const size_t num_threads =
         std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, region_length / min_chunk_size)});
 
-    std::atomic<uint64_t> populate_sink{0};  // prevents optimization of the loop away as a no-op
     std::vector<std::thread> threads;
     const auto base = reinterpret_cast<const char*>(aligned_addr);
 
@@ -96,7 +95,7 @@ void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 102
         threads.emplace_back([&, tid] {
             const size_t begin_page = pages * tid / num_threads;
             const size_t end_page = pages * (tid + 1) / num_threads;
-            uint64_t local = 0;
+            volatile uint64_t local = 0; // prevent compiler from optimizing the loop away as a no-op
 
             for (size_t p = begin_page; p < end_page; ++p) {
                 const size_t off = p * page;
@@ -104,7 +103,6 @@ void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 102
                     local += static_cast<unsigned char>(base[off]);
                 }
             }
-            populate_sink.fetch_add(local);
         });
     }
     for (auto& t : threads) {
