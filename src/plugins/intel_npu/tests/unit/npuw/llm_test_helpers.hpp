@@ -89,6 +89,17 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     return model;
 }
 
+inline LLMConfig make_test_model_config_gqa() {
+    auto cfg = make_test_model_config();
+    cfg.num_kv_heads = 2;  // num_heads=4 / num_kv_heads=2 -> n_rep=2
+    return cfg;
+}
+
+inline std::shared_ptr<ov::Model> build_llm_gqa_test_model() {
+    ModelBuilder mb;
+    return mb.build_llm(make_test_model_config_gqa());
+}
+
 inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
     auto model = build_llm_test_model();
     auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});

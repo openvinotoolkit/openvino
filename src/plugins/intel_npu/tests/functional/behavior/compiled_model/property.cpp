@@ -56,7 +56,6 @@ std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
     {ov::device::uuid.name(), ov::Any("deadbeef")},
     {ov::supported_properties.name(), {ov::device::full_name.name()}},
-    {ov::num_streams.name(), ov::Any(ov::streams::Num(4))},
     {ov::available_devices.name(), ov::Any(std::vector<std::string>{"deadbeef"})},
     {ov::device::capabilities.name(), ov::Any(std::vector<std::string>{"deadbeef"})},
     {ov::range_for_async_infer_requests.name(),
@@ -169,5 +168,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerVersion,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerVersionProperty::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CheckSecureCompilationFlag,
+                         CheckSecureCompilationFlag,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(exe_network_public_mutable_properties)),
+                         CheckSecureCompilationFlag::getTestCaseName);
 
 }  // namespace

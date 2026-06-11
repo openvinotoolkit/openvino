@@ -86,7 +86,7 @@ public:
 
         auto output_prim = outputs.begin()->second.get_memory();
 
-        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
         for (uint32_t i = 0; i < out_size; i++) {
             out_buffer[i] = output_ptr[i];
         }
@@ -120,7 +120,7 @@ public:
 
         auto output_prim = outputs.begin()->second.get_memory();
 
-        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
         for (uint32_t i = 0; i < out_size; i++) {
             out_buffer[i] = output_ptr[i];
         }
@@ -178,7 +178,7 @@ public:
 
         auto output_prim = outputs.begin()->second.get_memory();
 
-        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
         for (uint32_t i = 0; i < out_size; i++) {
             out_buffer[i] = output_ptr[i];
         }
@@ -250,7 +250,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
     ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {
         out_buffer[i] = output_ptr[i];
@@ -330,10 +330,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
     ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    for (size_t i = 0; i < output->count(); i++) {
-        std::cerr << "i = " << i << " v = " << output_ptr[i] << std::endl;
-    }
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {
@@ -415,7 +412,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_z) {
     ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {
         out_buffer[i] = output_ptr[i];
@@ -498,7 +495,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
     ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {
         out_buffer[i] = output_ptr[i];
@@ -951,7 +948,7 @@ public:
         network->set_input_data("input", input);
         const auto outputs = network->execute();
         const auto output = outputs.at("softmax").get_memory();
-        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.input_tensor.count(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
@@ -1061,7 +1058,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
     ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {
         out_buffer[i] = output_ptr[i];
@@ -1166,7 +1163,7 @@ TEST(softmax_gpu_bfyx_f32, bf_opt_normalize_f_dynamic) {
     ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     float out_buffer[buf_size];
     for (uint32_t i = 0; i < buf_size; i++) {
         out_buffer[i] = output_ptr[i];
