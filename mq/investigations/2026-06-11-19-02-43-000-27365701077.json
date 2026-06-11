@@ -1,0 +1,35 @@
+{
+  "run_id": 27365701077,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27365701077",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "job_id": 80872277979,
+  "job_name": "Pytorch FX Layer Tests / PyTorch FX Layer Tests",
+  "category": "Network",
+  "signature": "1d50224c2286c0ac",
+  "timestamp_utc": "2026-06-11T19:02:43Z",
+  "summary": "Pytorch FX Layer Tests failed during dependency installation on Windows while pip attempted to resolve defusedxml==0.7.1 from PyPI.",
+  "root_cause": {
+    "classification": "Network",
+    "explanation": "pip could not fetch or parse the simple index page for defusedxml on the Windows runner, so dependency resolution aborted before tests started. The error surfaced in the requirements_pytorch install step and is unrelated to the PR code changes.",
+    "evidence": [
+      "2026-06-11T18:16:19.7065545Z WARNING: Skipping page https://pypi.org/simple/defusedxml/ because the GET request got Content-Type: Unknown",
+      "2026-06-11T18:16:19.8141490Z ERROR: Could not find a version that satisfies the requirement defusedxml==0.7.1 (from versions: none)",
+      "2026-06-11T18:16:19.8158821Z ERROR: No matching distribution found for defusedxml==0.7.1"
+    ],
+    "failed_job": "Pytorch FX Layer Tests / PyTorch FX Layer Tests",
+    "confidence": "High"
+  },
+  "reproduction": "On a Windows Python 3.11 environment, run `python -m pip install -r tests/requirements_pytorch` and observe failure when PyPI simple page for defusedxml is unreachable or returned with an unsupported Content-Type.",
+  "recommended_actions": [
+    "Retry the workflow or rerun the dependency install step to confirm this is a transient PyPI/network issue.",
+    "If the failure repeats, inspect runner connectivity/proxy behavior for `https://pypi.org/simple/defusedxml/`.",
+    "Consider pinning a working wheel cache or mirror for this test job if the environment is known to be flaky."
+  ],
+  "prevention": "Keep the PyTorch test dependency install isolated and retriable, and monitor for repeated PyPI access errors on Windows runners.",
+  "historical_context": [],
+  "pr": {
+    "number": 36261,
+    "url": "https://github.com/openvinotoolkit/openvino/pull/36261",
+    "author": "svigh"
+  }
+}

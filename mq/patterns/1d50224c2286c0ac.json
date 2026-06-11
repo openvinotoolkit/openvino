@@ -1,0 +1,17 @@
+{
+  "signature": "1d50224c2286c0ac",
+  "title": "defusedxml pip install fails on PyPI simple page",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-06-11T19:02:43Z",
+  "last_seen": "2026-06-11T19:02:43Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/27365701077"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36261"
+  ],
+  "recent_timestamps": [
+    "2026-06-11T19:02:43Z"
+  ]
+}
