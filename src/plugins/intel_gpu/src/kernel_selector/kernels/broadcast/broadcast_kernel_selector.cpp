@@ -4,11 +4,11 @@
 
 #include "broadcast_kernel_selector.h"
 #include "broadcast_kernel_ref.h"
-#include "broadcast_kernel_memcpy.h"
+#include "broadcast_kernel_opt.h"
 
 namespace kernel_selector {
 broadcast_kernel_selector::broadcast_kernel_selector() {
-    Attach<BroadcastKernelMemcpy>();
+    Attach<BroadcastKernelOpt>();
     Attach<BroadcastKernelRef>();
 }
 

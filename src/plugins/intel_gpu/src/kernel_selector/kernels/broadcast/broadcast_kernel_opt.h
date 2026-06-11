@@ -7,9 +7,9 @@
 #include "broadcast_kernel_base.h"
 
 namespace kernel_selector {
-class BroadcastKernelMemcpy : public BroadcastKernelBase {
+class BroadcastKernelOpt : public BroadcastKernelBase {
 public:
-    BroadcastKernelMemcpy() : BroadcastKernelBase("broadcast_gpu_memcpy") {}
+    BroadcastKernelOpt() : BroadcastKernelBase("broadcast_gpu_opt") {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

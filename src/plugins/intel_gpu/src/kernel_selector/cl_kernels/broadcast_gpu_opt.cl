@@ -5,15 +5,16 @@
 #include "include/fetch_utils.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 
-// Memcpy-style broadcast kernel: each work-group copies one output row (X dimension)
-// from input to output. Outer dimensions (B, F, W, Z, Y) are broadcast via modulo.
-// This avoids per-element get_idx_pos() computation — address is computed once per row.
+// Optimized broadcast kernel: each work-group processes one output row (X dimension),
+// loading from input and applying TO_OUTPUT_TYPE element-wise into the output. Outer
+// dimensions (B, F, W, Z, Y) are broadcast via modulo. Per-row address computation
+// (in_row_base, out_row_base) replaces ref kernel's per-element get_idx_pos().
 
 #if X_BROADCAST_BLOCK_WRITE
 __attribute__((reqd_work_group_size(16, 1, 1)))
 __attribute__((intel_reqd_sub_group_size(16)))
 #endif
-KERNEL(broadcast_gpu_memcpy)(
+KERNEL(broadcast_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -72,23 +73,30 @@ KERNEL(broadcast_gpu_memcpy)(
 
     // Linear copy of X dimension with batch replication
     const uint total_wis = get_global_size(0);
-    const uint vec_size = MEMCPY_VEC_SIZE;
+    const uint vec_size = OPT_VEC_SIZE;
 
 #if IS_X_BROADCAST
     // X-broadcast: read one scalar, fill consecutive output positions per work-item.
     const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
 #if X_BROADCAST_BLOCK_WRITE
     // Subgroup block-write path: 16 lanes collectively emit 128 elements per call
-    // (block_write8 = 8 elems/lane * SIMD16). Requires OUTPUT_SIZE_X % 128 == 0.
+    // (block_write8 = 8 elems/lane * SIMD16). Requires OUTPUT_SIZE_X >= 128.
+    // For X % 128 != 0, a scalar tail handles the remainder. For static X % 128 == 0
+    // the tail compiles away. For dynamic this is a uniform branch (no divergence).
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) out_vec8 = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8))(scalar_val);
-    for (uint x_start = 0; x_start < OUTPUT_SIZE_X; x_start += 128) {
+    const uint x_aligned_end = (OUTPUT_SIZE_X / 128) * 128;
+    for (uint x_start = 0; x_start < x_aligned_end; x_start += 128) {
         DT_OUTPUT_BLOCK_WRITE8(output, out_row_base + x_start, out_vec8);
     }
+    // Tail: scalar fill, each lane writes one element with stride=SIMD_SIZE.
+    for (uint x = x_aligned_end + get_sub_group_local_id(); x < OUTPUT_SIZE_X; x += 16) {
+        output[out_row_base + x] = scalar_val;
+    }
 #else
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE))(scalar_val);
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE) out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE))(scalar_val);
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
-            CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
+            CAT(vstore, OPT_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
         } else if (x_start < OUTPUT_SIZE_X) {
             for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
                 output[out_row_base + x] = scalar_val;
@@ -103,12 +111,12 @@ KERNEL(broadcast_gpu_memcpy)(
      // literal equal to OUTPUT_SIZE_X, the branch folds away and codegen is unchanged.
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
-            MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE) out_vec;
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE) out_vec;
             if (INPUT0_SIZE_X == 1) {
                 const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
-                out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, MEMCPY_VEC_SIZE))(scalar_val);
+                out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE))(scalar_val);
             } else {
-                MAKE_VECTOR_TYPE(INPUT0_TYPE, MEMCPY_VEC_SIZE) in_vec = CAT(vload, MEMCPY_VEC_SIZE)(0, &input[in_row_base + x_start]);
+                MAKE_VECTOR_TYPE(INPUT0_TYPE, OPT_VEC_SIZE) in_vec = CAT(vload, OPT_VEC_SIZE)(0, &input[in_row_base + x_start]);
                 out_vec.s0 = TO_OUTPUT_TYPE(in_vec.s0);
                 out_vec.s1 = TO_OUTPUT_TYPE(in_vec.s1);
                 out_vec.s2 = TO_OUTPUT_TYPE(in_vec.s2);
@@ -120,10 +128,10 @@ KERNEL(broadcast_gpu_memcpy)(
             }
 #if BATCH_REPEAT > 1
             for (uint br = 0; br < BATCH_REPEAT; br++) {
-                CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + br * OUTPUT_BATCH_PITCH + x_start]);
+                CAT(vstore, OPT_VEC_SIZE)(out_vec, 0, &output[out_row_base + br * OUTPUT_BATCH_PITCH + x_start]);
             }
 #else
-            CAT(vstore, MEMCPY_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
+            CAT(vstore, OPT_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
 #endif
         } else if (x_start < OUTPUT_SIZE_X) {
             for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
