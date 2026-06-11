@@ -1028,8 +1028,8 @@ private:
 namespace std {
 template <>
 struct hash<ov::float16> {
-    uint64_t operator()(const ov::float16 __val) const {
-        return std::hash<float>()(__val);
+    size_t operator()(const ov::float16& value) const noexcept {
+        return std::hash<float>{}(static_cast<float>(value));
     }
 };
 }  // namespace std
