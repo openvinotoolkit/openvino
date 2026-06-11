@@ -535,12 +535,13 @@ def stripCliBoolOption(tokens, options):
 
 
 def prepareBenchmarkMetricCommand(appCmd, reportDir):
-    tokens = shlex.split(appCmd)
+    posix = (os.name != 'nt')
+    tokens = shlex.split(appCmd, posix=posix)
     tokens = stripCliOptionWithValue(tokens, {"-report_type", "--report_type"})
     tokens = stripCliOptionWithValue(tokens, {"-report_folder", "--report_folder"})
     tokens = stripCliBoolOption(tokens, {"-json_stats", "--json_stats"})
     tokens.extend(["-report_type", "no_counters", "-report_folder", reportDir])
-    return shlex.join(tokens)
+    return shlex.join(tokens) if posix else subprocess.list2cmdline(tokens)
 
 
 def getBenchmarkMetricReportPath(cfg, commit):
