@@ -6,6 +6,7 @@
 #include <string>
 
 #include "op_translation_utils.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/frontend/tensorflow_lite/decoder.hpp"
@@ -50,8 +51,58 @@ OutputVector translate_odml_rms_norm(const ov::frontend::tensorflow_lite::NodeCo
     return ov::OutputVector{out};
 }
 
+/// \brief Fallback that inlines the decomposition_subgraph_index subgraph.
+/// Every STABLEHLO_COMPOSITE op carries a TFLite subgraph implementing the
+/// composite's math equivalent. When no hand-written translator exists for the
+/// composite_name, we materialize that subgraph as an ov::Model and splice it
+/// into the parent graph: each Parameter is replaced by the corresponding
+/// parent input, and each Result becomes one of this op's outputs.
+/// Splicing pattern mirrors the pre-condition inlining in op/while.cpp.
+OutputVector translate_decomposition_fallback(const ov::frontend::tensorflow_lite::NodeContext& node,
+                                              const std::string& composite_name) {
+    const auto decoder = node.get_decoder();
+    auto idx_any = decoder->get_attribute("decomposition_subgraph_index");
+    FRONT_END_OP_CONVERSION_CHECK(!idx_any.empty(),
+                                  "STABLEHLO_COMPOSITE '",
+                                  composite_name,
+                                  "' has no decomposition_subgraph_index and no hand-written translator");
+    auto decomp_idx = idx_any.as<int32_t>();
+
+    auto decomp_model = node.get_subgraph(decomp_idx);
+    FRONT_END_GENERAL_CHECK(decomp_model != nullptr,
+                            "Failed to materialize decomposition subgraph for STABLEHLO_COMPOSITE '",
+                            composite_name,
+                            "'");
+
+    auto params = decomp_model->get_parameters();
+    auto results = decomp_model->get_results();
+    FRONT_END_OP_CONVERSION_CHECK(params.size() == node.get_input_size(),
+                                  "STABLEHLO_COMPOSITE '",
+                                  composite_name,
+                                  "' decomposition subgraph has ",
+                                  params.size(),
+                                  " parameters but the call site provides ",
+                                  node.get_input_size(),
+                                  " inputs");
+
+    // Splice parent inputs into the decomposition by replacing each Parameter's
+    // single output with the matching call-site input. The Parameter nodes
+    // become unreferenced after this and drop out during graph cleanup.
+    for (size_t i = 0; i < params.size(); ++i) {
+        params[i]->output(0).replace(node.get_input(i));
+    }
+
+    OutputVector outputs;
+    outputs.reserve(results.size());
+    for (const auto& result : results) {
+        outputs.push_back(result->input_value(0));
+    }
+    return outputs;
+}
+
 /// \brief Dispatcher for STABLEHLO_COMPOSITE operations.
-/// Routes to specific composite translators based on the composite name.
+/// Routes to specific composite translators based on the composite name; if
+/// none is registered, falls back to inlining the decomposition subgraph.
 OutputVector stablehlo_composite(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto decoder = node.get_decoder();
     FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder is required for STABLEHLO_COMPOSITE translation");
@@ -63,12 +114,9 @@ OutputVector stablehlo_composite(const ov::frontend::tensorflow_lite::NodeContex
         return translate_odml_rms_norm(node);
     }
 
-    // Unsupported composite operation
-    FRONT_END_OP_CONVERSION_CHECK(false,
-                                  "Unsupported STABLEHLO_COMPOSITE operation: ",
-                                  composite_name,
-                                  ". Currently only odml.rms_norm is supported.");
-    return {};  // unreachable; FRONT_END_OP_CONVERSION_CHECK throws
+    // Unknown composite — every well-formed STABLEHLO_COMPOSITE has a
+    // decomposition subgraph; inline it instead of failing the conversion.
+    return translate_decomposition_fallback(node, composite_name);
 }
 
 }  // namespace op
