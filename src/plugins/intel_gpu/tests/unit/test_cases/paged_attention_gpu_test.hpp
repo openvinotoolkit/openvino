@@ -1774,6 +1774,7 @@ public:
     cldnn::engine& engine = get_test_engine();
     float tolerance = 2e-3;
     memory::ptr last_key_cache_mem = nullptr;
+    memory::ptr last_output_data_mem = nullptr;
     std::vector<int> last_block_indices;
     std::vector<int> last_block_indices_begins;
     std::optional<PagedAttentionManager> pam;
@@ -1799,6 +1800,15 @@ public:
                     p.has_xattention,
                     p.rotation_config,
                     p.kv_cache_precision);
+    }
+
+    std::vector<ov::float16> get_output_data() {
+        OPENVINO_ASSERT(last_output_data_mem != nullptr, "No output data available");
+        std::vector<ov::float16> result(last_output_data_mem->count());
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(last_output_data_mem, get_test_stream());
+        for (size_t i = 0; i < last_output_data_mem->count(); i++)
+            result[i] = mem_ptr[i];
+        return result;
     }
 
     static std::vector<ov::float16> to_float16(const std::vector<float>& data) {
@@ -1866,6 +1876,10 @@ public:
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
             EXPECT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+        }
+
+        if (p.has_sink_input && p.sink_values.has_value()) {
+            pam.sinks = p.sink_values.value();
         }
 
         if (p.kv_cache_compression) {
@@ -2041,7 +2055,8 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        pa_prim.has_token_type_ids = p.token_type_ids.has_value();
+        pa_prim.has_token_type_ids = p.token_type_ids.has_value() || p.has_sink_input;
+        pa_prim.has_sink_input = p.has_sink_input;
 
         int num_outputs = 1;
         if (p.scores_mode != ScoresMode::DISABLED)
@@ -2114,7 +2129,7 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
-        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.disable_flashattn_v2));
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : p.disable_flashattn_v2));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
@@ -2156,6 +2171,9 @@ public:
 
         result.outputs = network->execute();
 
+        last_output_data_mem = result.outputs.at("output_data").get_memory();
+
+
         return result;
     }
 
@@ -2169,7 +2187,7 @@ public:
             return;
         }
 
-        cldnn::memory::ptr output_data_mem = nullptr;
+        cldnn::memory::ptr output_data_mem = last_output_data_mem;
         cldnn::memory::ptr output_scores_mem = nullptr;
         cldnn::memory::ptr output_diversity_mem = nullptr;
 
@@ -2922,6 +2940,14 @@ struct paged_attention_test_params {
     // optional token_type_ids passed to PagedAttention; if set (non-empty), it is forwarded
     // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
     std::optional<std::vector<int>> token_type_ids = std::nullopt;
+
+    // Sink input testing: when true, enables has_sink_input on the primitive and forces
+    // the sdpa_opt.cl path (by setting has_token_type_ids=true to disable micro-SDPA).
+    bool has_sink_input = false;
+    // When set, overrides the default sink values in PAM before memory allocation.
+    std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
+    // When true, forces could_use_flashattn_v2(true) to guarantee the FA_V2 kernel path.
+    bool force_flashattn_v2 = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
