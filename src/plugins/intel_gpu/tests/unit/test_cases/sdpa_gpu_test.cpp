@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
-#include <iostream>
 #include <optional>
 #include <string>
 
@@ -366,8 +365,8 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
     void execute() {
         const auto p = GetParam();
         auto& engine = get_test_engine();
-        if (!engine.get_device_info().supports_immad) {
-            GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU";
+        if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
+            GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
         }
 
         const layout q_layout({p.batch, p.num_heads, p.sequence_length_q, p.head_size}, data_types::f16, format::bfyx);
