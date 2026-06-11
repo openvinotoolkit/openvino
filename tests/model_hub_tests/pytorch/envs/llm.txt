@@ -1,16 +1,26 @@
 # Extra dependencies for test_llm.py (LLM quantized models)
 # These are NOT needed by test_hf_transformers.py
+#
+# Versions below are hard-pinned (==) intentionally. transformers/gptqmodel are bumped
+# deliberately, not automatically: a silent upgrade changes the GPTQ backend selection
+# (e.g. gptqmodel auto-selecting TorchFusedQuantLinear -> QUANT_TYPE "torch_fused") and the
+# generated graph, which previously broke conversion. Bump these together and re-validate
+# the opt_gptq entry in test_llm.py before raising them.
 
 transformers==5.5.3
 huggingface-hub==1.10.1
+
+# kernels (and kernels-data) are pulled transitively by transformers and gptqmodel, neither of
+# which caps the version. kernels>=0.15 made LayerRepository require a version/revision, which
+# transformers 5.5.3's hub_kernels.py constructs without -> ImportError at "import transformers".
+# Keep at the validated 0.14.1.
+kernels==0.14.1
+kernels-data==0.14.1
 
 # quantized model deps
 autoawq==0.2.9; platform_system == "Linux" and platform_machine == "x86_64"
 triton==3.6.0; platform_system == "Linux" and platform_machine == "x86_64"
 gptqmodel==6.0.3; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
-# `gptqmodel` depends on `kernels`, but doesn't have upper boundary for version, which caused test failures after
-# `kernels` was updated to 0.15.1
-kernels==0.14.1; platform_machine == "x86_64" and python_version < "3.12"
 
 peft==0.18.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 
