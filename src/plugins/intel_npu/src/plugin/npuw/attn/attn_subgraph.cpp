@@ -547,13 +547,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         if (ov::shape_size(shape) == 0) {
                                             ctx.target_request->get_tensor(iport)->set_shape(shape);
                                         } else if (use_tensor_view) {
-                                            const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                                                        static_cast<int64_t>(info.query_size);
-                                            LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
-                                                                                   << model_past_len);
-                                            ctx.target_request->set_tensor(
-                                                pyramid_iport,
-                                                ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                            LOG_DEBUG("Use tensor view: past_len=" << past_len);
+                                            ctx.target_request->set_tensor(pyramid_iport, view);
                                         } else {
                                             const auto& dst = ctx.target_request->get_tensor(iport);
                                             ov::npuw::util::copy_tensor_by_dim(view,

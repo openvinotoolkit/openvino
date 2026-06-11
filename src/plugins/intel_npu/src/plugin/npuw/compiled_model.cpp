@@ -343,7 +343,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
 
-    ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
+    if (properties.count("NPUW_ATTN") > 0 && properties.at("NPUW_ATTN") != "STATIC") {
+        ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
+    }
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 

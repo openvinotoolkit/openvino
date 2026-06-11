@@ -75,7 +75,7 @@ inline SDPADecomposed1Nodes make_sdpa_decomposed1_pattern() {
     n.reshape1 = opp::wrap_type<ov::op::v1::Reshape>({n.matmul2, opp::any_input()});
     n.transpose = opp::wrap_type<ov::op::v1::Transpose>({n.reshape1, opp::any_input()});
     n.reshape2 = opp::wrap_type<ov::op::v1::Reshape>({n.transpose, opp::any_input()});
-    // n.fake_quantize = opp::optional<ov::op::v0::FakeQuantize>({n.reshape2});
+
     return n;
 }
 }  // namespace
@@ -301,7 +301,6 @@ SDPADecomposed1::SDPADecomposed1(const std::shared_ptr<ov::npuw::online::Snapsho
         isolate_matched(n.reshape1);
         isolate_matched(n.transpose);
         isolate_matched(n.reshape2);
-        // isolate_matched(n.fake_quantize);
 
         return false;  // root hasn't changed
     };
