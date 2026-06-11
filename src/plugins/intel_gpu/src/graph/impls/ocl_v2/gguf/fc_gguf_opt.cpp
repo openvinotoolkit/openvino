@@ -408,6 +408,13 @@ public:
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events,
                               cldnn::primitive_inst& instance) override {
+        // Refresh per-stage need_args_update / need_dispatch_data_update from the current execution
+        // flags (SHAPE_CHANGED, ARG_UPDATE_REQUIRED, ...). The base execute() does this; since we
+        // override execute() and dispatch the GEMV stage directly, we must do it too. Without it the
+        // shape-agnostic GEMV kernel keeps the global_work_size computed for the first (prefill) shape
+        // and re-runs decode (M=1) with the prefill row count, writing past the M=1 output buffer
+        // (CL_OUT_OF_RESOURCES / out-of-bounds).
+        update_rt_params(instance);
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& params = *instance.get_impl_params();
         const auto& in0 = params.get_input_layout(0);
