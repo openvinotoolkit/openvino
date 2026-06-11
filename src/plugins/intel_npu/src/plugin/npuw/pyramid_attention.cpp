@@ -13,6 +13,60 @@
 #include "openvino/op/util/op_types.hpp"
 #include "util.hpp"
 
+namespace {
+
+using ov::npuw::runtime::pyramid_attention::Selector;
+
+int64_t current_length_from_position_ids(const ov::SoPtr<ov::ITensor>& tensor, const ov::Shape& shape) {
+    const auto elem_type = tensor->get_element_type();
+
+    // Read a single position ID value, handling both i32 and i64 tensors
+    auto get_pos = [&](size_t i) -> int64_t {
+        if (elem_type == ov::element::i64) {
+            return tensor->data<int64_t>()[i];
+        } else if (elem_type == ov::element::i32) {
+            return static_cast<int64_t>(tensor->data<int32_t>()[i]);
+        } else {
+            OPENVINO_ASSERT(false, "Unsupported element type for position IDs: " + elem_type.get_type_name());
+        }
+
+        return -1;  // Should never reach here
+    };
+    // Read the last position ID value to determine current sequence length
+    // This assumes that position IDs are contiguous and start from 0
+    // TODO: we are not zeroing the position IDs during chunked prefill,
+    // so this logic is broken for left-aligned data case.
+    // Also need additional checks for eagle case where position IDs might not be contiguous at all.
+    // Return wrong value when PositionIDs are start from 1
+    int64_t current_length = 0;
+    for (int64_t idx = static_cast<int64_t>(shape.back()) - 1; idx >= 0; idx--) {
+        if (get_pos(idx) > 0) {
+            current_length = get_pos(idx);
+            break;
+        }
+    }
+
+    return current_length;
+}
+
+int64_t get_past_length_for_case(Selector::Case c, int64_t current_length, int64_t pyramid_step) {
+    switch (c) {
+    case Selector::Case::GENERATE:
+        // In generate case, past length is equal to current length (since query length is 1)
+        return current_length;
+    case Selector::Case::PREFILL:
+        // In prefill case, past length is the largest multiple of pyramid_step that is less than current_length
+        // This ensures we select the correct pyramid model for the current sequence length
+        // For chunked prefill we have all the chunks full except maybe last one,
+        // so we can calculate past length directly from current length and pyramid step
+        return (current_length / pyramid_step) * pyramid_step;
+    default:
+        NPUW_ASSERT(false && "Reached the unreachable code");
+        return -1;
+    }
+}
+}  // namespace
+
 namespace ov {
 namespace npuw {
 namespace function {
@@ -488,55 +542,6 @@ Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::I
         return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
     }
     return Selector::Ptr{};
-}
-
-int64_t current_length_from_position_ids(const ov::SoPtr<ov::ITensor>& tensor, const ov::Shape& shape) {
-    const auto elem_type = tensor->get_element_type();
-
-    // Read a single position ID value, handling both i32 and i64 tensors
-    auto get_pos = [&](size_t i) -> int64_t {
-        if (elem_type == ov::element::i64) {
-            return tensor->data<int64_t>()[i];
-        } else if (elem_type == ov::element::i32) {
-            return static_cast<int64_t>(tensor->data<int32_t>()[i]);
-        } else {
-            OPENVINO_ASSERT(false, "Unsupported element type for position IDs: " + elem_type.get_type_name());
-        }
-
-        return -1;  // Should never reach here
-    };
-    // Read the last position ID value to determine current sequence length
-    // This assumes that position IDs are contiguous and start from 0
-    // TODO: we are not zeroing the position IDs during chunked prefill,
-    // so this logic is broken for left-aligned data case.
-    // Also need additional checks for eagle case where position IDs might not be contiguous at all.
-    // Return wrong value when PositionIDs are start from 1
-    int64_t current_length = 0;
-    for (int64_t idx = static_cast<int64_t>(shape.back()) - 1; idx >= 0; idx--) {
-        if (get_pos(idx) > 0) {
-            current_length = get_pos(idx);
-            break;
-        }
-    }
-
-    return current_length;
-}
-
-int64_t get_past_length_for_case(Selector::Case c, int64_t current_length, int64_t pyramid_step) {
-    switch (c) {
-    case Selector::Case::GENERATE:
-        // In generate case, past length is equal to current length (since query length is 1)
-        return current_length;
-    case Selector::Case::PREFILL:
-        // In prefill case, past length is the largest multiple of pyramid_step that is less than current_length
-        // This ensures we select the correct pyramid model for the current sequence length
-        // For chunked prefill we have all the chunks full except maybe last one,
-        // so we can calculate past length directly from current length and pyramid step
-        return (current_length / pyramid_step) * pyramid_step;
-    default:
-        NPUW_ASSERT(false && "Reached the unreachable code");
-        return -1;
-    }
 }
 
 void PositionIDs::prepare(int64_t past_len) {
