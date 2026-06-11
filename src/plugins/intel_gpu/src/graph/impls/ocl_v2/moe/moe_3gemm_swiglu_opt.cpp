@@ -797,6 +797,19 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable grouped_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
                                    << std::endl;
         }
+        // WA: In OTD mode, GPU weight buffer has only _lru_expert_num slots per layer.
+        // The batched_gemv path collects all expert requests for the batch upfront and remaps
+        // expert IDs to LRU slot indices before launching a single fused kernel. When a multi-token
+        // batch references more unique experts than _lru_expert_num (e.g. 8 tokens × top_k=8 can
+        // yield up to 64 unique experts vs 47 slots), the LRU cache evicts slots that were just
+        // assigned earlier in the same batch — the evicted expert's weight data gets overwritten
+        // but the kernel still reads from the stale slot index, producing garbage output.
+        // Forcing threshold=1 routes multi-token requests to the prefill path (exec_standard),
+        // which iterates one expert at a time via oneDNN loop — each expert is loaded, computed,
+        // and its slot can be safely reused by the next expert without conflict.
+        // Single-token decode is safe: top_k unique experts (e.g. 8) << _lru_expert_num (e.g. 47).
+        // TODO: Fix by capping batch size to _lru_expert_num / top_k in batched_gemv, or by
+        // splitting oversized batches into sub-batches that fit within the LRU slot budget.
         if (_lru_expert_num > 0 && batched_gemv_threshold > 1) {
             batched_gemv_threshold = 1;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): limit batched_gemv_threshold=1 in OTD mode to avoid LRU slot overflow" << std::endl;
