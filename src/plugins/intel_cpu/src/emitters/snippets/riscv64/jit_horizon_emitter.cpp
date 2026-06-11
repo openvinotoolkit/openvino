@@ -11,7 +11,6 @@
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -39,6 +38,10 @@ jit_horizon_emitter::jit_horizon_emitter(ov::intel_cpu::riscv64::jit_generator_t
     }
 }
 
+size_t jit_horizon_emitter::aux_gprs_count() const {
+    return utils::get_snippet_lanes() <= 31 ? 0 : 1;
+}
+
 void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == ov::intel_cpu::riscv64::gv) {
         emit_isa<ov::intel_cpu::riscv64::gv>(in, out);
@@ -49,51 +52,20 @@ void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::ve
 
 template <cpu_isa_t isa>
 void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    static constexpr auto elt_size = static_cast<int>(sizeof(float));
     const auto lane_count = ov::intel_cpu::riscv64::utils::get_snippet_lanes();
-    const auto stack_size = static_cast<int>(lane_count * sizeof(float));
-
-    OPENVINO_ASSERT(aux_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary GPR registers");
-    OPENVINO_ASSERT(aux_fp_gpr_idxs.size() >= 2, "Horizon emitter expects two auxiliary FP GPR registers");
 
     auto src = Xbyak_riscv::VReg(in[0]);
     auto dst = Xbyak_riscv::VReg(out[0]);
-    auto active_lanes = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
-    auto iter = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[1]));
-    auto acc = Xbyak_riscv::FReg(static_cast<int>(aux_fp_gpr_idxs[0]));
-    auto tmp = Xbyak_riscv::FReg(static_cast<int>(aux_fp_gpr_idxs[1]));
-    Xbyak_riscv::Label reduce_done;
-    Xbyak_riscv::Label reduce_loop;
 
-    if (src.getIdx() != dst.getIdx()) {
-        h->vmv_v_v(dst, src);
-    }
-
-    // Respect current active vector length (tail count) and reduce only active lanes.
-    h->csrr(active_lanes, Xbyak_riscv::CSR::vl);
-    h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, -stack_size);
-    h->vse32_v(dst, Xbyak_riscv::sp);
-
-    h->flw(acc, Xbyak_riscv::sp, 0);
-    h->uni_li(iter, 1);
-    h->bge(iter, active_lanes, reduce_done);
-    h->addi(active_lanes, active_lanes, -1);
-    h->addi(iter, Xbyak_riscv::sp, elt_size);
-    h->L(reduce_loop);
-    h->flw(tmp, iter, 0);
     if (m_op_type == OpType::max) {
-        h->fmax_s(acc, acc, tmp);
+        h->vfredmax_vs(mask_vreg(), src, src);
     } else {
-        h->fadd_s(acc, acc, tmp);
+        h->vmv_v_x(mask_vreg(), Xbyak_riscv::zero);
+        h->vfredosum_vs(mask_vreg(), src, mask_vreg());
     }
-    h->addi(iter, iter, elt_size);
-    h->addi(active_lanes, active_lanes, -1);
-    h->bne(active_lanes, Xbyak_riscv::zero, reduce_loop);
-    h->L(reduce_done);
 
     set_vector_length(h, lane_count, Xbyak_riscv::SEW::e32, aux_gpr_idxs);
-    h->vfmv_v_f(dst, acc);
-    h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, stack_size);
+    h->vrgather_vi(dst, mask_vreg(), 0);
 }
 
 }  // namespace ov::intel_cpu::riscv64

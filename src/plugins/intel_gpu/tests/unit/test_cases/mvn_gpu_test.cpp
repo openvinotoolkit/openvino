@@ -956,6 +956,11 @@ struct mvn_test_case_generator_bsv32 : std::vector<mvn_basic_test_params> {
         return *this;
     }
 
+    mvn_test_case_generator_bsv32& fsv_large_spatial_tests(format::type fmt, data_types in_dt) {
+        push_back(mvn_basic_test_params{fmt, in_dt, {1, 16, 257, 256}, true, false, false, padding()});
+        return *this;
+    }
+
     mvn_test_case_generator_bsv32& fsv_zyx_tests(format::type fmt, data_types in_dt) {
         push_back(mvn_basic_test_params{fmt, in_dt, {2, 32, 5, 13, 7}, false, false, false, padding()});
         push_back(mvn_basic_test_params{fmt, in_dt, {2, 32, 5, 13, 7}, true, false, false, padding()});
@@ -986,6 +991,11 @@ INSTANTIATE_TEST_SUITE_P(mvn_fsv16_f16,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .fsv_tests(format::b_fs_yx_fsv16, data_types::f16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16_f16_large_spatial,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .fsv_large_spatial_tests(format::b_fs_yx_fsv16, data_types::f16)));
 
 INSTANTIATE_TEST_SUITE_P(mvn_fsv16_f32,
                         mvn_random_test_bsv32,

@@ -85,9 +85,7 @@ static bool is_xe2_or_xe3_family(gpu_arch arch) {
     switch (arch) {
     case gpu_arch::xe2:
     case gpu_arch::xe3:
-    case gpu_arch::xe3p_35_10:
-    case gpu_arch::xe3p_35_11:
-    case gpu_arch::xe3p_unknown:
+    case gpu_arch::xe3p:
         return true;
     default:
         return false;
