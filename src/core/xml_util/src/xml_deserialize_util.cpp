@@ -824,6 +824,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
             if (!getParameters<int64_t>(dn, "shape", shape))
                 return;
 
+            OPENVINO_ASSERT(
+                m_weights_provider,
+                "Constant node references binary weights, but no weights buffer or weights file was provided.");
+
             auto raw_buffer = m_weights_provider->load_region(offset, size);
             auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
                 raw_buffer->get_ptr<char>(),
@@ -889,8 +893,9 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    OPENVINO_ASSERT(offset <= m_weights_provider->size() && size <= m_weights_provider->size() - offset,
-                    "Incorrect weights in bin file!");
+    OPENVINO_ASSERT(
+        m_weights_provider && offset <= m_weights_provider->size() && size <= m_weights_provider->size() - offset,
+        "Incorrect weights in bin file!");
 
     const auto el_type = ov::element::Type(el_type_str);
     if (el_type == element::string) {
