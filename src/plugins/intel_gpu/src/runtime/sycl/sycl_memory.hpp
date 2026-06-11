@@ -46,7 +46,7 @@ public:
     UsmHolder& operator=(const UsmHolder&) = delete;
 
     void* ptr() { return _ptr; }
-    size_t size() { return _size; }
+    size_t size() const { return _size; }
 
     ~UsmHolder() {
         if (!_shared_memory) {

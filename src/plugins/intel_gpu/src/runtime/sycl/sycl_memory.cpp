@@ -607,20 +607,20 @@ allocation_type gpu_usm::detect_allocation_type(const sycl::sycl_engine* engine,
 
     allocation_type res;
     switch (sycl_alloc_type) {
-        case ::sycl::usm::alloc::device: res = allocation_type::usm_device; break;
-        case ::sycl::usm::alloc::host: res = allocation_type::usm_host; break;
-        case ::sycl::usm::alloc::shared: res = allocation_type::usm_shared; break;
-        default: res = allocation_type::unknown;
+        case ::sycl::usm::alloc::device:
+           return allocation_type::usm_device;
+        case ::sycl::usm::alloc::host:
+           return allocation_type::usm_host;
+        case ::sycl::usm::alloc::shared:
+           return allocation_type::usm_shared;
+        default:
+           return allocation_type::unknown;
     }
-
-    return res;
 }
 
 allocation_type gpu_usm::detect_allocation_type(const sycl::sycl_engine* engine, const UsmMemory& buffer) {
     auto alloc_type = detect_allocation_type(engine, buffer.get());
-    OPENVINO_ASSERT(alloc_type == allocation_type::usm_device ||
-                    alloc_type == allocation_type::usm_host ||
-                    alloc_type == allocation_type::usm_shared, "[GPU] Unsupported USM alloc type: " + to_string(alloc_type));
+OPENVINO_ASSERT(memory_capabilities::is_usm_type(alloc_type), "[GPU] Unsupported USM alloc type: " + to_string(alloc_type));
     return alloc_type;
 }
 

@@ -365,9 +365,7 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
         const auto in1_alloc_type = input1->get_allocation_type();
         const auto out_alloc_type = output->get_allocation_type();
 
-        const bool all_sycl_buffer = in0_alloc_type == cldnn::allocation_type::sycl_buffer &&
-                                     in1_alloc_type == cldnn::allocation_type::sycl_buffer &&
-                                     out_alloc_type == cldnn::allocation_type::sycl_buffer;
+ const bool all_sycl_buffer = cldnn::everyone_is(cldnn::allocation_type::sycl_buffer, in0_alloc_type, in1_alloc_type, out_alloc_type);
         const bool all_usm = memory_capabilities::is_usm_type(in0_alloc_type) &&
                              memory_capabilities::is_usm_type(in1_alloc_type) &&
                              memory_capabilities::is_usm_type(out_alloc_type);
