@@ -190,6 +190,10 @@ bool is_static_partitioner_case_4_with_lp_ecores(const ov::MemBandwidthPressure&
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs == 0 &&
            (tolerance.max_mem_tolerance > MEM_TOLERANCE_MEDIUM_HIGH ||
+            (tolerance.max_mem_tolerance > MEM_TOLERANCE_MEDIUM_LOW &&
+             tolerance.max_mem_tolerance <= MEM_TOLERANCE_MEDIUM &&
+             static_cast<float>(tolerance.total_gemms) >=
+                 GEMM_RATIO_LOW * static_cast<float>(tolerance.total_nodes)) ||
             static_cast<float>(tolerance.total_gemms) >= GEMM_RATIO_HIGH * static_cast<float>(tolerance.total_nodes));
 }
 
@@ -210,6 +214,26 @@ bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
                CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
+bool is_all_core_auto_case(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.ratio_mem_limited_adds > CONV_RATIO_LOW &&
+           tolerance.ratio_compute_convs > 0.33F && tolerance.total_gemms == 0.0F;
+}
+
+bool is_all_core_auto_case_low_tolerance_dense_conv_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.max_mem_tolerance < 0.09F && tolerance.ratio_mem_limited_convs <= 0.125F &&
+           tolerance.ratio_mem_limited_adds > CONV_RATIO_ULTRA_LOW &&
+           static_cast<float>(tolerance.total_gemms) < GEMM_RATIO_LOW * static_cast<float>(tolerance.total_nodes);
+}
+
+bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 0 && tolerance.max_mem_tolerance <= MEM_TOLERANCE_VERY_LOW &&
+           tolerance.ratio_mem_limited_adds == 0.0F && tolerance.ratio_compute_convs == 0.0F &&
+           tolerance.ratio_mem_limited_convs <= CONV_RATIO_ULTRA_LOW && tolerance.total_gemms == 0.0F;
+}
+
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
@@ -227,6 +251,16 @@ void determine_tbb_partitioner_and_threads(Config& config,
             config.tbbPartitioner = TbbPartitioner::STATIC;
             return;
         }
+    }
+
+    if (has_lp_ecores &&
+        (is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
+         is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) || is_all_core_auto_case(tolerance))) {
+        config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
+                                           proc_type_table[0][EFFICIENT_CORE_PROC] +
+                                           proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+        config.tbbPartitioner = TbbPartitioner::AUTO;
+        return;
     }
 
     bool static_case_3 = has_lp_ecores ? is_static_partitioner_case_3_with_lp_ecores(tolerance)
@@ -527,7 +561,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                     update_ids_method(proc_type_table[0]);
                 } else {
                     stream_info[PROC_TYPE] = ALL_PROC;
-                    n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+                    n_threads_per_stream = std::min(model_prefer_threads, proc_type_table[0][ALL_PROC]);
                     if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 &&
                         proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
                         n_threads_per_stream = std::max(model_prefer_threads, n_threads_per_stream);
