@@ -18,6 +18,11 @@
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_ocl.hpp>
 
+#    include <map>
+#    include <memory>
+#    include <mutex>
+#    include <unordered_map>
+
 #    include "impls/onednn/utils.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #endif
@@ -104,6 +109,45 @@ int gguf_q6k_nrow() {
     }
     return 4;
 }
+
+// -------------------------------------------------------------------------------------------------
+// Shared prefill transcode scratchpad.
+//
+// The prefill transcode produces a low-bit (i4/i8) weight + f16 scale that is consumed immediately by
+// the very next dnnl::matmul enqueued on the SAME queue. oneDNN only supports an in-order queue (see
+// ocl_stream::get_onednn_stream), so the transcode path always runs in-order: node L's matmul finishes
+// reading the scratch before node L+1's transcode kernel starts (FIFO). A single scratch per stream,
+// grown to the largest FC seen, can therefore be reused across every GGUF FC node instead of keeping
+// one persistent transcoded copy per node. That second copy doubled resident weight memory (~+5 GiB on
+// Qwen3-8B) and is pure waste because decode reads the native GGUF blocks and never touches it.
+struct TranscodeScratch {
+    cldnn::memory::ptr weight;  // packed i4/i8 weight [N, K]
+    cldnn::memory::ptr scale;   // f16 per-group scale [K/group, N]
+};
+
+struct TranscodeArena {
+    std::mutex mtx;
+    // Per-stream slot: each inference stream owns its own in-order queue, so its scratch must not be
+    // shared with a concurrently-executing stream.
+    std::unordered_map<const cldnn::stream*, TranscodeScratch> per_stream;
+};
+
+// Per-engine arena, owned by the live FC-GGUF impls (each holds a shared_ptr). The static registry
+// only weakly references it, so the scratch is released — while the engine is still alive — as soon as
+// the last GGUF FC instance of that engine is destroyed.
+std::shared_ptr<TranscodeArena> get_transcode_arena(const cldnn::engine* eng) {
+    static std::mutex g_mtx;
+    static std::map<const cldnn::engine*, std::weak_ptr<TranscodeArena>> g_registry;
+    std::lock_guard<std::mutex> lk(g_mtx);
+    auto& weak = g_registry[eng];
+    if (auto sp = weak.lock()) {
+        return sp;
+    }
+    auto sp = std::make_shared<TranscodeArena>();
+    weak = sp;
+    return sp;
+}
+
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 class FCGGUFOptGenerator : public KernelGenerator {
@@ -350,6 +394,13 @@ public:
     bool m_use_q6k_dp4a = true;
     bool m_q6k_dp4a = false;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Shared prefill transcode scratchpad for this engine (see TranscodeArena). Lazily fetched on the
+    // first prefill execute; reused across all GGUF FC nodes so only one transcoded weight copy is
+    // resident per stream instead of one persistent copy per node.
+    std::shared_ptr<TranscodeArena> m_transcode_arena;
+#endif
+
     FCGGUFOptImpl() : PrimitiveImplOCL(FCGGUFOpt::get_type_info_static()) {
         if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_THRESHOLD")) {
             const long v = std::atol(env);
@@ -413,30 +464,22 @@ public:
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // Scratchpad: transcoded low-bit weight [N, K] + f16 per-group scale [K/group, N]. Both sized
-    // only by the static K, N (never by M), so they are allocated once and reused across executes.
+    // Internal buffers: only the Q5_K / Q6_K dp4a decode scratch (int8 activation [Mmax, K] + per-32
+    // f32 scale [Mmax, K/32]). Both are sized by the decode cap Mmax = m_prefill_threshold (dp4a only
+    // runs for M <= threshold), so they are M-independent and allocated once.
+    //
+    // The prefill transcode weight + scale are intentionally NOT declared here. As persistent internal
+    // buffers they were allocated once per node and held for the whole network lifetime — a full second
+    // copy of every weight (~+5 GiB on Qwen3-8B) that decode never reads. They are now drawn from a
+    // shared, per-stream, reused-in-order scratchpad (see TranscodeArena / execute_transcode_plus_onednn_woq).
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         const auto& in1 = params.get_input_layout(1);
         if (in1.is_dynamic() || !element::is_gguf_block(in1.data_type)) {
             return {};
         }
-        const auto& shape_w = in1.get_shape();
-        const size_t N = shape_w[0];
-        const size_t K = shape_w[1];
-        const size_t num_groups = K / GGUF_REQUANT_GROUP;
-        const auto tgt = transcode_target(in1.data_type);
-
         std::vector<BufferDescriptor> bufs;
-        // [0] packed weight: i4 ([N,K] -> bytes_count = N*K/2) or i8 ([N,K]).
-        const auto w_dt = tgt.to_i4 ? data_types::i4 : data_types::i8;
-        bufs.emplace_back(cldnn::layout(ov::Shape{N, K}, w_dt, cldnn::format::bfyx), /*lockable=*/false);
-        // [1] per-group scale: f16 [K/group, N].
-        bufs.emplace_back(cldnn::layout(ov::Shape{num_groups, N}, data_types::f16, cldnn::format::bfyx),
-                          /*lockable=*/false);
-        // [2],[3] Q5_K dp4a scratch: int8 activation [Mmax, K] + per-32 f32 scale [Mmax, K/32], sized
-        // for the decode cap Mmax = m_prefill_threshold (dp4a only runs for M <= threshold), so they
-        // are M-independent and allocated once.
         if (m_q5k_dp4a || m_q6k_dp4a) {
+            const size_t K = in1.get_shape()[1];
             const size_t Mmax = std::max<size_t>(m_prefill_threshold, 1);
             bufs.emplace_back(cldnn::layout(ov::Shape{Mmax, K}, data_types::i8, cldnn::format::bfyx),
                               /*lockable=*/false);
@@ -594,13 +637,49 @@ private:
         const int blocks_per_row = K / block_elem;
 
         auto& stream = instance.get_network().get_stream();
+        auto& engine = instance.get_network().get_engine();
         auto* fc_inst = dynamic_cast<cldnn::fully_connected_inst*>(&instance);
 
-        const auto& intermediates = instance.get_intermediates_memories();
-        OPENVINO_ASSERT(intermediates.size() >= 2,
-                        "[GPU] FCGGUFOpt: transcode scratchpad not allocated (expected >= 2 internal buffers).");
-        auto w_scratch = intermediates[0];  // packed i4/i8 weight [N, K]
-        auto s_scratch = intermediates[1];  // f16 scale [K/group, N]
+        // Draw the transcode weight + scale from the shared, per-stream scratchpad (grown to the largest
+        // FC seen and reused in-order across all GGUF FC nodes) instead of a persistent per-node second
+        // weight copy. Safe because oneDNN forces an in-order queue (get_onednn_stream asserts it): this
+        // node's matmul finishes reading the scratch before the next node's transcode overwrites it.
+        if (!m_transcode_arena) {
+            m_transcode_arena = get_transcode_arena(&engine);
+        }
+        const auto tgt = transcode_target(et);
+        const auto w_dt = tgt.to_i4 ? data_types::i4 : data_types::i8;
+        const size_t num_groups = static_cast<size_t>(K) / GGUF_REQUANT_GROUP;
+        const cldnn::layout w_layout(ov::Shape{static_cast<size_t>(N), static_cast<size_t>(K)}, w_dt,
+                                     cldnn::format::bfyx);
+        const cldnn::layout s_layout(ov::Shape{num_groups, static_cast<size_t>(N)}, data_types::f16,
+                                     cldnn::format::bfyx);
+
+        cldnn::memory::ptr w_scratch;  // packed i4/i8 weight [N, K]
+        cldnn::memory::ptr s_scratch;  // f16 scale [K/group, N]
+        {
+            const auto alloc_type = engine.get_preferred_memory_allocation_type();
+            std::lock_guard<std::mutex> lk(m_transcode_arena->mtx);
+            auto& slot = m_transcode_arena->per_stream[&stream];
+            // Grow-only: (re)allocate when absent or too small. Growth frees the old buffer, which a
+            // prior node's matmul may still be reading on the device, so finish the queue first. After
+            // the first prefill pass the scratch is at its high-water mark and never grows again.
+            if (!slot.weight || slot.weight->size() < w_layout.bytes_count()) {
+                if (slot.weight) {
+                    stream.finish();
+                }
+                slot.weight = engine.allocate_memory(w_layout, alloc_type, /*reset=*/false);
+            }
+            if (!slot.scale || slot.scale->size() < s_layout.bytes_count()) {
+                if (slot.scale) {
+                    stream.finish();
+                }
+                slot.scale = engine.allocate_memory(s_layout, alloc_type, /*reset=*/false);
+            }
+            // View the (possibly larger) high-water buffers as this node's exact layout.
+            w_scratch = engine.reinterpret_buffer(*slot.weight, w_layout);
+            s_scratch = engine.reinterpret_buffer(*slot.scale, s_layout);
+        }
 
         auto weight_mem = fc_inst ? fc_inst->weights_memory() : instance.dep_memory_ptr(1);
 
