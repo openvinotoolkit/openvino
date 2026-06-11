@@ -15,7 +15,10 @@
 // elements to the target low-bit domain. dequant NEVER lands in an f16/f32 weight buffer (constraint
 // C2): the only persisted weight is the low-bit scratchpad; the f16 values live only in registers.
 //
-// One work-item owns one (n, group) pair: global = [N_SIZE, K_SIZE / REQUANT_GROUP, 1].
+// One work-item owns one (n, GGUF block): global = [N_SIZE, K_SIZE / GGUF_BLOCK_ELEM, 1], local = [SG, 1, 1].
+// The block is decoded once and every REQUANT group inside it is requantized from the shared decoded
+// window, so the heavy bit-unpacking runs a single time per block instead of
+// (GGUF_BLOCK_ELEM / REQUANT_GROUP)x (8x for K-quants with a 256-elem block and a 32-elem group).
 // REQUANT_GROUP must divide GGUF_BLOCK_ELEM (so a group never straddles two GGUF blocks).
 
 #include "include/batch_headers/common.cl"
@@ -135,55 +138,59 @@ KERNEL(fc_gguf_transcode)(
           __global half*  SC        // out: per-group f16 scale [N, K/REQUANT_GROUP]
 )
 {
-    const int n  = (int)get_global_id(0);
-    const int g  = (int)get_global_id(1);          // group index along K
-    const int num_groups = K_SIZE / REQUANT_GROUP;
-    if (n >= N_SIZE || g >= num_groups)
+    const int n   = (int)get_global_id(0);          // output row (subgroup lane axis, padded to SG)
+    const int blk = (int)get_global_id(1);          // GGUF block index along K
+    const int blocks_per_row = K_SIZE / GGUF_BLOCK_ELEM;
+    if (n >= N_SIZE || blk >= blocks_per_row)
         return;
 
-    const int k0 = g * REQUANT_GROUP;              // first K element of this group
-    const int blocks_per_row = K_SIZE / GGUF_BLOCK_ELEM;
     const __global uchar* w_row = W + (uint)n * (uint)blocks_per_row * GGUF_BLOCK_BYTES;
 
-    // Decode every GGUF block this group touches into a local f16 window. Since REQUANT_GROUP divides
-    // GGUF_BLOCK_ELEM, the group lies entirely inside one decoded block.
+    // Decode the whole GGUF block ONCE. Every REQUANT group inside it reuses this decoded window, so
+    // the expensive bit-unpacking runs a single time per block instead of once per group.
     half blk_vals[GGUF_BLOCK_ELEM];
-    const int blk_idx = k0 / GGUF_BLOCK_ELEM;
-    const int off_in_blk = k0 - blk_idx * GGUF_BLOCK_ELEM;
-    FUNC_CALL(tq_decode_block)(w_row + (uint)blk_idx * GGUF_BLOCK_BYTES, blk_vals);
+    FUNC_CALL(tq_decode_block)(w_row + (uint)blk * GGUF_BLOCK_BYTES, blk_vals);
 
-    // Symmetric per-group requantization: scale = max|v| / QMAX.
-    float amax = 0.0f;
-    for (int i = 0; i < REQUANT_GROUP; ++i) {
-        float v = fabs((float)blk_vals[off_in_blk + i]);
-        amax = fmax(amax, v);
-    }
-    const float scale = (amax > 0.0f) ? (amax / (float)QMAX) : 1.0f;
-    const float inv_scale = (amax > 0.0f) ? ((float)QMAX / amax) : 0.0f;
-
-    // Scale md is [K/group, N] (per-K-group x per-N): element (g, n) at g*N + n.
-    SC[(uint)g * (uint)N_SIZE + (uint)n] = (half)scale;
-
-    // Write quantized weights for this group.
-#if TRANSCODE_TO_I4
-    // i4 packed two-per-byte; weight byte index = (n*K + k)/2. REQUANT_GROUP is even.
+    const int groups_per_block = GGUF_BLOCK_ELEM / REQUANT_GROUP;
     const uint row_base = (uint)n * (uint)K_SIZE;
-    for (int i = 0; i < REQUANT_GROUP; i += 2) {
-        const int k = k0 + i;
-        int q0 = (int)round((float)blk_vals[off_in_blk + i]     * inv_scale);
-        int q1 = (int)round((float)blk_vals[off_in_blk + i + 1] * inv_scale);
-        q0 = clamp(q0, -8, 7);
-        q1 = clamp(q1, -8, 7);
-        const uint byte_idx = (row_base + (uint)k) >> 1;     // two consecutive k share one byte
-        WQ[byte_idx] = (uchar)((q0 & 0x0F) | ((q1 & 0x0F) << 4));
-    }
-#else
+#if !TRANSCODE_TO_I4
     __global char* wq_i8 = (__global char*)WQ;
-    const uint row_base = (uint)n * (uint)K_SIZE;
-    for (int i = 0; i < REQUANT_GROUP; ++i) {
-        int q = (int)round((float)blk_vals[off_in_blk + i] * inv_scale);
-        q = clamp(q, -128, 127);
-        wq_i8[row_base + (uint)(k0 + i)] = (char)q;
-    }
 #endif
+
+    // Symmetric per-group requantization for each REQUANT group within the decoded block.
+    for (int gi = 0; gi < groups_per_block; ++gi) {
+        const int off_in_blk = gi * REQUANT_GROUP;        // group offset within the decoded block
+        const int g  = blk * groups_per_block + gi;       // global group index along K
+        const int k0 = g * REQUANT_GROUP;                 // first K element of this group
+
+        float amax = 0.0f;
+        for (int i = 0; i < REQUANT_GROUP; ++i) {
+            float v = fabs((float)blk_vals[off_in_blk + i]);
+            amax = fmax(amax, v);
+        }
+        const float scale     = (amax > 0.0f) ? (amax / (float)QMAX) : 1.0f;
+        const float inv_scale = (amax > 0.0f) ? ((float)QMAX / amax) : 0.0f;
+
+        // Scale md is [K/group, N] (per-K-group x per-N): element (g, n) at g*N + n.
+        SC[(uint)g * (uint)N_SIZE + (uint)n] = (half)scale;
+
+#if TRANSCODE_TO_I4
+        // i4 packed two-per-byte; weight byte index = (n*K + k)/2. REQUANT_GROUP is even.
+        for (int i = 0; i < REQUANT_GROUP; i += 2) {
+            const int k = k0 + i;
+            int q0 = (int)round((float)blk_vals[off_in_blk + i]     * inv_scale);
+            int q1 = (int)round((float)blk_vals[off_in_blk + i + 1] * inv_scale);
+            q0 = clamp(q0, -8, 7);
+            q1 = clamp(q1, -8, 7);
+            const uint byte_idx = (row_base + (uint)k) >> 1; // two consecutive k share one byte
+            WQ[byte_idx] = (uchar)((q0 & 0x0F) | ((q1 & 0x0F) << 4));
+        }
+#else
+        for (int i = 0; i < REQUANT_GROUP; ++i) {
+            int q = (int)round((float)blk_vals[off_in_blk + i] * inv_scale);
+            q = clamp(q, -128, 127);
+            wq_i8[row_base + (uint)(k0 + i)] = (char)q;
+        }
+#endif
+    }
 }

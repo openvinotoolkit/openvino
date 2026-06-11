@@ -88,6 +88,24 @@ GgufTranscodeTarget transcode_target(element::Type_t t) {
 // SIMD width and divides every shape's blocks-per-row (K is a multiple of 256 -> >= 16 blocks).
 constexpr int GGUF_GEMV_SG_SIZE = 16;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Q6_K int8-activation dp4a decode tuning (see fc_gguf_dp4a.cl). Both the kernel generator and the
+// impl read this so the JIT geometry and the runtime dispatch stay in lock-step.
+//   - NROW: output rows one subgroup owns (multi-row register blocking; 4 is the measured sweet spot
+//           on the DRAM-bound down_proj shape, amortising the per-block activation re-read). The
+//           weight is read at its native block stride (no repack / no second copy), so the GEMV's
+//           unrolled per-row reads are row-guarded for shapes whose N is not a NROW multiple.
+int gguf_q6k_nrow() {
+    if (const char* env = std::getenv("OV_GPU_GGUF_Q6K_NROW")) {
+        const long v = std::atol(env);
+        if (v >= 1) {
+            return static_cast<int>(v);
+        }
+    }
+    return 4;
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 class FCGGUFOptGenerator : public KernelGenerator {
 public:
     FCGGUFOptGenerator() : KernelGenerator("fc_gguf_opt") {}
@@ -214,8 +232,8 @@ protected:
 };
 
 // =================================================================================================
-// Activation int8 pre-quant generator (Q5_K dp4a decode path). Explicit-args, keyed by the static
-// activation dtype + K, N; dispatched with the concrete M at execute time (no shape-info arg).
+// Activation int8 pre-quant generator (Q5_K / Q6_K dp4a decode path). Explicit-args, keyed by the
+// static activation dtype + K, N; dispatched with the concrete M at execute time (no shape-info arg).
 // =================================================================================================
 class FCGGUFPrequantGenerator : public KernelGenerator {
 public:
@@ -251,8 +269,9 @@ protected:
 };
 
 // =================================================================================================
-// Q5_K SWAR dp4a GEMV generator (int8-activation decode path). Explicit-args; output dtype + static
-// K, N + block geometry baked in. SG_SIZE matches the K-split GEMV.
+// Q5_K / Q6_K SWAR dp4a GEMV generator (int8-activation decode path). Explicit-args; output dtype +
+// static K, N + block geometry baked in. SG_SIZE matches the K-split GEMV; Q6_K adds NROW multi-row
+// register blocking, Q5_K is single-row (NROW=1).
 // =================================================================================================
 class FCGGUFDp4aGenerator : public KernelGenerator {
 public:
@@ -274,6 +293,10 @@ protected:
         const size_t N = shape_w[0];
         const size_t K = shape_w[1];
         const element::Type wt(in1.data_type);
+        const bool is_q6k = (in1.data_type == element::Type_t::gguf_q6_k);
+        // Q6_K uses multi-row register blocking (one subgroup owns NROW output rows); Q5_K is
+        // single-row (NROW=1). Both read the weight at its native per-block stride (no repack).
+        const int nrow = is_q6k ? gguf_q6k_nrow() : 1;
         jit.add(make_type_jit_constants("OUTPUT", params.output_layouts[0].data_type));
         jit.add({
             make_jit_constant("K_SIZE", static_cast<int>(K)),
@@ -281,6 +304,8 @@ protected:
             make_jit_constant("GGUF_BLOCK_ELEM", static_cast<int>(wt.block_elem_count())),
             make_jit_constant("GGUF_BLOCK_BYTES", static_cast<int>(wt.block_byte_size())),
             make_jit_constant("SG_SIZE", GGUF_GEMV_SG_SIZE),
+            make_jit_constant("NROW", nrow),
+            make_jit_constant(gguf_type_jit_flag(in1.data_type), 1),
         });
         return jit;
     }
@@ -304,7 +329,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Compute-bound transcode stage (prefill / large M) — feeds a direct dnnl::matmul.
     Stage::Ptr transcode_stage = make_stage<FCGGUFTranscodeGenerator>();
-    // Q5_K int8-activation dp4a decode path (small M): one-shot activation prequant + SWAR dp4a GEMV.
+    // Q5_K / Q6_K int8-activation dp4a decode path (small M): activation prequant + SWAR dp4a GEMV.
     Stage::Ptr prequant_stage = make_stage<FCGGUFPrequantGenerator>();
     Stage::Ptr dp4a_stage = make_stage<FCGGUFDp4aGenerator>();
 #endif
@@ -318,6 +343,13 @@ public:
     bool m_use_q5k_dp4a = true;
     bool m_q5k_dp4a = false;
 
+    // Q6_K dp4a int8-activation decode path: on by default for Q6_K weights, disabled by setting
+    // OV_GPU_GGUF_Q6K_DP4A=0. m_q6k_dp4a records whether this node actually instantiated the path.
+    // The weight is read at its native block stride (single copy, no repack), with NROW multi-row
+    // register blocking amortising the per-block activation re-read.
+    bool m_use_q6k_dp4a = true;
+    bool m_q6k_dp4a = false;
+
     FCGGUFOptImpl() : PrimitiveImplOCL(FCGGUFOpt::get_type_info_static()) {
         if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_THRESHOLD")) {
             const long v = std::atol(env);
@@ -328,6 +360,9 @@ public:
         if (const char* env = std::getenv("OV_GPU_GGUF_Q5K_DP4A")) {
             m_use_q5k_dp4a = (std::atol(env) != 0);
         }
+        if (const char* env = std::getenv("OV_GPU_GGUF_Q6K_DP4A")) {
+            m_use_q6k_dp4a = (std::atol(env) != 0);
+        }
     }
     FCGGUFOptImpl(const program_node& node, const RuntimeParams& params) : FCGGUFOptImpl() {
         add_stage(gguf_stage, params);
@@ -335,6 +370,11 @@ public:
         add_stage(transcode_stage, params);
         if (m_use_q5k_dp4a && params.input_layouts[1].data_type == element::Type_t::gguf_q5_k) {
             m_q5k_dp4a = true;
+            add_stage(prequant_stage, params);
+            add_stage(dp4a_stage, params);
+        }
+        if (m_use_q6k_dp4a && params.input_layouts[1].data_type == element::Type_t::gguf_q6_k) {
+            m_q6k_dp4a = true;
             add_stage(prequant_stage, params);
             add_stage(dp4a_stage, params);
         }
@@ -347,6 +387,8 @@ public:
         c->m_prefill_threshold = m_prefill_threshold;
         c->m_use_q5k_dp4a = m_use_q5k_dp4a;
         c->m_q5k_dp4a = m_q5k_dp4a;
+        c->m_use_q6k_dp4a = m_use_q6k_dp4a;
+        c->m_q6k_dp4a = m_q6k_dp4a;
         return copy;
     }
 
@@ -394,7 +436,7 @@ public:
         // [2],[3] Q5_K dp4a scratch: int8 activation [Mmax, K] + per-32 f32 scale [Mmax, K/32], sized
         // for the decode cap Mmax = m_prefill_threshold (dp4a only runs for M <= threshold), so they
         // are M-independent and allocated once.
-        if (m_q5k_dp4a) {
+        if (m_q5k_dp4a || m_q6k_dp4a) {
             const size_t Mmax = std::max<size_t>(m_prefill_threshold, 1);
             bufs.emplace_back(cldnn::layout(ov::Shape{Mmax, K}, data_types::i8, cldnn::format::bfyx),
                               /*lockable=*/false);
@@ -424,7 +466,7 @@ public:
             if (M > m_prefill_threshold) {
                 return execute_transcode_plus_onednn_woq(events, instance, M);
             }
-            if (m_q5k_dp4a) {
+            if (m_q5k_dp4a || m_q6k_dp4a) {
                 return execute_prequant_plus_dp4a(events, instance, M);
             }
         }
@@ -547,8 +589,9 @@ private:
         const auto& shape_w = in1.get_shape();
         const int N = static_cast<int>(shape_w[0]);
         const int K = static_cast<int>(shape_w[1]);
-        const int num_groups = K / GGUF_REQUANT_GROUP;
         const auto et = static_cast<element::Type_t>(in1.data_type);
+        const int block_elem = static_cast<int>(element::Type(et).block_elem_count());
+        const int blocks_per_row = K / block_elem;
 
         auto& stream = instance.get_network().get_stream();
         auto* fc_inst = dynamic_cast<cldnn::fully_connected_inst*>(&instance);
@@ -562,14 +605,19 @@ private:
         auto weight_mem = fc_inst ? fc_inst->weights_memory() : instance.dep_memory_ptr(1);
 
         // Stage 1: transcode raw GGUF blocks -> {packed low-bit weight, f16 per-group scale}.
-        //   global = [N, K/REQUANT_GROUP, 1]; one work-item per (n, group).
+        //   One work-item per (n, GGUF block): the block is decoded once and all REQUANT groups inside
+        //   it are requantized together, removing the (block_elem / REQUANT_GROUP)x redundant decode of
+        //   the old per-group decomposition. N is the subgroup lane axis (local = SG), padded up to a
+        //   full subgroup; the kernel guards the padded tail with n >= N_SIZE.
+        const size_t n_global =
+            ((static_cast<size_t>(N) + GGUF_GEMV_SG_SIZE - 1) / GGUF_GEMV_SG_SIZE) * GGUF_GEMV_SG_SIZE;
         auto transcode_ev = execute_stage(events,
                                           instance,
                                           *transcode_stage,
                                           /*inputs=*/{weight_mem},
                                           /*outputs=*/{w_scratch, s_scratch},
-                                          /*global=*/{static_cast<size_t>(N), static_cast<size_t>(num_groups), 1},
-                                          /*local=*/{1, 1, 1});
+                                          /*global=*/{n_global, static_cast<size_t>(blocks_per_row), 1},
+                                          /*local=*/{GGUF_GEMV_SG_SIZE, 1, 1});
 
         // Stage 2: direct dnnl::matmul WOQ consuming the scratchpad. The OneDNN stream shares the same
         // in-order OCL queue, so submission order serialises it after the transcode kernel; pass the
@@ -602,9 +650,12 @@ private:
         return transcode_ev;
     }
 
-    // Q5_K decode: one-shot int8 activation prequant -> SWAR dp4a GEMV. Both stages are dispatched
-    // with the concrete M (decode M is tiny), so no shape-info arg is needed. The int8 activation +
-    // per-32 scale scratch are the last two internal buffers.
+    // Q5_K / Q6_K decode: one-shot int8 activation prequant -> SWAR dp4a GEMV. Both stages are
+    // dispatched with the concrete M (decode M is tiny), so no shape-info arg is needed. The int8
+    // activation + per-32 scale scratch are the last two internal buffers. The weight is read at its
+    // native block stride (single copy, no repack). Q6_K owns NROW output rows per subgroup, so the
+    // GEMV grid spans ceil(N / NROW) subgroups (NROW=1 for Q5_K -> one subgroup per row, as before);
+    // the kernel row-guards its unrolled per-row reads so a non-NROW-multiple N stays in-bounds.
     cldnn::event::ptr execute_prequant_plus_dp4a(const std::vector<cldnn::event::ptr>& events,
                                                  cldnn::primitive_inst& instance,
                                                  size_t M) {
@@ -613,11 +664,14 @@ private:
         const auto& shape_w = in1.get_shape();
         const size_t N = shape_w[0];
         const size_t K = shape_w[1];
+        const size_t nrow =
+            (in1.data_type == element::Type_t::gguf_q6_k) ? static_cast<size_t>(gguf_q6k_nrow()) : 1;
+        const size_t row_groups = (N + nrow - 1) / nrow;
 
         auto* fc_inst = dynamic_cast<cldnn::fully_connected_inst*>(&instance);
         const auto& intermediates = instance.get_intermediates_memories();
         OPENVINO_ASSERT(intermediates.size() >= 2,
-                        "[GPU] FCGGUFOpt: Q5_K dp4a scratch not allocated (expected >= 2 internal buffers).");
+                        "[GPU] FCGGUFOpt: dp4a scratch not allocated (expected >= 2 internal buffers).");
         auto aq_scratch = intermediates[intermediates.size() - 2];   // int8 activation [Mmax, K]
         auto asc_scratch = intermediates[intermediates.size() - 1];  // f32 per-32 scale [Mmax, K/32]
 
@@ -634,13 +688,13 @@ private:
                                    /*global=*/{K / GGUF_REQUANT_GROUP, M, 1},
                                    /*local=*/{1, 1, 1});
 
-        // Stage 2: SWAR dp4a GEMV. One subgroup per (n, row): global = [N*SG, M, 1], local = [SG,1,1].
+        // Stage 2: SWAR dp4a GEMV. One subgroup owns NROW output rows: global = [ceil(N/NROW)*SG, M, 1].
         return execute_stage({pq_ev},
                              instance,
                              *dp4a_stage,
                              /*inputs=*/{aq_scratch, asc_scratch, weight},
                              /*outputs=*/{out},
-                             /*global=*/{N * GGUF_GEMV_SG_SIZE, M, 1},
+                             /*global=*/{row_groups * GGUF_GEMV_SG_SIZE, M, 1},
                              /*local=*/{GGUF_GEMV_SG_SIZE, 1, 1});
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU
