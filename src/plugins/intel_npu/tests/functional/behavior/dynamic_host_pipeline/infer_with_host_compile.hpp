@@ -4,10 +4,15 @@
 
 #pragma once
 
+#include <algorithm>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <cstring>
+#include <functional>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "intel_npu/utils/zero/zero_init.hpp"
