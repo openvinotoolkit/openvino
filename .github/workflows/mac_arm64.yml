@@ -448,7 +448,7 @@ jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
-    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
+#   if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'macos-15'
