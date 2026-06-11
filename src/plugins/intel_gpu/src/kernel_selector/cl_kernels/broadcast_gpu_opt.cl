@@ -6,9 +6,13 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 
 // Optimized broadcast kernel: each work-group processes one output row (X dimension),
-// loading from input and applying TO_OUTPUT_TYPE element-wise into the output. Outer
-// dimensions (B, F, W, Z, Y) are broadcast via modulo. Per-row address computation
-// (in_row_base, out_row_base) replaces ref kernel's per-element get_idx_pos().
+// loading from input and writing to output. Outer dimensions (B, F, W, Z, Y) are
+// broadcast via modulo. Per-row address computation (in_row_base, out_row_base)
+// replaces ref kernel's per-element get_idx_pos().
+//
+// Without fused ops, OpenVINO guarantees input dtype == output dtype (else a Convert
+// is inserted by the plugin). The kernel therefore reads and writes the same scalar
+// type, no per-element cast — only data size matters. Works for any 1/2/4/8-byte type.
 
 #if X_BROADCAST_BLOCK_WRITE
 __attribute__((reqd_work_group_size(16, 1, 1)))
@@ -77,7 +81,7 @@ KERNEL(broadcast_gpu_opt)(
 
 #if IS_X_BROADCAST
     // X-broadcast: read one scalar, fill consecutive output positions per work-item.
-    const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
+    const OUTPUT_TYPE scalar_val = input[in_row_base];
 #if X_BROADCAST_BLOCK_WRITE
     // Subgroup block-write path: 16 lanes collectively emit 128 elements per call
     // (block_write8 = 8 elems/lane * SIMD16). Requires OUTPUT_SIZE_X >= 128.
@@ -106,25 +110,17 @@ KERNEL(broadcast_gpu_opt)(
 #endif
 #else
     // Runtime X-broadcast detection: if INPUT0_SIZE_X==1 at runtime (only relevant for
-     // dynamic shapes — static IS_X_BROADCAST=1 takes the splat fast path above), each
-     // output element reads input[0]. For static where INPUT0_SIZE_X is a compile-time
-     // literal equal to OUTPUT_SIZE_X, the branch folds away and codegen is unchanged.
+    // dynamic shapes — static IS_X_BROADCAST=1 takes the splat fast path above), each
+    // output element reads input[0]. For static where INPUT0_SIZE_X is a compile-time
+    // literal equal to OUTPUT_SIZE_X, the branch folds away and codegen is unchanged.
     for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
         if (x_start + vec_size <= OUTPUT_SIZE_X) {
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE) out_vec;
             if (INPUT0_SIZE_X == 1) {
-                const OUTPUT_TYPE scalar_val = TO_OUTPUT_TYPE(input[in_row_base]);
+                const OUTPUT_TYPE scalar_val = input[in_row_base];
                 out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE))(scalar_val);
             } else {
-                MAKE_VECTOR_TYPE(INPUT0_TYPE, OPT_VEC_SIZE) in_vec = CAT(vload, OPT_VEC_SIZE)(0, &input[in_row_base + x_start]);
-                out_vec.s0 = TO_OUTPUT_TYPE(in_vec.s0);
-                out_vec.s1 = TO_OUTPUT_TYPE(in_vec.s1);
-                out_vec.s2 = TO_OUTPUT_TYPE(in_vec.s2);
-                out_vec.s3 = TO_OUTPUT_TYPE(in_vec.s3);
-                out_vec.s4 = TO_OUTPUT_TYPE(in_vec.s4);
-                out_vec.s5 = TO_OUTPUT_TYPE(in_vec.s5);
-                out_vec.s6 = TO_OUTPUT_TYPE(in_vec.s6);
-                out_vec.s7 = TO_OUTPUT_TYPE(in_vec.s7);
+                out_vec = CAT(vload, OPT_VEC_SIZE)(0, &input[in_row_base + x_start]);
             }
 #if BATCH_REPEAT > 1
             for (uint br = 0; br < BATCH_REPEAT; br++) {
@@ -136,7 +132,7 @@ KERNEL(broadcast_gpu_opt)(
         } else if (x_start < OUTPUT_SIZE_X) {
             for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
                 const uint in_x = (INPUT0_SIZE_X == 1) ? 0 : x;
-                OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[in_row_base + in_x]);
+                OUTPUT_TYPE val = input[in_row_base + in_x];
 #if BATCH_REPEAT > 1
                 for (uint br = 0; br < BATCH_REPEAT; br++) {
                     output[out_row_base + br * OUTPUT_BATCH_PITCH + x] = val;

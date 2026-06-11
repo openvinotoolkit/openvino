@@ -14,19 +14,10 @@ static constexpr size_t kWIsPerRow = 32;
 
 ParamsKey BroadcastKernelOpt::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
-    k.EnableInputDataType(Datatype::INT8);
-    k.EnableInputDataType(Datatype::UINT8);
-    k.EnableInputDataType(Datatype::INT32);
-    k.EnableInputDataType(Datatype::INT64);
-
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT64);
+    // Without fused ops, OpenVINO guarantees input dtype == output dtype (else a Convert
+    // is inserted by the plugin). The kernel only needs the data size, so accept any type.
+    k.EnableAllInputDataType();
+    k.EnableAllOutputDataType();
 
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -36,7 +27,6 @@ ParamsKey BroadcastKernelOpt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
 
-    k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -107,6 +97,11 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
         return false;
 
     if (!p.fused_ops.empty())
+        return false;
+
+    // Without fused ops the kernel does pure value-broadcast (no type cast).
+    // Different dtypes would require a Convert that the plugin would have already inserted.
+    if (input.GetDType() != output.GetDType())
         return false;
 
     // Opt kernel does not implement axis-permutation logic that explicit-mode broadcasts require
