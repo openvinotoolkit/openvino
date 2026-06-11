@@ -25,6 +25,7 @@ public:
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
           const FilteredConfig& config,
+          const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
           const bool calledFromWeightlessGraph = false);
 
@@ -62,7 +63,6 @@ public:
     void evict_memory() override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
-    void set_compatibility_descriptor(std::optional<std::string> descriptor) override;
     bool can_provide_compatibility_descriptor() const override;
 
     ~Graph() override;

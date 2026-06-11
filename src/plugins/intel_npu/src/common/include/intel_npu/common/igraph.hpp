@@ -75,27 +75,19 @@ public:
 
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
+    /**
+     * @brief Returns the compatibility descriptor of this graph, if any.
+     * @details The descriptor is determined when the graph is created (imported from blob metadata,
+     *          returned by the VCL/plugin compiler, or fetched from the driver on the
+     *          compiler-in-driver path) and is immutable thereafter.
+     */
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
     /**
-     * @brief Stores the compatibility descriptor for this graph.
-     * @details The descriptor is determined when the graph is created: imported from blob
-     *          metadata, returned by the VCL/plugin compiler, or fetched from the driver by the
-     *          compiler adapter on the compiler-in-driver path. If never set, no descriptor is
-     *          available for this graph.
-     * @note An empty descriptor means "no runtime requirements" and is treated the same as no
-     *       descriptor at all (a subsequent can_provide_compatibility_descriptor() returns false).
-     * @note The base implementation is a no-op; only subclasses that support compatibility
-     *       descriptors (e.g. Graph) override it. Subclasses that do not override it silently
-     *       ignore the descriptor.
-     */
-    virtual void set_compatibility_descriptor(std::optional<std::string> /*descriptor*/) {}
-
-    /**
      * @brief Returns whether a compatibility descriptor is available for this graph.
-     * @note The base implementation returns false; only subclasses that support compatibility
-     *       descriptors (e.g. Graph) override it.
-     * @return true if a descriptor was set for this graph, false otherwise.
+     * @note The base implementation returns false; only subclasses that carry a descriptor
+     *       (e.g. Graph) override it. An empty descriptor is treated as no descriptor.
+     * @return true if a descriptor is available for this graph, false otherwise.
      */
     virtual bool can_provide_compatibility_descriptor() const {
         return false;

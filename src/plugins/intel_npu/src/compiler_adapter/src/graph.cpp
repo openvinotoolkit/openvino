@@ -24,6 +24,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
+             const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
              const bool calledFromWeightlessGraph)
     : IGraph(),
@@ -32,8 +33,17 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
+      _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
+    // An empty descriptor from the compiler/driver means "no runtime requirements"; normalize it to
+    // std::nullopt so every producer path (CID fetch, CIP compile, import) and the
+    // RUNTIME_REQUIREMENTS property represent the no-requirement state identically. This mirrors the
+    // metadata layer, which never serializes an empty descriptor (see
+    // Metadata<METADATA_VERSION_2_6>::write_as_text).
+    if (_compatibilityDescriptor.has_value() && _compatibilityDescriptor->empty()) {
+        _compatibilityDescriptor.reset();
+    }
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
@@ -267,19 +277,6 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
-}
-
-void Graph::set_compatibility_descriptor(std::optional<std::string> descriptor) {
-    // An empty string from the driver/compiler means "no runtime requirements". Normalize it to
-    // std::nullopt so every producer path (CID fetch, CIP compile, import) and the
-    // RUNTIME_REQUIREMENTS property represent the no-requirement state identically. This mirrors the
-    // metadata layer, which never serializes an empty descriptor (see
-    // Metadata<METADATA_VERSION_2_6>::write_as_text), keeping a live model consistent with its
-    // exported/imported counterpart.
-    if (descriptor.has_value() && descriptor->empty()) {
-        descriptor.reset();
-    }
-    _compatibilityDescriptor = std::move(descriptor);
 }
 
 bool Graph::can_provide_compatibility_descriptor() const {

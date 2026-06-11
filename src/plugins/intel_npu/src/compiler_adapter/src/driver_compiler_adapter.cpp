@@ -96,17 +96,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
-    auto graph = std::make_shared<Graph>(_zeGraphExt,
-                                         _zeroInitStruct,
-                                         graphDesc,
-                                         std::move(networkMeta),
-                                         /* blob = */ std::nullopt,
-                                         updatedConfig);
     // Compiler-in-driver path: the runtime requirements (compatibility descriptor) are produced by
-    // the driver alongside the compiled graph. Fetch them eagerly here so Graph stays a plain
-    // holder, symmetric with the CIP and import paths that also set the descriptor at creation time.
-    graph->set_compatibility_descriptor(fetch_compatibility_descriptor(graphDesc._handle));
-    return graph;
+    // the driver alongside the compiled graph. Fetch them before constructing the Graph so the
+    // descriptor is part of the graph's state from creation, symmetric with the CIP and import paths.
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphDesc,
+                                   std::move(networkMeta),
+                                   /* blob = */ std::nullopt,
+                                   updatedConfig,
+                                   fetch_compatibility_descriptor(graphDesc._handle));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
