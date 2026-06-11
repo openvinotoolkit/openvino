@@ -116,4 +116,20 @@ TEST_F(OptimizeValueTensorsPassTest, AtLeastOneMatMulHasTransposeBSet) {
     EXPECT_TRUE(any_matmul_has_transpose_b(generate.model));
 }
 
+// Same as above but on a GQA model (num_kv_heads < num_heads), which exercises
+// the TransposeValueTensors_GQA pattern instead of the MHA one.
+TEST_F(OptimizeValueTensorsPassTest, AtLeastOneMatMulHasTransposeBSet_GQA) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_llm_gqa_test_model(),
+                                                     {{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+
+    EXPECT_TRUE(any_matmul_has_transpose_b(generate.model));
+}
+
 }  // namespace
