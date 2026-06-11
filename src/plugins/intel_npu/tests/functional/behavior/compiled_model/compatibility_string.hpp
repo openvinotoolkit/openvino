@@ -62,9 +62,8 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckIsSupported) {
     // Forcing CID as the current compiler type
     core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER));
 
-    // Test that COMPATIBILITY_CHECK is still present in supported properties when CID is used as the current compiler
-    // type. Even if CID does not support the option, the property should be marked as supported since the plugin will
-    // fallback to CIP
+    // Test that COMPATIBILITY_CHECK is in the supported properties when CID
+    // is the active compiler type
     {
         OV_ASSERT_NO_THROW(properties = core.get_property(deviceName, ov::supported_properties));
         auto it = find(properties.cbegin(), properties.cend(), ov::compatibility_check);
@@ -121,7 +120,9 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
         if (it != properties.cend()) {
             // Driver implements the extension: the property is listed and must be readable.
             ASSERT_FALSE(it->is_mutable());
-            OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
+            std::string requirements;
+            OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+            ASSERT_FALSE(requirements.empty());
         } else {
             // Driver does not implement the extension: reading the property must be rejected.
             OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),

@@ -5,7 +5,6 @@
 #include "graph.hpp"
 
 #include <iterator>
-#include <mutex>
 
 #include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
