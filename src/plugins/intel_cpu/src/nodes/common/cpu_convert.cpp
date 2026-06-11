@@ -416,19 +416,10 @@ template <typename TI, typename TO>
 void jit_convert(const TI* arg, TO* out, size_t count) {
     using jit_impl = jit_convert_array<TI, TO>;
     static auto converter = jit_impl::get();
-    constexpr bool is_fp8 = std::is_same_v<TI, ov::float8_e4m3> || std::is_same_v<TO, ov::float8_e4m3> ||
-                            std::is_same_v<TI, ov::float8_e5m2> || std::is_same_v<TO, ov::float8_e5m2>;
-    constexpr size_t vlen = is_fp8 ? 16 : 8;
 
     if (converter) {
-        const size_t vectorized_count = count / vlen * vlen;
-        if (vectorized_count > 0) {
-            typename jit_impl::args_t args = {arg, out, vectorized_count};
-            converter(&args);
-        }
-        for (size_t i = vectorized_count; i < count; ++i) {
-            out[i] = static_cast<TO>(arg[i]);
-        }
+        typename jit_impl::args_t args = {arg, out, count};
+        converter(&args);
     } else {
         for (size_t i = 0; i < count; ++i) {
             out[i] = static_cast<TO>(arg[i]);

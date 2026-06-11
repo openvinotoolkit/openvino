@@ -208,9 +208,10 @@ void copyDataToOutputWithSignalSize(const float* input,
         std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     std::fill_n(output, totalOutput, 0.F);
     size_t lastChangedDim = 0;
-    for (size_t index = inputShape.size() - 1; index > 0; --index) {
-        if (inputShape[index] != outputShape[index]) {
-            lastChangedDim = index;
+    for (int64_t index = static_cast<int64_t>(inputShape.size()) - 1; index > 0; --index) {
+        const auto dim = static_cast<size_t>(index);
+        if (inputShape[dim] != outputShape[dim]) {
+            lastChangedDim = dim;
             break;
         }
     }
