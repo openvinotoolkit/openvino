@@ -104,7 +104,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     for (size_t i = 0; i < _batch_size; i++) {
         _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
 
-        _command_lists.at(i)->initBinding(_graph->get_metadata());
+        _command_lists.at(i)->initArguments(_graph->get_metadata());
         auto& graphArguments = _command_lists.at(i)->getBinding();
 
         size_t io_index = 0;
@@ -303,8 +303,8 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
 }
 
 void DynamicPipeline::predict_output_shape(const IGraph& graph,
-                                           std::vector<DynamicMemRefType>& inputDescriptors,
-                                           std::vector<DynamicMemRefType>& outputDescriptors) {
+                                           std::vector<DynamicMemRefType>& inputsMemRef,
+                                           std::vector<DynamicMemRefType>& outputsMemRef) {
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
     logger.debug("predict_output_shape - started");
 
@@ -312,15 +312,15 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
     OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shape requires a valid VM runtime engine");
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
-    inputs.reserve(inputDescriptors.size());
-    for (auto& in : inputDescriptors) {
+    inputs.reserve(inputsMemRef.size());
+    for (auto& in : inputsMemRef) {
         in.updateMemRefHandleStatus();
         inputs.push_back(in._memRef);
     }
 
     std::vector<npu_vm_runtime_mem_ref_handle_t> outputs;
-    outputs.reserve(outputDescriptors.size());
-    for (auto& out : outputDescriptors) {
+    outputs.reserve(outputsMemRef.size());
+    for (auto& out : outputsMemRef) {
         out.updateMemRefHandleStatus();
         outputs.push_back(out._memRef);
     }
@@ -335,7 +335,7 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
         OPENVINO_THROW("Failed to predict output shapes via VM runtime engine");
     }
 
-    for (auto& out : outputDescriptors) {
+    for (auto& out : outputsMemRef) {
         out.alignWithHandle();
     }
 

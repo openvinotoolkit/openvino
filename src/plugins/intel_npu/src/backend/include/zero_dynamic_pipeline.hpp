@@ -12,7 +12,7 @@ namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        DynamicArguments _binding;
+        DynamicArguments _arguments;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
@@ -39,9 +39,9 @@ class DynamicPipeline final : public IPipeline {
 
         /// Allocate per-IO MemRef slots driven by the network metadata. The pipeline ctor fills
         /// each slot's data/shape/strides via setArgumentProperties again.
-        void initBinding(const NetworkMetadata& metadata) {
-            _binding._inputs.resize(metadata.inputs.size());
-            auto& inputs = _binding._inputs;
+        void initArguments(const NetworkMetadata& metadata) {
+            _arguments._inputs.resize(metadata.inputs.size());
+            auto& inputs = _arguments._inputs;
             for (size_t i = 0; i < inputs.size(); ++i) {
                 // Use size as placeholder of stride
                 // For now, only considering the usage and subsequent comparison of dimcount, shape, and strides
@@ -53,8 +53,8 @@ class DynamicPipeline final : public IPipeline {
                 inputs[i].updateStride();
             }
 
-            _binding._outputs.resize(metadata.outputs.size());
-            auto& outputs = _binding._outputs;
+            _arguments._outputs.resize(metadata.outputs.size());
+            auto& outputs = _arguments._outputs;
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
                 outputs[i]._dimsCount = static_cast<int64_t>(shape.size());
@@ -69,7 +69,7 @@ class DynamicPipeline final : public IPipeline {
         }
 
         DynamicArguments& getBinding() {
-            return _binding;
+            return _arguments;
         }
 
         void updateMutableCommandList(uint32_t arg_index,
@@ -77,16 +77,16 @@ class DynamicPipeline final : public IPipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             // The strides are already divided by element size
-            if (arg_index < _binding._inputs.size()) {
-                _binding._inputs[arg_index].setArg(arg_value);
-                _binding._inputs[arg_index].setSize(shapes);
-                _binding._inputs[arg_index].setStrides(strides);
+            if (arg_index < _arguments._inputs.size()) {
+                _arguments._inputs[arg_index].setArg(arg_value);
+                _arguments._inputs[arg_index].setSize(shapes);
+                _arguments._inputs[arg_index].setStrides(strides);
             } else {
-                size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
-                if (output_index < _binding._outputs.size()) {
-                    _binding._outputs[output_index].setArg(arg_value);
-                    _binding._outputs[output_index].setSize(shapes);
-                    _binding._outputs[output_index].setStrides(strides);
+                size_t output_index = static_cast<size_t>(arg_index) - _arguments._inputs.size();
+                if (output_index < _arguments._outputs.size()) {
+                    _arguments._outputs[output_index].setArg(arg_value);
+                    _arguments._outputs[output_index].setSize(shapes);
+                    _arguments._outputs[output_index].setStrides(strides);
                 }
             }
         }
@@ -124,8 +124,8 @@ public:
     /// Run VM-runtime output shape prediction. Independent of pipeline instance state
     /// (depends only on the graph's VM runtime handle)
     static void predict_output_shape(const IGraph& graph,
-                                     std::vector<DynamicMemRefType>& inputs,
-                                     std::vector<DynamicMemRefType>& outputs);
+                                     std::vector<DynamicMemRefType>& inputsMemRef,
+                                     std::vector<DynamicMemRefType>& outputsMemRef);
 
 private:
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
