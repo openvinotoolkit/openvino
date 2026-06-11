@@ -99,10 +99,28 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief EliminateConcatStridedSlice eliminates StridedSlice/v8::Slice & Concat,
- * if the slice users split the tensor into parts that match the original inputs of the Concat.
- * Handles v1::StridedSlice and v8::Slice uniformly (mixed users are also supported).
-// Before:
+ * @brief EliminateConcatStridedSlice removes a redundant `Concat -> Slice` ("split-back") subgraph.
+ *
+ * The pass matches a Concat whose users are slice-like ops — v1::StridedSlice and/or v8::Slice,
+ * mixed users included — that cut the concatenated tensor back into pieces along the concat axis.
+ * When a slice reproduces exactly one of the original Concat inputs, the Concat together with that
+ * slice is a no-op for that branch: the slice consumers are rewired straight to the Concat input and
+ * both ops are dropped. A slice that spans several inputs (a partial range) is kept, but rebuilt on
+ * top of a smaller Concat that holds only the inputs it actually needs.
+ *
+ * Two regimes are handled by the same matcher:
+ *  - Static Concat  — the no-op is proven by integer index arithmetic over the fully known concat
+ *                     shape (exact-match rewiring + a residual Concat/slice rebuild for partial users).
+ *  - Dynamic Concat — for the Gated-Delta-Net idiom
+ *                     `Loop -> Reshape(.,[-1]) -> Concat(axis=0) -> Slice -> Reshape`, whose slice
+ *                     bounds are runtime values rather than constants, the no-op is proven
+ *                     structurally instead of arithmetically (see try_eliminate_dynamic_concat_slice).
+ *
+ * Static example below: user (A) is an exact match and is rewired to Input A; user (B + C) is a
+ * partial range, so it is rebuilt over a smaller `Concat(B, C)` — here folded straight into the
+ * downstream Concat that consumed it.
+ * @code
+Before:
           ┌─────────┐             ┌─────────┐             ┌─────────┐
           │ Input A │             │ Input B │             │ Input C │
           └────┬────┘             └────┬────┘             └────┬────┘
@@ -122,7 +140,7 @@ public:
                       ┌─────────────┐                ┌─────────┐
                       │Any OtherNode│                │  Concat │◄────── ...
                       └─────────────┘                └─────────┘
-// After:
+After:
           ┌─────────┐             ┌─────────┐             ┌─────────┐
           │ Input A │             │ Input B │             │ Input C │
           └────┬────┘             └────┬────┘             └────┬────┘
@@ -131,6 +149,7 @@ public:
          ┌─────────────┐               |      ┌─────▼───┐
          │Any OtherNode│               └────► │  Concat │◄────── ...
          └─────────────┘                      └─────────┘
+ * @endcode
  */
 class ov::pass::EliminateConcatStridedSlice : public ov::pass::MatcherPass {
 public:

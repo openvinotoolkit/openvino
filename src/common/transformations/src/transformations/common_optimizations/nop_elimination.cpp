@@ -552,6 +552,47 @@ EliminateConcat::EliminateConcat() {
 
 namespace {
 
+// =================================================================================================
+// EliminateConcatStridedSlice — `Concat -> Slice` ("split-back") no-op elimination.
+//
+// The matcher itself is defined further below (EliminateConcatStridedSlice::EliminateConcatStridedSlice).
+// It fires on a Concat and looks at the slice-like users (v1::StridedSlice / v8::Slice) that cut the
+// concatenated tensor back apart along the concat axis. If a slice reproduces one of the Concat
+// inputs verbatim, that `Concat -> Slice` round-trip is a no-op and the slice's consumers can read
+// the original input directly. The work is split into small free helpers so the matcher body reads
+// as a short sequence of phases rather than one long lambda:
+//
+//   Static path — Concat shape fully known, proven by integer index arithmetic:
+//     extract_slice_range_along_axis() — turn each slice user into a [begin, end_inclusive] index
+//                                        range along the concat axis, rejecting anything that is not
+//                                        a clean, unit-stride, axis-aligned cut of that one axis.
+//     build_residual_slice()           — rebuild a partial-range slice on top of the shrunken Concat
+//                                        once the exact-match users have been peeled off.
+//     fold_const_i64() / is_mask_empty_or_all_zero() — shared const-folding and mask helpers.
+//
+//   Dynamic path — Concat shape dynamic (the Gated-Delta-Net export idiom), proven structurally
+//   because the slice bounds are runtime values, not foldable constants:
+//     try_eliminate_dynamic_concat_slice() — entry point; matches the exact
+//                                        Reshape([-1]) / Concat(axis=0) / contiguous-Slice /
+//                                        Reshape-back idiom and rewires past it.
+//     match_flatten_to_1d() / fold_scalar_int() / validate_dynamic_axis_slice() / DynamicSliceBounds
+//                                        — building blocks of that structural proof.
+// =================================================================================================
+
+// A StridedSlice mask is inactive when it is empty or all-zero.
+bool is_mask_empty_or_all_zero(const std::vector<int64_t>& mask) {
+    return std::all_of(mask.begin(), mask.end(), [](int64_t v) {
+        return v == 0;
+    });
+}
+
+// Folds input `idx` of an already-validated slice node to an int64 vector.
+// Precondition: extract_slice_range_along_axis() proved this input is constant-foldable, so
+// get_constant_from_source() never returns null here (matches the original residual rebuild).
+std::vector<int64_t> fold_const_i64(const std::shared_ptr<ov::Node>& node, size_t idx) {
+    return ov::util::get_constant_from_source(node->get_input_node_shared_ptr(idx))->cast_vector<int64_t>();
+}
+
 // Extracts [begin, end_inclusive] range along `concat_axis` from a slice-like user of Concat.
 // Returns false if the user is not a supported slice-like op or does not produce a clean
 // axis-aligned slice along concat_axis.
@@ -561,15 +602,9 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
                                     int64_t& out_begin,
                                     int64_t& out_end_inclusive) {
     if (auto strided_slice_node = ov::as_type_ptr<v1::StridedSlice>(user)) {
-        auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
-            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
-                return value != 0;
-            });
-            return mask_to_check.empty() || it == mask_to_check.end();
-        };
-        if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
-            !check_mask(strided_slice_node->get_new_axis_mask()) ||
-            !check_mask(strided_slice_node->get_ellipsis_mask())) {
+        if (!is_mask_empty_or_all_zero(strided_slice_node->get_shrink_axis_mask()) ||
+            !is_mask_empty_or_all_zero(strided_slice_node->get_new_axis_mask()) ||
+            !is_mask_empty_or_all_zero(strided_slice_node->get_ellipsis_mask())) {
             return false;
         }
 
@@ -750,14 +785,12 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
     if (ov::is_type<v1::StridedSlice>(slice_node)) {
         std::vector<std::shared_ptr<ov::Node>> new_slice_in_nodes{new_concat_node};
 
-        const auto& begin_constant_node = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
-        auto begin_values = begin_constant_node->cast_vector<int64_t>();
+        auto begin_values = fold_const_i64(slice_node, 1);
         begin_values[concat_axis] = slice_begin - new_start_value;
         new_slice_in_nodes.push_back(
             v0::Constant::create(ov::element::i64, ov::Shape{begin_values.size()}, begin_values));
 
-        const auto& end_constant_node = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(2));
-        auto end_values = end_constant_node->cast_vector<int64_t>();
+        auto end_values = fold_const_i64(slice_node, 2);
         end_values[concat_axis] = slice_end - new_start_value + 1;
         new_slice_in_nodes.push_back(v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
 
@@ -770,15 +803,12 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
     }
 
     // v8::Slice: sparse axes indexing — update only the axis_pos entry, keep step/axes as-is.
-    const auto& start_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
-    auto start_values = start_constant->cast_vector<int64_t>();
-    const auto& stop_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(2));
-    auto stop_values = stop_constant->cast_vector<int64_t>();
+    auto start_values = fold_const_i64(slice_node, 1);
+    auto stop_values = fold_const_i64(slice_node, 2);
 
     std::vector<int64_t> axes_values;
     if (slice_node->get_input_size() == 5) {
-        const auto& axes_constant = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(4));
-        axes_values = axes_constant->cast_vector<int64_t>();
+        axes_values = fold_const_i64(slice_node, 4);
     } else {
         for (int64_t i = 0; i < static_cast<int64_t>(start_values.size()); ++i)
             axes_values.push_back(i);
@@ -900,13 +930,9 @@ bool validate_dynamic_axis_slice(const std::shared_ptr<ov::Node>& user, DynamicS
         const auto& data_shape = strided->get_input_partial_shape(0);
         if (data_shape.rank().is_dynamic() || data_shape.size() != 1)
             return false;
-        const auto all_zero = [](const std::vector<int64_t>& mask) {
-            return std::all_of(mask.begin(), mask.end(), [](int64_t v) {
-                return v == 0;
-            });
-        };
-        if (!all_zero(strided->get_shrink_axis_mask()) || !all_zero(strided->get_new_axis_mask()) ||
-            !all_zero(strided->get_ellipsis_mask()))
+        if (!is_mask_empty_or_all_zero(strided->get_shrink_axis_mask()) ||
+            !is_mask_empty_or_all_zero(strided->get_new_axis_mask()) ||
+            !is_mask_empty_or_all_zero(strided->get_ellipsis_mask()))
             return false;
         if (strided->get_input_size() == 4) {
             int64_t stride = 0;
@@ -1065,7 +1091,15 @@ bool try_eliminate_dynamic_concat_slice(const std::shared_ptr<v0::Concat>& conca
 
 }  // namespace
 
+// Matches a Concat and tries to remove the `Concat -> Slice` split-back round-trip described in the
+// helper overview above and in the class doxygen. For a dynamic Concat it delegates to the structural
+// path; for a static Concat it runs the index-arithmetic algorithm inline, in five phases marked
+// below. The pass is conservative: it bails out (returns false, no change) the moment any user is not
+// a clean axis-aligned slice, so a Concat that is not a genuine split-back is never touched.
 EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
+    // Each entry is (node, begin, end_inclusive): a half-open [begin, end] index range along the
+    // concat axis. Reused for two roles — the range a slice user reads, and the span a Concat input
+    // occupies — so the two can be compared with plain integer equality.
     using node_index_info_map = std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>>;
     MATCHER_SCOPE(EliminateConcatStridedSlice);
     auto pattern_concat = pattern::wrap_type<v0::Concat>(pattern::has_static_rank());
@@ -1081,11 +1115,16 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         if (concat->is_dynamic())
             return try_eliminate_dynamic_concat_slice(concat, concat_axis);
 
+        // A single user cannot re-split the Concat back into its inputs — there is nothing to peel off.
         const auto concat_users = concat->get_users();
         if (concat_users.size() == 1)
             return false;
         auto concat_inputs = concat->inputs();
 
+        // Phase 1 — describe every Concat user as a [begin, end_inclusive] index range along the
+        // concat axis. extract_slice_range_along_axis() returns false for any user that is not a
+        // clean, unit-stride, axis-aligned slice; one such user means this is not a pure split-back,
+        // so abandon the whole match.
         node_index_info_map slice_out_index_in_concat;
         for (const auto& user : concat_users) {
             int64_t begin_idx = 0;
@@ -1098,6 +1137,9 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         if (slice_out_index_in_concat.size() == 1)
             return false;
 
+        // Phase 2 — lay out the Concat inputs end to end and record the [begin, end_inclusive] span
+        // each one occupies along the concat axis. These spans are the "ground truth" partition that
+        // the slice ranges from phase 1 are matched against.
         uint64_t start_index = 0;
         node_index_info_map in_index_in_concat;
         for (auto& concat_in : concat_inputs) {
@@ -1107,6 +1149,10 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             start_index = tmp_index + 1;
         }
 
+        // Phase 3 — exact matches. A slice whose range equals one input's span reproduces that input
+        // verbatim, so the `Concat -> Slice` pair is a pure no-op: rewire the slice consumers straight
+        // to the input and let dead-node cleanup drop the slice. Anything that does not line up with a
+        // single input is set aside as a "mismatch" (a partial range) for phase 4.
         node_index_info_map mismatch_slices{};
         bool model_changed = false;
         for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_concat) {
@@ -1125,12 +1171,19 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             if (!matched)
                 mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
+        // Every user was an exact match — done, the Concat itself dies once its slices are gone.
         if (mismatch_slices.empty())
             return model_changed;
 
+        // No exact match anchored the Concat — shrinking it would not save anything, so leave it
+        // (and any rewiring already done by an unrelated earlier match) as is.
         if (mismatch_slices.size() == slice_out_index_in_concat.size())
             return model_changed;
 
+        // Phase 4 — the remaining (partial) slices still need a Concat, but only over the inputs they
+        // actually overlap. Widen [new_start_value, new_end_value] to the union of the spans of every
+        // Concat input touched by a mismatch slice's begin or end — i.e. the smallest contiguous block
+        // of inputs that still covers all partial users.
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
@@ -1150,6 +1203,10 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             }
         }
 
+        // Gather that contiguous block of inputs (from the one starting at new_start_value up to the
+        // one ending at new_end_value) and clone a smaller Concat over just them. The original Concat
+        // is replaced by this shrunken one; the exact-match inputs peeled off in phase 3 are no longer
+        // part of it.
         std::vector<std::shared_ptr<Node>> new_concat_in_nodes{};
         bool new_need = false;
         for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
@@ -1168,6 +1225,12 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         auto new_concat_node = concat->clone_with_new_inputs(ov::as_output_vector(new_concat_in_nodes));
         replace_output_update_name(concat, new_concat_node);
 
+        // Phase 5 — re-attach each partial slice to the shrunken Concat. Two cases:
+        //   (a) the slice feeds a single downstream Concat on the same axis — then the slice is pure
+        //       plumbing: splice the shrunken Concat's inputs directly into that downstream Concat and
+        //       drop the slice (this is the "After" picture in the class doxygen).
+        //   (b) otherwise — rebuild the slice over the shrunken Concat with its range shifted by
+        //       new_start_value (build_residual_slice handles StridedSlice vs v8::Slice).
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
             if (slice_node->get_users().size() == 1 && ov::is_type<v0::Concat>(slice_node->get_users()[0]) &&
                 ov::as_type_ptr<v0::Concat>(slice_node->get_users()[0])->get_axis() == concat_axis) {
