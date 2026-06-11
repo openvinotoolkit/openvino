@@ -53,6 +53,7 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
         switch (eltwiseType) {
         case utils::EltwiseTypes::POWER:
             params = gen_params(6, -3);
+            break;
         case utils::EltwiseTypes::MOD:
         case utils::EltwiseTypes::FLOOR_MOD:
             params = gen_params(2, 2, 8);
