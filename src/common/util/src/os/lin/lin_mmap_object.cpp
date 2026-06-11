@@ -79,13 +79,14 @@ void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 102
 
     const auto page = static_cast<size_t>(util::get_system_page_size());
     const auto& [aligned_addr, total_length, gap] = util::align_region(reinterpret_cast<uintptr_t>(data), size, page);
-    const size_t pages = (total_length + page - 1) / page;
+    const size_t region_length = total_length;  // plain variable for C++17 lambda capture
+    const size_t pages = (region_length + page - 1) / page;
 
     const size_t hw_threads = std::thread::hardware_concurrency();
     constexpr size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MiB per thread minimum
     constexpr size_t max_prefault_threads = 10;
     const size_t num_threads =
-        std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, total_length / min_chunk_size)});
+        std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, region_length / min_chunk_size)});
 
     std::atomic<uint64_t> populate_sink{0};  // prevents optimization of the loop away as a no-op
     std::vector<std::thread> threads;
@@ -99,7 +100,7 @@ void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 102
 
             for (size_t p = begin_page; p < end_page; ++p) {
                 const size_t off = p * page;
-                if (off < total_length) {
+                if (off < region_length) {
                     local += static_cast<unsigned char>(base[off]);
                 }
             }
