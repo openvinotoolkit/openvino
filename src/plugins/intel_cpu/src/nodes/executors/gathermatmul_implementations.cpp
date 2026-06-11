@@ -35,10 +35,11 @@
 namespace ov::intel_cpu {
 
 using namespace ov::element;
-using namespace TypeMaskAlias;
-using namespace executor;
 
 #if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
+
+using namespace TypeMaskAlias;
+using namespace executor;
 
 using LayoutConfig = std::vector<LayoutType>;
 
