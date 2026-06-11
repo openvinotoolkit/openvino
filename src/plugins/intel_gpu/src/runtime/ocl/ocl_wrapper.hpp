@@ -72,13 +72,6 @@
 
 #include "ocl_ext.hpp"
 
-#if CL_HPP_TARGET_OPENCL_VERSION >= 200 && CL_HPP_MINIMUM_OPENCL_VERSION >= 200
-namespace cl {
-namespace detail {
-CL_HPP_PARAM_NAME_INFO_1_1_DEPRECATED_IN_2_0_(CL_HPP_DECLARE_PARAM_TRAITS_)
-}
-}
-#endif
 
 // Restore specific diagnostics.
 #if defined __INTEL_COMPILER
