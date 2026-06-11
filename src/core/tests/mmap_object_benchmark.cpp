@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <chrono>
@@ -14,7 +15,6 @@
 #include <numeric>
 #include <string>
 #include <vector>
-#include <unistd.h>
 
 #include "openvino/util/mmap_object.hpp"
 
@@ -28,19 +28,19 @@
 namespace ov::test {
 
 static std::filesystem::path generate_test_file(size_t size_bytes) {
-    auto path = std::filesystem::path("file_bench_" +
-                                      std::to_string(size_bytes / (1024 * 1024)) + "mb.bin");
-    
+    auto path = std::filesystem::path("test_file" + std::to_string(size_bytes / (1024 * 1024)) + "mb.bin");
+
     if (std::filesystem::exists(path)) {
-        std::cout<< "Test file already exists: " << path << ", skipping generation." << std::endl;
+        std::cout << "Test file already exists: " << path << ", skipping generation." << std::endl;
         return path;
     }
-    std::vector<char> chunk(1024 * 1024);
-    std::iota(chunk.begin(), chunk.end(), char{0});
+    std::vector<uint8_t> chunk(1024 * 1024);
+    for (size_t i = 0; i < chunk.size(); ++i)
+        chunk[i] = static_cast<uint8_t>(i % 251);
     std::ofstream f(path, std::ios::binary);
     for (size_t written = 0; written < size_bytes; written += chunk.size()) {
         const auto to_write = std::min(chunk.size(), size_bytes - written);
-        f.write(chunk.data(), static_cast<std::streamsize>(to_write));
+        f.write(reinterpret_cast<const char*>(chunk.data()), static_cast<std::streamsize>(to_write));
     }
     return path;
 }
@@ -54,9 +54,9 @@ static long long measure_ms(const std::function<void()>& fn) {
 
 static void evict_cache(const std::filesystem::path& path, size_t file_size) {
     // Prefer /proc/sys/vm/drop_caches (requires root / CAP_SYS_ADMIN, available when the container
-    // is started with --privileged or --cap-add SYS_ADMIN).  Writing "3" flushes the host page
+    // is started with --privileged).  Writing "3" flushes the host page
     // cache, dentries, and inodes — the only fully reliable way to guarantee a cold-cache run.
-    // Fallback: posix_fadvise(DONTNEED) is best-effort; the kernel may ignore it under pressure.
+    // Fallback: posix_fadvise(DONTNEED) is best-effort; the kernel may ignore it.
     static const bool have_drop_caches = [] {
         int fd = ::open("/proc/sys/vm/drop_caches", O_WRONLY);
         if (fd >= 0) {
@@ -76,13 +76,13 @@ static void evict_cache(const std::filesystem::path& path, size_t file_size) {
         sleep(1);  // give the kernel a moment to settle
         return;
     } else {
-        std::cout<< "No access to /proc/sys/vm/drop_caches, falling back to posix_fadvise(DONTNEED)" << std::endl;
+        std::cout << "No access to /proc/sys/vm/drop_caches, falling back to posix_fadvise(DONTNEED)" << std::endl;
     }
 
     // Fallback: best-effort fadvise.
     int fd = ::open(path.c_str(), O_RDONLY);
     if (fd >= 0) {
-        std::cout<< "posix_fadvise(DONTNEED) in use, kernel might ignore it" << std::endl;
+        std::cout << "posix_fadvise(DONTNEED) in use, kernel might ignore it" << std::endl;
         posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
         ::close(fd);
     }
@@ -112,7 +112,6 @@ static double throughput_mbs(size_t size_mb, long long ms) {
     return static_cast<double>(size_mb) * 1000.0 / static_cast<double>(ms);
 }
 
-
 static void strategy_hint_prefetch(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch();
@@ -122,8 +121,7 @@ static void strategy_hint_prefetch(const std::filesystem::path& path, size_t fil
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
         const size_t copy_size = std::min(chunk_size, file_size - offset);
         std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        // Sample multiple positions to prevent memcpy optimization
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1]; //prevents optimization
     }
 }
 
@@ -135,8 +133,7 @@ static void strategy_no_prefault(const std::filesystem::path& path, size_t file_
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
         const size_t copy_size = std::min(chunk_size, file_size - offset);
         std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        // Sample multiple positions to prevent memcpy optimization
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1]; //prevents optimization
     }
 }
 
@@ -211,7 +208,6 @@ static void strategy_direct_read_dos(const std::filesystem::path& path, size_t f
     std::free(raw);
 }
 #endif
-
 
 static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
                                            size_t /*file_size*/,
@@ -317,7 +313,6 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
                throughput_mbs(r.mb, r.t_no_prefault),
                throughput_mbs(r.mb, r.t_ifstream));
     }
-
 }
 
 TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
@@ -361,18 +356,39 @@ TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
     for (const auto& tf : files) {
         Row r{};
         r.mb = tf.size_mb;
-        r.t_prefetch_only =
-            bench([&]() { strategy_prefetch_only_dos(tf.path); }, tf.path, tf.size_bytes, warmup, runs);
-        r.t_ifstream_buf = bench([&]() { strategy_ifstream_into_buffer_dos(tf.path, tf.size_bytes); },
-                                 tf.path,
-                                 tf.size_bytes,
-                                 warmup,
-                                 runs);
-        r.t_first_access =
-            bench([&]() { strategy_first_access_dos(tf.path); }, tf.path, tf.size_bytes, warmup, runs);
+        r.t_prefetch_only = bench(
+            [&]() {
+                strategy_prefetch_only_dos(tf.path);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
+        r.t_ifstream_buf = bench(
+            [&]() {
+                strategy_ifstream_into_buffer_dos(tf.path, tf.size_bytes);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
+        r.t_first_access = bench(
+            [&]() {
+                strategy_first_access_dos(tf.path);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
 #ifdef __linux__
-        r.t_direct_read =
-            bench([&]() { strategy_direct_read_dos(tf.path, tf.size_bytes); }, tf.path, tf.size_bytes, warmup, runs);
+        r.t_direct_read = bench(
+            [&]() {
+                strategy_direct_read_dos(tf.path, tf.size_bytes);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
 #endif
         results.push_back(r);
     }
@@ -402,11 +418,7 @@ TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
     }
 #else
     printf("%-10s | %16s | %17s | %14s\n", "Size (MB)", "prefetch_only", "ifstream_into_buf", "first_access");
-    printf("%-10s-|-%16s-|-%17s-|-%14s\n",
-           "----------",
-           "----------------",
-           "-----------------",
-           "--------------");
+    printf("%-10s-|-%16s-|-%17s-|-%14s\n", "----------", "----------------", "-----------------", "--------------");
     for (const auto& r : results) {
         printf("%-10zu | %13lld ms | %14lld ms | %11lld ms\n",
                r.mb,
@@ -441,11 +453,7 @@ TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
     }
 #else
     printf("%-10s | %16s | %17s | %14s\n", "Size (MB)", "prefetch_only", "ifstream_into_buf", "first_access");
-    printf("%-10s-|-%16s-|-%17s-|-%14s\n",
-           "----------",
-           "----------------",
-           "-----------------",
-           "--------------");
+    printf("%-10s-|-%16s-|-%17s-|-%14s\n", "----------", "----------------", "-----------------", "--------------");
     for (const auto& r : results) {
         printf("%-10zu | %11.0f MB/s | %12.0f MB/s | %9.0f MB/s\n",
                r.mb,
@@ -454,7 +462,6 @@ TEST_F(MmapBenchmark, DISABLED_load_latency_comparison) {
                throughput_mbs(r.mb, r.t_first_access));
     }
 #endif
-
 }
 
 TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
@@ -470,8 +477,7 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
     const std::vector<size_t> region_sizes_mb = {10, 100, 500};
 
     // Pre-compute all results[size_idx][offset_idx]; -1 means "exceeds"
-    std::vector<std::vector<long long>> results(region_sizes_mb.size(),
-                                                std::vector<long long>(offsets_mb.size(), -1));
+    std::vector<std::vector<long long>> results(region_sizes_mb.size(), std::vector<long long>(offsets_mb.size(), -1));
     for (size_t si = 0; si < region_sizes_mb.size(); ++si) {
         for (size_t oi = 0; oi < offsets_mb.size(); ++oi) {
             const size_t off_bytes = offsets_mb[oi] * 1024 * 1024;
@@ -506,7 +512,6 @@ TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
         }
         printf("\n");
     }
-
 }
 
 }  // namespace ov::test
