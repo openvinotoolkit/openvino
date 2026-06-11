@@ -319,11 +319,11 @@ TEST_F(GQACompiledModelTest, RunsConvToMatmulBeforeInnerCompilation) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_conv_to_matmul_model(), {{"NPUW_UNQDQ", "YES"}}, recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_conv_to_matmul_model(), {{"NPUW_UNQDQ", "NO"}}, recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
-    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "NO");
     EXPECT_EQ(count_ops<ov::op::v1::Convolution>(call.model), 0u);
     EXPECT_EQ(count_ops<ov::op::v0::MatMul>(call.model), 1u);
 }

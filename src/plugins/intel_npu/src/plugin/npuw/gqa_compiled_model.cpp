@@ -11,6 +11,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/collapse_unqdq.hpp"
+#include "npuw_transformations/conv_to_matmul.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
@@ -121,6 +122,8 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
     auto prepared_properties = with_gqa_defaults(model, properties);
+    ov::npuw::ConvToMatMul conv_to_matmul;
+    conv_to_matmul.run_on_model(model);
     if (prepared_properties.at(std::string(::intel_npu::NPUW_UNQDQ::key())).as<std::string>() == "YES") {
         ov::npuw::CollapseUNQDQ pass;
         pass.run_on_model(model);
