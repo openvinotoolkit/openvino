@@ -1071,8 +1071,7 @@ bool try_eliminate_dynamic_concat_slice(const std::shared_ptr<v0::Concat>& conca
         // RemoveConcatSliceAfterLoop). This still rejects a Reshape-back that restores a different,
         // statically-incompatible shape.
         for (size_t d = 0; d < back_shape.size(); ++d) {
-            if (back_shape[d].is_static() &&
-                (producer_shape[d].is_dynamic() || back_shape[d] != producer_shape[d]))
+            if (back_shape[d].is_static() && (producer_shape[d].is_dynamic() || back_shape[d] != producer_shape[d]))
                 return false;
         }
         rewrites.emplace_back(reshape_back, producer);

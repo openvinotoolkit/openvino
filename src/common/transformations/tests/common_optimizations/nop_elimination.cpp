@@ -2715,17 +2715,16 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnTwoInputs) {
         auto slice0 = make_unit_v8_slice(concat, zero, boundary);
         auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
 
-        model = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                         make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-            ParameterVector{y0, y1});
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                       ParameterVector{y0, y1});
         manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
         auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
-        model_ref = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1)}, ParameterVector{y0, y1});
+        model_ref = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1)},
+                                           ParameterVector{y0, y1});
     }
 }
 
@@ -2736,8 +2735,7 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnThreeInputs) {
         auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
         auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
         auto y2 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
-        auto concat =
-            make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1), flatten_to_1d(y2)}, 0);
+        auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1), flatten_to_1d(y2)}, 0);
 
         auto numel0 = numel_of(y0);
         auto boundary1 = std::make_shared<v1::Add>(numel0, numel_of(y1));  // numel0 + numel1
@@ -2748,11 +2746,10 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnThreeInputs) {
         auto slice1 = make_unit_v8_slice(concat, numel0, boundary1);
         auto slice2 = make_unit_v8_slice(concat, boundary1, to_end);
 
-        model = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                         make_shared<v0::Result>(reshape_to_like(slice1, y1)),
-                         make_shared<v0::Result>(reshape_to_like(slice2, y2))},
-            ParameterVector{y0, y1, y2});
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice1, y1)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice2, y2))},
+                                       ParameterVector{y0, y1, y2});
         manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
@@ -2788,17 +2785,16 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnStridedSlice) 
                                                          std::vector<int64_t>{0},
                                                          std::vector<int64_t>{1});  // end_mask: to the end
 
-        model = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                         make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-            ParameterVector{y0, y1});
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                       ParameterVector{y0, y1});
         manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
         auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
-        model_ref = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1)}, ParameterVector{y0, y1});
+        model_ref = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1)},
+                                           ParameterVector{y0, y1});
     }
 }
 
@@ -2837,10 +2833,9 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice0 = make_unit_v8_slice(concat, zero, numel_of(y0));
              auto slice1 = make_unit_v8_slice(concat, numel_of(y0), to_end);  // separate ReduceProd instance
 
-             return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                              make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-                 ParameterVector{y0, y1});
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
          },
          "NonSharedBoundary"},
         {[] {
@@ -2857,10 +2852,9 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice0 = std::make_shared<op::v8::Slice>(concat, zero, boundary, step2, axes);  // non-unit step
              auto slice1 = std::make_shared<op::v8::Slice>(concat, boundary, to_end, one, axes);
 
-             return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                              make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-                 ParameterVector{y0, y1});
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
          },
          "StepNot1"},
         {[] {
@@ -2875,10 +2869,9 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice0 = make_unit_v8_slice(concat, zero, boundary);
              auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
 
-             return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y1)),
-                              make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-                 ParameterVector{y0, y1});
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y1)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
          },
          "ReshapeBackShapeMismatch"},
         {[] {
@@ -2894,8 +2887,7 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
 
              return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                              make_shared<v0::Result>(slice1)},
+                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)), make_shared<v0::Result>(slice1)},
                  ParameterVector{y0, raw1});
          },
          "InputNotFlatten"},
@@ -2910,10 +2902,9 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice0 = make_unit_v8_slice(concat, zero, boundary);
              auto slice1 = make_unit_v8_slice(concat, boundary, numel_of(y1));  // finite, not to-end
 
-             return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                              make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-                 ParameterVector{y0, y1});
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
          },
          "LastNotToEnd"},
         {[] {
@@ -2929,11 +2920,10 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
              auto extra = std::make_shared<op::v0::Relu>(slice0);
 
-             return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                              make_shared<v0::Result>(extra),
-                              make_shared<v0::Result>(reshape_to_like(slice1, y1))},
-                 ParameterVector{y0, y1});
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(extra),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
          },
          "SliceHasExtraConsumer"},
         {[] {
@@ -2949,11 +2939,10 @@ INSTANTIATE_TEST_SUITE_P(
              auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
              auto extra = std::make_shared<op::v0::Relu>(concat);
 
-             return make_shared<ov::Model>(
-                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
-                              make_shared<v0::Result>(reshape_to_like(slice1, y1)),
-                              make_shared<v0::Result>(extra)},
-                 ParameterVector{y0, y1});
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1)),
+                                                        make_shared<v0::Result>(extra)},
+                                           ParameterVector{y0, y1});
          },
          "ConcatHasExtraUser"},
     }),
@@ -2979,16 +2968,15 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnReversedSliceO
         auto slice1 = make_unit_v8_slice(concat, boundary, to_end);  // built first: covers y1's region
         auto slice0 = make_unit_v8_slice(concat, zero, boundary);    // built second: covers y0's region
 
-        model = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(reshape_to_like(slice1, y1)),
-                         make_shared<v0::Result>(reshape_to_like(slice0, y0))},
-            ParameterVector{y0, y1});
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice1, y1)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice0, y0))},
+                                       ParameterVector{y0, y1});
         manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
         auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
-        model_ref = make_shared<ov::Model>(
-            ResultVector{make_shared<v0::Result>(y1), make_shared<v0::Result>(y0)}, ParameterVector{y0, y1});
+        model_ref = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(y1), make_shared<v0::Result>(y0)},
+                                           ParameterVector{y0, y1});
     }
 }
