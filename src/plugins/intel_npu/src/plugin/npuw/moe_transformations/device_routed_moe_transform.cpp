@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "../logging.hpp"
+#include "moe_transformation_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/ops.hpp"
 
@@ -57,23 +58,6 @@ inline ov::Output<ov::Node> get_weight_source(const ov::Output<ov::Node>& input)
         return convert->input_value(0);
     }
     return input;
-}
-
-// Returns true if the node's output is entirely determined by constants
-// (no data-dependent values from Parameters flow through it)
-bool is_constant_derived(const std::shared_ptr<ov::Node>& n) {
-    if (!n)
-        return false;
-    if (std::dynamic_pointer_cast<ov::op::v0::Constant>(n))
-        return true;
-    if (auto conv = std::dynamic_pointer_cast<ov::op::v0::Convert>(n)) {
-        return is_constant_derived(conv->input_value(0).get_node_shared_ptr());
-    }
-    if (auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(n)) {
-        return is_constant_derived(mul->input_value(0).get_node_shared_ptr()) &&
-               is_constant_derived(mul->input_value(1).get_node_shared_ptr());
-    }
-    return false;
 }
 
 // Check if a reshape operation is unsqueeze-like (only inserts dimensions with size 1).
@@ -279,7 +263,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
             auto inp_node = n->input_value(i).get_node_shared_ptr();
             if (visited.count(inp_node))
                 continue;
-            if (is_constant_derived(inp_node))
+            if (moe_utils::is_constant_derived(inp_node))
                 continue;
             if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(inp_node))
                 continue;
