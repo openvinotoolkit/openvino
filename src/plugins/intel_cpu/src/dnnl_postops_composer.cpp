@@ -736,7 +736,8 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                             ov::element::Type dstPrc,
                                             const dnnl::engine& engine) {
     auto shape = paramsPtr->getShape().getStaticDims();
-    if (all_of(1U, shape.size(), shape[0])) {
+    // Use short-circuit && to safely guard shape[0] access: shape must be non-empty first
+    if (shape.size() == 1U && shape[0] == 1U) {
         shape.push_back(1);
     }
 
@@ -754,6 +755,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                         DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
                                         dnnl::memory::format_tag::io);
     auto dstMem = std::make_shared<Memory>(engine, dstMemoryDesc);
+    dstMem->nullify();
     auto srcFormat = needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io;
 
     DnnlBlockedMemoryDesc srcMemoryDesc(
