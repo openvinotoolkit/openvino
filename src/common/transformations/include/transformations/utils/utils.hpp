@@ -107,8 +107,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
-    if (!is_scalar_or_single_elem) {
+    if (!is_scalar_or_single_elem_constant(constant)) {
         return false;
     }
 

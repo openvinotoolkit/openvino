@@ -18,6 +18,7 @@
 
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
@@ -27,37 +28,16 @@ int64_t get_system_page_size() {
     return page_size;
 }
 
-/** @brief Represents a memory region aligned to system page boundaries. */
-struct PageAlignedRegion {
-    uintptr_t m_address = 0;  //!< Page-aligned base address (rounded down to page boundary)
-    size_t m_length = 0;      //!< Total length of the aligned region including the gap
-    size_t m_gap = 0;         //!< Gap from the aligned address to the original unaligned address
-};
-
-/**
- * @brief Aligns a memory region to system page boundaries.
- *
- * @param base      The base address of the memory region.
- * @param raw_len   The length of the memory region.
- * @param page_size The system page size.
- * @return The aligned memory region.
- */
-constexpr PageAlignedRegion align_to_page(uintptr_t base, size_t raw_len, size_t page_size) {
-    const auto aligned = (base / page_size) * page_size;
-    const auto gap = base - aligned;
-    return {aligned, raw_len + gap, gap};
-}
-
 /**
  * @brief Creates a memory region for mmap operations.
  *
  * @param offset The offset within the mmap region.
  * @param size   The size of the region.
- * @return PageAlignedRegion The aligned memory region.
+ * @return AlignedRegion The aligned memory region.
  */
-inline PageAlignedRegion make_mmap_region(size_t offset, size_t size) {
+inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    return align_to_page(static_cast<uintptr_t>(offset), size, page_size);
+    return util::align_region(static_cast<uintptr_t>(offset), size, page_size);
 }
 
 /**
@@ -67,16 +47,16 @@ inline PageAlignedRegion make_mmap_region(size_t offset, size_t size) {
  * @param mapping_size The size of the mapped memory region.
  * @param offset       The offset within the mapped memory region.
  * @param size         The size of the region.
- * @return PageAlignedRegion The aligned memory region.
+ * @return AlignedRegion The aligned memory region.
  */
-inline PageAlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
+inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
     if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
         return {};
     } else {
         const auto available = mapping_size - offset;
         const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-        return align_to_page(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+        return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
     }
 }
 }  // namespace util
@@ -86,42 +66,39 @@ namespace {
  * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
  *
  * Spawns worker threads that each read one byte per page in their assigned range.
- * No-op if data is null or size is below 4 MB. Below that threshold the overhead of spawning
- * threads exceeds the benefit.
+ * No-op if data is null or size is below the prefault threshold. Below that threshold the overhead
+ * of spawning threads exceeds the benefit.
  *
- * @param data  Pointer to the start of the memory region.
- * @param size  Number of bytes in the region.
+ * @param data                Pointer to the start of the memory region.
+ * @param size                Number of bytes in the region.
+ * @param prefault_threshold  Minimum size in bytes to trigger parallel prefaulting (default 4 MiB).
  */
-void populate_pages(void* data, size_t size) {
-    constexpr std::size_t prefault_threshold = 4 * 1024 * 1024;  // 4 MB
+void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 1024 * 1024) {
     if (data == nullptr || size < prefault_threshold)
         return;
 
     const auto page = static_cast<size_t>(util::get_system_page_size());
-    const auto base_addr = reinterpret_cast<uintptr_t>(data);
-    const auto aligned_addr = (base_addr / page) * page;
-    const auto gap = base_addr - aligned_addr;
-    const auto total_length = size + gap;
-    const std::size_t pages = (total_length + page - 1) / page;
+    const auto& [aligned_addr, total_length, gap] = util::align_region(reinterpret_cast<uintptr_t>(data), size, page);
+    const size_t pages = (total_length + page - 1) / page;
 
-    const std::size_t hw_threads = std::thread::hardware_concurrency();
-    constexpr std::size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MB per thread minimum
-    constexpr std::size_t max_prefault_threads = 10;
-    const std::size_t num_threads =
-        std::min({hw_threads, pages, max_prefault_threads, std::max<std::size_t>(1, total_length / min_chunk_size)});
+    const size_t hw_threads = std::thread::hardware_concurrency();
+    constexpr size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MiB per thread minimum
+    constexpr size_t max_prefault_threads = 10;
+    const size_t num_threads =
+        std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, total_length / min_chunk_size)});
 
-    std::atomic<std::uint64_t> populate_sink{0};
+    std::atomic<uint64_t> populate_sink{0};  // prevents optimization of the loop away as a no-op
     std::vector<std::thread> threads;
-    char* const base = reinterpret_cast<char*>(aligned_addr);
+    const auto base = reinterpret_cast<const char*>(aligned_addr);
 
-    for (std::size_t tid = 0; tid < num_threads; ++tid) {
+    for (size_t tid = 0; tid < num_threads; ++tid) {
         threads.emplace_back([&, tid] {
-            const std::size_t begin_page = pages * tid / num_threads;
-            const std::size_t end_page = pages * (tid + 1) / num_threads;
-            std::uint64_t local = 0;
+            const size_t begin_page = pages * tid / num_threads;
+            const size_t end_page = pages * (tid + 1) / num_threads;
+            uint64_t local = 0;
 
-            for (std::size_t p = begin_page; p < end_page; ++p) {
-                const std::size_t off = p * page;
+            for (size_t p = begin_page; p < end_page; ++p) {
+                const size_t off = p * page;
                 if (off < total_length) {
                     local += static_cast<unsigned char>(base[off]);
                 }
@@ -129,8 +106,9 @@ void populate_pages(void* data, size_t size) {
             populate_sink.fetch_add(local);
         });
     }
-    for (auto& t : threads)
+    for (auto& t : threads) {
         t.join();
+    }
 }
 }  // namespace
 
@@ -250,8 +228,9 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        if (m_data == nullptr || offset >= m_size)
+        if (m_data == nullptr || offset >= m_size) {
             return;
+        }
 
         const auto available = m_size - offset;
         const auto effective_size = (size == auto_size) ? available : std::min(size, available);
@@ -265,7 +244,10 @@ public:
     }
 };
 
-std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path,
+                                               size_t offset,
+                                               size_t size,
+                                               bool /* no_placeholder */) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path, offset, size);
     return holder;

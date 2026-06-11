@@ -1,5 +1,25 @@
 schema_version: 1
 suite: python
+reporting:
+  label: Python
+  artifact_group: python
+  artifact_name_template: coverage-{suite}-{lane}
+  selection_env: PY_TEST_NAMES
+  stats_file: python-coverage-stats.env
+  duration_file: python-test-durations.csv
+  coverage_file: python-coverage.xml
+  extra_files:
+    - coverage.info
+  debug_dirs:
+    - src: .tmp/python-coverage
+      dest: python-coverage-debug
+  uploads:
+    - name_template: Python API, {lane}
+      file: python-coverage.xml
+      flag_template: python-api-frontend-layer-ovc-{lane}
+    - name_template: C++ runtime, Python suite, {lane}
+      file: coverage.info
+      flag_template: cpp-runtime-python-{lane}
 tests:
   - name: pyopenvino
     kind: pytest
