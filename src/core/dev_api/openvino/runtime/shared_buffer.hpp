@@ -44,12 +44,27 @@ public:
     }
 
 protected:
+    template <typename U>
+    struct is_aligned_buffer_ptr : std::false_type {};
+    template <typename U>
+    struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
+    template <typename U>
+    static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
+
     virtual void hint_evict(size_t offset, size_t size) noexcept override {
         if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
             if (m_shared_object) {
                 m_shared_object->hint_evict(offset, size);
             }
         } else {
+        }
+    }
+
+    void hint_prefetch() const override {
+        if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (this->m_shared_object) {
+                AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
+            }
         }
     }
 
@@ -109,17 +124,10 @@ protected:
 
 template <typename T>
 class SharedBuffer : public SharedBufferBase<T> {
-    template <typename U>
-    struct is_aligned_buffer_ptr : std::false_type {};
-    template <typename U>
-    struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
-    template <typename U>
-    static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
-
     static std::shared_ptr<IBufferDescriptor> get_or_make_descriptor(const T& shared_object) {
         if constexpr (std::is_same_v<T, std::shared_ptr<ov::MappedMemory>>) {
             return detail::create_mmap_descriptor(shared_object);
-        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
+        } else if constexpr (SharedBufferBase<T>::template is_aligned_buffer_ptr_v<T>) {
             return shared_object ? shared_object->get_descriptor() : nullptr;
         } else {
             return nullptr;
