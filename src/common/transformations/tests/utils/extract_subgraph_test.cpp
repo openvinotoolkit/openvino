@@ -12,11 +12,16 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/util/variable.hpp"
+
+namespace ov::test {
 
 // Builds:  param_a -> relu -> add -> result
 //                    param_b -^
@@ -232,3 +237,111 @@ TEST(ExtractSubgraphTest, MultimapOverload_UnknownOutputNameThrows) {
 
     EXPECT_THROW(ov::util::extract_subgraph(model, inputs_map, outputs_map), ov::Exception);
 }
+
+// Builds a stateful model with a sink:
+//   param -> relu -> result
+//                \-> assign (sink, writes to variable)
+//   read_value (reads from same variable) feeds into relu
+//
+// Simplified topology:
+//   read_value(variable) -> relu -> result
+//                               \-> assign(variable)
+static std::shared_ptr<ov::Model> build_stateful_model() {
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::Shape{1, 4}, ov::element::f32, "var_0"});
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    param->set_friendly_name("Param");
+
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
+    read_value->set_friendly_name("ReadValue");
+
+    auto relu = std::make_shared<ov::op::v0::Relu>(read_value);
+    relu->set_friendly_name("Relu");
+
+    auto assign = std::make_shared<ov::op::v6::Assign>(relu, variable);
+    assign->set_friendly_name("Assign");
+
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
+    result->set_friendly_name("Result");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::SinkVector{assign},
+                                       ov::ParameterVector{param},
+                                       ov::op::util::VariableVector{variable});
+}
+
+TEST(ExtractSubgraphTest, CoreOverload_StatefulModel_SinkIncluded) {
+    auto model = build_stateful_model();
+
+    // Extract subgraph: cut at Relu input, output at Relu output
+    // The Assign sink consumes Relu's output, so it should be included in the extracted model
+    ov::op::v0::Relu* relu_ptr = nullptr;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (op->get_friendly_name() == "Relu")
+            relu_ptr = ov::as_type<ov::op::v0::Relu>(op.get());
+    }
+    ASSERT_NE(relu_ptr, nullptr);
+
+    auto subgraph = ov::util::extract_subgraph({relu_ptr->input(0)}, {relu_ptr->output(0)});
+
+    EXPECT_EQ(subgraph->get_sinks().size(), 1u);
+    EXPECT_EQ(subgraph->get_results().size(), 1u);
+    EXPECT_EQ(subgraph->get_parameters().size(), 1u);
+
+    bool has_assign = false;
+    for (const auto& op : subgraph->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v6::Assign>(op)) {
+            has_assign = true;
+        }
+    }
+    EXPECT_TRUE(has_assign);
+}
+
+TEST(ExtractSubgraphTest, MultimapOverload_StatefulModel_SinkIncluded) {
+    auto model = build_stateful_model();
+
+    // Extract Relu with its sink (Assign consumes Relu output)
+    const std::multimap<std::string, size_t> inputs_map = {{"Relu", 0}};
+    const std::multimap<std::string, size_t> outputs_map = {{"Relu", 0}};
+
+    auto subgraph = ov::util::extract_subgraph(model, inputs_map, outputs_map);
+
+    EXPECT_EQ(subgraph->get_sinks().size(), 1u);
+    EXPECT_EQ(subgraph->get_results().size(), 1u);
+    EXPECT_EQ(subgraph->get_parameters().size(), 1u);
+
+    auto expected_var = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::Shape{1, 4}, ov::element::f32, "var_0"});
+    auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
+    auto expected_relu = std::make_shared<ov::op::v0::Relu>(expected_param);
+    expected_relu->set_friendly_name("Relu");
+    auto expected_assign = std::make_shared<ov::op::v6::Assign>(expected_relu, expected_var);
+    expected_assign->set_friendly_name("Assign");
+    auto expected_result = std::make_shared<ov::op::v0::Result>(expected_relu);
+    auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result},
+                                                ov::SinkVector{expected_assign},
+                                                ov::ParameterVector{expected_param},
+                                                ov::op::util::VariableVector{expected_var});
+
+    const auto cmp = FunctionsComparator::all_flags_enabled();
+    const auto res = cmp.compare(subgraph, expected);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(ExtractSubgraphTest, MultimapOverload_StatefulModel_SinkExcluded) {
+    auto model = build_stateful_model();
+
+    // Extract only ReadValue (before Relu). The Assign doesn't consume ReadValue's output
+    // directly, so it should NOT be in the extracted subgraph.
+    const std::multimap<std::string, size_t> inputs_map = {{"ReadValue", 0}};
+    const std::multimap<std::string, size_t> outputs_map = {{"ReadValue", 0}};
+
+    auto subgraph = ov::util::extract_subgraph(model, inputs_map, outputs_map);
+
+    EXPECT_EQ(subgraph->get_sinks().size(), 0u);
+    EXPECT_EQ(subgraph->get_results().size(), 1u);
+    EXPECT_EQ(subgraph->get_parameters().size(), 1u);
+}
+
+}  // namespace ov::test

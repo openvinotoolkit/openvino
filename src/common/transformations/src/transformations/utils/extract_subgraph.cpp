@@ -6,12 +6,55 @@
 
 #include <map>
 #include <set>
+#include <stack>
+#include <unordered_set>
 #include <utility>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/sink.hpp"
 
 namespace ov::util {
+
+namespace {
+ov::SinkVector collect_sinks(const ov::OutputVector& subgraph_outputs,
+                             const ov::ParameterVector& subgraph_parameters) {
+    std::unordered_set<ov::Node*> param_set;
+    for (const auto& p : subgraph_parameters) {
+        param_set.insert(p.get());
+    }
+
+    // First pass: collect all nodes in the subgraph by walking backward from outputs
+    std::unordered_set<ov::Node*> subgraph_nodes;
+    std::stack<ov::Node*> stack;
+    for (const auto& output : subgraph_outputs) {
+        stack.push(output.get_node());
+    }
+    while (!stack.empty()) {
+        auto* node = stack.top();
+        stack.pop();
+        if (!subgraph_nodes.insert(node).second || param_set.count(node)) {
+            continue;
+        }
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            stack.push(node->get_input_node_ptr(i));
+        }
+    }
+
+    // Second pass: find Sink nodes that consume outputs of subgraph nodes
+    ov::SinkVector sinks;
+    for (auto* node : subgraph_nodes) {
+        for (const auto& output : node->shared_from_this()->outputs()) {
+            for (const auto& target_input : output.get_target_inputs()) {
+                if (auto sink = std::dynamic_pointer_cast<ov::op::Sink>(target_input.get_node()->shared_from_this())) {
+                    sinks.push_back(sink);
+                }
+            }
+        }
+    }
+    return sinks;
+}
+}  // namespace
 
 std::shared_ptr<ov::Model> extract_subgraph(const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
                                             const ov::OutputVector& subgraph_outputs) {
@@ -37,7 +80,9 @@ std::shared_ptr<ov::Model> extract_subgraph(const std::vector<ov::Input<ov::Node
     OPENVINO_ASSERT(subgraph_parameters.size() == replaced_outputs.size(),
                     "extract_subgraph: number of subgraph_parameters is not equal to the number of replaced_outputs");
 
-    auto subgraph = std::make_shared<ov::Model>(subgraph_outputs, subgraph_parameters)->clone();
+    auto sinks = collect_sinks(subgraph_outputs, subgraph_parameters);
+    auto subgraph =
+        std::make_shared<ov::Model>(subgraph_outputs, sinks, subgraph_parameters)->clone();
 
     for (size_t i = 0; i < subgraph_parameters.size(); ++i) {
         subgraph_parameters[i]->output(0).replace(replaced_outputs[i]);
