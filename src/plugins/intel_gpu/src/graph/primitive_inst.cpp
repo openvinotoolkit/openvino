@@ -1913,6 +1913,10 @@ void primitive_inst::do_runtime_in_place_crop() {
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<crop>()) {
             if (u->get_node().can_be_optimized()) {
+                if (u->get_node().get_dependency_index(get_node()) == 2) {
+                    // this is crop's split lengths, at this moment it's not executed and crop's update_shape will try read output, so skip
+                    continue;
+                }
                 GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
                 u->update_shape();
                 u->_update_shape_done_by_other = true;
