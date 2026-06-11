@@ -10,6 +10,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/op/swish.hpp"
 
 using namespace CPUTestUtils;
 
@@ -29,6 +30,7 @@ typedef std::tuple<
         element::Type,                     // input precision
         QuantizationParams,                // quantization parameters
         bool,                              // bias presence
+        bool,                              // swish presence
         std::string                        // device name
 > ConvAndFQTestParams;
 
@@ -36,7 +38,7 @@ class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
                   virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
-        const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = obj.param;
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
@@ -50,6 +52,7 @@ public:
         }
         results << "_fqShapes=" << ov::util::vector_to_string(quantizationParams.fqConstShapes)
                 << "_withBias=" << withBias
+                << "_withSwish=" << withSwish
                 << "_perChannelWeightsScale=" << quantizationParams.perChannelWeightsScale
                 << "_targetDevice=" << targetName;
 
@@ -58,7 +61,7 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = this->GetParam();
         abs_threshold = 1e-2f;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
@@ -121,6 +124,9 @@ protected:
             auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
             fqInput = convBiasAdd;
         }
+        if (withSwish) {
+            fqInput = std::make_shared<op::v4::Swish>(fqInput);
+        }
 
         auto fq_after = ov::test::utils::make_fake_quantize(fqInput,
                                                             inputPrecision,
@@ -164,7 +170,7 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
-    const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
+    const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = this->GetParam();
     checkConvolutionPrecision(quantizationParams.expectedPrecision);
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
@@ -202,6 +208,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(quantizationParams),
                                             ::testing::Values(false, true),
+                                            ::testing::Values(false),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
@@ -211,6 +218,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQMixedOutput_CPU,
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(mixedOutputQuantizationParams),
                                             ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(quantizationParams),
+                                            ::testing::Values(true), //withBias
+                                            ::testing::Values(true), //withSwish
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 }  // namespace
