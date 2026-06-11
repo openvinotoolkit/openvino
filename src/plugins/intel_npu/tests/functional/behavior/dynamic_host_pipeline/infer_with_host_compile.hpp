@@ -250,7 +250,8 @@ bool InferWithHostCompileTests::logCheck(const ScopedLogCapture& logCapture, Bin
     } else {
         // DEFAULT mode
         if (BindingStatus::ptr_changed == status) {
-            if (mode == "ENABLE_MUTABLE_COMMANDLIST") {
+            if (mode == "ENABLE_MUTABLE_COMMANDLIST" &&
+                logCapture.str().find("optimized dynamic stride is supported") != std::string::npos) {
                 // If ptr changed and mutable command list is enabled, update command list is expected.
                 return logCapture.str().find(kLogUpdateCommandList) != std::string::npos;
             }

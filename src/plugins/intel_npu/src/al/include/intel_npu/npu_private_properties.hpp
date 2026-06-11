@@ -158,7 +158,7 @@ inline std::ostream& operator<<(std::ostream& out, const CommandListMode& fmt) {
         out << "FORCE_COMMANDLIST_RECORDING_ONLY";
     } break;
     default:
-        OPENVINO_THROW("Unsupported value for the command list mode:", fmt);
+        OPENVINO_THROW("Unsupported value for the command list mode: ", static_cast<uint32_t>(fmt));
     }
     return out;
 }
@@ -373,7 +373,8 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
  * @brief [Only for NPU Plugin]
  * Type: String. Default is "DEFAULT".
  * Selects the command list update strategy used by the plugin.
- * Possible values: "DEFAULT", "FORCE_COMMANDLIST_RECORDING_ONLY", "FORCE_UPDATE_MUTABLE_COMMANDLIST".
+ * Possible values: "DEFAULT", "ENABLE_MUTABLE_COMMANDLIST", "FORCE_COMMANDLIST_RECORDING_ONLY",
+ * "FORCE_UPDATE_MUTABLE_COMMANDLIST".
  */
 static constexpr ov::Property<CommandListMode> commandlist_mode{"NPU_COMMANDLIST_MODE"};
 
