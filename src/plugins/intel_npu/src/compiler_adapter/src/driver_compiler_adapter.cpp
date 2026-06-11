@@ -344,12 +344,12 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 }
 
 bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    if (ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements == nullptr) {
-        OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
-    }
-
     if (compatibilityDescriptor.empty()) {
         return false;
+    }
+
+    if (ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements == nullptr) {
+        OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
     }
 
     ze_validate_runtime_requirements_output_t output = {};
@@ -372,8 +372,7 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
 }
 
 std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
-    if (_zeroInitStruct == nullptr || graphHandle == nullptr ||
-        ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements == nullptr) {
+    if (graphHandle == nullptr || ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements == nullptr) {
         return std::nullopt;
     }
 
@@ -394,8 +393,12 @@ std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor
         return std::nullopt;
     }
 
-    // The driver writes a null-terminated string of 'size' bytes (terminator included); the stored
-    // descriptor keeps that exact byte layout so it round-trips identically through blob metadata.
+    // The driver writes a null-terminated string; size includes the terminator (confirmed empirically).
+    // This matches the VCL/CIP convention (export.cpp: compatStrSize = compatibilityData.size() + 1),
+    // so both producers yield a std::string whose .size() == textLen + 1 with a trailing '\0'.
+    // All consumers handle it correctly (binary metadata round-trips the raw bytes; write_as_text
+    // already strips the '\0' before serializing; zeDeviceValidateRuntimeRequirements stops at the
+    // first NUL in the .c_str() buffer). No normalization is needed here.
     std::string descriptor(size, '\0');
     result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, descriptor.data());
     if (result != ZE_RESULT_SUCCESS) {

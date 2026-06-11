@@ -16,9 +16,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
-using namespace ov::test::behavior;
-
-namespace {
+namespace ov::test::behavior {
 
 // Tests specific for RUNTIME_REQUIREMENTS and COMPATIBILITY_CHECK properties
 class ClassCompatibilityStringTestNPU : public OVCompiledModelPropertiesBase,
@@ -254,4 +252,4 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheckCID
     ASSERT_TRUE(result == ov::CompatibilityCheck::SUPPORTED);
 }
 
-}  // namespace
+}  // namespace ov::test::behavior
