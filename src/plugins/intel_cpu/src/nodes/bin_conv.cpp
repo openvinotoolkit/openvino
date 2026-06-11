@@ -1416,7 +1416,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                 const auto kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
 
                 const auto i_top_overflow = nstl::max(0, (padT - oh * KSH));
-                const auto i_bottom_overflow = nstl::max(0, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
+                const auto i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
                 const auto kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
 
                 return static_cast<float>(IC * kh_padding * kw_padding);

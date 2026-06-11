@@ -6,6 +6,7 @@
 
 #include <memory_desc/cpu_memory_desc_utils.h>
 
+#include <cstdint>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -33,9 +34,9 @@ namespace ov::intel_cpu {
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
 
-    for (size_t remaining = strides.size(); remaining > 1; --remaining) {
-        const size_t i = remaining - 2;
-        strides[i] = strides[i + 1] * dims[i + 1];
+    for (auto i = static_cast<int64_t>(strides.size()) - 2; i >= 0; --i) {
+        const auto index = static_cast<size_t>(i);
+        strides[index] = strides[index + 1] * dims[index + 1];
     }
 
     return strides;

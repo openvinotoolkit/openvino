@@ -659,11 +659,14 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
     params.srcBlockedDims = newSrcDims;
     params.dstStrides.resize(newDstDims.size());
     params.srcStrides.resize(newSrcDims.size());
-    params.dstStrides[params.dstStrides.size() - 1] = params.srcStrides[params.srcStrides.size() - 1] = 1;
-    for (size_t remaining = newDstDims.size() - 1; remaining > 0; --remaining) {
-        size_t i = remaining - 1;
-        params.dstStrides[i] = params.dstStrides[i + 1] * params.dstBlockedDims[i + 1];
-        params.srcStrides[i] = params.srcStrides[i + 1] * params.srcBlockedDims[i + 1];
+    if (!newDstDims.empty()) {
+        params.dstStrides[params.dstStrides.size() - 1] = 1;
+        params.srcStrides[params.srcStrides.size() - 1] = 1;
+        for (int64_t i = static_cast<int64_t>(newDstDims.size()) - 2; i >= 0; --i) {
+            const auto index = static_cast<size_t>(i);
+            params.dstStrides[index] = params.dstStrides[index + 1] * params.dstBlockedDims[index + 1];
+            params.srcStrides[index] = params.srcStrides[index + 1] * params.srcBlockedDims[index + 1];
+        }
     }
 }
 
@@ -706,19 +709,20 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
     indexes.push_back(params.attrs.begin.size() - 1);
 
     OPENVINO_ASSERT(indexes.size() % 2 == 0, "StridedSliceCommonExecutor has incorrect number of elements in indexes.");
-    for (size_t remaining = indexes.size(); remaining > 1; remaining -= 2) {
-        size_t idx = remaining - 1;
-        if (indexes[idx - 1] < indexes[idx]) {
-            for (size_t jdx = indexes[idx]; jdx > indexes[idx - 1]; --jdx) {
-                params.dstBlockedDims[indexes[idx - 1]] *= params.dstBlockedDims[jdx];
-                params.srcBlockedDims[indexes[idx - 1]] *= params.srcBlockedDims[jdx];
-                params.dstStrides[indexes[idx - 1]] /= params.dstBlockedDims[jdx];
-                params.srcStrides[indexes[idx - 1]] /= params.srcBlockedDims[jdx];
+    for (int64_t idx = static_cast<int64_t>(indexes.size()) - 1; idx > 0; idx -= 2) {
+        const auto upper = static_cast<size_t>(idx);
+        const auto lower = upper - 1;
+        if (indexes[lower] < indexes[upper]) {
+            for (size_t jdx = indexes[upper]; jdx > indexes[lower]; --jdx) {
+                params.dstBlockedDims[indexes[lower]] *= params.dstBlockedDims[jdx];
+                params.srcBlockedDims[indexes[lower]] *= params.srcBlockedDims[jdx];
+                params.dstStrides[indexes[lower]] /= params.dstBlockedDims[jdx];
+                params.srcStrides[indexes[lower]] /= params.srcBlockedDims[jdx];
 
-                params.attrs.begin[indexes[idx - 1]] *= static_cast<int>(params.dstBlockedDims[jdx]);
+                params.attrs.begin[indexes[lower]] *= static_cast<int>(params.dstBlockedDims[jdx]);
             }
-            const size_t beginShift = indexes[idx - 1] + 1;
-            const size_t endShift = indexes[idx] + 1;
+            const size_t beginShift = indexes[lower] + 1;
+            const size_t endShift = indexes[upper] + 1;
 
             params.dstBlockedDims.erase(params.dstBlockedDims.begin() + beginShift,
                                         params.dstBlockedDims.begin() + endShift);
@@ -778,10 +782,10 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
 }
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
-    for (size_t remaining = nDims; remaining > 0; --remaining) {
-        size_t j = remaining - 1;
-        indexes[j] = start % dims[j];
-        start = start / dims[j];
+    for (int64_t j = static_cast<int64_t>(nDims) - 1; j >= 0; --j) {
+        const auto index = static_cast<size_t>(j);
+        indexes[index] = start % dims[index];
+        start = start / dims[index];
     }
     return start;
 }
@@ -820,15 +824,15 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculation() {
             srcIndices[j] = srcIdx;
 
             bool out = false;
-            for (size_t remaining = params.nDimsForWork; remaining > 0; --remaining) {
-                size_t k = remaining - 1;
-                coords[k]++;
-                if (coords[k] < params.dstBlockedDims[k]) {
-                    srcIdx += params.attrs.stride[k] * params.srcStrides[k] * params.attrs.dataSize;
+            for (int64_t k = static_cast<int64_t>(params.nDimsForWork) - 1; k >= 0; --k) {
+                const auto index = static_cast<size_t>(k);
+                coords[index]++;
+                if (coords[index] < params.dstBlockedDims[index]) {
+                    srcIdx += params.attrs.stride[index] * params.srcStrides[index] * params.attrs.dataSize;
                     break;
                 }
 
-                coords[k] = 0;
+                coords[index] = 0;
                 out = true;
             }
 

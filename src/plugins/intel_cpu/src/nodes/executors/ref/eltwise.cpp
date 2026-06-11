@@ -372,7 +372,7 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] || src_f[1];
                 break;
             case Algorithm::EltwiseLogicalXor:
-                *dst_ptr_f = static_cast<T>(static_cast<bool>(src_f[0]) != static_cast<bool>(src_f[1]));
+                *dst_ptr_f = static_cast<T>((src_f[0] || src_f[1]) - (src_f[0] && src_f[1]));
                 break;
             case Algorithm::EltwiseLogicalNot:
                 *dst_ptr_f = !src_f[0];
