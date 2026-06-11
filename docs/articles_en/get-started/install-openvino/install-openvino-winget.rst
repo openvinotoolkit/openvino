@@ -10,7 +10,7 @@ Install OpenVINO™ Runtime with WinGet
 
 .. note::
 
-   Note that the WinGet distribution:
+   The WinGet distribution:
 
    * provides OpenVINO Runtime for Windows x64;
    * is delivered as an MSIX package from the WinGet Community Repository;
@@ -33,7 +33,7 @@ Installing OpenVINO Runtime with WinGet
 
       winget --version
 
-   If the command is not available, install or repair App Installer. For more information, see the `Microsoft WinGet documentation <https://learn.microsoft.com/en-us/windows/package-manager/winget/>`__ and the `Microsoft App Installer troubleshooting guide <https://learn.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/troubleshoot-apps-start-failure-use-windows-package-manager>`__.
+   If the command is not available, install or repair App Installer. For details, see the `Microsoft WinGet documentation <https://learn.microsoft.com/en-us/windows/package-manager/winget/>`__ and the `Microsoft App Installer troubleshooting guide <https://learn.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/troubleshoot-apps-start-failure-use-windows-package-manager>`__.
 
 2. Update WinGet package sources:
 
@@ -41,7 +41,7 @@ Installing OpenVINO Runtime with WinGet
 
       winget source update
 
-   For more information, see the `Microsoft documentation for the WinGet source command <https://learn.microsoft.com/en-us/windows/package-manager/winget/source>`__.
+   For details, see the `Microsoft documentation for the WinGet source command <https://learn.microsoft.com/en-us/windows/package-manager/winget/source>`__.
 
 3. Search for the OpenVINO package:
 
@@ -49,7 +49,7 @@ Installing OpenVINO Runtime with WinGet
 
       winget search --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
 
-   For more information, see the `Microsoft documentation for the WinGet search command <https://learn.microsoft.com/en-us/windows/package-manager/winget/search>`__.
+   For details, see the `Microsoft documentation for the WinGet search command <https://learn.microsoft.com/en-us/windows/package-manager/winget/search>`__.
 
 4. Install OpenVINO Runtime:
 
@@ -63,9 +63,9 @@ Installing OpenVINO Runtime with WinGet
 
       winget install --id Intel.OpenVINOToolkit.2026.2.0 --version 2026.2.0.0 -e --source winget
 
-   For more information, see the `Microsoft documentation for the WinGet install command <https://learn.microsoft.com/en-us/windows/package-manager/winget/install>`__.
+   For details, see the `Microsoft documentation for the WinGet install command <https://learn.microsoft.com/en-us/windows/package-manager/winget/install>`__.
 
-Congratulations! You have installed OpenVINO Runtime with WinGet.
+OpenVINO Runtime is now installed using WinGet.
 
 Installing a specific OpenVINO release
 ++++++++++++++++++++++++++++++++++++++
@@ -107,7 +107,7 @@ To check that the package is installed, use the WinGet package identifier:
 
    winget list --id Intel.OpenVINOToolkit.2026.2.0 -e
 
-For more information, see the `Microsoft documentation for the WinGet list command <https://learn.microsoft.com/en-us/windows/package-manager/winget/list>`__.
+For details, see the `Microsoft documentation for the WinGet list command <https://learn.microsoft.com/en-us/windows/package-manager/winget/list>`__.
 
 To show package metadata available from WinGet, use the WinGet package identifier:
 
@@ -115,7 +115,7 @@ To show package metadata available from WinGet, use the WinGet package identifie
 
    winget show --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
 
-For more information, see the `Microsoft documentation for the WinGet show command <https://learn.microsoft.com/en-us/windows/package-manager/winget/show>`__.
+For details, see the `Microsoft documentation for the WinGet show command <https://learn.microsoft.com/en-us/windows/package-manager/winget/show>`__.
 
 Locating the OpenVINO installation
 ++++++++++++++++++++++++++++++++++
@@ -126,7 +126,7 @@ The WinGet package is installed as an MSIX package, so Windows manages the insta
 
    (Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.0").InstallLocation
 
-For more information, see the `Microsoft documentation for Get-AppxPackage <https://learn.microsoft.com/en-us/powershell/module/appx/get-appxpackage>`__.
+For details, see the `Microsoft documentation for Get-AppxPackage <https://learn.microsoft.com/en-us/powershell/module/appx/get-appxpackage>`__.
 
 You can use this path as the OpenVINO installation root in your build scripts or local development environment.
 
@@ -155,7 +155,7 @@ Once OpenVINO Runtime is installed via WinGet, you can remove it using the WinGe
 
    winget uninstall --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
 
-For more information, see the `Microsoft documentation for the WinGet uninstall command <https://learn.microsoft.com/en-us/windows/package-manager/winget/uninstall>`__.
+For details, see the `Microsoft documentation for the WinGet uninstall command <https://learn.microsoft.com/en-us/windows/package-manager/winget/uninstall>`__.
 
 If you have multiple OpenVINO releases installed side by side, run the uninstall command for each WinGet package identifier you want to remove.
 
