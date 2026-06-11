@@ -75,7 +75,12 @@
 #if CL_HPP_TARGET_OPENCL_VERSION >= 200 && CL_HPP_MINIMUM_OPENCL_VERSION >= 200
 namespace cl {
 namespace detail {
-CL_HPP_PARAM_NAME_INFO_1_1_DEPRECATED_IN_2_0_(CL_HPP_DECLARE_PARAM_TRAITS_)
+// CL_DEVICE_HOST_UNIFIED_MEMORY is deprecated in OpenCL 2.0, so OpenCL C++ headers
+// do not expose param_traits for it when targeting OpenCL 2.0+. OpenVINO still uses
+// this device query to distinguish integrated and discrete GPUs.
+#if defined(CL_DEVICE_HOST_UNIFIED_MEMORY)
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_HOST_UNIFIED_MEMORY, cl_bool)
+#endif
 }
 }
 #endif
