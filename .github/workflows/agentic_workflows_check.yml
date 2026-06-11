@@ -28,7 +28,9 @@ jobs:
       - name: Install gh aw extension
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh extension install github/gh-aw
+        run: |
+          gh extension install github/gh-aw
+          gh aw --version
 
       - name: Compile and verify agentic workflows
         env:
