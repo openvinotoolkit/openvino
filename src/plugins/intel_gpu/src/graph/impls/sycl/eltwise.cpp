@@ -372,7 +372,6 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
 
         if (all_sycl_buffer) {
             if (out_t == ov::element::f32) {
-                OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
                 auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<float>();
                 auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<float>();
                 auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<float>();
@@ -383,7 +382,6 @@ struct eltwise_sycl : typed_primitive_sycl_impl<eltwise> {
                 }, op);
                 return stream.create_base_event(ev);
             } else if (out_t == ov::element::f16) {
-                OPENVINO_ASSERT(input0->get_allocation_type() == cldnn::allocation_type::sycl_buffer);
                 auto buf_in0 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input0)->get_buffer().reinterpret<::sycl::half>();
                 auto buf_in1 = std::dynamic_pointer_cast<sycl::gpu_buffer>(input1)->get_buffer().reinterpret<::sycl::half>();
                 auto buf_out = std::dynamic_pointer_cast<sycl::gpu_buffer>(output)->get_buffer().reinterpret<::sycl::half>();
