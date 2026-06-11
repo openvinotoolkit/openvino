@@ -69,6 +69,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                  const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                                 std::shared_ptr<DynamicArguments> arguments,
                                  size_t batch_size)
     : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
@@ -91,7 +92,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
-        _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
+        _command_lists.emplace_back(
+            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, arguments));
     }
 
     if (_sync_output_with_fences) {
@@ -104,8 +106,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     for (size_t i = 0; i < _batch_size; i++) {
         _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
 
-        _command_lists.at(i)->initArguments(_graph->get_metadata());
-        auto& graphArguments = _command_lists.at(i)->getBinding();
+        _command_lists.at(i)->initArgumentsInOutParam(_graph->get_metadata(), arguments);
+        auto& dynamicArguments = _command_lists.at(i)->getArguments();
 
         size_t io_index = 0;
         for (const auto& desc : _graph->get_metadata().inputs) {
@@ -119,10 +121,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
                 const auto& tensor = input_tensors.at(io_index).at(i);
                 size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
-                                                     tensor->data(),
-                                                     tensor->get_shape(),
-                                                     get_tensor_strides(tensor, elementSize));
+                dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                                       tensor->data(),
+                                                       tensor->get_shape(),
+                                                       get_tensor_strides(tensor, elementSize));
                 ++io_index;
                 continue;
             }
@@ -131,13 +133,13 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             const auto& tensor = input_tensors.at(io_index).at(0);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                graphArguments.setArgumentProperties(
+                dynamicArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
                     tensor->get_shape(),
                     get_tensor_strides(tensor, elementSize));
             } else {
-                graphArguments.setArgumentProperties(
+                dynamicArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     tensor->get_shape(),
@@ -152,13 +154,13 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
             const auto& tensor = output_tensors.at(io_index);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                graphArguments.setArgumentProperties(
+                dynamicArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
                     tensor->get_shape(),
                     get_tensor_strides(tensor, elementSize));
             } else {
-                graphArguments.setArgumentProperties(
+                dynamicArguments.setArgumentProperties(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     tensor->get_shape(),
@@ -199,19 +201,19 @@ void DynamicPipeline::push() {
         }
 
         auto& command_lists = _command_lists.at(i);
-        auto& graphArguments = command_lists->getBinding();
+        auto& dynamicArguments = command_lists->getArguments();
         if (_logger.level() >= ov::log::Level::DEBUG) {
             _logger.debug("push - inputs info for dynamic graph:");
-            for (auto& memType : graphArguments._inputs) {
+            for (auto& memType : dynamicArguments._inputs) {
                 _logger.debug("push - input: %s", memType.toString().c_str());
             }
             _logger.debug("push - outputs info for dynamic graph:");
-            for (auto& memType : graphArguments._outputs) {
+            for (auto& memType : dynamicArguments._outputs) {
                 _logger.debug("push - output: %s", memType.toString().c_str());
             }
         }
 
-        execute_vm_runtime(vmRuntime, graphArguments, command_lists->getHandles(), commandQueueHandle, fence, event);
+        execute_vm_runtime(vmRuntime, dynamicArguments, command_lists->getHandles(), commandQueueHandle, fence, event);
     }
 
     _logger.debug("push - completed");
@@ -303,6 +305,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
 }
 
 void DynamicPipeline::predict_output_shape(const IGraph& graph,
+                                           DynamicArguments& args,
                                            std::vector<DynamicMemRefType>& inputsMemRef,
                                            std::vector<DynamicMemRefType>& outputsMemRef) {
     Logger logger("DynamicPipeline::predict_output_shape", Logger::global().level());
@@ -324,6 +327,9 @@ void DynamicPipeline::predict_output_shape(const IGraph& graph,
         out.updateMemRefHandleStatus();
         outputs.push_back(out._memRef);
     }
+
+    // Init VM context before VM shape prediction.
+    args.ensureExecutionContext(vmRuntime);
 
     npu_vm_runtime_predict_output_shape_params_t params{};
     params.pInputs = inputs.data();

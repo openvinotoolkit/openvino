@@ -28,6 +28,7 @@ void ZeroDynamicInferRequest::create_pipeline_impl() {
                                           _config,
                                           _levelZeroInputTensors,
                                           _levelZeroOutputTensors,
+                                          _arguments,
                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("create_pipeline_impl - completed");
@@ -201,13 +202,14 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(
 void ZeroDynamicInferRequest::infer_async() {
     _logger.debug("infer_async - started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+
     // Store the predicted output shapes
-    std::vector<DynamicMemRefType> outputPros;
-    predict_shapes(outputPros);
-    check_tensor_and_predicted_shapes(outputPros);
+    std::vector<DynamicMemRefType> outputMemRef;
+    predict_output_shapes(outputMemRef);
+    check_tensor_and_predicted_shapes(outputMemRef);
     prepare_inputs();
     prepare_outputs();
-    update_tensor(outputPros);
+    update_tensor(outputMemRef);
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
     _pipeline->push();
@@ -218,32 +220,37 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<DynamicMemRefTyp
     // But reshape ZeroTensor can be used to avoid recreate pipeline now
     // bool reCreatePipeline = false;
     // Predict output shapes based on current inputs
+
+    if (_arguments == nullptr) {
+        _arguments = std::make_shared<DynamicArguments>();
+    }
+
     if (_graph->get_handle() != nullptr && _isTensorChanged) {
-        std::vector<DynamicMemRefType> inputPros(_metadata.inputs.size());
+        std::vector<DynamicMemRefType> inputMemRef(_metadata.inputs.size());
         outputMemRef.clear();
         outputMemRef.resize(_metadata.outputs.size());
 
         // TODO: Support Batch later
         // Update input Info
         // TENTATIVE CODE TO ALLOCATE a memref handle
-        for (size_t i = 0; i < inputPros.size(); ++i) {
+        for (size_t i = 0; i < inputMemRef.size(); ++i) {
             auto& levelZeroTensor = get_level_zero_input(i);
             auto& userTensor = get_user_input(i);
             if (userTensor != nullptr) {
                 // If userTensor is set, use userTensor to update memref handle
                 const auto userTensorPtr = userTensor._ptr;
                 OPENVINO_ASSERT(userTensorPtr != nullptr, "Input user tensor pointer is null");
-                inputPros[i].set(get_tensor_data_ptr(userTensorPtr), 0, userTensorPtr);
+                inputMemRef[i].set(get_tensor_data_ptr(userTensorPtr), 0, userTensorPtr);
             } else if (levelZeroTensor != nullptr) {
                 // If userTensor is not set, use levelZeroTensor to update memref handle
-                inputPros[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
+                inputMemRef[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
             } else {
                 // If all tensors are not set, use metadata
-                inputPros[i].setArg(nullptr);
-                inputPros[i]._offset = 0;
+                inputMemRef[i].setArg(nullptr);
+                inputMemRef[i]._offset = 0;
                 // TODO : BatchSize not checked here
-                inputPros[i].setSize(_metadata.inputs.at(i).shapeFromCompiler.get_max_shape());
-                inputPros[i].updateStride();
+                inputMemRef[i].setSize(_metadata.inputs.at(i).shapeFromCompiler.get_max_shape());
+                inputMemRef[i].updateStride();
             }
         }
 
@@ -278,7 +285,9 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<DynamicMemRefTyp
             originalOutputMemRef[i]._strides = outputMemRef[i]._strides;
         }
 
-        DynamicPipeline::predict_output_shape(*_graph, inputPros, outputMemRef);
+        // Get VM context before invoking VM shape prediction."
+        DynamicArguments& dynamicArguments = *_arguments;
+        DynamicPipeline::predict_output_shape(*_graph, dynamicArguments, inputMemRef, outputMemRef);
 
         for (size_t i = 0; i < outputMemRef.size(); i++) {
             if (!originalOutputMemRef[i].compare(outputMemRef[i])) {
