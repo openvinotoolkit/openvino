@@ -16,6 +16,8 @@ namespace ov::test::behavior {
 
 inline ::intel_npu::SerializedIR makeTestSerializedIR(const std::shared_ptr<ov::Model>& model,
                                                       const std::shared_ptr<::intel_npu::ZeroInitStructsHolder>& init) {
+    // The test is not concerned with validating the serialization algorithm. Choose the "all-weights-copy" as the
+    // safest version.
     auto props = init->getCompilerProperties();
     return ::intel_npu::compiler_utils::serializeIR(model,
                                                     props.compilerVersion,

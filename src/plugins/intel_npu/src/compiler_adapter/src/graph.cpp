@@ -36,11 +36,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
-    // An empty descriptor from the compiler/driver means "no runtime requirements"; normalize it to
-    // std::nullopt so every producer path (CID fetch, CIP compile, import) and the
-    // RUNTIME_REQUIREMENTS property represent the no-requirement state identically. This mirrors the
-    // metadata layer, which never serializes an empty descriptor (see
-    // Metadata<METADATA_VERSION_2_6>::write_as_text).
+    // empty descriptor means there are no runtime requirements
     if (_compatibilityDescriptor.has_value() && _compatibilityDescriptor->empty()) {
         _compatibilityDescriptor.reset();
     }

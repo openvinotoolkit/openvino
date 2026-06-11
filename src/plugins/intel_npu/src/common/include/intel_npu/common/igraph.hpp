@@ -79,9 +79,7 @@ public:
      * @brief Returns the compatibility descriptor of this graph, if any.
      * @details The descriptor is determined when the graph is created (imported from blob metadata,
      *          returned by the VCL/plugin compiler, or fetched from the driver on the
-     *          compiler-in-driver path) and is immutable thereafter. The base implementation
-     *          returns std::nullopt; only subclasses that carry a descriptor override it. An empty
-     *          descriptor is treated as no descriptor.
+     *          compiler-in-driver path) and is immutable thereafter.
      * @warning The returned view borrows storage owned by the graph; it is valid only while the
      *          graph is alive and must not be retained past the graph's lifetime.
      */

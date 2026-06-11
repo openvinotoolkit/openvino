@@ -63,7 +63,7 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckIsSupported) {
     core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER));
 
     // Test that COMPATIBILITY_CHECK is still present in supported properties when CID is used as the current compiler
-    // type Even if CID does not support the option, the property should be marked as supported since the plugin will
+    // type. Even if CID does not support the option, the property should be marked as supported since the plugin will
     // fallback to CIP
     {
         OV_ASSERT_NO_THROW(properties = core.get_property(deviceName, ov::supported_properties));
@@ -114,8 +114,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     OV_ASSERT_NO_THROW(
         compiledModel =
             core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
-    // RUNTIME_REQUIREMENTS support on the CID path depends on the driver: it is available only when
-    // the driver implements the runtime-requirements extension (zeDeviceGetRuntimeRequirements).
+
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     {
         auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
@@ -221,10 +220,6 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheckCID) {
-    // End-to-end on the compiler-in-driver path: compile with CID, read the model's runtime
-    // requirements, then feed them back through compatibility_check expecting SUPPORTED. This
-    // exercises the CID descriptor fetch (zeDeviceGetRuntimeRequirements) and, when the driver also
-    // supports validation, the CID validation path (zeDeviceValidateRuntimeRequirements).
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::CompiledModel compiledModel;
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
@@ -234,7 +229,6 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheckCID
                             ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
 
-    // The CID runtime-requirements path is only exercised on drivers that implement the extension.
     std::vector<ov::PropertyName> properties;
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     if (find(properties.cbegin(), properties.cend(), ov::runtime_requirements) == properties.cend()) {

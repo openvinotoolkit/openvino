@@ -77,17 +77,15 @@ protected:
     std::unique_ptr<DriverCompilerAdapter> adapter;
 };
 
-// Tests the L0 rejection path for a syntactically invalid requirements string.
-// The full-stack CompatibilityCheckInvalidArgument test fails earlier (metadata parse),
-// so this narrow unit test is the only coverage for the L0 driver validation branch.
+// a E2E test fails earlier (metadata parse), so this narrow unit test is the only coverage for the L0 driver validation
+// branch.
 TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
     bool isCompatible = true;
     OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor("not_a_valid_compat_string"));
     EXPECT_FALSE(isCompatible);
 }
 
-// Tests the empty-string guard in validate_compatibility_descriptor.
-// No full-stack test reaches this branch because compilation never produces an empty descriptor.
+// no E2E test reaches this branch because compilation never produces an empty descriptor.
 TEST_P(DriverCompatStringTest, ValidateRejectsEmptyString) {
     bool isCompatible = true;
     OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor(""));

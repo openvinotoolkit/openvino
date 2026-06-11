@@ -96,9 +96,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
-    // Compiler-in-driver path: the runtime requirements (compatibility descriptor) are produced by
-    // the driver alongside the compiled graph. Fetch them before constructing the Graph so the
-    // descriptor is part of the graph's state from creation, symmetric with the CIP and import paths.
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphDesc,
@@ -310,8 +307,7 @@ bool DriverCompilerAdapter::is_option_supported(std::string optName, std::option
 
         return ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements != nullptr;
     }
-    // The COMPATIBILITY_CHECK option is used to signal if compiler adapter supports
-    // the validateCompatibilityDescriptor method
+
     if (optName == COMPATIBILITY_CHECK::key()) {
         if (optValue.has_value())
             OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
@@ -366,7 +362,7 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
 
     // Only REQUIREMENTS_MET and MET_RECOMPILATION_ADVISABLE are treated as compatible.
     // NOT_APPLICABLE (the descriptor does not apply to this device) and REQUIREMENTS_NOT_MET are
-    // intentionally treated as incompatible, since neither guarantees the blob runs correctly here.
+    // intentionally treated as incompatible, since neither guarantees the blob runs correctly here
     return output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET ||
            output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
 }
@@ -393,12 +389,7 @@ std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor
         return std::nullopt;
     }
 
-    // The driver writes a null-terminated string; size includes the terminator (confirmed empirically).
-    // This matches the VCL/CIP convention (export.cpp: compatStrSize = compatibilityData.size() + 1),
-    // so both producers yield a std::string whose .size() == textLen + 1 with a trailing '\0'.
-    // All consumers handle it correctly (binary metadata round-trips the raw bytes; write_as_text
-    // already strips the '\0' before serializing; zeDeviceValidateRuntimeRequirements stops at the
-    // first NUL in the .c_str() buffer). No normalization is needed here.
+    // The driver writes a null-terminated string; size includes the terminator
     std::string descriptor(size, '\0');
     result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, descriptor.data());
     if (result != ZE_RESULT_SUCCESS) {

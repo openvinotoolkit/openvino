@@ -42,7 +42,7 @@ private:
                                    const ze_graph_compiler_version_info_t& compilerVersion,
                                    const std::string& optionName) const;
 
-    // Fetches the runtime requirements (compatibility descriptor) of a compiled graph from the
+    // Fetches the runtime requirements of a compiled graph from the
     // driver via zeDeviceGetRuntimeRequirements. Returns std::nullopt when the driver does not
     // implement the extension, the handle is null, or the query fails.
     std::optional<std::string> fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
