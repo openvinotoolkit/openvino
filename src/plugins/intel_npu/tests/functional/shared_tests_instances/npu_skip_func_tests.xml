@@ -936,4 +936,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#218923 -->
+    <skip_config>
+        <message>The tests crash when compiling model on NPU5010</message>
+        <enable_rules>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithHostCompileTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
