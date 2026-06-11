@@ -47,7 +47,6 @@ const std::vector<ov::AnyMap>& additional_config();
 
 const std::vector<ElementType>& netType();
 const std::vector<ov::test::utils::OpType>& opTypes();
-const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
 const std::vector<utils::InputLayerType>& secondaryInputTypes();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();

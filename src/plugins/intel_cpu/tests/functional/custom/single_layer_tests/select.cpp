@@ -7,6 +7,10 @@
 #include "utils/fusing_test_utils.hpp"
 #include "openvino/op/select.hpp"
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
+
 using namespace CPUTestUtils;
 namespace ov {
 namespace test {
@@ -58,6 +62,15 @@ protected:
         auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
 
         function = create_ov_model(precision, parameters, select, "Eltwise");
+    }
+
+    std::string getPrimitiveType() const {
+#if defined(OPENVINO_ARCH_RISCV64)
+        if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+            return "jit";
+        }
+#endif
+        return CPUTestsBase::getPrimitiveType();
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

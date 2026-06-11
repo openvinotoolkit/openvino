@@ -85,6 +85,60 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
     return v;
 }
 
+
+// Test class to verify FlashAttnV2 multi-token sink correction is actually active.
+// Runs the same prompt twice with FA_V2 enabled: once with non-zero sinks, once with zero sinks.
+// Asserts outputs differ, proving the sink correction in sdpa_opt.cl executes.
+// This test is platform-independent (works on any GPU with OpenCL support).
+class paged_attention_sink_v2_effect_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_sink_v2_effect_test, verify_sink_changes_v2_output) {
+    auto p = GetParam();
+    p.has_sink_input = true;
+    p.force_flashattn_v2 = true;
+
+    // Run FlashAttnV2 multi-token path with non-zero sinks
+    std::vector<ov::float16> nonzero_sinks(p.num_heads);
+    for (int h = 0; h < p.num_heads; h++)
+        nonzero_sinks[h] = ov::float16(-1.0f + 0.3f * h);
+
+    rg.set_seed(GET_SUITE_NAME);
+    p.sink_values = nonzero_sinks;
+    execute(p, false);
+    auto output_with_sinks = get_output_data();
+
+    // Run FlashAttnV2 multi-token path with zero sinks (sink code still runs but has no effect)
+    std::vector<ov::float16> zero_sinks(p.num_heads, ov::float16(0.0f));
+
+    rg.set_seed(GET_SUITE_NAME);
+    p.sink_values = zero_sinks;
+    execute(p, false);
+    auto output_no_sinks = get_output_data();
+
+    ASSERT_EQ(output_with_sinks.size(), output_no_sinks.size());
+
+    // Verify outputs differ — proving the V2 sink correction code is active
+    bool found_difference = false;
+    for (size_t i = 0; i < output_with_sinks.size(); i++) {
+        if (std::abs(static_cast<float>(output_with_sinks[i]) - static_cast<float>(output_no_sinks[i])) > 1e-4f) {
+            found_difference = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_difference)
+        << "FlashAttnV2 multi-token output is identical with and without sinks — sink code may not be executing";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_sink_v2_effect_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Multi-token (prompt) cases that exercise the FlashAttnV2 online-softmax path with sinks.
+    // These directly test the HAS_SINK_INPUT code at line 2552 in sdpa_opt.cl.
+    // Platform-independent: forces FA_V2 regardless of HW micro-kernel availability.
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    paged_attention_test_params{ {{128, 0}}, 4, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // GQA prompt
+    paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+}));
+
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
     paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
