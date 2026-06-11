@@ -33,7 +33,13 @@ namespace test {
 template<typename IT, typename T>
 void strided_iota(IT first, size_t n, T value, T stride);
 
-typedef std::tuple<ElementType, std::vector<InputShape>, bool, bool, bool> ConcatSDPTestParams;
+typedef std::tuple<ElementType,
+                   std::vector<InputShape>,
+                   std::string,  // K cache precision: "none", "u8", "u4"
+                   std::string,  // V cache precision: "none", "u8", "u4"
+                   bool,         // hasShapeOf
+                   bool>         // isDiffKVHeadSize
+    ConcatSDPTestParams;
 
 class ConcatSDPTest :
         public testing::WithParamInterface<ConcatSDPTestParams>,
@@ -45,7 +51,8 @@ public:
     void prepare();
     void reset();
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model);
-    bool m_forceKVU8;
+    std::string m_kCachePrec;
+    std::string m_vCachePrec;
     bool m_hasShapeOf;
     bool m_isDiffKVHeadSize;
 protected:

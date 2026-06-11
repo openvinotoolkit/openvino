@@ -334,9 +334,8 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
-    if (get_node().get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr)
         return;
-    OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
