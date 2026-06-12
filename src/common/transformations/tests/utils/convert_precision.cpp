@@ -1654,6 +1654,13 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
     constant_convert_test(element::Type_t::u32, element::Type_t::i32, 42, 42);
 }
 
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_F64ToF32) {
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, std::numeric_limits<double>::infinity(), std::numeric_limits<float>::infinity());
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, -std::numeric_limits<double>::infinity(), -std::numeric_limits<float>::infinity());
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<float>::quiet_NaN());
+    constant_convert_test(element::Type_t::f64, element::Type_t::f32, 1e308, std::numeric_limits<float>::infinity());
+}
+
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
     constant_convert_test(element::Type_t::boolean, element::Type_t::u8, true, 1);
     constant_convert_test(element::Type_t::boolean, element::Type_t::u8, false, 0);
