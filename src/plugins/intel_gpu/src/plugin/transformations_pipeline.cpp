@@ -89,6 +89,7 @@
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "plugin/transformations/dynamic_quantize_gated_mlp.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
@@ -1454,6 +1455,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
+            pass_config->set_callback<ov::intel_gpu::FuseGatedMLP>([=](const_node_ptr& root) -> bool {
+                const int64_t gmlp_bisect = GPU_DEBUG_VALUE_OR(config.get_gated_mlp_bisect(), 0);
+                GPU_DEBUG_IF(gmlp_bisect != std::numeric_limits<int64_t>::max()) {
+                    static int64_t gmlp_count = 0;
+                    if (++gmlp_count > gmlp_bisect) {
+                        return true;
+                    }
+                    GPU_DEBUG_TRACE << "GMLP_BISECT: fusing layer " << (gmlp_count - 1)
+                                   << " " << root->get_friendly_name() << std::endl;
+                }
+                return false;
+            });
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
@@ -1702,6 +1715,55 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
                                                                                     use_gs128_for_linear_attention);
+            }
+
+            // Dynamic quantization for GatedMLP - disabled by default.
+            const bool enable_dq_gmlp = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantize_gated_mlp(), false);
+            if (enable_dq_gmlp && model_allows_group_size) {
+                pass_config->set_callback<ov::intel_gpu::DynamicQuantizeGatedMLP>([=](const_node_ptr& root) -> bool {
+                    for (size_t i = 0; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
+                        if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
+                            GPU_DEBUG_TRACE << root->get_friendly_name() << " GatedMLP dyn_quan is turned off: input type is not supported" << std::endl;
+                            return true;
+                        }
+                    }
+
+                    const auto& input_shape = root->get_input_partial_shape(0);
+                    const size_t input_rank = input_shape.size();
+                    if (input_rank > 3) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name() << " GatedMLP dyn_quan is turned off: input rank is not supported" << std::endl;
+                        return true;
+                    }
+
+                    auto weight_shape = root->get_input_partial_shape(1);
+                    const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                    const size_t simd = 16;
+                    if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name()
+                                        << " GatedMLP dyn_quan is turned off: inner shape is not supported "
+                                        << innermost_size << std::endl;
+                        return true;
+                    }
+
+                    uint64_t adj_group_size = dynamic_quantization_group_size;
+                    const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+                    if (ov::intel_gpu::DynamicQuantizeGatedMLP::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
+                        adj_group_size = 128;
+                    }
+                    const bool is_grouped = adj_group_size != UINT64_MAX;
+                    if (is_grouped && !group_dyn_quan_allowed) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name() << " GatedMLP dyn_quan is turned off:"
+                                                                        " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
+                        return true;
+                    }
+
+                    return false;
+                });
+                manager.register_pass<ov::intel_gpu::DynamicQuantizeGatedMLP>(dynamic_quantization_group_size,
+                                                                              asymmetric_dyn_quant,
+                                                                              precomputed_reduction,
+                                                                              use_gs128_for_int8_per_token,
+                                                                              use_gs128_for_linear_attention);
             }
         }
 
