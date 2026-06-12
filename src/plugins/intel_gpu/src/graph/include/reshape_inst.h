@@ -58,10 +58,31 @@ public:
         if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
             return false;
 
-        // TODO: If user is mvn or vl_sdpa and dynamic padding exists, output padding propagation is not supported in the base mode
-        // vl_sdpa uses raw SVM pointers (CM kernel) without shape_info support, so it cannot apply dynamic padding offsets
-        if (get_users().size() == 1 && (get_users().front()->is_type<mvn>() || get_users().front()->is_type<vl_sdpa>()))
+        // MVN canonicalizes input strides and cannot tolerate dynamic padding offsets.
+        if (get_users().size() == 1 && get_users().front()->is_type<mvn>())
             return false;
+
+        // vl_sdpa uses a CM kernel that receives raw SVM pointers.  Generic dynamic
+        // padding (e.g. from an inner-axis crop) cannot be applied through shape_info
+        // as with OCL kernels.  The one exception is the TransposeSplitMatcher axis=1
+        // pattern: crop axis=1 with a size-1 input[1] followed by a rank-reducing reshape.
+        // In that case the CM kernel receives dedicated token_offset_q / token_offset_kv
+        // scalars computed from _lower_size[1], so propagation IS safe.
+        // All other vl_sdpa paths remain blocked.
+        if (get_users().size() == 1 && get_users().front()->is_type<vl_sdpa>()) {
+            // Allow only if the crop is the axis=1 / size-1 squeeze pattern handled by
+            // the token_offset scalars in the CM kernel.  That pattern is already checked
+            // below (axis == 1 block), so we fall through here without blocking.
+            auto axis = input().as<crop>().get_primitive()->axis;
+            const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
+            const bool is_axis1_size1_squeeze =
+                axis == 1 &&
+                !input_pshape[1].is_dynamic() &&
+                input_pshape[1].get_length() == 1 &&
+                prim->output_partial_shape.size() + 1 == input_pshape.size();
+            if (!is_axis1_size1_squeeze)
+                return false;
+        }
 
         auto axis = input().as<crop>().get_primitive()->axis;
         const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
@@ -83,6 +104,42 @@ public:
             if (first_out_pattern == 0 || first_out_pattern == 1)
                 return false;
             return true;
+        }
+
+        // TransposeSplitMatcher optimization: when Transpose+Split(axis=0) over a
+        // [-1, 3, H, S] QKV tensor is replaced by Split(axis=1), each crop output
+        // has shape [-1, 1, H, S] with axis=1.  The reshape that follows squeezes
+        // the size-1 dim-1, producing [-1, H, S].
+        //
+        // Why this pattern is safe to propagate padding through:
+        //   - The crop offset lives on axis=1 (the "3" dimension, i.e. Q/K/V slot).
+        //   - The reshape only removes that size-1 dimension; it does NOT reorder or
+        //     merge any bytes.  The memory layout of the remaining dimensions
+        //     (batch=-1, H, S) is therefore identical before and after the reshape,
+        //     and the buffer pointer + pitch of the outer dynamic batch dimension is
+        //     still valid after the squeeze.
+        //   - The crop size along axis=1 is always exactly 1 (static), so the
+        //     offset is a known, constant stride-multiple — no runtime-shape-info
+        //     lookup is required to compute it.
+        //   - Downstream consumers (RoPE, oneDNN SDPA) only receive the squeezed
+        //     [-1, H, S] view and never observe the axis=1 padding, so no consumer
+        //     needs to be updated.
+        //
+        // Conditions checked:
+        //   1. axis == 1                      (crop is on the QKV-slot dimension)
+        //   2. input_pshape[1] is static 1    (exactly one Q/K/V slice per crop)
+        //   3. output rank == input rank - 1   (reshape only drops that size-1 dim)
+        //
+        // Note: output_pattern is NOT required here.  The safety argument depends
+        // only on the input crop axis and the output rank, not on the specific
+        // output_pattern values.  In practice the Qwen3-VL model uses a dynamic
+        // shape tensor (not a compile-time constant) for the Reshape second input,
+        // leaving output_pattern empty — requiring it would incorrectly block this
+        // case even though conditions 1–3 are fully sufficient.
+        if (axis == 1 && !input_pshape[1].is_dynamic() && input_pshape[1].get_length() == 1) {
+            if (prim->output_partial_shape.size() + 1 == input_pshape.size()) {
+                return true;
+            }
         }
 
         auto input_rank = input_pshape.size();
