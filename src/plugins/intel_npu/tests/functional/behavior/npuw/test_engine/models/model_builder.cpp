@@ -654,7 +654,12 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
     }
     // config.rope set without position_ids means RoPE was pre-built with position_ids baked in
     if (position_ids_output.get_node() && !config.rope) {
-        config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        if (config.rotary_dim > 0 && config.rotary_dim < config.head_dim) {
+            config.rope =
+                PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
+        } else {
+            config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        }
     }
 
     return position_ids_output;
@@ -674,6 +679,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
     LLMConfig config = config_in;
+    OPENVINO_ASSERT(!config.is_linear_layer || config.use_kv_cache,
+                    "Hybrid models require use_kv_cache — SSM/conv states are inherently stateful");
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn) {
@@ -746,8 +753,11 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.rope_fn = config.rope;
     attn.sdpa_mask = sdpa_mask;
     attn.shared_broadcast_shape = shared_broadcast;
+    attn.output_gate = config.attn_output_gate;
 
-    if (config.use_kv_cache) {
+    // Non-hybrid: standard past_key_values naming. Hybrid full-attention layers get
+    // per-attn-layer cache_params naming (set below inside build_full_attn_layer).
+    if (config.use_kv_cache && !config.is_linear_layer) {
         attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
@@ -772,30 +782,62 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         };
     }
 
+    // Wire linear-mixer runtime inputs once — all layers share the same graph plumbing.
+    if (config.is_linear_layer) {
+        OPENVINO_ASSERT(config.linear_mixer, "Hybrid models require config.linear_mixer to be set");
+        config.linear_mixer->seq_source = seq_source;
+        config.linear_mixer->beam_idx = beam_idx_output;
+    }
+
+    size_t linear_layer_count = 0;
+    size_t attn_layer_count = 0;
+
+    auto build_full_attn_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+        // Local copy so per-layer kv_cache_fn wiring never mutates the shared `attn`.
+        Attention layer_attn = attn;
+        if (config.use_kv_cache && config.is_linear_layer) {
+            // Hybrid attention layers use per-attn-layer cache_params naming (separate from conv/ssm).
+            auto attn_idx = attn_layer_count;
+            layer_attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
+                                                   const ov::Output<ov::Node>& v_proj,
+                                                   size_t /*layer*/) {
+                auto idx_str = std::to_string(attn_idx);
+                auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("key", idx_str), prec);
+                auto v_cache = make_kv_cache_concat(v_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("value", idx_str), prec);
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
+                return std::pair{k_cache.concatenated, v_cache.concatenated};
+            };
+        }
+        ++attn_layer_count;
+        auto fn = [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            return layer_attn(normed, {}, pfx, layer);
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
+    auto build_linear_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t /*layer*/) {
+        auto lin_idx = linear_layer_count++;
+        auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            MixerResult r = config.linear_mixer->build(normed, pfx, lin_idx);
+            m_sinks.insert(m_sinks.end(), r.sinks.begin(), r.sinks.end());
+            return r.output;
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
     auto current =
         make_transformer_layers(hidden_states,
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
-                                    if (config.pre_norm) {
-                                        return make_pre_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-                                                return attn(normed, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    } else {
-                                        return make_post_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
-                                                return attn(inp, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    }
+                                    return (config.is_linear_layer && config.is_linear_layer(layer))
+                                               ? build_linear_layer(input, prefix, layer)
+                                               : build_full_attn_layer(input, prefix, layer);
                                 });
 
     auto final_norm = config.norm(current, "model.norm");
