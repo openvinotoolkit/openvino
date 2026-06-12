@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <random>
+#include <string>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
@@ -88,6 +93,8 @@ protected:
 
         if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
+        } else if (expectsReferenceFallback()) {
+            selectedType = "ref";
         } else {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
         }
@@ -166,6 +173,23 @@ protected:
                     rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
                 }
             }
+        } else if (netPrecision == ElementType::i64) {
+            auto* rawBlobDataPtr = static_cast<int64_t*>(tensor.data());
+            const std::vector<int64_t> data = {1LL << 35, 1LL << 36, 1LL << 37, 5, 7};
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = data[i % data.size()];
+            }
+        } else if (netPrecision == ElementType::u64) {
+            auto* rawBlobDataPtr = static_cast<uint64_t*>(tensor.data());
+            const std::vector<uint64_t> data = {
+                1ULL << 35,
+                1ULL << 63,
+                (1ULL << 63) + 17ULL,
+                std::numeric_limits<uint64_t>::max(),
+                7ULL};
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = data[i % data.size()];
+            }
         } else if (netPrecision == ElementType::bf16) {
             size_t O = 1, A = 1, I = 1;
             A = shape[axis];
@@ -200,6 +224,20 @@ protected:
         }
     }
 
+    bool expectsReferenceFallback() const {
+        return netPrecision == ElementType::i64 || netPrecision == ElementType::u64;
+    }
+
+    bool hasRuntimeLayerType(const std::string& layerType) const {
+        const auto runtimeModel = compiledModel.get_runtime_model();
+        const auto ops = runtimeModel->get_ops();
+        return std::any_of(ops.begin(), ops.end(), [&layerType](const std::shared_ptr<ov::Node>& node) {
+            const auto& rtInfo = node->get_rt_info();
+            const auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
+            return it != rtInfo.end() && it->second.as<std::string>() == layerType;
+        });
+    }
+
 private:
     void generate_dynamic_k(const std::vector<ov::Output<ov::Node>>& funcInputs,
                             const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -225,7 +263,13 @@ private:
 };
 TEST_P(TopKLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "TopK");
+    if (expectsReferenceFallback()) {
+        CheckPluginRelatedResults(compiledModel, "Reference");
+        ASSERT_TRUE(hasRuntimeLayerType("Reference"));
+        ASSERT_FALSE(hasRuntimeLayerType("TopK"));
+    } else {
+        CheckPluginRelatedResults(compiledModel, "TopK");
+    }
 }
 
 class TopKLayerInvalidK : public TopKLayerCPUTest {};
@@ -333,6 +377,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_int32_dynamic,
                                                                ::testing::Values(ElementType::dynamic),
                                                                ::testing::ValuesIn(inputShapesDynamic_int32)),
                                             ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::Values(additionalConfig[0])),
+                         TopKLayerCPUTest::getTestCaseName);
+
+std::vector<ov::test::InputShape> inputShapes_int64 = {
+    {{}, {{5}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_int64,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(3),
+                                                               ::testing::Values(0),
+                                                               ::testing::Values(SortMode::MAX),
+                                                               ::testing::Values(std::tuple<SortType, bool>{
+                                                                   SortType::SORT_VALUES,
+                                                                   false}),
+                                                               ::testing::Values(ElementType::i64),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes_int64)),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                                            ::testing::Values(additionalConfig[0])),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_uint64,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(3),
+                                                               ::testing::Values(0),
+                                                               ::testing::Values(SortMode::MAX),
+                                                               ::testing::Values(std::tuple<SortType, bool>{
+                                                                   SortType::SORT_VALUES,
+                                                                   false}),
+                                                               ::testing::Values(ElementType::u64),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes_int64)),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
                                             ::testing::Values(additionalConfig[0])),
                          TopKLayerCPUTest::getTestCaseName);
 
