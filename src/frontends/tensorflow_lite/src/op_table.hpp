@@ -54,7 +54,7 @@ OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContex
 template <typename OV_TYPE>
 OutputVector translate_unary(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto inputs = node.get_inputs();
-    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     return ov::frontend::tensorflow::op::translate_unary_op<OV_TYPE>(context);
 }
@@ -62,7 +62,7 @@ OutputVector translate_unary(const ov::frontend::tensorflow_lite::NodeContext& n
 template <typename OV_TYPE>
 OutputVector translate_binary(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto inputs = node.get_inputs();
-    ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     return ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(context);
 }
