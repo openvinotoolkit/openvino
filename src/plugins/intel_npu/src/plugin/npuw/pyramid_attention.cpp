@@ -65,7 +65,7 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     attention._mask = mask_param;
     attention._mask_shape = mask_param->get_shape();
 
-    // Add past key/value inputs to attention
+    // Add past key/value inputs and DQ scale/zp inputs to attention
     const auto& params = model->get_parameters();
     for (const auto& param : params) {
         const std::string param_name = param->get_friendly_name();
@@ -78,6 +78,16 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
             auto dim_iter = past_value_sequence_dims.find(param_name);
             if (dim_iter != past_value_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
+            }
+        } else if (ov::npuw::util::isDQScaleOrZPKey(param_name)) {
+            if (!past_key_sequence_dims.empty()) {
+                attention._inputs.push_back(
+                    ov::npuw::function::Attention::Param{param, past_key_sequence_dims.begin()->second});
+            }
+        } else if (ov::npuw::util::isDQScaleOrZPValue(param_name)) {
+            if (!past_value_sequence_dims.empty()) {
+                attention._inputs.push_back(
+                    ov::npuw::function::Attention::Param{param, past_value_sequence_dims.begin()->second});
             }
         }
     }
@@ -177,6 +187,24 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             } else {
                 LOG_WARN("No pre-analyzed sequence dimension for past value param: " << param_name);
                 return std::nullopt;
+            }
+        } else if (ov::npuw::util::isDQScaleOrZPKey(param_name)) {
+            // Handle DynamicQuantize scale/zp parameters for past key cache.
+            // These share the same sequence dimension as the corresponding past key parameter.
+            if (!past_key_sequence_dims.empty()) {
+                size_t sequence_dim_idx = past_key_sequence_dims.begin()->second;
+                new_shape[sequence_dim_idx] = current_past_length;
+                new_shapes[param->output(0)] = new_shape;
+                LOG_DEBUG("  DQ key param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
+            }
+        } else if (ov::npuw::util::isDQScaleOrZPValue(param_name)) {
+            // Handle DynamicQuantize scale/zp parameters for past value cache.
+            // These share the same sequence dimension as the corresponding past value parameter.
+            if (!past_value_sequence_dims.empty()) {
+                size_t sequence_dim_idx = past_value_sequence_dims.begin()->second;
+                new_shape[sequence_dim_idx] = current_past_length;
+                new_shapes[param->output(0)] = new_shape;
+                LOG_DEBUG("  DQ value param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
             }
         }
     }
