@@ -134,15 +134,24 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
             return std::any_cast<FakeQuantizePostOp>(&op) != nullptr;
         }
     );
-    const bool isQuantizedU8 = srcDesc->getPrecision() == ov::element::u8 &&
-                               any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
-                               dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
-    const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
-                               weiDesc->getPrecision() == ov::element::i8 &&
-                               dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
-    VERIFY(isQuantizedU8 || isQuantizedI8, UNSUPPORTED_BY_EXECUTOR);
+    const bool isQuantizedU8       = srcDesc->getPrecision() == ov::element::u8 &&
+                                     any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
+                                     dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
+    const bool isQuantizedI8       = srcDesc->getPrecision() == ov::element::i8 &&
+                                     weiDesc->getPrecision() == ov::element::i8 &&
+                                     dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
+    const bool isQuantizedI8DstF32 = srcDesc->getPrecision() == ov::element::i8 &&
+                                     weiDesc->getPrecision() == ov::element::i8 &&
+                                     dstDesc->getPrecision() == ov::element::f32;
+
+    VERIFY(isQuantizedU8 || isQuantizedI8 || isQuantizedI8DstF32, UNSUPPORTED_BY_EXECUTOR);
     if (config.attrs.withBias) {
-        VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+        const auto biasPrecision = config.descs.at(ARG_BIAS)->getPrecision();
+        if (isQuantizedI8DstF32) {
+            VERIFY(biasPrecision == ov::element::f32, UNSUPPORTED_BIAS_PRECISIONS);
+        } else {
+            VERIFY(biasPrecision == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+        }                                                 
     }
 
     return true;
@@ -155,15 +164,18 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     // - weights: scale is equal to result dequantization scale after Convolution propagated by LPT
     //            shift is not supported
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
-    //                shift = input shift
+    //                shift = input shift. Skipped for f32 dst (dequantize-to-float path).
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
-    const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
-                                  ? ov::element::i8
-                                  : ov::element::u8;
-    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
-        getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
+    // skip for f32 output path (Swish + separate FQ_after)
+    if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
+        const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
+                                    ? ov::element::i8
+                                    : ov::element::u8;
+        aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
+            getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
+    }
 
     return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),

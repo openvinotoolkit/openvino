@@ -61,19 +61,21 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         // mark Multiply as dequantization node to avoid its conversion to PowerStatic
         ov::mark_as_dequantization_node(new_mul);
 
-        add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
-        auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
-        auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-        auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
+        if (!has_swish) {
+            add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
+            auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
+            auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+            auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
-        auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
-            ov::element::TypeVector{ov::element::f32, ov::element::f32},
-            ov::element::TypeVector{ov::element::f32},
-            ov::op::TemporaryReplaceOutputType(add->input_value(0), ov::element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
-        new_add->set_friendly_name(add->get_friendly_name());
-        ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
-        ov::replace_node(add, new_add);
+            auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
+                ov::element::TypeVector{ov::element::f32, ov::element::f32},
+                ov::element::TypeVector{ov::element::f32},
+                ov::op::TemporaryReplaceOutputType(add->input_value(0), ov::element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
+            new_add->set_friendly_name(add->get_friendly_name());
+            ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});
+            ov::replace_node(add, new_add);
+        }
 
         return true;
     };

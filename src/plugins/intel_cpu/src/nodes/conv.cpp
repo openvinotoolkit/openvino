@@ -586,6 +586,11 @@ bool Convolution::canFuse(const NodePtr& node) const {
             const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
             const auto convInPrc = getOriginalInputPrecisionAtPort(0);
             if (any_of(convInPrc, ov::element::u8, ov::element::i8) &&
+                fusedWith.back()->getAlgorithm() == Algorithm::EltwiseSwish) {
+                return false;
+            }
+
+            if (any_of(convInPrc, ov::element::u8, ov::element::i8) &&
                 any_of(fqOutPrc, ov::element::u8, ov::element::i8) &&
                 fqOutPrc != convInPrc) {
                 return false;
