@@ -93,8 +93,9 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
-#include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
+#include "plugin/transformations/fuse_moe_router.hpp"
+#include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
@@ -202,7 +203,7 @@
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -580,17 +581,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
                 std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
                                                ov::element::i8, ov::element::u8});
+            manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
             if (!disable_moe_opt) {
                 // PA models flatten batch into seq.
                 const bool has_batch_dim = !is_pa;
-                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
-                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
-                // MOE3GemmFusedCompressed kernel dispatches expert GEMMs through
+                // MOE3GemmCompressed kernel dispatches expert GEMMs through
                 // oneDNN, which requires an in-order OCL queue.  If oneDNN is
                 // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
                 // queue stays out-of-order and the oneDNN stream creation may assert.
-                manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
+                manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
@@ -675,7 +677,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
         // when the same Sin was already marked above.
         pass_config->set_callback<DisableFP16ComSinGenPatternForHiFiGAN>(
-            [](const_node_ptr& node) -> bool { return ov::fp16_compression_is_disabled(node); });
+            [](const_node_ptr& node) -> bool { return ov::is_conversion_disabled(node, ov::element::f16); });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
