@@ -92,7 +92,7 @@ void populate_pages(const util::AlignedRegion& region, size_t prefault_threshold
         threads.emplace_back([&, tid] {
             const size_t begin_page = pages * tid / num_threads;
             const size_t end_page = pages * (tid + 1) / num_threads;
-            volatile uint8_t local = 0;  // prevent compiler from optimizing the loop away as a no-op
+            volatile uint8_t local = 0;  // prevents compiler from optimizing the loop away as a no-op
 
             for (size_t p = begin_page; p < end_page; ++p) {
                 const size_t off = p * page;

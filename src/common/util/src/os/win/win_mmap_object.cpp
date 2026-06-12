@@ -875,5 +875,5 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t off
     return holder;
 }
 
-void populate_pages(void* /*data*/, size_t /*size*/) {}
+void populate_pages(const util::AlignedRegion& /*region*/, size_t /*prefault_threshold*/ = 4 * 1024 * 1024) {}
 }  // namespace ov

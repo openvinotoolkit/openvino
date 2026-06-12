@@ -21,6 +21,8 @@
 #else
 #    include <sys/mman.h>  // mincore
 #    include <unistd.h>
+
+#    include <cstdint>
 #endif
 
 namespace ov {
