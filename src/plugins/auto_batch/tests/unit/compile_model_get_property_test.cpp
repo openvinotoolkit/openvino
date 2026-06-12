@@ -136,3 +136,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          CompileModelGetPropertyTest,
                          ::testing::ValuesIn(compile_model_get_property_param_test),
                          CompileModelGetPropertyTest::getTestCaseName);
+
+TEST_P(CompileModelGetPropertyTest, SupportedPropertiesIncludesHWPluginProperties) {
+    auto result = auto_batch_compile_model->get_property(ov::supported_properties.name());
+    auto supported = result.as<std::vector<ov::PropertyName>>();
+    std::set<std::string> names;
+    for (const auto& p : supported)
+        names.insert(p);
+    // batch-specific properties must be present
+    EXPECT_TRUE(names.count(ov::supported_properties.name()));
+    EXPECT_TRUE(names.count(ov::optimal_number_of_infer_requests.name()));
+    EXPECT_TRUE(names.count(ov::auto_batch_timeout.name()));
+    // HW plugin properties (optimal_batch_size, cache_dir) must also be present
+    EXPECT_TRUE(names.count(ov::optimal_batch_size.name()));
+    EXPECT_TRUE(names.count(ov::cache_dir.name()));
+}
