@@ -73,7 +73,7 @@ void pa_lsc_u8(
     constexpr uint kv_pitch = head_size * sizeof(uint8_t);
 
     constexpr bool enable_head_size_partition = (head_size == 256);
-    constexpr int num_team = enable_head_size_partition ? 8 : 16;
+    constexpr int num_team = enable_head_size_partition ? 8 : 16;  // 2 workers for unify-thread-sync approach
     constexpr int num_worker = 16 / num_team;
     constexpr int process_head_size = head_size / num_worker;
 
@@ -744,7 +744,7 @@ void pa_kernel_lsc_prefetch_u8(
     constexpr int v_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
 
     constexpr bool enable_head_size_partition = (head_size == 256);
-    constexpr int num_team = enable_head_size_partition ? 8 : wg_local_size;
+    constexpr int num_team = enable_head_size_partition ? 4 : wg_local_size;  // 4 workers for prefetch approach
     constexpr int num_worker = wg_local_size / num_team;
     constexpr int process_head_size = head_size / num_worker;
 

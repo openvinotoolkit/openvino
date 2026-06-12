@@ -199,15 +199,29 @@ public:
         return 16;  // For Xe2+
     }
 
-    // head_size==256 partitions head_size across 2 workers per team (8 teams *
-    // 2 workers = 16 lanes per WG). Each team handles one q_step-sized q-slice,
-    // so wg_seq_len = num_team * q_step. For head_size!=256, num_team=wg_size and
-    // num_worker=1, which is equivalent to wg_size * q_step.
+    // head_size==256 uses different worker counts based on kernel variant:
+    // - u8 Prefetch approach (XAttention enabled): 4 teams * 4 workers (compute-bound)
+    // - u8 Unify-thread-sync approach (XAttention disabled): 8 teams * 2 workers (memory-bound)
+    // - fp16 (always prefetch-style): 8 teams * 2 workers
+    // Each team handles one q_step-sized q-slice, so wg_seq_len = num_team * q_step.
+    // For head_size!=256, num_team=wg_size and num_worker=1 (wg_size * q_step).
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->k_head_size == 256) {
-            constexpr size_t num_team = 8;
-            return num_team * get_q_step(params);
+            // Only u8 has two different kernel approaches based on XAttention
+            auto key_cache_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::KEY_CACHE];
+            const bool is_u8 = data_type_traits::is_i8_u8(key_cache_layout.data_type);
+            if (is_u8) {
+                // u8: Use 4 teams (4 workers) for Prefetch (XAttention enabled),
+                //     8 teams (2 workers) for Unify-sync (XAttention disabled)
+                const bool use_prefetch = desc->has_xattention;
+                const size_t num_team = use_prefetch ? 4 : 8;
+                return num_team * get_q_step(params);
+            } else {
+                // fp16: Always 8 teams (2 workers), only one kernel approach
+                constexpr size_t num_team = 8;
+                return num_team * get_q_step(params);
+            }
         }
         return _wg_size * get_q_step(params);
     }
