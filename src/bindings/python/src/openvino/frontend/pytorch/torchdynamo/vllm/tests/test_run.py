@@ -3,8 +3,14 @@
 
 """Smoke test: vLLM + OpenVINO backend vs vLLM eager.
 
-Runs a single greedy generation through both paths and compares:
-  1. Output text (must match byte-for-byte at temperature=0).
+Greedy decode only (HuggingFace's `do_sample=False`; vLLM expresses it as
+`temperature=0`). No sampling code path is exercised: the eager and OV
+runs both go through `Sampler.greedy_sample` which is a plain argmax over
+logits, so any output divergence is attributable to the model.forward
+implementation alone.
+
+Reports for each path:
+  1. Output text (must match byte-for-byte under greedy).
   2. Steady-state decode tok/s.
 
 Usage:
@@ -47,6 +53,9 @@ def _generate(llm, prompt, params):
 
 def _run(label, llm, prompt, max_new_tokens, skip_warmup_tokens):
     from vllm import SamplingParams
+
+    # All runs use temperature=0 (do_sample=False) -> greedy argmax. No
+    # sampling code path is exercised in either backend.
 
     # Warmup (compiles the model; not counted in the steady-state measurement).
     warm_params = SamplingParams(
