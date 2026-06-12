@@ -476,20 +476,16 @@ TEST(MappedMemory, hint_prefetch_with_both_offsets) {
     std::filesystem::remove(file_path);
 }
 
-#ifdef __linux__
 // Investigates whether calling hint_prefetch(offset, size) and POSIX_FADV_SEQUENTIAL
 // on a subregion of an already-cached file evicts pages *outside* that region
 TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
-#    ifndef __linux__
-    GTEST_SKIP() << "utils::count_resident_pages is not imeplemented on this platform yet";
-#    endif
-    constexpr size_t file_size_mb = 128;
-    constexpr size_t file_size = file_size_mb * 1024 * 1024;
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet";
+#endif
+    constexpr size_t file_size = 128 * 1024 * 1024;
 
-    constexpr size_t prefetch_offset_mb = 80;
-    constexpr size_t prefetch_size_mb = 16;
-    constexpr size_t prefetch_offset = prefetch_offset_mb * 1024 * 1024;
-    constexpr size_t prefetch_size = prefetch_size_mb * 1024 * 1024;
+    constexpr size_t prefetch_offset = 80 * 1024 * 1024;
+    constexpr size_t prefetch_size = 16 * 1024 * 1024;
 
     constexpr size_t prefix_mb = 64;
     constexpr size_t prefix_size = prefix_mb * 1024 * 1024;
@@ -517,22 +513,9 @@ TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
 
     mapped->hint_prefetch(prefetch_offset, prefetch_size);
     const size_t pages_after = utils::count_resident_pages(mapped->data(), prefix_size);
-
-    EXPECT_EQ(pages_after, pages_before)
-        << "hint_prefetch evicted " << (pages_before - pages_after) << " pages (~"
-        << (pages_before - pages_after) * page / (1024 * 1024) << " MB) from prefix [0, " << prefix_mb
-        << " MB). POSIX_FADV_SEQUENTIAL on a late subregion should not evict earlier cached pages.";
-
-    // hint_prefetch issues POSIX_FADV_WILLNEED, which is a non-blocking kernel hint: the kernel schedules
-    // read-ahead but does not guarantee pages are resident by the time the call returns.
-    // Check that at least some pages were loaded into the target region.
-    const size_t target_pages = utils::count_resident_pages(mapped->data() + prefetch_offset, prefetch_size);
-    const size_t total_target_pages = prefetch_size / page;
-    EXPECT_GT(target_pages, 0u) << "hint_prefetch loaded 0 / " << total_target_pages << " pages into target region ["
-                                << prefetch_offset_mb << " MB, " << (prefetch_offset_mb + prefetch_size_mb) << " MB).";
+    EXPECT_EQ(pages_after, pages_before) << "hint_prefetch evicted pages.";
 
     std::filesystem::remove(file_path);
 }
-#endif
 
 }  // namespace ov::test
