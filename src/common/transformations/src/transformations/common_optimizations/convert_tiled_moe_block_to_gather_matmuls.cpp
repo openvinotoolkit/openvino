@@ -4,10 +4,7 @@
 
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 
-#include <algorithm>
 #include <initializer_list>
-#include <utility>
-#include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -31,6 +28,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_matmul.hpp"
+#include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 namespace {
 using namespace ov::pass;
@@ -51,42 +49,12 @@ void validate_nodes(const pattern::PatternValueMap& map, const std::initializer_
     }
 };
 
-// True if every weight has a source constant in `supported_types` somewhere in its producer
-// subgraph. Walking up is robust to the dequantization shape (Convert/Subtract/Multiply/
-// Reshape/Transpose) — the weight node itself is already up-converted to f16/f32 and
-// would not reveal compression.
-bool weights_match_supported_types(const std::initializer_list<ov::Output<ov::Node>> weights,
-                                   const std::vector<ov::element::Type>& supported_types) {
-    if (supported_types.empty()) {
-        return true;
+// Build a per-expert MatMul weight pattern
+std::shared_ptr<ov::Node> make_expert_weight_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
+    if (supported_weights_types.empty()) {
+        return pattern::any_input();
     }
-    auto is_supported = [&](const ov::element::Type& t) {
-        return std::find(supported_types.begin(), supported_types.end(), t) != supported_types.end();
-    };
-    // Dequantization chains are short; bound the walk to avoid cycles.
-    constexpr size_t max_depth = 8;
-    for (const auto& weight : weights) {
-        std::vector<std::pair<const ov::Node*, size_t>> stack = {{weight.get_node(), 0}};
-        bool found = false;
-        while (!stack.empty()) {
-            const auto [node, depth] = stack.back();
-            stack.pop_back();
-            if (is_supported(node->get_output_element_type(0))) {
-                found = true;
-                break;
-            }
-            if (depth >= max_depth) {
-                continue;
-            }
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                stack.push_back({node->get_input_node_ptr(i), depth + 1});
-            }
-        }
-        if (!found) {
-            return false;
-        }
-    }
-    return true;
+    return std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
 }
 
 std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<ov::Node>& data) {
@@ -109,14 +77,14 @@ struct MOE2GEMMPatternNodes {
     std::shared_ptr<ov::Node> mul3, reduce_sum;
 };
 
-MOE2GEMMPatternNodes build_2gemm_pattern() {
+MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
     MOE2GEMMPatternNodes p;
 
     p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(1));
     p.gate_up_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.after_tile_reshape, pattern::any_input()},
+        {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.gate_up_bias = pattern::wrap_const();
     p.gate_up_add = pattern::wrap_type<v1::Add>({p.gate_up_matmul, p.gate_up_bias}, pattern::consumers_count(2));
@@ -141,7 +109,7 @@ MOE2GEMMPatternNodes build_2gemm_pattern() {
 
     // Down projection
     p.down_proj_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.multiply2, pattern::any_input()},
+        {p.multiply2, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.down_proj_bias = pattern::wrap_const();
     p.down_proj_add = pattern::wrap_type<v1::Add>({p.down_proj_matmul, p.down_proj_bias}, pattern::consumers_count(1));
@@ -177,7 +145,7 @@ struct MOE3GEMMPatternNodes {
     std::shared_ptr<ov::Node> mul3, reduce_sum;
 };
 
-MOE3GEMMPatternNodes build_3gemm_pattern() {
+MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
     MOE3GEMMPatternNodes p;
 
     p.experts_input = pattern::any_input();
@@ -186,19 +154,19 @@ MOE3GEMMPatternNodes build_3gemm_pattern() {
 
     // First GEMM (activation gate)
     p.gate_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.after_tile_reshape, pattern::any_input()},
+        {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.swish = pattern::wrap_type<v4::Swish, v7::Gelu>({p.gate_matmul}, pattern::consumers_count(1));
     // Second GEMM (up_projection)
     p.up_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.after_tile_reshape, pattern::any_input()},
+        {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     // Join: Multiply (SwiGLU)
     p.swiglu = pattern::wrap_type<v1::Multiply>({p.swish, p.up_matmul}, pattern::consumers_count(1));
 
     // Third GEMM (down_projection)
     p.down_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.swiglu, pattern::any_input()},
+        {p.swiglu, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.end_reshape_target_shape = pattern::any_input();
     p.end_reshape =
@@ -235,7 +203,7 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
     const std::vector<ov::element::Type>& supported_weights_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo2GatherMatmuls);
 
-    auto p = build_2gemm_pattern();
+    auto p = build_2gemm_pattern(supported_weights_types);
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
@@ -250,12 +218,6 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
         const auto gate_up_mm_node = pm.at(p.gate_up_matmul).get_node_shared_ptr();
         const auto gate_up_add_node = pm.at(p.gate_up_add).get_node_shared_ptr();
         const auto gate_up_bias_node = pm.at(p.gate_up_bias).get_node_shared_ptr();
-
-        const auto down_proj_mm_for_check = pm.at(p.down_proj_matmul).get_node_shared_ptr();
-        if (!weights_match_supported_types({gate_up_mm_node->input_value(1), down_proj_mm_for_check->input_value(1)},
-                                           supported_weights_types)) {
-            return false;
-        }
 
         // GatherMatmul A shape: [n_activated_experts, batch_size * seq_length, hidden_size]
         // Number of activated experts is always 1 for the first GatherMatmul
@@ -333,7 +295,7 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
     const std::vector<ov::element::Type>& supported_weights_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo3GatherMatmuls);
 
-    auto p = build_3gemm_pattern();
+    auto p = build_3gemm_pattern(supported_weights_types);
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
@@ -348,13 +310,6 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
         const auto gate_mm_node = pm.at(p.gate_matmul).get_node_shared_ptr();
         const auto up_mm_node = pm.at(p.up_matmul).get_node_shared_ptr();
         const auto down_mm_node = pm.at(p.down_matmul).get_node_shared_ptr();
-
-        if (!weights_match_supported_types({gate_mm_node->input_value(1),
-                                            up_mm_node->input_value(1),
-                                            down_mm_node->input_value(1)},
-                                           supported_weights_types)) {
-            return false;
-        }
 
         // GatherMatmul A shape: [n_activated_experts, batch_size * seq_length, hidden_size]
         // Number of activated experts is always 1 for the first GatherMatmul

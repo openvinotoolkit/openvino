@@ -90,10 +90,6 @@ class TRANSFORMATIONS_API ConvertTiledMoeBlockToGatherMatmuls;
 class ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertTiledMoeBlockTo2GatherMatmuls");
-    // supported_weights_types (when non-empty) restricts the match to expert blocks whose
-    // weight source constant has one of the listed element types — used by consumers with
-    // a compressed-only GatherMatmul backend (e.g. the GPU plugin) to leave dense Tile/MatMul
-    // blocks unchanged. An empty list (default) accepts any weight type.
     ConvertTiledMoeBlockTo2GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {});
 };
 

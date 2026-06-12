@@ -577,7 +577,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8};
-            // The chain has no GPU backend for uncompressed (FP16) experts; leave them as dense Tile/MatMul.
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
