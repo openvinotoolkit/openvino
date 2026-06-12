@@ -52,23 +52,19 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckIsSupported) {
     // Forcing CIP as the current compiler type
     core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
 
-    {
-        OV_ASSERT_NO_THROW(properties = core.get_property(deviceName, ov::supported_properties));
-        auto it = find(properties.cbegin(), properties.cend(), ov::compatibility_check);
-        ASSERT_TRUE(it != properties.cend());
-        ASSERT_FALSE(it->is_mutable());
-    }
+    OV_ASSERT_NO_THROW(properties = core.get_property(deviceName, ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::compatibility_check);
+    ASSERT_TRUE(it != properties.cend());
+    ASSERT_FALSE(it->is_mutable());
 
     // Forcing CID as the current compiler type
     core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER));
 
     // Test that COMPATIBILITY_CHECK is in the supported properties when CID
     // is the active compiler type
-    {
-        OV_ASSERT_NO_THROW(properties = core.get_property(deviceName, ov::supported_properties));
-        auto it = find(properties.cbegin(), properties.cend(), ov::compatibility_check);
-        ASSERT_TRUE(it != properties.cend());
-    }
+    OV_ASSERT_NO_THROW(properties = core.get_property(deviceName, ov::supported_properties));
+    it = find(properties.cbegin(), properties.cend(), ov::compatibility_check);
+    ASSERT_TRUE(it != properties.cend());
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, CompatibilityCheckInvalidArgument) {
@@ -103,11 +99,9 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     std::vector<ov::PropertyName> properties;
     // Test that RUNTIME_REQUIREMENTS is supported for a model compiled with CIP
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-    {
-        auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-        ASSERT_TRUE(it != properties.cend());
-        ASSERT_FALSE(it->is_mutable());
-    }
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+    ASSERT_FALSE(it->is_mutable());
     OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
 
     OV_ASSERT_NO_THROW(
@@ -115,20 +109,18 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
             core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
 
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-    {
-        auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-        if (it != properties.cend()) {
-            // Driver implements the extension: the property is listed and must be readable.
-            ASSERT_FALSE(it->is_mutable());
-            std::string requirements;
-            OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
-            ASSERT_FALSE(requirements.empty());
-        } else {
-            // Driver does not implement the extension: reading the property must be rejected.
-            OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
-                            ov::Exception,
-                            testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
-        }
+    it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    if (it != properties.cend()) {
+        // Driver implements the extension: the property is listed and must be readable.
+        ASSERT_FALSE(it->is_mutable());
+        std::string requirements;
+        OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+        ASSERT_FALSE(requirements.empty());
+    } else {
+        // Driver does not implement the extension: reading the property must be rejected.
+        OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
+                        ov::Exception,
+                        testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
     }
 }
 

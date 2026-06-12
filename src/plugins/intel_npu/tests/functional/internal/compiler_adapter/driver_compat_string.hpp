@@ -55,19 +55,6 @@ protected:
         ASSERT_NE(zeroInitStruct, nullptr);
         ASSERT_NE(zeroInitStruct->getDevice(), nullptr);
 
-        zel_version_t loaderVer = {};
-        zel_component_version_t cv = {};
-        if (zelGetLoaderVersion(&cv) == ZE_RESULT_SUCCESS) {
-            loaderVer = cv.component_lib_version;
-        }
-        if (loaderVer.major == 1 && loaderVer.minor < 29) {
-            GTEST_SKIP() << "ze_loader version " << loaderVer.major << "." << loaderVer.minor
-                         << " < 1.29: runtime requirements extension entry-points not forwarded";
-        }
-        if (ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements == nullptr) {
-            GTEST_SKIP() << "Driver does not implement zeDeviceValidateRuntimeRequirements; "
-                            "compatibility descriptor validation is unavailable";
-        }
         adapter = std::make_unique<DriverCompilerAdapter>(zeroInitStruct);
     }
 
