@@ -32,21 +32,6 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v5 = ov::op::v5;
 
-namespace {
-std::shared_ptr<v0::FakeQuantize> make_fake_quantize(const Output<Node>& data,
-                                                     float input_low,
-                                                     float input_high,
-                                                     float output_low,
-                                                     float output_high,
-                                                     size_t levels) {
-    auto in_low = v0::Constant::create(element::f32, Shape{1}, {input_low});
-    auto in_high = v0::Constant::create(element::f32, Shape{1}, {input_high});
-    auto out_low = v0::Constant::create(element::f32, Shape{1}, {output_low});
-    auto out_high = v0::Constant::create(element::f32, Shape{1}, {output_high});
-    return std::make_shared<v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, levels);
-}
-}  // namespace
-
 TEST(nop_elimination, shared_const_einsum_after_common_optimizations) {
     auto const_data = op::v0::Constant::create(element::f32, Shape{2, 2}, {1, 2, 3, 4});
 
@@ -1262,49 +1247,6 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
         auto convert = make_shared<v0::Convert>(constant, element::f32);
         auto mul = make_shared<v1::Multiply>(convert, v0::Constant::create(element::f32, Shape{}, {1}));
         model_ref = make_shared<ov::Model>(mul, ParameterVector{});
-    }
-
-    manager.register_pass<ov::pass::NopElimination>();
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-}
-
-TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_subgraph) {
-    {
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
-        auto fq2 = make_fake_quantize(fq1, -1.0f, 1.0f, -1.0f, 1.0f, 256);
-        auto abs = std::make_shared<v0::Abs>(fq2);
-        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
-    }
-    {
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
-        auto abs = std::make_shared<v0::Abs>(fq1);
-        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
-    }
-
-    manager.register_pass<ov::pass::NopElimination>();
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-}
-
-TEST_F(TransformationTestsF, do_not_eliminate_sequential_fake_quantize_subgraph) {
-    {
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, -2.0f, 2.0f, -2.0f, 2.0f, 256);
-        auto fq2 = make_fake_quantize(fq1, -2.0f, 2.0f, -2.0f, 2.0f, 257);
-        auto abs = std::make_shared<v0::Abs>(fq2);
-        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
-    }
-    {
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, -2.0f, 2.0f, -2.0f, 2.0f, 256);
-        auto fq2 = make_fake_quantize(fq1, -2.0f, 2.0f, -2.0f, 2.0f, 257);
-        auto abs = std::make_shared<v0::Abs>(fq2);
-        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::NopElimination>();

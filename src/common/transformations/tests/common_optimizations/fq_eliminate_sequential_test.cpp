@@ -144,6 +144,49 @@ INSTANTIATE_TEST_SUITE_P(MergedFakeQuantize,
                          testing::ValuesIn(merged_fq_params),
                          MergedFakeQuantizeTests::get_test_case_name);
 
+TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_subgraph) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto fq2 = make_fake_quantize(fq1, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto abs = std::make_shared<v0::Abs>(fq1);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FQEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, do_not_eliminate_sequential_fake_quantize_subgraph) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, -2.0f, 2.0f, -2.0f, 2.0f, 256);
+        auto fq2 = make_fake_quantize(fq1, -2.0f, 2.0f, -2.0f, 2.0f, 257);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, -2.0f, 2.0f, -2.0f, 2.0f, 256);
+        auto fq2 = make_fake_quantize(fq1, -2.0f, 2.0f, -2.0f, 2.0f, 257);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FQEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
 // Test for FQEliminateSequential with out-of-range scenario from geekbench_ai model 011
 // FQ1: in_low=-17.819, in_high=4.900, out_low=-17.819, out_high=4.900
 // FQ2: in_low=-17.799, in_high=5.124, out_low=-17.799, out_high=5.124
