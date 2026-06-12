@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "transformations/common_optimizations/fq_eliminate_sequential.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "transformations/common_optimizations/fq_eliminate_sequential.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
