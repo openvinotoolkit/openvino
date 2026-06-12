@@ -277,15 +277,6 @@ bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidt
            tolerance.ratio_mem_limited_convs <= CONV_RATIO_ULTRA_LOW && tolerance.total_gemms == 0.0F;
 }
 
-bool is_all_core_static_case_gemm_light_conv_profile(const ov::MemBandwidthPressure& tolerance) {
-    using namespace ThreadPreferenceConstants;
-    return tolerance.total_gemms > 0 &&
-           (tolerance.total_convs == 0 || tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW) &&
-           tolerance.ratio_mem_limited_convs < CONV_RATIO_ULTRA_LOW &&
-           tolerance.ratio_mem_limited_gemms == 0.0F && tolerance.ratio_mem_limited_adds < CONV_RATIO_LOW &&
-           tolerance.max_mem_tolerance > MEM_TOLERANCE_MEDIUM_LOW;
-}
-
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
@@ -309,14 +300,6 @@ void determine_tbb_partitioner_and_threads(Config& config,
             config.tbbPartitioner = TbbPartitioner::STATIC;
             return;
         }
-    }
-
-    if (has_lp_ecores && is_all_core_static_case_gemm_light_conv_profile(tolerance)) {
-        config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
-                                           proc_type_table[0][EFFICIENT_CORE_PROC] +
-                                           proc_type_table[0][LP_EFFICIENT_CORE_PROC];
-        config.tbbPartitioner = TbbPartitioner::STATIC;
-        return;
     }
 
     if (has_lp_ecores &&
