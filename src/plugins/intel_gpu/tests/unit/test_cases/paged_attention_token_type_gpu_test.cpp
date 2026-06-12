@@ -58,7 +58,7 @@ TEST_P(paged_attention_token_type_test, basic) {
     compare_token_type_output(output_data_mem, p.token_type_test_data.expectedOutput);
 }
 
-static paged_attention_token_type_test_params make_token_type_test_param(const test::TestData& data, int sliding_window_size, bool disable_flashattn_v2) {
+static paged_attention_token_type_test_params make_token_type_test_param(const test::TestData& data, bool disable_flashattn_v2) {
     paged_attention_token_type_test_params p;
     p.subsequences = {{static_cast<int>(data.tokenTypes.size()), 0}};
     p.num_heads = 1;
@@ -66,7 +66,7 @@ static paged_attention_token_type_test_params make_token_type_test_param(const t
     p.k_head_size = 32;
     p.v_head_size = 32;
     p.block_size = 16;
-    p.sliding_window_size = sliding_window_size;
+    p.sliding_window_size = data.slidingWindowSize;
     p.kv_cache_compression = DISABLE_CACHE_COMPRESSION;
     p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     p.dynamic_paddings = STATIC_INPUT_PAD;
@@ -78,12 +78,12 @@ static paged_attention_token_type_test_params make_token_type_test_param(const t
     return p;
 }
 
-static std::vector<paged_attention_token_type_test_params> make_token_type_test_params(const std::vector<test::TestData>& test_data, int sliding_window_size) {
+static std::vector<paged_attention_token_type_test_params> make_token_type_test_params(const std::vector<test::TestData>& test_data) {
     std::vector<paged_attention_token_type_test_params> params;
     params.reserve(test_data.size() * 2);
     for (const auto& data : test_data) {
-        params.push_back(make_token_type_test_param(data, sliding_window_size, ENABLE_FA_V2));
-        params.push_back(make_token_type_test_param(data, sliding_window_size, DISABLE_FA_V2));
+        params.push_back(make_token_type_test_param(data, ENABLE_FA_V2));
+        params.push_back(make_token_type_test_param(data, DISABLE_FA_V2));
     }
     return params;
 }
@@ -96,11 +96,5 @@ static std::string get_token_type_test_name(const testing::TestParamInfo<paged_a
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type,
                          paged_attention_token_type_test,
-                         ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestDataForHeadSize32HeadNum1(), 0)),
+                         ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestData())),
                          get_token_type_test_name);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_paged_attention_token_type_sliding_window,
-    paged_attention_token_type_test,
-    ::testing::ValuesIn(make_token_type_test_params(test::PagedAttentionTokenTypeTestData::GetTestDataForHeadSize32HeadNum1SlidingWindowSize5(), 5)),
-    get_token_type_test_name);

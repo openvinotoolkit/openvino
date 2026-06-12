@@ -17,12 +17,12 @@ struct TestData {
     std::vector<float> kData;
     std::vector<float> vData;
     std::vector<float> expectedOutput;
+    int slidingWindowSize;
 };
 
 class PagedAttentionTokenTypeTestData {
 public:
-    static std::vector<TestData> GetTestDataForHeadSize32HeadNum1();
-    static std::vector<TestData> GetTestDataForHeadSize32HeadNum1SlidingWindowSize5();
+    static std::vector<TestData> GetTestData();
 };
 
 }  // namespace test
