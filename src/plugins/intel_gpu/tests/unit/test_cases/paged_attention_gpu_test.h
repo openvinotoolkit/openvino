@@ -26,8 +26,6 @@
 #include "random_generator.hpp"
 #include "test_utils.h"
 
-using namespace ov::intel_gpu;
-
 // Enable detailed xattention debugging (dumps, extra comparison info)
 // Default: OFF (0). Set to 1 for investigation.
 #ifndef XATTENTION_DEBUG_VERBOSE
@@ -1316,7 +1314,7 @@ private:
                 cldnn::reorder("scores_data", cldnn::input_info("softmax"), cldnn::format::bfyx, cldnn::data_types::f16));
         }
 
-        ExecutionConfig config = tests::get_test_default_config(test_engine);
+        ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(test_engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
@@ -2125,7 +2123,7 @@ public:
             topology.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
-        ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
+        ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
@@ -2901,7 +2899,7 @@ private:
 public:
     static bool check_cm_available() {
         auto& engine = tests::get_test_engine();
-        ExecutionConfig config = tests::get_test_default_config(engine);
+        ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(engine);
         return cldnn::check_cm_jit_support(engine, config) && engine.get_device_info().supports_immad;
     }
 };
