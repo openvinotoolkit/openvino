@@ -66,41 +66,38 @@ namespace {
  * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
  *
  * Spawns worker threads that each read one byte per page in their assigned range.
- * No-op if data is null or size is below the prefault threshold. Below that threshold the overhead
+ * * No-op if the region length is below the prefault threshold. Below that threshold the overhead
  * of spawning threads exceeds the benefit.
  *
- * @param data                Pointer to the start of the memory region.
- * @param size                Number of bytes in the region.
- * @param prefault_threshold  Minimum size in bytes to trigger parallel prefaulting (default 4 MiB).
+ * @param region              Page-aligned memory region to prefault.
+ * @param prefault_threshold  Minimum region length in bytes to trigger parallel prefaulting (default 4 MiB).
  */
-void populate_pages(void* data, size_t size, size_t prefault_threshold = 4 * 1024 * 1024) {
-    if (data == nullptr || size < prefault_threshold)
+void populate_pages(const util::AlignedRegion& region, size_t prefault_threshold = 4 * 1024 * 1024) {
+    if (region.m_length < prefault_threshold)
         return;
 
     const auto page = static_cast<size_t>(util::get_system_page_size());
-    const auto& [aligned_addr, total_length, gap] = util::align_region(reinterpret_cast<uintptr_t>(data), size, page);
-    const size_t region_length = total_length;  // plain variable for C++17 lambda capture
-    const size_t pages = (region_length + page - 1) / page;
+    const size_t pages = (region.m_length + page - 1) / page;
 
     const size_t hw_threads = std::thread::hardware_concurrency();
     constexpr size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MiB per thread minimum
     constexpr size_t max_prefault_threads = 10;
     const size_t num_threads =
-        std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, region_length / min_chunk_size)});
+        std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, region.m_length / min_chunk_size)});
 
     std::vector<std::thread> threads;
-    const auto base = reinterpret_cast<const char*>(aligned_addr);
+    const auto base = reinterpret_cast<const uint8_t*>(region.m_address);
 
     for (size_t tid = 0; tid < num_threads; ++tid) {
         threads.emplace_back([&, tid] {
             const size_t begin_page = pages * tid / num_threads;
             const size_t end_page = pages * (tid + 1) / num_threads;
-            volatile uint64_t local = 0;  // prevent compiler from optimizing the loop away as a no-op
+            volatile uint8_t local = 0;  // prevents compiler from optimizing the loop away as a no-op
 
             for (size_t p = begin_page; p < end_page; ++p) {
                 const size_t off = p * page;
-                if (off < region_length) {
-                    local += static_cast<unsigned char>(base[off]);
+                if (off < region.m_length) {
+                    local += base[off];
                 }
             }
         });
@@ -154,7 +151,6 @@ class MapHolder final : public MappedMemory {
     size_t m_mapped_view_size = 0;
     void* m_data = nullptr;
     size_t m_size = 0;
-    size_t m_file_offset = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
 
@@ -185,7 +181,6 @@ public:
             throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }
 
-        m_file_offset = offset;
         if (m_size > 0) {
             const auto& [aligned_offset, length, gap] = util::make_mmap_region(offset, m_size);
             m_mapped_view_size = length;
@@ -231,15 +226,11 @@ public:
             return;
         }
 
-        const auto available = m_size - offset;
-        const auto effective_size = (size == auto_size) ? available : std::min(size, available);
-
-        const auto fadvise_off = static_cast<off_t>(m_file_offset + offset);
-        const auto fadvise_len = static_cast<off_t>(effective_size);
-        posix_fadvise(m_handle.get(), fadvise_off, fadvise_len, POSIX_FADV_SEQUENTIAL);
-        posix_fadvise(m_handle.get(), fadvise_off, fadvise_len, POSIX_FADV_WILLNEED);
-
-        ov::populate_pages(static_cast<char*>(m_data) + offset, effective_size);
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
+            std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_SEQUENTIAL);
+            std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_WILLNEED);
+            ov::populate_pages(region);
+        }
     }
 };
 

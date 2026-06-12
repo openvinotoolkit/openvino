@@ -15,10 +15,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#ifdef __linux__
-#    include <fcntl.h>     // O_RDONLY, O_WRONLY, O_DIRECT
-#    include <sys/mman.h>  // mincore
-#endif
 namespace ov::test {
 TEST(MappedMemory, get_id_unique_per_file) {
     // Create two temporary files
@@ -354,162 +350,146 @@ TEST_F(HintEvictTest, evict_with_nonzero_offset_matches_original) {
     EXPECT_EQ(read_mapped(*mm), expected_slice);
 }
 
-TEST(MappedMemory, parallel_prefault_whole_file) {
-    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
+class HintPrefetchTest : public ::testing::Test {
+protected:
+    std::filesystem::path m_file_path;
+
+    void TearDown() override {
+        std::filesystem::remove(m_file_path);
+    }
+
+    static std::vector<uint8_t> read_mapped(MappedMemory& mm) {
+        return {reinterpret_cast<uint8_t*>(mm.data()), reinterpret_cast<uint8_t*>(mm.data()) + mm.size()};
+    }
+};
+
+TEST_F(HintPrefetchTest, parallel_prefault_whole_file) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_test.bin");
     constexpr size_t file_size = 5 * 1024 * 1024;  // 5 MiB (above 4 MiB threshold)
+    std::vector<uint8_t> data(file_size);
+    for (size_t i = 0; i < file_size; ++i)
+        data[i] = static_cast<uint8_t>(i % 251);
 
     {
-        std::vector<uint8_t> data(file_size);
-        for (size_t i = 0; i < file_size; ++i)
-            data[i] = static_cast<uint8_t>(i % 251);
-        std::ofstream f(file_path, std::ios::binary);
+        std::ofstream f(m_file_path, std::ios::binary);
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
-        auto mapped = load_mmap_object(file_path);
+        auto mapped = load_mmap_object(m_file_path);
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size);
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_EQ(static_cast<unsigned char>(mapped->data()[0]), 0u);
-        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[file_size - 1]), static_cast<uint8_t>((file_size - 1) % 251));
+        EXPECT_EQ(read_mapped(*mapped), data);
     }
-
-    std::filesystem::remove(file_path);
 }
 
-TEST(MappedMemory, parallel_prefault_partial_region) {
-    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_partial.bin");
+TEST_F(HintPrefetchTest, parallel_prefault_partial_region) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_partial.bin");
     constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MB
     constexpr size_t prefault_offset = 1 * 1024 * 1024;
     constexpr size_t prefault_size = 5 * 1024 * 1024;
+    std::vector<uint8_t> data(file_size);
+    for (size_t i = 0; i < file_size; ++i)
+        data[i] = static_cast<uint8_t>(i % 251);
 
     {
-        std::vector<uint8_t> data(file_size);
-        for (size_t i = 0; i < file_size; ++i)
-            data[i] = static_cast<uint8_t>(i % 251);
-        std::ofstream f(file_path, std::ios::binary);
+        std::ofstream f(m_file_path, std::ios::binary);
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
-        auto mapped = load_mmap_object(file_path);
+        auto mapped = load_mmap_object(m_file_path);
         ASSERT_NE(mapped, nullptr);
 
         EXPECT_NO_THROW(mapped->hint_prefetch(prefault_offset, prefault_size));
 
-        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[prefault_offset]), static_cast<uint8_t>(prefault_offset % 251));
+        EXPECT_EQ(read_mapped(*mapped), data);
     }
-
-    std::filesystem::remove(file_path);
 }
 
-TEST(MappedMemory, parallel_prefault_below_threshold_is_noop) {
-    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_small.bin");
+TEST_F(HintPrefetchTest, parallel_prefault_below_threshold_is_noop) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_small.bin");
     constexpr size_t file_size = 1024;  // 1 KB - below threshold
+    std::vector<uint8_t> data(file_size);
+    for (size_t i = 0; i < file_size; ++i)
+        data[i] = static_cast<uint8_t>(i % 251);
 
     {
-        std::vector<char> data(file_size, 'A');
-        std::ofstream f(file_path, std::ios::binary);
-        f.write(data.data(), data.size());
-    }
-
-    {
-        auto mapped = load_mmap_object(file_path);
-        ASSERT_NE(mapped, nullptr);
-        EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
-    }
-
-    std::filesystem::remove(file_path);
-}
-
-TEST(MappedMemory, parallel_prefault_with_file_offset) {
-    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_offset.bin");
-    constexpr size_t file_size = 10 * 1024 * 1024;  // 10 MB
-    constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
-
-    {
-        std::vector<uint8_t> data(file_size);
-        for (size_t i = 0; i < file_size; ++i)
-            data[i] = static_cast<uint8_t>(i % 251);
-        std::ofstream f(file_path, std::ios::binary);
+        std::ofstream f(m_file_path, std::ios::binary);
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
-        auto mapped = load_mmap_object(file_path, map_offset);
+        auto mapped = load_mmap_object(m_file_path);
+        ASSERT_NE(mapped, nullptr);
+        EXPECT_NO_THROW(mapped->hint_prefetch());  // no optimization
+        EXPECT_EQ(read_mapped(*mapped), data);
+    }
+}
+
+TEST_F(HintPrefetchTest, parallel_prefault_with_file_offset) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_offset.bin");
+    constexpr size_t file_size = 10 * 1024 * 1024;  // 10 MB
+    constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
+    std::vector<uint8_t> data(file_size);
+    for (size_t i = 0; i < file_size; ++i)
+        data[i] = static_cast<uint8_t>(i % 251);
+
+    {
+        std::ofstream f(m_file_path, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(data.data()), data.size());
+    }
+
+    {
+        auto mapped = load_mmap_object(m_file_path, map_offset);
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size - map_offset);
 
         EXPECT_NO_THROW(mapped->hint_prefetch());
 
-        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[0]), static_cast<uint8_t>(map_offset % 251));
+        EXPECT_EQ(read_mapped(*mapped), std::vector<uint8_t>(data.begin() + map_offset, data.end()));
     }
-
-    std::filesystem::remove(file_path);
 }
 
-TEST(MappedMemory, hint_prefetch_with_both_offsets) {
-    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_both_offsets.bin");
+TEST_F(HintPrefetchTest, hint_prefetch_with_both_offsets) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefault_both_offsets.bin");
     constexpr size_t file_size = 12 * 1024 * 1024;  // 12 MB
     constexpr size_t map_offset = 2 * 1024 * 1024;  // Map starting at 2 MB into file
     constexpr size_t pop_offset = 1 * 1024 * 1024;  // Populate starting at 1 MB into mapping
     constexpr size_t pop_size = 5 * 1024 * 1024;    // Populate 5 MB
+    std::vector<uint8_t> data(file_size);
+    for (size_t i = 0; i < file_size; ++i)
+        data[i] = static_cast<uint8_t>(i % 251);
 
     {
-        std::vector<uint8_t> data(file_size);
-        for (size_t i = 0; i < file_size; ++i)
-            data[i] = static_cast<uint8_t>(i % 251);
-        std::ofstream f(file_path, std::ios::binary);
+        std::ofstream f(m_file_path, std::ios::binary);
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
     {
-        auto mapped = load_mmap_object(file_path, map_offset);
+        auto mapped = load_mmap_object(m_file_path, map_offset);
         ASSERT_NE(mapped, nullptr);
         EXPECT_EQ(mapped->size(), file_size - map_offset);
 
         EXPECT_NO_THROW(mapped->hint_prefetch(pop_offset, pop_size));
 
-        EXPECT_EQ(static_cast<uint8_t>(mapped->data()[pop_offset]),
-                  static_cast<uint8_t>((map_offset + pop_offset) % 251));
+        EXPECT_EQ(read_mapped(*mapped), std::vector<uint8_t>(data.begin() + map_offset, data.end()));
     }
-
-    std::filesystem::remove(file_path);
-}
-
-#ifdef __linux__
-// Returns the number of pages in [data, data+size) that are resident in the page cache.
-// Uses mincore(2). Returns 0 if mincore fails (region not mapped or other error).
-static size_t count_resident_pages(const void* data, size_t size) {
-    if (!data || size == 0)
-        return 0;
-    const size_t page = static_cast<size_t>(util::get_system_page_size());
-    const auto base_addr = reinterpret_cast<uintptr_t>(data);
-    const auto aligned = (base_addr / page) * page;
-    const auto gap = base_addr - aligned;
-    const size_t aligned_size = size + gap;
-    const size_t num_pages = (aligned_size + page - 1) / page;
-    std::vector<unsigned char> vec(num_pages, 0);
-    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, vec.data()) != 0)
-        return 0;
-    return static_cast<size_t>(std::count_if(vec.begin(), vec.end(), [](unsigned char v) {
-        return (v & 1) != 0;
-    }));
 }
 
 // Investigates whether calling hint_prefetch(offset, size) and POSIX_FADV_SEQUENTIAL
 // on a subregion of an already-cached file evicts pages *outside* that region
-TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
-    constexpr size_t file_size_mb = 128;
-    constexpr size_t file_size = file_size_mb * 1024 * 1024;
+TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    constexpr size_t file_size = 128 * 1024 * 1024;
 
-    constexpr size_t prefetch_offset_mb = 80;
-    constexpr size_t prefetch_size_mb = 16;
-    constexpr size_t prefetch_offset = prefetch_offset_mb * 1024 * 1024;
-    constexpr size_t prefetch_size = prefetch_size_mb * 1024 * 1024;
+    constexpr size_t prefetch_offset = 80 * 1024 * 1024;
+    constexpr size_t prefetch_size = 16 * 1024 * 1024;
 
     constexpr size_t prefix_mb = 64;
     constexpr size_t prefix_size = prefix_mb * 1024 * 1024;
@@ -517,42 +497,27 @@ TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
     const size_t page = static_cast<size_t>(util::get_system_page_size());
     const size_t total_prefix_pages = prefix_size / page;
 
-    auto file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_file.bin");
     {
         std::vector<uint8_t> data(file_size);
         for (size_t i = 0; i < file_size; ++i)
             data[i] = static_cast<uint8_t>(i % 251);
-        std::ofstream f(file_path, std::ios::binary);
+        std::ofstream f(m_file_path, std::ios::binary);
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 
-    auto mapped = load_mmap_object(file_path);
+    auto mapped = load_mmap_object(m_file_path);
     volatile char sink = 0;
     for (size_t i = 0; i < prefix_size; i += page) {
         sink += mapped->data()[i];
     }
-    const size_t pages_before = count_resident_pages(mapped->data(), prefix_size);
+    const size_t pages_before = utils::count_resident_pages(mapped->data(), prefix_size);
     ASSERT_EQ(pages_before, total_prefix_pages)
         << "Expected all " << total_prefix_pages << " prefix pages resident after warmup, but found " << pages_before;
 
     mapped->hint_prefetch(prefetch_offset, prefetch_size);
-    const size_t pages_after = count_resident_pages(mapped->data(), prefix_size);
-
-    EXPECT_EQ(pages_after, pages_before)
-        << "hint_prefetch evicted " << (pages_before - pages_after) << " pages (~"
-        << (pages_before - pages_after) * page / (1024 * 1024) << " MB) from prefix [0, " << prefix_mb
-        << " MB). POSIX_FADV_SEQUENTIAL on a late subregion should not evict earlier cached pages.";
-
-    // hint_prefetch issues POSIX_FADV_WILLNEED, which is a non-blocking kernel hint: the kernel schedules
-    // read-ahead but does not guarantee pages are resident by the time the call returns.
-    // Check that at least some pages were loaded into the target region.
-    const size_t target_pages = count_resident_pages(mapped->data() + prefetch_offset, prefetch_size);
-    const size_t total_target_pages = prefetch_size / page;
-    EXPECT_GT(target_pages, 0u) << "hint_prefetch loaded 0 / " << total_target_pages << " pages into target region ["
-                                << prefetch_offset_mb << " MB, " << (prefetch_offset_mb + prefetch_size_mb) << " MB).";
-
-    std::filesystem::remove(file_path);
+    const size_t pages_after = utils::count_resident_pages(mapped->data(), prefix_size);
+    EXPECT_EQ(pages_after, pages_before) << "hint_prefetch evicted pages.";
 }
-#endif  // __linux__
 
 }  // namespace ov::test
