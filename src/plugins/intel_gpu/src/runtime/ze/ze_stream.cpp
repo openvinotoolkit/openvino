@@ -45,6 +45,13 @@ bool sync_after_each_kernel_enabled() {
     return enabled;
 }
 
+bool print_each_kernel() {
+    const char* value = std::getenv("OV_GPU_ZE_PRINT_EACH_KERNEL");
+    if ((value != nullptr && std::string(value) != "0") || sync_after_each_kernel_enabled())
+        return true;
+    return false;
+}
+
 std::string ze_result_to_hex(ze_result_t status) {
     std::ostringstream oss;
     oss << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(status);
@@ -276,7 +283,8 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      std::vector<event::ptr> const& deps,
                                      bool is_output) {
     last_enqueued_kernel_id = kernel.get_id();
-    std::cout << "[GPU] Enqueue kernel: " << kernel.get_id() << std::endl;
+    if (print_each_kernel())
+        std::cout << "[GPU] Enqueue kernel: " << kernel.get_id() << std::endl;
 
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
