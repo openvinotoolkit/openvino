@@ -161,7 +161,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         }
         return;
     }
-    printf("debug small q kernel!\n");
     constexpr uint kv_pitch = HEAD_SIZE * sizeof(KV_ELEMENT_TYPE);
 
     // Load Q for this (q_token_idx, head_chunk).
