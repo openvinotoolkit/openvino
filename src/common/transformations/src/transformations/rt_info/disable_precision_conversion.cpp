@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 #include <sstream>
 
@@ -14,18 +14,6 @@ const std::string& get_postponed_fp16_compression_tag() {
     return postponed_fp16_compression_tag;
 }
 }  // namespace
-
-void ov::disable_fp16_compression(const std::shared_ptr<Node>& node) {
-    disable_conversion(node, element::f16);
-}
-
-void ov::enable_fp16_compression(const std::shared_ptr<Node>& node) {
-    enable_conversion(node, element::f16);
-}
-
-bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
-    return is_conversion_disabled(node, element::f16);
-}
 
 void ov::postpone_fp16_compression(ov::RTMap& rt_info) {
     rt_info[get_postponed_fp16_compression_tag()] = true;
