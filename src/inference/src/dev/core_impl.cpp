@@ -424,7 +424,18 @@ std::optional<std::filesystem::path> get_cache_path_from_config(const ov::AnyMap
                        ov::cache_dir.name(),
                        "' property. Both set in configuration.");
     } else if (cache_dir_it != config.end()) {
-        return std::make_optional(ov::util::make_path(cache_dir_it->second.as<std::string>()));
+        const auto cache_dir = cache_dir_it->second.as<std::string>();
+        try {
+            return std::make_optional(ov::util::make_path(cache_dir));
+        } catch (const std::exception&) {
+#ifdef _WIN32
+            // Python bindings pass UTF-8 strings; if locale-based conversion fails,
+            // retry with explicit UTF-8 path decoding.
+            return std::make_optional(std::filesystem::u8path(cache_dir));
+#else
+            throw;
+#endif
+        }
     } else if (cache_path_it != config.end()) {
         return std::make_optional(cache_path_it->second.as<std::filesystem::path>());
     } else {
