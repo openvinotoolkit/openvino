@@ -22,8 +22,8 @@ permissions: read-all
 env:
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
-  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
-  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-primary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-primary"
 
 jobs:
   JAX_Models_Tests:
