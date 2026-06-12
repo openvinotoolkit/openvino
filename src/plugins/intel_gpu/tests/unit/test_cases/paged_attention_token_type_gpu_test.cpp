@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "paged_attention_gpu_test.hpp"
+#include "paged_attention_gpu_test.h"
 #include "test_utils/test_data/paged_attention_token_type_test_data.h"
 
 struct paged_attention_token_type_test_params : public paged_attention_test_params {
@@ -32,7 +32,7 @@ public:
     void compare_token_type_output(memory::ptr data_output_mem, const std::vector<float>& expected_output) {
         ASSERT_TRUE(data_output_mem);
         ASSERT_EQ(data_output_mem->count(), expected_output.size());
-        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
         constexpr float token_type_tolerance = 1e-2f;
         for (size_t i = 0; i < data_output_mem->count(); i++) {
             ASSERT_NEAR(static_cast<float>(mem_ptr[i]), expected_output[i], token_type_tolerance) << " at index=" << i;

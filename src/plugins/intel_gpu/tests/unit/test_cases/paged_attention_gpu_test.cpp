@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "paged_attention_gpu_test.hpp"
+#include "paged_attention_gpu_test.h"
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {

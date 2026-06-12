@@ -28,7 +28,6 @@
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
-using namespace ::tests;
 
 // Enable detailed xattention debugging (dumps, extra comparison info)
 // Default: OFF (0). Set to 1 for investigation.
@@ -1219,15 +1218,15 @@ private:
         auto value_mem = test_engine.allocate_memory(value_layout);
         auto scale_mem = test_engine.allocate_memory(scale_layout);
 
-        set_values(query_mem, query_data);
+        tests::set_values(query_mem, query_data);
         if (do_gqa_expand) {
-            set_values(key_mem, expanded_key_data);
-            set_values(value_mem, expanded_value_data);
+            tests::set_values(key_mem, expanded_key_data);
+            tests::set_values(value_mem, expanded_value_data);
         } else {
-            set_values(key_mem, key_data);
-            set_values(value_mem, value_data);
+            tests::set_values(key_mem, key_data);
+            tests::set_values(value_mem, value_data);
         }
-        set_values(scale_mem, {static_cast<ov::float16>(scale)});
+        tests::set_values(scale_mem, {static_cast<ov::float16>(scale)});
 
         ov::reference::XAttentionRetainedBlockIndicesForAllHeads retained_blocks;
         if (num_queries >= static_cast<int>(block_size) && has_xattention) {
@@ -1316,11 +1315,11 @@ private:
                          reorder("scores_data", input_info("softmax"), format::bfyx, data_types::f16));
         }
 
-        ExecutionConfig config = get_test_default_config(test_engine);
+        ExecutionConfig config = tests::get_test_default_config(test_engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        network::ptr network = get_network(test_engine, topology, config, get_test_stream_ptr(), false);
+        network::ptr network = tests::get_network(test_engine, topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
@@ -1771,7 +1770,7 @@ template <typename T>
 struct PagedAttentionTest : public ::testing::TestWithParam<T> {
 public:
     tests::random_generator rg;
-    cldnn::engine& engine = get_test_engine();
+    cldnn::engine& engine = tests::get_test_engine();
     float tolerance = 2e-3;
     memory::ptr last_key_cache_mem = nullptr;
     memory::ptr last_output_data_mem = nullptr;
@@ -1785,8 +1784,8 @@ public:
         auto p = this->GetParam();
 
         pam.emplace(rg,
-                    get_test_engine(),
-                    get_test_stream(),
+                    tests::get_test_engine(),
+                    tests::get_test_stream(),
                     p.subsequences,
                     p.num_heads,
                     p.num_kv_heads,
@@ -1805,7 +1804,7 @@ public:
     std::vector<ov::float16> get_output_data() {
         OPENVINO_ASSERT(last_output_data_mem != nullptr, "No output data available");
         std::vector<ov::float16> result(last_output_data_mem->count());
-        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(last_output_data_mem, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(last_output_data_mem, tests::get_test_stream());
         for (size_t i = 0; i < last_output_data_mem->count(); i++)
             result[i] = mem_ptr[i];
         return result;
@@ -2000,10 +1999,10 @@ public:
             padded_query_data_layout.data_padding._lower_size[padding_axis] = pad_before;
             padded_query_data_layout.data_padding._upper_size[padding_axis] = pad_after;
 
-            auto new_query_memory = get_test_engine().allocate_memory(padded_query_data_layout, false);
+            auto new_query_memory = tests::get_test_engine().allocate_memory(padded_query_data_layout, false);
 
-            mem_lock<ov::float16> query_mem_lock(query_mem, get_test_stream());
-            mem_lock<ov::float16> new_query_mem_lock(new_query_memory, get_test_stream());
+            mem_lock<ov::float16> query_mem_lock(query_mem, tests::get_test_stream());
+            mem_lock<ov::float16> new_query_mem_lock(new_query_memory, tests::get_test_stream());
 
             auto query_data_shape = query_data_layout.get_shape();
             for (size_t b = 0; b < query_data_shape[0]; b++) {
@@ -2125,7 +2124,7 @@ public:
             topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
-        ExecutionConfig config = get_test_default_config(get_test_engine());
+        ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
@@ -2134,7 +2133,7 @@ public:
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
         }
-        network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
+        network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
@@ -2172,7 +2171,6 @@ public:
         result.outputs = network->execute();
 
         last_output_data_mem = result.outputs.at("output_data").get_memory();
-
 
         return result;
     }
@@ -2218,7 +2216,7 @@ public:
                  std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<0>(ref_data)[i], tolerance) << " at index=" << i;
             }
@@ -2226,7 +2224,7 @@ public:
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<1>(ref_data)[i], tolerance) << " at index=" << i;
             }
@@ -2234,7 +2232,7 @@ public:
 
         if (diversity_output_mem) {
             ASSERT_EQ(diversity_output_mem->count(), std::get<2>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(diversity_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(diversity_output_mem, tests::get_test_stream());
             // Relaxed tolerance due to float32 (GPU) vs float16 (reference) accumulator difference
             float diversity_tolerance = tolerance * 10.0f;
             for (size_t i = 0; i < diversity_output_mem->count(); i++) {
@@ -2250,7 +2248,7 @@ public:
                             size_t head_size) {
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
             int mismatch_count = 0;
 
 #if XATTENTION_DEBUG_VERBOSE
@@ -2279,7 +2277,7 @@ public:
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
             int mismatch_count = 0;
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
                 if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(std::get<1>(ref_data)[i])) > tolerance) {
@@ -2313,7 +2311,7 @@ private:
         const size_t block_stride_bytes = static_cast<size_t>(p.num_kv_heads) * head_region_bytes;
         const int token_data_stride = p.k_head_size * elem_size;
 
-        mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, get_test_stream());
+        mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, tests::get_test_stream());
 
         int missing_count = 0, nan_count = 0, inf_count = 0, zero_scale_count = 0, out_of_range_zp_count = 0;
         std::vector<std::tuple<int, int, int, int, int>> nan_locations, inf_locations;
@@ -2823,7 +2821,7 @@ private:
                                                size_t num_heads,
                                                size_t head_size,
                                                float tolerance) {
-        auto& engine = get_test_engine();
+        auto& engine = tests::get_test_engine();
         auto arch = engine.get_device_info().arch;
         std::string arch_name = (arch == gpu_arch::xe2) ? "Xe2" : (arch == gpu_arch::xe3) ? "Xe3" : "Xe1";
         size_t total_elements = ref_output.size();
@@ -2901,8 +2899,8 @@ private:
 
 public:
     static bool check_cm_available() {
-        auto& engine = get_test_engine();
-        ExecutionConfig config = get_test_default_config(engine);
+        auto& engine = tests::get_test_engine();
+        ExecutionConfig config = tests::get_test_default_config(engine);
         return cldnn::check_cm_jit_support(engine, config) && engine.get_device_info().supports_immad;
     }
 };
