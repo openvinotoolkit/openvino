@@ -480,7 +480,7 @@ TEST(MappedMemory, hint_prefetch_with_both_offsets) {
 // on a subregion of an already-cached file evicts pages *outside* that region
 TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
 #ifndef __linux__
-    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet";
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
 #endif
     constexpr size_t file_size = 128 * 1024 * 1024;
 
