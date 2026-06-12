@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <cassert>
 
 #include "openvino/util/memory.hpp"
 
@@ -59,6 +60,18 @@ void release_buffer(void* reserved_buffer, size_t /* byte_size */, std::string* 
         if (error) {
             *error = std::string{"VirtualFree release failed, err: "} + std::to_string(GetLastError());
         }
+    }
+}
+
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // CVS-186579
+    // assert if region is not mmap-baked.
+
+    if (num_threads == 0) {
+        // Option 1: OS advisory hints
+    } else {
+        // Option 2: parallel synchronous prefault & touch
     }
 }
 
