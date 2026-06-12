@@ -39,6 +39,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_gpu {
@@ -451,6 +452,8 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_freq_pos_id).get_node_shared_ptr());
         auto mul_node1 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_sin_scale).get_node_shared_ptr());
         auto mul_node2 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_cos_scale).get_node_shared_ptr());
+        if (!rope_node || !matmul_node || !mul_node1 || !mul_node2)
+            return false;
 
         const auto desired_et = ov::element::f32;
         const auto original_et = rope_node->get_output_element_type(0);
@@ -506,7 +509,7 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
         if (!sin_node || transformation_callback(sin_node))
             return false;
         auto freq_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(freq_const).get_node_shared_ptr());
-        ov::disable_fp16_compression(freq_const_node);
+        ov::disable_conversion(freq_const_node, element::f16);
         return true;
     };
 

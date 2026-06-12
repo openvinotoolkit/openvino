@@ -20,9 +20,10 @@
 #include <pugixml.hpp>
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/op/moe_router_fused.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/primitives/moe_router_fused.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
@@ -32,7 +33,7 @@
 namespace ov {
 namespace op {
 namespace internal {
-using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
+using MoERouterFused = ov::intel_gpu::op::MoERouterFused;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -40,14 +41,20 @@ using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
 namespace ov::intel_gpu {
 using namespace cldnn;
 
-static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op) {
+// Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
+// When MOE_OFFLOAD_RATIO > 0, computes the per-weight byte offsets into the bin
+// file and the number of LRU expert slots to keep resident on the GPU.
+// Returns true when OTD is enabled (lru_expert_num > 0).
+static bool prepare_moe_otd_params(ProgramBuilder& p,
+                                   const std::shared_ptr<ov::op::internal::MOECompressed>& op,
+                                   std::vector<size_t>& weight_bin_offsets,
+                                   std::string& weights_path,
+                                   size_t& lru_expert_num) {
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
-    auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
     const auto& model = p.get_model();
-    std::string weights_path;
     const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
-    const size_t lru_expert_num = otd_ratio > 0 ? std::max<size_t>(1, static_cast<size_t>(config.num_expert) * otd_ratio / 100) : 0;
+    lru_expert_num = otd_ratio > 0 ? std::max<size_t>(1, static_cast<size_t>(config.num_expert) * otd_ratio / 100) : 0;
     const bool otd_enabled = lru_expert_num > 0;
     if (otd_enabled) {
         const auto& rt = model->get_rt_info();
@@ -374,68 +381,14 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
         static_cast<size_t>(input_idx::zp_2)
     };
 
-    std::vector<size_t> weight_bin_offsets(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, 0);
+    weight_bin_offsets.assign(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, 0);
     // Serialized offsets are only needed for OTD path (weight-on-demand loading).
     if (otd_enabled) {
         for (size_t i = 0; i < const_input_idx_by_offset.size(); i++) {
             weight_bin_offsets[i] = get_const_offset(const_input_idx_by_offset[i], i);
         }
     }
-    ///   0: hidden_states - input tensor with hidden representations
-    ///   1: routing_weights - [num_seq, num_experts] routing weights for all experts
-    ///   2: w0_weight - expert weights for first projection,
-    ///                  shape [num_experts, inter_size, group_num, group_size]
-    ///   3: w0_scale - expert scale for first projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   4: w0_zp - expert zp for first projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   5: w1_weight - expert weights for second projection,
-    ///                  shape [num_experts, inter_size, group_num, group_size]
-    ///   6: w1_scale - expert scale for second projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   7: w1_zp - expert zp for second projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   8: w2_weight - expert weights for final projection,
-    ///                  shape [num_experts, hidden_size, group_num, group_size]
-    ///   9: w2_scale - expert scale for final projection for compressed experts,
-    ///                  shape [num_experts, hidden_size, group_num, 1]
-    ///   10: w2_zp - expert zp for final projection for compressed experts,
-    ///                  shape [num_experts, hidden_size, group_num, 1]
-    ///   11: routing_bias (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
-    ///                  [1, num_experts] routing bias for sigmoid routing
-    ///   12: routing_eps (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
-    ///                  scalar epsilon for normalization
-    ///
-    ///   Options for shared experts (if config.num_shared_expert > 0, always starting at index 13):
-    ///   13: shared_gate_weight - shared expert weights for first projection,
-    ///                   shape [1, inter_size, group_num, group_size]
-    ///   14: shared_gate_scale - shared expert scale for first projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   15: shared_gate_zp - shared expert zp for first projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   16: shared_up_weight - shared expert weights for second projection,
-    ///                   shape [1, inter_size, group_num, group_size]
-    ///   17: shared_up_scale - shared expert scale for second projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   18: shared_up_zp - shared expert zp for second projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   19: shared_down_weight - shared expert weights for final projection,
-    ///                   shape [1, hidden_size, group_num, group_size]
-    ///   20: shared_down_scale - shared expert scale for final projection,
-    ///                   shape [1, hidden_size, group_num, 1]
-    ///   21: shared_down_zp - shared expert zp for final projection,
-    ///                   shape [1, hidden_size, group_num, 1]
-    ///   22: shared_gate_gate_weight - shared expert gate weight for gating,
-    ///                   shape [hidden_size]
-    const size_t expected_inputs = config.num_shared_expert > 0 ? 23
-                                 : config.routing_type == ov::op::internal::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
-                                 : 11;
-    validate_inputs_count(op, {expected_inputs});
-
-    const std::string layerName = layer_type_name_ID(op);
-    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config, weight_bin_offsets, weights_path, lru_expert_num);
-
-    p.add_primitive(*op, moe);
+    return otd_enabled;
 }
 
 static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
@@ -446,39 +399,20 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         input_infos.push_back(cldnn::input_info(input));
     }
     if (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
-        // Create GEMM3_SWIGLU specific primitives
-        //   0: hidden_states - input tensor with hidden representations
-        //   1: routing_weights - [num_experts, ...] normalized weights for selected experts
-        //      (input to final multiplication)
-        //   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
-        //   3: w0_weight - expert weights for first projection,
-        //   shape [num_experts, inter_size, group_num, group_size]
-        //   4: w0_scale - expert scale for first projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   5: w0_zp - expert zp for first projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   6: w1_weight - expert weights for second projection,
-        //   shape [num_experts, inter_size, group_num, group_size]
-        //   7: w1_scale - expert scale for second projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   8: w1_zp - expert zp for second projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   9: w2_weight - expert weights for final projection,
-        //   shape [num_experts, hidden_size, group_num, group_size]
-        //   10: w2_scale - expert scale for final projection for compressed experts,
-        //   shape [num_experts, hidden_size, group_num, 1]
-        //   11: w2_zp - expert zp for final projection for compressed experts,
-        //   shape [num_experts, hidden_size, group_num, 1]
-        // Use moe_3gemm_fused_compressed to replace it.
+        const size_t base_inputs = 12;
+        const size_t shared_inputs = config.num_shared_expert > 0 ? 10 : 0;
+        const size_t expected_inputs = base_inputs + shared_inputs;
+        validate_inputs_count(op, {expected_inputs});
 
-        // Reaching here means MOECompressed (GEMM3_SWIGLU) survived all transformation passes.
-        // It must be replaced by moe_3gemm_fused_compressed via FuseMOE3GemmCompressed; if the
-        // routing subgraph did not match the expected pattern, the model would otherwise fail later
-        // with the cryptic "Input ... hasn't been found in primitive_ids map" from the program builder.
-        // Surface the real cause explicitly here.
-        OPENVINO_THROW("[GPU] MOECompressed (GEMM3_SWIGLU) reached the GPU backend without being fused: "
-                       "FuseMOE3GemmCompressed transformation did not match the routing subgraph for op '",
-                       op->get_friendly_name(), "'. Please check the routing pattern.");
+        // Resolve OTD (offload-to-disk) parameters; no-op when MOE_OFFLOAD_RATIO == 0.
+        std::vector<size_t> weight_bin_offsets;
+        std::string weights_path;
+        size_t lru_expert_num = 0;
+        prepare_moe_otd_params(p, op, weight_bin_offsets, weights_path, lru_expert_num);
+
+        const std::string layerName = layer_type_name_ID(op);
+        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config, weight_bin_offsets, weights_path, lru_expert_num);
+        p.add_primitive(*op, moe);
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
@@ -594,7 +528,17 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
-REGISTER_FACTORY_IMPL(internal, MOE3GemmFusedCompressed);
+
+static void CreateMoERouterFusedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MoERouterFused>& op) {
+    auto inputs = p.GetInputInfo(op);
+    const auto& config = op->get_config();
+    const size_t expected_inputs = (config.routing_type == ov::intel_gpu::op::MoERouterFused::RoutingType::SIGMOID_BIAS) ? 3 : 1;
+    validate_inputs_count(op, {expected_inputs});
+    const std::string layerName = layer_type_name_ID(op);
+    p.add_primitive(*op, cldnn::moe_router_fused(layerName, inputs, config));
+}
+
 REGISTER_FACTORY_IMPL(internal, MOECompressed);
+REGISTER_FACTORY_IMPL(internal, MoERouterFused);
 
 }  // namespace ov::intel_gpu

@@ -380,7 +380,7 @@ TEST(moe_offload_primitive_test, default_offload_fields) {
 }
 
 TEST(moe_offload_primitive_test, construct_with_offload_params) {
-    MOE3GemmFusedCompressed::Config config{};
+    MOECompressed::Config config{};
     std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
     std::string path = "/path/to/weights.bin";
     size_t lru_num = 16;
@@ -401,7 +401,7 @@ TEST(moe_offload_primitive_test, construct_with_offload_params) {
 }
 
 TEST(moe_offload_primitive_test, equality_with_offload_fields) {
-    MOE3GemmFusedCompressed::Config config{};
+    MOECompressed::Config config{};
     std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
 
     cldnn::moe_3gemm_fused_compressed prim1(

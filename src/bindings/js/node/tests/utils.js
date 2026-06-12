@@ -42,6 +42,13 @@ const testModels = {
   reluModel: {
     xml: getModelPath("relu_model.xml"),
   },
+  reluLargeModel: {
+    xml: getModelPath("relu_large_model.xml"),
+    inputShape: [1, 3, 1024, 1024],
+    outputShape: [1, 3, 1024, 1024],
+    inputName: "data",
+    outputName: "relu_out",
+  },
 };
 
 module.exports = {
