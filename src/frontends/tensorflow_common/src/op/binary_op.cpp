@@ -106,6 +106,23 @@ OutputVector translate_mul_op(const NodeContext& node) {
     return {result};
 }
 
+OutputVector translate_max_op(const NodeContext& node) {
+    default_op_checks(node, 2, {}, true);
+    auto lhs = node.get_input(0);
+    auto rhs = node.get_input(1);
+
+    if (lhs.get_element_type() != rhs.get_element_type()) {
+        rhs = make_shared<v0::Convert>(rhs, lhs.get_element_type());
+        auto result = make_shared<v1::Maximum>(lhs, rhs);
+        set_node_name(node.get_name(), result);
+        return {result};
+    }
+
+    auto result = make_shared<v1::Maximum>(lhs, rhs);
+    set_node_name(node.get_name(), result);
+    return {result};
+}
+
 OutputVector translate_addv2_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Add", "AddV2"}, true);
     auto lhs = node.get_input(0);
