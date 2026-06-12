@@ -104,6 +104,7 @@ struct Config {
     ov::intel_cpu::TbbPartitioner tbbPartitioner = ov::intel_cpu::TbbPartitioner::NONE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
     bool enableTensorParallel = false;
+    bool multiAppThreadSyncExecution = false;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;

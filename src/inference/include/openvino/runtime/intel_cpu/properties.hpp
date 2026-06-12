@@ -117,5 +117,18 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
+/**
+ * @brief This property enables synchronous infer execution in the invoking application thread context,
+ * avoiding CPU plugin sync path dispatch through internal worker scheduling.
+ * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * The following code enables invoking-thread sync execution.
+ *
+ * @code
+ * core.compile_model(model, "CPU", ov::AnyMap{{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
+ * @endcode
+ */
+static constexpr Property<bool> multi_app_thread_sync_execution{"CPU_MULTI_APP_THREAD_SYNC_EXECUTION"};
+
 }  // namespace intel_cpu
 }  // namespace ov

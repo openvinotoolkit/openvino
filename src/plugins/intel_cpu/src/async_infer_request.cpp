@@ -16,15 +16,29 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
-    const bool is_optimized_single_stream)
+    const bool is_optimized_single_stream,
+    const bool multi_app_thread_sync_execution)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
       m_internal_request(request) {
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
     m_stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor);
-    m_infer_func = [this]() {
-        ov::IAsyncInferRequest::infer();
-    };
-    if (is_optimized_single_stream) {
+    if (multi_app_thread_sync_execution) {
+        m_infer_func = [this]() {
+            check_tensors();
+            if (m_stream_executor) {
+                m_stream_executor->execute([this]() {
+                    m_internal_request->infer();
+                });
+            } else {
+                m_internal_request->infer();
+            }
+        };
+    } else {
+        m_infer_func = [this]() {
+            ov::IAsyncInferRequest::infer();
+        };
+    }
+    if (!multi_app_thread_sync_execution && is_optimized_single_stream) {
         m_infer_func = [this]() {
             check_tensors();
             m_stream_executor->execute([this]() {
