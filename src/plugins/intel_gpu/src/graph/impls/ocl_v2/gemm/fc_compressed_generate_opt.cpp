@@ -1,22 +1,26 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "fc_compressed_generate_opt.hpp"
 
 #include "../common_utils/dispatch_utils.hpp"
-#include "fully_connected_inst.h"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/primitives/fully_connected.hpp"
 #include "../primitive_ocl_base.hpp"
 #include "../utils/jitter.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "fully_connected_inst.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
 
 // Vectorisation / dispatch constants — must match gemm_generate_opt.cl definitions.
-static constexpr int SG_SIZE  = 16;   // Intel GPU sub-group width for f16
-static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per iteration
+static constexpr int SG_SIZE = 16;  // Intel GPU sub-group width for f16
+static constexpr int VEC_SIZE = 8;  // half8 / u4-nibble-vec per iteration
 // N-parallel high-occupancy dispatch: each work-item owns 1 output channel.
 // WG_SIZE controls how many N-channels share a work-group (for EU occupancy).
-static constexpr int WG_SIZE  = 256;
+static constexpr int WG_SIZE = 256;
 // Legacy constants still emitted for JIT but unused in N-parallel W4A16 path.
 // W4A8 path still references TILE_N and FAKE_GROUP_SIZE for compat.
 // TILE_N is always 2 (matches reference MoE kernel design).
@@ -46,8 +50,7 @@ static bool detect_has_zp(const RuntimeParams& params) {
 }
 
 static bool detect_zp_is_u8(const RuntimeParams& params) {
-    return detect_has_zp(params) &&
-           params.input_layouts[3].data_type == data_types::u8;
+    return detect_has_zp(params) && params.input_layouts[3].data_type == data_types::u8;
 }
 
 // Returns the input_layouts index of the activation scale, or SIZE_MAX if not present.
@@ -90,11 +93,11 @@ protected:
     // per-instance info (primitive ID, layout addresses), defeating the cache
     // for every new FC layer even when the kernel logic is identical.
     [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
-        const auto& in0    = params.input_layouts[0];
-        const auto& in1    = params.input_layouts[1];
-        const auto& in_sc  = params.input_layouts[2];
-        const auto& shape_a  = in0.get_shape();
-        const auto& shape_w  = in1.get_shape();
+        const auto& in0 = params.input_layouts[0];
+        const auto& in1 = params.input_layouts[1];
+        const auto& in_sc = params.input_layouts[2];
+        const auto& shape_a = in0.get_shape();
+        const auto& shape_w = in1.get_shape();
         const auto& shape_sc = in_sc.get_shape();
 
         const size_t rank = shape_a.size();
@@ -108,16 +111,9 @@ protected:
 
         const int tile_n = (N >= TILE_N_THRESHOLD) ? TILE_N_LARGE : TILE_N_SMALL;
 
-        return get_kernel_name()
-               + "_K" + std::to_string(K)
-               + "_N" + std::to_string(N)
-               + "_B" + std::to_string(B)
-               + "_G" + std::to_string(group_size)
-               + "_T" + std::to_string(tile_n)
-               + (in1.data_type == data_types::i4 ? "_i4" : "_u4")
-               + (detect_has_zp(params) ? "_zp" : "")
-               + (detect_zp_is_u8(params) ? "_u8zp" : "")
-               + (in0.data_type == data_types::i8 ? "_i8act" : "_f16act");
+        return get_kernel_name() + "_K" + std::to_string(K) + "_N" + std::to_string(N) + "_B" + std::to_string(B) + "_G" + std::to_string(group_size) + "_T" +
+               std::to_string(tile_n) + (in1.data_type == data_types::i4 ? "_i4" : "_u4") + (detect_has_zp(params) ? "_zp" : "") +
+               (detect_zp_is_u8(params) ? "_u8zp" : "") + (in0.data_type == data_types::i8 ? "_i8act" : "_f16act");
     }
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -126,18 +122,18 @@ protected:
         // After update_impl_params, input_layouts are reordered to:
         //   [0] activation (f16 or i8)  [1] weight (u4/i4)  [2] scale (f16)  [3] ZP(opt, u4)
         //   [3 or 4] act_scale (f16, W4A8 only)
-        const auto& in0   = params.input_layouts[0];  // activation
-        const auto& in1   = params.input_layouts[1];  // weight
+        const auto& in0 = params.input_layouts[0];    // activation
+        const auto& in1 = params.input_layouts[1];    // weight
         const auto& in_sc = params.input_layouts[2];  // weight scale [N, NUM_GROUPS]
 
-        const auto& shape_a  = in0.get_shape();
-        const auto& shape_w  = in1.get_shape();   // [N, K] after reshape
-        const auto& shape_sc = in_sc.get_shape(); // [N, K/group_size] = [N, NUM_GROUPS]
+        const auto& shape_a = in0.get_shape();
+        const auto& shape_w = in1.get_shape();     // [N, K] after reshape
+        const auto& shape_sc = in_sc.get_shape();  // [N, K/group_size] = [N, NUM_GROUPS]
 
         // Derive tensor dimensions from (updated) activation and weight layouts.
         const size_t rank = shape_a.size();
-        const size_t K    = shape_a[rank - 1];    // reduction dimension
-        const size_t N    = shape_w[0];           // weight rows = output features
+        const size_t K = shape_a[rank - 1];  // reduction dimension
+        const size_t N = shape_w[0];         // weight rows = output features
         // Batch: product of all leading dims of activation above K.
         size_t B = 1;
         for (size_t i = 0; i + 1 < rank; ++i)
@@ -173,26 +169,26 @@ protected:
 
         // Dispatch/size constants for K-parallel sub-group approach.
         jit.add({
-            make_jit_constant("K_SIZE",           static_cast<int>(K)),
-            make_jit_constant("N_SIZE",           static_cast<int>(N)),
-            make_jit_constant("B_SIZE",           static_cast<int>(B)),
-            make_jit_constant("SG_SIZE",          SG_SIZE),
-            make_jit_constant("VEC_SIZE",         VEC_SIZE),
-            make_jit_constant("WG_SIZE",          WG_SIZE),
-            make_jit_constant("TILE_N",           tile_n),
-            make_jit_constant("FAKE_GROUP_SIZE",  FAKE_GROUP_SIZE),
+            make_jit_constant("K_SIZE", static_cast<int>(K)),
+            make_jit_constant("N_SIZE", static_cast<int>(N)),
+            make_jit_constant("B_SIZE", static_cast<int>(B)),
+            make_jit_constant("SG_SIZE", SG_SIZE),
+            make_jit_constant("VEC_SIZE", VEC_SIZE),
+            make_jit_constant("WG_SIZE", WG_SIZE),
+            make_jit_constant("TILE_N", tile_n),
+            make_jit_constant("FAKE_GROUP_SIZE", FAKE_GROUP_SIZE),
         });
 
         // WOQ-specific constants.
         const bool zp_is_u8 = detect_zp_is_u8(params);
         jit.add({
-            make_jit_constant("IS_WEIGHT_INT4",   1),
-            make_jit_constant("IS_ACT_INT8",      act_is_i8 ? 1 : 0),
+            make_jit_constant("IS_WEIGHT_INT4", 1),
+            make_jit_constant("IS_ACT_INT8", act_is_i8 ? 1 : 0),
             make_jit_constant("WEIGHT_IS_SIGNED", weight_is_signed ? 1 : 0),
-            make_jit_constant("HAS_ZP",           has_zp ? 1 : 0),
-            make_jit_constant("ZP_IS_U8",         zp_is_u8 ? 1 : 0),
-            make_jit_constant("GROUP_SIZE",       static_cast<int>(actual_group_size)),
-            make_jit_constant("NUM_GROUPS",       static_cast<int>(actual_num_groups)),
+            make_jit_constant("HAS_ZP", has_zp ? 1 : 0),
+            make_jit_constant("ZP_IS_U8", zp_is_u8 ? 1 : 0),
+            make_jit_constant("GROUP_SIZE", static_cast<int>(actual_group_size)),
+            make_jit_constant("NUM_GROUPS", static_cast<int>(actual_num_groups)),
         });
 
         // Float32 accumulator for numerical stability.
@@ -241,12 +237,12 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             assert(!params.is_dynamic());
 
-            const auto& in0   = params.input_layouts[0];
-            const auto& in1   = params.input_layouts[1];
+            const auto& in0 = params.input_layouts[0];
+            const auto& in1 = params.input_layouts[1];
             const auto& shape_a = in0.get_shape();
 
-            const size_t rank  = shape_a.size();
-            const size_t N     = in1.get_shape()[0];  // weight [N, K]
+            const size_t rank = shape_a.size();
+            const size_t N = in1.get_shape()[0];  // weight [N, K]
             size_t B = 1;
             for (size_t i = 0; i + 1 < rank; ++i)
                 B *= shape_a[i];
@@ -262,7 +258,7 @@ protected:
             const size_t num_wg = (N + n_block_wg - 1) / n_block_wg;
             auto& wgs = kd.params.workGroups;
             wgs.global = {num_wg * WG_SIZE, B, 1};
-            wgs.local  = {static_cast<size_t>(WG_SIZE), 1, 1};
+            wgs.local = {static_cast<size_t>(WG_SIZE), 1, 1};
         }};
     }
 };
@@ -326,8 +322,7 @@ public:
 
 }  // namespace
 
-std::unique_ptr<primitive_impl> FCCompressedGenerateOpt::create_impl(const program_node& node,
-                                                                      const RuntimeParams& params) const {
+std::unique_ptr<primitive_impl> FCCompressedGenerateOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<fully_connected>());
     return std::make_unique<FCCompressedOptImpl>(node, params);
 }
