@@ -61,6 +61,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/errors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/type_validation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
@@ -80,7 +81,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime::dev openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
     # Generate node.lib

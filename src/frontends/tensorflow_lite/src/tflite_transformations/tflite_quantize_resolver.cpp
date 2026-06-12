@@ -8,6 +8,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -20,7 +21,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "tflite_ops/tflite_quantize.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -196,13 +196,13 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
 
         if (is_constant) {
             fuse_zp_to_weights(output, zp, zp_shape);
-            output = make_shared<v0::Convert>(output, element::f32);
-            disable_constant_folding(output.get_node_shared_ptr());
+            ov::Output<ov::Node> zp_input;
             if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
                     return i != 0;
-                }))
-                output = std::make_shared<v1::Subtract>(output, zp_node);
-            output = std::make_shared<v1::Multiply>(output, scale_node);
+                })) {
+                zp_input = zp_node;
+            }
+            output = ov::decomposition::low_precision_dequantize(output, scale_node, zp_input);
             tfl_quantize->output(0).replace(output);
             return true;
         }

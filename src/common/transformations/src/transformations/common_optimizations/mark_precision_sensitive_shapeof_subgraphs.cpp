@@ -13,7 +13,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
@@ -23,14 +23,14 @@ using namespace std;
 namespace op_util = ov::op::util;
 ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs() {
     m_markup_func = [](Node* node) {
-        ov::disable_fp16_compression(node->shared_from_this());
+        ov::disable_conversion(node->shared_from_this(), element::f16);
     };
 }
 
 ov::pass::MarkPrecisionSensitiveConstants::MarkPrecisionSensitiveConstants() {
     m_markup_func = [](Node* node) {
         if (ov::is_type<ov::op::v0::Constant>(node)) {
-            ov::disable_fp16_compression(node->shared_from_this());
+            ov::disable_conversion(node->shared_from_this(), element::f16);
         }
     };
 }
