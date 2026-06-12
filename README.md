@@ -29,13 +29,72 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2026/_static/downl
 
 ## Installation
 
-[Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2026/get-started/install-openvino.html) or use this command for quick installation:
-
+### Quick Install
 ```sh
 pip install -U openvino
 ```
 
+### Installation Options
+
+**PyPI (Recommended)**
+```sh
+# Install the latest version
+pip install openvino
+
+# Install with specific version
+pip install openvino==2026.0.0
+```
+
+**Conda**
+```sh
+conda install -c conda-forge openvino
+```
+
+**Docker**
+```sh
+# Pull the official OpenVINO Docker image
+docker pull openvino/ubuntu20_runtime:latest
+
+# Run with your model
+docker run -it --rm -v $(pwd):/workspace openvino/ubuntu20_runtime:latest
+```
+
+**From Source**
+For development and custom builds, see [Building from Source](./docs/dev/build.md).
+
 Check [system requirements](https://docs.openvino.ai/2026/about-openvino/release-notes-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2026/documentation/compatibility-and-support/supported-devices.html) for detailed information.
+
+## Quick Start
+
+Get up and running with OpenVINO in just a few lines of code:
+
+```python
+import openvino as ov
+import numpy as np
+
+# Initialize OpenVINO Runtime
+core = ov.Core()
+
+# For this example, we'll use a simple model conversion
+# Replace with your model path
+model_path = "path/to/your/model.onnx"  # or .xml, .pb, .pth, etc.
+
+# Load and compile model
+model = core.read_model(model_path)
+compiled_model = core.compile_model(model, "CPU")  # or "GPU", "NPU"
+
+# Prepare input data (adjust shape according to your model)
+input_data = np.random.random((1, 3, 224, 224)).astype(np.float32)
+
+# Run inference
+result = compiled_model([input_data])
+print(f"Inference result shape: {result[0].shape}")
+```
+
+**Next Steps:**
+- Explore [OpenVINO Notebooks](https://github.com/openvinotoolkit/openvino_notebooks) for hands-on tutorials
+- Check out the [Quickstart Guide](https://docs.openvino.ai/2026/get-started.html) for detailed examples
+- Browse [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) for pre-optimized models
 
 ## Tutorials and Examples
 
@@ -103,6 +162,19 @@ OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2026/
 Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2026/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
 
 Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering).
+
+## Documentation & Resources
+
+### Core Documentation
+- **[Getting Started Guide](https://docs.openvino.ai/2026/get-started.html)** - Complete beginner's guide
+- **[API Reference](https://docs.openvino.ai/2026/api/api_reference.html)** - Python, C++, and C APIs
+- **[Model Preparation](https://docs.openvino.ai/2026/openvino-workflow/model-preparation.html)** - Convert models from popular frameworks
+- **[Inference Devices](https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes.html)** - CPU, GPU, and NPU deployment
+
+### Learning Resources
+- **[Interactive Tutorials](https://docs.openvino.ai/2026/get-started/learn-openvino/interactive-tutorials-python.html)** - Jupyter notebooks
+- **[Code Samples](https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples.html)** - Python and C++ examples
+- **[Performance Optimization](https://docs.openvino.ai/2026/openvino-workflow/running-inference/optimize-inference.html)** - Best practices guide
 
 ## Documentation
 
