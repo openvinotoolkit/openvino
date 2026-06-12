@@ -1221,6 +1221,9 @@ KERNEL(sdpa_opt)(
 #if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
     const __global int* token_type_ids,
 #endif
+#if HAS_SINK_INPUT
+    const __global SINK_DATA_T* sink_ptr,
+#endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
@@ -2545,6 +2548,25 @@ KERNEL(sdpa_opt)(
 #endif /*!IS_FLASHATTEN_V2*/
         } /* end of QK*V calculation */
     } /* end of iter over source sequence length */
+
+#if HAS_SINK_INPUT
+    // Apply attention sink after all KV partitions are processed.
+    // Sink adds a virtual logit to the softmax denominator with zero V contribution.
+    {
+        SOFTMAX_ACCUMULATOR_TYPE sink_val = TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx]);
+        for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+            SOFTMAX_ACCUMULATOR_TYPE max_prev = slm_max_val_prev[seq_idx];
+            SOFTMAX_ACCUMULATOR_TYPE max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(max_prev, sink_val);
+            SOFTMAX_ACCUMULATOR_TYPE correction = native_exp(max_prev - max_new);
+            // Rescale output_acc (all work items do this for their own register)
+            output_acc[seq_idx] = TO_OUTPUT_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * correction);
+            // Update exp_sum (only one thread per seq_idx)
+            if (sgid == 0 && sglid == 0) {
+                slm_exp_sum_prev[seq_idx] = slm_exp_sum_prev[seq_idx] * correction + native_exp(sink_val - max_new);
+            }
+        }
+    }
+#endif
 
     // Combine results from multiple SGs and store to output buffer
 

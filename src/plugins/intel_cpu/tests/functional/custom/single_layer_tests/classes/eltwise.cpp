@@ -29,7 +29,7 @@ std::string EltwiseLayerCPUTest::getTestCaseName(const testing::TestParamInfo<El
                                                               basicParamsSet, 0));
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
-        result << "_enforceSnippets=" << enforceSnippets;
+    result << "_enforceSnippets=" << enforceSnippets;
 
     return result.str();
 }
@@ -53,6 +53,7 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
         switch (eltwiseType) {
         case utils::EltwiseTypes::POWER:
             params = gen_params(6, -3);
+            break;
         case utils::EltwiseTypes::MOD:
         case utils::EltwiseTypes::FLOOR_MOD:
             params = gen_params(2, 2, 8);
@@ -312,6 +313,7 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
             (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
+            (eltwise_type == utils::EltwiseTypes::POWER) ||
             (eltwiseType == utils::EltwiseTypes::MOD) ||
             (eltwiseType == utils::EltwiseTypes::FLOOR_MOD) ||
             (eltwiseType == utils::EltwiseTypes::SQUARED_DIFF)) {

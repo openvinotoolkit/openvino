@@ -60,10 +60,31 @@ void MoEResources::initialize_expert_iterative_mode(
     const size_t num_tokens = config.input_token_count;
     const size_t embed_dim = config.expert_hidden_dim;
 
-    ov::Shape buffer_shape = {active_experts, 1, num_tokens, embed_dim};
+    // Derive accumulator shape from the expert model's output shape template.
+    // Two layout variants exist depending on the opset version used during model export:
+    //   Layout A: [1, 1, chunk_size, embed_dim]  → accumulator [active_experts, 1, num_tokens, embed_dim]
+    //   Layout B: [1, chunk_size, 1, embed_dim]  → accumulator [active_experts, num_tokens, 1, embed_dim]
+    //
+    // We use the first chunk size's compiled model output shape as the template:
+    // replace dim[0] with active_experts, replace any middle dim (1..n-2) equal to
+    // chunk_size with num_tokens, and always preserve the last dim (embed_dim) unchanged.
+    const size_t first_chunk_size = config.compiled_models.begin()->first;
+    auto first_model = config.compiled_models.begin()->second;
+    const auto output_shape = first_model->outputs()[0].get_shape();
+
+    ov::Shape buffer_shape(output_shape.size());
+    buffer_shape[0] = active_experts;
+    for (size_t i = 1; i < output_shape.size() - 1; ++i) {
+        if (output_shape[i] == first_chunk_size) {
+            buffer_shape[i] = num_tokens;
+        } else {
+            buffer_shape[i] = output_shape[i];  // copy singleton (1) as-is
+        }
+    }
+    buffer_shape.back() = output_shape.back();  // always preserve embed_dim (last dim)
+    NPUW_ASSERT(buffer_shape.back() == embed_dim && "Accumulator last dim must equal expert_hidden_dim");
 
     // Infer element type from first compiled model output
-    auto first_model = config.compiled_models.begin()->second;
     auto output_element_type = first_model->outputs()[0].get_element_type();
 
     expert_output_accumulator = allocator(output_element_type, buffer_shape, device);

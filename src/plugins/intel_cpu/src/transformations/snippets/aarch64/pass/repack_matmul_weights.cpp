@@ -116,7 +116,7 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
 
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
-    const auto packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(N, K, precision);
+    const auto packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(precision, N, K);
     OPENVINO_ASSERT(packed_bytes % precision.size() == 0, "Unexpected packed weights byte size alignment");
     const auto batch =
         std::accumulate(planar_shape.cbegin(), planar_shape.cend() - 2, static_cast<size_t>(1), std::multiplies<>());

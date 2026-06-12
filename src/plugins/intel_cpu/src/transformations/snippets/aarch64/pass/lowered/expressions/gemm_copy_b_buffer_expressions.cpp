@@ -59,7 +59,7 @@ void RepackedWeightsBufferExpression::init_allocation_size(
         return;
     }
     // convert byte size to element type size
-    const size_t packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(N, K, element_type);
+    const size_t packed_bytes = gemm_utils::repacking::get_rhs_packed_size(element_type, N, K);
     m_allocation_size = packed_bytes / element_type.size();
 }
 

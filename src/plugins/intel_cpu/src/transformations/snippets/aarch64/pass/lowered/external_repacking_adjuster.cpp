@@ -32,7 +32,7 @@ ov::snippets::VectorDims get_repacked_offsets(const ov::snippets::VectorDims& pl
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N) && !ov::snippets::utils::is_dynamic_value(K),
                     "N and K shape should not be dynamic for pre-packed aarch64 GEMM weights");
 
-    const auto packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(N, K, precision);
+    const auto packed_bytes = ov::intel_cpu::aarch64::gemm_utils::repacking::get_rhs_packed_size(precision, N, K);
     OPENVINO_ASSERT(packed_bytes % precision.size() == 0, "Unexpected packed weights byte size alignment");
 
     auto allocation_shape = planar_shape;
