@@ -69,7 +69,7 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
-    int32_t value;
+    int32_t value = 0;
 };
 
 }  // namespace ov::intel_cpu::aarch64
