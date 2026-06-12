@@ -4,17 +4,167 @@
 
 #include "ov_ops/dynamic_quantize.hpp"
 #include "dynamic_quantize_inst.h"
+#include "fully_connected/fully_connected_kernel_bf_tiled.h"
 #include "fully_connected_inst.h"
 
 #include "primitive_type_base.h"
 #include "json_object.h"
+#include <limits>
 #include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
-// We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
-// can_be_optimized flag will be turned on from primitive_inst::update_shape function
+static size_t get_static_last_dim(const layout& layout) {
+    const auto& shape = layout.get_partial_shape();
+    if (shape.rank().is_dynamic() || shape.size() == 0 || shape[shape.size() - 1].is_dynamic()) {
+        return 0;
+    }
+
+    return static_cast<size_t>(shape[shape.size() - 1].get_length());
+}
+
+static bool has_fc_decompression_zp(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    return fc_prim->decompression_zero_point.is_valid() ||
+           fc_prim->decompression_zero_point_scalar.has_value();
+}
+
+static size_t get_fc_scale_group_size(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    if (!fc_prim->decompression_scale.is_valid()) {
+        return 0;
+    }
+
+    const size_t scale_dep_idx = 2 + (fc_prim->bias.is_valid() ? 1 : 0);
+    if (fc_node.get_dependencies().size() <= scale_dep_idx) {
+        return 0;
+    }
+
+    const auto ifm_size = get_static_last_dim(fc_node.weights().get_output_layout());
+    const auto scale_groups = get_static_last_dim(fc_node.get_dependency(scale_dep_idx).get_output_layout());
+    if (ifm_size == 0 || scale_groups == 0 || ifm_size % scale_groups != 0) {
+        return 0;
+    }
+
+    return ifm_size / scale_groups;
+}
+
+static size_t get_fc_zp_group_size(const fully_connected_node& fc_node) {
+    const auto& fc_prim = fc_node.get_primitive();
+    if (fc_prim->decompression_zero_point_scalar.has_value()) {
+        return get_static_last_dim(fc_node.weights().get_output_layout());
+    }
+
+    if (!fc_prim->decompression_zero_point.is_valid()) {
+        return 0;
+    }
+
+    const size_t zp_dep_idx = 2 + (fc_prim->bias.is_valid() ? 1 : 0) + 1;
+    if (fc_node.get_dependencies().size() <= zp_dep_idx) {
+        return 0;
+    }
+
+    const auto ifm_size = get_static_last_dim(fc_node.weights().get_output_layout());
+    const auto zp_groups = get_static_last_dim(fc_node.get_dependency(zp_dep_idx).get_output_layout());
+    if (ifm_size == 0 || zp_groups == 0 || ifm_size % zp_groups != 0) {
+        return 0;
+    }
+
+    return ifm_size / zp_groups;
+}
+
+static bool is_fc_bf_tiled_kernel(const std::string& kernel_name) {
+    return kernel_name == "fully_connected_gpu_bf_tiled";
+}
+
+static kernel_selector::dev_type to_kernel_selector_device_type(device_type type) {
+    return type == device_type::discrete_gpu ? kernel_selector::dev_type::discrete_gpu
+                                             : kernel_selector::dev_type::integrated_gpu;
+}
+
+static bool can_skip_for_fully_connected(const dynamic_quantize_node& node,
+                                         const fully_connected_node& fc_node,
+                                         const layout& act_layout,
+                                         size_t input_batch) {
+    const auto& attrs = node.get_primitive()->attrs;
+
+    if (attrs.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Symmetric ||
+        attrs.quantization_dt != ov::element::i8 ||
+        attrs.scale_dt != ov::element::f16 ||
+        attrs.precomputed_reduction ||
+        attrs.group_sizes.empty() ||
+        attrs.group_sizes.back() == std::numeric_limits<uint64_t>::max()) {
+        return false;
+    }
+
+    for (size_t i = 0; i + 1 < attrs.group_sizes.size(); ++i) {
+        if (attrs.group_sizes[i] != 1) {
+            return false;
+        }
+    }
+
+    if (act_layout.data_type != data_types::f16) {
+        return false;
+    }
+
+    bool has_equivalent_fc_fast_path = false;
+    const auto& forced_impls = fc_node.get_program().get_config().get_force_implementations();
+    auto forced_impl = forced_impls.find(fc_node.id());
+    if (forced_impl != forced_impls.end()) {
+        if (forced_impl->second.impl_type != impl_types::ocl) {
+            return false;
+        }
+        if (!forced_impl->second.kernel_name.empty() && !is_fc_bf_tiled_kernel(forced_impl->second.kernel_name)) {
+            return false;
+        }
+        has_equivalent_fc_fast_path = is_fc_bf_tiled_kernel(forced_impl->second.kernel_name);
+    }
+
+    const auto* fc_impl = fc_node.get_selected_impl();
+    if (fc_impl != nullptr) {
+        if (fc_impl->is_onednn()) {
+            return false;
+        }
+        has_equivalent_fc_fast_path |= is_fc_bf_tiled_kernel(fc_impl->get_kernel_name());
+    }
+
+    if (fc_node.get_preferred_impl_type() == impl_types::onednn && !has_equivalent_fc_fast_path) {
+        return false;
+    }
+
+    const auto input_features = get_static_last_dim(act_layout);
+    const auto weight_layout = fc_node.weights().get_output_layout();
+    const auto weight_ifm = get_static_last_dim(weight_layout);
+    if (input_features == 0 || weight_ifm == 0 || input_features != weight_ifm) {
+        return false;
+    }
+
+    const auto weight_type = weight_layout.data_type;
+    const bool has_zp = has_fc_decompression_zp(fc_node);
+    const bool is_4bit_weight = weight_type == data_types::i4 || weight_type == data_types::u4;
+    const bool is_8bit_asym_weight = weight_type == data_types::u8 && has_zp;
+    const auto& device_info = fc_node.get_program().get_engine().get_device_info();
+
+    kernel_selector::fc_kernel_bf_tiled_utils::slm_dq_eligibility_params eligibility;
+    eligibility.device_type = to_kernel_selector_device_type(device_info.dev_type);
+    eligibility.max_local_mem_size = device_info.max_local_mem_size;
+    eligibility.is_4bit_weight = is_4bit_weight;
+    eligibility.is_8bit_asym_weight = is_8bit_asym_weight;
+    eligibility.weight_ifm = weight_ifm;
+    eligibility.scale_group_size = get_fc_scale_group_size(fc_node);
+    eligibility.zp_group_size = get_fc_zp_group_size(fc_node);
+    eligibility.has_decompression_zp = has_zp;
+    eligibility.dq_group_size = fc_node.get_program().get_config().get_dynamic_quantization_group_size();
+
+    return has_equivalent_fc_fast_path &&
+           kernel_selector::fc_kernel_bf_tiled_utils::would_use_slm_with_internal_dq(eligibility,
+                                                                                     input_batch,
+                                                                                     attrs.group_sizes.back());
+}
+
+// can_be_optimized flag will be turned on from primitive_inst::update_shape function only when the
+// following primitive can reproduce DynamicQuantize semantics internally for the current shape.
 static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
     if (!node.is_runtime_skippable()
         || !act_layout.is_static())
@@ -26,16 +176,22 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
     if (!(*node.get_users().begin())->is_type<fully_connected>())
         return false;
 
-    // If batch size is 1, dynamic_quantize is disabled for performance reason
     size_t input_batch = act_layout.batch();
     if (act_layout.format == format::bfyx && act_layout.get_partial_shape().size() != 2) {
         // 3D input
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
-    if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
+    auto& fc_user = (*node.get_users().begin())->as<fully_connected>();
+    if (!can_skip_for_fully_connected(node, fc_user, act_layout, input_batch)) {
+        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is not runtime-skipped: no equivalent FC fast path" << std::endl;
+        return false;
+    }
+
+    const auto dynamic_quantization_threshold = node.get_program().get_config().get_dynamic_quantization_threshold();
+    if (dynamic_quantization_threshold != 0 && dynamic_quantization_threshold >= input_batch) {
         GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
-                        << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
+                        << dynamic_quantization_threshold << std::endl;
         return true;
     }
 
