@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_1x1.h"
 #include "kernel_selector_utils.h"
 #include <string>
@@ -273,10 +272,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         DimensionAccessHelperJit output_dims(params.outputs[0]);
         DimensionAccessHelperJit output_padded_dims(params.outputs[0], true);
 
-        const auto padded_input = "(" + input0_padded_dims.x_pad().first + "+" + input0_padded_dims.x_pad().first + ") != 0";
+        const auto padded_input = "(" + input0_padded_dims.x_pad().first + "+" + input0_padded_dims.x_pad().second + ") != 0";
         jit.AddConstant(MakeJitConstant("PADDED_INPUT", padded_input));
 
-        const auto padded_output = "(" + output_padded_dims.x_pad().first + "+" + output_padded_dims.x_pad().first + ") != 0";
+        const auto padded_output = "(" + output_padded_dims.x_pad().first + "+" + output_padded_dims.x_pad().second + ") != 0";
         jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
 
         // In shape agnostic kernel, the fused shape cannot be specified at build time or run time.
