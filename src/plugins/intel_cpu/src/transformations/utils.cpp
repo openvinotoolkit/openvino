@@ -47,6 +47,27 @@ std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output)
     return consumers.begin()->get_node()->shared_from_this();
 }
 
+bool has_acl_int8_pooling_precision(
+    const std::shared_ptr<const ov::Node>& pool,
+    const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq,
+    const std::vector<ov::element::Type>& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support()) {
+    if (!pool || !fq) {
+        return false;
+    }
+
+    const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(pool, defaultPrecisions);
+    if (dequantization.empty() ||
+        !any_of(dequantization.data.get_element_type(), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+        return false;
+    }
+
+    const auto resolved_precision =
+        ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(std::const_pointer_cast<ov::op::v0::FakeQuantize>(fq));
+    return !resolved_precision.empty() &&
+           any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8) &&
+           dequantization.data.get_element_type() == resolved_precision.precision;
+}
+
 }  // namespace
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
@@ -87,11 +108,12 @@ bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node) {
-    if (!node || !ov::is_type<const ov::op::v0::FakeQuantize>(node) || node->get_input_size() == 0) {
+    const auto fq = ov::as_type_ptr<const ov::op::v0::FakeQuantize>(node);
+    if (!fq || fq->get_input_size() == 0) {
         return false;
     }
 
-    const auto pool = node->get_input_node_shared_ptr(0);
+    const auto pool = fq->get_input_node_shared_ptr(0);
     if (pool->output(0).get_target_inputs().size() != 1) {
         return false;
     }
@@ -102,7 +124,8 @@ bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node
     }
 
     // returns true if Pooling-FQ chain will be fused into int8 pooling and handled by ACL executor
-    return any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
+    return any_of(fq->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
+           has_acl_int8_pooling_precision(pool, fq) &&
            (ov::is_type_any_of<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>(pool) ||
             ov::is_type_any_of<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>(pool));
 }
@@ -152,10 +175,8 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
         return true;
     }
 
-    const auto resolved_precision = ov::pass::low_precision::ResolvePrecisionAttribute::getDataPrecision(fq);
-    return resolved_precision.empty() ||
-           !any_of(resolved_precision.precision, ov::element::Type_t::u8, ov::element::Type_t::i8) ||
-           dequantization.data.get_element_type() != resolved_precision.precision;
+    return !has_acl_int8_pooling_precision(avg_pool, fq, defaultPrecisions) ||
+           !match_acl_int8_pooling_fq_chain(fq);
 }
 
 bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node>& node) {
