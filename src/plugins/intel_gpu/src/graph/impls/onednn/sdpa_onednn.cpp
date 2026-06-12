@@ -27,19 +27,44 @@ dnnl::memory::dims get_static_dims(const layout& l) {
     return dnnl::memory::dims(shape.begin(), shape.end());
 }
 
+dnnl::memory::desc make_strided_4d_desc(const layout& l) {
+    auto dims = get_static_dims(l);
+    auto pitches = l.get_pitches();
+    dnnl::memory::dims strides(pitches.begin(), pitches.begin() + 4);
+    return dnnl::memory::desc(dims, convert_data_type(l.data_type), strides);
+}
+
 dnnl::memory::desc make_plain_4d_desc(const layout& l) {
+    if (static_cast<bool>(l.data_padding))
+        return make_strided_4d_desc(l);
     return dnnl::memory::desc(get_static_dims(l), convert_data_type(l.data_type), dnnl::memory::format_tag::abcd);
 }
 
 dnnl::memory::desc make_key_desc(const layout& l) {
     auto dims = get_static_dims(l);
     OPENVINO_ASSERT(dims.size() == 4, "[GPU] oneDNN SDPA expects static rank-4 key layout");
+    if (static_cast<bool>(l.data_padding)) {
+        auto pitches = l.get_pitches();
+        // Key is [B,H,S,D] in memory but oneDNN expects [B,H,D,S] logical view
+        // Swap dims and corresponding strides
+        std::swap(dims[2], dims[3]);
+        dnnl::memory::dims strides = {pitches[0], pitches[1], pitches[3], pitches[2]};
+        return dnnl::memory::desc(dims, convert_data_type(l.data_type), strides);
+    }
     std::swap(dims[2], dims[3]);
     return dnnl::memory::desc(dims, convert_data_type(l.data_type), dnnl::memory::format_tag::abdc);
 }
 
 bool has_runtime_scale(const scaled_dot_product_attention& prim) {
     return prim.has_scale_input && !prim.scale_val.has_value();
+}
+
+bool has_runtime_attn_mask(const scaled_dot_product_attention& prim, const kernel_impl_params& impl_params) {
+    if (!prim.has_attn_mask_input || prim.attn_mask_val.has_value() || prim.is_causal)
+        return false;
+
+    const auto& mask_shape = impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
+    return !(mask_shape.rank().is_static() && mask_shape.rank().get_length() <= 1);
 }
 
 float get_scale_value(const kernel_impl_params& impl_params) {
@@ -56,27 +81,38 @@ dnnl::memory::desc make_scale_desc(const kernel_impl_params& impl_params, bool u
     if (use_host_scale)
         return dnnl::memory::desc::host_scalar(dnnl::memory::data_type::f32);
 
-    const auto& scale_layout = impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::SCALE);
-    return dnnl::memory::desc({1}, convert_data_type(scale_layout.data_type), dnnl::memory::format_tag::a);
+    return dnnl::memory::desc({1},
+                              convert_data_type(impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::SCALE).data_type),
+                              dnnl::memory::format_tag::a);
+}
+
+dnnl::memory::desc make_mask_desc(const kernel_impl_params& impl_params, bool use_runtime_mask) {
+    if (!use_runtime_mask)
+        return dnnl::memory::desc{};
+
+    return make_plain_4d_desc(impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK));
 }
 
 dnnl::primitive_desc create_sdpa_primitive_desc(const kernel_impl_params& impl_params,
                                                cldnn::engine& engine,
                                                const dnnl::primitive_attr& attr,
-                                               bool use_host_scale) {
+                                               bool use_host_scale,
+                                               bool use_runtime_mask,
+                                               const dnnl::memory::desc& mask_md,
+                                               const dnnl::memory::desc& scale_md) {
     const auto prim = impl_params.typed_desc<scaled_dot_product_attention>();
 
     const auto q_md = make_plain_4d_desc(impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY));
     const auto k_md = make_key_desc(impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::KEY));
     const auto v_md = make_plain_4d_desc(impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::VALUE));
     const auto dst_md = make_plain_4d_desc(impl_params.get_output_layout(0));
-    const auto scale_md = make_scale_desc(impl_params, use_host_scale);
-    const dnnl::memory::desc mask_md;
 
     dnnl::primitive_attr qk_attr;
     dnnl::primitive_attr vs_attr;
 
-    const auto mask_type = prim->is_causal ? dnnl::impl::attn_mask_type::top_left : dnnl::impl::attn_mask_type::undef;
+    const auto mask_type = use_runtime_mask ? dnnl::impl::attn_mask_type::buffer
+                                            : prim->is_causal ? dnnl::impl::attn_mask_type::top_left
+                                                              : dnnl::impl::attn_mask_type::undef;
     const auto kv_head_number = static_cast<dnnl_dim_t>(k_md.get_dims()[1]);
 
     dnnl_primitive_desc_t c_pd = nullptr;
@@ -112,6 +148,9 @@ dnnl::primitive_desc create_sdpa_primitive_desc(const kernel_impl_params& impl_p
                     << " dst layout=" << impl_params.get_output_layout(0).to_short_string()
                     << " md=" << memory_desc_to_string(dst_md)
                     << " scale md=" << memory_desc_to_string(scale_md)
+                    << " mask layout=" << (use_runtime_mask ? impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK).to_short_string()
+                                                            : std::string("<none>"))
+                    << " md=" << memory_desc_to_string(mask_md)
                     << " mask_type=" << static_cast<int>(mask_type);
         OPENVINO_ASSERT(false, failure_msg.str());
     }
@@ -128,8 +167,10 @@ struct sdpa_onednn : typed_primitive_onednn_impl<scaled_dot_product_attention> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::sdpa_onednn)
 
     bool _use_host_scale = true;
+    bool _use_runtime_mask = false;
     float _scale_value = 1.0f;
     dnnl::memory::desc _scale_md;
+    dnnl::memory::desc _mask_md;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -149,6 +190,9 @@ protected:
         bind_input(DNNL_ARG_QUERIES, ScaledDotProductAttentionInputIdx::QUERY);
         bind_input(DNNL_ARG_KEYS, ScaledDotProductAttentionInputIdx::KEY);
         bind_input(DNNL_ARG_VALUES, ScaledDotProductAttentionInputIdx::VALUE);
+
+        if (_use_runtime_mask)
+            bind_input(DNNL_ARG_ATTN_MASK, ScaledDotProductAttentionInputIdx::ATTN_MASK);
 
         if (_use_host_scale) {
             args[DNNL_ARG_SCALE] = dnnl::memory(_scale_md, _scale_value);
@@ -180,10 +224,15 @@ protected:
     }
 
 public:
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        configure(impl_params, inst.get_network().get_engine(), inst.get_network().get_config());
+    }
+
     void save(BinaryOutputBuffer& ob) const override {
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
         ob << _use_host_scale;
+        ob << _use_runtime_mask;
         ob << _scale_value;
 
         std::vector<uint8_t> prim_cache = _prim.get_cache_blob();
@@ -196,11 +245,13 @@ public:
         parent::load(ib);
 
         ib >> _use_host_scale;
+        ib >> _use_runtime_mask;
         ib >> _scale_value;
 
         const auto* impl_params = reinterpret_cast<const kernel_impl_params*>(ib.getKernelImplParams());
         _scale_md = make_scale_desc(*impl_params, _use_host_scale);
-        _pd = create_sdpa_primitive_desc(*impl_params, ib.get_engine(), *_attrs, _use_host_scale);
+        _mask_md = make_mask_desc(*impl_params, _use_runtime_mask);
+        _pd = create_sdpa_primitive_desc(*impl_params, ib.get_engine(), *_attrs, _use_host_scale, _use_runtime_mask, _mask_md, _scale_md);
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
@@ -217,15 +268,31 @@ public:
         auto attr = impl_params.attrs_onednn;
         attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-        const auto prim = impl_params.typed_desc<scaled_dot_product_attention>();
-        const auto use_host_scale = !has_runtime_scale(*prim);
-        auto prim_desc = create_sdpa_primitive_desc(impl_params, engine, *attr, use_host_scale);
+        if (ImplementationManager::get_shape_type(impl_params) == shape_types::dynamic_shape) {
+            auto impl = std::make_unique<sdpa_onednn>(engine, config);
+            impl->_attrs = attr;
+            return impl;
+        }
 
-        auto impl = std::make_unique<sdpa_onednn>(engine, config, attr, prim_desc);
-        impl->_use_host_scale = use_host_scale;
-        impl->_scale_value = use_host_scale ? get_scale_value(impl_params) : 1.0f;
-        impl->_scale_md = make_scale_desc(impl_params, use_host_scale);
+        auto impl = std::make_unique<sdpa_onednn>(engine, config);
+        impl->_attrs = attr;
+        impl->configure(impl_params, engine, config);
         return impl;
+    }
+
+private:
+    void configure(const kernel_impl_params& impl_params, cldnn::engine& engine, const ExecutionConfig& config) {
+        const auto prim = impl_params.typed_desc<scaled_dot_product_attention>();
+        _use_host_scale = !has_runtime_scale(*prim);
+        _use_runtime_mask = has_runtime_attn_mask(*prim, impl_params);
+        _scale_value = _use_host_scale ? get_scale_value(impl_params) : 1.0f;
+        _scale_md = make_scale_desc(impl_params, _use_host_scale);
+        _mask_md = make_mask_desc(impl_params, _use_runtime_mask);
+        _pd = create_sdpa_primitive_desc(impl_params, engine, *_attrs, _use_host_scale, _use_runtime_mask, _mask_md, _scale_md);
+        _scratchpad_md = _pd.scratchpad_desc();
+        _kernel_name = _pd.impl_info_str();
+        _prim = dnnl::primitive(_pd);
+        _enable_profiling = config.get_enable_profiling();
     }
 };
 
