@@ -1009,6 +1009,49 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Done");
 }
 
+void ov::npuw::LLMInferRequest::infer_batched_prefill(ov::SoPtr<ov::ITensor> input_ids,
+                                                      ov::SoPtr<ov::ITensor> attention_mask,
+                                                      ov::SoPtr<ov::ITensor> position_ids,
+                                                      ov::SoPtr<ov::ITensor> token_type_ids) {
+    LOG_DEBUG("Calling batched inference for prefill model...");
+    LOG_BLOCK();
+
+    namespace uu = ov::npuw::util;
+    const auto batch_size = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_BATCH_DIM]);
+
+    // Each batch row is an independent prompt scored in its own prefill pass over the
+    // batch-1 static models. infer_prefill() resets the KV-cache state before every row
+    // (prepare_for_new_conversation), so this mode targets single-shot scoring workloads
+    // such as rerankers and embedding-style decoders. Generation can only continue from
+    // the last row's KV-cache.
+    ov::SoPtr<ov::ITensor> batched_logits;
+    for (uint32_t row = 0; row < batch_size; ++row) {
+        auto row_input_ids = uu::make_tensor_slice(input_ids, layer_ids::INPUT_IDS_BATCH_DIM, row, row + 1);
+        auto row_attention_mask = uu::make_tensor_slice(attention_mask, layer_ids::INPUT_IDS_BATCH_DIM, row, row + 1);
+        auto row_position_ids = uu::make_tensor_slice(position_ids, layer_ids::INPUT_IDS_BATCH_DIM, row, row + 1);
+        auto row_token_type_ids = ov::npuw::util::TensorPtr();
+        if (token_type_ids) {
+            row_token_type_ids = uu::make_tensor_slice(token_type_ids, layer_ids::INPUT_IDS_BATCH_DIM, row, row + 1);
+        }
+
+        infer_prefill(row_input_ids, row_attention_mask, row_position_ids, row_token_type_ids, {});
+
+        OPENVINO_ASSERT(m_logits && m_logits->get_shape()[layer_ids::INPUT_IDS_BATCH_DIM] == 1,
+                        "Unexpected logits shape for a single batch row.");
+        if (!batched_logits) {
+            auto batched_shape = m_logits->get_shape();
+            batched_shape[layer_ids::INPUT_IDS_BATCH_DIM] = batch_size;
+            batched_logits = ov::get_tensor_impl(ov::Tensor(m_logits->get_element_type(), batched_shape));
+        }
+        auto row_logits = uu::make_tensor_slice(batched_logits, layer_ids::INPUT_IDS_BATCH_DIM, row, row + 1);
+        m_logits->copy_to(row_logits._ptr);
+    }
+
+    m_logits = batched_logits;
+
+    LOG_DEBUG("Done");
+}
+
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
@@ -1254,8 +1297,27 @@ void ov::npuw::LLMInferRequest::infer() {
     // The outcome of two items is that prefill and generate stages
     //    can be safely differentiated by start position id for
     //    both main and draft models for most of LLMs.
-    if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
-        position_ids->data<int64_t>()[0] == m_first_position_id) {
+    const auto input_batch_size = input_ids->get_shape()[layer_ids::INPUT_IDS_BATCH_DIM];
+    if (input_batch_size > 1) {
+        // The static models are compiled with a batch size of 1, so a batched input is
+        // unrolled and scored row-by-row (see infer_batched_prefill). Only the plain
+        // prefill (single-shot scoring) case is supported.
+        OPENVINO_ASSERT(position_ids_opt.has_value() && position_ids->get_shape().size() == 2 &&
+                            position_ids->get_shape()[layer_ids::INPUT_IDS_BATCH_DIM] == input_batch_size &&
+                            attention_mask->get_shape()[layer_ids::INPUT_IDS_BATCH_DIM] == input_batch_size,
+                        "Batched inference requires 2D position_ids and attention_mask with "
+                        "a batch dimension matching ",
+                        m_input_ids_name,
+                        ".");
+        OPENVINO_ASSERT(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
+                            position_ids->data<int64_t>()[0] == m_first_position_id,
+                        "Batched inference is only supported for the prefill (scoring) stage. "
+                        "Batched generation is not supported.");
+        OPENVINO_ASSERT(!m_eagle3_ext.is_eagle3_model() && !per_layer_inputs,
+                        "Batched inference is not supported for Eagle3 or per-layer-input (Gemma) models.");
+        infer_batched_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+    } else if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
+               position_ids->data<int64_t>()[0] == m_first_position_id) {
         infer_prefill(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
     } else {
         // FIXME: Need to make the solution smarter.
