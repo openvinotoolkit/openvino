@@ -766,6 +766,7 @@ void Snapshot::earlyRegroup() {
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(SDPADecomposed1);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
@@ -1012,7 +1013,8 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         return {};
     }
 
-    if (prods.size() < m_ctx.keep_blocks) {
+    const bool has_isolated_tag = !prods.front()->isolatedTag().empty();
+    if (!has_isolated_tag && prods.size() < m_ctx.keep_blocks) {
         // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
         // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
         // TryMergeTriangles() pass checks that producer and consumer have a different tag to be merged further.
@@ -1298,7 +1300,8 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         }
     }
 
-    if (prods.size() < m_ctx.keep_blocks) {
+    const bool has_isolated_tag = !conss.front()->isolatedTag().empty();
+    if (!has_isolated_tag && prods.size() < m_ctx.keep_blocks) {
         // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
         // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
         // TryMergeRepeating() pass checks that producer and consumer have a different tag to be merged further.
@@ -1391,6 +1394,18 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
             LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
                                                     << " layers - has AVOIDs");
             // Special case - keep it
+            for (const auto& g : gptrs) {
+                g->freeze();
+            }
+            return true;
+        }
+    }
+
+    for (const auto& gptr : gptrs) {
+        if (!gptr->isolatedTag().empty()) {
+            auto block_layer_size = (*(gptrs.begin()))->size();
+            LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
+                                                    << " layers - has isolated tag '" << gptr->isolatedTag() << "'");
             for (const auto& g : gptrs) {
                 g->freeze();
             }

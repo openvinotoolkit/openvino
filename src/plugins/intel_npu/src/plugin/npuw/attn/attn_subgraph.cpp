@@ -547,13 +547,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         if (ov::shape_size(shape) == 0) {
                                             ctx.target_request->get_tensor(iport)->set_shape(shape);
                                         } else if (use_tensor_view) {
-                                            const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                                                        static_cast<int64_t>(info.query_size);
-                                            LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
-                                                                                   << model_past_len);
-                                            ctx.target_request->set_tensor(
-                                                pyramid_iport,
-                                                ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                            LOG_DEBUG("Use tensor view: past_len=" << past_len);
+                                            ctx.target_request->set_tensor(pyramid_iport, view);
                                         } else {
                                             const auto& dst = ctx.target_request->get_tensor(iport);
                                             ov::npuw::util::copy_tensor_by_dim(view,
@@ -740,8 +735,14 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                            copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
-                            copy_mask_segment(0, 0, past_len);
+                            const auto present_len = dynamic.context_length - past_len;
+                            if (pyramid->_data_left_aligned) {
+                                copy_mask_segment(0, 0, past_len);
+                                copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM], present_len);
+                            } else {
+                                copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
+                                copy_mask_segment(0, 0, past_len);
+                            }
                             state.cached_attention_mask = dst;
                             return;
                         }

@@ -52,6 +52,21 @@ public:
     SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class SDPADecomposed1 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::SDPADecomposed1");
+    static constexpr const char* pattern_name() {
+        return "SDPADecomposed1";
+    }
+    static constexpr const char* isolation_tag() {
+        return "attn";
+    }
+    static constexpr const char* group_name() {
+        return "attn";
+    }
+    SDPADecomposed1(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 }  // namespace attn
 
 namespace regularize {
@@ -72,6 +87,18 @@ class AttentionBroadcast3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast3");
     AttentionBroadcast3();
+};
+
+class AttentionBroadcast4 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::AttentionBroadcast4");
+    AttentionBroadcast4();
+};
+
+class SeparateVCache : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::SeparateVCache");
+    SeparateVCache();
 };
 
 class ShapeOfParameter : public ov::pass::MatcherPass {
