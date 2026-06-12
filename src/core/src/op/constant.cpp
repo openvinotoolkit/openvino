@@ -627,6 +627,10 @@ bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 
+bool Constant::has_external_buffer() const {
+    return m_data && m_data->has_external_buffer();
+}
+
 const Tensor Constant::get_tensor_view() const {
     return get_data_ptr() ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
 }
