@@ -11,10 +11,10 @@
 #include <cstdlib>
 #include <memory>
 #include <set>
-#include <utility>
 #include <vector>
 
 #include "common/utils.hpp"
+#include "emitters/plugin/riscv64/jit_conversion_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
@@ -38,23 +38,6 @@ namespace ov::intel_cpu::riscv64 {
 using namespace Xbyak_riscv;
 
 #define CONST_1_F 0x3f800000  // 1.F
-
-static std::pair<SEW, LMUL> getVTypeForElementSize(const ov::element::Type& type) {
-    switch (type.size()) {
-    case 4UL:
-        return {SEW::e32, LMUL::m1};
-    case 2UL:
-        return {SEW::e16, LMUL::mf2};
-    case 1UL:
-        return {SEW::e8, LMUL::mf4};
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision size for vtype setup: ", type);
-    }
-}
-
-static bool requires_zvfh(const ov::element::Type& input_type, const ov::element::Type& output_type) {
-    return input_type != output_type && any_of(ov::element::f16, input_type, output_type);
-}
 
 /// ABS ///
 jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
@@ -152,20 +135,7 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(ov::intel_cpu::ri
     input_type = convert->get_input_element_type(0);
     output_type = convert->get_output_element_type(0);
 
-    const bool is_supported_input =
-        any_of(input_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
-    const bool is_supported_output =
-        any_of(output_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_input && is_supported_output,
-                              "Unsupported conversion: ",
-                              input_type,
-                              " -> ",
-                              output_type);
-    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || mayiuse(cpu_isa_t::gv_zvfh),
-                              "Unsupported Zvfh conversion: ",
-                              input_type,
-                              " -> ",
-                              output_type);
+    jit_conversion::validate_convert_precision(input_type, output_type);
 }
 
 size_t jit_convert_saturation_emitter::get_inputs_num() const {
@@ -190,170 +160,9 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                                               const std::vector<size_t>& out_vec_idxs) const {
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto avl = Reg(aux_gpr_idxs[0]);
-    h->csrr(avl, CSR::vl);
-
-    const auto set_type_for = [&](const ov::element::Type& type) {
-        const auto [sew, lmul] = getVTypeForElementSize(type);
-        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
-    };
-    const auto move_if_needed = [&](const VReg& from, const VReg& to) {
-        if (from.getIdx() != to.getIdx()) {
-            h->vmv_v_v(to, from);
-        }
-    };
-
-    const auto narrow_i32_to_i8 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::i16);
-        h->vnclip_wi(to, from, 0);
-        set_type_for(ov::element::i8);
-        h->vnclip_wi(to, to, 0);
-    };
-    const auto narrow_i32_to_u8 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::i16);
-        h->vnclipu_wi(to, from, 0);
-        set_type_for(ov::element::i8);
-        h->vnclipu_wi(to, to, 0);
-    };
-    const auto widen_f16_to_f32 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::f16);
-        h->vfwcvt_f_f_v(to, from);
-        set_type_for(ov::element::f32);
-    };
-    const auto narrow_f32_to_f16 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::f16);
-        h->vfncvt_f_f_w(to, from);
-    };
-    const auto widen_i8_to_i32 = [&](const VReg& from, const VReg& to, const bool is_signed) {
-        set_type_for(ov::element::i32);
-        if (is_signed) {
-            h->vsext_vf4(to, from);
-        } else {
-            h->vzext_vf4(to, from);
-        }
-    };
-    const auto saturate_i32_to_u8 = [&](const VReg& from, const VReg& to) {
-        // Convert through FP32 to clamp negatives to 0 before narrowing to unsigned.
-        set_type_for(ov::element::i32);
-        move_if_needed(from, to);
-        h->vfcvt_f_x_v(to, to);
-        h->vfcvt_xu_f_v(to, to);
-        narrow_i32_to_u8(to, to);
-    };
-
-    if (input_type == output_type) {
-        set_type_for(input_type);
-        move_if_needed(src, dst);
-        return;
-    }
-
-    if (output_type == ov::element::f32) {
-        if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-        } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::i32);
-            h->vfcvt_f_x_v(dst, src);
-            set_type_for(ov::element::f32);
-        } else if (input_type == ov::element::i8) {
-            widen_i8_to_i32(src, dst, true);
-            h->vfcvt_f_x_v(dst, dst);
-            set_type_for(ov::element::f32);
-        } else if (input_type == ov::element::u8) {
-            widen_i8_to_i32(src, dst, false);
-            h->vfcvt_f_xu_v(dst, dst);
-            set_type_for(ov::element::f32);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::f16) {
-        if (input_type == ov::element::f32) {
-            narrow_f32_to_f16(src, dst);
-        } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::i32);
-            h->vfcvt_f_x_v(dst, src);
-            set_type_for(ov::element::f32);
-            narrow_f32_to_f16(dst, dst);
-        } else if (input_type == ov::element::i8) {
-            widen_i8_to_i32(src, dst, true);
-            h->vfcvt_f_x_v(dst, dst);
-            set_type_for(ov::element::f32);
-            narrow_f32_to_f16(dst, dst);
-        } else if (input_type == ov::element::u8) {
-            widen_i8_to_i32(src, dst, false);
-            h->vfcvt_f_xu_v(dst, dst);
-            set_type_for(ov::element::f32);
-            narrow_f32_to_f16(dst, dst);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::i32) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            h->vfcvt_x_f_v(dst, src);
-            set_type_for(ov::element::i32);
-        } else if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-            h->vfcvt_x_f_v(dst, dst);
-            set_type_for(ov::element::i32);
-        } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
-            widen_i8_to_i32(src, dst, input_type == ov::element::i8);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::i8) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            h->vfcvt_x_f_v(dst, src);
-            set_type_for(ov::element::i32);
-            narrow_i32_to_i8(dst, dst);
-        } else if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-            h->vfcvt_x_f_v(dst, dst);
-            set_type_for(ov::element::i32);
-            narrow_i32_to_i8(dst, dst);
-        } else if (input_type == ov::element::i32) {
-            narrow_i32_to_i8(src, dst);
-        } else if (input_type == ov::element::u8) {
-            widen_i8_to_i32(src, dst, false);
-            narrow_i32_to_i8(dst, dst);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::u8) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            h->vfcvt_xu_f_v(dst, src);
-            set_type_for(ov::element::i32);
-            narrow_i32_to_u8(dst, dst);
-        } else if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-            h->vfcvt_xu_f_v(dst, dst);
-            set_type_for(ov::element::i32);
-            narrow_i32_to_u8(dst, dst);
-        } else if (input_type == ov::element::i32) {
-            saturate_i32_to_u8(src, dst);
-        } else if (input_type == ov::element::i8) {
-            widen_i8_to_i32(src, dst, true);
-            saturate_i32_to_u8(dst, dst);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Convert saturation emitter expects one auxiliary GPR register");
+    const auto avl = Reg(aux_gpr_idxs.front());
+    jit_conversion::emit_convert_process(h, src, dst, input_type, output_type, arithmetic_mode::saturation, avl);
 }
 
 /// ConvertTruncation ///
@@ -367,20 +176,7 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(ov::intel_cpu::ri
     input_type = convert->get_input_element_type(0);
     output_type = convert->get_output_element_type(0);
 
-    const bool is_supported_input =
-        any_of(input_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
-    const bool is_supported_output =
-        any_of(output_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_input && is_supported_output,
-                              "Unsupported conversion: ",
-                              input_type,
-                              " -> ",
-                              output_type);
-    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || mayiuse(cpu_isa_t::gv_zvfh),
-                              "Unsupported Zvfh conversion: ",
-                              input_type,
-                              " -> ",
-                              output_type);
+    jit_conversion::validate_convert_precision(input_type, output_type);
 }
 
 size_t jit_convert_truncation_emitter::get_inputs_num() const {
@@ -405,159 +201,9 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                                               const std::vector<size_t>& out_vec_idxs) const {
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto avl = Reg(aux_gpr_idxs[0]);
-    h->csrr(avl, CSR::vl);
-
-    const auto set_type_for = [&](const ov::element::Type& type) {
-        const auto [sew, lmul] = getVTypeForElementSize(type);
-        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
-    };
-    const auto move_if_needed = [&](const VReg& from, const VReg& to) {
-        if (from.getIdx() != to.getIdx()) {
-            h->vmv_v_v(to, from);
-        }
-    };
-
-    const auto truncate_i32_to_i8 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::i16);
-        h->vnsra_wi(to, from, 0);
-        set_type_for(ov::element::i8);
-        h->vnsra_wi(to, to, 0);
-    };
-    const auto truncate_i32_to_u8 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::i16);
-        h->vnsrl_wi(to, from, 0);
-        set_type_for(ov::element::i8);
-        h->vnsrl_wi(to, to, 0);
-    };
-    const auto widen_f16_to_f32 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::f16);
-        h->vfwcvt_f_f_v(to, from);
-        set_type_for(ov::element::f32);
-    };
-    const auto narrow_f32_to_f16 = [&](const VReg& from, const VReg& to) {
-        set_type_for(ov::element::f16);
-        h->vfncvt_f_f_w(to, from);
-    };
-    const auto widen_i8_to_i32 = [&](const VReg& from, const VReg& to, const bool is_signed) {
-        set_type_for(ov::element::i32);
-        if (is_signed) {
-            h->vsext_vf4(to, from);
-        } else {
-            h->vzext_vf4(to, from);
-        }
-    };
-
-    if (input_type == output_type) {
-        set_type_for(input_type);
-        move_if_needed(src, dst);
-        return;
-    }
-
-    if (output_type == ov::element::f32) {
-        if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-        } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::i32);
-            h->vfcvt_f_x_v(dst, src);
-            set_type_for(ov::element::f32);
-        } else if (input_type == ov::element::i8) {
-            widen_i8_to_i32(src, dst, true);
-            h->vfcvt_f_x_v(dst, dst);
-            set_type_for(ov::element::f32);
-        } else if (input_type == ov::element::u8) {
-            widen_i8_to_i32(src, dst, false);
-            h->vfcvt_f_xu_v(dst, dst);
-            set_type_for(ov::element::f32);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::f16) {
-        if (input_type == ov::element::f32) {
-            narrow_f32_to_f16(src, dst);
-        } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::i32);
-            h->vfcvt_f_x_v(dst, src);
-            narrow_f32_to_f16(dst, dst);
-        } else if (input_type == ov::element::i8) {
-            widen_i8_to_i32(src, dst, true);
-            h->vfcvt_f_x_v(dst, dst);
-            narrow_f32_to_f16(dst, dst);
-        } else if (input_type == ov::element::u8) {
-            widen_i8_to_i32(src, dst, false);
-            h->vfcvt_f_xu_v(dst, dst);
-            narrow_f32_to_f16(dst, dst);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::i32) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            h->vfcvt_rtz_x_f_v(dst, src);
-            set_type_for(ov::element::i32);
-        } else if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-            h->vfcvt_rtz_x_f_v(dst, dst);
-            set_type_for(ov::element::i32);
-        } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
-            widen_i8_to_i32(src, dst, input_type == ov::element::i8);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::i8) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            h->vfcvt_rtz_x_f_v(dst, src);
-            set_type_for(ov::element::i32);
-            truncate_i32_to_i8(dst, dst);
-        } else if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-            h->vfcvt_rtz_x_f_v(dst, dst);
-            set_type_for(ov::element::i32);
-            truncate_i32_to_i8(dst, dst);
-        } else if (input_type == ov::element::i32) {
-            truncate_i32_to_i8(src, dst);
-        } else if (input_type == ov::element::u8) {
-            set_type_for(ov::element::i8);
-            move_if_needed(src, dst);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    if (output_type == ov::element::u8) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            h->vfcvt_rtz_x_f_v(dst, src);
-            set_type_for(ov::element::i32);
-            truncate_i32_to_u8(dst, dst);
-        } else if (input_type == ov::element::f16) {
-            widen_f16_to_f32(src, dst);
-            h->vfcvt_rtz_x_f_v(dst, dst);
-            set_type_for(ov::element::i32);
-            truncate_i32_to_u8(dst, dst);
-        } else if (input_type == ov::element::i32) {
-            truncate_i32_to_u8(src, dst);
-        } else if (input_type == ov::element::i8) {
-            set_type_for(ov::element::i8);
-            move_if_needed(src, dst);
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
-        }
-        return;
-    }
-
-    OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Convert truncation emitter expects one auxiliary GPR register");
+    const auto avl = Reg(aux_gpr_idxs.front());
+    jit_conversion::emit_convert_process(h, src, dst, input_type, output_type, arithmetic_mode::truncation, avl);
 }
 
 /// CEIL ///
@@ -3331,6 +2977,55 @@ std::set<std::vector<element::Type>> jit_round_half_to_even_emitter::get_support
     return {{element::f32}};
 }
 
+/// SELECT ///
+jit_select_emitter::jit_select_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_select_emitter::jit_select_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_select_emitter::get_inputs_num() const {
+    return 3;
+}
+
+size_t jit_select_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+void jit_select_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_select_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
+    const auto condition = VReg(in_vec_idxs[0]);
+    const auto then_value = VReg(in_vec_idxs[1]);
+    const auto else_value = VReg(in_vec_idxs[2]);
+    const auto dst = VReg(out_vec_idxs[0]);
+    const auto fzero = FReg(aux_fp_gpr_idxs[0]);
+
+    h->fmv_w_x(fzero, zero);
+    h->vmfgt_vf(mask_vreg(), condition, fzero);
+    h->vmerge_vvm(dst, else_value, then_value);
+}
+
+std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32, element::f32}};
+}
+
 /// Power Static ///
 jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,
@@ -3508,6 +3203,83 @@ void jit_power_static_emitter::register_table_entries() {
     if (power < 0) {
         push_arg_entry_of("one", CONST_1_F);
     }
+}
+
+/// Power Dynamic ///
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                     const std::shared_ptr<ov::Node>& node,
+                                                     [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                     ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_power_dynamic_emitter::get_inputs_num() const {
+    return 2;
+}
+
+size_t jit_power_dynamic_emitter::aux_gprs_count() const {
+    return 1;
+}
+
+bool jit_power_dynamic_emitter::is_lmul_supported() const {
+    return false;
+}
+
+void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                          const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                         const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto func_reg = Reg(aux_gpr_idxs[0]);
+
+    std::vector<size_t> exclude_vec_regs = {static_cast<size_t>(src0.getIdx()),
+                                            static_cast<size_t>(src1.getIdx()),
+                                            static_cast<size_t>(dst.getIdx())};
+    call_preamble({}, {}, exclude_vec_regs);
+
+    const auto sp_size = static_cast<int>(rnd_up(get_vec_length(), sp_alignment));
+    h->addi(sp, sp, -2 * sp_size);
+    h->vse32_v(src0, sp);
+    h->addi(func_reg, sp, sp_size);
+    h->vse32_v(src1, func_reg);
+
+    auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
+    for (size_t i = 0; i < get_vec_length(); i += sizeof(float)) {
+        h->flw(fa0, sp, i);
+        h->addi(func_reg, sp, sp_size);
+        h->flw(fa1, func_reg, i);
+        h->uni_li(func_reg, pow_f32_addr);
+
+        h->jalr(ra, func_reg);
+
+        h->fsw(fa0, sp, i);
+    }
+
+    h->vle32_v(dst, sp);
+    h->addi(sp, sp, 2 * sp_size);
+
+    call_postamble({}, {}, exclude_vec_regs);
+}
+
+std::set<std::vector<element::Type>> jit_power_dynamic_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
 }
 
 /// Sigmoid ///
