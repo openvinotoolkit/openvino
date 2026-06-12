@@ -39,9 +39,12 @@ function(ov_add_target)
     set(oneValueRequiredArgs
         TYPE # type of target, SHARED|STATIC|EXECUTABLE. SHARED and STATIC correspond to add_library, EXECUTABLE to add_executable
         NAME # name of target
-        ROOT # root directory to be used for recursive search of source files
+        )
+    set(oneValueOptionalArgs
+        ROOT # root directory to be used for recursive search of source files (optional when SOURCES is provided)
         )
     set(multiValueArgs
+        SOURCES                       # Explicit source file list; when provided ROOT glob is skipped
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
         DEPENDENCIES                  # compile order dependencies (no link implied)
@@ -52,7 +55,7 @@ function(ov_add_target)
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
         )
-    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN} )
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
 
     # sanity checks
     foreach(argName IN LISTS oneValueRequiredArgs)
@@ -60,34 +63,43 @@ function(ov_add_target)
             message(SEND_ERROR "Argument '${argName}' is required.")
         endif()
     endforeach()
-    if (ARG_UNPARSED_ARGUMENTS)
+    if(ARG_UNPARSED_ARGUMENTS)
         message(SEND_ERROR "Unexpected parameters have passed to function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
     # adding files to target
-    set(includeSearch)
-    set(sourceSearch)
-    foreach(directory ${ARG_ROOT} ${ARG_ADDITIONAL_SOURCE_DIRS})
-        list(APPEND includeSearch ${directory}/*.h ${directory}/*.hpp)
-        list(APPEND sourceSearch  ${directory}/*.cpp)
-    endforeach()
+    if(ARG_SOURCES)
+        # Explicit list provided — skip glob entirely
+        set(includes)
+        set(sources ${ARG_SOURCES})
+    elseif(ARG_ROOT)
+        set(includeSearch)
+        set(sourceSearch)
 
-    file(GLOB_RECURSE includes ${includeSearch})
-    file(GLOB_RECURSE sources  ${sourceSearch})
+        foreach(directory ${ARG_ROOT} ${ARG_ADDITIONAL_SOURCE_DIRS})
+            list(APPEND includeSearch ${directory}/*.h ${directory}/*.hpp)
+            list(APPEND sourceSearch ${directory}/*.cpp)
+        endforeach()
 
-    # remove unnecessary directories
-    foreach(excludedDir IN LISTS ARG_EXCLUDED_SOURCE_PATHS)
-        list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
-        list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
-    endforeach()
+        file(GLOB_RECURSE includes ${includeSearch})
+        file(GLOB_RECURSE sources ${sourceSearch})
 
-    source_group("include" FILES ${includes})
-    source_group("src"     FILES ${sources})
+        # remove unnecessary directories
+        foreach(excludedDir IN LISTS ARG_EXCLUDED_SOURCE_PATHS)
+            list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
+            list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
+        endforeach()
+
+        source_group("include" FILES ${includes})
+        source_group("src"     FILES ${sources})
+    else()
+        message(SEND_ERROR "Either 'ROOT' or 'SOURCES' argument is required.")
+    endif()
 
     set(all_sources ${sources} ${includes} ${ARG_OBJECT_FILES})
 
     # defining a target
-    if (ARG_TYPE STREQUAL EXECUTABLE)
+    if(ARG_TYPE STREQUAL EXECUTABLE)
         add_executable(${ARG_NAME} ${all_sources})
     elseif(ARG_TYPE STREQUAL STATIC OR ARG_TYPE STREQUAL SHARED OR ARG_TYPE STREQUAL OBJECT)
         add_library(${ARG_NAME} ${ARG_TYPE} ${all_sources})
@@ -123,13 +135,16 @@ endfunction()
 #[[
 Wrapper function over addIeTarget, that also adds a test with the same name.
 You could use
-ov_add_test_target( ... LABELS labelOne labelTwo )
+  ov_add_test_target( ... LABELS labelOne labelTwo )
 also to provide labels for that test.
+Pass GTEST_DISCOVER to additionally register one CTest entry per TEST() macro
+via gtest_discover_tests() (requires GTest to be available).
 Important: you MUST pass LABELS as last argument, otherwise it will consume any parameters that come after.
 #]]
 function(ov_add_test_target)
     set(options
-        )
+        GTEST_DISCOVER
+    )
     set(oneValueRequiredArgs
         NAME
         )
@@ -164,6 +179,17 @@ function(ov_add_test_target)
     endif()
     if(ARG_LABELS)
         set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+    endif()
+
+    if(ARG_GTEST_DISCOVER)
+        include(GoogleTest OPTIONAL RESULT_VARIABLE has_gtest)
+
+        if(has_gtest)
+            gtest_discover_tests(${ARG_NAME}
+                DISCOVERY_MODE POST_BUILD
+                PROPERTIES LABELS "${ARG_LABELS}"
+            )
+        endif()
     endif()
 
     install(TARGETS ${ARG_NAME}
