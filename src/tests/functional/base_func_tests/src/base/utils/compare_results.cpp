@@ -210,6 +210,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset17_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
+    // Ensure BevPoolV2 is registered in compare map in case private table misses it
+    {ov::op::v15::BevPoolV2::get_type_info_static(), compareResults<ov::op::v15::BevPoolV2>},
 #undef _OPENVINO_OP_REG
     };
 OPENVINO_SUPPRESS_DEPRECATED_END

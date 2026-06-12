@@ -30,6 +30,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
+#include "openvino/op/bevpool_v2.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -674,4 +675,43 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_generate_proposals_batch) {
     test_case.add_expected_output<float>(Shape{10}, {7, 5, 3, 1, 1, 8, 4, 2, 1, 1});
     test_case.add_expected_output<int64_t>(Shape{2}, {5, 5});
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bevpool_v2_attributes) {
+    const auto model = convert_model("org.openvinotoolkit/bevpool_v2.prototxt");
+
+    std::shared_ptr<ov::op::v15::BevPoolV2> bevpool;
+    for (const auto& op : model->get_ordered_ops()) {
+        bevpool = ov::as_type_ptr<ov::op::v15::BevPoolV2>(op);
+        if (bevpool) {
+            break;
+        }
+    }
+
+    ASSERT_NE(bevpool, nullptr);
+    EXPECT_EQ(bevpool->get_input_channels(), 4u);
+    EXPECT_EQ(bevpool->get_output_channels(), 2u);
+    EXPECT_EQ(bevpool->get_image_width(), 5u);
+    EXPECT_EQ(bevpool->get_image_height(), 3u);
+    EXPECT_EQ(bevpool->get_feature_width(), 7u);
+    EXPECT_EQ(bevpool->get_feature_height(), 6u);
+
+    EXPECT_FLOAT_EQ(bevpool->get_x_bound().min, -10.f);
+    EXPECT_FLOAT_EQ(bevpool->get_x_bound().max, 10.f);
+    EXPECT_FLOAT_EQ(bevpool->get_x_bound().step, 0.5f);
+
+    EXPECT_FLOAT_EQ(bevpool->get_y_bound().min, -20.f);
+    EXPECT_FLOAT_EQ(bevpool->get_y_bound().max, 20.f);
+    EXPECT_FLOAT_EQ(bevpool->get_y_bound().step, 1.0f);
+
+    EXPECT_FLOAT_EQ(bevpool->get_z_bound().min, -3.f);
+    EXPECT_FLOAT_EQ(bevpool->get_z_bound().max, 5.f);
+    EXPECT_FLOAT_EQ(bevpool->get_z_bound().step, 0.25f);
+
+    EXPECT_FLOAT_EQ(bevpool->get_d_bound().min, 1.f);
+    EXPECT_FLOAT_EQ(bevpool->get_d_bound().max, 4.f);
+    EXPECT_FLOAT_EQ(bevpool->get_d_bound().step, 1.f);
+
+    EXPECT_EQ(bevpool->get_output_element_type(0), element::f32);
+    EXPECT_EQ(bevpool->get_output_partial_shape(0), (PartialShape{2, 2, 6, 7}));
 }
