@@ -46,6 +46,6 @@ bool evaluate_node<ov::op::internal::GatedDeltaNet>(std::shared_ptr<ov::Node> no
     case ov::element::f32:
         return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(node), outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node<GatedDeltaNet>()");
+        OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node()");
     }
 }

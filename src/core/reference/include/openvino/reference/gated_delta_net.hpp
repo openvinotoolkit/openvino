@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/normalize_l2.hpp"
 
 namespace ov::reference {
 
@@ -47,14 +48,8 @@ void gated_delta_net(const T* q_data,
         return result;
     };
 
-    auto l2norm = [](std::vector<T>& vec, T eps) {
-        T sum = static_cast<T>(0);
-        for (size_t i = 0; i < vec.size(); i++)
-            sum += vec[i] * vec[i];
-        sum = static_cast<T>(1) / std::sqrt(sum + eps);
-        for (size_t i = 0; i < vec.size(); i++)
-            vec[i] *= sum;
-    };
+    const Shape norm_shape{D};
+    const AxisSet norm_axes{0};
 
     for (size_t b = 0; b < B; b++) {
         for (size_t h_v = 0; h_v < v_H; h_v++) {
@@ -77,8 +72,18 @@ void gated_delta_net(const T* q_data,
                     std::vector<T> k_vec(k_ptr, k_ptr + D);
 
                     if (fuse_qk_l2norm) {
-                        l2norm(q_vec, q_l2_norm_eps);
-                        l2norm(k_vec, k_l2_norm_eps);
+                        normalize_l2(q_vec.data(),
+                                     q_vec.data(),
+                                     norm_shape,
+                                     norm_axes,
+                                     static_cast<float>(q_l2_norm_eps),
+                                     op::EpsMode::ADD);
+                        normalize_l2(k_vec.data(),
+                                     k_vec.data(),
+                                     norm_shape,
+                                     norm_axes,
+                                     static_cast<float>(k_l2_norm_eps),
+                                     op::EpsMode::ADD);
                     }
 
                     for (size_t i = 0; i < D; i++)
