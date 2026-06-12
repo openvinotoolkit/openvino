@@ -4,7 +4,10 @@
 
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 
+#include <algorithm>
 #include <initializer_list>
+#include <utility>
+#include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -47,6 +50,44 @@ void validate_nodes(const pattern::PatternValueMap& map, const std::initializer_
         map.at(node).get_node_shared_ptr()->validate_and_infer_types();
     }
 };
+
+// True if every weight has a source constant in `supported_types` somewhere in its producer
+// subgraph. Walking up is robust to the dequantization shape (Convert/Subtract/Multiply/
+// Reshape/Transpose) — the weight node itself is already up-converted to f16/f32 and
+// would not reveal compression.
+bool weights_match_supported_types(const std::initializer_list<ov::Output<ov::Node>> weights,
+                                   const std::vector<ov::element::Type>& supported_types) {
+    if (supported_types.empty()) {
+        return true;
+    }
+    auto is_supported = [&](const ov::element::Type& t) {
+        return std::find(supported_types.begin(), supported_types.end(), t) != supported_types.end();
+    };
+    // Dequantization chains are short; bound the walk to avoid cycles.
+    constexpr size_t max_depth = 8;
+    for (const auto& weight : weights) {
+        std::vector<std::pair<const ov::Node*, size_t>> stack = {{weight.get_node(), 0}};
+        bool found = false;
+        while (!stack.empty()) {
+            const auto [node, depth] = stack.back();
+            stack.pop_back();
+            if (is_supported(node->get_output_element_type(0))) {
+                found = true;
+                break;
+            }
+            if (depth >= max_depth) {
+                continue;
+            }
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                stack.push_back({node->get_input_node_ptr(i), depth + 1});
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
+}
 
 std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<ov::Node>& data) {
     auto zero_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
@@ -190,7 +231,8 @@ using ov::op::internal::GatherMatmul;
 // BGM-producing passes (IR → GatherMatmul)
 // ============================================================================
 
-ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
+ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
+    const std::vector<ov::element::Type>& supported_weights_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo2GatherMatmuls);
 
     auto p = build_2gemm_pattern();
@@ -208,6 +250,12 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
         const auto gate_up_mm_node = pm.at(p.gate_up_matmul).get_node_shared_ptr();
         const auto gate_up_add_node = pm.at(p.gate_up_add).get_node_shared_ptr();
         const auto gate_up_bias_node = pm.at(p.gate_up_bias).get_node_shared_ptr();
+
+        const auto down_proj_mm_for_check = pm.at(p.down_proj_matmul).get_node_shared_ptr();
+        if (!weights_match_supported_types({gate_up_mm_node->input_value(1), down_proj_mm_for_check->input_value(1)},
+                                           supported_weights_types)) {
+            return false;
+        }
 
         // GatherMatmul A shape: [n_activated_experts, batch_size * seq_length, hidden_size]
         // Number of activated experts is always 1 for the first GatherMatmul
@@ -281,7 +329,8 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
     this->register_matcher(matcher, callback);
 }
 
-ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
+ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
+    const std::vector<ov::element::Type>& supported_weights_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo3GatherMatmuls);
 
     auto p = build_3gemm_pattern();
@@ -299,6 +348,13 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
         const auto gate_mm_node = pm.at(p.gate_matmul).get_node_shared_ptr();
         const auto up_mm_node = pm.at(p.up_matmul).get_node_shared_ptr();
         const auto down_mm_node = pm.at(p.down_matmul).get_node_shared_ptr();
+
+        if (!weights_match_supported_types({gate_mm_node->input_value(1),
+                                            up_mm_node->input_value(1),
+                                            down_mm_node->input_value(1)},
+                                           supported_weights_types)) {
+            return false;
+        }
 
         // GatherMatmul A shape: [n_activated_experts, batch_size * seq_length, hidden_size]
         // Number of activated experts is always 1 for the first GatherMatmul
