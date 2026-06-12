@@ -124,6 +124,47 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: String. Default is "DEFAULT".
+ * Selects the command list update strategy used by the plugin.
+ * Possible values: "DEFAULT", "ENABLE_MUTABLE_COMMANDLIST", "FORCE_UPDATE_MUTABLE_COMMANDLIST",
+ * "FORCE_COMMANDLIST_RECORDING_ONLY"
+ */
+enum class CommandListMode {
+    DEFAULT = 0,
+    ENABLE_MUTABLE_COMMANDLIST = 1,
+    FORCE_UPDATE_MUTABLE_COMMANDLIST = 2,
+    FORCE_COMMANDLIST_RECORDING_ONLY = 3,
+};
+
+/**
+ * @brief Prints a string representation of ov::intel_npu::CommandListMode to a stream
+ * @param out An output stream to send to
+ * @param fmt A command list mode value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const CommandListMode& fmt) {
+    switch (fmt) {
+    case CommandListMode::DEFAULT: {
+        out << "DEFAULT";
+    } break;
+    case CommandListMode::ENABLE_MUTABLE_COMMANDLIST: {
+        out << "ENABLE_MUTABLE_COMMANDLIST";
+    } break;
+    case CommandListMode::FORCE_UPDATE_MUTABLE_COMMANDLIST: {
+        out << "FORCE_UPDATE_MUTABLE_COMMANDLIST";
+    } break;
+    case CommandListMode::FORCE_COMMANDLIST_RECORDING_ONLY: {
+        out << "FORCE_COMMANDLIST_RECORDING_ONLY";
+    } break;
+    default:
+        OPENVINO_THROW("Unsupported value for the command list mode: ", static_cast<uint32_t>(fmt));
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
  * Default is "ITERATIVE".
  * Switches between different implementations of the "weights separation" feature.
  */
@@ -329,6 +370,15 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
 static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
+ * @brief [Only for NPU Plugin]
+ * Type: String. Default is "DEFAULT".
+ * Selects the command list update strategy used by the plugin.
+ * Possible values: "DEFAULT", "ENABLE_MUTABLE_COMMANDLIST", "FORCE_COMMANDLIST_RECORDING_ONLY",
+ * "FORCE_UPDATE_MUTABLE_COMMANDLIST".
+ */
+static constexpr ov::Property<CommandListMode> commandlist_mode{"NPU_COMMANDLIST_MODE"};
+
+/**
  * @brief [Experimental, only for NPU Plugin]
  * Type: enum. Default is "ITERATIVE". If the compiler-in-plugin is used (intel_npu::compiler_type =
  * intel_npu::CompilerType::PLUGIN), then the default becomes "ONE_SHOT".
@@ -448,6 +498,5 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
  * models from each other, which can be required for some use cases.
  */
 static constexpr ov::Property<bool> shared_common_queue{"NPU_SHARED_COMMON_QUEUE"};
-
 }  // namespace intel_npu
 }  // namespace ov

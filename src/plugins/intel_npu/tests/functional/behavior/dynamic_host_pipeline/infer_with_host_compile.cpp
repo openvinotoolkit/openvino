@@ -14,8 +14,23 @@ const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
 const std::vector<ov::AnyMap> configs = {
     {{"NPU_COMPILER_TYPE", "PLUGIN"},
      {"NPU_COMPILATION_MODE", "HostCompile"},
+     {"NPU_CREATE_EXECUTOR", "0"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile"},
      {"NPU_CREATE_EXECUTOR", "0"},
-     }};
+     {"NPU_COMMANDLIST_MODE", "DEFAULT"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile"},
+     {"NPU_CREATE_EXECUTOR", "0"},
+     {"NPU_COMMANDLIST_MODE", "ENABLE_MUTABLE_COMMANDLIST"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile"},
+     {"NPU_CREATE_EXECUTOR", "0"},
+     {"NPU_COMMANDLIST_MODE", "FORCE_COMMANDLIST_RECORDING_ONLY"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile"},
+     {"NPU_CREATE_EXECUTOR", "0"},
+     {"NPU_COMMANDLIST_MODE", "FORCE_UPDATE_MUTABLE_COMMANDLIST"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
