@@ -20,6 +20,8 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "openvino/core/graph_util.hpp"
+#include <cstdlib>
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;

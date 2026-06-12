@@ -36,6 +36,7 @@ void regclass_graph_Type(py::module m) {
     type.attr("f16") = ov::element::f16;
     type.attr("f32") = ov::element::f32;
     type.attr("f64") = ov::element::f64;
+    type.attr("i2") = ov::element::i2;
     type.attr("i4") = ov::element::i4;
     type.attr("i8") = ov::element::i8;
     type.attr("i16") = ov::element::i16;
