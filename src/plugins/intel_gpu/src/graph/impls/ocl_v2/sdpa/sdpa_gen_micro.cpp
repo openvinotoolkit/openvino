@@ -1685,9 +1685,24 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     reqs_kq.push_back(micro::StrategyRequirement::WGM == config->wg_m_kq);
     reqs_kq.push_back(micro::StrategyRequirement::WGN == config->wg_n_kq);
 
+    // PA prefill uses the raw, unpadded K input. The catalog KQ strategy assumes padded A,
+    // so force masked per-lane K loads for the partial kv-token tile.
+    void (*kq_adjuster)(micro::GEMMStrategy&) = nullptr;
+    if (is_paged_attention && is_prefill) {
+        kq_adjuster = +[](micro::GEMMStrategy& strategy) {
+            strategy.A.padded = strategy.A_prefetch.padded = false;
+            strategy.A.accessType = gemmstone::AccessType::Scattered;
+            strategy.doubleMasking = true;
+        };
+    }
+
     /* Ask microkernel provider for microkernel */
     try {
-        gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+        if (kq_adjuster) {
+            gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq, kq_adjuster);
+        } else {
+            gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+        }
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
         throw;
