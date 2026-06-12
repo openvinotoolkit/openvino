@@ -24,6 +24,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableAllInputLayout();
@@ -68,15 +69,19 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     Datatype accumulator_dt = GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
+    auto wt = params.weights.GetDType();
+    if (params.compressed && (wt == WeightsType::UINT2 || wt == WeightsType::UINT4 || wt == WeightsType::INT4)) {
+        accumulator_dt = Datatype::F32;
+    }
     if (params.outputs[0].GetLayout() == DataLayout::bfyx)
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
-
-    auto wt = params.weights.GetDType();
     if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+    } else if (wt == WeightsType::UINT2) {
+        jit.Merge(make_int4_packed_type_jit_constant("UINT2_PACKED_TYPE", wt, 4));
     }
 
     if (!params.fused_ops.empty()) {
@@ -102,13 +107,13 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
             res.emplace_back(kd[0]);
         }
     }
-
     return res;
 }
 
-bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {                     
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // int8 validation
     const auto& fc_params = static_cast<const fully_connected_params&>(params);

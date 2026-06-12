@@ -8,7 +8,7 @@ using namespace ov::pass::pattern;
 #define FC_COMPRESSED_WEIGHT_PATTERN\
         auto compressed_constant = [](const ov::Output<ov::Node>& output) {\
             return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||\
-                    output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4);\
+                    output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4 || output.get_element_type() == ov::element::u2);\
         };\
         \
         auto reshape_squeeze = [](const ov::Output<ov::Node>& output) {\
