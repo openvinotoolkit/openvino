@@ -311,13 +311,13 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         set_values(mem, data);
     }
 
-    network::ptr build_network(const layout& q_layout,
-                               const layout& k_layout,
-                               const layout& v_layout,
-                               const std::optional<layout>& mask_layout,
-                               const std::optional<layout>& scale_layout,
-                               bool use_onednn,
-                               const std::optional<float>& scale_val) {
+    static network::ptr build_network(const layout& q_layout,
+                                      const layout& k_layout,
+                                      const layout& v_layout,
+                                      const std::optional<layout>& mask_layout,
+                                      const std::optional<layout>& scale_layout,
+                                      bool use_onednn,
+                                      const std::optional<float>& scale_val) {
         auto& engine = get_test_engine();
 
         topology topo;
@@ -359,9 +359,8 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
             config.set_property(ov::intel_gpu::enable_onednn_sdpa_primitive(true));
         }
         if (!use_onednn) {
-            const auto ref_kernel = mask_layout.has_value() ? "sdpa_opt" : "sdpa_ref";
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                {"sdpa", {format::type::bfyx, ref_kernel, impl_types::ocl}}
+                {"sdpa", {format::type::bfyx, "sdpa_ref", impl_types::ocl}}
             }));
         }
 
@@ -379,6 +378,14 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         EXPECT_STREQ(impl->m_manager->get_type_info().name, "onednn::sdpa");
     }
 
+    static void assert_onednn_sdpa_not_selected(const network::ptr& net) {
+        auto inst = net->get_primitive("sdpa");
+        ASSERT_NE(inst, nullptr);
+        auto impl = inst->get_impl();
+        ASSERT_NE(impl, nullptr);
+        EXPECT_FALSE(impl->is_onednn());
+    }
+
     void execute() {
         const auto p = GetParam();
         auto& engine = get_test_engine();
@@ -390,14 +397,14 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         const layout k_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
         const layout v_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
         const layout mask_layout({p.batch, p.num_heads, 1, p.sequence_length_kv}, data_types::f16, format::bfyx);
-        const layout scale_layout({1, p.num_heads, 1, 1}, data_types::f16, format::bfyx);
+        const layout scale_layout({1}, data_types::f16, format::bfyx);
 
         const layout q_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : q_layout;
         const layout k_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : k_layout;
         const layout v_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : v_layout;
         const auto mask_topology_layout = p.use_runtime_mask ? std::optional<layout>(p.dynamic ? layout({-1, p.num_heads, 1, -1}, data_types::f16, format::bfyx) : mask_layout)
                                                             : std::nullopt;
-        const auto scale_topology_layout = p.use_runtime_scale ? std::optional<layout>(p.dynamic ? layout({1, p.num_heads, 1, 1}, data_types::f16, format::bfyx) : scale_layout)
+        const auto scale_topology_layout = p.use_runtime_scale ? std::optional<layout>(p.dynamic ? layout({1}, data_types::f16, format::bfyx) : scale_layout)
                                                               : std::nullopt;
 
         auto q_mem = engine.allocate_memory(q_layout);
@@ -430,15 +437,6 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         };
 
         set_inputs(onednn_net);
-
-        if (p.use_runtime_mask) {
-            auto onednn_output = onednn_net->execute().at("sdpa").get_memory();
-            mem_lock<ov::float16, mem_lock_type::read> onednn_data(onednn_output, get_test_stream());
-            for (size_t idx = 0; idx < onednn_data.size(); ++idx) {
-                ASSERT_FALSE(std::isnan(static_cast<float>(onednn_data[idx]))) << "NaN in oneDNN output at " << idx;
-            }
-            return;
-        }
 
         auto ref_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, false, p.scale_val);
         set_inputs(ref_net);
@@ -495,13 +493,44 @@ TEST_P(onednn_sdpa_gpu_test, selects_onednn_and_validates_output) {
     execute();
 }
 
+TEST(onednn_sdpa_gpu_validation_test, rejects_unsupported_runtime_scale_and_batch_broadcast) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
+        GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
+    }
+
+    const layout q_layout({2, 2, 4, 32}, data_types::f16, format::bfyx);
+    const layout k_layout({2, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout v_layout({2, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout invalid_scale_layout({1, 2, 1, 1}, data_types::f16, format::bfyx);
+
+    auto invalid_scale_net = onednn_sdpa_gpu_test::build_network(q_layout,
+                                                                 k_layout,
+                                                                 v_layout,
+                                                                 std::nullopt,
+                                                                 invalid_scale_layout,
+                                                                 true,
+                                                                 std::nullopt);
+    onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(invalid_scale_net);
+
+    const layout broadcast_k_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout broadcast_v_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+    auto batch_broadcast_net = onednn_sdpa_gpu_test::build_network(q_layout,
+                                                                  broadcast_k_layout,
+                                                                  broadcast_v_layout,
+                                                                  std::nullopt,
+                                                                  std::nullopt,
+                                                                  true,
+                                                                  std::nullopt);
+    onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(batch_broadcast_net);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_onednn_sdpa_gpu_test,
     onednn_sdpa_gpu_test,
     ::testing::Values(
         onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt},
         onednn_sdpa_test_params{1, 2, 4, 6, 32, 0.125f},
-        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, true, false},
         onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, true, true},
         onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, true, true, true}
     ),

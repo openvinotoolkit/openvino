@@ -10,6 +10,7 @@
 #include "registry/implementation_manager.hpp"
 #include "scaled_dot_product_attention_inst.h"
 
+#include <algorithm>
 #include <array>
 
 namespace cldnn {
@@ -125,6 +126,31 @@ private:
         return dim.is_dynamic() || target.is_dynamic() || dim.get_length() == 1 || dim == target;
     }
 
+    static bool is_scalar_or_single_element(const layout& l, bool require_static) {
+        const auto& shape = l.get_partial_shape();
+        const auto rank = shape.rank();
+        if (rank.is_dynamic())
+            return !require_static;
+
+        const auto rank_length = rank.get_length();
+        if (rank_length == 0)
+            return true;
+
+        if (require_static && !l.is_static())
+            return false;
+
+        for (size_t idx = 0; idx < static_cast<size_t>(rank_length); ++idx) {
+            const auto& dim = shape[idx];
+            if (dim.is_dynamic())
+                continue;
+
+            if (dim.get_length() != 1)
+                return false;
+        }
+
+        return true;
+    }
+
     static bool is_supported_mask_data_type(data_types mask_dt, data_types q_dt) {
         if (q_dt == data_types::f32)
             return mask_dt == data_types::f32;
@@ -190,8 +216,11 @@ private:
             if (kv_heads <= 0 || q_heads < kv_heads || q_heads % kv_heads != 0)
                 return false;
         }
-
-        return dims_compatible(k_shape[1], v_shape[1]) &&
+        return dims_compatible(q_shape[0], k_shape[0]) &&
+               dims_compatible(k_shape[0], v_shape[0]) &&
+               dims_compatible(out_shape[0], q_shape[0]) &&
+               dims_compatible(out_shape[1], q_shape[1]) &&
+               dims_compatible(k_shape[1], v_shape[1]) &&
                dims_compatible(q_shape[3], k_shape[3]) &&
                dims_compatible(k_shape[2], v_shape[2]) &&
                dims_compatible(out_shape[2], q_shape[2]) &&
@@ -257,7 +286,7 @@ private:
             if (!one_of(scale_layout.data_type, supported_data_types))
                 return false;
 
-            if (require_static && (scale_layout.is_dynamic() || scale_layout.count() == 0))
+            if (!is_scalar_or_single_element(scale_layout, require_static))
                 return false;
         }
 
