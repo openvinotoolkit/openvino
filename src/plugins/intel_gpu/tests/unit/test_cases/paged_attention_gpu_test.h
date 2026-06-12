@@ -26,7 +26,6 @@
 #include "random_generator.hpp"
 #include "test_utils.h"
 
-using namespace cldnn;
 using namespace ov::intel_gpu;
 
 // Enable detailed xattention debugging (dumps, extra comparison info)
@@ -190,7 +189,7 @@ struct PagedAttentionManager {
             subsequence_begins.push_back(subsequence_end_pos);
 
             int subsequence_length = subsequence_desc.num_tokens + subsequence_desc.past_len;
-            int required_blocks = ceil_div(subsequence_length, block_size);
+            int required_blocks = cldnn::ceil_div(subsequence_length, block_size);
             int start_block_idx = block_indices.empty() ? 0 : block_indices.back() + 1;
             int end_block_idx = start_block_idx + required_blocks;
             for (int block_idx = start_block_idx; block_idx < end_block_idx; block_idx++) {
@@ -233,21 +232,21 @@ struct PagedAttentionManager {
         }
     }
 
-    memory::ptr get_query_memory() {
+    cldnn::memory::ptr get_query_memory() {
         return get_QKV_memory(query_data, num_heads, k_head_size, false);
     }
 
-    memory::ptr get_key_memory() {
+    cldnn::memory::ptr get_key_memory() {
         return get_QKV_memory(key_data, num_kv_heads, k_head_size, true);
     }
 
-    memory::ptr get_value_memory() {
+    cldnn::memory::ptr get_value_memory() {
         return get_QKV_memory(value_data, num_kv_heads, v_head_size, true);
     }
 
-    memory::ptr get_key_cache_memory_cm() {
+    cldnn::memory::ptr get_key_cache_memory_cm() {
         constexpr int kv_sub_block_size = 16;
-        auto key_cache_dt = kv_cache_compression ? data_types::i8 : data_types::f16;
+        auto key_cache_dt = kv_cache_compression ? cldnn::data_types::i8 : cldnn::data_types::f16;
         const int head_size = k_head_size;
         int adjusted_head_size = head_size;
         int adjusted_block_size = block_size;
@@ -265,7 +264,7 @@ struct PagedAttentionManager {
                                                 static_cast<int64_t>(num_kv_heads),
                                                 static_cast<int64_t>(adjusted_block_size),
                                                 static_cast<int64_t>(adjusted_head_size)};
-        auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
+        auto key_cache_layout = cldnn::layout{key_cache_shape, key_cache_dt, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
 
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -273,7 +272,7 @@ struct PagedAttentionManager {
             if (past_len == 0)
                 continue;
 
-            const int blocks_num = ceil_div(past_len + 1, block_size);
+            const int blocks_num = cldnn::ceil_div(past_len + 1, block_size);
             const int start_block_idx = block_indices[block_indices_begins[i]];
 
             for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
@@ -370,12 +369,12 @@ struct PagedAttentionManager {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
-    memory::ptr get_key_cache_memory() {
-        auto key_cache_dt = data_types::f16;
+    cldnn::memory::ptr get_key_cache_memory() {
+        auto key_cache_dt = cldnn::data_types::f16;
         auto adjusted_head_size = k_head_size;
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
-            key_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
+            key_cache_dt = is_int4_kv_cache() ? cldnn::data_types::u8 : cldnn::data_types::i8;
             const int scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
             if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (is_int4_kv_cache()) {
@@ -399,12 +398,12 @@ struct PagedAttentionManager {
 
         auto num_blocks = block_indices.back() + 1;
         auto key_cache_shape = ov::PartialShape{num_blocks, num_kv_heads, adjusted_head_size, adjusted_block_size};
-        auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
+        auto key_cache_layout = cldnn::layout{key_cache_shape, key_cache_dt, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
             int past_len = subsequence_descs[i].past_len;
             if (past_len != 0) {
-                int blocks_num = ceil_div(past_len + 1, block_size);
+                int blocks_num = cldnn::ceil_div(past_len + 1, block_size);
                 int start_block_idx = block_indices[block_indices_begins[i]];
                 for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
                     int last_token_idx = block_idx == blocks_num - 1 ? (past_len - block_size * block_idx) : block_size;
@@ -581,12 +580,12 @@ struct PagedAttentionManager {
         return memory;
     }
 
-    memory::ptr get_value_cache_memory() {
-        auto value_cache_dt = data_types::f16;
+    cldnn::memory::ptr get_value_cache_memory() {
+        auto value_cache_dt = cldnn::data_types::f16;
         const int head_size = v_head_size;
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
-            value_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
+            value_cache_dt = is_int4_kv_cache() ? cldnn::data_types::u8 : cldnn::data_types::i8;
             scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
         }
 
@@ -599,7 +598,7 @@ struct PagedAttentionManager {
                                                   static_cast<int64_t>(num_kv_heads),
                                                   static_cast<int64_t>(block_size),
                                                   static_cast<int64_t>(adjusted_head_size)};
-        auto value_cache_layout = layout{value_cache_shape, value_cache_dt, format::bfyx};
+        auto value_cache_layout = cldnn::layout{value_cache_shape, value_cache_dt, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(value_cache_layout);
 
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -607,7 +606,7 @@ struct PagedAttentionManager {
             if (past_len == 0)
                 continue;
 
-            const int blocks_num = ceil_div(past_len + 1, block_size);
+            const int blocks_num = cldnn::ceil_div(past_len + 1, block_size);
             const int start_block_idx = block_indices[block_indices_begins[i]];
 
             for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
@@ -712,50 +711,50 @@ struct PagedAttentionManager {
         return memory;
     }
 
-    memory::ptr get_past_lens_memory() {
+    cldnn::memory::ptr get_past_lens_memory() {
         return get_memory_from_vec(past_lens);
     }
 
-    memory::ptr get_subsequence_begins_memory() {
+    cldnn::memory::ptr get_subsequence_begins_memory() {
         return get_memory_from_vec(subsequence_begins);
     }
 
-    memory::ptr get_block_indices_memory() {
+    cldnn::memory::ptr get_block_indices_memory() {
         return get_memory_from_vec(block_indices);
     }
 
-    memory::ptr get_block_indices_begins_memory() {
+    cldnn::memory::ptr get_block_indices_begins_memory() {
         return get_memory_from_vec(block_indices_begins);
     }
 
-    memory::ptr get_scale_memory() {
+    cldnn::memory::ptr get_scale_memory() {
         std::vector<ov::float16> scale = {ov::float16(get_default_scale())};
         return get_memory_from_vec(scale);
     }
 
-    memory::ptr get_sliding_window_memory() {
+    cldnn::memory::ptr get_sliding_window_memory() {
         std::vector<int> sliding_window = {0};
         return get_memory_from_vec(sliding_window);
     }
 
-    memory::ptr get_alibi_memory() {
+    cldnn::memory::ptr get_alibi_memory() {
         std::vector<ov::float16> alibi;
         return get_memory_from_vec(alibi);
     }
 
-    memory::ptr get_max_context_len_memory() {
+    cldnn::memory::ptr get_max_context_len_memory() {
         return get_memory_from_vec(max_context_len);
     }
 
-    memory::ptr get_score_aggregation() {
+    cldnn::memory::ptr get_score_aggregation() {
         return get_memory_from_vec(score_aggregation);
     }
 
-    memory::ptr get_rotated_block_indices_memory() {
+    cldnn::memory::ptr get_rotated_block_indices_memory() {
         return get_memory_from_vec(rotated_block_indices);
     }
 
-    memory::ptr get_rotation_deltas_memory() {
+    cldnn::memory::ptr get_rotation_deltas_memory() {
         auto mem = get_memory_from_vec(rotation_deltas);
         auto layout = mem->get_layout();
         auto last_dim = rotation_config.per_block ? 1 : block_size;
@@ -764,7 +763,7 @@ struct PagedAttentionManager {
         return test_engine.reinterpret_buffer(*mem, layout);
     }
 
-    memory::ptr get_rotation_trig_lut_memory() {
+    cldnn::memory::ptr get_rotation_trig_lut_memory() {
         auto mem = get_memory_from_vec(rotation_trig_lut);
         auto layout = mem->get_layout();
         layout.set_partial_shape(ov::PartialShape{max_context_len[0], k_head_size});
@@ -778,19 +777,19 @@ struct PagedAttentionManager {
         return test_engine.reinterpret_buffer(*mem, layout);
     }
 
-    memory::ptr get_xattention_threshold_memory() {
+    cldnn::memory::ptr get_xattention_threshold_memory() {
         return get_memory_from_vec(xattention_threshold);
     }
 
-    memory::ptr get_xattention_block_size_memory() {
+    cldnn::memory::ptr get_xattention_block_size_memory() {
         return get_memory_from_vec(xattention_block_size);
     }
 
-    memory::ptr get_xattention_stride_memory() {
+    cldnn::memory::ptr get_xattention_stride_memory() {
         return get_memory_from_vec(xattention_stride);
     }
 
-    memory::ptr get_sinks_memory() {
+    cldnn::memory::ptr get_sinks_memory() {
         auto mem = get_memory_from_vec(sinks);
         auto layout = mem->get_layout();
         layout.set_partial_shape(ov::PartialShape{1, num_heads, 1, 1});
@@ -804,26 +803,26 @@ struct PagedAttentionManager {
         return test_engine.reinterpret_buffer(*mem, layout);
     }
 
-    memory::ptr get_adaptive_rkv_start_size_memory() {
-        auto mem = test_engine.allocate_memory({{}, data_types::i32, format::bfyx});
-        mem_lock<int> lock(mem, test_stream);
+    cldnn::memory::ptr get_adaptive_rkv_start_size_memory() {
+        auto mem = test_engine.allocate_memory({{}, cldnn::data_types::i32, cldnn::format::bfyx});
+        cldnn::mem_lock<int> lock(mem, test_stream);
         lock[0] = adaptive_rkv_start_size;
         return mem;
     }
 
-    memory::ptr get_adaptive_rkv_evictable_sizes_memory() {
+    cldnn::memory::ptr get_adaptive_rkv_evictable_sizes_memory() {
         return get_memory_from_vec(adaptive_rkv_evictable_sizes);
     }
 
-    memory::ptr get_adaptive_rkv_diversity_block_set_indices_memory() {
+    cldnn::memory::ptr get_adaptive_rkv_diversity_block_set_indices_memory() {
         return get_memory_from_vec(adaptive_rkv_diversity_block_set_indices);
     }
 
-    memory::ptr get_adaptive_rkv_diversity_block_set_indices_begins_memory() {
+    cldnn::memory::ptr get_adaptive_rkv_diversity_block_set_indices_begins_memory() {
         return get_memory_from_vec(adaptive_rkv_diversity_block_set_indices_begins);
     }
 
-    memory::ptr get_token_type_ids_memory() {
+    cldnn::memory::ptr get_token_type_ids_memory() {
         if (!token_type_ids.empty()) {
             return get_memory_from_vec(token_type_ids);
         }
@@ -831,7 +830,7 @@ struct PagedAttentionManager {
         return get_memory_from_vec(default_token_type_ids);
     }
 
-    memory::ptr get_qq_bias_memory() {
+    cldnn::memory::ptr get_qq_bias_memory() {
         std::vector<uint8_t> flat_qq_bias;
         for (const auto& matrix : qq_bias) {
             for (bool val : matrix) {
@@ -841,7 +840,7 @@ struct PagedAttentionManager {
         return get_memory_from_vec(flat_qq_bias);
     }
 
-    memory::ptr get_qq_bias_begins_memory() {
+    cldnn::memory::ptr get_qq_bias_begins_memory() {
         return get_memory_from_vec(qq_bias_begins);
     }
 
@@ -851,15 +850,15 @@ struct PagedAttentionManager {
 
 private:
     template <typename T>
-    memory::ptr get_memory_from_vec(std::vector<T>& input_data) {
+    cldnn::memory::ptr get_memory_from_vec(std::vector<T>& input_data) {
         auto data_size = input_data.empty() ? 1 : input_data.size();
         auto shape = ov::PartialShape{static_cast<int>(data_size)};
-        auto layout = cldnn::layout{shape, ov::element::from<T>(), format::bfyx};
+        auto layout = cldnn::layout{shape, ov::element::from<T>(), cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(layout);
 
         if (input_data.empty()) {
             auto shape = ov::PartialShape{0};
-            auto layout = cldnn::layout{shape, ov::element::from<T>(), format::bfyx};
+            auto layout = cldnn::layout{shape, ov::element::from<T>(), cldnn::format::bfyx};
             return test_engine.reinterpret_buffer(*memory, layout);
         }
 
@@ -868,13 +867,13 @@ private:
         return memory;
     }
 
-    memory::ptr get_QKV_memory(std::vector<std::vector<ov::float16>>& input_data, int num_heads, int head_size, bool skip_past_len) {
+    cldnn::memory::ptr get_QKV_memory(std::vector<std::vector<ov::float16>>& input_data, int num_heads, int head_size, bool skip_past_len) {
         int total_tokens = 0;
         for (const auto& subsequence_desc : subsequence_descs)
             total_tokens += subsequence_desc.num_tokens;
 
         auto query_shape = ov::PartialShape{total_tokens, num_heads * head_size};
-        auto query_layout = layout{query_shape, data_types::f16, format::bfyx};
+        auto query_layout = cldnn::layout{query_shape, cldnn::data_types::f16, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(query_layout);
 
         for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
@@ -899,8 +898,8 @@ private:
     }
 
     template <typename T>
-    static void set_values(stream& stream, memory::ptr mem, T* vals, size_t size, size_t dst_offset) {
-        mem_lock<T> mem_ptr(mem, stream);
+    static void set_values(cldnn::stream& stream, cldnn::memory::ptr mem, T* vals, size_t size, size_t dst_offset) {
+        cldnn::mem_lock<T> mem_ptr(mem, stream);
         for (size_t i = 0; i < size; i++) {
             mem_ptr[dst_offset + i] = vals[i];
         }
@@ -1036,7 +1035,7 @@ struct hash<ov::float16> {
 struct PagedAttentionReference {
     PagedAttentionReference(PagedAttentionManager& pam) : pam(pam), test_engine(pam.test_engine), test_stream(pam.test_stream) {}
 
-    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(memory::ptr key_cache_mem = nullptr) {
+    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(cldnn::memory::ptr key_cache_mem = nullptr) {
         const bool has_xattention = pam.has_xattention;
         if (has_xattention) {
             const size_t total_iterations = pam.subsequence_descs.size();
@@ -1099,7 +1098,7 @@ struct PagedAttentionReference {
                 xattn_threshold = static_cast<double>(pam.xattention_threshold[i]);
 
                 //  reference path reflects runtime fallback/validation behavior for block size.
-                if (test_engine.get_device_info().arch < gpu_arch::xe2) {
+                if (test_engine.get_device_info().arch < cldnn::gpu_arch::xe2) {
                     xattn_block_size = 128;
                 } else {
                     const int user_value = pam.xattention_block_size[i];
@@ -1199,10 +1198,10 @@ private:
             }
         }
 
-        auto query_layout = layout{query_shape, data_types::f16, format::bfyx};
-        auto key_layout = layout{key_shape, data_types::f16, format::bfyx};
-        auto value_layout = layout{value_shape, data_types::f16, format::bfyx};
-        auto scale_layout = cldnn::layout({1}, data_types::f16, format::bfyx);
+        auto query_layout = cldnn::layout{query_shape, cldnn::data_types::f16, cldnn::format::bfyx};
+        auto key_layout = cldnn::layout{key_shape, cldnn::data_types::f16, cldnn::format::bfyx};
+        auto value_layout = cldnn::layout{value_shape, cldnn::data_types::f16, cldnn::format::bfyx};
+        auto scale_layout = cldnn::layout({1}, cldnn::data_types::f16, cldnn::format::bfyx);
 
         OPENVINO_ASSERT(query_layout.count() == query_data.size());
         if (do_gqa_expand) {
@@ -1277,49 +1276,51 @@ private:
                                                          retained_blocks,
                                                          static_cast<int>(block_size),
                                                          qq_bias);
-        topology topology;
+        cldnn::topology topology;
         if (num_heads == num_kv_heads) {
-            topology.add(input_layout("query", query_layout),
-                         input_layout("key", key_layout),
-                         input_layout("value", value_layout),
-                         data("mask", mask_mem),
-                         data("scale", scale_mem),
-                         permute("query_transposed", input_info("query"), {0, 2, 1, 3}),
-                         permute("key_transposed", input_info("key"), {0, 2, 3, 1}),
-                         permute("value_transposed", input_info("value"), {0, 2, 1, 3}),
-                         gemm("qk_gemm", {input_info("query_transposed"), input_info("key_transposed")}, data_types::f16, false, false),
-                         eltwise("scale_div", {input_info("qk_gemm"), input_info("scale")}, eltwise_mode::prod),
-                         eltwise("eltwise", {input_info("scale_div"), input_info("mask")}, eltwise_mode::sum),
-                         softmax("softmax", input_info("eltwise"), -1),
-                         gemm("qkv_gemm", {input_info("softmax"), input_info("value_transposed")}, data_types::f16, false, false),
-                         permute("qkv_gemm_transposed", input_info("qkv_gemm"), {0, 2, 1, 3}),
-                         reorder("output_data", input_info("qkv_gemm_transposed"), format::bfyx, data_types::f16),
-                         reorder("scores_data", input_info("softmax"), format::bfyx, data_types::f16));
+            topology.add(
+                cldnn::input_layout("query", query_layout),
+                cldnn::input_layout("key", key_layout),
+                cldnn::input_layout("value", value_layout),
+                cldnn::data("mask", mask_mem),
+                cldnn::data("scale", scale_mem),
+                cldnn::permute("query_transposed", cldnn::input_info("query"), {0, 2, 1, 3}),
+                cldnn::permute("key_transposed", cldnn::input_info("key"), {0, 2, 3, 1}),
+                cldnn::permute("value_transposed", cldnn::input_info("value"), {0, 2, 1, 3}),
+                cldnn::gemm("qk_gemm", {cldnn::input_info("query_transposed"), cldnn::input_info("key_transposed")}, cldnn::data_types::f16, false, false),
+                cldnn::eltwise("scale_div", {cldnn::input_info("qk_gemm"), cldnn::input_info("scale")}, cldnn::eltwise_mode::prod),
+                cldnn::eltwise("eltwise", {cldnn::input_info("scale_div"), cldnn::input_info("mask")}, cldnn::eltwise_mode::sum),
+                cldnn::softmax("softmax", cldnn::input_info("eltwise"), -1),
+                cldnn::gemm("qkv_gemm", {cldnn::input_info("softmax"), cldnn::input_info("value_transposed")}, cldnn::data_types::f16, false, false),
+                cldnn::permute("qkv_gemm_transposed", cldnn::input_info("qkv_gemm"), {0, 2, 1, 3}),
+                cldnn::reorder("output_data", cldnn::input_info("qkv_gemm_transposed"), cldnn::format::bfyx, cldnn::data_types::f16),
+                cldnn::reorder("scores_data", cldnn::input_info("softmax"), cldnn::format::bfyx, cldnn::data_types::f16));
         } else {
-            topology.add(input_layout("query", query_layout),
-                         input_layout("key", key_layout),
-                         input_layout("value", value_layout),
-                         data("mask", mask_mem),
-                         data("scale", scale_mem),
-                         permute("query_transposed", input_info("query"), {1, 2, 0, 3}),
-                         permute("key_transposed", input_info("key"), {1, 2, 3, 0}),
-                         permute("value_transposed", input_info("value"), {1, 2, 0, 3}),
-                         gemm("qk_gemm", {input_info("query_transposed"), input_info("key_transposed")}, data_types::f16, false, false),
-                         eltwise("scale_div", {input_info("qk_gemm"), input_info("scale")}, eltwise_mode::prod),
-                         eltwise("eltwise", {input_info("scale_div"), input_info("mask")}, eltwise_mode::sum),
-                         softmax("softmax", input_info("eltwise"), -1),
-                         gemm("qkv_gemm", {input_info("softmax"), input_info("value_transposed")}, data_types::f16, false, false),
-                         reshape("qkv_gemm_reshape", input_info("qkv_gemm"), {1, num_heads, v_head_size, num_queries}),
-                         permute("qkv_gemm_transposed", input_info("qkv_gemm_reshape"), {0, 2, 1, 3}),
-                         reorder("output_data", input_info("qkv_gemm_transposed"), format::bfyx, data_types::f16),
-                         reorder("scores_data", input_info("softmax"), format::bfyx, data_types::f16));
+            topology.add(
+                cldnn::input_layout("query", query_layout),
+                cldnn::input_layout("key", key_layout),
+                cldnn::input_layout("value", value_layout),
+                cldnn::data("mask", mask_mem),
+                cldnn::data("scale", scale_mem),
+                cldnn::permute("query_transposed", cldnn::input_info("query"), {1, 2, 0, 3}),
+                cldnn::permute("key_transposed", cldnn::input_info("key"), {1, 2, 3, 0}),
+                cldnn::permute("value_transposed", cldnn::input_info("value"), {1, 2, 0, 3}),
+                cldnn::gemm("qk_gemm", {cldnn::input_info("query_transposed"), cldnn::input_info("key_transposed")}, cldnn::data_types::f16, false, false),
+                cldnn::eltwise("scale_div", {cldnn::input_info("qk_gemm"), cldnn::input_info("scale")}, cldnn::eltwise_mode::prod),
+                cldnn::eltwise("eltwise", {cldnn::input_info("scale_div"), cldnn::input_info("mask")}, cldnn::eltwise_mode::sum),
+                cldnn::softmax("softmax", cldnn::input_info("eltwise"), -1),
+                cldnn::gemm("qkv_gemm", {cldnn::input_info("softmax"), cldnn::input_info("value_transposed")}, cldnn::data_types::f16, false, false),
+                cldnn::reshape("qkv_gemm_reshape", cldnn::input_info("qkv_gemm"), {1, num_heads, v_head_size, num_queries}),
+                cldnn::permute("qkv_gemm_transposed", cldnn::input_info("qkv_gemm_reshape"), {0, 2, 1, 3}),
+                cldnn::reorder("output_data", cldnn::input_info("qkv_gemm_transposed"), cldnn::format::bfyx, cldnn::data_types::f16),
+                cldnn::reorder("scores_data", cldnn::input_info("softmax"), cldnn::format::bfyx, cldnn::data_types::f16));
         }
 
         ExecutionConfig config = tests::get_test_default_config(test_engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        network::ptr network = tests::get_network(test_engine, topology, config, tests::get_test_stream_ptr(), false);
+        cldnn::network::ptr network = tests::get_network(test_engine, topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
@@ -1333,11 +1334,11 @@ private:
                 get_output_scores_vec(output_scores_mem, window_size, num_queries, num_keys, num_heads)};
     }
 
-    std::vector<ov::float16> get_output_scores_vec(memory::ptr scores_output, int window_size, int num_queries, int num_keys, int num_heads) {
+    std::vector<ov::float16> get_output_scores_vec(cldnn::memory::ptr scores_output, int window_size, int num_queries, int num_keys, int num_heads) {
         OPENVINO_ASSERT(scores_output->count() == static_cast<size_t>(num_heads * num_queries * num_keys));
 
         std::vector<ov::float16> output_scores(num_keys, 0);
-        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output, test_stream);
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(scores_output, test_stream);
         for (int row_idx = 0; row_idx < window_size; row_idx++) {
             for (int head_idx = 0; head_idx < num_heads; head_idx++) {
                 for (int score_idx = 0; score_idx < num_keys; score_idx++) {
@@ -1350,25 +1351,25 @@ private:
         return output_scores;
     }
 
-    std::vector<ov::float16> get_output_data_vec(memory::ptr data_output, int num_queries, int k_head_size, int num_heads) {
+    std::vector<ov::float16> get_output_data_vec(cldnn::memory::ptr data_output, int num_queries, int k_head_size, int num_heads) {
         OPENVINO_ASSERT(data_output->count() == static_cast<size_t>(num_queries * num_heads * k_head_size));
 
         std::vector<ov::float16> output_data(data_output->count());
-        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output, test_stream);
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output, test_stream);
         for (size_t i = 0; i < data_output->count(); i++)
             output_data[i] = mem_ptr[i];
 
         return output_data;
     }
 
-    memory::ptr get_mask_mem_combined_multi_head(int num_queries,
-                                                 int num_keys,
-                                                 int num_heads,
-                                                 int num_kv_heads,
-                                                 int sliding_window_size,
-                                                 const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
-                                                 int block_size,
-                                                 const std::vector<uint8_t>* qq_bias) {
+    cldnn::memory::ptr get_mask_mem_combined_multi_head(int num_queries,
+                                                        int num_keys,
+                                                        int num_heads,
+                                                        int num_kv_heads,
+                                                        int sliding_window_size,
+                                                        const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
+                                                        int block_size,
+                                                        const std::vector<uint8_t>* qq_bias) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1380,9 +1381,9 @@ private:
             mask_shape = ov::PartialShape{num_kv_heads, heads_per_kv, num_queries, num_keys};
         }
 
-        auto mask_layout = layout{mask_shape, data_types::f16, format::bfyx};
+        auto mask_layout = cldnn::layout{mask_shape, cldnn::data_types::f16, cldnn::format::bfyx};
         auto mask_mem = test_engine.allocate_memory(mask_layout);
-        mem_lock<ov::float16> mem_ptr(mask_mem, test_stream);
+        cldnn::mem_lock<ov::float16> mem_ptr(mask_mem, test_stream);
 
         size_t total_elems = mask_layout.count();
         for (size_t i = 0; i < total_elems; ++i)
@@ -1524,7 +1525,7 @@ private:
         }
     }
 
-    std::vector<ov::float16> read_key_from_cache(memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
+    std::vector<ov::float16> read_key_from_cache(cldnn::memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
         // Read key vectors from key_cache memory
         // key_cache layout: [num_blocks, num_kv_heads, head_size, block_size]
         std::vector<ov::float16> key_data(pam.num_kv_heads * total_tokens * pam.k_head_size);
@@ -1537,7 +1538,7 @@ private:
 
         if (!is_compressed) {
             // Uncompressed case: read as float16
-            mem_lock<ov::float16, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
 
             for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                 const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1566,7 +1567,7 @@ private:
                     // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+4] u8
                     // block_size dim is packed: 2 u4 tokens per byte.
                     // Comp at [d, packed_block..packed_block+3]: 2 fp16 = inv_scale, zp per head dim.
-                    mem_lock<uint8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+                    cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_block = pam.block_size / 2;
                     const int adj_block_size = packed_block + 4;  // block_size/2 + sizeof(fp16)*2
 
@@ -1601,7 +1602,7 @@ private:
                 } else {
                     // I8/U8 BY_CHANNEL: [num_blocks, num_kv_heads, head_size, block_size+4]
                     // Each dimension quantized across all tokens in block
-                    mem_lock<int8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+                    cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int adj_block_size = pam.block_size + 4;
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
@@ -1643,7 +1644,7 @@ private:
                     //   upper nibble = q(dim[pack_group*32 + sglid + 16])
                     // Scale/ZP: fp16 in comp region at base + packed_head_size*block_size
                     //   inv_scale[t] at comp_ptr[t], zp[t] at comp_ptr[block_size + t]
-                    mem_lock<uint8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+                    cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_head_size = pam.k_head_size / 2;
                     const int adj_head_size = packed_head_size + 8;
                     constexpr int SG = 16;
@@ -1687,7 +1688,7 @@ private:
                 // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
                 // Token-wise quantization with shared scale/zp per token
                 // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16)
-                mem_lock<int8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+                cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                 for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                     const int physical_block = pam.block_indices[blocks_start + block_idx];
                     const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
@@ -1728,7 +1729,7 @@ private:
         return key_data;
     }
 
-    std::vector<ov::float16> compute_diversity_reference(memory::ptr key_cache_mem) {
+    std::vector<ov::float16> compute_diversity_reference(cldnn::memory::ptr key_cache_mem) {
         std::vector<ov::float16> diversity_output;
 
         for (size_t seq_idx = 0; seq_idx < pam.subsequence_descs.size(); seq_idx++) {
@@ -1772,8 +1773,8 @@ public:
     tests::random_generator rg;
     cldnn::engine& engine = tests::get_test_engine();
     float tolerance = 2e-3;
-    memory::ptr last_key_cache_mem = nullptr;
-    memory::ptr last_output_data_mem = nullptr;
+    cldnn::memory::ptr last_key_cache_mem = nullptr;
+    cldnn::memory::ptr last_output_data_mem = nullptr;
     std::vector<int> last_block_indices;
     std::vector<int> last_block_indices_begins;
     std::optional<PagedAttentionManager> pam;
@@ -1804,7 +1805,7 @@ public:
     std::vector<ov::float16> get_output_data() {
         OPENVINO_ASSERT(last_output_data_mem != nullptr, "No output data available");
         std::vector<ov::float16> result(last_output_data_mem->count());
-        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(last_output_data_mem, tests::get_test_stream());
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(last_output_data_mem, tests::get_test_stream());
         for (size_t i = 0; i < last_output_data_mem->count(); i++)
             result[i] = mem_ptr[i];
         return result;
@@ -1820,7 +1821,7 @@ public:
 
     struct gpu_outputs {
         std::map<cldnn::primitive_id, cldnn::network_output> outputs;
-        memory::ptr key_cache_mem;
+        cldnn::memory::ptr key_cache_mem;
     };
 
     gpu_outputs run_gpu_inference(PagedAttentionManager& pam, T& p) {
@@ -2001,8 +2002,8 @@ public:
 
             auto new_query_memory = tests::get_test_engine().allocate_memory(padded_query_data_layout, false);
 
-            mem_lock<ov::float16> query_mem_lock(query_mem, tests::get_test_stream());
-            mem_lock<ov::float16> new_query_mem_lock(new_query_memory, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16> query_mem_lock(query_mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16> new_query_mem_lock(new_query_memory, tests::get_test_stream());
 
             auto query_data_shape = query_data_layout.get_shape();
             for (size_t b = 0; b < query_data_shape[0]; b++) {
@@ -2017,36 +2018,36 @@ public:
             query_mem = new_query_memory;
         }
 
-        std::vector<input_info> pa_inputs = {input_info("query"),
-                                             input_info("key"),
-                                             input_info("value"),
-                                             input_info("key_cache"),
-                                             input_info("value_cache"),
-                                             input_info("past_lens"),
-                                             input_info("subsequence_begins"),
-                                             input_info("block_indices"),
-                                             input_info("block_indices_begins"),
-                                             input_info("scale"),
-                                             input_info("sliding_window"),
-                                             input_info("alibi"),
-                                             input_info("max_context_len"),
-                                             input_info("score_aggregation_window"),
-                                             input_info("rotated_block_indices"),
-                                             input_info("rotation_deltas"),
-                                             input_info("rotation_trig_lut_modified"),
-                                             input_info("xattention_threshold"),
-                                             input_info("xattention_block_size"),
-                                             input_info("xattention_stride"),
-                                             input_info("sinks"),
-                                             input_info("adaptive_rkv_start_size"),
-                                             input_info("adaptive_rkv_evictable_sizes"),
-                                             input_info("adaptive_rkv_diversity_block_set_indices"),
-                                             input_info("adaptive_rkv_diversity_block_set_indices_begins"),
-                                             input_info("token_type_ids"),
-                                             input_info("qq_bias"),
-                                             input_info("qq_bias_begins")};
+        std::vector<cldnn::input_info> pa_inputs = {cldnn::input_info("query"),
+                                                    cldnn::input_info("key"),
+                                                    cldnn::input_info("value"),
+                                                    cldnn::input_info("key_cache"),
+                                                    cldnn::input_info("value_cache"),
+                                                    cldnn::input_info("past_lens"),
+                                                    cldnn::input_info("subsequence_begins"),
+                                                    cldnn::input_info("block_indices"),
+                                                    cldnn::input_info("block_indices_begins"),
+                                                    cldnn::input_info("scale"),
+                                                    cldnn::input_info("sliding_window"),
+                                                    cldnn::input_info("alibi"),
+                                                    cldnn::input_info("max_context_len"),
+                                                    cldnn::input_info("score_aggregation_window"),
+                                                    cldnn::input_info("rotated_block_indices"),
+                                                    cldnn::input_info("rotation_deltas"),
+                                                    cldnn::input_info("rotation_trig_lut_modified"),
+                                                    cldnn::input_info("xattention_threshold"),
+                                                    cldnn::input_info("xattention_block_size"),
+                                                    cldnn::input_info("xattention_stride"),
+                                                    cldnn::input_info("sinks"),
+                                                    cldnn::input_info("adaptive_rkv_start_size"),
+                                                    cldnn::input_info("adaptive_rkv_evictable_sizes"),
+                                                    cldnn::input_info("adaptive_rkv_diversity_block_set_indices"),
+                                                    cldnn::input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+                                                    cldnn::input_info("token_type_ids"),
+                                                    cldnn::input_info("qq_bias"),
+                                                    cldnn::input_info("qq_bias_begins")};
 
-        auto pa_prim = paged_attention("paged_attention", pa_inputs);
+        auto pa_prim = cldnn::paged_attention("paged_attention", pa_inputs);
 
         pa_prim.k_head_size = p.k_head_size;
         pa_prim.v_head_size = p.v_head_size;
@@ -2074,54 +2075,54 @@ public:
 
         pa_prim.has_qq_bias = p.has_qq_bias;
 
-        topology topology;
+        cldnn::topology topology;
 
-        topology.add(input_layout("query", query_layout),
-                     input_layout("key", key_layout),
-                     input_layout("value", value_layout),
-                     input_layout("key_cache", key_cache_layout),
-                     input_layout("value_cache", value_cache_layout),
-                     input_layout("past_lens", past_lens_layout),
-                     input_layout("subsequence_begins", subsequence_begins_layout),
-                     input_layout("block_indices", block_indices_layout),
-                     input_layout("block_indices_begins", block_indices_begins_layout),
-                     input_layout("scale", scale_layout),
-                     input_layout("sliding_window", sliding_window_layout),
-                     input_layout("alibi", alibi_layout),
-                     input_layout("max_context_len", max_context_len_layout),
-                     input_layout("score_aggregation_window", score_aggregation_window_layout),
+        topology.add(cldnn::input_layout("query", query_layout),
+                     cldnn::input_layout("key", key_layout),
+                     cldnn::input_layout("value", value_layout),
+                     cldnn::input_layout("key_cache", key_cache_layout),
+                     cldnn::input_layout("value_cache", value_cache_layout),
+                     cldnn::input_layout("past_lens", past_lens_layout),
+                     cldnn::input_layout("subsequence_begins", subsequence_begins_layout),
+                     cldnn::input_layout("block_indices", block_indices_layout),
+                     cldnn::input_layout("block_indices_begins", block_indices_begins_layout),
+                     cldnn::input_layout("scale", scale_layout),
+                     cldnn::input_layout("sliding_window", sliding_window_layout),
+                     cldnn::input_layout("alibi", alibi_layout),
+                     cldnn::input_layout("max_context_len", max_context_len_layout),
+                     cldnn::input_layout("score_aggregation_window", score_aggregation_window_layout),
                      pa_prim,
-                     reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16));
+                     cldnn::reorder("output_data", cldnn::input_info("paged_attention", 0), cldnn::format::bfyx, cldnn::data_types::f16));
 
         int output_idx = 1;
         if (p.scores_mode != ScoresMode::DISABLED) {
-            topology.add(reorder("output_scores", input_info("paged_attention", output_idx), format::bfyx, data_types::f16));
+            topology.add(cldnn::reorder("output_scores", cldnn::input_info("paged_attention", output_idx), cldnn::format::bfyx, cldnn::data_types::f16));
             output_idx++;
         }
         if (p.has_adaptive_rkv) {
-            topology.add(reorder("output_diversity", input_info("paged_attention", output_idx), format::bfyx, data_types::f16));
+            topology.add(cldnn::reorder("output_diversity", cldnn::input_info("paged_attention", output_idx), cldnn::format::bfyx, cldnn::data_types::f16));
         }
 
         {
-            topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
-            topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
-            topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+            topology.add(cldnn::input_layout("rotated_block_indices", rotated_block_indices_layout));
+            topology.add(cldnn::input_layout("rotation_deltas", rotation_deltas_layout));
+            topology.add(cldnn::input_layout("rotation_trig_lut", rotation_trig_lut_layout));
 
             // add dummy activation operation to simulate an empty PA `rotation_trig_lut` buffer for shapes like [0, k_head_size]
-            topology.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
+            topology.add(cldnn::activation("rotation_trig_lut_modified", cldnn::input_info("rotation_trig_lut"), cldnn::activation_func::none));
 
-            topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
-            topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
-            topology.add(input_layout("xattention_stride", xattention_stride_layout));
-            topology.add(input_layout("sinks", sinks_layout));
+            topology.add(cldnn::input_layout("xattention_threshold", xattention_threshold_layout));
+            topology.add(cldnn::input_layout("xattention_block_size", xattention_block_size_layout));
+            topology.add(cldnn::input_layout("xattention_stride", xattention_stride_layout));
+            topology.add(cldnn::input_layout("sinks", sinks_layout));
 
-            topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
-            topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
-            topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
-            topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
-            topology.add(input_layout("token_type_ids", token_type_ids_layout));
-            topology.add(input_layout("qq_bias", qq_bias_layout));
-            topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
+            topology.add(cldnn::input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
+            topology.add(cldnn::input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
+            topology.add(cldnn::input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
+            topology.add(cldnn::input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
+            topology.add(cldnn::input_layout("token_type_ids", token_type_ids_layout));
+            topology.add(cldnn::input_layout("qq_bias", qq_bias_layout));
+            topology.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
         ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
@@ -2133,7 +2134,7 @@ public:
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
         }
-        network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
+        cldnn::network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
@@ -2210,13 +2211,13 @@ public:
         }
     }
 
-    void compare(memory::ptr data_output_mem,
-                 memory::ptr scores_output_mem,
-                 memory::ptr diversity_output_mem,
+    void compare(cldnn::memory::ptr data_output_mem,
+                 cldnn::memory::ptr scores_output_mem,
+                 cldnn::memory::ptr diversity_output_mem,
                  std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<0>(ref_data)[i], tolerance) << " at index=" << i;
             }
@@ -2224,7 +2225,7 @@ public:
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], std::get<1>(ref_data)[i], tolerance) << " at index=" << i;
             }
@@ -2232,7 +2233,7 @@ public:
 
         if (diversity_output_mem) {
             ASSERT_EQ(diversity_output_mem->count(), std::get<2>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(diversity_output_mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(diversity_output_mem, tests::get_test_stream());
             // Relaxed tolerance due to float32 (GPU) vs float16 (reference) accumulator difference
             float diversity_tolerance = tolerance * 10.0f;
             for (size_t i = 0; i < diversity_output_mem->count(); i++) {
@@ -2241,14 +2242,14 @@ public:
         }
     }
 
-    void compare_xattention(memory::ptr data_output_mem,
-                            memory::ptr scores_output_mem,
+    void compare_xattention(cldnn::memory::ptr data_output_mem,
+                            cldnn::memory::ptr scores_output_mem,
                             std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> ref_data,
                             size_t num_heads,
                             size_t head_size) {
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), std::get<0>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
             int mismatch_count = 0;
 
 #if XATTENTION_DEBUG_VERBOSE
@@ -2277,7 +2278,7 @@ public:
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), std::get<1>(ref_data).size());
-            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(scores_output_mem, tests::get_test_stream());
             int mismatch_count = 0;
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
                 if (std::fabs(static_cast<float>(mem_ptr[i]) - static_cast<float>(std::get<1>(ref_data)[i])) > tolerance) {
@@ -2311,7 +2312,7 @@ private:
         const size_t block_stride_bytes = static_cast<size_t>(p.num_kv_heads) * head_region_bytes;
         const int token_data_stride = p.k_head_size * elem_size;
 
-        mem_lock<int8_t, mem_lock_type::read> cache_lock(last_key_cache_mem, tests::get_test_stream());
+        cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_lock(last_key_cache_mem, tests::get_test_stream());
 
         int missing_count = 0, nan_count = 0, inf_count = 0, zero_scale_count = 0, out_of_range_zp_count = 0;
         std::vector<std::tuple<int, int, int, int, int>> nan_locations, inf_locations;
@@ -2823,7 +2824,7 @@ private:
                                                float tolerance) {
         auto& engine = tests::get_test_engine();
         auto arch = engine.get_device_info().arch;
-        std::string arch_name = (arch == gpu_arch::xe2) ? "Xe2" : (arch == gpu_arch::xe3) ? "Xe3" : "Xe1";
+        std::string arch_name = (arch == cldnn::gpu_arch::xe2) ? "Xe2" : (arch == cldnn::gpu_arch::xe3) ? "Xe3" : "Xe1";
         size_t total_elements = ref_output.size();
         int allowed_mismatches = int(total_elements * 0.04);
 

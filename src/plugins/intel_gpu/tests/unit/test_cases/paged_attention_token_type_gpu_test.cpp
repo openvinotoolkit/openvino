@@ -29,10 +29,10 @@ public:
         pam.token_type_ids.assign(data.tokenTypes.begin(), data.tokenTypes.end());
     }
 
-    void compare_token_type_output(memory::ptr data_output_mem, const std::vector<float>& expected_output) {
+    void compare_token_type_output(cldnn::memory::ptr data_output_mem, const std::vector<float>& expected_output) {
         ASSERT_TRUE(data_output_mem);
         ASSERT_EQ(data_output_mem->count(), expected_output.size());
-        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(data_output_mem, tests::get_test_stream());
         constexpr float token_type_tolerance = 1e-2f;
         for (size_t i = 0; i < data_output_mem->count(); i++) {
             ASSERT_NEAR(static_cast<float>(mem_ptr[i]), expected_output[i], token_type_tolerance) << " at index=" << i;
