@@ -7,9 +7,11 @@
 #include <cstddef>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <sstream>
 #include <string_view>
 #include <unordered_set>
 #include <utility>

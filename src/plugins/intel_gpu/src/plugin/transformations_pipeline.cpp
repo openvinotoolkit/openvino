@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cmath>
 #include <deque>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <string>

@@ -12,6 +12,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 
+
 namespace ov {
 namespace pass {
 namespace low_precision {
