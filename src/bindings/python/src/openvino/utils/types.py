@@ -16,7 +16,7 @@ from openvino.op import Constant
 log = logging.getLogger(__name__)
 
 TensorShape = list[int]
-NumericData = Union[int, float, np.ndarray]
+NumericData = Union[int, float, np.ndarray, tuple]
 NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
@@ -140,7 +140,7 @@ def get_shape(data: NumericData) -> TensorShape:
     """Return a shape of NumericData."""
     if isinstance(data, np.ndarray):
         return data.shape  # type: ignore
-    if isinstance(data, list):
+    if isinstance(data, (list, tuple)):
         return [len(data)]  # type: ignore
     return []
 
