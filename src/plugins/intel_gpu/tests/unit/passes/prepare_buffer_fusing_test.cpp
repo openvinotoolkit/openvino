@@ -610,6 +610,82 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     }
 }
 
+TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_feature_axis_batch2) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto in_layout1_0 = layout{ ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16 };
+    auto in_layout2_0 = layout{ ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16 };
+    auto in_layout1 = layout{ ov::PartialShape{2, 16, 1, 1}, data_types::f16, format::b_fs_yx_fsv16 };
+    auto in_layout2 = layout{ ov::PartialShape{2, 16, 1, 1}, data_types::f16, format::b_fs_yx_fsv16 };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1_0));
+    topology.add(input_layout("input2", in_layout2_0));
+    topology.add(reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16));
+    topology.add(reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16));
+
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 1));
+    topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplForcingMap forcing_map = {
+        {"reorder1", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
+        {"reorder2", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}}
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    auto& concat_node_p = prog->get_node("concat");
+    ASSERT_TRUE(concat_node_p.can_be_optimized());
+    cldnn::network net(prog, 0);
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+
+    std::vector<ov::float16> in1_data(in_layout1.count());
+    std::vector<ov::float16> in2_data(in_layout2.count());
+    for (int b = 0; b < 2; ++b) {
+        for (int f = 0; f < 16; ++f) {
+            in1_data[b * 16 + f] = ov::float16(static_cast<float>(b * 100 + f + 1));
+            in2_data[b * 16 + f] = ov::float16(static_cast<float>(200 + b * 100 + f + 1));
+        }
+    }
+    set_values<ov::float16>(input_memory1, in1_data);
+    set_values<ov::float16>(input_memory2, in2_data);
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+
+    std::vector<ov::float16> ref_output(in_layout1.count() + in_layout2.count());
+    for (int b = 0; b < 2; ++b) {
+        for (int f = 0; f < 16; ++f) {
+            ref_output[b * 32 + f]      = in1_data[b * 16 + f];
+            ref_output[b * 32 + 16 + f] = in2_data[b * 16 + f];
+        }
+    }
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    auto out_l = net.get_output_layout("output");
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(out_mem, get_test_stream());
+
+    const auto& concat_inst = net.get_primitive("concat");
+    auto concat_mem = net.get_primitive("concat")->output_memory_ptr();
+    auto reorder1_mem = net.get_primitive("reorder1")->output_memory_ptr();
+    auto reorder2_mem = net.get_primitive("reorder2")->output_memory_ptr();
+
+    ASSERT_NE(concat_mem.get(), reorder1_mem.get());
+    ASSERT_NE(concat_mem.get(), reorder2_mem.get());
+    ASSERT_FALSE(concat_inst->can_be_optimized());
+
+    for (size_t x = 0; x < out_l.count(); ++x) {
+        ASSERT_EQ(ref_output[x], output_ptr[x]);
+    }
+}
+
 TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
     auto& engine = get_test_engine();
     auto in_layout1_0 = layout{ ov::PartialShape{-1, 2, -1, -1}, data_types::f32, format::bfyx }; // => {-1, -1, -1, 2}

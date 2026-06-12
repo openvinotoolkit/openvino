@@ -269,11 +269,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             // Return true in build time, it will be checked again in runtime
             return true;
         } else {
-            // Block formats (b_fs_yx_fsv16 etc.) are not contiguous along the batch axis,
-            // so batch-axis (axis=0) concat with batch>1 cannot safely alias buffers.
-            // Feature-axis and other axes are fine — the 64-byte alignment check above is
-            // the correctness gate for those cases.
-            if (concat_axis_index == 0 && concat_out_l.batch() > 1)
+            if (concat_out_l.batch() > 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {
