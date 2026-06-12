@@ -266,10 +266,25 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
         auto list_inputs = seq_mark->input_values();
         OutputVector node_vector;
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+        auto neg1 = v0::Constant::create(element::i32, Shape{1}, std::vector<int>{-1});
         for (size_t i = 0; i < list_inputs.size(); i++) {
             auto node = concat_list_construct(list_inputs[i]);
-            auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(node, zero);
-            node_vector.push_back(unsqueezed_node);
+            // Normalize every item to rank 1 before concat-on-axis-0.
+            // Rank 0: unsqueeze; rank > 1: flatten. Rank 1: pass through.
+            const auto& ps = node.get_partial_shape();
+            if (ps.rank().is_static()) {
+                const auto r = ps.rank().get_length();
+                if (r == 0) {
+                    node = std::make_shared<v0::Unsqueeze>(node, zero);
+                } else if (r > 1) {
+                    node = std::make_shared<v1::Reshape>(node, neg1, false);
+                }
+                // r == 1: leave as-is
+            } else {
+                // Dynamic rank: keep original behavior (unsqueeze).
+                node = std::make_shared<v0::Unsqueeze>(node, zero);
+            }
+            node_vector.push_back(node);
         }
         return std::make_shared<v0::Concat>(node_vector, 0);
     }
@@ -611,14 +626,35 @@ Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
         if (elems.empty()) {
             return v0::Constant::create(element::i32, Shape{0}, std::vector<int>{});
         }
+        // Unify ranks of all list elements before concat. vLLM FX graphs can
+        // produce mixed-rank list items (e.g. rank-0 ints mixed with rank-1
+        // Unsqueeze-of-symint results). Flatten every element to rank 1 on
+        // axis 0 using Reshape(-1); this works uniformly for rank-0, rank-1
+        // and dynamic-rank inputs.
         OutputVector inputs;
         inputs.reserve(elems.size());
+        auto neg1 = v0::Constant::create(element::i32, Shape{1}, std::vector<int>{-1});
         for (const auto& elem : elems) {
-            inputs.push_back(try_constfold(elem));
+            // Do NOT call try_constfold here: that uses parameter upper bounds,
+            // which default to 0 for unconstrained symint Parameter inputs.
+            // Folding would turn a size like [arg99_1, 2048] into [0, 2048].
+            auto cf = elem;
+            const auto& ps = cf.get_partial_shape();
+            if (ps.rank().is_static() && ps.rank().get_length() == 1) {
+                // already rank 1, no reshape needed
+            } else {
+                cf = std::make_shared<v1::Reshape>(cf, neg1, false);
+            }
+            inputs.push_back(cf);
         }
         auto new_x = std::make_shared<v0::Concat>(inputs, 0);
         new_x->set_friendly_name(node->get_friendly_name());
         x = new_x;
+        // Do NOT fall through to get_constant_from_source below: that path
+        // uses parameter upper bounds (which default to 0 for symint inputs),
+        // turning a size list like [arg99_1, 2048] into a baked Constant
+        // [0, 2048]. Return the Concat directly so runtime input flows.
+        return x;
     }
 
     if (const auto x_const = ov::util::get_constant_from_source(x)) {
