@@ -48,7 +48,13 @@ target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
+    # HACK: to make gpu properties from 'src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp'
+    # available in 'transformations/.../mlir_op.cpp'. Need to figure out something better.
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
+    # HACK: to make mlir properties from 'src/inference/dev_api/openvino/runtime/internal_properties.hpp'
+    # available in 'transformations/.../mlir_op.cpp'. Need to figure out something better.
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>)
 
 target_include_directories(openvino_core_dev SYSTEM INTERFACE
     $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)

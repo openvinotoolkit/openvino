@@ -11,6 +11,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
+if(ENABLE_GRAPH_COMPILER)
+    list(APPEND DEFINES TEST_MODELS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/mlir_op/models")
+else()
+    list(APPEND EXCLUDED_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/mlir_op)
+endif()
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
 ov_add_test_target(
@@ -18,11 +23,14 @@ ov_add_test_target(
             ${TARGET_NAME}
         ROOT
             ${CMAKE_CURRENT_SOURCE_DIR}
+        EXCLUDED_SOURCE_PATHS
+            ${EXCLUDED_PATHS}
         ADDITIONAL_SOURCE_DIRS
             ${TEST_COMMON_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
+            $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
             ${TEST_COMMON_INCLUDE_DIR}
         DEFINES
             ${DEFINES}

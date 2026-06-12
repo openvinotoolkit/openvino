@@ -9,6 +9,16 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp)
 
+# Exclude MLIR sources by default
+file(GLOB_RECURSE MLIR_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/mlir/*.cpp)
+list(REMOVE_ITEM LIBRARY_SRC ${MLIR_SRC})
+
+if (ENABLE_GRAPH_COMPILER)
+    find_package(MLIR REQUIRED CONFIG)
+    # Re-add MLIR sources
+    list(APPEND LIBRARY_SRC ${MLIR_SRC})
+endif()
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -24,10 +34,25 @@ ov_build_target_faster(${TARGET_NAME}_obj
     PCH_HEADER "src/precomp.hpp"
 )
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference)
+target_compile_features(${TARGET_NAME}_obj PUBLIC cxx_std_17)
+
+target_link_libraries(${TARGET_NAME}_obj PRIVATE
+        openvino::reference
+        openvino::itt
+        openvino::core::dev
+        openvino::shape_inference)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${PUBLIC_HEADERS_DIR}"
                                                       "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+if(ENABLE_GRAPH_COMPILER)
+    target_include_directories(${TARGET_NAME}_obj PRIVATE
+        "${MLIR_INCLUDE_DIRS}"
+        "${LLVM_INCLUDE_DIRS}"
+        "${GRAPH_COMPILER_INCLUDES}")
+    target_compile_options(${TARGET_NAME}_obj PUBLIC ${GRAPH_COMPILER_COMPILE_OPTIONS})
+endif()
+
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 

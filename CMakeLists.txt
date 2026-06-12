@@ -142,6 +142,18 @@ function(ov_developer_package_export_targets)
 endfunction()
 
 #
+# Graph Compiler
+#
+if (ENABLE_GRAPH_COMPILER)
+    find_package(LLVM REQUIRED CONFIG)
+    find_package(MLIR REQUIRED CONFIG)
+
+    include(cmake/graph-compiler.cmake)
+    add_definitions(-DGRAPH_COMPILER)
+    add_definitions(-DGC_USE_GPU)
+endif()
+
+#
 # Build
 #
 
