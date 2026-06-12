@@ -32,6 +32,9 @@ private:
     [[nodiscard]] std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
                                                               const MatMulWeightsSource& source,
                                                               const MemoryPtr& orig_src_mem_ptr) override;
+    [[nodiscard]] bool supports_runtime_repacking() const override {
+        return false;
+    }
 };
 
 }  // namespace ov::intel_cpu::pass::aarch64

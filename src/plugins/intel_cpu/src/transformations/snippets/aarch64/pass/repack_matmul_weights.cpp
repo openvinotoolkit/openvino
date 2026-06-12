@@ -22,7 +22,6 @@
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/utils/utils.hpp"
@@ -104,6 +103,7 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
                                  const CpuBlockedMemoryDescPtr& src_desc,
                                  const MemoryPtr& orig_src_mem_ptr,
                                  const CpuBlockedMemoryDescPtr& dst_desc,
+                                 bool is_src_planar,
                                  ov::element::Type precision) {
     const auto planar_shape = src_desc->getShape().getStaticDims();
     OPENVINO_ASSERT(planar_shape.size() >= 2, "GEMM weights must have rank >= 2");
@@ -121,8 +121,25 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
     const auto batch =
         std::accumulate(planar_shape.cbegin(), planar_shape.cend() - 2, static_cast<size_t>(1), std::multiplies<>());
 
-    auto create = [&]() {
-        const auto& eng = context->getEngine();
+    const auto& eng = context->getEngine();
+    auto dst_block = std::make_shared<DnnlMemoryBlock>(std::make_unique<MemoryBlockWithReuse>());
+    dst_block->resize(batch * packed_bytes);
+    auto dst_mem = std::make_shared<Memory>(eng, dst_desc, dst_block);
+    if (N == 0 || K == 0) {
+        return dst_mem;
+    }
+
+    auto repack_matrices = [&](const uint8_t* src) {
+        const auto src_matrix_bytes = K * N * precision.size();
+        auto* dst = dst_mem->getDataAs<uint8_t>();
+        context->getCpuParallel()->parallel_for(batch, [&](size_t batch_idx) {
+            repack_matrix(N, K, precision, src + batch_idx * src_matrix_bytes, dst + batch_idx * packed_bytes);
+        });
+    };
+
+    if (is_src_planar) {
+        repack_matrices(orig_src_mem_ptr->getDataAs<const uint8_t>());
+    } else {
         Memory src_mem{eng, src_desc, orig_src_mem_ptr->getData()};
         Memory planar_mem{eng, std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{planar_shape})};
         // KAI packers consume dense KxN matrices, while the original constant can keep a plugin-specific layout.
@@ -131,33 +148,20 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
                                    planar_mem,
                                    context->getParamsCache(),
                                    context->getCpuParallel()->get_thread_pool());
-
-        auto dst_block = std::make_shared<DnnlMemoryBlock>(std::make_unique<MemoryBlockWithReuse>());
-        dst_block->resize(batch * packed_bytes);
-        auto dst_mem = std::make_shared<Memory>(eng, dst_desc, dst_block);
-        if (N == 0 || K == 0) {
-            return dst_mem;
-        }
-
-        const auto src_matrix_bytes = K * N * precision.size();
-        const auto* src = planar_mem.getDataAs<const uint8_t>();
-        auto* dst = dst_mem->getDataAs<uint8_t>();
-        parallel_for(batch, [&](size_t batch_idx) {
-            repack_matrix(N, K, precision, src + batch_idx * src_matrix_bytes, dst + batch_idx * packed_bytes);
-        });
-        return dst_mem;
-    };
+        repack_matrices(planar_mem.getDataAs<const uint8_t>());
+    }
 
     // Do not use the shared weights cache here: snippets repacks constants once during subgraph compilation, and each
     // extracted input needs its own Memory object for the runtime configurator.
-    return create();
+    return dst_mem;
 }
 
 }  // namespace
 
-std::optional<RepackedMatMulWeights> RepackMatMulWeights::repack(const std::shared_ptr<ov::Node>& consumer,
-                                                                 const MatMulWeightsSource& source,
-                                                                 const MemoryPtr& orig_src_mem_ptr) {
+std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
+    const std::shared_ptr<ov::Node>& consumer,
+    const RepackMatMulWeights::MatMulWeightsSource& source,
+    const MemoryPtr& orig_src_mem_ptr) {
     const auto gemm_cpu = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(consumer);
     OPENVINO_ASSERT(gemm_cpu != nullptr, "Expected one consumer - GemmCPU");
 
@@ -165,7 +169,12 @@ std::optional<RepackedMatMulWeights> RepackMatMulWeights::repack(const std::shar
     const auto src_desc = get_src_cpu_desc(source, precision);
     const auto planar_shape = src_desc->getShape().getStaticDims();
     const auto dst_desc = get_dst_cpu_desc(planar_shape, precision);
-    return RepackedMatMulWeights{prepare_weights_memory(m_context, src_desc, orig_src_mem_ptr, dst_desc, precision),
+    return RepackedMatMulWeights{prepare_weights_memory(m_context,
+                                                        src_desc,
+                                                        orig_src_mem_ptr,
+                                                        dst_desc,
+                                                        ov::snippets::utils::is_planar_layout(source.layout),
+                                                        precision),
                                  dst_desc};
 }
 

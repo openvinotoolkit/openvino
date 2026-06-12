@@ -24,9 +24,8 @@ class EliminateGemmCopyB : public ov::intel_cpu::pass::EliminateCopyB {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateGemmCopyB");
     explicit EliminateGemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
-                                bool runtime_repacking_supported,
-                                std::set<size_t> compile_time_repacking_idxs = {})
-        : EliminateCopyB(input_repackers, runtime_repacking_supported, std::move(compile_time_repacking_idxs)) {}
+                                std::set<size_t> compile_time_repacking_idxs)
+        : EliminateCopyB(input_repackers, false, std::move(compile_time_repacking_idxs)) {}
 
 private:
     [[nodiscard]] std::shared_ptr<ov::Node> get_copy_b_pattern(const std::shared_ptr<ov::Node>& input) const override;

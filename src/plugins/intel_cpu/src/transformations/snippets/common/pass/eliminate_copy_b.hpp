@@ -32,7 +32,7 @@ public:
 protected:
     EliminateCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
                    bool runtime_repacking_supported,
-                   std::set<size_t> compile_time_repacking_idxs = {})
+                   std::set<size_t> compile_time_repacking_idxs)
         : m_input_repackers(input_repackers),
           m_runtime_repacking_supported(runtime_repacking_supported),
           m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}

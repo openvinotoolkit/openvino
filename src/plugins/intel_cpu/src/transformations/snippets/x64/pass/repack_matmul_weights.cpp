@@ -20,7 +20,7 @@ namespace ov::intel_cpu::pass::x64 {
 
 using namespace brgemm_utils;
 
-DnnlMemoryDescPtr RepackMatMulWeights::get_src_desc(const MatMulWeightsSource& source,
+DnnlMemoryDescPtr RepackMatMulWeights::get_src_desc(const RepackMatMulWeights::MatMulWeightsSource& source,
                                                     const BrgemmConfig& brgemm_config) {
     return MemoryDescUtils::convertToDnnlMemoryDesc(get_src_cpu_desc(source, brgemm_config.orig_wei_dt()));
 }
@@ -40,9 +40,10 @@ DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const Br
     return MemoryDescUtils::convertToDnnlMemoryDesc(get_dst_cpu_desc(shape, brgemm_config));
 }
 
-std::optional<RepackedMatMulWeights> RepackMatMulWeights::repack(const std::shared_ptr<ov::Node>& consumer,
-                                                                 const MatMulWeightsSource& source,
-                                                                 const MemoryPtr& orig_src_mem_ptr) {
+std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
+    const std::shared_ptr<ov::Node>& consumer,
+    const RepackMatMulWeights::MatMulWeightsSource& source,
+    const MemoryPtr& orig_src_mem_ptr) {
     const auto brgemm_cpu = ov::as_type_ptr<BrgemmCPU>(consumer);
     OPENVINO_ASSERT(brgemm_cpu != nullptr, "Expected one consumer - BrgemmCPU");
 

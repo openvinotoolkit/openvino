@@ -27,8 +27,9 @@
 
 namespace ov::intel_cpu::pass {
 
-MatMulWeightsSource RepackMatMulWeights::get_weights_source(const std::shared_ptr<ov::Node>& matmul_node,
-                                                            const MemoryPtr& orig_src_mem_ptr) {
+RepackMatMulWeights::MatMulWeightsSource RepackMatMulWeights::get_weights_source(
+    const std::shared_ptr<ov::Node>& matmul_node,
+    const MemoryPtr& orig_src_mem_ptr) {
     if (const auto& reorder =
             ov::as_type_ptr<ov::snippets::op::Reorder>(matmul_node->input_value(1).get_node_shared_ptr())) {
         const auto& port_desc = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(reorder->input(0));
@@ -41,7 +42,7 @@ MatMulWeightsSource RepackMatMulWeights::get_weights_source(const std::shared_pt
     return {std::move(shape), std::move(layout)};
 }
 
-CpuBlockedMemoryDescPtr RepackMatMulWeights::get_src_cpu_desc(const MatMulWeightsSource& source,
+CpuBlockedMemoryDescPtr RepackMatMulWeights::get_src_cpu_desc(const RepackMatMulWeights::MatMulWeightsSource& source,
                                                               ov::element::Type precision) {
     const auto planar_shape = Shape{ov::snippets::utils::get_preordered_vdims(source.shape, source.layout)};
     return std::make_shared<CpuBlockedMemoryDesc>(precision, planar_shape, source.shape, source.layout);
@@ -68,6 +69,13 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto& orig_src_mem_ptr = m_src_mem_ptrs[i];
         const auto repacked = repack(consumer, get_weights_source(consumer, orig_src_mem_ptr), orig_src_mem_ptr);
         if (!repacked) {
+            if (!supports_runtime_repacking()) {
+                OPENVINO_THROW("Failed to repack weights input ",
+                               i,
+                               " for ",
+                               consumer->get_friendly_name(),
+                               ": runtime repacking is not supported");
+            }
             continue;
         }
 

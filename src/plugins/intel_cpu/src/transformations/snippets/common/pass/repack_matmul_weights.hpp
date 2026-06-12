@@ -19,16 +19,6 @@
 
 namespace ov::intel_cpu::pass {
 
-struct MatMulWeightsSource {
-    VectorDims shape;
-    VectorDims layout;
-};
-
-struct RepackedMatMulWeights {
-    MemoryPtr memory;
-    CpuBlockedMemoryDescPtr desc;
-};
-
 /**
  * @interface RepackMatMulWeights
  * @brief Repack constant MatMul weights to the target backend format.
@@ -47,6 +37,16 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:
+    struct MatMulWeightsSource {
+        VectorDims shape;
+        VectorDims layout;
+    };
+
+    struct RepackedMatMulWeights {
+        MemoryPtr memory;
+        CpuBlockedMemoryDescPtr desc;
+    };
+
     [[nodiscard]] static MatMulWeightsSource get_weights_source(const std::shared_ptr<ov::Node>& matmul_node,
                                                                 const MemoryPtr& orig_src_mem_ptr);
     [[nodiscard]] static CpuBlockedMemoryDescPtr get_src_cpu_desc(const MatMulWeightsSource& source,
@@ -55,13 +55,17 @@ protected:
     /**
      * @brief Repack a constant MatMul weights input for a backend-specific MatMul/GEMM consumer.
      * @param consumer Backend MatMul/GEMM node that consumes the constant weights.
-     * @param source Planar weights shape and layout derived from the current input memory descriptor.
-     * @param orig_src_mem_ptr Original constant weights memory.
+     * @param source Logical weights shape and layout after CopyB extraction. When extraction inserts a graph Reorder,
+     * this metadata is not recoverable from @p orig_src_mem_ptr alone.
+     * @param orig_src_mem_ptr Original constant weights memory buffer.
      * @return Repacked weights memory with its CPU descriptor, or std::nullopt when this consumer cannot be repacked.
      */
     [[nodiscard]] virtual std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
                                                                       const MatMulWeightsSource& source,
                                                                       const MemoryPtr& orig_src_mem_ptr) = 0;
+    [[nodiscard]] virtual bool supports_runtime_repacking() const {
+        return true;
+    }
 
     const GraphContext::CPtr m_context;
     ov::intel_cpu::InputRepackerMap& m_input_repackers;
