@@ -18,9 +18,8 @@
 #include "openvino/op/topk.hpp"
 
 using namespace testing;
-using namespace ov;
 
-namespace {
+namespace ov::test {
 
 std::shared_ptr<Model> build_pattern_v8(const PartialShape& shape,
                                         int64_t softmax_axis,
@@ -65,8 +64,6 @@ std::shared_ptr<Model> build_ref_v8(const PartialShape& shape, int64_t topk_axis
         ResultVector{std::make_shared<op::v0::Result>(softmax), std::make_shared<op::v0::Result>(topk->output(1))},
         ParameterVector{data});
 }
-
-}  // namespace
 
 TEST_F(TransformationTestsF, TopkRenormalizeToSoftmaxAfterTopkFusion_BasicV8) {
     PartialShape shape{2, 8};
@@ -167,3 +164,5 @@ TEST_F(TransformationTestsF, TopkRenormalizeToSoftmaxAfterTopkFusion_ExtraIndice
                                             ParameterVector{data});
     }
 }
+
+}  // namespace ov::test

@@ -45,6 +45,11 @@ TopkRenormalizeToSoftmaxAfterTopkFusion::TopkRenormalizeToSoftmaxAfterTopkFusion
         auto reduce = pm.at(p_reduce).get_node_shared_ptr();
         auto divide = pm.at(p_divide).get_node_shared_ptr();
 
+        // The renormalization must consume TopK.values (port 0), not indices
+        if (pm.at(p_topk).get_index() != 0) {
+            return false;
+        }
+
         const auto rank = divide->get_output_partial_shape(0).rank();
         if (rank.is_dynamic()) {
             return false;
