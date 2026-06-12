@@ -196,6 +196,30 @@ void Loop::validate_and_infer_types() {
         bool need_reinvalidate = false;
         for (i = 0; i < max_num_of_iterations; i++) {
             need_reinvalidate = false;
+            // Relax statically-empty merged-input dimensions. A merged (back-edged) input is
+            // overwritten by the body every iteration after the first, so a static-0 dim only
+            // describes the outer initial value, not the loop-carried shape: mark it dynamic so
+            // the back-edge converges instead of staying clamped at 0. The merge below cannot do
+            // this - it only reconciles incompatible dims, and a static 0 is compatible with the
+            // body's [0, ...] interval.
+            for (const auto& be : back_edges) {
+                auto input_param = m_bodies[0]->get_parameters().at(be.second);
+                const auto& input_param_ps = input_param->get_partial_shape();
+                if (!input_param_ps.rank().is_static())
+                    continue;
+                PartialShape new_ps = input_param_ps;
+                bool shape_changed = false;
+                for (auto j = 0; j < input_param_ps.rank().get_length(); j++) {
+                    if (input_param_ps[j].is_static() && input_param_ps[j].get_length() == 0) {
+                        new_ps[j] = Dimension::dynamic();
+                        shape_changed = true;
+                    }
+                }
+                if (shape_changed) {
+                    need_reinvalidate = true;
+                    input_param->set_partial_shape(new_ps);
+                }
+            }
             for (const auto& output_description : m_output_descriptions[0]) {
                 auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
