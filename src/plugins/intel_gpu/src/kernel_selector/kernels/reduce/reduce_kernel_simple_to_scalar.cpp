@@ -67,7 +67,7 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
     if (params.inputs[0].LogicalSize() < params.engineInfo.maxWorkGroupSize)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    if (params.outputs[0].LogicalSize() != 1)
+    if (params.outputs[0].LogicalSize() != 1 && (params.outputs[0].LogicalSize() != 16 || params.outputs[0].GetDims()[2].v != params.outputs[0].LogicalSize()))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     std::set<ReduceMode> supported_modes = {
@@ -143,6 +143,7 @@ JitConstants ReduceKernelSimpleToScalar::GetJitConstants(const reduce_params& pa
     jit.AddConstant(MakeJitConstant("NUM_BLOCKS", params.engineInfo.maxWorkGroupSize));
     jit.AddConstant(MakeJitConstant("BLOCK_STRIDE", params.engineInfo.maxWorkGroupSize));
     jit.AddConstant(MakeJitConstant("TOTAL_NUM_ELEMENTS", params.inputs[0].LogicalSize()));
+    jit.AddConstant(MakeJitConstant("OUTPUT_DIM", params.outputs[0].LogicalSize()));
 
     return jit;
 }
