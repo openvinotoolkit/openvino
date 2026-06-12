@@ -52,10 +52,9 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         // allocation. Probe the last valid byte (data + _size - 1) so that a buffer whose end
         // merely abuts an adjacent allocation is still importable. Other cases are handled by
         // the driver.
-        if (_size > 0 &&
-            zeroUtils::get_l0_context_memory_allocation_id(
-                _init_structs->getContext(),
-                static_cast<void*>(static_cast<uint8_t*>(const_cast<void*>(data)) + _size - 1)) > 0) {
+        if (_size > 0 && zeroUtils::get_l0_context_memory_allocation_id(
+                             _init_structs->getContext(),
+                             static_cast<void*>(static_cast<uint8_t*>(const_cast<void*>(data)) + _size - 1)) > 0) {
             throw ZeroMemException("Can not import a memory which is part of an existing allocation");
         }
 
