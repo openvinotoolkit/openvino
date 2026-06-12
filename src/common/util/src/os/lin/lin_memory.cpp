@@ -62,4 +62,15 @@ void vm_release(void* ptr, size_t size) noexcept {
     std::ignore = munmap(ptr, size);
 }
 
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // assert if region is not mmap-baked.
+
+    if (num_threads == 0) {
+        // Option 1: OS advisory hints — async, low overhead. MADV_SEQUENTIAL & MADV_WILLNEED
+    } else {
+        // Option 2: parallel synchronous prefault & touch
+    }
+}
+
 }  // namespace ov::util
