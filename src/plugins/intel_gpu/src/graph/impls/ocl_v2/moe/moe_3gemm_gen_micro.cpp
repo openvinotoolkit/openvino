@@ -27,9 +27,12 @@ static size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hpc:
     case gpu_arch::xe2:
     case gpu_arch::xe3:
+    case gpu_arch::xe3p_35_10:
+    case gpu_arch::xe3p_35_11:
+    case gpu_arch::xe3p_unknown:
         return 16;
     default:
-        return 8;
+        return 16;  // default to 16 for unknown arch, as it's the common subgroup size for modern Intel GPUs
     }
 }
 
