@@ -4,6 +4,7 @@
 
 #include <sys/mman.h>
 
+#include <cassert>
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -56,6 +57,17 @@ void release_buffer(void* reserved_buffer, size_t byte_size, std::string* error)
         if (error) {
             *error = std::string{"munmap failed, err: "} + std::strerror(errno);
         }
+    }
+}
+
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // assert if region is not mmap-baked.
+
+    if (num_threads == 0) {
+        // Option 1: OS advisory hints — async, low overhead. MADV_SEQUENTIAL & MADV_WILLNEED
+    } else {
+        // Option 2: parallel synchronous prefault & touch
     }
 }
 
