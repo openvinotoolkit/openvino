@@ -14,6 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 #include "cm_attention_common.hpp"
+#define CM_HAS_LSC_UNTYPED_2D 1
 
 // Number of kv sub-tiles (kv_step rows each) processed per online-softmax update in
 // sdpa_kernel_lsc_prefetch. Larger amortizes the rO rescale + softmax bookkeeping over
@@ -31,6 +32,9 @@ CM_INLINE vector<float, cols> online_softmax_update_tree(matrix_ref<T, rows, col
                                                          vector_ref<T, cols> cur_max,
                                                          vector_ref<T, cols> cur_sum) {
     static_assert((rows & (rows - 1)) == 0, "tree reduction needs power-of-two rows");
+    // Reduce into rows/2 scratch (not a full copy) so register pressure stays low for
+    // large kv blocks. St itself is not modified during the max reduction (its values
+    // are still needed for the exp), so we fold pairs into scratch first.
     vector<float, cols> new_max_t;
     {
         matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
@@ -44,9 +48,14 @@ CM_INLINE vector<float, cols> online_softmax_update_tree(matrix_ref<T, rows, col
         new_max_t = cm_max<float>(t.row(0), cur_max);
     }
 
+    // St is already in the log2 domain (Q was pre-scaled by scale_factor*log2e at load),
+    // so cm_exp (== exp2) needs no per-element *log2e here. cur_max/cur_sum stay in the
+    // same domain, so the running-max comparison and rescale are exact.
     #pragma unroll
     for (int r = 0; r < rows; r++) St[r] = cm_exp(St[r] - new_max_t);
 
+    // Sum reduction can fold St in place (values already consumed into exp form and the
+    // per-row sum is all we need afterwards).
     vector<float, cols> row_sum_t;
     {
         matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
@@ -69,8 +78,9 @@ CM_INLINE vector<float, cols> online_softmax_update_tree(matrix_ref<T, rows, col
 }
 
 // Transpose a [16,16] float score tile (kv x q) into a half [16,16] P tile (q x kv) for
-// the P@V matmul. Casting float->half first lets the 16x16 shuffle network run at half
-// width — roughly halving the mov count vs transposing the float tile directly.
+// the P@V matmul. Casting float->half first (one vectorized cm_mul-free copy) lets the
+// 16x16 shuffle network run at half width — roughly halving the mov count vs transposing
+// the float tile directly through Transpose_16x16<float,half>.
 CM_INLINE void transpose_St_to_P_half(matrix_ref<float, 16, 16> St, matrix_ref<half, 16, 16> P) {
     matrix<half, 16, 16> Sh;
     #pragma unroll
@@ -505,6 +515,8 @@ void sdpa_kernel_lsc_prefetch(
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
     constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
     constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
+    // round up head_size to multiple of 16
+    // block_2d_desc will automatically handle the tailing block
     constexpr int padded_head_size = (head_size + 16 - 1) / 16 * 16;
 
     vector<float, q_step> cur_max;
@@ -516,7 +528,7 @@ void sdpa_kernel_lsc_prefetch(
     matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ;
     matrix <float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
 
-    auto q_tokens_left = q_len;
+    auto q_tokens_left = q_len;// - q_start;
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
 
@@ -524,8 +536,9 @@ void sdpa_kernel_lsc_prefetch(
     if (q_tokens_left > q_step) q_tokens_left = q_step;
 
     if (q_tokens_left > 0) {
-        // Fold log2(e) into Q pre-scale so St = K@Q^T lands in log2 domain; cm_exp
-        // then needs no per-element *log2e in the softmax critical path.
+        // Fold log2(e) into the Q pre-scale so St = K@Q^T lands in the log2 domain; the
+        // online softmax then uses cm_exp (== exp2) directly, dropping a *log2e per St
+        // element (16 muls/tile off the softmax critical path). Math is identical.
         constexpr float qscale = scale_factor * 1.4426950408889634f;
         lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
@@ -544,6 +557,10 @@ void sdpa_kernel_lsc_prefetch(
 
     int causal_left = q_start;
 
+    // KV-blocking factor: number of kv tiles (each kv_step rows) processed per online-
+    // softmax update. The per-iteration rO rescale (REG_M*num_rO_tiles muls) and the
+    // softmax bookkeeping amortize over KV_BLK tiles, cutting the ALU-bound consume cost.
+    // The K@Q^T and the St->P transpose are still per sub-tile (they don't amortize).
     constexpr int KV_BLK = CMFLA_KV_BLK;
     constexpr int num_K = kv_step/REG_M;
     constexpr int BLK_ROWS = KV_BLK*kv_step;
@@ -567,6 +584,8 @@ void sdpa_kernel_lsc_prefetch(
         for(int b = 0; b < KV_BLK; b++) {
             int kv_pos = kv_base + b*kv_step;
             matrix<half, num_K, REG_M * REG_K> Kmat;
+            // Prefetch K of the matching tile one block ahead and V of this tile, so V
+            // is warm by the PV phase and the next block's K is warm by its K phase.
             prefetch_K.set_block_y(wg_local_id + kv_pos + BLK_ROWS);
             prefetch_V.set_block_y(wg_local_id + kv_pos);
             cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
@@ -611,6 +630,7 @@ void sdpa_kernel_lsc_prefetch(
             causal_left -= BLK_ROWS;
         } else {
             int kv_tokens = kv_stop - kv_base;
+            // LSC ensures no overflow-access, but mask off k-tail attn-score is still required
             for(int p = kv_tokens; p < BLK_ROWS; p++) St[p] = -3.4e38f;
         }
 
@@ -635,17 +655,15 @@ void sdpa_kernel_lsc_prefetch(
             transpose_St_to_P_half(St.select<kv_step, 1, q_step, 1>(b*kv_step, 0), P);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
             b2dV.set_block_y(kv_base + b*kv_step);
-            matrix<half, num_Vchunks*(REG_K/2), REG_N*2> Vmat;
-            #pragma unroll
-            for(int ci = 0; ci < num_Vchunks; ci++)
-                cm_load<lsc::VNNI>(Vmat.select<REG_K/2,1,REG_N*2,1>(ci*(REG_K/2),0).format<half>(), b2dV.set_block_x(ci*REG_N));
             #pragma unroll
             for(int ci = 0, ri = 0; ci < num_Vchunks; ci++, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(ci*REG_N));
                 #pragma unroll
                 for(int p = 0; p < num_P_tiles; p++) {
                     rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
                                 rO[ri + p].format<float>(),
-                                Vmat.select<REG_K/2,1,REG_N*2,1>(ci*(REG_K/2),0).format<int32_t>(),
+                                Vmat.format<int32_t>(),
                                 P2.row(p).format<int32_t>());
                 }
             }
@@ -672,6 +690,227 @@ void sdpa_kernel_lsc_prefetch(
         b2dO.set_block_x(k);
         cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
         cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+    }
+}
+
+// Item 9: process 2 Q-rows per thread — amortize per-kv softmax cost over 2x DPAS work.
+// q_len is the number of Q tokens for the FIRST row; the second row is at q_base + q_pitch.
+// The caller must ensure at most 2*q_step tokens are dispatched to this thread.
+template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused, int wg_local_size>
+void sdpa_kernel_lsc_prefetch_q2(
+    int wg_local_id,
+    int q_start,
+    int kv_stop,
+    int q_len,         // tokens for this thread, up to 2*q_step
+    int kv_len,
+    svmptr_t q_base [[type("svmptr_t")]],
+    svmptr_t k_base [[type("svmptr_t")]],
+    svmptr_t v_base [[type("svmptr_t")]],
+    svmptr_t o_base [[type("svmptr_t")]]) {
+
+    constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
+    constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
+    constexpr uint kv_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
+    constexpr int padded_head_size = (head_size + 16 - 1) / 16 * 16;
+
+    // Two independent softmax states for the two Q rows.
+    vector<float, q_step> cur_max_a, cur_sum_a;
+    vector<float, q_step> cur_max_b, cur_sum_b;
+    cur_max_a = -3e38f; cur_sum_a = 0;
+    cur_max_b = -3e38f; cur_sum_b = 0;
+
+    constexpr int num_P_tiles = REG_N / REG_M;
+    // Two rQ halves: rQ_a for first row, rQ_b for second row
+    matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ_a;
+    matrix<half, padded_head_size/REG_K, REG_K*REG_N> rQ_b;
+    // Two rO halves
+    matrix<float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO_a;
+    matrix<float, padded_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO_b;
+
+    int q_len_a = q_len;
+    if (q_len_a < 0) q_len_a = 0;
+    if (q_len_a > q_step) q_len_a = q_step;
+
+    int q_len_b = q_len - q_step;
+    if (q_len_b < 0) q_len_b = 0;
+    if (q_len_b > q_step) q_len_b = q_step;
+
+    // Load rQ_a (first Q row)
+    if (q_len_a > 0) {
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQa(reinterpret_cast<uint*>(q_base), q_len_a - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
+        #pragma unroll
+        for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
+            cm_load<lsc::Transpose>(rQ_a[ri].format<uint>(), b2dQa.set_block_x(k));
+            rQ_a[ri].format<half>() = cm_mul<half>(rQ_a[ri].format<half>(), (half)scale_factor);
+        }
+    }
+    // Load rQ_b (second Q row block: q_step tokens further = q_step * q_pitch bytes)
+    if (q_len_b > 0) {
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQb(reinterpret_cast<uint*>(q_base + (svmptr_t)q_step * q_pitch), q_len_b - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
+        #pragma unroll
+        for(int k = 0, ri = 0; k < padded_head_size/2; k += REG_K/2, ri++) {
+            cm_load<lsc::Transpose>(rQ_b[ri].format<uint>(), b2dQb.set_block_x(k));
+            rQ_b[ri].format<half>() = cm_mul<half>(rQ_b[ri].format<half>(), (half)scale_factor);
+        }
+    }
+
+    lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+
+    static_assert(wg_local_size == 16);
+    lsc::block_2d_desc<half, 1, kv_step/wg_local_size, REG_K> prefetch_K(k_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K/wg_local_size, REG_N> prefetch_V(v_base, kv_stop - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+
+    int causal_left = q_start;
+
+    // Warm-up prefetch for kv_pos=0 K+V
+    prefetch_K.set_block_y(wg_local_id);
+    prefetch_V.set_block_y(wg_local_id);
+    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
+    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(0));
+    #pragma unroll
+    for(int ri = 1; ri < padded_head_size/REG_K; ri++) {
+        cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
+        cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(ri*REG_N));
+    }
+
+    for(int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step,
+            k_base += kv_step * kv_pitch,
+            v_base += kv_step * kv_pitch) {
+
+        // K phase: compute St_a = K × rQ_a and St_b = K × rQ_b
+        matrix<float, kv_step, q_step> St_a;
+        matrix<float, kv_step, q_step> St_b;
+        {
+            constexpr int num_K = kv_step/REG_M;
+            auto St_a2 = St_a.format<float, num_K, REG_M*REG_N>();
+            auto St_b2 = St_b.format<float, num_K, REG_M*REG_N>();
+
+            matrix<half, num_K, REG_M * REG_K> Kmat;
+
+            prefetch_K.set_block_y(wg_local_id + kv_pos + kv_step);
+            prefetch_V.set_block_y(wg_local_id + kv_pos);
+            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
+            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(0));
+
+            b2dK.set_block_y(kv_pos);
+            cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(0));
+            #pragma unroll
+            for(int k = 0; k < num_K; k++) {
+                St_a2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                0, rQ_a[0].format<int32_t>(), Kmat[k].format<int32_t>());
+                St_b2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                0, rQ_b[0].format<int32_t>(), Kmat[k].format<int32_t>());
+            }
+
+            #pragma unroll
+            for(int ri = 1; ri < padded_head_size/REG_K; ri++) {
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(ri*REG_N));
+                cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(ri*REG_K));
+                #pragma unroll
+                for(int k = 0; k < num_K; k++) {
+                    St_a2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                        St_a2.row(k), rQ_a[ri].format<int32_t>(), Kmat[k].format<int32_t>());
+                    St_b2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                        St_b2.row(k), rQ_b[ri].format<int32_t>(), Kmat[k].format<int32_t>());
+                }
+            }
+        }
+
+        // Tail masking
+        {
+            int kv_tokens = kv_stop - kv_pos;
+            for(int p = kv_tokens; p < kv_step; p++) {
+                St_a[p] = -3.4e38f;
+                St_b[p] = -3.4e38f;
+            }
+        }
+
+        auto max_comp_a = online_softmax_update(St_a, cur_max_a, cur_sum_a);
+        auto max_comp_b = online_softmax_update(St_b, cur_max_b, cur_sum_b);
+
+        matrix<half, REG_N, REG_K> P_a, P_b;
+        Transpose2DMatrix(St_a, P_a);
+        Transpose2DMatrix(St_b, P_b);
+
+        // V phase: unified path (max_comp=0 at kv_pos=0 zeroes rO)
+        b2dV.set_block_y(kv_pos);
+        {
+            auto Pa2 = P_a.format<half, num_P_tiles, REG_M * REG_K>();
+            auto Pb2 = P_b.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri = 0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                // Rescale and DPAS for rO_a
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO_a[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp_a[r + p*REG_M]);
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO_a[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_a[ri + p].format<float>(), Vmat.format<int32_t>(), Pa2.row(p).format<int32_t>());
+                }
+                // Rescale and DPAS for rO_b
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO_b[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp_b[r + p*REG_M]);
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO_b[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO_b[ri + p].format<float>(), Vmat.format<int32_t>(), Pb2.row(p).format<int32_t>());
+                }
+            }
+        }
+    }
+
+    // Store output for first Q row
+    if (q_len_a > 0) {
+        matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
+        cur_sum_a = cm_inv(cur_sum_a);
+        lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_len_a - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
+        #pragma unroll
+        for(int k = 0, ri=0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
+            #pragma unroll
+            for(int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO_a[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for(int r = 0; r < cO.n_rows(); r++)
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum_a[r + p*REG_M]);
+            }
+            b2dO.set_block_x(k);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+        }
+    }
+
+    // Store output for second Q row
+    if (q_len_b > 0) {
+        matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
+        cur_sum_b = cm_inv(cur_sum_b);
+        lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base + (svmptr_t)q_step * o_pitch, q_len_b - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
+        #pragma unroll
+        for(int k = 0, ri=0; k < padded_head_size; k += REG_N, ri += num_P_tiles) {
+            #pragma unroll
+            for(int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO_b[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for(int r = 0; r < cO.n_rows(); r++)
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum_b[r + p*REG_M]);
+            }
+            b2dO.set_block_x(k);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+        }
     }
 }
 
