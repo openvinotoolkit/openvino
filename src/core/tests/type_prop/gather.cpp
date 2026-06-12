@@ -183,6 +183,21 @@ TEST(type_prop, gather_7_axis_1) {
     EXPECT_EQ(G->get_axis(), 1);
 }
 
+TEST(type_prop, gather_7_scalar_indices) {
+    PartialShape data_shape{2, 3};
+    PartialShape indices_shape{};
+    PartialShape out_shape{2, 1};
+    int64_t axis = 1;
+
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {axis});
+    auto G = make_shared<op::v7::Gather>(D, I, A);
+
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
+}
+
 TEST(type_prop, gather_7_negative_axis) {
     PartialShape data_shape{5, 6, 7};
     PartialShape indices_shape{4};
@@ -483,6 +498,22 @@ TEST(type_prop, gather_v8_axis_1) {
     PartialShape data_shape{3, 3};
     PartialShape indices_shape{1, 2};
     PartialShape out_shape{3, 1, 2};
+    int64_t axis = 1;
+
+    auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {axis});
+    auto G = make_shared<op::v8::Gather>(D, I, A);
+
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
+}
+
+TEST(type_prop, gather_v8_scalar_indices) {
+    PartialShape data_shape{3, 3};
+    PartialShape indices_shape{};
+    PartialShape out_shape{3, 1};
     int64_t axis = 1;
 
     auto D = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);

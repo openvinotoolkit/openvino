@@ -69,8 +69,12 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
                               indices_rank.get_length());
     }
 
-    if (data_rank.is_static() && indices_rank.is_static()) {
-        auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+    const TShape lifted_indices_pshape =
+        (indices_rank.is_static() && indices_rank.get_length() == 0) ? TShape(std::vector<size_t>{1}) : indices_pshape;
+    const auto lifted_indices_rank = lifted_indices_pshape.rank();
+    
+    if (data_rank.is_static() && lifted_indices_rank.is_static()) {
+        const auto out_rank = data_rank.get_length() + lifted_indices_rank.get_length() - 1 - batch_dims;       
         // scalar has one
         output_pshape.resize(out_rank);
 
@@ -80,32 +84,32 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
         int i = 0;
         for (; i < batch_dims; i++) {
             NODE_VALIDATION_CHECK(op,
-                                  data_pshape[i].compatible(indices_pshape[i]),
+                                  data_pshape[i].compatible(lifted_indices_pshape[i]),
                                   "Shapes ",
                                   data_pshape,
                                   " and ",
-                                  indices_pshape,
+                                  lifted_indices_pshape,
                                   " are not consistent. data and indices must have equal or "
                                   "intersecting sizes until batch_dims");
 
-            output_pshape[i] = data_pshape[i] & indices_pshape[i];
+            output_pshape[i] = data_pshape[i] & lifted_indices_pshape[i];
         }
 
         if (axis_is_set) {
             for (; i < axis; i++) {
                 output_pshape[i] = data_pshape[i];
             }
-            for (; i < axis + indices_rank.get_length() - batch_dims; i++) {
-                output_pshape[i] = indices_pshape[batch_dims - axis + i];
+            for (; i < axis + lifted_indices_rank.get_length() - batch_dims; i++) {
+                output_pshape[i] = lifted_indices_pshape[batch_dims - axis + i];
             }
             for (; i < out_rank; i++) {
-                output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
+                output_pshape[i] = data_pshape[batch_dims + 1 - lifted_indices_rank.get_length() + i];
             }
         }
     } else {
-        auto out_rank = data_rank + indices_rank - 1 - batch_dims;
+        auto out_rank = data_rank + lifted_indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
-            out_rank = out_rank - indices_rank.get_max_length();
+            out_rank = out_rank - lifted_indices_rank.get_max_length();
         output_pshape = PartialShape::dynamic(std::move(out_rank));
     }
     return output_shapes;
