@@ -1,0 +1,147 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "include/fetch_utils.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+
+// Optimized broadcast kernel: each work-group processes one output row (X dimension),
+// loading from input and writing to output. Outer dimensions (B, F, W, Z, Y) are
+// broadcast via modulo. Per-row address computation (in_row_base, out_row_base)
+// replaces ref kernel's per-element get_idx_pos().
+//
+// Without fused ops, OpenVINO guarantees input dtype == output dtype (else a Convert
+// is inserted by the plugin). The kernel therefore reads and writes the same scalar
+// type, no per-element cast — only data size matters. Works for any 1/2/4/8-byte type.
+
+#if X_BROADCAST_BLOCK_WRITE
+__attribute__((reqd_work_group_size(16, 1, 1)))
+__attribute__((intel_reqd_sub_group_size(16)))
+#endif
+KERNEL(broadcast_gpu_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+)
+{
+    const uint row_id = get_global_id(1);
+    const uint lid = get_global_id(0);
+
+    // Decode row_id into (b, f, w, z, y) output coordinates
+#if OUTPUT_DIMS == 6
+    const uint out_y = row_id % OUTPUT_SIZE_Y;
+    const uint out_z = (row_id / OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z;
+    const uint out_w = (row_id / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z) % OUTPUT_SIZE_W;
+    const uint out_f = (row_id / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W) % OUTPUT_FEATURE_NUM;
+    const uint out_b = row_id / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_FEATURE_NUM;
+#elif OUTPUT_DIMS == 5
+    const uint out_y = row_id % OUTPUT_SIZE_Y;
+    const uint out_z = (row_id / OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z;
+    const uint out_f = (row_id / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z) % OUTPUT_FEATURE_NUM;
+    const uint out_b = row_id / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_FEATURE_NUM;
+    const uint out_w = 0;
+#else
+    const uint out_y = row_id % OUTPUT_SIZE_Y;
+    const uint out_f = (row_id / OUTPUT_SIZE_Y) % OUTPUT_FEATURE_NUM;
+    const uint out_b = row_id / OUTPUT_SIZE_Y / OUTPUT_FEATURE_NUM;
+    const uint out_z = 0;
+    const uint out_w = 0;
+#endif
+
+    // Compute input row coordinates (broadcast via modulo for outer dims only)
+    const uint in_b = out_b % INPUT0_BATCH_NUM;
+    const uint in_f = out_f % INPUT0_FEATURE_NUM;
+#if OUTPUT_DIMS >= 5
+    const uint in_z = out_z % INPUT0_SIZE_Z;
+#else
+    const uint in_z = 0;
+#endif
+#if OUTPUT_DIMS >= 6
+    const uint in_w = out_w % INPUT0_SIZE_W;
+#else
+    const uint in_w = 0;
+#endif
+    const uint in_y = out_y % INPUT0_SIZE_Y;
+
+    // Base addresses for this row (computed once per row, not per element)
+#if OUTPUT_DIMS == 6
+    const uint out_row_base = OUTPUT_GET_INDEX(out_b, out_f, out_w, out_z, out_y, 0);
+    const uint in_row_base = INPUT0_GET_INDEX(in_b, in_f, in_w, in_z, in_y, 0);
+#elif OUTPUT_DIMS == 5
+    const uint out_row_base = OUTPUT_GET_INDEX(out_b, out_f, out_z, out_y, 0);
+    const uint in_row_base = INPUT0_GET_INDEX(in_b, in_f, in_z, in_y, 0);
+#else
+    const uint out_row_base = OUTPUT_GET_INDEX(out_b, out_f, out_y, 0);
+    const uint in_row_base = INPUT0_GET_INDEX(in_b, in_f, in_y, 0);
+#endif
+
+    // Linear copy of X dimension with batch replication
+    const uint total_wis = get_global_size(0);
+    const uint vec_size = OPT_VEC_SIZE;
+
+#if IS_X_BROADCAST
+    // X-broadcast: read one scalar, fill consecutive output positions per work-item.
+    const OUTPUT_TYPE scalar_val = input[in_row_base];
+#if X_BROADCAST_BLOCK_WRITE
+    // Subgroup block-write path: 16 lanes collectively emit 128 elements per call
+    // (block_write8 = 8 elems/lane * SIMD16). Requires OUTPUT_SIZE_X >= 128.
+    // For X % 128 != 0, a scalar tail handles the remainder. For static X % 128 == 0
+    // the tail compiles away. For dynamic this is a uniform branch (no divergence).
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) out_vec8 = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8))(scalar_val);
+    const uint x_aligned_end = (OUTPUT_SIZE_X / 128) * 128;
+    for (uint x_start = 0; x_start < x_aligned_end; x_start += 128) {
+        DT_OUTPUT_BLOCK_WRITE8(output, out_row_base + x_start, out_vec8);
+    }
+    // Tail: scalar fill, each lane writes one element with stride=SIMD_SIZE.
+    for (uint x = x_aligned_end + get_sub_group_local_id(); x < OUTPUT_SIZE_X; x += 16) {
+        output[out_row_base + x] = scalar_val;
+    }
+#else
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE) out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE))(scalar_val);
+    for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
+        if (x_start + vec_size <= OUTPUT_SIZE_X) {
+            CAT(vstore, OPT_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
+        } else if (x_start < OUTPUT_SIZE_X) {
+            for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
+                output[out_row_base + x] = scalar_val;
+            }
+        }
+    }
+#endif
+#else
+    // Runtime X-broadcast detection: if INPUT0_SIZE_X==1 at runtime (only relevant for
+    // dynamic shapes — static IS_X_BROADCAST=1 takes the splat fast path above), each
+    // output element reads input[0]. For static where INPUT0_SIZE_X is a compile-time
+    // literal equal to OUTPUT_SIZE_X, the branch folds away and codegen is unchanged.
+    for (uint x_start = lid * vec_size; x_start < OUTPUT_SIZE_X; x_start += total_wis * vec_size) {
+        if (x_start + vec_size <= OUTPUT_SIZE_X) {
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE) out_vec;
+            if (INPUT0_SIZE_X == 1) {
+                const OUTPUT_TYPE scalar_val = input[in_row_base];
+                out_vec = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, OPT_VEC_SIZE))(scalar_val);
+            } else {
+                out_vec = CAT(vload, OPT_VEC_SIZE)(0, &input[in_row_base + x_start]);
+            }
+#if BATCH_REPEAT > 1
+            for (uint br = 0; br < BATCH_REPEAT; br++) {
+                CAT(vstore, OPT_VEC_SIZE)(out_vec, 0, &output[out_row_base + br * OUTPUT_BATCH_PITCH + x_start]);
+            }
+#else
+            CAT(vstore, OPT_VEC_SIZE)(out_vec, 0, &output[out_row_base + x_start]);
+#endif
+        } else if (x_start < OUTPUT_SIZE_X) {
+            for (uint x = x_start; x < OUTPUT_SIZE_X; x++) {
+                const uint in_x = (INPUT0_SIZE_X == 1) ? 0 : x;
+                OUTPUT_TYPE val = input[in_row_base + in_x];
+#if BATCH_REPEAT > 1
+                for (uint br = 0; br < BATCH_REPEAT; br++) {
+                    output[out_row_base + br * OUTPUT_BATCH_PITCH + x] = val;
+                }
+#else
+                output[out_row_base + x] = val;
+#endif
+            }
+        }
+    }
+#endif
+}

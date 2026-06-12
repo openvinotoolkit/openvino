@@ -36,6 +36,8 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         const auto& primitive = impl_param.typed_desc<broadcast>();
         auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);
 
+        params.is_explicit_mode = !primitive->axes_mapping.empty();
+
         const auto format = impl_param.get_output_layout().format;
         size_t max_axes_num = format.dimension();
 
