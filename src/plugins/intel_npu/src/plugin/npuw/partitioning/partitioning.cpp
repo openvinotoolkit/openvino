@@ -2148,7 +2148,7 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
         // Convert specific convolutions to matmuls
-        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>();
         rewr.run_on_model(f._model);
 
         // Quantized Gather + Unpack on host in the runtime

@@ -272,7 +272,7 @@ public:
 class ConvToMatmul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvToMatmul");
-    ConvToMatmul(Context::Ref ctx);
+    ConvToMatmul();
 };
 
 // UntangleConst
