@@ -72,7 +72,7 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
     const TShape lifted_indices_pshape =
         (indices_rank.is_static() && indices_rank.get_length() == 0) ? TShape(std::vector<size_t>{1}) : indices_pshape;
     const auto lifted_indices_rank = lifted_indices_pshape.rank();
-    
+
     if (data_rank.is_static() && lifted_indices_rank.is_static()) {
         const auto out_rank = data_rank.get_length() + lifted_indices_rank.get_length() - 1 - batch_dims;       
         // scalar has one
