@@ -229,6 +229,39 @@ KERNEL (index_add_)(const __global MOE_DTYPE* src_tok,
 
 #define SWISH_BETA 1.0f
 #define ACC_DTYPE float
+
+// Tanh-approximation Gelu: 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+#define GELU_TANH_SQRT_2_OVER_PI 0.7978845608028654f
+#define GELU_TANH_C 0.044715f
+
+// ERF Gelu: 0.5 * x * (1 + erf(x / sqrt(2))); 1/sqrt(2) = 0.7071067811865475
+// Fast erf approximation (A&S 7.1.26) — same coefficients as swiglu_gpu_opt.cl
+inline float moe_fast_erf(float x) {
+    if (x > 4.0f) return 1.0f;
+    if (x < -4.0f) return -1.0f;
+    const float p  = 0.3275911f;
+    const float a1 = 0.254829592f;
+    const float a2 = -0.284496736f;
+    const float a3 = 1.421413741f;
+    const float a4 = -1.453152027f;
+    const float a5 = 1.061405429f;
+    float z = fabs(x);
+    float t = 1.0f / (1.0f + p * z);
+    float y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * native_exp(-(z * z));
+    return (x >= 0.0f) ? y : -y;
+}
+
+inline ACC_DTYPE moe_gate_activation(ACC_DTYPE x) {
+#if GATE_ACT_GELU_ERF
+    return 0.5f * x * (1.0f + moe_fast_erf(x * 0.7071067811865475f));
+#elif GATE_ACT_GELU_TANH
+    return 0.5f * x * (1.0f + (tanh(0.79788458347320556640625f * x * (1.0f + 0.044715f * x * x))));
+#else
+    // Swish (SwiGLU): x * sigmoid(beta * x)
+    return x / (1.0f + native_exp(-SWISH_BETA * x));
+#endif
+}
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(swiglu_ref) (
     const __global MOE_DTYPE* up, // [token_len * expert_topK, inter_size]
@@ -245,14 +278,14 @@ KERNEL(swiglu_ref) (
     const uint offset = token_idx * INTERMEDIA_SIZE + n_offset - sg_id;
     ACC_DTYPE up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
     ACC_DTYPE gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));
-    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    ACC_DTYPE value = moe_gate_activation(gate_value);
     half result = value * up_value;
     intel_sub_group_block_write_us((__global ushort *)(output + offset), as_ushort(result));
 #else
     const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
     ACC_DTYPE gate_value = gate[offset];
     ACC_DTYPE up_value = up[offset];
-    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    ACC_DTYPE value = moe_gate_activation(gate_value);
     ACC_DTYPE result = value * up_value;
     output[offset] = result;
 #endif

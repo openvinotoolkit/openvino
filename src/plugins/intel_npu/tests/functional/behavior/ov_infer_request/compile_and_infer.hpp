@@ -135,6 +135,53 @@ TEST_P(OVCompileAndInferRequest, AsyncInferRequest) {
     ASSERT_TRUE(is_called);
 }
 
+TEST_P(OVCompileAndInferRequest, EvictGraphMemoryThenInferAgain) {
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+
+    OV_ASSERT_NO_THROW(execNet.release_memory());
+
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
+// Disabled test that checks that memory eviction works correctly and does not cause memory leaks after inference runs.
+// The test is disabled due to the fact that it requires another check of the memory since device_alloc_mem_size doesn't
+// provide memory feedback after eviction is called.
+TEST_P(OVCompileAndInferRequest, DISABLED_CheckMemoryAfterEvictGraphMemoryAndAfterRunningInferAgain) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        GTEST_SKIP() << "Memory eviction is not supported by the current driver version.";
+    }
+
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+
+    uint64_t device_alloc_mem_size = 0;
+    OV_ASSERT_NO_THROW(
+        device_alloc_mem_size =
+            core->get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()).as<uint64_t>());
+
+    OV_ASSERT_NO_THROW(execNet.release_memory());
+
+    uint64_t device_alloc_mem_size_after_evict = 0;
+    OV_ASSERT_NO_THROW(
+        device_alloc_mem_size_after_evict =
+            core->get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()).as<uint64_t>());
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    uint64_t device_alloc_mem_size_final = 0;
+    OV_ASSERT_NO_THROW(
+        device_alloc_mem_size_final =
+            core->get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()).as<uint64_t>());
+
+    ASSERT_EQ(device_alloc_mem_size, device_alloc_mem_size_final);
+    ASSERT_LT(device_alloc_mem_size_after_evict, device_alloc_mem_size);
+}
+
 TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
     configuration[workload_type.name()] = WorkloadType::DEFAULT;
     auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
@@ -265,6 +312,26 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
     ASSERT_TRUE(is_called);
 }
 
+TEST_P(OVCompileAndInferRequest, CompiledModelModelPriorityUpdateAfterCompilation) {
+    configuration[hint::model_priority.name()] = hint::Priority::MEDIUM;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ASSERT_EQ(execNet.get_property(hint::model_priority.name()).as<hint::Priority>(), hint::Priority::MEDIUM);
+
+    ov::AnyMap modelConfiguration;
+    ov::InferRequest req;
+
+    modelConfiguration[hint::model_priority.name()] = hint::Priority::HIGH;
+    OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+    ASSERT_EQ(execNet.get_property(hint::model_priority.name()).as<hint::Priority>(), hint::Priority::HIGH);
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+
+    modelConfiguration[hint::model_priority.name()] = hint::Priority::LOW;
+    OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+    ASSERT_EQ(execNet.get_property(hint::model_priority.name()).as<hint::Priority>(), hint::Priority::LOW);
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
 using OVCompileAndInferRequestMultiThreading = OVCompileAndInferRequest;
 
 TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreads) {
@@ -303,7 +370,7 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
     }
 }
 
-TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreadsWithWorkloadType) {
+TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndPriority) {
     if (!isCommandQueueExtSupported()) {
         GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
     }
@@ -325,6 +392,13 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
                     execNet.set_property(ov::workload_type(WorkloadType::DEFAULT));
                 } else {
                     execNet.set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                if (i % 3 == 0) {
+                    execNet.set_property(ov::hint::model_priority(ov::hint::Priority::HIGH));
+                } else if (i % 3 == 1) {
+                    execNet.set_property(ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+                } else {
+                    execNet.set_property(ov::hint::model_priority(ov::hint::Priority::LOW));
                 }
                 auto req = execNet.create_infer_request();
                 req.infer();
@@ -351,7 +425,7 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
 }
 
 TEST_P(OVCompileAndInferRequestMultiThreading,
-       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadType) {
+       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndPriority) {
     if (!isCommandQueueExtSupported()) {
         GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
     }
@@ -374,6 +448,13 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
                     compiled_models[i].set_property(ov::workload_type(WorkloadType::DEFAULT));
                 } else {
                     compiled_models[i].set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                if (i % 3 == 0) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::HIGH));
+                } else if (i % 3 == 1) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+                } else {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::LOW));
                 }
                 auto req = compiled_models[i].create_infer_request();
                 req.infer();
@@ -406,11 +487,22 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
             ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
                       WorkloadType::EFFICIENT);
         }
+
+        if (i % 3 == 0) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::HIGH);
+        } else if (i % 3 == 1) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::MEDIUM);
+        } else {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::LOW);
+        }
     }
 }
 
 TEST_P(OVCompileAndInferRequestMultiThreading,
-       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndSharedCommonQueueDisabled) {
+       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypePriorityAndSharedCommonQueueDisabled) {
     if (!isCommandQueueExtSupported()) {
         GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
     }
@@ -435,6 +527,13 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
                 } else {
                     compiled_models[i].set_property(ov::workload_type(WorkloadType::EFFICIENT));
                 }
+                if (i % 3 == 0) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::HIGH));
+                } else if (i % 3 == 1) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+                } else {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::LOW));
+                }
                 auto req = compiled_models[i].create_infer_request();
                 req.infer();
             } catch (...) {
@@ -465,6 +564,17 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
         } else {
             ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
                       WorkloadType::EFFICIENT);
+        }
+
+        if (i % 3 == 0) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::HIGH);
+        } else if (i % 3 == 1) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::MEDIUM);
+        } else {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::LOW);
         }
     }
 }

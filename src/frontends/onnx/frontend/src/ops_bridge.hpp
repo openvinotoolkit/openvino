@@ -89,6 +89,8 @@ private:
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
+const std::vector<std::string> get_supported_ops_via_tokenizers();
+
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -24,6 +24,10 @@ void IGraph::set_argument_value_with_strides(uint32_t, const void*, const std::v
     OPENVINO_THROW("set_argument_value_with_strides not implemented");
 }
 
+std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
+    OPENVINO_THROW("get_compatibility_descriptor not implemented");
+}
+
 void IGraph::initialize(const FilteredConfig& config) {
     std::lock_guard<std::mutex> lock(_initialize_mutex);
 
@@ -58,6 +62,10 @@ void IGraph::set_workload_type(const ov::WorkloadType) {
     OPENVINO_THROW("set_workload_type not implemented");
 }
 
+void IGraph::set_model_priority(const ov::hint::Priority) {
+    OPENVINO_THROW("set_model_priority not implemented");
+}
+
 void IGraph::set_last_submitted_event(const std::shared_ptr<Event>&, size_t) {
     OPENVINO_THROW("set_last_submitted_event not implemented");
 }
@@ -89,5 +97,7 @@ void IGraph::set_last_submitted_id(uint32_t) {
 uint32_t IGraph::get_last_submitted_id() const {
     OPENVINO_THROW("get_last_submitted_id not implemented");
 }
+
+void IGraph::evict_memory() {}
 
 }  // namespace intel_npu

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <limits.h>
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <optional>

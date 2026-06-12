@@ -1,14 +1,19 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "data_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/memory.hpp"
 
+#include "data_inst.h"
 #include "json_object.h"
-#include <string>
-#include <memory>
+#include "primitive_type_base.h"
+
+#include "intel_gpu/runtime/memory.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/util/parallel_io.hpp"
+
 #include <algorithm>
+#include <cstring>
+#include <memory>
+#include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
@@ -22,7 +27,21 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
     memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
     mem_lock<char, mem_lock_type::read> src(mem, network.get_stream());
     mem_lock<char, mem_lock_type::write> dst(result, network.get_stream());
-    std::copy(src.begin(), src.end(), dst.begin());
+    const size_t data_size = src.size();
+    if (data_size >= ov::util::default_parallel_io_threshold) {
+        char* src_ptr = src.data();
+        char* dst_ptr = dst.data();
+        const size_t max_threads = static_cast<size_t>(parallel_get_max_threads());
+        const size_t num_chunks = std::max(size_t{1}, std::min(data_size / ov::util::default_parallel_io_min_chunk, max_threads));
+        const size_t chunk_size = (data_size + num_chunks - 1) / num_chunks;
+        ov::parallel_for(num_chunks, [src_ptr, dst_ptr, chunk_size, data_size, num_chunks](size_t i) {
+            const size_t offset = i * chunk_size;
+            const size_t copy_size = (i + 1 == num_chunks) ? (data_size - offset) : std::min(chunk_size, data_size - offset);
+            std::memcpy(dst_ptr + offset, src_ptr + offset, copy_size);
+        });
+    } else {
+        std::copy(src.begin(), src.end(), dst.begin());
+    }
     return result;
 }
 }  // namespace

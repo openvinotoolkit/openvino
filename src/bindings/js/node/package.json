@@ -1,6 +1,6 @@
 {
   "name": "openvino-node",
-  "version": "2026.1.0",
+  "version": "2026.2.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
     "url": "git+https://github.com/openvinotoolkit/openvino.git",
@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --ignore-path .gitignore --write .",
     "test_setup": "node ./tests/setup.js",
-    "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
+    "test": "npm run test_setup && node --expose-gc --test ./tests/unit/*.test.js",
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
