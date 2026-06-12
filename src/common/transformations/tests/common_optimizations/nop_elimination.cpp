@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+#include <limits>
 #include <memory>
 #include <queue>
 #include <sstream>
@@ -1559,35 +1561,60 @@ TEST_F(TransformationTestsF, EliminateSliceBeforeGatherElements) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
+enum class SliceUserKind { StridedSlice, V8Slice };
+
+// Constructs either a v1::StridedSlice or a v8::Slice consuming `input`,
+// slicing only along `slice_axis` from [begin, end) with step 1. Other axes
+// are kept full-range (StridedSlice via begin_mask/end_mask = 1; v8::Slice
+// via explicit single-element axes/start/stop/step vectors).
+static std::shared_ptr<ov::Node> make_axis_slice(SliceUserKind kind,
+                                                 const ov::Output<ov::Node>& input,
+                                                 int64_t rank,
+                                                 int64_t slice_axis,
+                                                 int64_t begin,
+                                                 int64_t end) {
+    if (kind == SliceUserKind::StridedSlice) {
+        const auto rank_sz = static_cast<size_t>(rank);
+        std::vector<int64_t> begin_vec(rank_sz, 0);
+        std::vector<int64_t> end_vec(rank_sz, 0);
+        std::vector<int64_t> begin_mask(rank_sz, 1);
+        std::vector<int64_t> end_mask(rank_sz, 1);
+        begin_vec[slice_axis] = begin;
+        end_vec[slice_axis] = end;
+        begin_mask[slice_axis] = 0;
+        end_mask[slice_axis] = 0;
+        auto begin_const = v0::Constant::create(element::i64, Shape{rank_sz}, begin_vec);
+        auto end_const = v0::Constant::create(element::i64, Shape{rank_sz}, end_vec);
+        return std::make_shared<v1::StridedSlice>(input, begin_const, end_const, begin_mask, end_mask);
+    }
+    auto start = v0::Constant::create(element::i64, Shape{1}, {begin});
+    auto stop = v0::Constant::create(element::i64, Shape{1}, {end});
+    auto step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto axes = v0::Constant::create(element::i64, Shape{1}, {slice_axis});
+    return std::make_shared<op::v8::Slice>(input, start, stop, step, axes);
+}
+
+class EliminateConcatStridedSliceVariants : public TransformationTestsF,
+                                            public ::testing::WithParamInterface<SliceUserKind> {};
+
+TEST_P(EliminateConcatStridedSliceVariants, Eliminate) {
+    const auto kind = GetParam();
     {
         int64_t axis = 2;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
         auto param4 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 6});
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3, param4}), axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-
+        auto slice1 = make_axis_slice(kind, concat, rank, axis, 0, 3);
         auto add_param = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 3});
-        auto add = std::make_shared<op::v1::Add>(strided_slice1, add_param);
+        auto add = std::make_shared<op::v1::Add>(slice1, add_param);
         auto result1 = std::make_shared<op::v0::Result>(add);
 
-        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
-        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 18});
-        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const2,
-                                                                 end_const2,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice2);
+        auto slice2 = make_axis_slice(kind, concat, rank, axis, 3, 18);
+        auto relu = std::make_shared<op::v0::Relu>(slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu);
 
         model = std::make_shared<ov::Model>(ResultVector{result1, result2},
@@ -1596,6 +1623,7 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
     }
     {
         int64_t axis = 2;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
@@ -1605,14 +1633,8 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
         auto result1 = std::make_shared<op::v0::Result>(add);
 
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({param2, param3, param4}), axis);
-        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 15});
-        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const2,
-                                                                 end_const2,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice2);
+        auto slice2 = make_axis_slice(kind, concat, rank, axis, 0, 15);
+        auto relu = std::make_shared<op::v0::Relu>(slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu);
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2},
@@ -1620,32 +1642,21 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSlice) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateConcatStridedSliceAll) {
+TEST_P(EliminateConcatStridedSliceVariants, EliminateAll) {
+    const auto kind = GetParam();
     {
         int64_t axis = 2;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 1});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 1});
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 1});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-
-        auto relu1 = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto slice1 = make_axis_slice(kind, concat, rank, axis, 0, 1);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
         auto result1 = std::make_shared<op::v0::Result>(relu1);
 
-        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 1});
-        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 4});
-        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const2,
-                                                                 end_const2,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto relu2 = std::make_shared<op::v0::Relu>(strided_slice2);
+        auto slice2 = make_axis_slice(kind, concat, rank, axis, 1, 4);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
         auto result2 = std::make_shared<op::v0::Result>(relu2);
 
         model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
@@ -1665,31 +1676,21 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceAll) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcat) {
+TEST_P(EliminateConcatStridedSliceVariants, EliminateConcat) {
+    const auto kind = GetParam();
     {
         int64_t axis = 2;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto slice1 = make_axis_slice(kind, concat, rank, axis, 0, 3);
+        auto relu = std::make_shared<op::v0::Relu>(slice1);
 
-        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
-        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 12});
-        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const2,
-                                                                 end_const2,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, strided_slice2}), axis);
+        auto slice2 = make_axis_slice(kind, concat, rank, axis, 3, 12);
+        auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, slice2}), axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
@@ -1709,31 +1710,21 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcat) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatMismatch) {
+TEST_P(EliminateConcatStridedSliceVariants, EliminateConcatMismatch) {
+    const auto kind = GetParam();
     {
         int64_t axis = 2;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 4});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto slice1 = make_axis_slice(kind, concat, rank, axis, 0, 4);
+        auto relu = std::make_shared<op::v0::Relu>(slice1);
 
-        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
-        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 10});
-        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const2,
-                                                                 end_const2,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, strided_slice2}), axis);
+        auto slice2 = make_axis_slice(kind, concat, rank, axis, 3, 10);
+        auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, slice2}), axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
@@ -1741,28 +1732,17 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatMismatch) {
     }
     {
         int64_t axis = 2;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
         auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 4});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto slice1 = make_axis_slice(kind, concat, rank, axis, 0, 4);
+        auto relu = std::make_shared<op::v0::Relu>(slice1);
 
-        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
-        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 10});
-        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const2,
-                                                                 end_const2,
-                                                                 std::vector<int64_t>{1, 1, 0},
-                                                                 std::vector<int64_t>{1, 1, 0});
-        auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, strided_slice2}), axis);
+        auto slice2 = make_axis_slice(kind, concat, rank, axis, 3, 10);
+        auto concat1 = make_shared<v0::Concat>(ov::as_output_vector({relu, slice2}), axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
@@ -1820,48 +1800,48 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceTopKConcat) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatDiffAxis) {
+TEST_P(EliminateConcatStridedSliceVariants, EliminateConcatDiffAxis) {
+    const auto kind = GetParam();
     {
-        int64_t axis = 2;
+        int64_t concat_axis = 2;
+        int64_t slice_axis = 1;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
-        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), concat_axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 3, 0});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 0, 1},
-                                                                 std::vector<int64_t>{1, 0, 1});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto slice1 = make_axis_slice(kind, concat, rank, slice_axis, 0, 3);
+        auto relu = std::make_shared<op::v0::Relu>(slice1);
 
         auto result = std::make_shared<op::v0::Result>(relu);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
         manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
-        int64_t axis = 2;
+        int64_t concat_axis = 2;
+        int64_t slice_axis = 1;
+        const int64_t rank = 3;
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
         auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
         auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
-        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), concat_axis);
 
-        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
-        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 3, 0});
-        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
-                                                                 begin_const1,
-                                                                 end_const1,
-                                                                 std::vector<int64_t>{1, 0, 1},
-                                                                 std::vector<int64_t>{1, 0, 1});
-        auto relu = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto slice1 = make_axis_slice(kind, concat, rank, slice_axis, 0, 3);
+        auto relu = std::make_shared<op::v0::Relu>(slice1);
 
         auto result = std::make_shared<op::v0::Result>(relu);
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(EliminateConcatStridedSlice,
+                         EliminateConcatStridedSliceVariants,
+                         ::testing::Values(SliceUserKind::StridedSlice, SliceUserKind::V8Slice),
+                         [](const ::testing::TestParamInfo<SliceUserKind>& info) {
+                             return info.param == SliceUserKind::StridedSlice ? "StridedSlice" : "V8Slice";
+                         });
 
 TEST_F(TransformationTestsF, EliminateStridedSlice) {
     {
@@ -2275,4 +2255,728 @@ TEST_F(TransformationTestsF, EliminateIdentityConvert_identity_multiple_consumer
     manager.register_pass<ov::pass::EliminateIdentityConvert>();
 
     model_ref = model->clone();
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceNonUnitStepV8Slice) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto start1 = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto stop1 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto step1 = v0::Constant::create(element::i64, Shape{1}, {2});  // non-unit step
+        auto axes1 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice1 = std::make_shared<op::v8::Slice>(concat, start1, stop1, step1, axes1);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto start2 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto stop2 = v0::Constant::create(element::i64, Shape{1}, {6});
+        auto step2 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes2 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice2 = std::make_shared<op::v8::Slice>(concat, start2, stop2, step2, axes2);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto start1 = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto stop1 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto step1 = v0::Constant::create(element::i64, Shape{1}, {2});
+        auto axes1 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice1 = std::make_shared<op::v8::Slice>(concat, start1, stop1, step1, axes1);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto start2 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto stop2 = v0::Constant::create(element::i64, Shape{1}, {6});
+        auto step2 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes2 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice2 = std::make_shared<op::v8::Slice>(concat, start2, stop2, step2, axes2);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceNonUnitStrides) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto strides1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 2});  // non-unit on concat axis
+        std::vector<int64_t> begin_mask{1, 1, 0};
+        std::vector<int64_t> end_mask{1, 1, 0};
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides1, begin_mask, end_mask);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 6});
+        auto strides2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides2, begin_mask, end_mask);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto strides1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 2});
+        std::vector<int64_t> begin_mask{1, 1, 0};
+        std::vector<int64_t> end_mask{1, 1, 0};
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides1, begin_mask, end_mask);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 6});
+        auto strides2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides2, begin_mask, end_mask);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceEmptyMaskNonAxisAligned) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        // Empty begin_mask/end_mask — slice1 has begin[1]=1 so it is NOT axis-aligned along concat_axis=2.
+        std::vector<int64_t> empty_mask{};
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 1, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 3});
+        auto strides1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides1, empty_mask, empty_mask);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 6});
+        auto strides2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides2, empty_mask, empty_mask);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        std::vector<int64_t> empty_mask{};
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 1, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 3});
+        auto strides1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides1, empty_mask, empty_mask);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 6});
+        auto strides2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides2, empty_mask, empty_mask);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+    }
+}
+
+// Exercises build_residual_slice() with a 4-input v1::StridedSlice (explicit unit strides):
+// one exact-match user is eliminated, the other forces a residual rebuild whose clone must
+// preserve the strides input.
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceUnitStridesResidual) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
+
+        std::vector<int64_t> begin_mask{1, 1, 0};
+        std::vector<int64_t> end_mask{1, 1, 0};
+        auto strides_unit = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+
+        // Exact match against param1.
+        auto begin1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto end1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat, begin1, end1, strides_unit, begin_mask, end_mask);
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto add = std::make_shared<op::v1::Add>(slice1, add_param);
+        auto result1 = std::make_shared<op::v0::Result>(add);
+
+        // Mismatch — spans param2+param3 ([3,11]); forces residual rebuild.
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 12});
+        auto slice2 = std::make_shared<v1::StridedSlice>(concat, begin2, end2, strides_unit, begin_mask, end_mask);
+        auto relu = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2},
+                                            ParameterVector{param1, param2, param3, add_param});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto add = std::make_shared<op::v1::Add>(param1, add_param);
+        auto result1 = std::make_shared<op::v0::Result>(add);
+
+        auto new_concat = make_shared<v0::Concat>(ov::as_output_vector({param2, param3}), axis);
+        std::vector<int64_t> begin_mask{1, 1, 0};
+        std::vector<int64_t> end_mask{1, 1, 0};
+        auto strides_unit = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto begin2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto end2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 9});
+        auto slice2 = std::make_shared<v1::StridedSlice>(new_concat, begin2, end2, strides_unit, begin_mask, end_mask);
+        auto relu = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2},
+                                                ParameterVector{param1, param2, param3, add_param});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceWithAxesV8Slice) {
+    {
+        int64_t axis = 1;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 3, 10});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 4, 10});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 5, 10});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3}), axis);
+
+        auto start1 = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto stop1 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto step1 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes1 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice1 = std::make_shared<op::v8::Slice>(concat, start1, stop1, step1, axes1);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto start2 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto stop2 = v0::Constant::create(element::i64, Shape{1}, {7});
+        auto step2 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes2 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice2 = std::make_shared<op::v8::Slice>(concat, start2, stop2, step2, axes2);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        auto start3 = v0::Constant::create(element::i64, Shape{1}, {7});
+        auto stop3 = v0::Constant::create(element::i64, Shape{1}, {12});
+        auto step3 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes3 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice3 = std::make_shared<op::v8::Slice>(concat, start3, stop3, step3, axes3);
+        auto relu3 = std::make_shared<op::v0::Relu>(slice3);
+        auto result3 = std::make_shared<op::v0::Result>(relu3);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2, result3},
+                                            ParameterVector{param1, param2, param3});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 3, 10});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 4, 10});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 5, 10});
+
+        auto relu1 = std::make_shared<op::v0::Relu>(param1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto relu2 = std::make_shared<op::v0::Relu>(param2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        auto relu3 = std::make_shared<op::v0::Relu>(param3);
+        auto result3 = std::make_shared<op::v0::Result>(relu3);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2, result3},
+                                                ParameterVector{param1, param2, param3});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceNoAxesV8Slice) {
+    // v8::Slice constructed without explicit `axes` input (4-input form):
+    // start/stop/step are sized to rank, axes are inferred as [0, 1, ..., rank-1].
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto start1 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+        auto stop1 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 3});
+        auto step1 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice1 = std::make_shared<op::v8::Slice>(concat, start1, stop1, step1);
+        auto relu1 = std::make_shared<op::v0::Relu>(slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto start2 = v0::Constant::create(element::i64, Shape{3}, {0, 0, 3});
+        auto stop2 = v0::Constant::create(element::i64, Shape{3}, {2, 10, 7});
+        auto step2 = v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto slice2 = std::make_shared<op::v8::Slice>(concat, start2, stop2, step2);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+
+        auto relu1 = std::make_shared<op::v0::Relu>(param1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto relu2 = std::make_shared<op::v0::Relu>(param2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceMixedUsers) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto begin_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
+        auto end_const1 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
+        auto strided_slice1 = std::make_shared<v1::StridedSlice>(concat,
+                                                                 begin_const1,
+                                                                 end_const1,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
+        auto relu1 = std::make_shared<op::v0::Relu>(strided_slice1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto start2 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto stop2 = v0::Constant::create(element::i64, Shape{1}, {7});
+        auto step2 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes2 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice2 = std::make_shared<op::v8::Slice>(concat, start2, stop2, step2, axes2);
+        auto relu2 = std::make_shared<op::v0::Relu>(slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+
+        auto relu1 = std::make_shared<op::v0::Relu>(param1);
+        auto result1 = std::make_shared<op::v0::Result>(relu1);
+
+        auto relu2 = std::make_shared<op::v0::Relu>(param2);
+        auto result2 = std::make_shared<op::v0::Result>(relu2);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceMixedUsersPartial) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
+        auto param4 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 6});
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param1, param2, param3, param4}), axis);
+
+        auto start1 = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto stop1 = v0::Constant::create(element::i64, Shape{1}, {3});
+        auto step1 = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axes1 = v0::Constant::create(element::i64, Shape{1}, {axis});
+        auto slice1 = std::make_shared<op::v8::Slice>(concat, start1, stop1, step1, axes1);
+
+        auto add_param = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto add = std::make_shared<op::v1::Add>(slice1, add_param);
+        auto result1 = std::make_shared<op::v0::Result>(add);
+
+        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
+        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 18});
+        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
+        auto relu = std::make_shared<op::v0::Relu>(strided_slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu);
+
+        model = std::make_shared<ov::Model>(ResultVector{result1, result2},
+                                            ParameterVector{param1, param2, param3, param4, add_param});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto param2 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 4});
+        auto param3 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 5});
+        auto param4 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 6});
+        auto add_param = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 3});
+        auto add = std::make_shared<op::v1::Add>(param1, add_param);
+        auto result1 = std::make_shared<op::v0::Result>(add);
+
+        auto concat = make_shared<v0::Concat>(ov::as_output_vector({param2, param3, param4}), axis);
+        auto begin_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
+        auto end_const2 = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 15});
+        auto strided_slice2 = std::make_shared<v1::StridedSlice>(concat,
+                                                                 begin_const2,
+                                                                 end_const2,
+                                                                 std::vector<int64_t>{1, 1, 0},
+                                                                 std::vector<int64_t>{1, 1, 0});
+        auto relu = std::make_shared<op::v0::Relu>(strided_slice2);
+        auto result2 = std::make_shared<op::v0::Result>(relu);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result1, result2},
+                                                ParameterVector{param1, param2, param3, param4, add_param});
+    }
+}
+
+// --- Dynamic (structural) EliminateConcatStridedSlice — Gated-Delta-Net idiom -----------------
+//
+// These exercise the dynamic branch: a rank-1 Concat (axis 0) of `Reshape(Y_i, [-1])` flattens,
+// re-split by contiguous unit-step slices that share their boundary nodes and end at INT64_MAX,
+// each consumed by a Reshape that restores the pre-flatten producer shape. The pass must rewire
+// each Reshape-back straight to Y_i. Negative cases must leave the graph unchanged.
+
+// Flattens `src` to rank 1 via Reshape(src, [-1]).
+static std::shared_ptr<ov::Node> flatten_to_1d(const ov::Output<ov::Node>& src) {
+    auto minus_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+    return std::make_shared<v1::Reshape>(src, minus_one, false);
+}
+
+// Reshapes `data` back to `like`'s (dynamic) shape via Reshape(data, ShapeOf(like)).
+static std::shared_ptr<ov::Node> reshape_to_like(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& like) {
+    auto shape = std::make_shared<ov::op::v3::ShapeOf>(like, element::i64);
+    return std::make_shared<v1::Reshape>(data, shape, false);
+}
+
+// Non-foldable element count of `src` along all dims: ReduceProd(ShapeOf(src)) -> shape [1].
+static std::shared_ptr<ov::Node> numel_of(const ov::Output<ov::Node>& src) {
+    auto shape = std::make_shared<ov::op::v3::ShapeOf>(src, element::i64);
+    auto axis = v0::Constant::create(element::i64, Shape{1}, {0});
+    return std::make_shared<v1::ReduceProd>(shape, axis, true);
+}
+
+static std::shared_ptr<ov::Node> make_unit_v8_slice(const ov::Output<ov::Node>& data,
+                                                    const ov::Output<ov::Node>& begin,
+                                                    const ov::Output<ov::Node>& end) {
+    auto step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto axes = v0::Constant::create(element::i64, Shape{1}, {0});
+    return std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnTwoInputs) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+        auto boundary = numel_of(y0);
+        auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+
+        auto slice0 = make_unit_v8_slice(concat, zero, boundary);
+        auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
+
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                       ParameterVector{y0, y1});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        model_ref = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1)},
+                                           ParameterVector{y0, y1});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnThreeInputs) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        auto y2 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
+        auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1), flatten_to_1d(y2)}, 0);
+
+        auto numel0 = numel_of(y0);
+        auto boundary1 = std::make_shared<v1::Add>(numel0, numel_of(y1));  // numel0 + numel1
+        auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+
+        auto slice0 = make_unit_v8_slice(concat, zero, numel0);
+        auto slice1 = make_unit_v8_slice(concat, numel0, boundary1);
+        auto slice2 = make_unit_v8_slice(concat, boundary1, to_end);
+
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice1, y1)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice2, y2))},
+                                       ParameterVector{y0, y1, y2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        auto y2 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
+        model_ref = make_shared<ov::Model>(
+            ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1), make_shared<v0::Result>(y2)},
+            ParameterVector{y0, y1, y2});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnStridedSlice) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+        auto boundary = numel_of(y0);
+        auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto ignored_end = v0::Constant::create(element::i64, Shape{1}, {0});
+
+        auto slice0 = std::make_shared<v1::StridedSlice>(concat,
+                                                         zero,
+                                                         boundary,
+                                                         std::vector<int64_t>{0},
+                                                         std::vector<int64_t>{0});
+        auto slice1 = std::make_shared<v1::StridedSlice>(concat,
+                                                         boundary,
+                                                         ignored_end,
+                                                         std::vector<int64_t>{0},
+                                                         std::vector<int64_t>{1});  // end_mask: to the end
+
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                       ParameterVector{y0, y1});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        model_ref = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(y0), make_shared<v0::Result>(y1)},
+                                           ParameterVector{y0, y1});
+    }
+}
+
+// Negative dynamic cases: each builds the GDN flatten/Concat/Slice/Reshape idiom with a single
+// structural violation, so the pass must leave the graph unchanged. They share an identical
+// skeleton (build graph -> model_ref = model->clone() -> register pass), so they are
+// parametrized over a model-builder lambda. (The positive dynamic tests stay TEST_F: they need
+// disable_rt_info_check()/disable_result_friendly_names_check() and distinct model_ref graphs.)
+struct DynamicNegativeParams {
+    std::function<std::shared_ptr<ov::Model>()> build;
+    const char* name;
+};
+
+class EliminateConcatStridedSliceDynamicNegative : public TransformationTestsF,
+                                                   public ::testing::WithParamInterface<DynamicNegativeParams> {};
+
+TEST_P(EliminateConcatStridedSliceDynamicNegative, NoChange) {
+    model = GetParam().build();
+    model_ref = model->clone();
+    manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    EliminateConcatStridedSliceDynamic,
+    EliminateConcatStridedSliceDynamicNegative,
+    ::testing::ValuesIn(std::vector<DynamicNegativeParams>{
+        {[] {
+             // slice1.begin is a DIFFERENT (though structurally identical) node than slice0.end —
+             // the shared-boundary identity chain must reject it.
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+             auto slice0 = make_unit_v8_slice(concat, zero, numel_of(y0));
+             auto slice1 = make_unit_v8_slice(concat, numel_of(y0), to_end);  // separate ReduceProd instance
+
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
+         },
+         "NonSharedBoundary"},
+        {[] {
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+             auto boundary = numel_of(y0);
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+             auto step2 = v0::Constant::create(element::i64, Shape{1}, {2});
+             auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+             auto axes = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto slice0 = std::make_shared<op::v8::Slice>(concat, zero, boundary, step2, axes);  // non-unit step
+             auto slice1 = std::make_shared<op::v8::Slice>(concat, boundary, to_end, one, axes);
+
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
+         },
+         "StepNot1"},
+        {[] {
+             // slice0's Reshape-back restores y1's shape, not y0's — the static-dim guard must reject.
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+             auto boundary = numel_of(y0);
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+             auto slice0 = make_unit_v8_slice(concat, zero, boundary);
+             auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
+
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y1)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
+         },
+         "ReshapeBackShapeMismatch"},
+        {[] {
+             // One Concat input is not a Reshape(.,[-1]) — G2 must reject.
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto raw1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1});  // already rank-1, not a flatten
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), raw1}, 0);
+
+             auto boundary = numel_of(y0);
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+             auto slice0 = make_unit_v8_slice(concat, zero, boundary);
+             auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
+
+             return make_shared<ov::Model>(
+                 ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)), make_shared<v0::Result>(slice1)},
+                 ParameterVector{y0, raw1});
+         },
+         "InputNotFlatten"},
+        {[] {
+             // The last slice does not reach the end (a non-foldable, non-sentinel stop) — must reject.
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+             auto boundary = numel_of(y0);
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto slice0 = make_unit_v8_slice(concat, zero, boundary);
+             auto slice1 = make_unit_v8_slice(concat, boundary, numel_of(y1));  // finite, not to-end
+
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
+         },
+         "LastNotToEnd"},
+        {[] {
+             // slice0 feeds both a Reshape-back and an extra Relu — the single-consumer guard must reject.
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+             auto boundary = numel_of(y0);
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+             auto slice0 = make_unit_v8_slice(concat, zero, boundary);
+             auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
+             auto extra = std::make_shared<op::v0::Relu>(slice0);
+
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(extra),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1))},
+                                           ParameterVector{y0, y1});
+         },
+         "SliceHasExtraConsumer"},
+        {[] {
+             // The Concat feeds a non-slice user (Relu) besides the slices — must reject.
+             auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+             auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+             auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+             auto boundary = numel_of(y0);
+             auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+             auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+             auto slice0 = make_unit_v8_slice(concat, zero, boundary);
+             auto slice1 = make_unit_v8_slice(concat, boundary, to_end);
+             auto extra = std::make_shared<op::v0::Relu>(concat);
+
+             return make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice0, y0)),
+                                                        make_shared<v0::Result>(reshape_to_like(slice1, y1)),
+                                                        make_shared<v0::Result>(extra)},
+                                           ParameterVector{y0, y1});
+         },
+         "ConcatHasExtraUser"},
+    }),
+    [](const ::testing::TestParamInfo<DynamicNegativeParams>& info) {
+        return std::string(info.param.name);
+    });
+
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceDynamicGdnReversedSliceOrder) {
+    // The last-region slice is built (and wired) BEFORE the first-region slice, so the Concat's user
+    // order does not match its input order. The pass must still pair each slice with the correct
+    // pre-flatten producer via the tiling chain (proves the pre_flatten[k] pairing is order-robust).
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        auto concat = make_shared<v0::Concat>(OutputVector{flatten_to_1d(y0), flatten_to_1d(y1)}, 0);
+
+        auto boundary = numel_of(y0);
+        auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto to_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+
+        auto slice1 = make_unit_v8_slice(concat, boundary, to_end);  // built first: covers y1's region
+        auto slice0 = make_unit_v8_slice(concat, zero, boundary);    // built second: covers y0's region
+
+        model = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(reshape_to_like(slice1, y1)),
+                                                    make_shared<v0::Result>(reshape_to_like(slice0, y0))},
+                                       ParameterVector{y0, y1});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        auto y0 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 8});
+        auto y1 = make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 8, 8});
+        model_ref = make_shared<ov::Model>(ResultVector{make_shared<v0::Result>(y1), make_shared<v0::Result>(y0)},
+                                           ParameterVector{y0, y1});
+    }
 }
