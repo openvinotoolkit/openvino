@@ -56,6 +56,8 @@ protected:
         const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0f / std::sqrt(static_cast<float>(head_size));
+        // tradeoff between register usage and parallelism: blk=1 allows more flexible scheduling and better parallelism
+        const size_t CMFLA_KV_BLK = head_size <= 64 ? 2 : 1; 
 
         GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order)
                                << ", key_shape " << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order)
@@ -67,6 +69,7 @@ protected:
             make_jit_constant("CMFLA_NUM_KV_HEADS", num_kv_heads),
             make_jit_constant("CMFLA_HEAD_SIZE", head_size),
             make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor),
+            make_jit_constant("CMFLA_KV_BLK", CMFLA_KV_BLK),
         });
 
         return jit;
