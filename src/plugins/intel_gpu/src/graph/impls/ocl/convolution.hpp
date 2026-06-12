@@ -33,6 +33,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         static const std::vector<ov::element::Type_t> supported_activation_types = {
             data_types::f32,
             data_types::f16,
+            data_types::bf16,
             data_types::i8,
             data_types::u8
         };
