@@ -56,6 +56,8 @@ struct PagedAttentionKey {
     bool quantKeyByChannel;
     bool quantValueByChannel;
     bool isSageAttn;
+    size_t headSize;
+    size_t numKvHeads;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -69,6 +71,8 @@ size_t PagedAttentionKey::hash() const {
     seed = hash_combine(seed, quantKeyByChannel);
     seed = hash_combine(seed, quantValueByChannel);
     seed = hash_combine(seed, isSageAttn);
+    seed = hash_combine(seed, headSize);
+    seed = hash_combine(seed, numKvHeads);
 
     return seed;
 }
@@ -76,7 +80,8 @@ size_t PagedAttentionKey::hash() const {
 bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
     return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
            valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
-           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn;
+           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn &&
+           headSize == rhs.headSize && numKvHeads == rhs.numKvHeads;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -91,6 +96,16 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
     CPU_NODE_ASSERT(pa, "Only PagedAttentionExtension is supported in PagedAttention node.");
     m_write_kv_cache = pa->get_write_kv_cache();
+    // Head dimensions are always set by SDPAToPagedAttention transformation (it asserts they
+    // are static). They are used as part of the executor cache key so that layers with different
+    // head_size (e.g. Gemma4 mixes 256 and 512) get separate executors with correctly-sized
+    // BRGEMM kernels. Shapes cannot be used here because cache inputs are fully dynamic at
+    // createPrimitive time.
+    const auto& rt = op->get_rt_info();
+    if (rt.count("k_head_size"))
+        m_head_size = rt.at("k_head_size").as<size_t>();
+    if (rt.count("num_k_heads"))
+        m_num_kv_heads = rt.at("num_k_heads").as<size_t>();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -272,7 +287,9 @@ void PagedAttention::createPrimitive() {
                              vCachePrecision,
                              quantKeybyChannel,
                              quantValuebyChannel,
-                             cpuConfig.enableSageAttn};
+                             cpuConfig.enableSageAttn,
+                             m_head_size,
+                             m_num_kv_heads};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
