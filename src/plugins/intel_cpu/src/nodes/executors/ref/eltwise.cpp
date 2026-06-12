@@ -14,9 +14,11 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
 #include <vector>
 
 #include "cpu/primitive_attr_postops.hpp"
@@ -88,12 +90,18 @@ static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key)
         return std::make_shared<BitwiseRefExecutor<uint16_t>>(key);
     case ov::element::i32:
         return std::make_shared<BitwiseRefExecutor<int32_t>>(key);
+    case ov::element::i64:
+        if (key.eltwise_data.front().algo == Algorithm::EltwisePowerDynamic) {
+            return std::make_shared<IntegerPowerRefExecutor<int64_t>>(key);
+        }
+        break;
     case ov::element::f16:
         return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key);
     default:
-        // Use float reference executor for any other precision
-        return std::make_shared<EltwiseRefExecutor<float>>(key);
+        break;
     }
+    // Use float reference executor for any other precision
+    return std::make_shared<EltwiseRefExecutor<float>>(key);
 }
 
 EltwiseExecutorPtr createEltwiseRefExecutor(const std::vector<VectorDims>& inDims,
@@ -474,6 +482,79 @@ bool BitwiseRefExecutor<T, Enable>::isSupportedConfiguration(const EltwiseConfig
                   Algorithm::EltwiseBitwiseRightShift);
 }
 
+template <typename T>
+T integerPower(T base, T exponent) {
+    if (exponent < 0) {
+        if (base == static_cast<T>(1)) {
+            return static_cast<T>(1);
+        }
+        if (base == static_cast<T>(-1)) {
+            return (exponent % static_cast<T>(2) == 0) ? static_cast<T>(1) : static_cast<T>(-1);
+        }
+        return static_cast<T>(0);
+    }
+
+    using UnsignedT = std::make_unsigned_t<T>;
+    auto toSignedBits = [](UnsignedT value) {
+        T result;
+        static_assert(sizeof(result) == sizeof(value));
+        std::memcpy(&result, &value, sizeof(result));
+        return result;
+    };
+    const bool negativeBase = base < 0;
+    UnsignedT multiplier = negativeBase ? static_cast<UnsignedT>(0) - static_cast<UnsignedT>(base)
+                                        : static_cast<UnsignedT>(base);
+    UnsignedT result = 1;
+    T remainingExponent = exponent;
+
+    while (remainingExponent > 0) {
+        if (remainingExponent % static_cast<T>(2) != 0) {
+            result *= multiplier;
+        }
+        remainingExponent /= static_cast<T>(2);
+        if (remainingExponent > 0) {
+            multiplier *= multiplier;
+        }
+    }
+
+    if (negativeBase && exponent % static_cast<T>(2) != 0) {
+        result = static_cast<UnsignedT>(0) - result;
+    }
+    return toSignedBits(result);
+}
+
+template <typename T, typename Enable>
+IntegerPowerRefExecutor<T, Enable>::IntegerPowerRefExecutor(const EltwiseRefKey& key)
+    : EltwiseRefBaseExecutor<T>(key) {}
+
+template <typename T, typename Enable>
+void IntegerPowerRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                              const VectorDims& dims_out,
+                                              [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0;
+        size_t end = 0;
+        splitter(this->m_fullWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size(), 0);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            std::vector<T> src_f(this->m_inputNum);
+            T* dst_ptr_f = nullptr;
+            this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
+
+            switch (this->m_opData.algo) {
+            case Algorithm::EltwisePowerDynamic:
+                *dst_ptr_f = integerPower(src_f[0], src_f[1]);
+                break;
+            default:
+                OPENVINO_THROW("Unsupported operation type for Integer Power Eltwise executor: ",
+                               algToString(this->m_opData.algo));
+            }
+        }
+    });
+}
+
 // Explicit template instantiations
 template class EltwiseRefBaseExecutor<float>;
 template class EltwiseRefBaseExecutor<dnnl::impl::float16_t>;
@@ -482,6 +563,7 @@ template class EltwiseRefBaseExecutor<uint8_t>;
 template class EltwiseRefBaseExecutor<int16_t>;
 template class EltwiseRefBaseExecutor<uint16_t>;
 template class EltwiseRefBaseExecutor<int32_t>;
+template class EltwiseRefBaseExecutor<int64_t>;
 
 template class EltwiseRefExecutor<float>;
 template class EltwiseRefExecutor<dnnl::impl::float16_t>;
@@ -491,5 +573,7 @@ template class BitwiseRefExecutor<uint8_t>;
 template class BitwiseRefExecutor<int16_t>;
 template class BitwiseRefExecutor<uint16_t>;
 template class BitwiseRefExecutor<int32_t>;
+
+template class IntegerPowerRefExecutor<int64_t>;
 
 }  // namespace ov::intel_cpu
