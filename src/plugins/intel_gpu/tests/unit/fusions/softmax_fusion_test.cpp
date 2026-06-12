@@ -69,7 +69,6 @@ public:
 
 }  // namespace
 
-
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- SoftMax cases ---------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
@@ -82,6 +81,13 @@ public:
 #define CASE_SOFTMAX_FP16_2 {1, 15, 4, 5}, data_types::f16, format::bfyx, 3, data_types::f16, format::bfyx
 #define CASE_SOFTMAX_FP16_3 {1, 15, 1, 1}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
 #define CASE_SOFTMAX_FP16_4 {1, 15, 1, 2}, data_types::f16, format::bfyx, 2, data_types::f16, format::bfyx
+
+// Keep batch > 1 and use larger odd feature count to force both packed and tail
+// fused-output write loops in softmax_gpu_bf (the pre-fix bug used wrong index in tail writes).
+#define CASE_SOFTMAX_FP32_BF_FUSED_INDEXING {2, 8193, 1, 1}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
+// Runtime reproducer for stale tail write index in softmax_gpu_bf:
+// feature=7000 is large enough to trigger scalar tail handling in common dispatch configurations.
+#define CASE_SOFTMAX_FP32_BF_BUG_REPRO {1, 7000, 1, 1}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
 
 class softmax_quantize : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize, basic) {
@@ -126,13 +132,77 @@ TEST_P(softmax_activation, basic) {
     execute(p);
 }
 
+class softmax_eltwise_activation : public SoftmaxPrimitiveFusingTest {};
+TEST_P(softmax_eltwise_activation, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.25f)),
+        softmax("softmax", input_info("input"), p.dimension),
+        eltwise("scale", { input_info("softmax"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("log", input_info("scale"), activation_func::log),
+        reorder("reorder_bfyx", input_info("log"), get_output_layout(p))
+    );
+
+    tolerance = default_tolerance(p.data_type);
+    execute(p);
+}
+
+class softmax_eltwise_per_element : public SoftmaxPrimitiveFusingTest {};
+TEST_P(softmax_eltwise_per_element, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("eltwise_data", get_mem(get_input_layout(p), min_random, max_random)),
+        softmax("softmax", input_info("input"), p.dimension),
+        eltwise("sum", { input_info("softmax"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
+        reorder("reorder_bfyx", input_info("sum"), get_output_layout(p))
+    );
+
+    tolerance = default_tolerance(p.data_type);
+    execute(p);
+}
+
+class softmax_activation_bug_repro : public SoftmaxPrimitiveFusingTest {};
+TEST_P(softmax_activation_bug_repro, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        softmax("softmax", input_info("input"), p.dimension),
+        activation("log", input_info("softmax"), activation_func::log),
+        reorder("reorder_bfyx", input_info("log"), get_output_layout(p))
+    );
+
+    tolerance = default_tolerance(p.data_type);
+    execute(p);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_3, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP32_4, 2, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP16_3, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP16_4, 2, 3, "softmax_gpu_bf" }
 }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_eltwise_activation,
+    ::testing::ValuesIn(std::vector<softmax_test_params>{
+                        softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 4, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 4, "softmax_gpu_bf" }
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_eltwise_per_element,
+    ::testing::ValuesIn(std::vector<softmax_test_params>{
+                        softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3, "softmax_gpu_bf" }
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation_bug_repro,
+    ::testing::ValuesIn(std::vector<softmax_test_params>{
+                        softmax_test_params{ CASE_SOFTMAX_FP32_BF_BUG_REPRO, 2, 3, "softmax_gpu_bf" }
+}));
+
 
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize_fusing_through, reshape) {
