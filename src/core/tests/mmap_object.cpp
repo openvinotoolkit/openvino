@@ -15,10 +15,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#ifdef __linux__
-#    include <fcntl.h>     // O_RDONLY, O_WRONLY, O_DIRECT
-#    include <sys/mman.h>  // mincore
-#endif
 namespace ov::test {
 TEST(MappedMemory, get_id_unique_per_file) {
     // Create two temporary files
@@ -481,28 +477,12 @@ TEST(MappedMemory, hint_prefetch_with_both_offsets) {
 }
 
 #ifdef __linux__
-// Returns the number of pages in [data, data+size) that are resident in the page cache.
-// Uses mincore(2). Returns 0 if mincore fails (region not mapped or other error).
-static size_t count_resident_pages(const void* data, size_t size) {
-    if (!data || size == 0)
-        return 0;
-    const size_t page = static_cast<size_t>(util::get_system_page_size());
-    const auto base_addr = reinterpret_cast<uintptr_t>(data);
-    const auto aligned = (base_addr / page) * page;
-    const auto gap = base_addr - aligned;
-    const size_t aligned_size = size + gap;
-    const size_t num_pages = (aligned_size + page - 1) / page;
-    std::vector<unsigned char> vec(num_pages, 0);
-    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, vec.data()) != 0)
-        return 0;
-    return static_cast<size_t>(std::count_if(vec.begin(), vec.end(), [](unsigned char v) {
-        return (v & 1) != 0;
-    }));
-}
-
 // Investigates whether calling hint_prefetch(offset, size) and POSIX_FADV_SEQUENTIAL
 // on a subregion of an already-cached file evicts pages *outside* that region
 TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
+#    ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not imeplemented on this platform yet";
+#    endif
     constexpr size_t file_size_mb = 128;
     constexpr size_t file_size = file_size_mb * 1024 * 1024;
 
@@ -531,12 +511,12 @@ TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
     for (size_t i = 0; i < prefix_size; i += page) {
         sink += mapped->data()[i];
     }
-    const size_t pages_before = count_resident_pages(mapped->data(), prefix_size);
+    const size_t pages_before = utils::count_resident_pages(mapped->data(), prefix_size);
     ASSERT_EQ(pages_before, total_prefix_pages)
         << "Expected all " << total_prefix_pages << " prefix pages resident after warmup, but found " << pages_before;
 
     mapped->hint_prefetch(prefetch_offset, prefetch_size);
-    const size_t pages_after = count_resident_pages(mapped->data(), prefix_size);
+    const size_t pages_after = utils::count_resident_pages(mapped->data(), prefix_size);
 
     EXPECT_EQ(pages_after, pages_before)
         << "hint_prefetch evicted " << (pages_before - pages_after) << " pages (~"
@@ -546,13 +526,13 @@ TEST(MappedMemory, hint_prefetch_sequential_eviction_check) {
     // hint_prefetch issues POSIX_FADV_WILLNEED, which is a non-blocking kernel hint: the kernel schedules
     // read-ahead but does not guarantee pages are resident by the time the call returns.
     // Check that at least some pages were loaded into the target region.
-    const size_t target_pages = count_resident_pages(mapped->data() + prefetch_offset, prefetch_size);
+    const size_t target_pages = utils::count_resident_pages(mapped->data() + prefetch_offset, prefetch_size);
     const size_t total_target_pages = prefetch_size / page;
     EXPECT_GT(target_pages, 0u) << "hint_prefetch loaded 0 / " << total_target_pages << " pages into target region ["
                                 << prefetch_offset_mb << " MB, " << (prefetch_offset_mb + prefetch_size_mb) << " MB).";
 
     std::filesystem::remove(file_path);
 }
-#endif  // __linux__
+#endif
 
 }  // namespace ov::test
