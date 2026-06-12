@@ -292,6 +292,9 @@ struct onednn_sdpa_test_params {
     int sequence_length_kv;
     int head_size;
     std::optional<float> scale_val;
+    bool use_runtime_scale = false;
+    bool use_runtime_mask = false;
+    bool dynamic = false;
 };
 
 struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_params> {
@@ -311,6 +314,8 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
     network::ptr build_network(const layout& q_layout,
                                const layout& k_layout,
                                const layout& v_layout,
+                               const std::optional<layout>& mask_layout,
+                               const std::optional<layout>& scale_layout,
                                bool use_onednn,
                                const std::optional<float>& scale_val) {
         auto& engine = get_test_engine();
@@ -319,9 +324,19 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
         topo.add(input_layout("v", v_layout));
+        if (mask_layout.has_value())
+            topo.add(input_layout("mask", mask_layout.value()));
+        if (scale_layout.has_value())
+            topo.add(input_layout("scale", scale_layout.value()));
+
+        std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+        if (mask_layout.has_value())
+            inputs.emplace_back("mask");
+        if (scale_layout.has_value())
+            inputs.emplace_back("scale");
 
         auto sdpa = scaled_dot_product_attention("sdpa",
-                                                 {input_info("q"), input_info("k"), input_info("v")},
+                                                 inputs,
                                                  false,
                                                  -1,
                                                  {0, 1, 2, 3},
@@ -337,14 +352,16 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         topo.add(sdpa);
 
         auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::use_onednn(use_onednn));
         if (use_onednn) {
             config.set_property(ov::intel_gpu::optimize_data(true));
             config.set_property(ov::intel_gpu::enable_onednn_sdpa_primitive(true));
         }
         if (!use_onednn) {
+            const auto ref_kernel = mask_layout.has_value() ? "sdpa_opt" : "sdpa_ref";
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                {"sdpa", {format::type::bfyx, "sdpa_ref", impl_types::ocl}}
+                {"sdpa", {format::type::bfyx, ref_kernel, impl_types::ocl}}
             }));
         }
 
@@ -372,24 +389,59 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         const layout q_layout({p.batch, p.num_heads, p.sequence_length_q, p.head_size}, data_types::f16, format::bfyx);
         const layout k_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
         const layout v_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
+        const layout mask_layout({p.batch, p.num_heads, 1, p.sequence_length_kv}, data_types::f16, format::bfyx);
+        const layout scale_layout({1, p.num_heads, 1, 1}, data_types::f16, format::bfyx);
+
+        const layout q_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : q_layout;
+        const layout k_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : k_layout;
+        const layout v_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : v_layout;
+        const auto mask_topology_layout = p.use_runtime_mask ? std::optional<layout>(p.dynamic ? layout({-1, p.num_heads, 1, -1}, data_types::f16, format::bfyx) : mask_layout)
+                                                            : std::nullopt;
+        const auto scale_topology_layout = p.use_runtime_scale ? std::optional<layout>(p.dynamic ? layout({1, p.num_heads, 1, 1}, data_types::f16, format::bfyx) : scale_layout)
+                                                              : std::nullopt;
 
         auto q_mem = engine.allocate_memory(q_layout);
         auto k_mem = engine.allocate_memory(k_layout);
         auto v_mem = engine.allocate_memory(v_layout);
+        auto mask_mem = p.use_runtime_mask ? engine.allocate_memory(mask_layout) : memory::ptr{};
+        auto scale_mem = p.use_runtime_scale ? engine.allocate_memory(scale_layout) : memory::ptr{};
 
         fill_random(q_mem);
         fill_random(k_mem);
         fill_random(v_mem);
+        if (mask_mem)
+            fill_random(mask_mem);
+        if (scale_mem) {
+            std::vector<ov::float16> scale_data(scale_layout.count(), ov::float16(0.125f));
+            set_values(scale_mem, scale_data);
+        }
 
-        auto ref_net = build_network(q_layout, k_layout, v_layout, false, p.scale_val);
-        auto onednn_net = build_network(q_layout, k_layout, v_layout, true, p.scale_val);
+        auto onednn_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, true, p.scale_val);
         assert_onednn_sdpa_selected(onednn_net);
 
-        for (auto& net : {ref_net, onednn_net}) {
+        auto set_inputs = [&](const network::ptr& net) {
             net->set_input_data("q", q_mem);
             net->set_input_data("k", k_mem);
             net->set_input_data("v", v_mem);
+            if (mask_mem)
+                net->set_input_data("mask", mask_mem);
+            if (scale_mem)
+                net->set_input_data("scale", scale_mem);
+        };
+
+        set_inputs(onednn_net);
+
+        if (p.use_runtime_mask) {
+            auto onednn_output = onednn_net->execute().at("sdpa").get_memory();
+            mem_lock<ov::float16, mem_lock_type::read> onednn_data(onednn_output, get_test_stream());
+            for (size_t idx = 0; idx < onednn_data.size(); ++idx) {
+                ASSERT_FALSE(std::isnan(static_cast<float>(onednn_data[idx]))) << "NaN in oneDNN output at " << idx;
+            }
+            return;
         }
+
+        auto ref_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, false, p.scale_val);
+        set_inputs(ref_net);
 
         auto ref_output = ref_net->execute().at("sdpa").get_memory();
         auto onednn_output = onednn_net->execute().at("sdpa").get_memory();
@@ -426,11 +478,20 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         } else {
             result += "_default_scale";
         }
+        if (info.param.use_runtime_scale) {
+            result += "_runtime_scale";
+        }
+        if (info.param.use_runtime_mask) {
+            result += "_runtime_mask";
+        }
+        if (info.param.dynamic) {
+            result += "_dynamic";
+        }
         return result;
     }
 };
 
-TEST_P(onednn_sdpa_gpu_test, selects_onednn_and_matches_ocl_ref) {
+TEST_P(onednn_sdpa_gpu_test, selects_onednn_and_validates_output) {
     execute();
 }
 
@@ -439,7 +500,10 @@ INSTANTIATE_TEST_SUITE_P(
     onednn_sdpa_gpu_test,
     ::testing::Values(
         onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt},
-        onednn_sdpa_test_params{1, 2, 4, 6, 32, 0.125f}
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, 0.125f},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, true, false},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, true, true},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, true, true, true}
     ),
     onednn_sdpa_gpu_test::PrintToStringParamName);
 #endif
