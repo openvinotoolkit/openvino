@@ -5,7 +5,7 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 ## How to build with Level Zero support
 
 1. Configure cmake with the following additional option:
-    - `-DGPU_RT_TYPE=L0`
+    - `-DGPU_RT_TYPE=ZE`
 2. Build OpenVINO
     - `cmake --build . --config Release`
 
@@ -15,7 +15,7 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 1. Set `OV_VERBOSE=1` environment variable.
 2. Run workload
 3. Find what variant of stream is reported in the logs (`ze_stream` or `ocl_stream`)
-    - Example output for Level Zero runtime: `ze_stream: [GPU] Created L0 stream`
+    - Example output for Level Zero runtime: `ze_stream: [GPU] Created Level Zero stream`
 ### Without DEBUG_CAPS
 * You can check by which library is loaded.
   * In Linux, use strace to check which so is loaded

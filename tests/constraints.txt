@@ -20,8 +20,8 @@ pytest>=5.0,<9.1
 pytest-dependency==0.6.1
 pytest-html==4.2.0
 pytest-timeout==2.4.0
-kornia==0.8.2
+kornia==0.8.3
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch~=2.8.0
-torchvision~=0.23.0
+torch~=2.12.0
+torchvision~=0.27.0
