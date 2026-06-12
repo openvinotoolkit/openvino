@@ -15,7 +15,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
@@ -60,11 +60,11 @@ MarkFloatingPointRange::MarkFloatingPointRange() {
         auto range = ov::as_type_ptr<v4::Range>(node);
         if (range && range->get_output_type().is_real()) {
             mark_range_path(node);
-            ov::disable_fp16_compression(node);
+            ov::disable_conversion(node, element::f16);
 
             // mark inputs as well
             for (const auto& range_input : range->input_values()) {
-                ov::disable_fp16_compression(range_input.get_node_shared_ptr());
+                ov::disable_conversion(range_input.get_node_shared_ptr(), element::f16);
             }
             is_changed = true;
         } else {
@@ -73,7 +73,7 @@ MarkFloatingPointRange::MarkFloatingPointRange() {
 
                 if (is_range_path(input_node)) {
                     mark_range_path(node);
-                    ov::disable_fp16_compression(node);
+                    ov::disable_conversion(node, element::f16);
                     is_changed = true;
                     break;
                 }

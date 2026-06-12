@@ -56,7 +56,7 @@ file(GLOB_RECURSE SOURCES_WITH_ZE_RT
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze/*.cpp"
   )
 
-if (NOT GPU_RT_TYPE STREQUAL "L0")
+if (NOT GPU_RT_TYPE STREQUAL "ZE")
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_ZE_RT)
         list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
