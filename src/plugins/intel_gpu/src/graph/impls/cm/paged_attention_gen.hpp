@@ -199,14 +199,14 @@ public:
         return 16;  // For Xe2+
     }
 
-    // head_size==256 partitions head_size across 4 workers per team (4 teams *
-    // 4 workers = 16 lanes per WG). Each team handles one q_step-sized q-slice,
+    // head_size==256 partitions head_size across 2 workers per team (8 teams *
+    // 2 workers = 16 lanes per WG). Each team handles one q_step-sized q-slice,
     // so wg_seq_len = num_team * q_step. For head_size!=256, num_team=wg_size and
     // num_worker=1, which is equivalent to wg_size * q_step.
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->k_head_size == 256) {
-            constexpr size_t num_team = 4;
+            constexpr size_t num_team = 8;
             return num_team * get_q_step(params);
         }
         return _wg_size * get_q_step(params);

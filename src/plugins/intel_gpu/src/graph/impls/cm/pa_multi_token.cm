@@ -188,7 +188,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     int q_start_local;
     if constexpr (head_size == 256) {
-        constexpr int num_worker = 4;
+        constexpr int num_worker = 2;
         int team_id = wg_local_id / num_worker;
         q_start_local = (block_start_pos - subseq_q_begin) + team_id * q_step;
     } else {
