@@ -30,21 +30,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& n_dims_rank = n_dims.rank();
     const auto& key = input_shapes[1];
     const auto& key_rank = key.rank();
-
-    bool skip_broadcast_merge = false;
-    if ((n_dims_rank.is_static() && key_rank.is_static()) && (n_dims_rank.get_length() == key_rank.get_length())) {
-        const ov::Dimension q_num_head =
-            (n_dims_rank.is_static() && n_dims_rank.get_length() >= 3) ? *(n_dims.end() - 3) : ov::Dimension(1);
-        const ov::Dimension k_num_head =
-            (key_rank.is_static() && key_rank.get_length() >= 3) ? *(key.end() - 3) : ov::Dimension(1);
-
-        if (q_num_head.is_static() && k_num_head.is_static() && k_num_head != q_num_head) {
-            auto kv_num_heads_factor = q_num_head.get_length() / k_num_head.get_length();
-            if (kv_num_heads_factor > 1)
-                skip_broadcast_merge = true;
-        }
-    }
-
+    bool gqa_mode = false;
     if (n_dims_rank.is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
@@ -57,17 +43,18 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
 
     bool key_input_correctness = true;
     if (key_rank.is_static()) {
-        if (skip_broadcast_merge) {
-            key_input_correctness = key_rank.get_length() >= 3 && DimType::merge(e_dim, e_dim, *(key.end() - 1));
-        } else {
-            key_input_correctness =
-                key_rank.get_length() >= 3 &&
-                TRShape::broadcast_merge_into(n_dims,
-                                              TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
-                                              AutoBroadcastType::NUMPY) &&
-                DimType::merge(e_dim, e_dim, *(key.end() - 1));
+        if (n_dims.rank().get_length() >= 3 && key_rank.get_length() >= 3) {
+            const ov::Dimension q_num_head = *(n_dims.end() - 1);
+            const ov::Dimension k_num_head = *(key.end() - 3);
+            gqa_mode = q_num_head.get_length() % k_num_head.get_length();
         }
-
+        key_input_correctness =
+            key_rank.get_length() >= 3 &&
+            TRShape::broadcast_merge_into(n_dims,
+                                          TRShape(std::vector<DimType>(key.begin(), key.end() - 2)),
+                                          AutoBroadcastType::NUMPY) &&
+            DimType::merge(e_dim, e_dim, *(key.end() - 1)) &&
+            !gqa_mode;
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                key_input_correctness,
@@ -79,16 +66,19 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& value_rank = value.rank();
     bool value_input_correctness = true;
     if (value_rank.is_static()) {
-        if (skip_broadcast_merge) {
-            value_input_correctness = value_rank.get_length() >= 3 && DimType::merge(s_dim, s_dim, *(value.end() - 2));
-        } else {
-            value_input_correctness =
-                value_rank.get_length() >= 3 &&
-                TRShape::broadcast_merge_into(n_dims,
-                                              TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
-                                              AutoBroadcastType::NUMPY) &&
-                DimType::merge(s_dim, s_dim, *(value.end() - 2));
+        if (n_dims.rank().get_length() >= 3 && value_rank.get_length() >= 3) {
+            const ov::Dimension q_num_head = *(n_dims.end() - 1);
+            const ov::Dimension v_num_head = *(value.end() - 3);
+            gqa_mode = q_num_head.get_length() % v_num_head.get_length();
         }
+        value_input_correctness =
+            value_rank.get_length() >= 3 &&
+            TRShape::broadcast_merge_into(n_dims,
+                                          TRShape(std::vector<DimType>(value.begin(), value.end() - 2)),
+                                          AutoBroadcastType::NUMPY) &&
+            DimType::merge(s_dim, s_dim, *(value.end() - 2)) &&
+            !gqa_mode;
+
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                value_input_correctness,
