@@ -225,7 +225,7 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
     if (head_dim_for_scale > 0 && attention_mask.get_node()) {
         // 5-input SDPA: Q, K, V, mask, scale (required for embedding model pattern matching)
         auto scale_val = 1.0f / std::sqrt(static_cast<float>(head_dim_for_scale));
-        auto scale = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {scale_val});
+        auto scale = ov::opset11::Constant::create(q.get_element_type(), ov::Shape{}, {scale_val});
         scale->set_friendly_name(name + ".scale");
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, scale, false);
     } else if (attention_mask.get_node()) {
@@ -243,7 +243,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
-                                           const WeightFn& bias_fn) {
+                                           const WeightFn& bias_fn,
+                                           const LoRAInjector* lora) {
     auto attn_trans = make_attention_transpose(sdpa_output, name + "_transpose");
 
     auto reshape_shape = ov::opset11::Constant::create(ov::element::i64,
@@ -252,7 +253,7 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
     auto attn_reshaped = std::make_shared<ov::opset11::Reshape>(attn_trans, reshape_shape, true);
     attn_reshaped->set_friendly_name(name + "_reshape");
 
-    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, weight_fn, bias_fn);
+    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, weight_fn, bias_fn, lora);
 }
 
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
@@ -299,7 +300,7 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
     auto attn_output =
         make_sdpa(q_roped, k_expanded, v_expanded, prefix + attn_prefix + "attn", sdpa_mask, sdpa_scale_dim);
 
-    return make_attention_output(attn_output, hidden_size, prefix + o_proj_name, precision, weight_fn, bias_fn);
+    return make_attention_output(attn_output, hidden_size, prefix + o_proj_name, precision, weight_fn, bias_fn, lora);
 }
 
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
@@ -308,10 +309,18 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
                                            size_t layer_idx) const {
     auto kv_src = kv_input.get_node() ? kv_input : input;
     size_t kv_dim = num_kv_heads * head_dim;
-    auto q =
-        make_linear(input, hidden_size, hidden_size, prefix + attn_prefix + "q_proj", precision, weight_fn, bias_fn);
-    auto k = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "k_proj", precision, weight_fn, bias_fn);
-    auto v = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "v_proj", precision, weight_fn, bias_fn);
+    auto q = make_linear(input,
+                         hidden_size,
+                         hidden_size,
+                         prefix + attn_prefix + "q_proj",
+                         precision,
+                         weight_fn,
+                         bias_fn,
+                         lora);
+    auto k =
+        make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "k_proj", precision, weight_fn, bias_fn, lora);
+    auto v =
+        make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "v_proj", precision, weight_fn, bias_fn, lora);
     return (*this)(q, k, v, prefix, layer_idx);
 }
 
