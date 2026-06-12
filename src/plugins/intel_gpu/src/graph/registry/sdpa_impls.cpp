@@ -23,6 +23,7 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<scaled_dot_product_attention>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::SDPAImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::SDPAImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::SDPAOpt, shape_types::any)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::SDPARef, shape_types::any)
     };
