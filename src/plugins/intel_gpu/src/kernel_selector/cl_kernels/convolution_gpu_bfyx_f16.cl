@@ -308,8 +308,15 @@ KERNEL(convolution_bfyx_f16)(
 #if GROUPED
                     if (groups_per_sub_group > 1) {
                             uint correct_lane = sglid % FILTER_OFM_NUM;
-                          wei0 = _sub_group_shuffle(wei0, correct_lane);
-                          wei1 = _sub_group_shuffle(wei1, correct_lane);
+                            #if FILTER_TYPE_SIZE == 2
+                               short8 w0 = intel_sub_group_shuffle(as_short8(wei0), correct_lane);
+                               short8 w1 = intel_sub_group_shuffle(as_short8(wei1), correct_lane);
+                               wei0 = AS_FILTER_TYPE8(w0);
+                               wei1 = AS_FILTER_TYPE8(w1);
+                            #else
+                               wei0 = _sub_group_shuffle(wei0, correct_lane);
+                               wei1 = _sub_group_shuffle(wei1, correct_lane);
+                            #endif
 
                             // Zero weights for lanes not in this group
                             if (g != my_group) {
