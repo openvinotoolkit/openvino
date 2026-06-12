@@ -22,21 +22,34 @@ file(GLOB LIBRARY_SOURCES_ZE
     "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/ze/compute_runtime/*.h"
 )
-file(GLOB_RECURSE SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.cpp")
 
-if(NOT OV_COMPILER_IS_INTEL_LLVM)
-    list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${SYCL_SOURCES})
+file(GLOB LIBRARY_SOURCES_SYCL
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
+)
+
+file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
+
+if(NOT OV_GPU_WITH_SYCL)
+    list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${OCL_SYCL_SOURCES})
 endif()
 
 set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
 
 if(GPU_RT_TYPE STREQUAL "OCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+    set(SYCL_SOURCES ${OCL_SYCL_SOURCES})
 endif()
 
-if(GPU_RT_TYPE STREQUAL "L0")
+if(GPU_RT_TYPE STREQUAL "ZE")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
+endif()
+
+if(GPU_RT_TYPE STREQUAL "SYCL")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
+    set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
 endif()
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
@@ -60,7 +73,7 @@ target_compile_options(${TARGET_NAME} PRIVATE
     >
   >)
 
-if(OV_COMPILER_IS_INTEL_LLVM)
+if(OV_GPU_WITH_SYCL)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
 endif()
@@ -72,7 +85,7 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
-# Requires OpenCL even for L0 builds because of kernel builder and OneDNN
+# Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL::OpenCL
     openvino::itt
