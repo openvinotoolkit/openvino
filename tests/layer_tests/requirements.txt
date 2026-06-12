@@ -15,6 +15,6 @@ pillow
 pytest
 defusedxml
 # Tensorflow depends on Keras without version constraint, Keras update to 3.14.0 caused Tensorflow Lite Layer Tests failure
-keras<=3.13.2
+keras<=3.14.0
 tensorflow
 tensorflow-addons; python_version <= '3.10'
