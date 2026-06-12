@@ -167,3 +167,52 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
             freeze_model=False,
             fx_kind="aten.fake_quantize_per_channel_affine"
         )
+
+
+class TestFakeQuantizeLearnablePerChannelAffine(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(3, 2, 2),)
+
+    def create_model(self, scale, zero_point, axis, quant_min, quant_max):
+        class fake_quantize_learnable_per_channel_affine(torch.nn.Module):
+            def __init__(self, scale, zero_point, axis, quant_min, quant_max):
+                super().__init__()
+                self.scale = scale
+                self.zero_point = zero_point
+                self.axis = axis
+                self.quant_min = quant_min
+                self.quant_max = quant_max
+                self.grad_factor = 1.0 
+
+            def forward(self, x):
+                return torch._fake_quantize_learnable_per_channel_affine(
+                    x, self.scale, self.zero_point, self.axis, self.quant_min, self.quant_max, self.grad_factor
+                )
+
+        return (
+            fake_quantize_learnable_per_channel_affine(scale, zero_point, axis, quant_min, quant_max),
+            "aten::_fake_quantize_learnable_per_channel_affine",
+        )
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize(
+        "scale, zero_point, axis, quant_min, quant_max",
+        [
+            (torch.tensor([0.005, 0.7]), torch.zeros(2), 1, 0, 255),
+            (torch.tensor([1.5, -0.7, -0.1]), torch.tensor([1, 0, -1], dtype=torch.int32), 0, -128, 127),
+        ],
+    )
+    def test_fake_quantize_learnable_per_channel_affine(
+        self, ie_device, precision, ir_version, scale, zero_point, axis, quant_min, quant_max
+    ):
+        self._test(
+            *self.create_model(scale, zero_point, axis, quant_min, quant_max),
+            ie_device,
+            precision,
+            ir_version,
+            freeze_model=False,
+            fx_kind="aten::_fake_quantize_learnable_per_channel_affine"
+        )
