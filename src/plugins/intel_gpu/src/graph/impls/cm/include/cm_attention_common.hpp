@@ -302,7 +302,11 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
 
     // Pt = torch.exp(St - new_max)
     constexpr float log2e = 1.4426950408889634f;
+#ifdef ABLATE_NO_EXP
+    for(int r = 0; r < St.n_rows(); r++) St[r] = (St[r] - new_max_t)*log2e;
+#else
     for(int r = 0; r < St.n_rows(); r++) St[r] = cm_exp((St[r] - new_max_t)*log2e);
+#endif
 
     vector<float, cols> row_sum_t;
     row_sum_t = cm_add<float>(St[0], St[1]);
