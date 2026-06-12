@@ -1376,6 +1376,10 @@ public:
             return false;
         }
 
+        if (desc->has_token_type_ids) {
+            return false;
+        }
+
         if (desc->has_scores_output() || desc->has_score_aggregation) {
             return false;
         }
