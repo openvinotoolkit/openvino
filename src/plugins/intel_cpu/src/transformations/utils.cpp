@@ -20,6 +20,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -28,6 +29,7 @@
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
@@ -53,14 +55,22 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
     auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
     auto convMulAdd_mul = wrap_type<ov::op::v1::Multiply>({convMulAdd_conv, any_input()});
     auto convMulAdd_add = wrap_type<ov::op::v1::Add>({convMulAdd_mul, any_input()});
-    auto convMulAdd_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({convMulAdd_add, any_input(), any_input(), any_input(), any_input()});
+    auto convMulAdd_optional_clamp = optional<ov::op::v0::Clamp>({convMulAdd_add});
+    auto convMulAdd_fq = wrap_type<ov::op::v0::FakeQuantize>({convMulAdd_optional_clamp,
+                                                               any_input(),
+                                                               any_input(),
+                                                               any_input(),
+                                                               any_input()});
     Matcher convMulAdd_matcher(convMulAdd_fq);
     auto convAddMul_conv = wrap_type<ov::op::v1::Convolution>();
     auto convAddMul_add = wrap_type<ov::op::v1::Add>({convAddMul_conv, any_input()});
     auto convAddMul_mul = wrap_type<ov::op::v1::Multiply>({convAddMul_add, any_input()});
-    auto convAddMul_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_mul, any_input(), any_input(), any_input(), any_input()});
+    auto convAddMul_optional_clamp = optional<ov::op::v0::Clamp>({convAddMul_mul});
+    auto convAddMul_fq = wrap_type<ov::op::v0::FakeQuantize>({convAddMul_optional_clamp,
+                                                               any_input(),
+                                                               any_input(),
+                                                               any_input(),
+                                                               any_input()});
     Matcher convAddMul_matcher(convAddMul_fq);
     auto matcher = (pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_matcher : convAddMul_matcher;
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
@@ -74,7 +84,12 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
 
 bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
     auto conv = wrap_type<ov::op::v1::Convolution>();
-    auto fq = wrap_type<ov::op::v0::FakeQuantize>({conv, any_input(), any_input(), any_input(), any_input()});
+    auto optional_clamp = optional<ov::op::v0::Clamp>({conv});
+    auto fq = wrap_type<ov::op::v0::FakeQuantize>({optional_clamp,
+                                                   any_input(),
+                                                   any_input(),
+                                                   any_input(),
+                                                   any_input()});
     Matcher matcher(fq);
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
         return false;

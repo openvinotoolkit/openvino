@@ -11,6 +11,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -79,7 +80,8 @@ static std::shared_ptr<ov::op::v0::FakeQuantize> createFakeQuantize(const ov::Ou
 static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
                                                   ov::element::Type weights_type,
                                                   ov::element::Type bias_type,
-                                                  bool keep_fq_output_precision = false) {
+                                                  bool keep_fq_output_precision = false,
+                                                  bool add_clamp = false) {
     std::shared_ptr<ov::op::v0::Parameter> input;
     auto conv = createConvolution(input_type, weights_type, input);
 
@@ -89,7 +91,12 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
     auto bias = ov::op::v0::Constant::create(bias_type, {1, 16, 1, 1}, {1.5f});
     auto add = createAdd(multiply, bias);
 
-    auto fq = createFakeQuantize(add, input_type, 256);
+    std::shared_ptr<ov::Node> fq_input = add;
+    if (add_clamp) {
+        fq_input = std::make_shared<ov::op::v0::Clamp>(add, 0.0f, 6.0f);
+    }
+
+    auto fq = createFakeQuantize(fq_input, input_type, 256);
     fq->set_output_type(0, keep_fq_output_precision ? ov::element::f32 : input_type, fq->get_output_shape(0));
 
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
@@ -98,7 +105,8 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
 // Pattern: Input -> Convolution -> Add(Round(bias)->Convert(i32)) -> Multiply -> FQ -> Result
 static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
                                                  ov::element::Type weights_type,
-                                                 ov::element::Type bias_type) {
+                                                 ov::element::Type bias_type,
+                                                 bool add_clamp = false) {
     std::shared_ptr<ov::op::v0::Parameter> input;
     auto conv = createConvolution(input_type, weights_type, input);
 
@@ -112,7 +120,12 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
     ov::mark_as_dequantization_node(multiply);
 
-    auto fq = createFakeQuantize(multiply, input_type, 256);
+    std::shared_ptr<ov::Node> fq_input = multiply;
+    if (add_clamp) {
+        fq_input = std::make_shared<ov::op::v0::Clamp>(multiply, 0.0f, 6.0f);
+    }
+
+    auto fq = createFakeQuantize(fq_input, input_type, 256);
 
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }
@@ -136,6 +149,13 @@ TEST_F(TransformationTestsF, ConvertConvolutionBias_I8Input_I8Weights_Applied) {
     model = createInitGraph(ov::element::i8, ov::element::i8, ov::element::f32);
     manager.register_pass<ConvertConvolutionBias>();
     model_ref = createRefGraph(ov::element::i8, ov::element::i8, ov::element::f32);
+}
+
+// u8 input, i8 weights, f32 bias, Clamp before FQ -> transformation should be applied
+TEST_F(TransformationTestsF, ConvertConvolutionBias_U8Input_I8Weights_ClampBeforeFQ_Applied) {
+    model = createInitGraph(ov::element::u8, ov::element::i8, ov::element::f32, false, true);
+    manager.register_pass<ConvertConvolutionBias>();
+    model_ref = createRefGraph(ov::element::u8, ov::element::i8, ov::element::f32, true);
 }
 
 // bias already i32 -> transformation should NOT be applied

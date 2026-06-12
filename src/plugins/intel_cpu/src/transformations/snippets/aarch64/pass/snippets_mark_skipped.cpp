@@ -281,7 +281,13 @@ bool isACLInt8ConvFQChainMarked(const std::shared_ptr<Node>& node) {
     }
     snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
 
-    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(node->get_input_node_shared_ptr(0));
+    auto fq_parent = node->get_input_node_shared_ptr(0);
+    if (const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(fq_parent); clamp) {
+        snippets::pass::SetSnippetsNodeType(clamp, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        fq_parent = clamp->get_input_node_shared_ptr(0);
+    }
+
+    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(fq_parent);
     if (!mul) {
         return true;
     }
