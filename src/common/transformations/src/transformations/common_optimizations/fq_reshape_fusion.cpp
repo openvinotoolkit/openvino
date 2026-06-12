@@ -26,8 +26,7 @@ namespace v1 = ov::op::v1;
 
 FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
-    // for weights only
-    const auto data_p = pattern::wrap_type<v0::Constant>(pattern::has_static_shape());
+    const auto data_p = pattern::any_input(pattern::has_static_shape());
     const auto convert_p = pattern::optional<v0::Convert>(data_p, pattern::consumers_count(1));
     const auto fq_node_p = pattern::wrap_type<v0::FakeQuantize>({convert_p,
                                                                  pattern::any_input(pattern::has_static_shape()),
@@ -90,7 +89,7 @@ FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         }
 
         auto reshaped_input =
-            reshape_node->clone_with_new_inputs({pattern_map.at(data_p), reshape_node->input_value(1)});
+            reshape_node->clone_with_new_inputs({fq_node->input_value(0), reshape_node->input_value(1)});
         if (auto constant = ov::util::get_constant_from_source(reshaped_input)) {
             reshaped_input = constant;
         }
