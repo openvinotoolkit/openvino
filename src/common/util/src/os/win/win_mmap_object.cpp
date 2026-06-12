@@ -363,8 +363,8 @@ private:
     size_t m_aligned_offset{};     //!< gran-aligned file offset of placeholder base
     char* m_view_base{};  //!< base VA of the placeholder reservation (placeholder path) or MapViewOfFile base (legacy
                           //!< path); nullptr when unmapped
-    size_t m_total_va_size{};      //!< total VA reservation size in bytes
-    size_t m_file_mapped_size{};   //!< bytes of VA backed by the file section (≤ m_total_va_size; tail is anonymous)
+    size_t m_total_va_size{};     //!< total VA reservation size in bytes
+    size_t m_file_mapped_size{};  //!< bytes of VA backed by the file section (≤ m_total_va_size; tail is anonymous)
 
     /**
      * @brief Guards VirtualQuery/Unmap/Map sequences in hint_evict, try_remap_slot, and the destructor.
@@ -469,10 +469,10 @@ HandleHolder MapHolder::fill_anon_tail(const PlaceholderAPI& api,
     if (tail_data_size > 0) {
         const auto off = static_cast<ULONG64>(file_tail_offset);
         const auto src = ::MapViewOfFile(m_handle.get(),
-                                          FILE_MAP_READ,
-                                          static_cast<DWORD>(off >> 32),
-                                          static_cast<DWORD>(off & 0xFFFFFFFF),
-                                          tail_data_size);
+                                         FILE_MAP_READ,
+                                         static_cast<DWORD>(off >> 32),
+                                         static_cast<DWORD>(off & 0xFFFFFFFF),
+                                         tail_data_size);
         if (!src) {
             return HandleHolder{};
         }
