@@ -79,8 +79,8 @@ void pa_lsc_u8(
 
     static_assert(head_size % num_worker == 0, "head_size must be divisible by num_worker");
 
-    int team_id = enable_head_size_partition ? (wg_local_id / num_team) : wg_local_id;
-    int worker_id = enable_head_size_partition ? (wg_local_id % num_team) : 0;
+    int team_id = enable_head_size_partition ? (wg_local_id / num_worker) : wg_local_id;
+    int worker_id = enable_head_size_partition ? (wg_local_id % num_worker) : 0;
     int worker_offset = worker_id * process_head_size;
 
     vector<float, q_step> cur_max;
@@ -751,8 +751,8 @@ void pa_kernel_lsc_prefetch_u8(
     static_assert(wg_local_size == 16, "wg_local_size must be 16");
     static_assert(head_size % num_worker == 0, "head_size must be divisible by num_worker");
 
-    int team_id = enable_head_size_partition ? (wg_local_id / num_team) : wg_local_id;
-    int worker_id = enable_head_size_partition ? (wg_local_id % num_team) : 0;
+    int team_id = enable_head_size_partition ? (wg_local_id / num_worker) : wg_local_id;
+    int worker_id = enable_head_size_partition ? (wg_local_id % num_worker) : 0;
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
@@ -1206,8 +1206,8 @@ void pa_kernel_lsc_prefetch_f16(
     static_assert(wg_local_size == 16, "wg_local_size must be 16");
     static_assert(head_size % num_worker == 0, "head_size must be divisible by num_worker");
 
-    int team_id = enable_head_size_partition ? (wg_local_id / num_team) : wg_local_id;
-    int worker_id = enable_head_size_partition ? (wg_local_id % num_team) : 0;
+    int team_id = enable_head_size_partition ? (wg_local_id / num_worker) : wg_local_id;
+    int worker_id = enable_head_size_partition ? (wg_local_id % num_worker) : 0;
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;

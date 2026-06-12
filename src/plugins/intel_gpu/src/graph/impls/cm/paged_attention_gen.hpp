@@ -199,13 +199,15 @@ public:
         return 16;  // For Xe2+
     }
 
-    // For head_size = 256, work is split across 4 cooperative workers per team,
-    // so each work-group only covers 4 query slices (4 * q_step tokens).
+    // head_size==256 partitions head_size across 4 workers per team (4 teams *
+    // 4 workers = 16 lanes per WG). Each team handles one q_step-sized q-slice,
+    // so wg_seq_len = num_team * q_step. For head_size!=256, num_team=wg_size and
+    // num_worker=1, which is equivalent to wg_size * q_step.
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->k_head_size == 256) {
-            constexpr size_t num_groups = 4;
-            return num_groups * get_q_step(params);
+            constexpr size_t num_team = 4;
+            return num_team * get_q_step(params);
         }
         return _wg_size * get_q_step(params);
     }
