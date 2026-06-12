@@ -1414,6 +1414,188 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
     }
 }
 
+// =================================================================================================
+// GGUF weight-only-quantised FullyConnected test helpers (ocl::FCGGUFOpt).
+//
+// A GGUF weight enters the graph as a Constant whose element type is one of the opaque element::gguf_*
+// block types (raw llama.cpp block bytes, shape [N, K]); scale/min/zero-point live inside each block.
+// These helpers (a) synthesise a valid raw block stream with controlled small FP16 scales so the
+// decoded magnitudes stay in a safe FP16 range, and (b) decode the same stream on the host using the
+// canonical ggml math (mirrors src/frontends/gguf/src/builders/dequantize.cpp) so the host reference
+// FullyConnected over the decoded f16 weights matches what the GPU GGUF kernel computes.
+// =================================================================================================
+namespace gguf_test_helpers {
+
+inline ov::float16 load_f16_le(const uint8_t* p) {
+    const uint16_t bits = static_cast<uint16_t>(p[0]) | static_cast<uint16_t>(static_cast<uint16_t>(p[1]) << 8);
+    return ov::float16::from_bits(bits);
+}
+
+// 6-bit packed sub-block scale/min extraction shared by Q4_K/Q5_K (canonical ggml get_scale_min_k4).
+inline void get_scale_min_k4(int j, const uint8_t* q, uint8_t& d, uint8_t& m) {
+    if (j < 4) {
+        d = q[j] & 63;
+        m = q[j + 4] & 63;
+    } else {
+        d = static_cast<uint8_t>((q[j + 4] & 0x0F) | ((q[j - 4] >> 6) << 4));
+        m = static_cast<uint8_t>((q[j + 4] >> 4) | ((q[j] >> 6) << 4));
+    }
+}
+
+// Decode a row of `K` weights from one GGUF type's raw block stream into f16. Mirrors dequantize.cpp.
+inline void decode_row(data_types type, const uint8_t* src, size_t K, ov::float16* out) {
+    switch (type) {
+    case data_types::gguf_q8_0: {
+        size_t o = 0;
+        for (size_t base = 0; base < K; base += 32, src += 34) {
+            const float d = static_cast<float>(load_f16_le(src));
+            const auto* qs = reinterpret_cast<const int8_t*>(src + 2);
+            for (size_t j = 0; j < 32; ++j)
+                out[o++] = ov::float16(qs[j] * d);
+        }
+        break;
+    }
+    case data_types::gguf_q4_0: {
+        size_t o = 0;
+        for (size_t base = 0; base < K; base += 32, src += 18) {
+            const float d = static_cast<float>(load_f16_le(src));
+            const uint8_t* qs = src + 2;
+            for (size_t j = 0; j < 16; ++j) {
+                out[o + j] = ov::float16((static_cast<int>(qs[j] & 0x0F) - 8) * d);
+                out[o + j + 16] = ov::float16((static_cast<int>(qs[j] >> 4) - 8) * d);
+            }
+            o += 32;
+        }
+        break;
+    }
+    case data_types::gguf_q4_k: {
+        size_t o = 0;
+        for (size_t base = 0; base < K; base += 256, src += 144) {
+            const float d = static_cast<float>(load_f16_le(src));
+            const float dmin = static_cast<float>(load_f16_le(src + 2));
+            const uint8_t* scales = src + 4;
+            const uint8_t* qs = src + 16;
+            int is = 0;
+            for (size_t j = 0; j < 256; j += 64) {
+                uint8_t sc = 0, m = 0;
+                get_scale_min_k4(is + 0, scales, sc, m);
+                const float d1 = d * sc, m1 = dmin * m;
+                get_scale_min_k4(is + 1, scales, sc, m);
+                const float d2 = d * sc, m2 = dmin * m;
+                for (size_t l = 0; l < 32; ++l)
+                    out[o++] = ov::float16(d1 * (qs[l] & 0x0F) - m1);
+                for (size_t l = 0; l < 32; ++l)
+                    out[o++] = ov::float16(d2 * (qs[l] >> 4) - m2);
+                qs += 32;
+                is += 2;
+            }
+        }
+        break;
+    }
+    case data_types::gguf_q5_k: {
+        size_t o = 0;
+        for (size_t base = 0; base < K; base += 256, src += 176) {
+            const float d = static_cast<float>(load_f16_le(src));
+            const float dmin = static_cast<float>(load_f16_le(src + 2));
+            const uint8_t* scales = src + 4;
+            const uint8_t* qh = src + 16;
+            const uint8_t* ql = src + 48;
+            int is = 0;
+            uint8_t u1 = 1, u2 = 2;
+            for (size_t j = 0; j < 256; j += 64) {
+                uint8_t sc = 0, m = 0;
+                get_scale_min_k4(is + 0, scales, sc, m);
+                const float d1 = d * sc, m1 = dmin * m;
+                get_scale_min_k4(is + 1, scales, sc, m);
+                const float d2 = d * sc, m2 = dmin * m;
+                for (size_t l = 0; l < 32; ++l) {
+                    const int q = (ql[l] & 0x0F) + ((qh[l] & u1) ? 16 : 0);
+                    out[o++] = ov::float16(d1 * q - m1);
+                }
+                for (size_t l = 0; l < 32; ++l) {
+                    const int q = (ql[l] >> 4) + ((qh[l] & u2) ? 16 : 0);
+                    out[o++] = ov::float16(d2 * q - m2);
+                }
+                ql += 32;
+                is += 2;
+                u1 <<= 2;
+                u2 <<= 2;
+            }
+        }
+        break;
+    }
+    case data_types::gguf_q6_k: {
+        size_t o = 0;
+        for (size_t base = 0; base < K; base += 256, src += 210) {
+            const uint8_t* ql = src;
+            const uint8_t* qh = src + 128;
+            const auto* sc = reinterpret_cast<const int8_t*>(src + 192);
+            const float d = static_cast<float>(load_f16_le(src + 208));
+            for (size_t n = 0; n < 256; n += 128) {
+                for (size_t l = 0; l < 32; ++l) {
+                    const int isc = static_cast<int>(l / 16);
+                    const int q1 = static_cast<int>((ql[l + 0] & 0x0F) | (((qh[l] >> 0) & 3) << 4)) - 32;
+                    const int q2 = static_cast<int>((ql[l + 32] & 0x0F) | (((qh[l] >> 2) & 3) << 4)) - 32;
+                    const int q3 = static_cast<int>((ql[l + 0] >> 4) | (((qh[l] >> 4) & 3) << 4)) - 32;
+                    const int q4 = static_cast<int>((ql[l + 32] >> 4) | (((qh[l] >> 6) & 3) << 4)) - 32;
+                    out[o + l + 0] = ov::float16(d * sc[isc + 0] * q1);
+                    out[o + l + 32] = ov::float16(d * sc[isc + 2] * q2);
+                    out[o + l + 64] = ov::float16(d * sc[isc + 4] * q3);
+                    out[o + l + 96] = ov::float16(d * sc[isc + 6] * q4);
+                }
+                o += 128;
+                ql += 64;
+                qh += 32;
+                sc += 8;
+            }
+        }
+        break;
+    }
+    default:
+        OPENVINO_THROW("gguf_test_helpers::decode_row: unsupported gguf type");
+    }
+}
+
+// Append one GGUF block: random payload bytes plus controlled small FP16 scale(s) so the decoded
+// weights stay in a safe FP16 range. Any bit pattern is a valid GGUF block, so only the FP16 scale
+// fields (and Q6_K's signed sub-block scales) need clamping.
+inline void gen_block(data_types type, tests::random_generator& rg, std::vector<uint8_t>& buf) {
+    const size_t block_bytes = ov::element::Type(static_cast<ov::element::Type_t>(type)).block_byte_size();
+    auto bytes = rg.generate_random_1d<uint8_t>(block_bytes, 0, 255, 1);
+    auto set_f16_at = [&](size_t off, float v) {
+        const uint16_t bits = ov::float16(v).to_bits();
+        bytes[off] = static_cast<uint8_t>(bits & 0xFF);
+        bytes[off + 1] = static_cast<uint8_t>(bits >> 8);
+    };
+    auto rand_scale = [&]() {
+        return rg.generate_random_1d<float>(1, 2, 6, 1)[0] / 1000.0f;  // 0.002 .. 0.006
+    };
+    switch (type) {
+    case data_types::gguf_q8_0:
+        set_f16_at(0, rg.generate_random_1d<float>(1, 1, 4, 1)[0] / 1000.0f);  // d, 0.001 .. 0.004
+        break;
+    case data_types::gguf_q4_0:
+        set_f16_at(0, rg.generate_random_1d<float>(1, 2, 8, 1)[0] / 1000.0f);  // d, 0.002 .. 0.008
+        break;
+    case data_types::gguf_q4_k:
+    case data_types::gguf_q5_k:
+        set_f16_at(0, rand_scale());  // d
+        set_f16_at(2, rand_scale());  // dmin
+        break;
+    case data_types::gguf_q6_k:
+        set_f16_at(208, rand_scale());  // d
+        // 16 signed sub-block scales at offset 192 — keep small to bound the decoded magnitude.
+        for (size_t i = 0; i < 16; ++i)
+            bytes[192 + i] = static_cast<uint8_t>(static_cast<int8_t>(rg.generate_random_1d<int>(1, -32, 32, 1)[0]));
+        break;
+    default:
+        OPENVINO_THROW("gguf_test_helpers::gen_block: unsupported gguf type");
+    }
+    buf.insert(buf.end(), bytes.begin(), bytes.end());
+}
+
+}  // namespace gguf_test_helpers
+
 
 class fully_connected_gpu_tests: public ::testing::Test {
 public:
@@ -4368,6 +4550,99 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                       << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
         ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
     }
+
+    // GGUF weight-only-quantised FullyConnected (ocl::FCGGUFOpt). The weight is a raw GGUF block
+    // Constant of element type `gguf_type` (scale/min/zp live inside each block), so the compressed
+    // FC's decompression-scale input is a dummy 1.0 that the GGUF kernel ignores. The reference is a
+    // plain f16 FullyConnected over the host-decoded weights, forced to fully_connected_gpu_bfyx_ref.
+    void test_gguf_fc(data_types gguf_type, long int batch_num, bool is_dynamic, bool is_caching_test) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        const long int K = 256;  // multiple of every supported GGUF (super-)block size (32 and 256)
+        const long int N = 128;
+
+        const ov::element::Type wt(static_cast<ov::element::Type_t>(gguf_type));
+        const size_t block_elem = wt.block_elem_count();
+        const size_t blocks_per_row = static_cast<size_t>(K) / block_elem;
+
+        // Build the raw GGUF weight stream [N, K] and the host-decoded f16 reference weights.
+        std::vector<uint8_t> weight_bytes;
+        weight_bytes.reserve(static_cast<size_t>(N) * blocks_per_row * wt.block_byte_size());
+        std::vector<ov::float16> weight_ref(static_cast<size_t>(N) * static_cast<size_t>(K));
+        for (long int n = 0; n < N; ++n) {
+            const size_t row_byte_begin = weight_bytes.size();
+            for (size_t b = 0; b < blocks_per_row; ++b)
+                gguf_test_helpers::gen_block(gguf_type, rg, weight_bytes);
+            gguf_test_helpers::decode_row(gguf_type,
+                                          weight_bytes.data() + row_byte_begin,
+                                          static_cast<size_t>(K),
+                                          weight_ref.data() + static_cast<size_t>(n) * static_cast<size_t>(K));
+        }
+
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * K, -1, 1);
+
+        auto input_mem = engine.allocate_memory({ {batch_num, K}, data_types::f16, format::bfyx });
+        set_values(input_mem, input_data);
+
+        auto weights_mem = engine.allocate_memory({ {N, K}, gguf_type, format::bfyx });
+        set_values<uint8_t>(weights_mem, weight_bytes);
+
+        // GGUF carries scale/min/zp inside each block; the compressed FC ctor still requires a
+        // non-empty decompression-scale input, so feed a dummy 1.0 that the GGUF kernel ignores.
+        auto scale_mem = engine.allocate_memory({ {1, 1}, data_types::f16, format::bfyx });
+        set_values<ov::float16>(scale_mem, {ov::float16(1.0f)});
+
+        // Host reference: X * W^T computed from the same decoded f16 weights the GGUF kernel reads.
+        // FP16 inputs, float accumulation (matches the kernel's accumulate-in-float behaviour).
+        std::vector<float> ref_output(static_cast<size_t>(batch_num) * static_cast<size_t>(N));
+        for (long int m = 0; m < batch_num; ++m) {
+            for (long int n = 0; n < N; ++n) {
+                float acc = 0.0f;
+                for (long int k = 0; k < K; ++k) {
+                    acc += static_cast<float>(input_data[m * K + k]) *
+                           static_cast<float>(weight_ref[static_cast<size_t>(n) * static_cast<size_t>(K) + k]);
+                }
+                ref_output[static_cast<size_t>(m) * static_cast<size_t>(N) + n] = acc;
+            }
+        }
+
+        auto in_layout = is_dynamic ? layout{ {-1, K}, data_types::f16, format::bfyx }
+                                    : layout{ {batch_num, K}, data_types::f16, format::bfyx };
+
+        topology topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), ref_output.size());
+        for (size_t i = 0; i < ref_output.size(); ++i) {
+            const float ref_v = ref_output[i];
+            const float test_v = static_cast<float>(output_ptr[i]);
+            // GGUF kernel and host reference decode the identical block stream; remaining error is
+            // pure FP16 rounding plus accumulation-order, so a small absolute + relative band suffices.
+            const float tol = 1.0f + 0.05f * std::abs(ref_v);
+            ASSERT_NEAR(ref_v, test_v, tol) << "type=" << wt.get_type_name() << " i=" << i;
+        }
+    }
 };
 
 using shared_dims = std::tuple<size_t, size_t, size_t>;
@@ -5252,6 +5527,48 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     }
 }
 #endif
+
+// ---- GGUF weight-only-quantised FullyConnected (ocl::FCGGUFOpt) ---------------------------------
+// batch_num <= 32 exercises the decode GEMV path (pure OCL kernel, no oneDNN dependency).
+TEST_F(fully_connected_gpu_tests, gguf_q8_0_decode) {
+    this->test_gguf_fc(data_types::gguf_q8_0, 1, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q4_0_decode) {
+    this->test_gguf_fc(data_types::gguf_q4_0, 1, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q4_k_decode) {
+    this->test_gguf_fc(data_types::gguf_q4_k, 1, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q5_k_decode) {
+    this->test_gguf_fc(data_types::gguf_q5_k, 1, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q6_k_decode) {
+    this->test_gguf_fc(data_types::gguf_q6_k, 1, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q5_k_decode_multi_batch) {
+    this->test_gguf_fc(data_types::gguf_q5_k, 16, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q6_k_decode_multi_batch) {
+    this->test_gguf_fc(data_types::gguf_q6_k, 16, false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q5_k_decode_dynamic) {
+    this->test_gguf_fc(data_types::gguf_q5_k, 1, true, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q6_k_decode_dynamic) {
+    this->test_gguf_fc(data_types::gguf_q6_k, 1, true, false);
+}
+
+TEST_F(fully_connected_gpu_tests, gguf_q5_k_decode_cached) {
+    this->test_gguf_fc(data_types::gguf_q5_k, 1, false, true);
+}
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias) {
     this->test_compressed_scale_zp_bias(false);

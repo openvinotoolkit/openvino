@@ -28,6 +28,15 @@ void TSForwardBase::transpose_sinking(const std::string& pass_name,
         utils::TransposeInputsInfo transpose_input_info =
             utils::GetFirstTransposeInput(main_node, m_transpose_indices, m_if_transpose_sinkable);
 
+        // GGUF block constants are opaque blocks of bytes. Sinking a Transpose whose data originates
+        // from such a constant would reinterpret (and thus corrupt) the raw block layout. Stop sinking
+        // through it and mark it as no-sinking (see SPEC.md §5.2).
+        if (!transpose_input_info.isEmpty() && transpose_input_info.transpose &&
+            transpose_input_info.transpose->get_input_element_type(0).is_gguf_block()) {
+            mark_as_no_sinking_node(transpose_input_info.transpose);
+            return false;
+        }
+
         if (transformation_callback(main_node)) {
             mark_as_no_sinking_node(transpose_input_info.transpose);
             return false;

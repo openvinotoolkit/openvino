@@ -63,6 +63,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic())
             return false;
+        // GGUF weights are opaque blocks of bytes; horizontally fusing them would Concat the raw
+        // block constants along N, which both corrupts block boundaries and crashes ConstantFolding
+        // when it tries to evaluate that Concat. Never fuse GGUF-weight FCs (see SPEC.md §5.2).
+        if (fc->get_input_element_type(1).is_gguf_block())
+            return false;
         size_t user_fc_count = 0;
         int32_t nodes_with_bias = 0;
         int32_t nodes_with_zp = 0;

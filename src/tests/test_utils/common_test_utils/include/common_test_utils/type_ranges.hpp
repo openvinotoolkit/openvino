@@ -111,6 +111,10 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         CASE_C_TYPE(ov::element::Type_t::u32)
         CASE_C_TYPE(ov::element::Type_t::u64)
         break;
+    default:
+        // GGUF block types (and any other opaque types) are not range-generatable as random
+        // tensors; fall back to the default input range. They are excluded from get_known_types().
+        break;
     }
 
     return inData;

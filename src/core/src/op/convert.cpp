@@ -184,6 +184,13 @@ Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
 void Convert::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Convert_validate_and_infer_types);
 
+    // GGUF block types are opaque blocks of bytes that cannot be element-wise converted. A Convert
+    // consuming such a type would silently produce garbage; fail fast instead (see SPEC.md §1.5).
+    NODE_VALIDATION_CHECK(this,
+                          !get_input_element_type(0).is_gguf_block() && !m_destination_type.is_gguf_block(),
+                          "Convert does not support GGUF block element types. GGUF blocks are opaque; "
+                          "consume them directly with the GPU plugin instead of converting in-graph.");
+
     set_output_type(0, m_destination_type, get_input_partial_shape(0));
 }
 
