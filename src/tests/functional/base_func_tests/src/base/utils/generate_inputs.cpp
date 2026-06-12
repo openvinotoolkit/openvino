@@ -4,7 +4,9 @@
 
 #include <math.h>
 #include <algorithm>
+#include <cstdlib>
 #include <functional>
+#include <string>
 
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
@@ -46,6 +48,17 @@ namespace {
 
 using ov::test::utils::InputGenerateData;
 
+// Check if FP16 input generation is enabled via environment variable
+static inline bool use_fp16_inputs() {
+    static bool checked = false;
+    static bool use_fp16 = false;
+    if (!checked) {
+        const char* env = std::getenv("OV_CONFORMANCE_FP16_INPUTS");
+        use_fp16 = env != nullptr && std::string(env) == "1";
+        checked = true;
+    }
+    return use_fp16;
+}
 
 static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
     inGenData.range = 8;
@@ -71,6 +84,10 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
             auto ranges = it->second;
             inGenData = ranges.get_data(port, elemType);
         }
+    }
+    // Use FP16-representable inputs when enabled via OV_CONFORMANCE_FP16_INPUTS=1
+    if (use_fp16_inputs() && elemType.is_real()) {
+        return ov::test::utils::create_and_fill_tensor_fp16_representable(elemType, targetShape, inGenData);
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
