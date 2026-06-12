@@ -123,6 +123,7 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
+    m_parallel_validation = true;
     std::pair<std::string, std::string> model_pair;
     targetDevice = ov::test::utils::target_device;
     configuration = ov::test::utils::global_plugin_config;
