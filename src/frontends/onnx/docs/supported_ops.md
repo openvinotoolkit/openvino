@@ -231,7 +231,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |DequantizeBFP                                           |                        |1                               |                                |
 |com.microsoft           |DequantizeLinear                                        |1                       |1                               |                                |
 |com.microsoft           |DequantizeWithOrder                                     |                        |1                               |                                |
-|com.microsoft           |DynamicQuantizeLSTM                                     |                        |1                               |                                |
+|com.microsoft           |DynamicQuantizeLSTM                                     |1                       |1                               |Peephole input P not supported|
 |com.microsoft           |DynamicQuantizeMatMul                                   |1                       |1                               |                                |
 |com.microsoft           |DynamicTimeWarping                                      |                        |1                               |                                |
 |com.microsoft           |EPContext                                               |                        |1                               |                                |
