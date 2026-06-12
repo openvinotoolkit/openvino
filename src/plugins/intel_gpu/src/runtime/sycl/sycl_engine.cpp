@@ -193,7 +193,17 @@ memory::ptr sycl_engine::reinterpret_handle(const layout& new_layout, shared_mem
         } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
-            OPENVINO_NOT_IMPLEMENTED;
+            auto alloc_type = gpu_usm::detect_allocation_type(this, params.mem);
+            OPENVINO_ASSERT(memory_capabilities::is_usm_type(alloc_type),
+                            "[GPU] Provided USM pointer is not a valid USM allocation in the current SYCL context");
+
+            // NOTE: Unlike OCL/ZE backends, SYCL standard does not provide an API to query
+            // the actual allocation size of an external USM pointer, so we trust the layout size.
+            // The caller is responsible for ensuring the USM allocation is at least as large as layout.bytes_count().
+            auto requested_mem_size = new_layout.bytes_count();
+            sycl::UsmMemory usm_buffer(get_sycl_context(), get_sycl_device(), params.mem, requested_mem_size);
+
+            return std::make_shared<sycl::gpu_usm>(this, new_layout, usm_buffer, alloc_type, nullptr);
         } else {
             OPENVINO_THROW("[GPU] unknown shared object format or type");
         }
