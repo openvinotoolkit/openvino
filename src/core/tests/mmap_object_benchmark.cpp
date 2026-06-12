@@ -155,7 +155,6 @@ static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch(offset, size);
     const auto total_copy_size = std::min(size, mapped->size() - offset);
-    // Copy in chunks to support large regions
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
     std::vector<char> buffer(std::min(chunk_size, total_copy_size));
     volatile char sink = 0;
@@ -190,7 +189,7 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
         tf.size_mb = mb;
         tf.size_bytes = mb * 1024 * 1024;
         tf.path = generate_test_file(tf.size_bytes);
-        evict_cache(tf.path, tf.size_bytes);  // Flush dirty pages from file generation
+        evict_cache(tf.path, tf.size_bytes);
         files.push_back(tf);
     }
 
@@ -233,7 +232,6 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
         results.push_back(r);
     }
 
-    // Print latency table
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
     printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_prefetch", "no-prefault", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
@@ -241,7 +239,6 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
         printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mb, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
     }
 
-    // Print throughput table
     printf("\n--- Throughput (MB/s) ---\n");
     printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_prefetch", "no-prefault", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
