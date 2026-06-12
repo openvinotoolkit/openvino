@@ -234,11 +234,13 @@ struct gemm_persistent {
             subgroup::elemwise_cvt(matB_acc[i], matB[i]);
         }
 
+#if ENABLE_CONV_WORKAROUND
 #pragma unroll
         for (int i = 0; i < k_steps; i++) {
             subgroup::tile_store<cache_hint::uncached, cache_hint::uncached>(
                     matB_acc[i], matB_payload);
         }
+#endif
     }
 
     inline void run(matAcc_t &result) {
@@ -254,6 +256,10 @@ struct gemm_persistent {
 
         cm_fence(CM_SW_BARRIER);
 
+        static constexpr uint32_t num_block_x = tile_size_x_b / block_size_x_b;
+        static_assert(tile_size_x_b % block_size_x_b == 0,
+                "block size must divide tile size");
+
 #pragma unroll
         for (int i = 0; i < k_steps; i++) {
             part_res[i].init(0);
@@ -261,10 +267,25 @@ struct gemm_persistent {
             for (int j = 0; j < sg_k; j++) {
                 vector<float, k_size> tempA = matA_acc.reg;
                 float a = tempA[j + i * sg_k];
-                vector<float, sg_n *sg_k> tempB = matB_acc[i].reg;
-                vector<float, sg_n> tempB_simd
-                        = tempB.select<sg_n, 1>(j * sg_n);
-                part_res[i].reg += a * tempB_simd;
+
+                uint32_t block_row = j / block_size_y_b;
+                uint32_t row_in_block = j % block_size_y_b;
+
+#pragma unroll
+                for (uint32_t bx = 0; bx < num_block_x; bx++) {
+                    uint32_t reg_offset = (block_row * num_block_x + bx)
+                                    * block_size_y_b * block_size_x_b
+                            + row_in_block * block_size_x_b;
+                    uint32_t acc_offset = bx * block_size_x_b;
+
+                    vector<float, block_size_x_b> tempB_simd
+                            = matB_acc[i]
+                                      .reg.template select<block_size_x_b, 1>(
+                                              reg_offset);
+                    part_res[i].reg.template select<block_size_x_b, 1>(
+                            acc_offset)
+                            += a * tempB_simd;
+                }
             }
         }
         cm_fence(CM_SW_BARRIER);
@@ -338,12 +359,13 @@ template <typename dtype_a, typename dtype_b, typename dtype_c,
         mem_space mem_space_out, gpu_arch arch_tag>
 struct __xetla_kernel_lstm_loop {
     static_assert(directions == 1 || directions == 2);
-    static_assert(hidden_size == 128);
+    static_assert(hidden_size == 128 || hidden_size == 256);
     static_assert(hidden_size % 4 == 0);
 
-    static constexpr uint32_t SIMD = 16;
     static constexpr uint32_t num_threads = 32;
     static constexpr uint32_t gates = 4;
+    static constexpr uint32_t SIMD = hidden_size * gates / num_threads;
+    static_assert(SIMD % 16 == 0);
 
     static constexpr uint32_t wg_m = 1;
     static constexpr uint32_t wg_n = hidden_size * gates;
@@ -535,12 +557,13 @@ struct __xetla_kernel_lstm_loop {
                 gemm.run(matAcc);
 
                 figo_tile.reg = matAcc.reg + x_tile.reg;
-                if (local_id < (hidden_size * 2 / SIMD)
-                        || local_id >= (hidden_size * 3 / SIMD)) {
+                uint32_t figo_offset = local_id * SIMD;
+                if (figo_offset >= hidden_size * 2
+                        && figo_offset < hidden_size * 3) {
+                    figo_tile.reg = xetla_tanh<dtype_acc, SIMD>(figo_tile.reg);
+                } else {
                     figo_tile.reg
                             = xetla_sigmoid<dtype_acc, SIMD>(figo_tile.reg);
-                } else {
-                    figo_tile.reg = xetla_tanh<dtype_acc, SIMD>(figo_tile.reg);
                 }
                 tile_store(figo_tile, figo_tile_payload);
                 xetla_fence<memory_kind::shared_local>();

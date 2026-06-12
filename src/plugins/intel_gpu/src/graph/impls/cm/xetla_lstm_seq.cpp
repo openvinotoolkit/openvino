@@ -31,10 +31,15 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto& x_shape = params.input_layouts[0].get_shape();
+        const auto& r_shape = params.input_layouts[1].get_shape();
+        const auto num_dir = params.input_layouts[3].get_shape()[0];
 
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("INPUT_SIZE", x_shape[2]),
+            make_jit_constant("HIDDEN_SIZE", r_shape[2]),
+            make_jit_constant("DIRECTIONS", num_dir),
+            make_jit_constant("ENABLE_CONV_WORKAROUND", false),
         });
 
         return jit;
@@ -69,8 +74,9 @@ protected:
             const size_t wg_m_hh = 1;
             const size_t wg_n_hh = hidden_size * num_gates;
 
+            const size_t num_threads = 32;
             const size_t sg_m_hh = 1;
-            const size_t sg_n_hh = 16;
+            const size_t sg_n_hh = hidden_size * num_gates / num_threads;
 
             size_t matrix_m_hh = 1;
             size_t matrix_n_hh = hidden_size * num_gates;
@@ -98,10 +104,15 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = KernelGenerator::get_jit_constants(params);
         const auto& x_shape = params.input_layouts[0].get_shape();
+        const auto& r_shape = params.input_layouts[1].get_shape();
+        const auto num_dir = params.input_layouts[3].get_shape()[0];
 
         jit_constants.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("INPUT_SIZE", x_shape[2]),
+            make_jit_constant("HIDDEN_SIZE", r_shape[2]),
+            make_jit_constant("DIRECTIONS", num_dir),
+            make_jit_constant("ENABLE_CONV_WORKAROUND", false),
         });
 
         return jit_constants;
