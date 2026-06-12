@@ -34,6 +34,13 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2026/_static/downl
 ```sh
 pip install -U openvino
 ```
+### Verify Installation
+
+After installation, you can verify OpenVINO is installed correctly by running:
+
+```python
+import openvino as ov
+print(ov.__version__)
 
 Check [system requirements](https://docs.openvino.ai/2026/about-openvino/release-notes-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2026/documentation/compatibility-and-support/supported-devices.html) for detailed information.
 
