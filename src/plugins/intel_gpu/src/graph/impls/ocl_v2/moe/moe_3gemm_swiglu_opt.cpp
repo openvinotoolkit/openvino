@@ -1197,24 +1197,20 @@ public:
         }
     }
 
-    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+    void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask, size_t token_num) {
         // shape: [token_num, topk]
-        auto layout = mem->get_layout();
-        const auto& shape = layout.get_shape();
-
+        // NOTE: We must NOT rely on mem->get_layout().get_shape() here because
+        // memory pooling may have reinterpreted the buffer with a different layout
+        // between executions. Use the caller-provided token_num instead.
         int max_expert_num = static_cast<int>(config.num_expert);
         int max_topk = static_cast<int>(config.top_k);
-        int max_tokens = static_cast<int>(shape[0]);
+        int max_tokens = static_cast<int>(token_num);
 
         expert_mask.pred_flag.resize(max_expert_num, 0);
         expert_mask.batch.resize(max_expert_num, {});
         expert_mask.topk.resize(max_expert_num, {});
 
-        if (layout.data_padding) {
-            OPENVINO_THROW("get_expert_mask_from_memory not support padding");
-        }
-
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_expert_mask_from_gpu: layout=" << layout.to_short_string() << ", max_expert_num=" << max_expert_num
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_expert_mask_from_gpu: max_expert_num=" << max_expert_num
                                << ", max_topk=" << max_topk << ", max_tokens=" << max_tokens << std::endl;
         std::vector<int32_t> buf(max_topk * max_tokens);
         mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
@@ -1248,9 +1244,7 @@ public:
                             " should have ",
                             max_topk * max_tokens,
                             " tokens, but current is ",
-                            count,
-                            ". layout=",
-                            layout);
+                            count);
         }
     }
 
@@ -1360,11 +1354,10 @@ public:
             cldnn::moe_weights shell_params = instance._weights;
             auto& engine = instance.get_network().get_engine();
             const size_t topk_count = token_num * static_cast<size_t>(max_topk);
-            uint32_t* p_expert = (uint32_t*)batch_mem_ptr->buffer_ptr();
+            // Copy expert IDs from GPU to host — buffer_ptr() is only valid for
+            // usm_host allocations; topk_id may be cl_mem or usm_device.
             std::vector<uint32_t> experts_list(topk_count);
-            for (size_t i = 0; i < topk_count; i++) {
-                experts_list[i] = p_expert[i];
-            }
+            batch_mem_ptr->copy_to(stream, experts_list.data(), 0, 0, topk_count * sizeof(uint32_t), true);
             const size_t experts_index_size = topk_count * sizeof(uint32_t);
             if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < experts_index_size) {
                 auto layout_expert = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(experts_index_size)}, ov::element::i8, cldnn::format::bfyx);
@@ -1580,7 +1573,7 @@ public:
         } else {
             ret_event = events.empty() ? nullptr : events[0];
             expert_mask_cpu expert_mask_cpu;
-            get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu);
+            get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask_cpu, token_num);
 
             auto token_size = token_num;
             auto max_topk = static_cast<int>(cur_moe->_config.top_k);
@@ -2038,7 +2031,8 @@ public:
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
         expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
+        auto token_num = get_seq_len(hidden_states_layout);
+        get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask, token_num);
 
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
             if (expert_no >= expert_mask.pred_flag.size()) {
@@ -2172,7 +2166,7 @@ public:
         // ----------------------------------------------------------------
         cldnn::event::ptr ret_event = events.empty() ? nullptr : events[0];
         expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask);
+        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);
 
         // Flat list of source token indices per expert – input for prefill_gather
         std::vector<int32_t> tokens_per_expert_cpu(static_cast<size_t>(token_num) * max_topk, -1);
