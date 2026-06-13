@@ -29,14 +29,14 @@ namespace ov::intel_cpu::pass {
 
 RepackMatMulWeights::MatMulWeightsSource RepackMatMulWeights::get_weights_source(
     const std::shared_ptr<ov::Node>& matmul_node,
-    const MemoryPtr& orig_src_mem_ptr) {
+    const MemoryPtr&) {
     if (const auto& reorder =
             ov::as_type_ptr<ov::snippets::op::Reorder>(matmul_node->input_value(1).get_node_shared_ptr())) {
         const auto& port_desc = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(reorder->input(0));
         return {ov::snippets::utils::pshape_to_vdims(reorder->get_input_partial_shape(0)), port_desc->get_layout()};
     }
 
-    auto shape = orig_src_mem_ptr->getShape().getStaticDims();
+    auto shape = ov::snippets::utils::pshape_to_vdims(matmul_node->get_input_partial_shape(1));
     VectorDims layout(shape.size());
     std::iota(layout.begin(), layout.end(), 0);
     return {std::move(shape), std::move(layout)};

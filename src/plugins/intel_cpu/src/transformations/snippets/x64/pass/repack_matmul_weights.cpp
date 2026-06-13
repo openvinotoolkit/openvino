@@ -6,13 +6,17 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 

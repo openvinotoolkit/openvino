@@ -7,6 +7,8 @@
 #include <memory>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
