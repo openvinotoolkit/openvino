@@ -7,10 +7,34 @@
 #include "json_object.h"
 #include "memory_accessor.hpp"
 #include "primitive_type_base.h"
+#include "program_helpers.h"
 #include "resample_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(resample)
+
+namespace {
+
+void rebind_onednn_reuse_optimized_dst_if_needed(primitive_inst& inst) {
+    auto output = inst.output_memory_ptr();
+    if (!output)
+        return;
+
+    auto& engine = inst.get_network().get_engine();
+    for (auto* user_inst : inst.get_user_insts()) {
+        auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(user_inst->get_node());
+        if (reused_eltwmem_idx < 0)
+            continue;
+
+        if (user_inst->dependencies().at(reused_eltwmem_idx).first != &inst)
+            continue;
+
+        auto new_mem = engine.reinterpret_buffer(*output, user_inst->get_output_layout());
+        user_inst->set_output_memory(new_mem, false);
+    }
+}
+
+}  // namespace
 
 layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
@@ -219,6 +243,8 @@ resample_inst::typed_primitive_inst(network& network, resample_node const& node)
 
 void resample_inst::on_execute() {
     update_output_memory();
+    if (can_be_optimized())
+        rebind_onednn_reuse_optimized_dst_if_needed(*this);
 }
 
 void resample_inst::update_output_memory() {
