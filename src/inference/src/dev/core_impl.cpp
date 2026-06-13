@@ -1663,8 +1663,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] HeaderException exception" << std::endl;
+        cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
+    } catch (const ov::Exception& ex) {
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] ov::Exception: " << ex.what() << std::endl;
+        cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
+    } catch (const std::exception& ex) {
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] std::exception: " << ex.what() << std::endl;
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
     } catch (...) {
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] Unrecognized exception" << std::endl;
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
