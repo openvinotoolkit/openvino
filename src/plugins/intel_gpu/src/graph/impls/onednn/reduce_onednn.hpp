@@ -101,7 +101,7 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::l1:
             case reduce_mode::l2:
                 // modes have a limitation of data type
-                if (one_of(in_dt, {data_types::f16, data_types::f32}))
+                if (one_of(in_dt, {data_types::f16, data_types::bf16, data_types::f32}))
                     break;
             default:
                 return false;
