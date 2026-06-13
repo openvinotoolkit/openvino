@@ -400,7 +400,6 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
                 } catch (::sycl::exception const& err) {
                     OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
                 }
-                _host_buffer_has_device_data = true;
                 _copy_back_to_device = (type != mem_lock_type::read);
                 _mapped_ptr = _host_buffer.get();
             }
@@ -435,7 +434,6 @@ void gpu_usm::unlock(const stream& stream) {
                 _host_buffer.freeMem();
             }
             _copy_back_to_device = false;
-            _host_buffer_has_device_data = false;
         }
         _mapped_ptr = nullptr;
     }
