@@ -8,7 +8,9 @@
 
 namespace ov::intel_cpu {
 
-struct GatherMatmulAttrs {};
+struct GatherMatmulAttrs {
+    bool isCompressedOperation = false;
+};
 
 using GatherMatmulConfig = executor::Config<GatherMatmulAttrs>;
 

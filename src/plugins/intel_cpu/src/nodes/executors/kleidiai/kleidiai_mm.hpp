@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <bitset>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -31,6 +32,77 @@
 
 namespace ov::intel_cpu {
 
+// TODO: OffsetHelper is common util function. Move it to some common location
+class OffsetHelper {
+public:
+    static OffsetHelper createOffsetHelper(const MemoryPtr& mem) {
+        static const VectorDims empty_dims;
+        std::bitset<2> broadcast_mask;
+        if (nullptr == mem || mem->getDesc().empty()) {
+            return {nullptr, empty_dims, broadcast_mask, 0};
+        }
+        return createOffsetHelper(*mem);
+    }
+
+    static OffsetHelper createOffsetHelper(const IMemory& mem) {
+        std::bitset<2> broadcast_mask;
+        auto* base_ptr = static_cast<uint8_t*>(mem.getData());
+        auto desc = mem.getDescWithType<BlockedMemoryDesc>();
+        const auto& strides = desc->getStrides();
+        const auto prc = desc->getPrecision();
+        const auto& shape = desc->getShape().getStaticDims();
+        for (size_t i = 0; i < shape.size() && i < 2; i++) {
+            if (shape[i] == 1) {
+                broadcast_mask.set(i);
+            }
+        }
+        return {base_ptr, strides, broadcast_mask, prc.bitwidth()};
+    }
+
+    void* operator()(size_t i0) const {
+        if (!m_base_ptr) {
+            return nullptr;
+        }
+        if (m_broadcast_mask.test(0)) {
+            i0 = 0;
+        }
+        const size_t offset_bits = i0 * m_strides[0] * m_num_bits;
+        const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
+        return m_base_ptr + offset;
+    }
+
+    void* operator()(size_t i0, size_t i1) const {
+        if (!m_base_ptr) {
+            return nullptr;
+        }
+        if (m_broadcast_mask.test(0)) {
+            i0 = 0;
+        }
+        if (m_broadcast_mask.test(1)) {
+            i1 = 0;
+        }
+        const size_t offset_bits = i0 * m_strides[0] * m_num_bits + i1 * m_strides[1] * m_num_bits;
+        const size_t offset = div_up(offset_bits, 8);  // 8 bits in byte
+        return m_base_ptr + offset;
+    }
+
+    [[nodiscard]] void* get_base() const {
+        return m_base_ptr;
+    }
+
+private:
+    OffsetHelper(uint8_t* base_ptr, const VectorDims& strides, std::bitset<2> broadcast_mask, size_t num_bits)
+        : m_base_ptr(base_ptr),
+          m_strides(strides),
+          m_num_bits(num_bits),
+          m_broadcast_mask(broadcast_mask) {}
+
+    uint8_t* m_base_ptr = nullptr;
+    const VectorDims& m_strides;
+    size_t m_num_bits;
+    std::bitset<2> m_broadcast_mask;
+};
+
 class MatMulKleidiAIExecutor : public Executor {
 public:
     MatMulKleidiAIExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
@@ -47,6 +119,9 @@ public:
     static bool supports(const FCConfig& config);
 
     void moveMemToNumaNode(int numaNodeID) override;
+
+    void setKaiExecutorImplAsGatherMatmul();
+    void set_gather_idx(const std::vector<std::pair<int32_t, int32_t>>& idxMap);
 
 private:
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel_f32{
@@ -109,12 +184,22 @@ private:
         kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi4cxp8x8_8x8x32_neon_i8mm,
         kai_run_matmul_clamp_f32_qai8dxp4x8_qsi4cxp8x8_8x8x32_neon_i8mm};
 
+    //  IMPL_TYPE :: Default
+    //      [M, K] * [N, K] -> [M, N]
+    //  IMPL_TYPE :: GatherMatmul
+    //      takes gather_idx as argument to map the input to current expert
+    //      [B, M, K] -> gather -> [M', K] * [N', K] -> scatter -> [B, N, K]
+    enum class IMPL_TYPE : uint8_t { Default, GatherMatmul };
     DnnlScratchPadPtr scratchPad;
+    IMPL_TYPE KaiExecutorImpl = IMPL_TYPE::Default;
+    std::vector<std::pair<int32_t, int32_t>> gather_idx;
+    MemoryDescPtr m_tmpInputDesc = nullptr;
+    MemoryDescPtr m_tmpOutputDesc = nullptr;
+    size_t lhsPackedSize = 0;
     ACLFCAttrs aclfcAttrs;
     MemoryPtr biasMem;
     MemoryPtr rhsPackedMem;
     MemoryPtr lhsPackedMem;
-    MemoryCPtr packedWeights;
     size_t M = 0UL, N = 0UL, K = 0UL;
     size_t mr, nr, kr, sr;
     // F32 Kernel block size
