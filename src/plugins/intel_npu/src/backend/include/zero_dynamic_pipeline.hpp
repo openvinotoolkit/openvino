@@ -4,20 +4,23 @@
 
 #pragma once
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/dynamic_arguments.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "zero_pipeline.hpp"
 
 namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        mutable IDynamicGraph::GraphArguments _binding;
+        std::shared_ptr<DynamicArguments> _arguments;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
+        PipelinedCommandLists(size_t numCommandLists,
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                              std::shared_ptr<DynamicArguments> args) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
@@ -25,6 +28,12 @@ class DynamicPipeline final : public IPipeline {
 
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandListHandles.push_back(_commandLists[i]->handle());
+            }
+
+            if (args != nullptr) {
+                _arguments = args;
+            } else {
+                _arguments = std::make_shared<DynamicArguments>();
             }
         }
 
@@ -36,16 +45,39 @@ class DynamicPipeline final : public IPipeline {
             return _commandListHandles.data();
         }
 
-        void bind(IDynamicGraph* graph) {
-            graph->getBinding(_binding);
+        /// Allocate per-IO MemRef slots driven by the network metadata. The pipeline ctor fills
+        /// each slot's data/shape/strides via setArgumentProperties again.
+        void initArgumentsInOutParam(const NetworkMetadata& metadata, std::shared_ptr<DynamicArguments> args) {
+            _arguments->_inputs.resize(metadata.inputs.size());
+            auto& inputs = _arguments->_inputs;
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                // Use size as placeholder of stride
+                // For now, only considering the usage and subsequent comparison of dimcount, shape, and strides
+                const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
+                inputs[i]._dimsCount = static_cast<int64_t>(shape.size());
+                inputs[i]._sizes.assign(shape.begin(), shape.end());
+                inputs[i]._strides.resize(shape.size());
+                // Calc real stride
+                inputs[i].updateStride();
+            }
+
+            _arguments->_outputs.resize(metadata.outputs.size());
+            auto& outputs = _arguments->_outputs;
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
+                outputs[i]._dimsCount = static_cast<int64_t>(shape.size());
+                outputs[i]._sizes.assign(shape.begin(), shape.end());
+                outputs[i]._strides.resize(shape.size());
+                outputs[i].updateStride();
+            }
         }
 
         std::vector<ze_command_list_handle_t>& getHandles() {
             return _commandListHandles;
         }
 
-        IDynamicGraph::GraphArguments& getBinding() {
-            return _binding;
+        DynamicArguments& getArguments() {
+            return *_arguments;
         }
 
         void updateMutableCommandList(uint32_t arg_index,
@@ -53,16 +85,16 @@ class DynamicPipeline final : public IPipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             // The strides are already divided by element size
-            if (arg_index < _binding._inputs.size()) {
-                _binding._inputs[arg_index].setArg(arg_value);
-                _binding._inputs[arg_index].setSize(shapes);
-                _binding._inputs[arg_index].setStrides(strides);
+            if (arg_index < _arguments->_inputs.size()) {
+                _arguments->_inputs[arg_index].setArg(arg_value);
+                _arguments->_inputs[arg_index].setSize(shapes);
+                _arguments->_inputs[arg_index].setStrides(strides);
             } else {
-                size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
-                if (output_index < _binding._outputs.size()) {
-                    _binding._outputs[output_index].setArg(arg_value);
-                    _binding._outputs[output_index].setSize(shapes);
-                    _binding._outputs[output_index].setStrides(strides);
+                size_t output_index = static_cast<size_t>(arg_index) - _arguments->_inputs.size();
+                if (output_index < _arguments->_outputs.size()) {
+                    _arguments->_outputs[output_index].setArg(arg_value);
+                    _arguments->_outputs[output_index].setSize(shapes);
+                    _arguments->_outputs[output_index].setStrides(strides);
                 }
             }
         }
@@ -80,6 +112,7 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                    std::shared_ptr<DynamicArguments> arguments,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
@@ -97,7 +130,21 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
+    /// Run VM-runtime output shape prediction. Independent of pipeline instance state
+    /// (depends only on the graph's VM runtime handle)
+    static void predict_output_shape(const IGraph& graph,
+                                     DynamicArguments& args,
+                                     std::vector<DynamicMemRefType>& inputsMemRef,
+                                     std::vector<DynamicMemRefType>& outputsMemRef);
+
 private:
+    void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
+                            DynamicArguments& args,
+                            std::vector<ze_command_list_handle_t>& commandLists,
+                            ze_command_queue_handle_t commandQueue,
+                            ze_fence_handle_t fence,
+                            ze_event_handle_t event);
+
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 
