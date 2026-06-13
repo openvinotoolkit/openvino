@@ -121,6 +121,9 @@ struct HostFlashAttention {
     // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
 
+    // Tiled model for flash attention execution (regular tiles, no mask input)
+    std::shared_ptr<ov::Model> _tile_no_mask_model;
+
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
 
@@ -221,10 +224,14 @@ struct HostFlashAttentionInfo {
 struct HostFlashAttention {
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
+    std::shared_ptr<ov::Model> _tile_no_mask_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
 
     // Compiled tile model for NPU execution (regular tiles)
     ov::SoPtr<ov::ICompiledModel> _compiled_tile_model;
+
+    // Compiled tile model for NPU execution (regular tiles, no mask input)
+    ov::SoPtr<ov::ICompiledModel> _compiled_tile_no_mask_model;
 
     // Compiled FINAL tile model for NPU execution (with division and transpose)
     ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
@@ -247,6 +254,12 @@ struct HostFlashAttention {
     void set_compiled_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
         _compiled_tile_model = std::move(compiled_model);
         _tile_model_to_compile.reset();  // Free memory after compilation
+    }
+
+    // Set the compiled regular no-mask tile model and clear the model to compile
+    void set_compiled_tile_no_mask_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
+        _compiled_tile_no_mask_model = std::move(compiled_model);
+        _tile_no_mask_model_to_compile.reset();  // Free memory after compilation
     }
 
     // Set the compiled FINAL tile model and clear the model to compile
@@ -462,6 +475,7 @@ public:
     virtual ~Selector() = default;
     virtual void prepare(int64_t past_len) = 0;
     virtual int64_t context_length() const = 0;
+    virtual int64_t current_length() const = 0;
 
     Case this_case() const {
         return _case;
@@ -479,6 +493,9 @@ public:
     int64_t context_length() const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
+    int64_t current_length() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 };
 
 // Define execution selection based on position ids
@@ -493,6 +510,7 @@ class PositionIDs final : public Selector {
     PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t context_length() const override;
+    int64_t current_length() const override;
 
 public:
     static Selector::Ptr find(std::size_t query_size, const ov::ISyncInferRequest& rq);

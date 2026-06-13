@@ -1865,6 +1865,10 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            if (hfa->_tile_no_mask_model_to_compile) {
+                hfa->set_compiled_tile_no_mask_model(
+                    make_wrapped(hfa->_tile_no_mask_model_to_compile, "/hfa_tile_no_mask", devices));
+            }
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 
@@ -2028,6 +2032,16 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         std::string hfa_final_tile_model_dump_path =
             ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
         ov::save_model(hfa_final_tile_model, hfa_final_tile_model_dump_path);
+        LOG_INFO("Wrote " << hfa_final_tile_model_dump_path);
+
+        if (hfa->_tile_no_mask_model_to_compile) {
+            const auto& hfa_tile_no_mask_model = hfa->_tile_no_mask_model_to_compile;
+            std::string hfa_tile_no_mask_model_name = format_subgraph_name(id, funcall) + "_hfa_tile_no_mask.xml";
+            std::string hfa_tile_no_mask_model_dump_path =
+                ov::util::path_join({dump_dir, hfa_tile_no_mask_model_name}).string();
+            ov::save_model(hfa_tile_no_mask_model, hfa_tile_no_mask_model_dump_path);
+            LOG_INFO("Wrote " << hfa_tile_no_mask_model_dump_path);
+        }
     }
 }
 

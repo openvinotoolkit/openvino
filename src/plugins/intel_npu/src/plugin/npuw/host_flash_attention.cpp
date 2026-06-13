@@ -120,7 +120,8 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
 // ============================================================================
 static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
                                              const ov::element::Type& mask_dtype,
-                                             const ov::element::Type& compute_dtype) {
+                                             const ov::element::Type& compute_dtype,
+                                             bool use_mask = true) {
     HFATileF32Nodes f32_nodes;
 
     f32_nodes.past_acc_f32 = std::make_shared<ov::op::v0::Convert>(inputs.past_acc, compute_dtype);
@@ -141,12 +142,14 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
     f32_nodes.q_f32 = std::make_shared<ov::op::v0::Convert>(inputs.q, compute_dtype);
     f32_nodes.q_f32->set_friendly_name("q_f32");
 
-    // Convert mask to f32 if needed
-    if (mask_dtype == compute_dtype) {
-        f32_nodes.mask_tile_f32 = inputs.mask_tile;
-    } else {
-        f32_nodes.mask_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.mask_tile, compute_dtype);
-        f32_nodes.mask_tile_f32->set_friendly_name("mask_tile_f32");
+    if (use_mask) {
+        // Convert mask to f32 if needed
+        if (mask_dtype == compute_dtype) {
+            f32_nodes.mask_tile_f32 = inputs.mask_tile;
+        } else {
+            f32_nodes.mask_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.mask_tile, compute_dtype);
+            f32_nodes.mask_tile_f32->set_friendly_name("mask_tile_f32");
+        }
     }
 
     return f32_nodes;
@@ -160,7 +163,8 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
                                                            const std::shared_ptr<ov::Node>& k_input,
                                                            const std::shared_ptr<ov::Node>& v_input,
                                                            bool is_last_tile = false,
-                                                           bool is_first_tile = false) {
+                                                           bool is_first_tile = false,
+                                                           bool use_mask = true) {
     ov::intel_npu::op::FlashAttentionTile::Config config;
     config.is_head = is_first_tile;
     config.is_tail = is_last_tile;
@@ -185,14 +189,25 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
     auto past_sum_squeezed = std::make_shared<ov::op::v0::Squeeze>(f32_nodes.past_d_f32, squeeze);
     past_sum_squeezed->set_friendly_name("past_sum_squeezed");
 
-    auto flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
-                                                                                   k_input,
-                                                                                   v_transpose,
-                                                                                   f32_nodes.past_acc_f32,
-                                                                                   past_max_squeezed,
-                                                                                   past_sum_squeezed,
-                                                                                   f32_nodes.mask_tile_f32,
-                                                                                   config);
+    std::shared_ptr<ov::intel_npu::op::FlashAttentionTile> flash_attn_tile;
+    if (use_mask) {
+        flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(f32_nodes.q_f32,
+                                                                                  f32_nodes.k_tile_f32,
+                                                                                  v_transpose,
+                                                                                  f32_nodes.past_acc_f32,
+                                                                                  past_max_squeezed,
+                                                                                  past_sum_squeezed,
+                                                                                  f32_nodes.mask_tile_f32,
+                                                                                  config);
+    } else {
+        flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(f32_nodes.q_f32,
+                                                                                  f32_nodes.k_tile_f32,
+                                                                                  v_transpose,
+                                                                                  f32_nodes.past_acc_f32,
+                                                                                  past_max_squeezed,
+                                                                                  past_sum_squeezed,
+                                                                                  config);
+    }
     flash_attn_tile->set_friendly_name("npu_op_flash_attention_tile");
     FlashAttentionResults results;
     results.acc = flash_attn_tile->output(0);
@@ -565,11 +580,12 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         size_t kv_num_heads,
                                                         bool is_final_tile = false,
                                                         bool fused_flash_attention = false,
-                                                        const ov::element::Type& output_dtype = ov::element::f16) {
+                                                        const ov::element::Type& output_dtype = ov::element::f16,
+                                                        bool use_mask = true) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
                               << (is_final_tile ? ", output_dtype=" + output_dtype.get_type_name() : "")
-                              << ", fused_flash_attention=" << fused_flash_attention);
+                              << ", fused_flash_attention=" << fused_flash_attention << ", use_mask=" << use_mask);
 
     // Extract dimensions
     NPUW_ASSERT(q_shape.size() == 4);
@@ -587,7 +603,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
 
     // Convert all inputs to f32
-    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype);
+    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
 
     FlashAttentionResults results;
 
@@ -624,7 +640,9 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                 f32_nodes.q_f32,
                                                 f32_nodes.k_tile_f32,
                                                 f32_nodes.v_tile_f32,
-                                                is_final_tile);
+                                                is_final_tile,
+                                                false,
+                                                use_mask);
     } else {
         // Broadcast K and V tiles from kv_num_heads to num_heads
         auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
@@ -683,7 +701,10 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 
     // Create model parameters
     ov::ParameterVector model_params =
-        {inputs.past_acc, inputs.past_max, inputs.past_d, inputs.k_tile, inputs.v_tile, inputs.q, inputs.mask_tile};
+        {inputs.past_acc, inputs.past_max, inputs.past_d, inputs.k_tile, inputs.v_tile, inputs.q};
+    if (use_mask) {
+        model_params.push_back(inputs.mask_tile);
+    }
 
     // Create and return model
     return std::make_shared<ov::Model>(model_results, model_params, model_name);
@@ -1018,6 +1039,18 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
+    if (fused_flash_attention) {
+        hfa._tile_no_mask_model = create_hfa_tile_model(q_shape_static,
+                                                        dtype,
+                                                        mask_dtype,
+                                                        query_size,
+                                                        kv_num_heads,
+                                                        false,
+                                                        fused_flash_attention,
+                                                        output_dtype,
+                                                        false);
+    }
+
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;
     hfa._context_size = context_size;
@@ -1061,6 +1094,7 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Store the tile models for later compilation
     _tile_model_to_compile = func_hfa._tile_model;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
+    _tile_no_mask_model_to_compile = func_hfa._tile_no_mask_model;
 
     // Copy query size, context size, and K/V sequence dimensions from function HFA
     _sdpa_attention_info._query_size = func_hfa._query_size;
@@ -1205,6 +1239,10 @@ void PositionIDs::prepare(int64_t past_len) {
 
 int64_t PositionIDs::context_length() const {
     return _query_size + _past_length;
+}
+
+int64_t PositionIDs::current_length() const {
+    return _current_length;
 }
 
 // ============================================================================
