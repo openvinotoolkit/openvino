@@ -26,7 +26,7 @@ struct Evaluate : element::NoAction<bool> {
                              const GridSample::Attributes& attributes) {
         using namespace ov::element;
         return IF_TYPE_OF(eval_by_grid_type,
-                          OV_PP_ET_LIST(f32),
+                          OV_PP_ET_LIST(bf16, f16, f32, f64),
                           EvalByGridType,
                           grid.get_element_type(),
                           output.data<T>(),
@@ -104,7 +104,7 @@ bool GridSample::evaluate(TensorVector& outputs, const TensorVector& inputs) con
 
     using namespace ov::element;
     return IF_TYPE_OF(v9_GridSample_evaluate,
-                      OV_PP_ET_LIST(f32),
+                      OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
                       Evaluate,
                       inputs[0].get_element_type(),
                       outputs[0],
@@ -116,7 +116,38 @@ bool GridSample::evaluate(TensorVector& outputs, const TensorVector& inputs) con
 }
 
 bool GridSample::has_evaluate() const {
-    return get_input_element_type(0) == element::f32 && get_input_element_type(1) == element::f32;
+    const auto is_supported_data_type = [](const element::Type& type) {
+        switch (type) {
+        case element::boolean:
+        case element::bf16:
+        case element::f16:
+        case element::f32:
+        case element::f64:
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
+            return true;
+        default:
+            return false;
+        }
+    };
+    const auto is_supported_grid_type = [](const element::Type& type) {
+        switch (type) {
+        case element::bf16:
+        case element::f16:
+        case element::f32:
+        case element::f64:
+            return true;
+        default:
+            return false;
+        }
+    };
+    return is_supported_data_type(get_input_element_type(0)) && is_supported_grid_type(get_input_element_type(1));
 }
 }  // namespace v9
 }  // namespace op

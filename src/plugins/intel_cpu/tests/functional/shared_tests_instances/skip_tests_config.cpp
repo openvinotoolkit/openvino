@@ -82,13 +82,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)"),
             std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)"),
             std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)"),
-            // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of
-            // float values like 0.333333745.
-            // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects
-            // further type conversion.
-            // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of
-            // truncation.
-            std::regex(R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)"),
             std::regex(R"(.*smoke_static/GridSampleLayerTestCPU.CompareWithRefs/.*_TS=.*(1.7.5.3|2.6.3.10).*_interpMode=NEAREST_padMode=REFLECTION_alignCorners=False_dataPrc=(f32|i32)_gridPrc=f32_.*)"),
             std::regex(R"(.*smoke_static/GridSampleLayerTestCPU.CompareWithRefs/.*_TS=.*5.3.2.13.*_interpMode=BICUBIC_padMode=REFLECTION_alignCorners=True_dataPrc=f32_gridPrc=f32_.*)"),
             std::regex(R"(.*smoke_static/GridSampleLayerTestCPU.CompareWithRefs/.*_TS=.*2.1.6.16.*_interpMode=NEAREST_padMode=(BORDER|REFLECTION)_alignCorners=(True|False)_dataPrc=(f32|i32)_gridPrc=f32_.*)"),
