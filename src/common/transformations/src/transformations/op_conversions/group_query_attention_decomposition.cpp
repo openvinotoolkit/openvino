@@ -180,13 +180,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Make attention mask
     std::shared_ptr<ov::Node> mask;
-    if (node->get_input_size() > 10 && !is_null(node->input_value(10))) {
+    auto has_mask_input = node->get_input_size() > 10 && !is_null(node->input_value(10));
+    auto build_explict_mask = !has_mask_input && (scale != 0.0f || is_static_input);
+    if (has_mask_input) {
         auto original_mask = node->input_value(10).get_node_shared_ptr();
         // Extract mask [num_heads, curr_seqlen, concat_kv_len] from 4D mask [1, num_heads, curr_seqlen, max_kv_len]
         auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
         auto mask_squeezed = register_new_node<v0::Squeeze>(original_mask, axes_to_squeeze);
         mask = register_new_node<v8::Slice>(mask_squeezed, zero, concat_kv_len, one, two);
-    } else {
+    } else if (build_explict_mask) {
         std::shared_ptr<ov::Node> hori_range =
             register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
         hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
@@ -210,11 +212,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
 
     std::shared_ptr<ov::Node> qga_output;
-    if (scale != 0.0f) {
-        auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+    if (mask == nullptr) {
+        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, true);
     } else {
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+        if (scale != 0.0f) {
+            auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+        } else {
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+        }
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
