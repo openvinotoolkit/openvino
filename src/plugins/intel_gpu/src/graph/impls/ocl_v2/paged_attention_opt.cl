@@ -500,7 +500,11 @@ KERNEL(pa_sdpa_opt)(
 #endif
                 unroll_for(uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                     const uint slm_idx = q_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx;
-                    SOFTMAX_ACCUMULATOR_TYPE qk_new = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) - GET_VECTOR_ELEMENT(qk_max, q_idx));
+                    const SOFTMAX_ACCUMULATOR_TYPE qk_old = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]);
+                    SOFTMAX_ACCUMULATOR_TYPE qk_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                    if (qk_old != SOFTMAX_ACCUMULATOR_VAL_MIN) {
+                        qk_new = native_exp(qk_old - GET_VECTOR_ELEMENT(qk_max, q_idx));
+                    }
                     slm_qk_vals[slm_idx] = qk_new;
                     GET_VECTOR_ELEMENT(exp_sum, q_idx) += qk_new;
                 }
@@ -548,7 +552,11 @@ KERNEL(pa_sdpa_opt)(
 #endif
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                     const uint slm_idx = q_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx;
-                    SOFTMAX_ACCUMULATOR_TYPE qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) / GET_VECTOR_ELEMENT(exp_sum, q_idx);
+                    const SOFTMAX_ACCUMULATOR_TYPE exp_sum_val = GET_VECTOR_ELEMENT(exp_sum, q_idx);
+                    SOFTMAX_ACCUMULATOR_TYPE qk_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                    if (exp_sum_val > SOFTMAX_ACCUMULATOR_VAL_ZERO) {
+                        qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) / exp_sum_val;
+                    }
                     slm_qk_vals[slm_idx] = qk_new;
                 }
             }
