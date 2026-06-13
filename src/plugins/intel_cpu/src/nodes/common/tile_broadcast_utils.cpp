@@ -6,8 +6,8 @@
 
 #include <memory_desc/cpu_memory_desc_utils.h>
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
