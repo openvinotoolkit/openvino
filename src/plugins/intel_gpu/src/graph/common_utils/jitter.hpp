@@ -81,12 +81,31 @@ inline JitConstant make_jit_constant(const JitTerm& name, T value) {
 }
 
 struct JitConstants : public std::vector<JitConstant> {
+    void upsert(JitConstant constant) {
+        auto it = std::find_if(begin(), end(), [&](const JitConstant& existing) {
+            return existing.name == constant.name;
+        });
+
+        if (it != end()) {
+            OPENVINO_ASSERT(it->value == constant.value,
+                            "Conflicting JIT constant redefinition for '",
+                            constant.name,
+                            "': existing=",
+                            it->value,
+                            ", new=",
+                            constant.value);
+            return;
+        }
+
+        push_back(std::move(constant));
+    }
+
     void add(const JitConstant& constant) {
-        push_back(constant);
+        upsert(JitConstant{constant});
     }
 
     void add(JitConstant&& constant) {
-        push_back(std::move(constant));
+        upsert(std::move(constant));
     }
 
     template <typename... Args>
@@ -95,7 +114,8 @@ struct JitConstants : public std::vector<JitConstant> {
     }
 
     void add(const std::vector<JitConstant>& constants) {
-        insert(end(), constants.begin(), constants.end());
+        for (const auto& constant : constants)
+            add(constant);
     }
 
     void remove(const std::string& name) {
