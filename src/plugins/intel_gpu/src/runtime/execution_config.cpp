@@ -7,6 +7,10 @@
 
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "ov_ops/moe_compressed.hpp"
+#include "intel_gpu/op/moe_router_fused.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -223,6 +227,21 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             info.arch >= cldnn::gpu_arch::xe_lp) {
             m_use_onednn = true;
         }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // MOE and MoERouterFused uses oneDNN internally for matrix multiplications
+        // (onednn_linear wrappers in moe_3gemm_swiglu_opt.cpp), which requires:
+        //   1. use_onednn=true so create_onednn_engine() is called during program build
+        //      (see program.cpp: lo.enable_onednn_for<lstm_seq/gru_seq> path which makes
+        //       onednn_impls_optimization_attribute non-empty, triggering engine init).
+        //   2. in-order OCL command queue (finalize_impl sets this when use_onednn=true).
+        // Auto-enable this only on architectures with oneDNN support, consistent with
+        // the LSTM/GRU path above, to avoid initializing oneDNN on unsupported devices.
+        if ((ov::is_type<ov::op::internal::MOE>(op) || ov::is_type<ov::intel_gpu::op::MoERouterFused>(op)) &&
+            info.arch >= cldnn::gpu_arch::xe_lp) {
+            m_use_onednn = true;
+        }
+#endif //ENABLE_ONEDNN_FOR_GPU
 
         if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {

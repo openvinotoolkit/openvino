@@ -567,12 +567,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return false;
         }();
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
         const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
 
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
-        // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
-        // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
-        if (device_info.supports_immad && config.get_use_onednn()) {
+        // Gated on oneDNN supports platforms.
+        // Note:  device_info.arch >= cldnn::gpu_arch::xe_lp are `oneDNN supports platforms`,  register all MOE3GEMM related pass-es.
+        if (device_info.arch >= cldnn::gpu_arch::xe_lp) {
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
@@ -595,6 +596,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
+#endif // ENABLE_ONEDNN_FOR_GPU
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
