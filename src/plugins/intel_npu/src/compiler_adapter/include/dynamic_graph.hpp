@@ -20,7 +20,6 @@ class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 bool blobAllocatedByPlugin,
                  const FilteredConfig& config);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;

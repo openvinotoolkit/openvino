@@ -187,7 +187,6 @@ void DynamicGraph::initialize_engine() {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           bool blobAllocatedByPlugin,
                            const FilteredConfig& config)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),

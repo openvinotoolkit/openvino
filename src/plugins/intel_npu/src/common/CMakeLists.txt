@@ -7,7 +7,7 @@ set(TARGET_NAME "openvino_npu_common")
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${TARGET_NAME} STATIC ${SOURCES} $<TARGET_OBJECTS:openvino_npu_vm_utils>)
+add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -19,7 +19,6 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_al
         openvino::npu_logger_utils
         openvino::npu_zero_utils
-        openvino::npu_vm_runtime_api
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
