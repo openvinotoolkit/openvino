@@ -576,7 +576,9 @@ static std::shared_ptr<ov::Model> create_expected_decomposed_pattern(const ov::P
                                    !attrs.align_corners;
 
     std::shared_ptr<ov::Node> out_node;
-    if (is_f32_data && is_f32_grid && (nearest_reflection_border_bad || nearest_zeros_bad || bicubic_zeros_bad)) {
+    if (data_type.is_integral()) {
+        out_node = std::make_shared<ov::op::v9::GridSample>(data, grid, attrs);
+    } else if (is_f32_data && is_f32_grid && (nearest_reflection_border_bad || nearest_zeros_bad || bicubic_zeros_bad)) {
         // Keep original GridSample
         out_node = std::make_shared<ov::op::v9::GridSample>(data, grid, attrs);
     } else if ((!is_f32_data || !is_f32_grid) && nearest_reflection_border_bad) {

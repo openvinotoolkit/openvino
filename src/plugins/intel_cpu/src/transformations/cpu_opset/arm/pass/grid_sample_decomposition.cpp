@@ -797,6 +797,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
             return false;
         }
         const auto& attrs = grid_sample->get_attributes();
+        if (grid_sample->get_input_element_type(0).is_integral()) {
+            return false;
+        }
         const bool is_f32_data = grid_sample->get_input_element_type(0) == element::f32;
         const bool is_f32_grid = grid_sample->get_input_element_type(1) == element::f32;
 
