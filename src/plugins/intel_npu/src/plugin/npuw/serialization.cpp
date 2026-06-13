@@ -81,11 +81,13 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+    stream & var.params & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
+        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
@@ -95,7 +97,7 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
     auto& info = var._sdpa_attention_info;
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
-        info._sdpa_indices.past_key & info._sdpa_indices.past_value & info._sdpa_indices.present_key &
+        info._sdpa_indices.past_key_blocks & info._sdpa_indices.past_value_blocks & info._sdpa_indices.present_key &
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
