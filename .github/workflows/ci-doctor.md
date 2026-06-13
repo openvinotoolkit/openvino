@@ -15,10 +15,6 @@ on:
          description: "Link to a workflow to investigate (for manual testing across repositories)"
          required: false
   # workflow_run:
-  #   workflows:
-  #     - "Debian 10 ARM"
-  #   types:
-  #     - completed
 
 concurrency:
   group: gh-aw-${{ github.workflow }}

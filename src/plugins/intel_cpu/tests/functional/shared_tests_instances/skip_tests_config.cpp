@@ -279,14 +279,14 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_ConcatSDPTransposeTestWrongBeamIdx.*)"),
 
             // Disabled due to dependency on tests execution order, issue: 178036
-#if !(defined(__APPLE__) && defined(__MACH__)) && (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM))
+#if !(defined(__APPLE__) && defined(__MACH__)) && (defined(OPENVINO_ARCH_ARM64))
             std::regex(R"(.*smoke_ScaledAttn_CPU\/ScaledAttnLayerCPUTest.CompareWithRefs\/netPRC=f32_IS=\[\?.8.\?.64]_\[\?.8.\?.64]_\[\?.1.\?.\?\]_TS=\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.1.1.100\)_\(1.1.1.1\)_\(2.1.1.10\)_\(2.1.10.10\)_is_causal=0_has_attn=0_has_scale=0_trgDev=CPU_primitive=ref_any.*)"),
 #endif
 #if defined(OPENVINO_ARCH_X86)
             std::regex(R"(.*DetectionOutputLayerTest.*)"),
             // WIP: plugin cannot be loaded for some reason
             std::regex(R"(.*IEClassBasicTestP.*)"),
-#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#elif defined(OPENVINO_ARCH_ARM64)
             std::regex(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=dynamic_OutType=dynamic_trgDev=CPU.*)"),
             // Issue: 123321
             std::regex(R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=1.*relu.*direction=reverse.*)"),
@@ -313,6 +313,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)"),
             // Ticket: 168931
             std::regex(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)"),
+            // ACL f16 ReduceProd accuracy on ARM64
+            std::regex(R"(.*smoke_Reduce_OneAxis_CPU/ReduceCPULayerTest.CompareWithRefs.*type=Prod.*INFERENCE_PRECISION_HINT=f16.*)"),
             // invalid test: checks u8 precision for runtime graph, while it should be f32
             std::regex(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)"),
             // int8 specific
@@ -332,70 +334,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
-#endif
-#if defined(OPENVINO_ARCH_ARM)
-            // Issue: 144998
-            std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
-            std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),
-            // TODO: rounding errors
-            std::regex(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)"),
-            // not supported
-            std::regex(R"(.*fma.*EltwiseLayerCPUTest.*)"),
-            std::regex(R"(.*int_jit.*EltwiseLayerCPUTest.*)"),
-            std::regex(R"(.*dyn.*EltwiseChainTest.*)"),
-            std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i8.*Conversion=i8.*)"),
-            std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u8.*Conversion=i8.*)"),
-            std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i16.*Conversion=i8.*)"),
-            std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u16.*Conversion=i8.*)"),
-            std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i32.*Conversion=i8.*)"),
-            // by calc abs_threshold with expected value
-            std::regex(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.*_eltwise_op_type=Div_.*_model_type=i32_.*)"),
-            // int8 / code-generation specific
-            std::regex(R"(smoke_LPT.*)"),
-            std::regex(R"(.*smoke_RoPETest.*)"),
-            std::regex(R"(.*ActivationLayerTest.*Inference.*)"),
-            std::regex(R"(.*AddConvertToReorderTest.*smoke_TestAddReorder_CPU.*)"),
-            std::regex(R"(.*AddOutputsTest.*smoke_CheckOutputExist.*)"),
-            std::regex(R"(.*CompileModelCacheRuntimePropertiesTestBase.*CanLoadFromFileWithoutException.*)"),
-            std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*2InputSubtract_f.*)"),
-            std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*ConvPoolRelu_f.*)"),
-            std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*MatMulBias_f.*)"),
-            std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*SimpleFunctionRelu_f.*)"),
-            std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl/MatMulBias_f32_batch1_CPU)"),
-            std::regex(R"(.*CompileModelLoadFromCacheTest.*CanGetCorrectLoadedFromCacheProperty.*)"),
-            std::regex(R"(.*CompileModelLoadFromFileTestBase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)"),
-            std::regex(R"(.*CompileModelLoadFromFileTestBase.*CanLoadFromFileWithoutException.*)"),
-            std::regex(R"(.*CompileModelLoadFromMemoryTestBase.*CanLoadFromMemoryWithoutExecption.*)"),
-            std::regex(R"(.*CompileModelLoadFromMemoryTestBase.*CanLoadFromMemoryWithoutWeightsANdExecption.*)"),
-            std::regex(R"(.*CompileModelWithCacheEncryptionTest.*CanImportModelWithoutException.*)"),
-            std::regex(R"(.*ConcatMultiQuerySDPTest.*f16.*)"),
-            std::regex(R"(.*ConcatSDPTest.*f16.*)"),
-            std::regex(R"(.*FakeConvertLayerTest.*f16.*)"),
-            std::regex(R"(.*CoreThreadingTestsWithCacheEnabled.*smoke_compiled_model_cache_enabled.*)"),
-            std::regex(R"(.*CoreThreadingTestsWithIter.*smoke_CompileModel.*)"),
-            std::regex(R"(.*CustomOpConvertI64CPUTest.*CompareWithRefs.*)"),
-            std::regex(R"(.*EltwiseLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
-            std::regex(R"(.*EltwiseLayerTest.*Inference.*)"),
-            std::regex(R"(.*ExecGraphDuplicateInputsOutputsNames.*CheckOutputsMatch.*)"),
-            std::regex(R"(.*ExecGraphKeepAssignNode.*KeepAssignNode.*)"),
-            std::regex(R"(.*ExecGraphRemoveParameterNode.*RemoveParameterNode.*)"),
-            std::regex(R"(.*IndexAddTest.*CompareWithRefs.*)"),
-            std::regex(R"(.*InterpolateLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
-            std::regex(R"(.*MatMulLayerCPUTest.*CompareWithRefs.*)"),
-            std::regex(R"(.*MatmulWeightsDecompression.*CompareWithRefs.*)"),
-            std::regex(R"(.*MvnLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
-            std::regex(R"(.*NonInputInPlaceTest.*CompareWithRefs.*)"),
-            std::regex(R"(.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)"),
-            std::regex(R"(.*OVClassConfigTestCPU.*smoke_.*)"),
-            std::regex(R"(.*OVClassConfigTestCPU.*smoke_CpuExecNetwork.*)"),
-            std::regex(R"(.*OVInferenceChaining.*StaticOutputToDynamicInput.*)"),
-            std::regex(R"(.*OVInferenceChaining.*StaticOutputToStaticInput.*)"),
-            std::regex(R"(.*OVInferenceChainingStatic.*StaticOutputToStaticInput.*)"),
-            std::regex(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
-            // Issue: 164799
-            std::regex(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*)"),
-            // Issue 167685
-            std::regex(R"(.*importExportModelWithTypeRelaxedExt.*)"),
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
             // object is not initialized
@@ -667,7 +605,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*ConcatSDPTest.*f16.*)"));
             patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
         }
-#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#elif defined(OPENVINO_ARCH_ARM64)
         if (!ov::intel_cpu::hasIntDotProductSupport()) {
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
         }
