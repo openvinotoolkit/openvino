@@ -25,7 +25,7 @@ void IGraph::set_argument_value_with_strides(uint32_t, const void*, const std::v
 }
 
 std::optional<std::string_view> IGraph::get_compatibility_descriptor() const {
-    OPENVINO_THROW("get_compatibility_descriptor not implemented");
+    return std::nullopt;
 }
 
 void IGraph::initialize(const FilteredConfig& config) {

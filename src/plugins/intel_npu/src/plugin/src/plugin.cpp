@@ -404,7 +404,6 @@ ov::CompatibilityCheck Plugin::validate_compatibility_descriptor(ov::intel_npu::
                   compatibilityDescriptor.c_str(),
                   compatibilityDescriptor.length());
 
-    // Implement only the fallback path for now through the PLUGIN compiler type
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     CompilerAdapterFactory factory;
     try {

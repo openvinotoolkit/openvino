@@ -300,6 +300,10 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
 }
 
 bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    if (compatibilityDescriptor.empty()) {
+        return false;
+    }
+
     if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
         ze_device_properties_t device_properties = {};
         device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;

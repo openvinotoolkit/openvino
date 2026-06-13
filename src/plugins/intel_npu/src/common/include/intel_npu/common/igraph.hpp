@@ -75,6 +75,14 @@ public:
 
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
+    /**
+     * @brief Returns the compatibility descriptor of this graph, if any.
+     * @details The descriptor is determined when the graph is created (imported from blob metadata,
+     *          returned by the VCL/plugin compiler, or fetched from the driver on the
+     *          compiler-in-driver path) and is immutable thereafter.
+     * @warning The returned view borrows storage owned by the graph; it is valid only while the
+     *          graph is alive and must not be retained past the graph's lifetime.
+     */
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
 protected:
