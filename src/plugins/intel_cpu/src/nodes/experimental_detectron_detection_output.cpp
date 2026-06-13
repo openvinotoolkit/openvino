@@ -273,8 +273,8 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
     score_threshold_ = attributes.score_threshold;
     nms_threshold_ = attributes.nms_threshold;
     max_delta_log_wh_ = attributes.max_delta_log_wh;
-    classes_num_ = attributes.num_classes;
-    max_detections_per_class_ = attributes.post_nms_count;
+    classes_num_ = static_cast<int32_t>(attributes.num_classes);
+    max_detections_per_class_ = static_cast<int32_t>(attributes.post_nms_count);
     max_detections_per_image_ = attributes.max_detections_per_image;
     class_agnostic_box_regression_ = attributes.class_agnostic_box_regression;
     deltas_weights_ = attributes.deltas_weights;
@@ -299,9 +299,9 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 }
 
 void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
-    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
+    const auto rois_num = static_cast<int32_t>(getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0]);
+    assert(classes_num_ == static_cast<int32_t>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
+    assert(4 * classes_num_ == static_cast<int32_t>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
@@ -315,8 +315,8 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
     std::vector<float> refined_boxes(classes_num_ * rois_num * 4, 0);
     std::vector<float> refined_scores(classes_num_ * rois_num, 0);
     std::vector<float> refined_boxes_areas(classes_num_ * rois_num, 0);
-    Indexer refined_box_idx({static_cast<int>(classes_num_), rois_num, 4});
-    Indexer refined_score_idx({static_cast<int>(classes_num_), rois_num});
+    Indexer refined_box_idx({classes_num_, rois_num, 4});
+    Indexer refined_score_idx({classes_num_, rois_num});
 
     refine_boxes(boxes,
                  deltas,
@@ -326,7 +326,7 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
                  refined_boxes_areas.data(),
                  refined_scores.data(),
                  rois_num,
-                 static_cast<int>(classes_num_),
+                 classes_num_,
                  max_delta_log_wh_,
                  1.0F);
 
@@ -334,7 +334,7 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
     std::vector<int> buffer(rois_num, 0);
     std::vector<int> indices(classes_num_ * rois_num, 0);
     std::vector<int> detections_per_class(classes_num_, 0);
-    int total_detections_num = 0;
+    size_t total_detections_num = 0;
 
     for (int class_idx = 1; class_idx < classes_num_; ++class_idx) {
         nms_cf(&refined_scores[refined_score_idx({class_idx, 0})],

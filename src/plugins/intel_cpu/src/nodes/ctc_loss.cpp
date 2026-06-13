@@ -84,9 +84,9 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
     const auto* logits = getSrcDataAtPortAs<const float>(0);
-    const auto* logitsLength = getSrcDataAtPortAs<const int>(1);
-    const auto* labels = getSrcDataAtPortAs<const int>(2);
-    const auto* labelsLength = getSrcDataAtPortAs<const int>(3);
+    const auto* logitsLength = getSrcDataAtPortAs<const int32_t>(1);
+    const auto* labels = getSrcDataAtPortAs<const int32_t>(2);
+    const auto* labelsLength = getSrcDataAtPortAs<const int32_t>(3);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -94,13 +94,13 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t maxTime = inDims[1];
     const size_t classesNum = inDims[2];
 
-    int blankIndex = classesNum - 1;
+    auto blankIndex = static_cast<int32_t>(classesNum) - 1;
     if (inputShapes.size() > 4) {
-        blankIndex = getSrcDataAtPortAs<const int>(4)[0];
+        blankIndex = getSrcDataAtPortAs<const int32_t>(4)[0];
     }
 
-    std::vector<int> decodedTargetLenB(batchNum, 0);
-    std::vector<std::vector<int>> targetDB(batchNum);
+    std::vector<int32_t> decodedTargetLenB(batchNum, 0);
+    std::vector<std::vector<int32_t>> targetDB(batchNum);
     std::vector<std::vector<std::vector<float>>> logProbabilitiesB(batchNum);
     const auto threads_num = parallel_get_max_threads();
     std::vector<std::string> errorMsgB(threads_num);
@@ -164,7 +164,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 }
                 targetD[decodedTargetLen++] = blankIndex;
             }
-            decodedTargetLenB[b] = decodedTargetLen;
+            decodedTargetLenB[b] = static_cast<int32_t>(decodedTargetLen);
 
             auto& logProbabilities = logProbabilitiesB[b];
             logProbabilities.resize(actualLogitLen);
@@ -268,16 +268,16 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (size_t b = start; b < end; b++) {
             auto& targetD = targetDB[b];
             auto& logProbabilities = logProbabilitiesB[b];
-            const int actualLogitLen = logitsLength[b];
-            const int decodedTargetLen = decodedTargetLenB[b];
+            const int32_t actualLogitLen = logitsLength[b];
+            const int32_t decodedTargetLen = decodedTargetLenB[b];
             std::vector<std::vector<float>> logBwd(decodedTargetLen, std::vector<float>(actualLogitLen, -float_inf));
-            for (int s = decodedTargetLen - 2; s < decodedTargetLen; s++) {
+            for (int32_t s = decodedTargetLen - 2; s < decodedTargetLen; s++) {
                 logBwd[s][actualLogitLen - 1] = 0.F;
             }
 
-            for (int t = actualLogitLen - 2; t >= 0; t--) {
-                const int t_1 = t + 1;
-                for (int s = std::max(0, decodedTargetLen - (2 * (actualLogitLen - t)));
+            for (int32_t t = actualLogitLen - 2; t >= 0; t--) {
+                const int32_t t_1 = t + 1;
+                for (int32_t s = std::max(0, decodedTargetLen - (2 * (actualLogitLen - t)));
                      s < std::min(decodedTargetLen, 2 * (t_1));
                      s++) {
                     if (ctcMergeRepeated || targetD[s] == blankIndex) {

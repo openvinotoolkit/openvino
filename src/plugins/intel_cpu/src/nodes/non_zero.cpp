@@ -195,7 +195,7 @@ void NonZero::executeSpecified() {
             size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
-                    dst[outputIndex] = i;
+                    dst[outputIndex] = static_cast<int32_t>(i);
                     outputIndex++;
                 }
             });
@@ -216,8 +216,8 @@ void NonZero::executeSpecified() {
 
             for_2d(ithr, nthr, srcDims[0], srcDims[1], [&](size_t, size_t inputIndex, int i0, int i1) {
                 if (src[inputIndex] != zero) {
-                    cache[counter] = i0;
-                    cache[counter + elementsStride] = i1;
+                    cache[counter] = static_cast<int32_t>(i0);
+                    cache[counter + elementsStride] = static_cast<int32_t>(i1);
                     counter++;
 
                     if (counter >= elementsStride) {
@@ -258,9 +258,9 @@ void NonZero::executeSpecified() {
                 srcDims[2],
                 [&](size_t, size_t inputIndex, int i0, int i1, int i2) {
                     if (src[inputIndex] != zero) {
-                        cache[counter] = i0;
-                        cache[counter + elementsStride] = i1;
-                        cache[counter + elementsStride * 2] = i2;
+                        cache[counter] = static_cast<int32_t>(i0);
+                        cache[counter + elementsStride] = static_cast<int32_t>(i1);
+                        cache[counter + elementsStride * 2] = static_cast<int32_t>(i2);
                         counter++;
 
                         if (counter >= elementsStride) {
