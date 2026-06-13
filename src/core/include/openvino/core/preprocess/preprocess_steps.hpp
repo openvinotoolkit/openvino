@@ -6,6 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
+#include "openvino/core/preprocess/flip_mode.hpp"
 #include "openvino/core/preprocess/padding_mode.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -21,8 +22,8 @@ namespace preprocess {
 /// \code{.cpp}
 /// auto proc = PrePostProcessor(function);
 /// proc.input().preprocess()
-///                        .mean(0.2f)     // Subtract 0.2 from each element
-///                        .scale(2.3f));   // then divide each element to 2.3
+///                         .mean(0.2f)     // Subtract 0.2 from each element
+///                         .scale(2.3f));   // then divide each element to 2.3
 /// \endcode
 class OPENVINO_API PreProcessSteps final {
     class PreProcessStepsImpl;
@@ -95,6 +96,7 @@ public:
     /// \param pads_begin Number of padding elements to add at the beginning of each axis.
     /// \param pads_end Number of padding elements to add at the end of each axis.
     /// \param value Value to be populated in the padded area
+    /// \param mode Padding mode.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps& pad(const std::vector<int>& pads_begin,
@@ -108,6 +110,7 @@ public:
     /// \param pads_begin Number of padding elements to add at the beginning of each axis.
     /// \param pads_end Number of padding elements to add at the end of each axis.
     /// \param values Values to be populated in the padded area
+    /// \param mode Padding mode.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps& pad(const std::vector<int>& pads_begin,
@@ -135,9 +138,7 @@ public:
     /// \brief Add resize operation to known dimensions - Lvalue version.
     ///
     /// \param alg Resize algorithm.
-    ///
     /// \param dst_height Desired height of resized image.
-    ///
     /// \param dst_width Desired width of resized image.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
@@ -149,6 +150,18 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps& resize(ResizeAlgorithm alg);
+
+    /// \brief Adds a spatial flip preprocessing operation.
+    ///
+    /// The flip is applied per input image and does not change batch or channel ordering.
+    /// The input tensor layout must contain spatial dimensions denoted as 'H' (height) and 'W' (width),
+    /// for example layouts like \c NCHW or \c NHWC. The operation flips along one of these spatial axes:
+    /// - \c FlipMode::HORIZONTAL – mirror the image along the width axis (flip left-right)
+    /// - \c FlipMode::VERTICAL – flip the image along the height axis (flip top-bottom)
+    ///
+    /// \param mode Flip mode to use. Must be either \c FlipMode::HORIZONTAL or \c FlipMode::VERTICAL.
+    /// \return Reference to the current 'PreProcessSteps' object to allow chaining with other calls.
+    PreProcessSteps& flip(FlipMode mode);
 
     /// \brief Crop input tensor between begin and end coordinates. Under the hood, inserts `opset8::Slice` operation to
     /// execution graph. It is recommended to use to together with `ov::preprocess::InputTensorInfo::set_shape` to set
