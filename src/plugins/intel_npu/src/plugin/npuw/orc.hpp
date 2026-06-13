@@ -204,6 +204,28 @@ void serialize(Stream& stream, std::map<K, V>& value) {
     }
 }
 
+template <typename K, typename V>
+void serialize(Stream& stream, std::unordered_map<K, V>& value) {
+    if (stream.output()) {
+        auto size = value.size();
+        stream & size;
+        for (auto& el : value) {
+            auto pair = el;
+            stream & pair;
+        }
+        return;
+    }
+
+    value.clear();
+    std::size_t size = 0u;
+    stream & size;
+    for (std::size_t idx = 0u; idx < size; ++idx) {
+        std::pair<K, V> elem{};
+        stream & elem;
+        value[elem.first] = std::move(elem.second);
+    }
+}
+
 template <typename T>
 void serialize(Stream& stream, std::unordered_set<T>& value) {
     if (stream.output()) {
