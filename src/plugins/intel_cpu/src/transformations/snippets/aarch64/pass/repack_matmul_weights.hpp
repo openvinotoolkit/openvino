@@ -10,16 +10,14 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "memory_desc/dnnl_memory_desc.h"
 #include "openvino/core/node.hpp"
 #include "transformations/snippets/common/pass/repack_matmul_weights.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-namespace ov::intel_cpu::pass::x64 {
+namespace ov::intel_cpu::pass::aarch64 {
 
 /**
  * @interface RepackMatMulWeights
- * @brief x64 specialization of MatMul weights repacking for BrgemmCPU.
+ * @brief AArch64 specialization of MatMul weights repacking for GemmCPU.
  * @ingroup snippets
  */
 class RepackMatMulWeights : public ov::intel_cpu::pass::RepackMatMulWeights {
@@ -31,16 +29,12 @@ public:
         : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context), input_repackers, src_mem_ptrs) {}
 
 private:
-    [[nodiscard]] static DnnlMemoryDescPtr get_src_desc(const MatMulWeightsSource& source,
-                                                        const brgemm_utils::BrgemmConfig& brgemm_config);
-    [[nodiscard]] static CpuBlockedMemoryDescPtr get_dst_cpu_desc(const Shape& shape,
-                                                                  const brgemm_utils::BrgemmConfig& brgemm_config);
-    [[nodiscard]] static DnnlMemoryDescPtr get_dst_desc(const Shape& shape,
-                                                        const brgemm_utils::BrgemmConfig& brgemm_config);
-
     [[nodiscard]] std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
                                                               const MatMulWeightsSource& source,
                                                               const MemoryPtr& orig_src_mem_ptr) override;
+    [[nodiscard]] bool supports_runtime_repacking() const override {
+        return false;
+    }
 };
 
-}  // namespace ov::intel_cpu::pass::x64
+}  // namespace ov::intel_cpu::pass::aarch64
