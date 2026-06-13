@@ -742,6 +742,18 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     // The crop produces exactly batch=1 per slice and the reshape squeezes that dim.
                     // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
+                } else if (!crop_layout.get_partial_shape()[crop_axis].is_dynamic() &&
+                           crop_layout.get_partial_shape()[crop_axis].get_length() == 1 &&
+                           crop_axis > 0 &&
+                           static_cast<int64_t>(user_info.second.get_partial_shape().size()) ==
+                               static_cast<int64_t>(crop_axis) + 1) {
+                    // Middle-axis crop (dim==1) merged with trailing dims into single output dim.
+                    // Pattern: [?,seq,1,H,S] → [?,seq,H*S] with crop_axis=2.
+                    // Output rank == crop_axis+1 mirrors the gate in reshape_inst.h. The merged dim
+                    // is the last logical output dim; for rank<=4 it maps to the same physical index
+                    // (b,f,y,x filled from the left).
+                    auto reshape_ps_bt = user_info.second.get_partial_shape();
+                    reshape_axis = reshape_ps_bt.size() - 1;
                 } else {
                     ov::Dimension::value_type mul = 1;
                     auto reshape_ps = user_info.second.get_partial_shape();
@@ -814,6 +826,23 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     reshape_lower_sizes[0] = lower_sizes[0] * batch_stride_factor;
                     reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
                     reshape_dyn_pad_mask[0] = 1;
+                } else if (crop_dim_val == 1 && crop_axis > 0 &&
+                           static_cast<int64_t>(reshape_ps.size()) == static_cast<int64_t>(crop_axis) + 1) {
+                    // Middle-axis crop (dim==1) merged with trailing dims into single last output dim.
+                    // Pattern: [?,seq,1,H,S] → [?,seq,H*S] with crop_axis=2.
+                    // Each offset unit in crop_axis corresponds to H*S = product(dims after crop_axis)
+                    // elements in the merged output dim. Set padding on the last logical output dim
+                    // (reshape_ps.size()-1; physical y-axis for rank-3 bfyx) to lower_sizes[crop_axis] * stride.
+                    const auto& crop_ps_r = crop_layout.get_partial_shape();
+                    int64_t stride = 1;
+                    for (size_t d = crop_axis + 1; d < crop_ps_r.size(); d++)
+                        stride *= crop_ps_r[d].get_length();
+                    // Merged dim is the last logical output dim; for rank<=4 it maps to the same
+                    // physical index (b,f,y,x filled from the left), i.e. reshape_ps.size()-1.
+                    const size_t merged_axis = reshape_ps.size() - 1;
+                    reshape_lower_sizes[merged_axis] = lower_sizes[crop_axis] * stride;
+                    reshape_upper_sizes[merged_axis] = upper_sizes[crop_axis] * stride;
+                    reshape_dyn_pad_mask[merged_axis] = 1;
                 } else {
                     ov::Dimension::value_type divider = 1;
                     auto reshape_axis = reshape_ps.size();
