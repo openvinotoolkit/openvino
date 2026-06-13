@@ -90,10 +90,10 @@ struct ov_model {
 };
 
 /**
- * @struct ov_property_opaque
+ * @struct ov_property
  * @brief This is an interface of ov::AnyMap
  */
-struct ov_property_opaque {
+struct ov_property {
     ov::AnyMap object;
 };
 

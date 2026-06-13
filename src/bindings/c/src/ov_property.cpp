@@ -42,12 +42,12 @@ const char* ov_property_key_intel_gpu_config_file = "CONFIG_FILE";
 // Write-only property key
 const char* ov_property_key_cache_encryption_callbacks = "CACHE_ENCRYPTION_CALLBACKS";
 
-ov_status_e ov_property_create(ov_property** prop) {
+ov_status_e ov_property_create(ov_property_t** prop) {
     if (!prop) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_property> _prop = std::make_unique<ov_property>();
+        std::unique_ptr<ov_property_t> _prop = std::make_unique<ov_property_t>();
         _prop->object = {};
         *prop = _prop.release();
 
@@ -57,13 +57,13 @@ ov_status_e ov_property_create(ov_property** prop) {
     return ov_status_e::OK;
 }
 
-ov_status_e ov_property_free(ov_property* prop) {
+ov_status_e ov_property_free(ov_property_t* prop) {
     if (prop) {
         delete prop;
     }
 }
 
-ov_status_e ov_property_put_str(ov_property* prop, const char* key, const char* val) {
+ov_status_e ov_property_put_str(ov_property_t* prop, const char* key, const char* val) {
     if (!prop) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -75,7 +75,7 @@ ov_status_e ov_property_put_str(ov_property* prop, const char* key, const char* 
     return ov_status_e::OK;
 }
 
-ov_status_e ov_property_put_int(ov_property* prop, const char* key, const int val) {
+ov_status_e ov_property_put_int(ov_property_t* prop, const char* key, const int val) {
     if (!prop) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -87,7 +87,7 @@ ov_status_e ov_property_put_int(ov_property* prop, const char* key, const int va
     return ov_status_e::OK;
 }
 
-ov_status_e ov_property_put_encryption_callbacks(ov_property* prop,
+ov_status_e ov_property_put_encryption_callbacks(ov_property_t* prop,
                                                  const char* key,
                                                  const ov_encryption_callbacks* val) {
     if (!prop) {

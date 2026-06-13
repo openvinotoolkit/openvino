@@ -149,6 +149,16 @@ OPENVINO_C_API(ov_status_e)
 ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, ...);
 
 /**
+ * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
+ * @ingroup ov_compiled_model_c_api
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param prop Supported property key please see ov_property.h.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_set_property_v2(const ov_compiled_model_t* compiled_model, const ov_property_t* property);
+
+/**
  * @brief Gets properties for current compiled model.
  * @ingroup ov_compiled_model_c_api
  * @param compiled_model A pointer to the ov_compiled_model_t.

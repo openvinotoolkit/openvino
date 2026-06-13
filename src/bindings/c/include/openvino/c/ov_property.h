@@ -252,20 +252,20 @@ ov_property_key_intel_gpu_config_file;
  * @brief type define ov_property from ov_property_opaque
  * @return ov_status_e A status code, return OK(0) if successful.
  */
-typedef struct ov_property_opaque ov_property;
+typedef struct ov_property ov_property_t;
 
 /**
  * @brief Construct ov_property.
  * @param prop A pointer to the newly created ov_property.
  * @return ov_status_e A status code, return OK(0) if successful.
  */
-OPENVINO_C_API(ov_status_e) ov_property_create(ov_property** prop);
+OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** prop);
 
 /**
  * @brief Release the memory allocated by ov_property* prop.
  * @param model A pointer to the ov_property* prop to free memory.
  */
-OPENVINO_C_API(ov_status_e) ov_property_free(ov_property* prop);
+OPENVINO_C_API(ov_status_e) ov_property_free(ov_property_t* prop);
 
 /**
  * @brief Put a string-type property key-value pair into ov_property.
@@ -275,7 +275,7 @@ OPENVINO_C_API(ov_status_e) ov_property_free(ov_property* prop);
  * @param val A string value to set for the property.
  * @return ov_status_e A status code, return OK(0) if successful.
  */
-OPENVINO_C_API(ov_status_e) ov_property_put_str(ov_property* prop, const char* key, const char* val);
+OPENVINO_C_API(ov_status_e) ov_property_put_str(ov_property_t* prop, const char* key, const char* val);
 
 /**
  * @brief Put an integer-type property key-value pair into ov_property.
@@ -285,7 +285,7 @@ OPENVINO_C_API(ov_status_e) ov_property_put_str(ov_property* prop, const char* k
  * @param val An integer value to set for the property.
  * @return ov_status_e A status code, return OK(0) if successful.
  */
-OPENVINO_C_API(ov_status_e) ov_property_put_int(ov_property* prop, const char* key, const int val);
+OPENVINO_C_API(ov_status_e) ov_property_put_int(ov_property_t* prop, const char* key, const int val);
 
 /**
  * @brief Put encryption/decryption callbacks property into ov_property.
@@ -299,4 +299,4 @@ OPENVINO_C_API(ov_status_e) ov_property_put_int(ov_property* prop, const char* k
  * @return ov_status_e A status code, return OK(0) if successful.
  */
 OPENVINO_C_API(ov_status_e)
-ov_property_put_encryption_callbacks(ov_property* prop, const char* key, const ov_encryption_callbacks* val);
+ov_property_put_encryption_callbacks(ov_property_t* prop, const char* key, const ov_encryption_callbacks* val);
