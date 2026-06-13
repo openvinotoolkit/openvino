@@ -41,3 +41,93 @@ const char* ov_property_key_intel_gpu_config_file = "CONFIG_FILE";
 
 // Write-only property key
 const char* ov_property_key_cache_encryption_callbacks = "CACHE_ENCRYPTION_CALLBACKS";
+
+ov_status_e ov_property_create(ov_property** prop) {
+    if (!prop) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::unique_ptr<ov_property> _prop = std::make_unique<ov_property>();
+        _prop->object = {};
+        *prop = _prop.release();
+
+    } catch (...) {
+        return ov_status_e::UNKNOW_EXCEPTION;
+    }
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_property_free(ov_property* prop) {
+    if (prop) {
+        delete prop;
+    }
+}
+
+ov_status_e ov_property_put_str(ov_property* prop, const char* key, const char* val) {
+    if (!prop) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        prop->object[key] = val;
+    } catch (...) {
+        return ov_status_e::UNKNOW_EXCEPTION;
+    }
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_property_put_int(ov_property* prop, const char* key, const int val) {
+    if (!prop) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        (prop->object)[key] = val;
+    } catch (...) {
+        return ov_status_e::UNKNOW_EXCEPTION;
+    }
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_property_put_encryption_callbacks(ov_property* prop,
+                                                 const char* key,
+                                                 const ov_encryption_callbacks* val) {
+    if (!prop) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto encrypt_func = val->encrypt_func;
+        auto decrypt_func = val->decrypt_func;
+        std::function<std::string(const std::string&)> encrypt_value = [encrypt_func](const std::string& in) {
+            size_t out_size = 0;
+            std::string out_str;
+            encrypt_func(in.c_str(), in.length(), nullptr, &out_size);
+            if (out_size > 0) {
+                std::unique_ptr<char[]> output_ptr = std::make_unique<char[]>(out_size);
+                if (output_ptr) {
+                    char* output = output_ptr.get();
+                    encrypt_func(in.c_str(), in.length(), output, &out_size);
+                    out_str.assign(output, out_size);
+                }
+            }
+            return out_str;
+        };
+        std::function<std::string(const std::string&)> decrypt_value = [decrypt_func](const std::string& in) {
+            size_t out_size = 0;
+            std::string out_str;
+            decrypt_func(in.c_str(), in.length(), nullptr, &out_size);
+            if (out_size > 0) {
+                std::unique_ptr<char[]> output_ptr = std::make_unique<char[]>(out_size);
+                if (output_ptr) {
+                    char* output = output_ptr.get();
+                    decrypt_func(in.c_str(), in.length(), output, &out_size);
+                    out_str.assign(output, out_size);
+                }
+            }
+            return out_str;
+        };
+        ov::EncryptionCallbacks encryption_callbacks{std::move(encrypt_value), std::move(decrypt_value)};
+        prop->object[key] = encryption_callbacks;
+    } catch (...) {
+        return ov_status_e::UNKNOW_EXCEPTION;
+    }
+    return ov_status_e::OK;
+}

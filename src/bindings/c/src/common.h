@@ -90,6 +90,14 @@ struct ov_model {
 };
 
 /**
+ * @struct ov_property_opaque
+ * @brief This is an interface of ov::AnyMap
+ */
+struct ov_property_opaque {
+    ov::AnyMap object;
+};
+
+/**
  * @struct ov_output_const_port
  * @brief This is an interface of ov::Output<const ov::Node>
  */

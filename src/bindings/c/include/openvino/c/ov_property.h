@@ -246,3 +246,57 @@ ov_property_key_auto_batch_timeout;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_intel_gpu_config_file;
+
+/**
+ * @struct ov_property
+ * @brief type define ov_property from ov_property_opaque
+ * @return ov_status_e A status code, return OK(0) if successful.
+ */
+typedef struct ov_property_opaque ov_property;
+
+/**
+ * @brief Construct ov_property.
+ * @param prop A pointer to the newly created ov_property.
+ * @return ov_status_e A status code, return OK(0) if successful.
+ */
+OPENVINO_C_API(ov_status_e) ov_property_create(ov_property** prop);
+
+/**
+ * @brief Release the memory allocated by ov_property* prop.
+ * @param model A pointer to the ov_property* prop to free memory.
+ */
+OPENVINO_C_API(ov_status_e) ov_property_free(ov_property* prop);
+
+/**
+ * @brief Put a string-type property key-value pair into ov_property.
+ * The property can later be used in ov_compiled_model_get_property or ov_core_set_property.
+ * @param prop A pointer to the ov_property.
+ * @param key A pointer to the property key string.
+ * @param val A string value to set for the property.
+ * @return ov_status_e A status code, return OK(0) if successful.
+ */
+OPENVINO_C_API(ov_status_e) ov_property_put_str(ov_property* prop, const char* key, const char* val);
+
+/**
+ * @brief Put an integer-type property key-value pair into ov_property.
+ * The property can later be used in ov_compiled_model_get_property or ov_core_set_property.
+ * @param prop A pointer to the ov_property.
+ * @param key A pointer to the property key string.
+ * @param val An integer value to set for the property.
+ * @return ov_status_e A status code, return OK(0) if successful.
+ */
+OPENVINO_C_API(ov_status_e) ov_property_put_int(ov_property* prop, const char* key, const int val);
+
+/**
+ * @brief Put encryption/decryption callbacks property into ov_property.
+ * This property is used to set custom encryption and decryption functions
+ * for model cache protection. The callbacks are applied when saving to
+ * and loading from the model cache.
+ * @param prop A pointer to the ov_property.
+ * @param key A pointer to the property key string.
+ * @param val A pointer to the ov_encryption_callbacks structure
+ * containing encrypt_func and decrypt_func.
+ * @return ov_status_e A status code, return OK(0) if successful.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_property_put_encryption_callbacks(ov_property* prop, const char* key, const ov_encryption_callbacks* val);
