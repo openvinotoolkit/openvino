@@ -2107,6 +2107,142 @@ TEST(pre_post_process, postprocess_convert_color_format_unsupported) {
                  f = p.build(), ov::AssertFailure);
 }
 
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_single_plane) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 45, 20, 1}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_two_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 30, 20, 1}));
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 15, 10, 2}));
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_BGR_NV12_two_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 30, 20, 1}));
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 15, 10, 2}));
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_two_planes_with_element_type) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    p.output().tensor().set_element_type(element::u8);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    // Y plane: [5, 30, 20, 1] converted to u8
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 30, 20, 1}));
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    // UV plane: [5, 15, 10, 2] converted to u8
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 15, 10, 2}));
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_two_planes_with_layout) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    p.output().tensor().set_layout("NCHW");
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    // Y plane: [5, 30, 20, 1] transposed NHWC->NCHW = [5, 1, 30, 20]
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 1, 30, 20}));
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    // UV plane: [5, 15, 10, 2] transposed NHWC->NCHW = [5, 2, 15, 10]
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 2, 15, 10}));
+    EXPECT_EQ(f->get_results()[1]->get_layout(), "NCHW");
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_two_planes_with_type_and_layout) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    p.output().tensor().set_element_type(element::u8).set_layout("NCHW");
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 2);
+    // Y plane: [5, 30, 20, 1] -> u8, transposed NHWC->NCHW = [5, 1, 30, 20]
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{5, 1, 30, 20}));
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    // UV plane: [5, 15, 10, 2] -> u8, transposed NHWC->NCHW = [5, 2, 15, 10]
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{5, 2, 15, 10}));
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[1]->get_layout(), "NCHW");
+
+    auto y_names = f->output(0).get_tensor().get_names();
+    auto uv_names = f->output(1).get_tensor().get_names();
+
+    EXPECT_EQ(y_names.count("tensor_output1/Y"), 1);
+    EXPECT_EQ(uv_names.count("tensor_output1/UV"), 1);
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_BGR_NV12_single_plane) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+    p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 45, 20, 1}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_dynamic_batch) {
+    auto f = create_simple_function(element::f32, PartialShape{-1, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_SINGLE_PLANE);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{-1, 45, 20, 1}));
+}
+
 // Postprocessing - other
 
 TEST(pre_post_process, postprocess_preserve_rt_info) {
