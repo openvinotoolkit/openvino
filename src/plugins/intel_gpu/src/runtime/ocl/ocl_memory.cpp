@@ -219,6 +219,11 @@ dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, cons
 }
 #endif
 
+gpu_buffer_from_handle::~gpu_buffer_from_handle() {
+    auto cl_engine = downcast<const ocl_engine>(_engine);
+    cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+}
+
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem()
     , memory(engine, layout, allocation_type::cl_mem, nullptr)

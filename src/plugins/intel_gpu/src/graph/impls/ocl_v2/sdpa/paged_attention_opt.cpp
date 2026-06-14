@@ -1185,6 +1185,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
+        if (desc->has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1255,6 +1259,12 @@ public:
 
         if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
+
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
         }
 
         return jit;
@@ -1349,17 +1359,22 @@ public:
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
+        const auto desc = params.typed_desc<paged_attention>();
 
         if (params.get_device_info().supports_immad) {
             const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
+            // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
+            // accuracy issues (produces inf/nan) after oneDNN main branch integration.
+            if (params.get_device_info().arch == gpu_arch::xe3p && desc->k_head_size <= 64) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        const auto desc = params.typed_desc<paged_attention>();
         ov::Dimension head_num = desc->heads_num;
         ov::Dimension kv_heads_num = desc->kv_heads_num;
 
