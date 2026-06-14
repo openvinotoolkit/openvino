@@ -87,6 +87,10 @@ allocation_type sycl_engine::detect_usm_allocation_type(const void* memory) cons
     }
 }
 
+memory::ptr sycl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 memory::ptr sycl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
