@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 
@@ -19,8 +20,12 @@
 #include "nodes/fullyconnected.h"
 #include "nodes/gathermatmul.h"
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/cum_sum.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/validate.hpp"
@@ -34,8 +39,46 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace ov::intel_cpu {
+
+inline void keep_integer_cumsum_data_precision(const std::shared_ptr<ov::Model>& model) {
+    ov::traverse_nodes(model, [](const std::shared_ptr<ov::Node>& node) {
+        if (!ov::is_type<ov::op::v0::CumSum>(node)) {
+            return;
+        }
+
+        const auto data = node->input_value(0);
+        const auto data_type = data.get_element_type();
+        if (data_type != ov::element::i64 && data_type != ov::element::u64) {
+            return;
+        }
+
+        const auto source = data.get_node_shared_ptr();
+        if (!ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(source) ||
+            source->get_output_size() != 1) {
+            return;
+        }
+
+        const auto consumers = data.get_target_inputs();
+        if (std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& input) {
+                return input.get_index() == 0 && ov::is_type<ov::op::v0::CumSum>(input.get_node());
+            })) {
+            ov::enable_keep_const_precision(source);
+        }
+    });
+}
+
+class KeepIntegerCumSumDataPrecision : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("KeepIntegerCumSumDataPrecision");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        keep_integer_cumsum_data_precision(model);
+        return false;
+    }
+};
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const Config& config) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
@@ -88,6 +131,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         ov::pass::ReshapeSequenceFusion);  // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped
                                            // sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
+    CPU_REGISTER_PASS_COMMON(manager, KeepIntegerCumSumDataPrecision);
     CPU_REGISTER_PASS_COMMON(manager,
                              ov::pass::ConvertPrecision,
                              precisions_map{{ov::element::i64, ov::element::i32}},
