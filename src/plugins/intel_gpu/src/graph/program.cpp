@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <thread>
+#include <chrono>
 
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
@@ -56,6 +58,7 @@
 #include "arg_max_min_inst.h"
 #include "dft_inst.h"
 #include "multiclass_nms_inst.h"
+#include "moe_3gemm_fused_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
 #include "border_inst.h"
@@ -502,7 +505,6 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-
 #ifdef GPU_DEBUG_CONFIG
     if (get_config().get_dry_run_path().empty() || is_internal) {
 #else
@@ -724,7 +726,7 @@ void program::transfer_memory_to_device() {
         // TODO: Do we need finish call here? Maybe call it in network::execute() ?
         get_stream().finish();
     };
-
+    auto otd = _config.get_moe_offload_ratio();
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;
@@ -732,6 +734,10 @@ void program::transfer_memory_to_device() {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
+            auto prim = data_node.get_primitive();
+            if (otd && node->have_user_with_type<moe_3gemm_fused_compressed>()) {
+                continue;
+            }
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();

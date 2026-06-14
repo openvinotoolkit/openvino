@@ -26,10 +26,20 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/util/binary_elementwise_bitwise.hpp"
+
+#include "ov_ops/moe_compressed.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "moe_offload_constant.hpp"
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 namespace ov::intel_gpu {
 
@@ -100,8 +110,17 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        auto partial_upload = moe_offload::try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
+
         cldnn::memory::ptr mem = nullptr;
-        if (constLayout.bytes_count() > 0) {
+        size_t upload_bytes = constLayout.bytes_count();
+        ov::Shape upload_shape = const_shape;
+
+        if (partial_upload.enabled) {
+            mem = partial_upload.memory;
+            upload_bytes = partial_upload.upload_bytes;
+            upload_shape = partial_upload.upload_shape;
+        } else if (constLayout.bytes_count() > 0) {
             mem = p.get_engine().allocate_memory(constLayout, false);
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
@@ -114,37 +133,41 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
-        cldnn::mem_lock<char> lock{mem, stream};
-        auto buf = lock.data();
-        auto bufSize = constLayout.bytes_count();
 
-        // If a constant has element type f64 but contains no elements (empty tensor),
-        // convert it to f32 because the GPU plugin only supports the f32 data type internally.
-        if (ov::shape_size(const_shape) == 1 &&
-            out_dtype == cldnn::data_types::f32 &&
-            op->get_output_element_type(0) == ov::element::f64) {
-            const auto* f64data = op->get_data_ptr<double>();
-            auto f32buf = reinterpret_cast<float*>(buf);
-            f32buf[0] = static_cast<float>(f64data[0]);
-        } else if (out_dtype == cldnn::data_types::f32 &&
-                   (op->get_output_element_type(0) == ov::element::u16 ||
-                    op->get_output_element_type(0) == ov::element::i16)) {
-            size_t count = ov::shape_size(const_shape);
-            auto f32buf = reinterpret_cast<float*>(buf);
+        if (!partial_upload.enabled) {
+            cldnn::mem_lock<char> lock{mem, stream};
+            auto buf = lock.data();
+            auto bufSize = upload_bytes;
+            auto upload_count = ov::shape_size(upload_shape);
 
-            if (op->get_output_element_type(0) == ov::element::u16) {
-                const auto* u16data = op->get_data_ptr<uint16_t>();
-                for (size_t i = 0; i < count; i++) {
-                    f32buf[i] = static_cast<float>(u16data[i]);
+            // If a constant has element type f64 but contains no elements (empty tensor),
+            // convert it to f32 because the GPU plugin only supports the f32 data type internally.
+            if (upload_count == 1 &&
+                out_dtype == cldnn::data_types::f32 &&
+                op->get_output_element_type(0) == ov::element::f64) {
+                const auto* f64data = op->get_data_ptr<double>();
+                auto f32buf = reinterpret_cast<float*>(buf);
+                f32buf[0] = static_cast<float>(f64data[0]);
+            } else if (out_dtype == cldnn::data_types::f32 &&
+                       (op->get_output_element_type(0) == ov::element::u16 ||
+                        op->get_output_element_type(0) == ov::element::i16)) {
+                size_t count = upload_count;
+                auto f32buf = reinterpret_cast<float*>(buf);
+
+                if (op->get_output_element_type(0) == ov::element::u16) {
+                    const auto* u16data = op->get_data_ptr<uint16_t>();
+                    for (size_t i = 0; i < count; i++) {
+                        f32buf[i] = static_cast<float>(u16data[i]);
+                    }
+                } else {
+                    const auto* i16data = op->get_data_ptr<int16_t>();
+                    for (size_t i = 0; i < count; i++) {
+                        f32buf[i] = static_cast<float>(i16data[i]);
+                    }
                 }
             } else {
-                const auto* i16data = op->get_data_ptr<int16_t>();
-                for (size_t i = 0; i < count; i++) {
-                    f32buf[i] = static_cast<float>(i16data[i]);
-                }
+                std::memcpy(&buf[0], &data[0], bufSize);
             }
-        } else {
-            std::memcpy(&buf[0], &data[0], bufSize);
         }
         ov::wsh::Extension::hint_evict(*op);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
