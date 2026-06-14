@@ -1210,8 +1210,8 @@ public:
         expert_mask.batch.resize(max_expert_num, {});
         expert_mask.topk.resize(max_expert_num, {});
 
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_expert_mask_from_gpu: max_expert_num=" << max_expert_num
-                               << ", max_topk=" << max_topk << ", max_tokens=" << max_tokens << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_expert_mask_from_gpu: max_expert_num=" << max_expert_num << ", max_topk=" << max_topk
+                               << ", max_tokens=" << max_tokens << std::endl;
         std::vector<int32_t> buf(max_topk * max_tokens);
         mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
 
