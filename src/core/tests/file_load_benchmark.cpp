@@ -171,25 +171,7 @@ static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
     }
 }
 
-// ─── FileLoadBenchmark ──────────────────────────────────────────────────────
-//
-// Developer-only benchmarks for comparing file-loading strategies (mmap with
-// prefetch, mmap without prefetch, ifstream, O_DIRECT).  Use these to evaluate
-// I/O performance on new hardware or to validate changes to ov::MmapObject.
-//
-// These tests are NOT compiled by default.  To include them in the build:
-//
-//   cmake -DENABLE_TESTS=ON -DENABLE_DEVELOPER_TESTS=ON <other flags> ..
-//
-// To run tests:
-//   ./ov_core_unit_tests --gtest_filter=*FileLoadBenchmark*
-//
-// Requirements for reliable results:
-//   - Build OpenVINO in Release mode (CMAKE_BUILD_TYPE=Release).
-//   - Run inside a privileged container (docker run --privileged) or as root
-//     so that /proc/sys/vm/drop_caches is writable.  Without it the benchmark falls back
-//     to posix_fadvise(DONTNEED) which the kernel may ignore.
-//
+// See developer_benchmarks.md for build/run instructions.
 
 class FileLoadBenchmark : public ::testing::Test {};
 
