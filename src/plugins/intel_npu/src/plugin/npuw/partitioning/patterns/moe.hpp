@@ -56,6 +56,36 @@ public:
     GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class Qwen3Expert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Qwen3Expert");
+    static constexpr const char* pattern_name() {
+        return "Qwen3Expert";
+    }
+    static constexpr const char* isolation_tag() {
+        return EXPERT_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
+    Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+class Qwen3Router : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::moe::Qwen3Router");
+    static constexpr const char* pattern_name() {
+        return "Qwen3Router";
+    }
+    static constexpr const char* isolation_tag() {
+        return ROUTER_TAG;
+    }
+    static constexpr const char* group_name() {
+        return "moe";
+    }
+    Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 }  // namespace moe
 }  // namespace patterns
 }  // namespace npuw
