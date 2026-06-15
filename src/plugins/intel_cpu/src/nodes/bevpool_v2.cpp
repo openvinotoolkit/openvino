@@ -114,10 +114,11 @@ void BevPoolV2::executeImpl() {
     const auto* itv_data = getSrcDataAtPortAs<const IdxT>(ITV_IDX);
     auto* out_data = getDstDataAtPortAs<T>(0);
 
-    const auto& itv_dims = getSrcMemoryAtPort(ITV_IDX)->getStaticDims();
-    const auto itv_len = itv_dims[0];
-    const auto interval_count = static_cast<int64_t>(itv_len / 3);
+    const auto itv_len = static_cast<int64_t>(getSrcMemoryAtPort(ITV_IDX)->getShape().getElementsCount());
+    CPU_NODE_ASSERT(itv_len % 3 == 0, "Intervals input length must be divisible by 3. Got ", itv_len);
+    const auto interval_count = itv_len / 3;
 
+    const auto idx_len = static_cast<int64_t>(getSrcMemoryAtPort(IDX_IDX)->getShape().getElementsCount());
     const auto dw_len = static_cast<int64_t>(getSrcMemoryAtPort(DW_IDX)->getShape().getElementsCount());
     const auto cf_len = static_cast<int64_t>(getSrcMemoryAtPort(CF_IDX)->getShape().getElementsCount());
     const auto out_len = static_cast<int64_t>(getDstMemoryAtPort(0)->getShape().getElementsCount());
@@ -129,7 +130,7 @@ void BevPoolV2::executeImpl() {
         const auto end = static_cast<int64_t>(itv_data[interval * 3 + 1]);
         const auto bev_base = static_cast<int64_t>(itv_data[interval * 3 + 2]);
 
-        if (start < 0 || end < start) {
+        if (start < 0 || end < start || end > idx_len) {
             return;
         }
 
