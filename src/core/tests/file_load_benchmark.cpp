@@ -76,13 +76,18 @@ static void evict_cache(const std::filesystem::path& path, size_t file_size) {
         sleep(1);  // give the kernel a moment to settle
         return;
     } else {
-        std::cout << "No access to /proc/sys/vm/drop_caches, falling back to posix_fadvise(DONTNEED)" << std::endl;
+        static bool warned = false;
+        if (!warned) {
+            std::cout << "[WARNING] No access to /proc/sys/vm/drop_caches, falling back to "
+                         "posix_fadvise(DONTNEED). Results may be unreliable (kernel can ignore the hint)."
+                      << std::endl;
+            warned = true;
+        }
     }
 
     // Fallback: best-effort fadvise.
     int fd = ::open(path.c_str(), O_RDONLY);
     if (fd >= 0) {
-        std::cout << "posix_fadvise(DONTNEED) in use, kernel might ignore it" << std::endl;
         posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
         ::close(fd);
     }
@@ -166,13 +171,29 @@ static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
     }
 }
 
-// ─── Benchmark Tests ────────────────────────────────────────────────────────
-// All tests are DISABLED_ so they won't run in CI.
-// Run manually with: --gtest_also_run_disabled_tests --gtest_filter=*MmapBenchmark*
+// ─── FileLoadBenchmark ──────────────────────────────────────────────────────
+//
+// Developer-only benchmarks for comparing file-loading strategies (mmap with
+// prefetch, mmap without prefetch, ifstream, O_DIRECT).  Use these to evaluate
+// I/O performance on new hardware or to validate changes to ov::MmapObject.
+//
+// These tests are NOT compiled by default.  To include them in the build:
+//
+//   cmake -DENABLE_TESTS=ON -DENABLE_DEVELOPER_TESTS=ON <other flags> ..
+//
+// To run tests:
+//   ./ov_core_unit_tests --gtest_filter=*FileLoadBenchmark*
+//
+// Requirements for reliable results:
+//   - Build OpenVINO in Release mode (CMAKE_BUILD_TYPE=Release).
+//   - Run inside a privileged container (docker run --privileged) or as root
+//     so that /proc/sys/vm/drop_caches is writable.  Without it the benchmark falls back
+//     to posix_fadvise(DONTNEED) which the kernel may ignore.
+//
 
-class MmapBenchmark : public ::testing::Test {};
+class FileLoadBenchmark : public ::testing::Test {};
 
-TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
+TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
     const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -251,7 +272,7 @@ TEST_F(MmapBenchmark, DISABLED_latency_and_throughput_table) {
     }
 }
 
-TEST_F(MmapBenchmark, DISABLED_partial_prefault_offset_table) {
+TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
     constexpr size_t file_size_mb = 1200;
     constexpr size_t file_size = file_size_mb * 1024 * 1024;
     constexpr int warmup = 0;

@@ -25,8 +25,7 @@ list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
 
 if(NOT ENABLE_DEVELOPER_TESTS)
-    file(GLOB_RECURSE BENCHMARK_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/*_benchmark.cpp)
-    list(APPEND EXCLUDE_TESTS ${BENCHMARK_TESTS})
+    list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
 endif()
 
 ov_add_test_target(
