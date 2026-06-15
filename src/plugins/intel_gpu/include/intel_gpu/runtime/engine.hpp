@@ -13,6 +13,7 @@
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
 #include "kernel_builder.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include <memory>
 #include <set>
@@ -71,6 +72,9 @@ public:
 
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
+
+    //Create memory object from user-supplied shared handle e.g from system HANDLE created by DX12
+    virtual memory_ptr import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) = 0;
 
     /// Create shared memory object using user-supplied USM pointer @p usm_ptr using specified @p layout
     memory_ptr share_usm(const layout& layout, shared_handle usm_ptr);

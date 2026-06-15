@@ -1804,11 +1804,21 @@ public:
     cldnn::engine& engine = get_test_engine();
     float tolerance = 2e-3;
     memory::ptr last_key_cache_mem = nullptr;
+    memory::ptr last_output_data_mem = nullptr;
     std::vector<int> last_block_indices;
     std::vector<int> last_block_indices_begins;
 
     void SetUp() override {
         rg.set_seed(GET_SUITE_NAME);
+    }
+
+    std::vector<ov::float16> get_output_data() {
+        OPENVINO_ASSERT(last_output_data_mem != nullptr, "No output data available");
+        std::vector<ov::float16> result(last_output_data_mem->count());
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(last_output_data_mem, get_test_stream());
+        for (size_t i = 0; i < last_output_data_mem->count(); i++)
+            result[i] = mem_ptr[i];
+        return result;
     }
 
     void execute(T& p, bool run_reference = true) {
@@ -1877,6 +1887,10 @@ public:
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
             ASSERT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+        }
+
+        if (p.has_sink_input && p.sink_values.has_value()) {
+            pam.sinks = p.sink_values.value();
         }
 
         if (p.kv_cache_compression) {
@@ -2056,7 +2070,9 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        pa_prim.has_token_type_ids = p.token_type_ids.has_value();
+        pa_prim.has_token_type_ids = p.token_type_ids.has_value() || p.has_sink_input;
+
+        pa_prim.has_sink_input = p.has_sink_input;
 
         int num_outputs = 1;
         if (p.scores_mode != ScoresMode::DISABLED) num_outputs++;
@@ -2129,7 +2145,7 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
-        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.disable_flashattn_v2));
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : p.disable_flashattn_v2));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
@@ -2171,15 +2187,16 @@ public:
 
         auto outputs = network->execute();
 
+        last_output_data_mem = outputs.at("output_data").get_memory();
+
         if (!run_reference) {
             return;
         }
 
-        cldnn::memory::ptr output_data_mem = nullptr;
+        cldnn::memory::ptr output_data_mem = last_output_data_mem;
         cldnn::memory::ptr output_scores_mem = nullptr;
         cldnn::memory::ptr output_diversity_mem = nullptr;
 
-        output_data_mem = outputs.at("output_data").get_memory();
         if (p.scores_mode != ScoresMode::DISABLED) {
             output_scores_mem = outputs.at("output_scores").get_memory();
         }
@@ -2855,6 +2872,14 @@ struct paged_attention_test_params {
     // optional token_type_ids passed to PagedAttention; if set (non-empty), it is forwarded
     // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
     std::optional<std::vector<int>> token_type_ids = std::nullopt;
+
+    // Sink input testing: when true, enables has_sink_input on the primitive and forces
+    // the sdpa_opt.cl path (by setting has_token_type_ids=true to disable micro-SDPA).
+    bool has_sink_input = false;
+    // When set, overrides the default sink values in PAM before memory allocation.
+    std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
+    // When true, forces could_use_flashattn_v2(true) to guarantee the FA_V2 kernel path.
+    bool force_flashattn_v2 = false;
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2952,6 +2977,60 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
 
     return v;
 }
+
+
+// Test class to verify FlashAttnV2 multi-token sink correction is actually active.
+// Runs the same prompt twice with FA_V2 enabled: once with non-zero sinks, once with zero sinks.
+// Asserts outputs differ, proving the sink correction in sdpa_opt.cl executes.
+// This test is platform-independent (works on any GPU with OpenCL support).
+class paged_attention_sink_v2_effect_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_sink_v2_effect_test, verify_sink_changes_v2_output) {
+    auto p = GetParam();
+    p.has_sink_input = true;
+    p.force_flashattn_v2 = true;
+
+    // Run FlashAttnV2 multi-token path with non-zero sinks
+    std::vector<ov::float16> nonzero_sinks(p.num_heads);
+    for (int h = 0; h < p.num_heads; h++)
+        nonzero_sinks[h] = ov::float16(-1.0f + 0.3f * h);
+
+    rg.set_seed(GET_SUITE_NAME);
+    p.sink_values = nonzero_sinks;
+    execute(p, false);
+    auto output_with_sinks = get_output_data();
+
+    // Run FlashAttnV2 multi-token path with zero sinks (sink code still runs but has no effect)
+    std::vector<ov::float16> zero_sinks(p.num_heads, ov::float16(0.0f));
+
+    rg.set_seed(GET_SUITE_NAME);
+    p.sink_values = zero_sinks;
+    execute(p, false);
+    auto output_no_sinks = get_output_data();
+
+    ASSERT_EQ(output_with_sinks.size(), output_no_sinks.size());
+
+    // Verify outputs differ — proving the V2 sink correction code is active
+    bool found_difference = false;
+    for (size_t i = 0; i < output_with_sinks.size(); i++) {
+        if (std::abs(static_cast<float>(output_with_sinks[i]) - static_cast<float>(output_no_sinks[i])) > 1e-4f) {
+            found_difference = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found_difference)
+        << "FlashAttnV2 multi-token output is identical with and without sinks — sink code may not be executing";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_sink_v2_effect_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Multi-token (prompt) cases that exercise the FlashAttnV2 online-softmax path with sinks.
+    // These directly test the HAS_SINK_INPUT code at line 2552 in sdpa_opt.cl.
+    // Platform-independent: forces FA_V2 regardless of HW micro-kernel availability.
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    paged_attention_test_params{ {{128, 0}}, 4, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+    // GQA prompt
+    paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
+}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
