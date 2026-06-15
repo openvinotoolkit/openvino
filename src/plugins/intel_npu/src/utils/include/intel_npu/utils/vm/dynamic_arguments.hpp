@@ -76,21 +76,4 @@ struct MemRefType {
     std::string toString();
 };
 
-struct DynamicArguments {
-    std::vector<MemRefType> _inputs;
-    std::vector<MemRefType> _outputs;
-    std::shared_ptr<void> _impl;
-
-    DynamicArguments() = default;
-    DynamicArguments(const DynamicArguments&) = delete;
-    DynamicArguments& operator=(const DynamicArguments&) = delete;
-    DynamicArguments(DynamicArguments&&) noexcept = default;
-    DynamicArguments& operator=(DynamicArguments&&) noexcept = default;
-    ~DynamicArguments() = default;
-
-    void setArgumentProperties(uint32_t argi,
-                               const void* argv,
-                               const ov::Shape& shapes,
-                               const std::vector<size_t>& strides);
-};
 }  // namespace intel_npu

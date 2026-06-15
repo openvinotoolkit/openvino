@@ -7,6 +7,8 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -14,25 +16,6 @@
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace {
-
-std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
-    std::vector<size_t> element_strides(strides_in_bytes.size());
-    std::transform(strides_in_bytes.rbegin(),
-                   strides_in_bytes.rend(),
-                   element_strides.begin(),
-                   [element_size](size_t byte_stride) {
-                       OPENVINO_ASSERT(byte_stride % element_size == 0,
-                                       "Stride ",
-                                       byte_stride,
-                                       " bytes is not aligned to element size ",
-                                       element_size,
-                                       " bytes. Strides must be multiples of element size.");
-
-                       return byte_stride / element_size;
-                   });
-
-    return element_strides;
-};
 
 uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& graph) {
     OPENVINO_ASSERT(graph != nullptr, "Failed to create pipeline: graph is null");
@@ -42,6 +25,38 @@ uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& 
 }  // namespace
 
 namespace intel_npu {
+
+std::vector<size_t> IPipeline::get_strides(const std::vector<size_t>& strides_in_bytes,
+                                           size_t element_size,
+                                           bool reverse_order) {
+    OPENVINO_ASSERT(element_size != 0, "Element size must be greater than 0");
+
+    std::vector<size_t> element_strides(strides_in_bytes.size());
+    const auto convert_to_element_stride = [element_size](size_t byte_stride) {
+        OPENVINO_ASSERT(byte_stride % element_size == 0,
+                        "Stride ",
+                        byte_stride,
+                        " bytes is not aligned to element size ",
+                        element_size,
+                        " bytes. Strides must be multiples of element size.");
+
+        return byte_stride / element_size;
+    };
+
+    if (reverse_order) {
+        std::transform(strides_in_bytes.rbegin(),
+                       strides_in_bytes.rend(),
+                       element_strides.begin(),
+                       convert_to_element_stride);
+    } else {
+        std::transform(strides_in_bytes.begin(),
+                       strides_in_bytes.end(),
+                       element_strides.begin(),
+                       convert_to_element_stride);
+    }
+
+    return element_strides;
+}
 
 IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                      const std::shared_ptr<IGraph>& graph,
@@ -194,7 +209,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     _graph->set_argument_value_with_strides(
                         desc.indexUsedByDriver,
                         tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                        get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
                 }
                 ++io_index;
                 continue;
@@ -209,7 +224,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
             }
 
             ++io_index;
@@ -226,7 +241,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
             }
             ++io_index;
         }
@@ -372,7 +387,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
             _command_lists.at(i)->updateMutableCommandListWithStrides(
                 index,
                 static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
         }
     }
 };
@@ -397,7 +412,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
             ->updateMutableCommandListWithStrides(
                 index,
                 tensor->data(),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size()));
+                get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
     }
 };
 

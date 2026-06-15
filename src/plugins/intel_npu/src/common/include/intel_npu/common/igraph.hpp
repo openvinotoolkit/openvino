@@ -51,9 +51,7 @@ public:
     virtual void* get_handle() const;
 
     // Returns true if the graph is executed through the VM runtime (dynamic graph), false otherwise.
-    virtual bool is_dynamic() const {
-        return false;
-    }
+    virtual bool is_dynamic() const;
 
     virtual void update_network_name(std::string_view name);
 

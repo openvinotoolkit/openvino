@@ -10,6 +10,35 @@
 
 namespace intel_npu {
 
+struct DynamicArguments {
+    std::vector<MemRefType> _inputs;
+    std::vector<MemRefType> _outputs;
+
+    // Save the memref handle to a vector for VM execution and prediction to extend its lifetime.
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
+
+    // Share runtime_execution_context during VM execution and forecasting
+    npu_vm_runtime_execution_context_handle_t _executionContext = nullptr;
+    // Set by the caller after the first successful @c npuVMRuntimeExecute.
+    bool _executedOnce = false;
+
+    DynamicArguments() = default;
+    DynamicArguments(const DynamicArguments&) = delete;
+    DynamicArguments& operator=(const DynamicArguments&) = delete;
+    DynamicArguments(DynamicArguments&&) = delete;
+    DynamicArguments& operator=(DynamicArguments&&) = delete;
+    ~DynamicArguments();
+
+    // Create the VM execution context for vmRuntime. No-op if already created.
+    void ensureExecutionContext(npu_vm_runtime_handle_t vmRuntime);
+
+    void setArgumentProperties(uint32_t argi,
+                               const void* argv,
+                               const ov::Shape& shapes,
+                               const std::vector<size_t>& strides);
+};
+
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
         std::shared_ptr<DynamicArguments> _arguments;
@@ -45,19 +74,17 @@ class DynamicPipeline final : public IPipeline {
             return _commandListHandles.data();
         }
 
-        /// Allocate per-IO MemRef slots driven by the network metadata. The pipeline ctor fills
-        /// each slot's data/shape/strides via setArgumentProperties again.
+        // Use metadata to initialize, which will later be updated again by setArgumentProperties
         void initArguments(const NetworkMetadata& metadata) {
             _arguments->_inputs.resize(metadata.inputs.size());
             auto& inputs = _arguments->_inputs;
             for (size_t i = 0; i < inputs.size(); ++i) {
                 // Use size as placeholder of stride
-                // For now, only considering the usage and subsequent comparison of dimcount, shape, and strides
+                // For now, only considering the usage and subsequent comparison of shape, and strides
                 const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
                 inputs[i]._dimsCount = static_cast<int64_t>(shape.size());
                 inputs[i]._sizes.assign(shape.begin(), shape.end());
                 inputs[i]._strides.resize(shape.size());
-                // Calc real stride
                 inputs[i].updateStride();
             }
 
@@ -130,8 +157,8 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
-    /// Run VM-runtime output shape prediction. Independent of pipeline instance state
-    /// (depends only on the graph's VM runtime handle)
+    // Predicts VM runtime output shape. Independent of pipeline instance state, this depends only on the VM runtime
+    // handle and argument-provided context, making it a static method.
     static void predict_output_shape(const IGraph& graph,
                                      DynamicArguments& args,
                                      std::vector<MemRefType>& inputsMemRef,

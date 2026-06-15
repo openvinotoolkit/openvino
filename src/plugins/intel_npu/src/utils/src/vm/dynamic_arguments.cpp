@@ -118,36 +118,4 @@ std::string MemRefType::toString() {
     return stream.str();
 }
 
-void DynamicArguments::setArgumentProperties(uint32_t argi,
-                                             const void* argv,
-                                             const ov::Shape& sizes,
-                                             const std::vector<size_t>& strides) {
-    auto assign_slot = [&](MemRefType& slot) {
-        slot._basePtr = slot._data = const_cast<void*>(argv);
-        if (slot._dimsCount == 0) {
-            slot._dimsCount = static_cast<int64_t>(sizes.size());
-            slot._sizes.resize(sizes.size());
-            slot._strides.resize(strides.size());
-        } else if (slot._dimsCount != static_cast<int64_t>(sizes.size())) {
-            OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
-                           slot._dimsCount,
-                           ", new dimension count: ",
-                           sizes.size());
-        }
-        for (int64_t i = 0; i < slot._dimsCount; i++) {
-            slot._sizes[i] = static_cast<int64_t>(sizes[i]);
-            slot._strides[i] = static_cast<int64_t>(strides[i]);
-        }
-    };
-
-    if (argi < _inputs.size()) {
-        assign_slot(_inputs[argi]);
-    } else {
-        auto idx = argi - _inputs.size();
-        if (idx < _outputs.size()) {
-            assign_slot(_outputs[idx]);
-        }
-    }
-}
-
 }  // namespace intel_npu
