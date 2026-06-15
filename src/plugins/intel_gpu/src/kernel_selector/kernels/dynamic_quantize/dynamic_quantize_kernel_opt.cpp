@@ -204,6 +204,20 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (((bf.second) % (simd * 2)) != 0)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 
+    // For MODE_LARGE_GS, ensure the quantization group fits within a single work_group
+    // There is no cross work_group synchronization.
+    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::LARGE_GS) {
+        auto vec_size = get_match_vector_size(dq_params);
+        size_t block_size = simd * vec_size;
+        size_t blocks_per_group = dq_params.group_sizes.back() / block_size;
+
+        // BLOCK_NUM is limited to 32 in GetJitConstants, so we can only handle
+        // quantization groups that require <= 32 blocks
+        if (blocks_per_group > 32) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
+    }
+
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 

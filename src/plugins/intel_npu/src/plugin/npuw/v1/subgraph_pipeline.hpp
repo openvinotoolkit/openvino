@@ -18,11 +18,13 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 class Model;
 class ICompiledModel;
+class IAsyncInferRequest;
 }  // namespace ov
 
 namespace ov::npuw {
@@ -142,6 +144,13 @@ class ISubgraphBehavior {
 public:
     using Ptr = std::unique_ptr<ISubgraphBehavior>;
 
+    virtual void prepare(InferContext&) {}
+    virtual bool bind_function_input(InferContext&, std::size_t, const ov::SoPtr<ov::ITensor>&) {
+        return false;
+    }
+    virtual bool bind_function_output(InferContext&, std::size_t, const ov::SoPtr<ov::ITensor>&) {
+        return false;
+    }
     virtual void prologue(InferContext&) {}
     virtual void run(InferContext&) = 0;
     virtual void epilogue(InferContext&) {}
@@ -173,6 +182,8 @@ struct InferContext {
     ov::npuw::IBaseInferRequest& infer_request;
     std::size_t subgraph_idx = 0u;
     std::size_t real_subgraph_idx = 0u;
+    ov::SoPtr<ov::IAsyncInferRequest> target_request;
+    Context* runtime_state = nullptr;
     std::function<void()> legacy_infer;
     std::function<void()> opaque_prologue;
     std::function<void()> opaque_run;

@@ -3,7 +3,7 @@
 The logging functionality allows to observe/debug the pattern matching process.
 
 ## Usage
-In order to utilzie the logging, first, you need to set the CMake flag ```-DENABLE_OPENVINO_DEBUG=ON```
+In order to utilzie the logging, first, you need to set the CMake flag ```-DENABLE_DEBUG_CAPS=ON```
 
 _NOTE: the logging would also work if your build is configured as Release_
 

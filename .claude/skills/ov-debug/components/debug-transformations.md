@@ -1,8 +1,5 @@
 The debug and troubleshooting of OpenVINO transformations can be performed using various debug capabilities activated via environment variables.
 
-# Prerequisites
-Matcher logging requires `-DENABLE_OPENVINO_DEBUG=ON`. Verify in CMakeCache.txt before suggesting `OV_MATCHER_LOGGING`.
-
 # Reference
 Read `src/common/transformations/docs/debug_capabilities/README.md` — use the "When to use" guidance to match the observed problem to the right capability.
 

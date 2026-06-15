@@ -52,6 +52,24 @@ static std::optional<size_t> extract_k_from_router(const std::shared_ptr<ov::Mod
     return std::nullopt;
 }
 
+// Scan the transformed model for a parameter bearing `tag` and return its new index.
+// Falls back to `original_idx` when the tag is absent (e.g. router_scores is replaced
+// by K closures in EXPERT_BATCH mode and its parameter no longer exists).
+static std::optional<size_t> resolve_compiled_idx(const std::shared_ptr<ov::Model>& transformed_model,
+                                                  const char* tag,
+                                                  std::optional<size_t> original_idx) {
+    const auto& params = transformed_model->get_parameters();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (params[i]->get_rt_info().count(tag) > 0) {
+            LOG_INFO("Post-transform [" << tag << "] idx: " << i << " (original: " << original_idx.value_or(SIZE_MAX)
+                                        << ")");
+            return i;
+        }
+    }
+    LOG_WARN("[" << tag << "] not found in transformed model; falling back to original index");
+    return original_idx;
+}
+
 // Helper function to build parameter mapping from RTInfo metadata
 static std::map<size_t, std::vector<size_t>> build_parameter_mapping_from_rtinfo(
     const std::shared_ptr<ov::Model>& original_model,
@@ -311,15 +329,19 @@ MoETransformConfig determine_transformation_params(const MoEStructureInfo& struc
     return config;
 }
 
-// Helper: Update Reshape node's constant input at a specific dimension
-// MoE Reshape patterns: 3D [num_experts, token_num, hidden_dim] or 4D [num_experts, 1, token_num, hidden_dim]
-// - dimension_index can be:
-//   * 0: for num_experts (first dimension)
-//   * -2: for token_num (second-to-last dimension, works for both 3D and 4D)
-static bool update_reshape_constant_dimension(const std::shared_ptr<ov::op::v1::Reshape>& reshape_node,
-                                              int dimension_index,
-                                              size_t old_value,
-                                              size_t new_value) {
+// Helper: Update Reshape output-shape constant: replace old_value with new_value in
+// dims [first_dim, last_dim_exclusive).  Pass SIZE_MAX for last_dim_exclusive to stop
+// before the last dimension (i.e. exclude hidden_dim at dim n-1).
+//
+// Typical MoE reshape layouts (3-D or 4-D):
+//   dim 0          : num_experts   → call with first_dim=0, last_dim_exclusive=1
+//   dims 1 .. n-2  : seq_len / size-1 expansion → call with first_dim=1, last_dim_exclusive=SIZE_MAX
+//   dim n-1 (last) : hidden_dim    (never touched; excluded when last_dim_exclusive==SIZE_MAX)
+static bool update_reshape_dimensions(const std::shared_ptr<ov::op::v1::Reshape>& reshape_node,
+                                      size_t old_value,
+                                      size_t new_value,
+                                      size_t first_dim = 0,
+                                      size_t last_dim_exclusive = SIZE_MAX) {
     auto shape_input = reshape_node->input_value(1);
     auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr());
     if (!shape_const) {
@@ -328,34 +350,31 @@ static bool update_reshape_constant_dimension(const std::shared_ptr<ov::op::v1::
 
     auto shape_data = shape_const->cast_vector<int64_t>();
 
-    // MoE reshapes are either 3D or 4D
+    // Only handle 3-D and 4-D MoE reshape patterns
     if (shape_data.size() < 3 || shape_data.size() > 4) {
         return false;
     }
 
-    // Convert negative index to positive (e.g., -2 means second-to-last)
-    size_t actual_index;
-    if (dimension_index < 0) {
-        actual_index = shape_data.size() + dimension_index;
-    } else {
-        actual_index = dimension_index;
+    // Resolve SIZE_MAX sentinel: stop before the last dimension
+    size_t end = (last_dim_exclusive == SIZE_MAX) ? shape_data.size() - 1 : last_dim_exclusive;
+    end = std::min(end, shape_data.size());
+
+    bool updated = false;
+    for (size_t i = first_dim; i < end; ++i) {
+        if (shape_data[i] == static_cast<int64_t>(old_value)) {
+            LOG_DEBUG("  Updating Reshape '" << reshape_node->get_friendly_name() << "' shape[" << i << "] from "
+                                             << old_value << " to " << new_value);
+            shape_data[i] = static_cast<int64_t>(new_value);
+            updated = true;
+        }
     }
 
-    // Check if the dimension value matches and update it
-    if (actual_index < shape_data.size() && shape_data[actual_index] == static_cast<int64_t>(old_value)) {
-        LOG_DEBUG("  Updating Reshape '" << reshape_node->get_friendly_name() << "' shape[" << actual_index << "] from "
-                                         << old_value << " to " << new_value);
-
-        shape_data[actual_index] = new_value;
-
+    if (updated) {
         auto new_shape_const =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{shape_data.size()}, shape_data);
         reshape_node->input(1).replace_source_output(new_shape_const->output(0));
-
-        return true;
     }
-
-    return false;
+    return updated;
 }
 
 // Helper: Check if parameter matches downstream pattern
@@ -396,21 +415,31 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
     LOG_DEBUG("Detecting MoE downstream pattern...");
     LOG_BLOCK();
 
-    // Pattern to match: Parameter -> Convert -> ReduceSum
-    // Looking for a parameter with shape [N, 1, H, W] where N is total_experts_num
+    // Pattern to match: Parameter -> [Convert] -> ReduceSum
+    // Looking for a parameter with shape [N, ..., W] where:
+    //   dim 0  = N (total experts, > 1)
+    //   dim n-1 = W (hidden_dim)
+    //   at least one of dims 1..n-2 equals 1 (singleton "batch" dimension)
+    // Both [N, 1, H, W] (GPT-OSS) and [N, H, 1, W] (Qwen) are accepted.
     const auto& params = model->get_parameters();
 
     for (size_t param_idx = 0; param_idx < params.size(); ++param_idx) {
         const auto& param = params[param_idx];
 
-        // Validate shape: must be [N, 1, H, W] where N > 1
+        // Validate shape: must be 4-D with dim 0 > 1
         auto param_shape = param->get_partial_shape();
         if (!param_shape.rank().is_static() || param_shape.rank().get_length() != 4) {
             continue;
         }
 
         auto shape = param_shape.to_shape();
-        if (shape[1] != 1 || shape[0] <= 1) {
+        if (shape[0] <= 1) {
+            continue;
+        }
+
+        // At least one of dims 1..2 must be 1 (singleton expansion dim)
+        bool has_singleton_dim = (shape[1] == 1 || shape[2] == 1);
+        if (!has_singleton_dim) {
             continue;
         }
 
@@ -681,10 +710,9 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
             continue;
         }
 
-        // For MoE Reshape patterns (3D or 4D), num_experts is always at dimension 0
-        // 3D: [num_experts, token_num, hidden_dim]
-        // 4D: [num_experts, 1, token_num, hidden_dim]
-        update_reshape_constant_dimension(reshape_node, 0, num_experts, num_target_experts);
+        // For MoE Reshape patterns (3D or 4D), num_experts is always at dimension 0.
+        // Scan only dim 0 (first_dim=0, last_dim_exclusive=1).
+        update_reshape_dimensions(reshape_node, num_experts, num_target_experts, 0, 1);
     }
 }
 
@@ -764,19 +792,17 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
         }
     }
 
-    // Also fix Reshape nodes that contain original_token_count in their shape constants
+    // Also fix Reshape nodes that contain original_token_count in their shape constants.
+    // Scan dims 1..n-2 (skip dim 0 = num_experts and last dim = hidden_dim) and replace any
+    // dimension whose value equals original_token_count with chunk_size.
     LOG_DEBUG("Fixing Reshape nodes with token_count in shape...");
     for (const auto& node : model->get_ordered_ops()) {
         auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node);
         if (!reshape_node) {
             continue;
         }
-
-        // For MoE Reshape patterns (3D or 4D), token_num is always at second-to-last dimension
-        // 3D: [num_experts, token_num, hidden_dim] - token_num at index 1
-        // 4D: [num_experts, 1, token_num, hidden_dim] - token_num at index 2
-        // Use -2 to refer to second-to-last dimension in both cases
-        update_reshape_constant_dimension(reshape_node, -2, original_token_count, chunk_size);
+        // Scan middle dims (1..n-2), skip dim 0 (num_experts) and last dim (hidden_dim).
+        update_reshape_dimensions(reshape_node, original_token_count, chunk_size, 1);
     }
 
     // Trigger shape inference to propagate changes through the model
@@ -926,6 +952,19 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         }
     }
 
+    // Tag activation parameters before transformation so we can re-locate them afterwards
+    // (transformations may shift parameter indices).
+    constexpr const char* expert_input_tag = "npuw_moe_expert_input";
+    constexpr const char* router_scores_tag = "npuw_moe_router_scores";
+    auto tag_param = [&](std::optional<size_t> idx, const char* tag) {
+        if (idx.has_value()) {
+            model->get_parameters()[idx.value()]->get_rt_info()[tag] = true;
+            LOG_DEBUG("Tagged [" << tag << "] at original index " << idx.value());
+        }
+    };
+    tag_param(structure_info->expert_input_param_idx, expert_input_tag);
+    tag_param(structure_info->router_scores_idx, router_scores_tag);
+
     // Step 4: Transform models for each chunk size
     std::map<size_t, std::shared_ptr<ov::Model>> transformed_models;
     for (auto chunk_size : chunk_sizes) {
@@ -949,6 +988,16 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
+    // Resolve compiled-model parameter indices via rt_info tags.
+    // All chunk-size variants share the same parameter ordering, so the first model suffices.
+    // router_scores may be absent in EXPERT_BATCH (unrolled into K closures); resolve_compiled_idx
+    // falls back to the original index, which is harmless since run_expert_batch uses param_mapping.
+    const auto& first_transformed_model = transformed_models.begin()->second;
+    const auto expert_input_compiled_idx =
+        resolve_compiled_idx(first_transformed_model, expert_input_tag, structure_info->expert_input_param_idx);
+    const auto router_scores_compiled_idx =
+        resolve_compiled_idx(first_transformed_model, router_scores_tag, structure_info->router_scores_idx);
+
     // Step 5: Build parameter mapping from any transformed model (all have same mapping)
     // Note: For EXPERT_ITERATIVE mode (single expert), no unrolling happens, so mapping will be empty
     //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
@@ -962,8 +1011,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._chunk_token_count = structure_info->is_expert_batch_mode() ? 0 : iterative_chunk_size;
     moe_experts._num_active_experts = k_value;  // Store actual K from router
     moe_experts._transformed_models = std::move(transformed_models);
-    moe_experts._router_scores_idx = structure_info->router_scores_idx;
-    moe_experts._expert_input_param_idx = structure_info->expert_input_param_idx;
+    moe_experts._router_scores.original = structure_info->router_scores_idx;
+    moe_experts._router_scores.compiled = router_scores_compiled_idx;
+    moe_experts._expert_input.original = structure_info->expert_input_param_idx;
+    moe_experts._expert_input.compiled = expert_input_compiled_idx;
     moe_experts._param_mapping = std::move(param_mapping);
 
     if (!moe_experts.is_valid()) {
@@ -998,8 +1049,10 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     num_active_experts = func_moe._num_active_experts;
     input_token_count = func_moe._input_token_count;
     _models_to_compile = func_moe._transformed_models;
-    _router_scores_idx = func_moe._router_scores_idx;
-    _expert_input_param_idx = func_moe._expert_input_param_idx;
+    _router_scores.original = func_moe._router_scores.original;
+    _router_scores.compiled = func_moe._router_scores.compiled;
+    _expert_input.original = func_moe._expert_input.original;
+    _expert_input.compiled = func_moe._expert_input.compiled;
     _param_mapping = func_moe._param_mapping;
 
     LOG_DEBUG("Created compiled::MoEExperts:");
@@ -1011,11 +1064,11 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     for (const auto& entry : _models_to_compile) {
         LOG_DEBUG("    Chunk size: " << entry.first);
     }
-    if (_router_scores_idx.has_value()) {
-        LOG_DEBUG("  Router scores parameter index: " << _router_scores_idx.value());
+    if (_router_scores.original.has_value()) {
+        LOG_DEBUG("  Router scores parameter index: " << _router_scores.original.value());
     }
-    if (_expert_input_param_idx.has_value()) {
-        LOG_DEBUG("  Expert input parameter index: " << _expert_input_param_idx.value());
+    if (_expert_input.original.has_value()) {
+        LOG_DEBUG("  Expert input parameter index: " << _expert_input.original.value());
     }
 }
 

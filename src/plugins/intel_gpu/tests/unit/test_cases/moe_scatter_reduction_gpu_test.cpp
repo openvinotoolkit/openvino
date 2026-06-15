@@ -10,7 +10,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/moe_scatter_reduction.hpp>
-#include <intel_gpu/op/moe_compressed.hpp>
+#include "ov_ops/moe_compressed.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -52,7 +52,7 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
     size_t hidden_size = k;
     size_t num_active_experts_per_token = 2;
 
-    ov::intel_gpu::op::MOECompressed::Config moe_config;
+    ov::op::internal::MOECompressed::Config moe_config;
     moe_config.top_k = num_active_experts_per_token;
     moe_config.has_batch_dim = false;
 

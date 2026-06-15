@@ -4,6 +4,7 @@
 
 #include "remove_empty_kv_inputs.hpp"
 
+#include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/node_util.hpp"
@@ -60,6 +61,19 @@ public:
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
             auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+
+            // Note: Additional precaution for only KVCache parameters to match.
+            //       As an example linear cache of GDN blocks can match pattern above too.
+            // Note 2: In Whisper model KVCache state names got badly handled by StatefulToStateless pass,
+            //         so their created parameters names are not standard. As Whisper rename goes after this
+            //         transformation, we need to ensure matching of these incorrect names as well
+            //         to remove all empty KV inputs.
+            std::string param_name = matched_param->get_friendly_name();
+            if (!ov::npuw::util::isPastKeyValuesKey(param_name) && !ov::npuw::util::isPastKeyValuesValue(param_name) &&
+                !ov::npuw::util::isRestoredPastKeyValueParam(param_name)) {
+                return false;
+            }
+
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
 
             ctx.get().old_params.push_back(matched_param);

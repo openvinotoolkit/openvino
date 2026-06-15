@@ -100,6 +100,7 @@ std::vector<Case> make_cases() {
         string_case<::intel_npu::NPUW_ONLINE_DUMP_PLAN>("NPUW_ONLINE_DUMP_PLAN", "/tmp/plan.xml", "/tmp/plan.xml"),
         string_case<::intel_npu::NPUW_PLAN>("NPUW_PLAN", "/tmp/plan.xml", "/tmp/plan.xml"),
         bool_case<::intel_npu::NPUW_FOLD>("NPUW_FOLD", "YES", true),
+        string_case<::intel_npu::NPUW_FOLD_ONLY>("NPUW_FOLD_ONLY", "attn,compute", "attn,compute"),
         bool_case<::intel_npu::NPUW_CWAI>("NPUW_CWAI", "YES", true),
         bool_case<::intel_npu::NPUW_DQ>("NPUW_DQ", "YES", true),
         bool_case<::intel_npu::NPUW_DQ_FULL>("NPUW_DQ_FULL", "NO", false),
@@ -121,6 +122,7 @@ std::vector<Case> make_cases() {
         bool_case<::intel_npu::NPUW_ATTN_NO_COPY>("NPUW_ATTN_NO_COPY", "YES", true),
         bool_case<::intel_npu::NPUW_ATTN_HFA_FUSED>("NPUW_ATTN_HFA_FUSED", "YES", true),
         bool_case<::intel_npu::NPUW_PARALLEL_COMPILE>("NPUW_PARALLEL_COMPILE", "YES", true),
+        bool_case<::intel_npu::NPUW_ENSURE_COMPATIBILITY>("NPUW_ENSURE_COMPATIBILITY", "YES", true),
         bool_case<::intel_npu::NPUW_FUNCALL_ASYNC>("NPUW_FUNCALL_ASYNC", "YES", true),
         bool_case<::intel_npu::NPUW_UNFOLD_IREQS>("NPUW_UNFOLD_IREQS", "YES", true),
         bool_case<::intel_npu::NPUW_FALLBACK_EXEC>("NPUW_FALLBACK_EXEC", "NO", false),
@@ -201,5 +203,12 @@ std::string case_name(const testing::TestParamInfo<Case>& info) {
 }
 
 INSTANTIATE_TEST_SUITE_P(NPUWOptions, SmokeTest, ::testing::ValuesIn(make_cases()), case_name);
+
+TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
+    const auto cfg = make_config();
+
+    EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
+    EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
+}
 
 }  // namespace

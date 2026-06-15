@@ -1201,7 +1201,7 @@ void BinaryConvolution::createPrimitive() {
             std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx512_core>>(jcp, jcp_dw_conv, *attr.get());
     } else if (implType == impl_desc_type::jit_avx2) {
         bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx2>>(jcp, jcp_dw_conv, *attr.get());
-    } else if (implType == impl_desc_type::sse42) {
+    } else if (implType == impl_desc_type::jit_sse42) {
         bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::sse41>>(jcp, jcp_dw_conv, *attr.get());
     }
     if (bin_conv_kernel) {
