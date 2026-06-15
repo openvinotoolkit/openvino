@@ -22,7 +22,7 @@
 #include "openvino/reference/convert.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -189,7 +189,7 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
         if (!const_node)
             return false;
 
-        if (ov::fp16_compression_is_disabled(const_node))
+        if (ov::is_conversion_disabled(const_node, element::f16))
             return false;
 
         auto c_type = const_node->get_element_type();
