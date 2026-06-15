@@ -1949,7 +1949,8 @@ struct MHA {
                         score_output,
                         q_start_idx_score,
                         score_info_ptr,
-                        PlainTensor(),
+                        sinks,
+                        // PlainTensor(),
                         0,
                         {},
                         static_cast<size_t>(batch_in_token),
@@ -2930,8 +2931,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor =
                 std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(params, cpu_parallel);
+        } else if (key_cache_type == ov::element::f32 && value_cache_type == ov::element::f32) {
+            executor = 
+                std::make_shared<AttentionExecutor<float, ov::element::f32, ov::element::f32>>(params, cpu_parallel);
         } else {
-            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of either f32 or u8 is only supported");
         }
     }
     if (data_type == ov::element::f16) {
@@ -2939,7 +2943,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params,
                                                                                                           cpu_parallel);
         } else {
-            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only supportde for f16 datatype");
         }
     }
 

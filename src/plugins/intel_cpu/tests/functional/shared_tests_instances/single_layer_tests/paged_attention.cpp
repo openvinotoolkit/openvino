@@ -60,7 +60,7 @@ const std::vector<ov::AnyMap> additional_configs_ref = {{
     {ov::value_cache_group_size.name(), 0},
 }};
 
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 
 // Basic verification tests
 
@@ -292,6 +292,7 @@ const std::vector<ov::AnyMap> additional_configs_bf16 = {{
     {"test_rel_threshold", 0.1f},
 }};
 
+#ifdef OPENVINO_ARCH_X86_64
 // 12) f16: basic tiny test
 INSTANTIATE_TEST_SUITE_P(f16_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
@@ -321,4 +322,5 @@ INSTANTIATE_TEST_SUITE_P(bf16_PagedAttentionLayerTest,
                          PagedAttentionLayerTest::getTestCaseName);
 
 #endif  // OPENVINO_ARCH_X86_64
+#endif //  OPENVINO_ARCH_X86_64 || OPENVINO_ARCH_ARM64
 }  // namespace
