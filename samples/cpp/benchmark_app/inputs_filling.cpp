@@ -5,6 +5,7 @@
 #include "inputs_filling.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iomanip>
 #include <memory>
@@ -22,6 +23,34 @@ using uniformDistribution = typename std::conditional<
     std::is_floating_point<T>::value,
     std::uniform_real_distribution<T>,
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
+
+std::string normalize_input_name(std::string input_name) {
+    // Keep only the last path segment to avoid matching namespace prefixes.
+    const auto slash_pos = input_name.find_last_of("/\\");
+    if (slash_pos != std::string::npos) {
+        input_name = input_name.substr(slash_pos + 1);
+    }
+
+    auto is_all_digits = [](const std::string& suffix) {
+        return !suffix.empty() &&
+               std::all_of(suffix.begin(), suffix.end(), [](unsigned char c) {
+                   return std::isdigit(c) != 0;
+               });
+    };
+
+    // Strip common port/index suffixes like ":0" or ".1".
+    const auto colon_pos = input_name.rfind(':');
+    if (colon_pos != std::string::npos && is_all_digits(input_name.substr(colon_pos + 1))) {
+        input_name = input_name.substr(0, colon_pos);
+    }
+
+    const auto dot_pos = input_name.rfind('.');
+    if (dot_pos != std::string::npos && is_all_digits(input_name.substr(dot_pos + 1))) {
+        input_name = input_name.substr(0, dot_pos);
+    }
+
+    return input_name;
+}
 
 template <typename T>
 ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
@@ -298,6 +327,7 @@ ov::Tensor create_tensor_beam_idx(const benchmark_app::InputInfo& inputInfo) {
     auto data = tensor.data<T>();
 
     if (inputInfo.dataShape.empty()) {
+        data[0] = static_cast<T>(0);
         return tensor;
     }
 
@@ -627,9 +657,10 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
 }
 
 ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
-    const bool is_beam_idx_input = inputInfo.first.find("beam_idx") != std::string::npos;
-    const bool is_attention_mask_input = inputInfo.first.find("attention_mask") != std::string::npos;
-    const bool is_position_ids_input = inputInfo.first.find("position_ids") != std::string::npos;
+    const auto normalized_input_name = normalize_input_name(inputInfo.first);
+    const bool is_beam_idx_input = normalized_input_name == "beam_idx";
+    const bool is_attention_mask_input = normalized_input_name == "attention_mask";
+    const bool is_position_ids_input = normalized_input_name == "position_ids";
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_random<float, float>(inputInfo.second);
@@ -662,6 +693,15 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         }
         return create_tensor_random<int64_t, int64_t>(inputInfo.second);
     } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+        if (is_beam_idx_input) {
+            return create_tensor_beam_idx<uint8_t>(inputInfo.second);
+        }
+        if (is_attention_mask_input) {
+            return create_tensor_constant<uint8_t>(inputInfo.second, 1);
+        }
+        if (is_position_ids_input) {
+            return create_tensor_position_ids<uint8_t>(inputInfo.second);
+        }
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second);
