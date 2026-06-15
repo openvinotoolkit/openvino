@@ -53,8 +53,8 @@ bool is_integer_multiple(double value, double step, double eps = 1e-9) {
 
 }  // namespace
 
-FQEliminateSequential::FQEliminateSequential() {
-    MATCHER_SCOPE(FQEliminateSequential);
+FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
+    MATCHER_SCOPE(FakeQuantizeEliminateSequential);
     auto fq1 = pattern::wrap_type<v0::FakeQuantize>(
         {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto fq2 = pattern::wrap_type<v0::FakeQuantize>(

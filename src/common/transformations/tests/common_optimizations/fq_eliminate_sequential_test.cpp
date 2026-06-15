@@ -75,7 +75,7 @@ TEST_P(SequentialFakeQuantizeTests, CompareFunctions) {
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
-    manager.register_pass<ov::pass::FQEliminateSequential>();
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -127,7 +127,7 @@ TEST_P(MergedFakeQuantizeTests, CompareFunctions) {
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
-    manager.register_pass<ov::pass::FQEliminateSequential>();
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_subgraph) {
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
-    manager.register_pass<ov::pass::FQEliminateSequential>();
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -181,18 +181,18 @@ TEST_F(TransformationTestsF, do_not_eliminate_sequential_fake_quantize_subgraph)
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
-    manager.register_pass<ov::pass::FQEliminateSequential>();
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-// Test for FQEliminateSequential with out-of-range scenario from geekbench_ai model 011
+// Test for FakeQuantizeEliminateSequential with out-of-range scenario from geekbench_ai model 011
 // FQ1: in_low=-17.819, in_high=4.900, out_low=-17.819, out_high=4.900
 // FQ2: in_low=-17.799, in_high=5.124, out_low=-17.799, out_high=5.124
 // This case should NOT eliminate because FQ1 output is NOT within FQ2 input range:
 // FQ1 out_low (-17.819) < FQ2 in_low (-17.799)
-TEST_F(TransformationTestsF, FQEliminateSequential_out_of_range_callback_fails) {
+TEST_F(TransformationTestsF, FakeQuantizeEliminateSequential_out_of_range_callback_fails) {
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1083, 4});
         // FQ1 with slightly tighter range
@@ -211,7 +211,7 @@ TEST_F(TransformationTestsF, FQEliminateSequential_out_of_range_callback_fails) 
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
-    manager.register_pass<ov::pass::FQEliminateSequential>();
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

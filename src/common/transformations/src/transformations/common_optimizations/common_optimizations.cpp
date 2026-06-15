@@ -249,7 +249,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
-    ADD_MATCHER(fq_fusions, FQEliminateSequential)
+    ADD_MATCHER(fq_fusions, FakeQuantizeEliminateSequential)
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, FuseClampAndFakeQuantize)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)

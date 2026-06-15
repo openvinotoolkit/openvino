@@ -10,14 +10,14 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API FQEliminateSequential;
+class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
 
 }  // namespace pass
 }  // namespace ov
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief FQEliminateSequential optimizes sequential FakeQuantize operations by eliminating or merging them
+ * @brief FakeQuantizeEliminateSequential optimizes sequential FakeQuantize operations by eliminating or merging them
  * when: Elimination (FQ2 is removed):
  *  - Case 1: all parameters and levels match exactly.
  *  - Case 2-5: when FQ2 is identity on its range and grids align:
@@ -41,8 +41,8 @@ class TRANSFORMATIONS_API FQEliminateSequential;
  *    FQ1(x, [-2, 2] -> [-1, 1], levels=256) -> FQ2(x, [-1, 1] -> [-0.5, 0.5], levels=256) =>
  *    Merged FQ(x, [-2, 2] -> [-0.5, 0.5], levels=256)
  */
-class ov::pass::FQEliminateSequential : public ov::pass::MatcherPass {
+class ov::pass::FakeQuantizeEliminateSequential : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FQEliminateSequential");
-    FQEliminateSequential();
+    OPENVINO_MATCHER_PASS_RTTI("FakeQuantizeEliminateSequential");
+    FakeQuantizeEliminateSequential();
 };
