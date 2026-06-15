@@ -314,16 +314,23 @@ jobs:
       - name: Strip debug symbols from test binaries and runtime libraries
         run: |
           STRIP="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          [ -x "$STRIP" ] || STRIP="$(command -v llvm-strip)"
+          if [ ! -x "$STRIP" ]; then
+            STRIP="$(command -v llvm-strip || true)"
+          fi
+          if [ -z "$STRIP" ]; then
+            echo "Error: llvm-strip not found (NDK path or PATH)"; exit 1
+          fi
           echo "Using strip: $STRIP"
           before=$(du -sh ${INSTALL_TEST_DIR} ${INSTALL_DIR} | awk '{print $1" "$2}')
           # Test binaries (executables): --strip-all is safe, nothing dlopen's them.
-          find ${INSTALL_TEST_DIR}/bin/intel64/Release -type f \
+          # Search the whole test dir so a layout change can't silently break the find.
+          find ${INSTALL_TEST_DIR} -type f \
             \( -name "ov_cpu_func_tests" -o -name "ov_cpu_unit_tests" \) \
-            -exec "$STRIP" --strip-all {} \;
+            -exec "$STRIP" --strip-all {} +
           # Runtime shared libraries: keep the dynamic symbol table for loader/linker.
-          find ${INSTALL_DIR}/runtime/lib/intel64 ${INSTALL_DIR}/lib -type f -name "*.so*" \
-            -exec "$STRIP" --strip-unneeded {} \;
+          # Single root that is always mkdir -p'd above; avoids erroring on an absent subdir under set -e.
+          find ${INSTALL_DIR} -type f -name "*.so*" \
+            -exec "$STRIP" --strip-unneeded {} +
           echo "Size before strip: $before"
           echo "Size after  strip: $(du -sh ${INSTALL_TEST_DIR} ${INSTALL_DIR} | awk '{print $1" "$2}')"
 
