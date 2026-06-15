@@ -26,7 +26,7 @@ namespace ov::pass {
 
 PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
-    const auto weights = pattern::wrap_type<v0::Constant>();
+    const auto weights = pattern::any_input(pattern::has_static_shape());
     const auto convert_p = pattern::optional<v0::Convert>(weights, pattern::consumers_count(1));
     auto m_fq = pattern::wrap_type<v0::FakeQuantize>({convert_p,
                                                       pattern::any_input(pattern::has_static_shape()),
