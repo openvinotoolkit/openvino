@@ -33,8 +33,7 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
         OPENVINO_THROW("Failed to parse affinity file ", file_path, ": ", ex.what());
     }
     if (!affinity_json.is_object()) {
-        OPENVINO_THROW("Affinity file must contain a JSON object with {node_name: device_name} mappings: ",
-                       file_path);
+        OPENVINO_THROW("Affinity file must contain a JSON object with {node_name: device_name} mappings: ", file_path);
     }
 
     const std::unordered_set<std::string> allowed_devices(hardware_devices.begin(), hardware_devices.end());
@@ -78,8 +77,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
         }
     }
 
-    const std::string fallback_device = unmapped_hardware_devices.size() == 1 ? unmapped_hardware_devices.front()
-                                                                               : std::string{};
+    const std::string fallback_device =
+        unmapped_hardware_devices.size() == 1 ? unmapped_hardware_devices.front() : std::string{};
 
     size_t applied_count = 0;
     size_t fallback_count = 0;
@@ -133,8 +132,7 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
                        ". Please map the remaining ops explicitly.");
     }
 
-    slog::info << "Applied manual affinity mappings to " << applied_count << " ops from " << file_path
-               << slog::endl;
+    slog::info << "Applied manual affinity mappings to " << applied_count << " ops from " << file_path << slog::endl;
     if (fallback_count != 0) {
         slog::info << "Assigned fallback affinity \"" << fallback_device << "\" to " << fallback_count
                    << " ops not listed in " << file_path << slog::endl;
@@ -150,10 +148,8 @@ void apply_manual_affinities(const std::shared_ptr<ov::Model>& model,
         return;
     }
 
-    const bool has_json_ext =
-        affinity_spec.size() >= 5 &&
-        (affinity_spec.compare(affinity_spec.size() - 5, 5, ".json") == 0 ||
-         affinity_spec.compare(affinity_spec.size() - 5, 5, ".JSON") == 0);
+    const bool has_json_ext = affinity_spec.size() >= 5 && (affinity_spec.compare(affinity_spec.size() - 5, 5, ".json") == 0 ||
+        affinity_spec.compare(affinity_spec.size() - 5, 5, ".JSON") == 0);
 
     if (has_json_ext) {
         std::ifstream file_check(affinity_spec);
@@ -175,9 +171,9 @@ void apply_manual_affinities(const std::shared_ptr<ov::Model>& model,
                 devices_oss << hardware_devices[i];
             }
             OPENVINO_THROW("Affinity value '",
-                        affinity_spec,
-                        "' is not present in -d hardware devices list: ",
-                        devices_oss.str());
+                            affinity_spec,
+                            "' is not present in -d hardware devices list: ",
+                            devices_oss.str());
         }
     }
 
