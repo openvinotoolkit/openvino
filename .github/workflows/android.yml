@@ -293,10 +293,10 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
-          # If tests were installed under tests/, move CPU test binaries to expected path
+          # mv (not cp) so CPU test binaries are not duplicated into both tests/ and bin/ in the artifact
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
             echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
-            find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
+            find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec mv {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
             # Copy Template plugin library from tests installation into runtime package so tests can load it
             find ${INSTALL_TEST_DIR}/tests -name "libopenvino_template_plugin*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/lib/intel64/ \; 2>/dev/null || true
           fi
@@ -305,12 +305,7 @@ jobs:
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
 
-      # The Release build still compiles with -g (NDK default), so the test binaries
-      # (~1.6 GB / ~1 GB) and runtime .so's carry debug symbols that are never used on
-      # the emulator (no backtrace/symbolization step). Strip them to shrink every
-      # download driven by the Build/CXX_*_Tests jobs. --strip-unneeded keeps the
-      # dynamic symbol table required for loading/linking, so test execution is
-      # unchanged. This complements the per-binary artifact split below.
+      # Release build keeps -g (NDK default); strip unused debug symbols to shrink every download
       - name: Strip debug symbols from test binaries and runtime libraries
         run: |
           STRIP="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
@@ -321,18 +316,14 @@ jobs:
             echo "Error: llvm-strip not found (NDK path or PATH)"; exit 1
           fi
           echo "Using strip: $STRIP"
-          before=$(du -sh ${INSTALL_TEST_DIR} ${INSTALL_DIR} | awk '{print $1" "$2}')
-          # Test binaries (executables): --strip-all is safe, nothing dlopen's them.
-          # Search the whole test dir so a layout change can't silently break the find.
+          echo "Size before strip:"; du -shc ${INSTALL_TEST_DIR} ${INSTALL_DIR}
           find ${INSTALL_TEST_DIR} -type f \
             \( -name "ov_cpu_func_tests" -o -name "ov_cpu_unit_tests" \) \
             -exec "$STRIP" --strip-all {} +
-          # Runtime shared libraries: keep the dynamic symbol table for loader/linker.
-          # Single root that is always mkdir -p'd above; avoids erroring on an absent subdir under set -e.
+          # --strip-unneeded keeps the dynamic symbol table needed to load .so's
           find ${INSTALL_DIR} -type f -name "*.so*" \
             -exec "$STRIP" --strip-unneeded {} +
-          echo "Size before strip: $before"
-          echo "Size after  strip: $(du -sh ${INSTALL_TEST_DIR} ${INSTALL_DIR} | awk '{print $1" "$2}')"
+          echo "Size after strip:"; du -shc ${INSTALL_TEST_DIR} ${INSTALL_DIR}
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -342,12 +333,7 @@ jobs:
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
-      # Upload each CPU test binary as its own artifact so that the emulator jobs
-      # download only the single binary they actually push to the device, instead
-      # of the whole android_tests/ tree (both binaries + a duplicate install tree
-      # under android_tests/tests + test_model_zoo). The func/unit jobs each push
-      # exactly one of these to the device, so a combined >2 GB artifact made the
-      # "Download CPU test binaries" step alone consume most of the 20-min budget.
+      # One artifact per test binary so each emulator job downloads only the binary it runs
       - name: Upload CPU functional test binary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
