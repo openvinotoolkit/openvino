@@ -15,7 +15,7 @@ namespace {
 
 class MoeRouterSoftMaxTopK : public KernelGenerator {
 public:
-    MoeRouterSoftMaxTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "softmax_topk") {}
+    MoeRouterSoftMaxTopK() : KernelGenerator("moe_router_fused", "softmax_topk") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -41,7 +41,7 @@ protected:
 
 class MoeRouterSigmoidBiasTopK : public KernelGenerator {
 public:
-    MoeRouterSigmoidBiasTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "sigmoid_bias_topk") {}
+    MoeRouterSigmoidBiasTopK() : KernelGenerator("moe_router_fused", "sigmoid_bias_topk") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
