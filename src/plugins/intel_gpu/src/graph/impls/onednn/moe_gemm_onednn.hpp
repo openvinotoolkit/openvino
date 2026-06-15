@@ -84,6 +84,14 @@ struct MoEGemmImplementationManager : public ImplementationManager {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
+        // oneDNN does not support mixed fp16 x bf16 configurations
+        auto act_dt = node.get_input_layout(moe_gemm::MoEGemmInputIdx::INPUT).data_type;
+        auto wei_dt = node.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).data_type;
+        if ((act_dt == data_types::f16 && wei_dt == data_types::bf16) ||
+            (act_dt == data_types::bf16 && wei_dt == data_types::f16)) {
+            DO_NOT_USE_THIS_KERNEL(layer_id);
+        }
+
         std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
         bool has_quant_weight = false;
         if (std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {
