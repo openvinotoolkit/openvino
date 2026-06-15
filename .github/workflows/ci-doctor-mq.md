@@ -311,7 +311,7 @@ tools:
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
   repo-memory:
     branch-name: memory/ci-doctor-mq
-    allowed-extensions: [".json"]
+    file-glob: ["*.md", "*.json", "*.jsonl"]
     max-file-size: 102400
     max-file-count: 500
 
@@ -455,8 +455,8 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    - Write the investigation report to `/tmp/gh-aw/repo-memory/default/mq/investigations/<timestamp>-<run-id>.json`
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
-   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/`
-   - Maintain an index file of all investigations for fast searching
+   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`)
+   - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -765,4 +765,5 @@ Example noop call: `{"noop": {"message": "No action needed: [brief explanation]"
 - **Filename Requirements**: Use filesystem-safe characters only (no colons, quotes, or special characters)
   - ✅ Good: `2026-02-12-11-20-45-458-12345.json`
   - ❌ Bad: `2026-02-12T11:20:45.458Z-12345.json` (contains colons)
+- **Allowed file extensions**: Only save artifacts as `.json`, `.md`, or `.jsonl` files. These are the only extensions tracked by `tools.repo-memory` (`file-glob: ["*.md", "*.json", "*.jsonl"]`). Files with any other extension (e.g., `.txt`, `.log`, `.yaml`) will **not** be persisted to the `memory/ci-doctor-mq` branch and will be lost when the runner is torn down.
 - **Isolated branch**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` as its own subdirectory within the dedicated `memory/ci-doctor-mq` branch. This keeps merge-queue failure patterns isolated from any other workflows, ensuring threshold-crossing logic only counts merge-queue occurrences.

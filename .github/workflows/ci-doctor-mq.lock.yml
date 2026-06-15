@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"2b351d494eea373dd292b7938800c09a0c876995c3126e89f0d40406fb7c67a2","body_hash":"ea195da8abf5dbd9bfa025db1dce79d5ccdf47b05453c9a413b24d14e375d24a","compiler_version":"v0.79.4","strict":true,"agent_id":"copilot","agent_model":"gpt-5-mini","engine_versions":{"copilot":"1.0.60"}}
+=======
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"2563790e6580e329595a60c7c1f9ad75b120c14651081d977731dfd06f1120c9","body_hash":"cf37618f17522d18657195ac2182aeac3d46822e1b6ace1db0bc3f59324020f3","compiler_version":"v0.79.4","strict":true,"agent_id":"copilot","agent_model":"gpt-5-mini","engine_versions":{"copilot":"1.0.60"}}
+>>>>>>> upstream/master
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/checkout","sha":"df4cb1c069e1874edd31b4311f1884172cec0e10","version":"v6.0.3"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"actions/upload-artifact","sha":"b7c566a772e6b6bfb58ed0dc250532a479d7789f","version":"b7c566a772e6b6bfb58ed0dc250532a479d7789f"},{"repo":"github/gh-aw-actions/setup","sha":"d059700c6a8ec3b5fd798b9ea60f5d048447b918","version":"v0.79.4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.0"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.0"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.25","digest":"sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.25@sha256:c10331ad17668ef89f38f5e356678788a40b0cd5fef96e8f92e1d9c1de47cbaa"},{"image":"ghcr.io/github/github-mcp-server:v1.1.2","digest":"sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c","pinned_image":"ghcr.io/github/github-mcp-server:v1.1.2@sha256:30197479d8036c7811892bc07e06f9a05c9ef3cdd79bc59f256d50647f95788c"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -333,7 +337,7 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_MEMORY_BRANCH_NAME: 'memory/ci-doctor-mq'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 500 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 1024 KB)\n"
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.md, *.json, *.jsonl\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 500 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 1024 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ''
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
@@ -1908,7 +1912,8 @@ jobs:
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 500
           MAX_PATCH_SIZE: 10240
-          ALLOWED_EXTENSIONS: '[".json"]'
+          ALLOWED_EXTENSIONS: '[]'
+          FILE_GLOB_FILTER: "*.md *.json *.jsonl"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
