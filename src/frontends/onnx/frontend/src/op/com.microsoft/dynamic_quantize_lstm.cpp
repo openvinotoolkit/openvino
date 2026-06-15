@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
@@ -106,7 +107,7 @@ ov::Output<ov::Node> dequantize_weights(const ov::frontend::onnx::Node& node,
                                         const ov::Output<ov::Node>& zero_point,
                                         const std::string& weights_name) {
     const auto aligned_scale = align_dequant_param(node, scale, weights_name + "_scale");
-    const ov::Output<ov::Node> aligned_zp = zero_point.get_node_shared_ptr()
+    const ov::Output<ov::Node> aligned_zp = !ov::op::util::is_null(zero_point)
                                                 ? align_dequant_param(node, zero_point, weights_name + "_zero_point")
                                                 : ov::Output<ov::Node>{};
     return ov::decomposition::low_precision_dequantize(prepared_weights, aligned_scale, aligned_zp);
@@ -131,9 +132,15 @@ struct DynamicQuantizeLSTMInputMap {
                          "DynamicQuantizeLSTM input 'R' must have element type int8 or uint8. Got: ",
                          ng_inputs.at(2).get_element_type());
         CHECK_VALID_NODE(node,
+                         common::is_input_valid(node, 8),
+                         "DynamicQuantizeLSTM mandatory input 'W_scale' (index 8) is missing.");
+        CHECK_VALID_NODE(node,
                          ng_inputs.at(8).get_element_type() == ov::element::f32,
                          "DynamicQuantizeLSTM input 'W_scale' must have element type float32. Got: ",
                          ng_inputs.at(8).get_element_type());
+        CHECK_VALID_NODE(node,
+                         common::is_input_valid(node, 10),
+                         "DynamicQuantizeLSTM mandatory input 'R_scale' (index 10) is missing.");
         CHECK_VALID_NODE(node,
                          ng_inputs.at(10).get_element_type() == ov::element::f32,
                          "DynamicQuantizeLSTM input 'R_scale' must have element type float32. Got: ",
@@ -169,6 +176,21 @@ struct DynamicQuantizeLSTMInputMap {
 
         auto prepared_w = prepare_quantized_weights(node, ng_inputs.at(1), "W");
         auto prepared_r = prepare_quantized_weights(node, ng_inputs.at(2), "R");
+
+        // Validate hidden_size attribute against R's actual shape.
+        // After prepare_quantized_weights, R has layout [num_dir, 4*hidden_size, K].
+        // The original R input had layout [num_dir, K, hidden_size], so K=hidden is dim 1 of prepared_r.
+        // Use the original R input (ng_inputs.at(2)) dim 2 which is hidden_size before transposition.
+        const auto& r_pshape = ng_inputs.at(2).get_partial_shape();
+        if (r_pshape.rank().is_static() && r_pshape[2].is_static()) {
+            CHECK_VALID_NODE(node,
+                             r_pshape[2].get_length() == hidden_size,
+                             "DynamicQuantizeLSTM: 'hidden_size' attribute (",
+                             hidden_size,
+                             ") does not match R input shape dim 2 (",
+                             r_pshape[2].get_length(),
+                             ").");
+        }
 
         m_input_map[DynamicQuantizeLSTMInput::W] = ov::op::util::convert_lstm_node_format(
             dequantize_weights(node, prepared_w, ng_inputs.at(8), w_zero_point, "W"),

@@ -139,6 +139,8 @@ OpInputMap::OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_c
     m_map[OpInput::W] = ng_inputs.at(1);
     m_map[OpInput::R] = ng_inputs.at(2);
 
+    // X must be in OV layout [batch, seq, input] (reorder_axes applied above) before LSTMDimensions
+    // is constructed; constructing it earlier would swap batch/seq in all derived default tensors.
     const LSTMDimensions dims{m_map[OpInput::X], m_map[OpInput::R]};
     const auto x_type = m_map[OpInput::X].get_element_type();
 
