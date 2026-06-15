@@ -292,12 +292,14 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
 
 template <typename T>
 ov::Tensor create_tensor_constant(const benchmark_app::InputInfo& inputInfo, T value) {
-    size_t tensor_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    const size_t tensor_size = ov::shape_size(inputInfo.dataShape);
     auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    if (tensor_size == 0) {
+        return tensor;
+    }
     auto data = tensor.data<T>();
 
-    std::fill(data, data + tensor_size, value);
+    std::fill_n(data, tensor_size, value);
 
     return tensor;
 }
