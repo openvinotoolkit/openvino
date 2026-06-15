@@ -29,32 +29,8 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-distutils \
         python3.11-venv \
-        libhdf5-dev \
-        xvfb \
-        libgtk-3-0 \
-        libgbm1 \
-        libnss3 \
         wget \
-        ffmpeg \
-        libsm6 \
-        libxext6 \
-        libgl1 \
-        libgl1-mesa-glx \
-        libglib2.0-0 \
-        clinfo \
-        libegl-mesa0 \
-        libegl1-mesa \
-        libegl1-mesa-dev \
-        libgl1-mesa-dev \
-        libgl1-mesa-dri \
-        libglapi-mesa \
-        libgles2-mesa-dev \
-        libglx-mesa0 \
-        libxatracker2 \
-        mesa-va-drivers \
-        mesa-vdpau-drivers \
-        mesa-vulkan-drivers \
-        va-driver-all && \
+        clinfo && \
     rm -rf /var/lib/apt/lists/*
 
 ADD scripts/install_dependencies/install_openvino_dependencies.sh /install_openvino_dependencies.sh
@@ -72,10 +48,17 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 # Install dgpu drivers
-RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg && \
-   echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list && \
-   apt-get update && \
-   apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd clinfo libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+RUN apt-get update && apt-get install ocl-icd-libopencl1 && \
+    mkdir drivers && \
+    cd drivers && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-core_1.0.17791.9_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-opencl_1.0.17791.9_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu-dbgsym_1.6.31294.12_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu_1.6.31294.12_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd-dbgsym_24.39.31294.12_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd_24.39.31294.12_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/libigdgmm12_22.5.2_amd64.deb && \
+    dpkg -i *.deb && cd .. && rm -rf drivers
 
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
