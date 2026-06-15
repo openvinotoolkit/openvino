@@ -2192,7 +2192,7 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
 //     Param/Const -> Reshape -> (Convert(f32)) ->
 //
 
-ConvToMatmul::ConvToMatmul() {
+ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
     auto param = opp::wrap_type<ov::op::v0::Parameter>();
     auto convert = opp::wrap_type<ov::op::v0::Convert>({param->output(0)});
     auto param2 = opp::any_input();
