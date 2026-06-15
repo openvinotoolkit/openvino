@@ -69,7 +69,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    auto isHostCompiledBlob = [&]() {
+    auto isHostCompiledBlob = [&](ov::Tensor& tensor) {
         // when compilation mode is not set,
         // vpux compiler may generate a blob for HostCompile mode when both input and output shapes are dynamic,
         // we need to detect it and use the right runtime to get metadata
@@ -85,7 +85,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         return false;
     };
 
-    if ((config.get<COMPILATION_MODE>().find("HostCompile") == 0) || isHostCompiledBlob()) {
+    if ((config.get<COMPILATION_MODE>().find("HostCompile") == 0) || isHostCompiledBlob(tensor)) {
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
         // metadata will be obtained in initialze() of DynamicGraph
