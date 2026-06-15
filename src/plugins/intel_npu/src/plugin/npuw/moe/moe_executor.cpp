@@ -45,8 +45,10 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
         m_config.input_token_count = moe_experts->input_token_count;
         m_config.expert_hidden_dim = moe_experts->expert_hidden_dim;
         m_config.param_mapping = moe_experts->_param_mapping;
-        m_config.router_scores_idx = moe_experts->_router_scores_idx;
-        m_config.expert_input_param_idx = moe_experts->_expert_input_param_idx;
+        m_config.router_scores.original = moe_experts->_router_scores.original;
+        m_config.router_scores.compiled = moe_experts->_router_scores.compiled;
+        m_config.expert_input.original = moe_experts->_expert_input.original;
+        m_config.expert_input.compiled = moe_experts->_expert_input.compiled;
         m_config.compiled_models = moe_experts->_compiled_models;
 
         // Validate configuration
@@ -137,14 +139,14 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
     // MoE expert layer: handle router scores and expert inputs
     if (const auto* moe = get_compiled_experts(desc.pipeline.context)) {
         // Router scores: store for later use in MoE inference
-        if (moe->_router_scores_idx.has_value() && param_idx == moe->_router_scores_idx.value()) {
+        if (moe->_router_scores.original.has_value() && param_idx == moe->_router_scores.original.value()) {
             NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
             m_moe_io[idx].router_scores = i_tensor;
             return true;  // Handled by MoE
         }
 
         // Expert inputs: store for later use (batch mode: cache binding, iterative mode: chunking)
-        if (moe->_expert_input_param_idx.has_value() && param_idx == moe->_expert_input_param_idx.value()) {
+        if (moe->_expert_input.original.has_value() && param_idx == moe->_expert_input.original.value()) {
             NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
             m_moe_io[idx].expert_input = i_tensor;
             return true;  // Handled by MoE
@@ -298,8 +300,10 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
 
     // Step 4: Bind input/output tensors to cached request (must bind every time as these tensors change)
     // 4.1: Bind expert input (token embeddings)
-    if (m_config.expert_input_param_idx.has_value()) {
-        const auto expert_input_idx = m_config.expert_input_param_idx.value();
+    // Use the transformed parameter index to access the compiled model's port correctly.
+    // (unroll_expert_dimension may shift the expert_input parameter index relative to the original model)
+    if (m_config.expert_input.compiled.has_value()) {
+        const auto expert_input_idx = m_config.expert_input.compiled.value();
         const auto& expert_input_port = desc.compiled_model->inputs()[expert_input_idx];
         auto expert_input_tensor = io.expert_input;
         if (!expert_input_tensor) {
@@ -342,10 +346,10 @@ void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx, const std::v
                 m_resources.expert_output_accumulator->get_byte_size());
 
     // Get tensor references (constant across all experts)
-    if (!m_config.router_scores_idx.has_value()) {
+    if (!m_config.router_scores.compiled.has_value()) {
         OPENVINO_THROW("MoE: Router scores index not available");
     }
-    if (!m_config.expert_input_param_idx.has_value()) {
+    if (!m_config.expert_input.compiled.has_value()) {
         OPENVINO_THROW("MoE: Expert input parameter index not available");
     }
 
@@ -436,9 +440,10 @@ void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx, const std::v
 
             // Get input/output ports for selected infer request
             auto selected_compiled_model = m_config.compiled_models.at(selected_chunk_size);
-            const auto& selected_router_iport = selected_compiled_model->inputs()[m_config.router_scores_idx.value()];
+            const auto& selected_router_iport =
+                selected_compiled_model->inputs()[m_config.router_scores.compiled.value()];
             const auto& selected_expert_input_iport =
-                selected_compiled_model->inputs()[m_config.expert_input_param_idx.value()];
+                selected_compiled_model->inputs()[m_config.expert_input.compiled.value()];
             const auto& selected_oport = selected_compiled_model->outputs()[0];
 
             auto selected_router_dest = selected_infer_request->get_tensor(selected_router_iport);
@@ -507,11 +512,11 @@ void MoEExecutor::set_router_scores(size_t idx,
     const auto& io = m_moe_io[idx];
 
     // Validate router scores index is provided
-    if (!m_config.router_scores_idx.has_value()) {
+    if (!m_config.router_scores.original.has_value()) {
         OPENVINO_THROW("MoE: Router input parameter index not specified for expert model");
     }
 
-    const auto original_router_idx = m_config.router_scores_idx.value();
+    const auto original_router_idx = m_config.router_scores.original.value();
     const auto& param_mapping = m_config.param_mapping;
 
     // Find unrolled router score parameters

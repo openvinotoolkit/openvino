@@ -50,7 +50,7 @@ TEST(extract_image_patches_gpu, basic) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          1,  6,
@@ -124,7 +124,7 @@ TEST(extract_image_patches_gpu, basic2) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          1,
@@ -188,7 +188,7 @@ TEST(extract_image_patches_gpu, basic3) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0,   0,
@@ -283,7 +283,7 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0,   0,
@@ -378,7 +378,7 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          1,   8,
@@ -452,7 +452,7 @@ TEST(extract_image_patches_gpu, basic4) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          1,   6,
@@ -528,7 +528,7 @@ void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
     ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> answers = {
          1,  4,
