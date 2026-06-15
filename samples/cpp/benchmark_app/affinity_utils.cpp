@@ -37,6 +37,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
                        file_path);
     }
 
+    const std::unordered_set<std::string> allowed_devices(hardware_devices.begin(), hardware_devices.end());
+
     std::unordered_set<std::string> mapped_devices;
     for (const auto& item : affinity_json.items()) {
         if (!item.value().is_string()) {
@@ -46,7 +48,27 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
                            item.key(),
                            "'. Expected device name as string.");
         }
-        mapped_devices.insert(item.value().get<std::string>());
+
+        const auto device = item.value().get<std::string>();
+        if (!allowed_devices.empty() && allowed_devices.find(device) == allowed_devices.end()) {
+            std::ostringstream devices_oss;
+            for (size_t i = 0; i < hardware_devices.size(); ++i) {
+                if (i != 0) {
+                    devices_oss << ", ";
+                }
+                devices_oss << hardware_devices[i];
+            }
+            OPENVINO_THROW("Affinity file ",
+                           file_path,
+                           " references device '",
+                           device,
+                           "' for node '",
+                           item.key(),
+                           "', but it is not present in -d hardware devices list: ",
+                           devices_oss.str());
+        }
+
+        mapped_devices.insert(device);
     }
 
     std::vector<std::string> unmapped_hardware_devices;
