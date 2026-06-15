@@ -24,7 +24,7 @@ using uniformDistribution = typename std::conditional<
     std::uniform_real_distribution<T>,
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
-std::string normalize_input_name(std::string input_name) {
+static std::string normalize_input_name(std::string input_name) {
     // Keep only the last path segment to avoid matching namespace prefixes.
     const auto slash_pos = input_name.find_last_of("/\\");
     if (slash_pos != std::string::npos) {
@@ -309,6 +309,7 @@ ov::Tensor create_tensor_position_ids(const benchmark_app::InputInfo& inputInfo)
     auto data = tensor.data<T>();
 
     if (inputInfo.dataShape.empty()) {
+        data[0] = static_cast<T>(0);
         return tensor;
     }
 
@@ -338,6 +339,25 @@ ov::Tensor create_tensor_beam_idx(const benchmark_app::InputInfo& inputInfo) {
     }
 
     return tensor;
+}
+
+template <typename T>
+bool try_get_special_random_tensor(const benchmark_app::InputInfo& inputInfo,
+                                   const std::string& normalized_input_name,
+                                   ov::Tensor& special_tensor) {
+    if (normalized_input_name == "beam_idx") {
+        special_tensor = create_tensor_beam_idx<T>(inputInfo);
+        return true;
+    }
+    if (normalized_input_name == "attention_mask") {
+        special_tensor = create_tensor_constant<T>(inputInfo, static_cast<T>(1));
+        return true;
+    }
+    if (normalized_input_name == "position_ids") {
+        special_tensor = create_tensor_position_ids<T>(inputInfo);
+        return true;
+    }
+    return false;
 }
 
 ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
@@ -658,10 +678,8 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
 
 ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     const auto normalized_input_name = normalize_input_name(inputInfo.first);
-    const bool is_beam_idx_input = normalized_input_name == "beam_idx";
-    const bool is_attention_mask_input = normalized_input_name == "attention_mask";
-    const bool is_position_ids_input = normalized_input_name == "position_ids";
     auto type = inputInfo.second.type;
+    ov::Tensor special_tensor;
     if (type == ov::element::f32) {
         return create_tensor_random<float, float>(inputInfo.second);
     } else if (type == ov::element::f64) {
@@ -671,36 +689,18 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::bf16) {
         return create_tensor_random<ov::bfloat16, float>(inputInfo.second);
     } else if (type == ov::element::i32) {
-        if (is_beam_idx_input) {
-            return create_tensor_beam_idx<int32_t>(inputInfo.second);
-        }
-        if (is_attention_mask_input) {
-            return create_tensor_constant<int32_t>(inputInfo.second, 1);
-        }
-        if (is_position_ids_input) {
-            return create_tensor_position_ids<int32_t>(inputInfo.second);
+        if (try_get_special_random_tensor<int32_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
         }
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
-        if (is_beam_idx_input) {
-            return create_tensor_beam_idx<int64_t>(inputInfo.second);
-        }
-        if (is_attention_mask_input) {
-            return create_tensor_constant<int64_t>(inputInfo.second, 1);
-        }
-        if (is_position_ids_input) {
-            return create_tensor_position_ids<int64_t>(inputInfo.second);
+        if (try_get_special_random_tensor<int64_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
         }
         return create_tensor_random<int64_t, int64_t>(inputInfo.second);
     } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
-        if (is_beam_idx_input) {
-            return create_tensor_beam_idx<uint8_t>(inputInfo.second);
-        }
-        if (is_attention_mask_input) {
-            return create_tensor_constant<uint8_t>(inputInfo.second, 1);
-        }
-        if (is_position_ids_input) {
-            return create_tensor_position_ids<uint8_t>(inputInfo.second);
+        if (try_get_special_random_tensor<uint8_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
         }
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
