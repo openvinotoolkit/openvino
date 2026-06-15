@@ -118,7 +118,7 @@ enum class SharedMemType {
     DX_BUFFER = 6,           //!< Shared D3D buffer blob
     BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
                              //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
-    CPU_POINTER = 8,         //!< Shared mmap-backed host pointer mapped by plugin for zero-copy path
+    CPU_ALLOCATED = 8,       //!< Shared mmap-backed host pointer mapped by plugin for zero-copy path
 };
 
 /**
@@ -169,7 +169,7 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
         return os << "USM_HOST_BUFFER";
     case SharedMemType::USM_DEVICE_BUFFER:
         return os << "USM_DEVICE_BUFFER";
-    case SharedMemType::CPU_POINTER:
+    case SharedMemType::CPU_ALLOCATED:
         return os << "MMAP_SHARED_BUFFER";
     case SharedMemType::VA_SURFACE:
         return os << "VA_SURFACE";
@@ -196,7 +196,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
     } else if (str == "USM_DEVICE_BUFFER") {
         share_mem_type = SharedMemType::USM_DEVICE_BUFFER;
     } else if (str == "MMAP_SHARED_BUFFER") {
-        share_mem_type = SharedMemType::CPU_POINTER;
+        share_mem_type = SharedMemType::CPU_ALLOCATED;
     } else if (str == "VA_SURFACE") {
         share_mem_type = SharedMemType::VA_SURFACE;
     } else if (str == "DX_BUFFER") {
