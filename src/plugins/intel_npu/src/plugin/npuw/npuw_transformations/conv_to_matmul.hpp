@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::npuw {
 
-class ConvToMatMul : public ov::pass::ModelPass {
+class ConvToMatMul : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvToMatMul");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_GRAPH_REWRITE_RTTI("ov::npuw::ConvToMatMul");
+    ConvToMatMul();
 };
 
 }  // namespace ov::npuw

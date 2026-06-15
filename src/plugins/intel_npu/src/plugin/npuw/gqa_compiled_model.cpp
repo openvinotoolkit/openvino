@@ -12,6 +12,7 @@
 #include "logging.hpp"
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
+#include "npuw_transformations/drop_zp_subtract.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
@@ -122,11 +123,18 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
     auto prepared_properties = with_gqa_defaults(model, properties);
+    // Drop all-zero zero-point Subtract nodes so ConvToMatMul sees a clean
+    // Convert(Parameter) → Multiply(scale) weight chain.
+    ov::npuw::DropZPSubtract drop_zp_subtract;
+    drop_zp_subtract.run_on_model(model);
+    // Rewrite 1x1 Convolutions with compressed (Parameter-sourced) weights as
+    // MatMul + scale Multiply, keeping the Parameter shapes intact.
     ov::npuw::ConvToMatMul conv_to_matmul;
     conv_to_matmul.run_on_model(model);
+    // Collapse FakeQuantize-based QDQ chains when requested.
     if (prepared_properties.at(std::string(::intel_npu::NPUW_UNQDQ::key())).as<std::string>() == "YES") {
-        ov::npuw::CollapseUNQDQ pass;
-        pass.run_on_model(model);
+        ov::npuw::CollapseUNQDQ collapse_unqdq;
+        collapse_unqdq.run_on_model(model);
     }
     return {model, std::move(prepared_properties)};
 }

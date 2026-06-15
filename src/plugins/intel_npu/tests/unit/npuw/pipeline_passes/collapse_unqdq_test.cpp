@@ -3,6 +3,7 @@
 //
 
 #include "npuw_transformations/collapse_unqdq.hpp"
+#include "npuw_transformations/conv_to_matmul.hpp"
 
 #include <algorithm>
 
@@ -141,6 +142,34 @@ std::shared_ptr<ov::Model> build_conv_to_matmul_model(bool per_output_channel_sc
                                        "conv_to_matmul_model");
 }
 
+std::shared_ptr<ov::Model> build_conv_to_matmul_and_unqdq_model() {
+    const auto conv_model = build_conv_to_matmul_model(true, true);
+    const auto unqdq_model = build_unqdq_model();
+
+    ov::ResultVector results;
+    for (const auto& result : conv_model->get_results()) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(result->input_value(0)));
+    }
+    for (const auto& result : unqdq_model->get_results()) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(result->input_value(0)));
+    }
+
+    ov::ParameterVector parameters = conv_model->get_parameters();
+    const auto unqdq_parameters = unqdq_model->get_parameters();
+    parameters.insert(parameters.end(), unqdq_parameters.begin(), unqdq_parameters.end());
+
+    return std::make_shared<ov::Model>(results, parameters, "conv_to_matmul_and_unqdq_model");
+}
+
+void expect_conv_to_matmul_and_unqdq_rewritten(const std::shared_ptr<ov::Model>& model) {
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(count_ops<ov::op::v1::Convolution>(model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v0::MatMul>(model), 1u);
+    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v1::Subtract>(model), 0u);
+}
+
 TEST(CollapseUNQDQPassTest, DropsEntireUnqdqChainFromModel) {
     const auto model = build_unqdq_model();
     ASSERT_EQ(count_ops<ov::op::v0::FakeQuantize>(model), 1u);
@@ -193,6 +222,30 @@ TEST(CollapseUNQDQPassTest, KeepsSubtractWhenZeroPointIsNotAllZeros) {
     model->validate_nodes_and_infer_types();
 
     EXPECT_EQ(count_ops<ov::op::v1::Subtract>(model), 1u);
+}
+
+TEST(CollapseUNQDQPassTest, ConvToMatMulAndUNQDQOrderDoesNotMatter) {
+    {
+        const auto model = build_conv_to_matmul_and_unqdq_model();
+        ov::npuw::ConvToMatMul conv_to_matmul;
+        ov::npuw::CollapseUNQDQ collapse_unqdq;
+
+        conv_to_matmul.run_on_model(model);
+        collapse_unqdq.run_on_model(model);
+
+        expect_conv_to_matmul_and_unqdq_rewritten(model);
+    }
+
+    {
+        const auto model = build_conv_to_matmul_and_unqdq_model();
+        ov::npuw::ConvToMatMul conv_to_matmul;
+        ov::npuw::CollapseUNQDQ collapse_unqdq;
+
+        collapse_unqdq.run_on_model(model);
+        conv_to_matmul.run_on_model(model);
+
+        expect_conv_to_matmul_and_unqdq_rewritten(model);
+    }
 }
 
 }  // namespace

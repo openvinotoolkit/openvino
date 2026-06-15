@@ -22,6 +22,10 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+namespace opp = ov::pass::pattern;
 
 namespace {
 
@@ -80,6 +84,24 @@ ov::Output<ov::Node> peel_passthrough_nodes(ov::Output<ov::Node> output) {
     }
 }
 
+// Returns true if `output` is a chain of one or more Convert nodes whose final
+// input is a Parameter.  Such a chain is the compressed-weight pattern:
+//   Parameter (i4/i8/…) → Convert → [Convert …] → Multiply(scale) → Conv
+// We require at least one Convert so we never reshape raw quantised data.
+bool is_convert_param_chain(const ov::Output<ov::Node>& output) {
+    auto cur = output;
+    while (true) {
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(cur.get_node_shared_ptr());
+        if (convert == nullptr) {
+            return false;
+        }
+        if (ov::is_type<ov::op::v0::Parameter>(convert->input_value(0).get_node_shared_ptr())) {
+            return true;
+        }
+        cur = convert->input_value(0);
+    }
+}
+
 bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& convolution) {
     const auto transpose_in = ov::as_type_ptr<ov::op::v1::Transpose>(convolution->input_value(0).get_node_shared_ptr());
     const auto weight_multiply =
@@ -108,14 +130,19 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
         return false;
     }
 
-    ov::Output<ov::Node> weight_value;
-    ov::Output<ov::Node> weight_parameter_source;
+    // weight_convert_output: output of the outermost Convert in the
+    // Convert(…Convert(Parameter)…) chain — already a float tensor with shape
+    // [OC, IC, 1, 1].  We add a Reshape *after* this node so that the
+    // Parameter shape [OC, IC, 1, 1] is preserved in the graph.
+    ov::Output<ov::Node> weight_convert_output;
     ov::Output<ov::Node> scale_source;
 
     const auto match_branch = [&](const ov::Output<ov::Node>& weight_branch,
                                   const ov::Output<ov::Node>& scale_branch) -> bool {
-        const auto weight_source = peel_passthrough_nodes(weight_branch);
-        if (!ov::is_type<ov::op::v0::Parameter>(weight_source.get_node_shared_ptr())) {
+        // Weight must be a chain of Converts whose root is a Parameter.
+        // Any intermediate Subtract (zero-point) node will cause the chain
+        // check to fail and the match to be skipped.
+        if (!is_convert_param_chain(weight_branch)) {
             return false;
         }
 
@@ -132,8 +159,7 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
             return false;
         }
 
-        weight_value = weight_branch;
-        weight_parameter_source = weight_source;
+        weight_convert_output = weight_branch;
         scale_source = peeled_scale_source;
         return true;
     };
@@ -143,7 +169,7 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
         return false;
     }
 
-    const auto& conv_weight_shape = convolution->input_value(1).get_shape();
+    const auto& conv_weight_shape = weight_convert_output.get_shape();  // [OC, IC, 1, 1]
 
     if (convolution->get_strides() != ov::Strides{1, 1} || convolution->get_dilations() != ov::Strides{1, 1} ||
         convolution->get_pads_begin() != ov::CoordinateDiff{0, 0} ||
@@ -151,17 +177,16 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
         return false;
     }
 
+    // Reshape the float weight tensor from [OC, IC, 1, 1] to [OC, IC].
+    // The Reshape is inserted *after* the Convert chain so the Parameter node
+    // retains its original shape and the runtime can bind tensors as-is.
     auto weight_reshape =
-        std::make_shared<ov::op::v1::Reshape>(weight_parameter_source,
+        std::make_shared<ov::op::v1::Reshape>(weight_convert_output,
                                               make_i32_shape_constant({static_cast<int32_t>(conv_weight_shape[0]),
                                                                        static_cast<int32_t>(conv_weight_shape[1])}),
                                               false);
-    ov::Output<ov::Node> converted_weight = weight_reshape;
-    if (weight_reshape->get_output_element_type(0) != weight_value.get_element_type()) {
-        converted_weight = std::make_shared<ov::op::v0::Convert>(weight_reshape, weight_value.get_element_type());
-    }
 
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(matmul_input, converted_weight, false, true);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(matmul_input, weight_reshape, false, true);
 
     auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(
         scale_source,
@@ -201,16 +226,51 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
     return true;
 }
 
+class ConvToMatMulMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::ConvToMatMulMatcher");
+
+    ConvToMatMulMatcher() {
+        auto convolution_with_output_transpose_pattern = opp::wrap_type<ov::op::v1::Convolution>();
+        auto output_transpose_pattern =
+            opp::wrap_type<ov::op::v1::Transpose>({convolution_with_output_transpose_pattern, opp::any_input()});
+
+        ov::matcher_pass_callback output_transpose_callback = [](opp::Matcher& matcher) {
+            const auto output_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(matcher.get_match_root());
+            if (output_transpose == nullptr) {
+                return false;
+            }
+
+            const auto convolution =
+                ov::as_type_ptr<ov::op::v1::Convolution>(output_transpose->input_value(0).get_node_shared_ptr());
+            if (convolution == nullptr) {
+                return false;
+            }
+
+            return rewrite_conv_to_matmul(convolution);
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(output_transpose_pattern, "ConvToMatMulOutputTransposeMatcher"),
+                         output_transpose_callback);
+
+        auto convolution_pattern = opp::wrap_type<ov::op::v1::Convolution>();
+
+        ov::matcher_pass_callback convolution_callback = [](opp::Matcher& matcher) {
+            const auto convolution = ov::as_type_ptr<ov::op::v1::Convolution>(matcher.get_match_root());
+            if (convolution == nullptr) {
+                return false;
+            }
+
+            return rewrite_conv_to_matmul(convolution);
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(convolution_pattern, "ConvToMatMulMatcher"),
+                         convolution_callback);
+    }
+};
+
 }  // namespace
 
-bool ov::npuw::ConvToMatMul::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    bool rewritten = false;
-
-    for (const auto& node : model->get_ordered_ops()) {
-        if (const auto convolution = ov::as_type_ptr<ov::op::v1::Convolution>(node)) {
-            rewritten = rewrite_conv_to_matmul(convolution) || rewritten;
-        }
-    }
-
-    return rewritten;
+ov::npuw::ConvToMatMul::ConvToMatMul() {
+    add_matcher<ConvToMatMulMatcher>();
 }

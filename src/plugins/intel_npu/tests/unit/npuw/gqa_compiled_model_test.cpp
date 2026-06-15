@@ -17,10 +17,12 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace {
@@ -118,6 +120,58 @@ std::shared_ptr<ov::Model> build_conv_to_matmul_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(transpose_out)},
                                        ov::ParameterVector{activation, weights, scale},
                                        "gqa_conv_to_matmul_model");
+}
+
+std::shared_ptr<ov::Model> build_dumped_gqa_conv_model() {
+    auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 512, 5120});
+    auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::i4, ov::Shape{5120, 5120, 1, 1});
+    auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{5120});
+
+    auto converted_activation = std::make_shared<ov::op::v0::Convert>(activation, ov::element::f32);
+    auto unsqueezed_activation = std::make_shared<ov::op::v0::Unsqueeze>(
+        converted_activation,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    auto transposed_activation = std::make_shared<ov::op::v1::Transpose>(
+        unsqueezed_activation,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2}));
+    auto scaled_weights = std::make_shared<ov::op::v1::Multiply>(
+        std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32),
+        std::make_shared<ov::op::v1::Reshape>(
+            scale,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {5120, 1, 1, 1}),
+            true));
+    auto convolution = std::make_shared<ov::op::v1::Convolution>(transposed_activation,
+                                                                scaled_weights,
+                                                                ov::Strides{1, 1},
+                                                                ov::CoordinateDiff{0, 0},
+                                                                ov::CoordinateDiff{0, 0},
+                                                                ov::Strides{1, 1});
+    auto transpose_out = std::make_shared<ov::op::v1::Transpose>(
+        convolution,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1}));
+
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(transpose_out)},
+                                       ov::ParameterVector{activation, weights, scale},
+                                       "dumped_gqa_conv_model");
+}
+
+std::shared_ptr<ov::Model> build_conv_to_matmul_and_unqdq_model() {
+    const auto conv_model = build_conv_to_matmul_model();
+    const auto unqdq_model = build_unqdq_model(ov::element::f16);
+
+    ov::ResultVector results;
+    for (const auto& result : conv_model->get_results()) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(result->input_value(0)));
+    }
+    for (const auto& result : unqdq_model->get_results()) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(result->input_value(0)));
+    }
+
+    ov::ParameterVector parameters = conv_model->get_parameters();
+    const auto unqdq_parameters = unqdq_model->get_parameters();
+    parameters.insert(parameters.end(), unqdq_parameters.begin(), unqdq_parameters.end());
+
+    return std::make_shared<ov::Model>(results, parameters, "gqa_conv_to_matmul_and_unqdq_model");
 }
 
 struct CompileCall {
@@ -326,6 +380,35 @@ TEST_F(GQACompiledModelTest, RunsConvToMatmulBeforeInnerCompilation) {
     EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "NO");
     EXPECT_EQ(count_ops<ov::op::v1::Convolution>(call.model), 0u);
     EXPECT_EQ(count_ops<ov::op::v0::MatMul>(call.model), 1u);
+}
+
+TEST_F(GQACompiledModelTest, RunsConvToMatmulOnDumpedGQAShapeBeforeInnerCompilation) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_dumped_gqa_conv_model(), {{"NPUW_UNQDQ", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
+    EXPECT_EQ(count_ops<ov::op::v1::Convolution>(call.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v0::MatMul>(call.model), 1u);
+}
+
+TEST_F(GQACompiledModelTest, RunsConvToMatmulAndUNQDQBeforeInnerCompilation) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(build_conv_to_matmul_and_unqdq_model(), {{"NPUW_UNQDQ", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
+    EXPECT_EQ(count_ops<ov::op::v1::Convolution>(call.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v0::MatMul>(call.model), 1u);
+    EXPECT_EQ(count_ops<ov::op::v1::Subtract>(call.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(call.model), 0u);
 }
 
 TEST_F(GQACompiledModelTest, ForwardsPropertyAccessToInnerCompiledModel) {

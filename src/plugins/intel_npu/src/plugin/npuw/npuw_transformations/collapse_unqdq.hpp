@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::npuw {
 
-class CollapseUNQDQ : public ov::pass::ModelPass {
+class CollapseUNQDQ : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::CollapseUNQDQ");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_GRAPH_REWRITE_RTTI("ov::npuw::CollapseUNQDQ");
+    CollapseUNQDQ();
 };
 
 }  // namespace ov::npuw
