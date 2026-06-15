@@ -97,6 +97,10 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
     }
 }
 
+memory::ptr ze_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
