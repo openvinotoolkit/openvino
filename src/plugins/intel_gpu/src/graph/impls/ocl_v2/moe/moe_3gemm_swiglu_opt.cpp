@@ -27,6 +27,7 @@
 #    include <string_view>
 #    include <thread>
 #    include <tuple>
+#    include <unordered_set>
 #    include <utility>
 
 #    include "../primitive_ocl_base.hpp"
@@ -734,9 +735,10 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
                                    << std::endl;
         }
+        // grouped_gemm is now supported in OTD mode — expert IDs are remapped to LRU slots
+        // and the grouped matmul uses _lru_expert_num as the group dimension.
         if (_lru_expert_num > 0 && use_grouped_gemm_prefill) {
-            use_grouped_gemm_prefill = false;
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable grouped_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
+            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): grouped_gemm prefill enabled in OTD mode, lru_expert_num=" << _lru_expert_num
                                    << std::endl;
         }
         // WA: In OTD mode, GPU weight buffer has only _lru_expert_num slots per layer.
@@ -1907,7 +1909,8 @@ public:
         auto& engine = instance.get_network().get_engine();
         auto& onednn_engine = engine.get_onednn_engine();
 
-        int num_experts = static_cast<int>(config.num_expert);
+        // In OTD mode, weight buffer holds only _lru_expert_num slots, not full num_expert.
+        int num_experts = _lru_expert_num > 0 ? static_cast<int>(_lru_expert_num) : static_cast<int>(config.num_expert);
         auto a_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().data_type);
         auto gw_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type);
         auto uw_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
@@ -2143,7 +2146,8 @@ public:
     cldnn::event::ptr exec_prefill_grouped_gemm(const std::vector<cldnn::event::ptr>& events,
                                                 cldnn::stream& stream,
                                                 typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                scratch_buffers& scratch) {
+                                                scratch_buffers& scratch,
+                                                LRUCache& cache) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_prefill_grouped_gemm"));
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -2161,24 +2165,114 @@ public:
         int max_topk = static_cast<int>(config.top_k);
         int num_actually_used_experts = 0;
 
+        // In OTD mode, the grouped descriptor dimension is _lru_expert_num (LRU slots)
+        // rather than the full num_total_experts.
+        int num_grouped_experts = _lru_expert_num > 0 ? static_cast<int>(_lru_expert_num) : num_total_experts;
+
         // ----------------------------------------------------------------
         // Step 1: CPU mask generation (topk_id already flushed by caller)
         // ----------------------------------------------------------------
         cldnn::event::ptr ret_event = events.empty() ? nullptr : events[0];
-        expert_mask_cpu expert_mask;
-        get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);
 
         // Flat list of source token indices per expert – input for prefill_gather
         std::vector<int32_t> tokens_per_expert_cpu(static_cast<size_t>(token_num) * max_topk, -1);
         // Compact per-activated-expert metadata reused by scatter_reduce
-        std::vector<int32_t> tokens_lens_per_expert_cpu(num_total_experts, 0);
-        std::vector<int32_t> experts_id_cpu(num_total_experts, -1);
-        // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
-        // offsets[e] = sum(n_0..n_e) = exclusive end of expert e in the flat buffer.
+        std::vector<int32_t> tokens_lens_per_expert_cpu(num_grouped_experts, 0);
+        std::vector<int32_t> experts_id_cpu(num_grouped_experts, -1);
+        // int32_t cumulative end-offsets per expert/slot for OneDNN grouped GEMM
+        // offsets[e] = sum(n_0..n_e) = exclusive end of expert/slot e in the flat buffer.
         // This is the s32 format expected by dnnl::memory::desc::grouped().
-        std::vector<int32_t> grouped_offsets_cpu(num_total_experts, 0);
+        std::vector<int32_t> grouped_offsets_cpu(num_grouped_experts, 0);
 
-        {
+        if (_lru_expert_num) {
+            // OTD path: read topk_ids, remap to LRU slots, build mask by slot index
+            stream.finish();  // ensure routing kernel has written topk_ids
+            size_t topk_count = static_cast<size_t>(token_num) * max_topk;
+            std::vector<int32_t> raw_topk_ids(topk_count);
+            batch_mem_ptr->copy_to(stream, raw_topk_ids.data(), 0, 0, topk_count * sizeof(int32_t), true);
+
+            // Count unique experts — grouped GEMM requires ALL active experts' weights
+            // simultaneously resident in GPU memory. If the count exceeds LRU capacity,
+            // fall back to the per-expert onednn loop which loads one expert at a time.
+            std::unordered_set<uint32_t> unique_experts_set;
+            unique_experts_set.reserve(topk_count);
+            for (size_t i = 0; i < topk_count; i++)
+                unique_experts_set.insert(static_cast<uint32_t>(raw_topk_ids[i]));
+
+            if (unique_experts_set.size() > _lru_expert_num) {
+                GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts="
+                                       << unique_experts_set.size() << " > lru_expert_num=" << _lru_expert_num
+                                       << ", falling back to per-expert onednn loop" << std::endl;
+                return exec_prefill_onednn(events, stream, instance, scratch, cache);
+            }
+
+            // Load all unique experts into LRU and build remap table
+            std::unordered_map<uint32_t, uint32_t> expert_to_lru;
+            expert_to_lru.reserve(topk_count);
+            std::vector<int32_t> remapped_ids(topk_count);
+            for (size_t i = 0; i < topk_count; i++) {
+                auto expert_no = static_cast<uint32_t>(raw_topk_ids[i]);
+                OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts),
+                                "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
+                auto it = expert_to_lru.find(expert_no);
+                if (it == expert_to_lru.end()) {
+                    auto lru_slot = moe_otd::get_lru_expert_no(instance, expert_no, cache);
+                    it = expert_to_lru.emplace(expert_no, lru_slot).first;
+                }
+                remapped_ids[i] = static_cast<int32_t>(it->second);
+            }
+
+            // Build per-slot token lists sorted by LRU slot index
+            std::vector<std::vector<int32_t>> slot_tokens(num_grouped_experts);
+            for (size_t i = 0; i < topk_count; i++) {
+                int32_t slot = remapped_ids[i];
+                int32_t token_idx = static_cast<int32_t>(i / max_topk);
+                slot_tokens[slot].push_back(token_idx);
+            }
+
+            // Build grouped_offsets and tokens_per_expert sorted by slot
+            int tokens_iter = 0;
+            int experts_iter = 0;
+            int32_t running_offset = 0;
+            for (int s = 0; s < num_grouped_experts; s++) {
+                auto n = static_cast<int32_t>(slot_tokens[s].size());
+                running_offset += n;
+                grouped_offsets_cpu[s] = running_offset;
+                if (n > 0) {
+                    experts_id_cpu[experts_iter] = s;
+                    tokens_lens_per_expert_cpu[experts_iter] = n;
+                    ++experts_iter;
+                    ++num_actually_used_experts;
+                    for (auto t : slot_tokens[s])
+                        tokens_per_expert_cpu[tokens_iter++] = t;
+                }
+            }
+
+            // Upload remapped topk_ids to GPU for scatter_reduce kernel
+            auto& engine = instance.get_network().get_engine();
+            size_t topk_bytes = topk_count * sizeof(int32_t);
+            if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
+                auto remap_layout = batch_mem_ptr->get_layout();
+                scratch._expert_index_buffer = engine.allocate_memory(remap_layout, allocation_type::usm_host, false);
+            }
+            scratch._expert_index_buffer->copy_from(stream, remapped_ids.data(), 0, 0, topk_bytes, true);
+            batch_mem_ptr = scratch._expert_index_buffer;
+
+            // Set weight pointers to LRU buffers
+            scratch.moe_fusion_wei_addr.weight[0] = instance._weights.gate_w;
+            scratch.moe_fusion_wei_addr.scale[0] = instance._weights.gate_s;
+            scratch.moe_fusion_wei_addr.zp[0] = instance._weights.gate_z;
+            scratch.moe_fusion_wei_addr.weight[1] = instance._weights.up_w;
+            scratch.moe_fusion_wei_addr.scale[1] = instance._weights.up_s;
+            scratch.moe_fusion_wei_addr.zp[1] = instance._weights.up_z;
+            scratch.moe_fusion_wei_addr.weight[2] = instance._weights.down_w;
+            scratch.moe_fusion_wei_addr.scale[2] = instance._weights.down_s;
+            scratch.moe_fusion_wei_addr.zp[2] = instance._weights.down_z;
+        } else {
+            // Non-OTD path: build mask from original expert IDs
+            expert_mask_cpu expert_mask;
+            get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);
+
             int tokens_iter = 0;
             int experts_iter = 0;
             int32_t running_offset = 0;
@@ -2216,8 +2310,8 @@ public:
         // So experts_start_offset[k] must equal the start index of expert k+1 in the flat buffer
         // = exclusive end of expert k = grouped_offsets_cpu[k].
         {
-            std::vector<int32_t> expert_start_offsets_per_id(static_cast<size_t>(num_total_experts - 1));
-            for (int e = 0; e < num_total_experts - 1; ++e)
+            std::vector<int32_t> expert_start_offsets_per_id(static_cast<size_t>(num_grouped_experts - 1));
+            for (int e = 0; e < num_grouped_experts - 1; ++e)
                 expert_start_offsets_per_id[e] = grouped_offsets_cpu[e];  // end[e] == start[e+1]
             intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT]
                 ->copy_from(stream, expert_start_offsets_per_id.data(), 0, 0, expert_start_offsets_per_id.size() * sizeof(int32_t), true);
@@ -2454,7 +2548,7 @@ public:
         if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, cache, use_gpu_mask_gen);
         } else if (use_grouped_gemm_prefill) {
-            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch);
+            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch, cache);
         } else {
             ret_env = exec_prefill_onednn(events, stream, instance, scratch, cache);
         }
