@@ -61,6 +61,7 @@ ov_add_target(
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
             PRIVATE
                 "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
+                $<TARGET_PROPERTY:openvino::reference,SOURCE_DIR>/include
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
