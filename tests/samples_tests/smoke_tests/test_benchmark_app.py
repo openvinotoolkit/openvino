@@ -207,10 +207,10 @@ def test_beam_idx_random_values_stay_in_range(sample_language, cache, tmp_path):
 
     The model uses beam_idx as Gather indices, so out-of-range values would fail during inference.
     '''
-    beam_idx = opset.parameter([2], ov.Type.i32, name='beam_idx')
+    beam_idx = opset.parameter([2, 2], ov.Type.i32, name='beam_idx')
     table = opset.constant(np.array([[10, 20], [30, 40]], dtype=np.int32), dtype=ov.Type.i32, name='beam_idx_table')
-    gather = opset.gather(table, beam_idx, np.array(0, np.int32))
-    result = opset.result(gather, name='output')
+    gathered = opset.gather_elements(table, beam_idx, 0)
+    result = opset.result(gathered, name='output')
     model = ov.Model([result], [beam_idx], 'model_with_beam_idx_gather')
 
     verify(sample_language, 'CPU', model=model, inp=None, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
