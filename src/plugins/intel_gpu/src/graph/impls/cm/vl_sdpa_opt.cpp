@@ -85,7 +85,16 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(params.input_layouts.size() - 1)});  // input: cu_seq_lens
 
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // need_wg_mapping
+
+        // token_offset_q and token_offset_kv: element-count offsets applied to the Q/K/V
+        // SVM pointers when an in-place crop (TransposeSplitMatcher axis=1 pattern) has
+        // propagated a dynamic padding offset into the input layout.  Without these the CM
+        // kernel would read from the base of the packed QKV buffer instead of the correct
+        // slice.  Each offset equals lower_pad[feature] * num_heads * head_size (elements).
+        // When no crop optimization fires the padding is 0 and the offsets are 0.
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // token_offset_q
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // token_offset_kv
 
         return args;
     }
@@ -150,7 +159,23 @@ protected:
             wgs.global = {num_q_heads, wg_count * wg_size, 1};
             wgs.local = {1, wg_size, 1};
 
-            std::vector<int32_t> scalars{need_wg_mapping};
+            // Compute element-count offsets arising from in-place crop dynamic padding
+            // on Q/K (token_offset_q) and K/V (token_offset_kv) inputs.  These are set
+            // when TransposeSplitMatcher replaces Transpose+Split(axis=0) with
+            // Split(axis=1): the crop optimization places lower_pad[feature_axis] in the
+            // layout padding, and this value encodes the QKV-slice index (0, 1, or 2).
+            // offset = lower_pad[feature] * num_[q|kv]_heads * head_size  (in elements).
+            const auto& q_pad  = params.input_layouts[0].data_padding;
+            const auto& kv_pad = params.input_layouts[1].data_padding;
+            // feature dimension is index 1 in the bfyx _lower_size array
+            int32_t token_offset_q  = static_cast<int32_t>(q_pad._lower_size[1])  *
+                                      static_cast<int32_t>(query_shape[query_shape.size() - 3]) *
+                                      static_cast<int32_t>(query_shape[query_shape.size() - 1]);
+            int32_t token_offset_kv = static_cast<int32_t>(kv_pad._lower_size[1]) *
+                                      static_cast<int32_t>(query_shape[query_shape.size() - 3]) *
+                                      static_cast<int32_t>(query_shape[query_shape.size() - 1]);
+
+            std::vector<int32_t> scalars{need_wg_mapping, token_offset_q, token_offset_kv};
             kd.params.scalars.clear();
             for (auto i : scalars) {
                 scalar_desc desc;

@@ -715,6 +715,18 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     // The crop produces exactly batch=1 per slice and the reshape squeezes that dim.
                     // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
+                } else if (!crop_layout.get_partial_shape()[crop_axis].is_dynamic() &&
+                           crop_layout.get_partial_shape()[crop_axis].get_length() == 1 &&
+                           crop_axis > 0 &&
+                           static_cast<int64_t>(user_info.second.get_partial_shape().size()) ==
+                               static_cast<int64_t>(crop_axis) + 1) {
+                    // Middle-axis crop (dim==1) merged with trailing dims into single output dim.
+                    // Pattern: [?,seq,1,H,S] → [?,seq,H*S] with crop_axis=2.
+                    // Output rank == crop_axis+1 mirrors the gate in reshape_inst.h. The merged dim
+                    // is the last logical output dim; for rank<=4 it maps to the same physical index
+                    // (b,f,y,x filled from the left).
+                    auto reshape_ps_bt = user_info.second.get_partial_shape();
+                    reshape_axis = reshape_ps_bt.size() - 1;
                 } else {
                     ov::Dimension::value_type mul = 1;
                     auto reshape_ps = user_info.second.get_partial_shape();
@@ -731,9 +743,31 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
                 auto output_pattern = reshape_desc->output_pattern;
 
-                for (size_t i = 0; i < output_pattern.size(); i++) {
-                    if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
-                        reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                // When a squeeze removes the cropped axis itself, the dynamic padding cannot shift to an
+                // outer axis: the split offset lives between the outer dims and the inner dims of the parent
+                // buffer. It must sink to the immediately-inner axis (crop_axis + 1), which takes over the
+                // crop_axis slot once the size-1 cropped axis is removed. This mirrors propagate_padding().
+                bool crop_axis_squeezed = false;
+                if (reshape_mode == reshape::reshape_mode::squeeze) {
+                    for (auto squeezed_axis : output_pattern) {
+                        if (squeezed_axis == static_cast<int64_t>(crop_axis)) {
+                            crop_axis_squeezed = true;
+                            break;
+                        }
+                    }
+                }
+                if (crop_axis_squeezed) {
+                    size_t removed_before = 0;
+                    for (auto squeezed_axis : output_pattern) {
+                        if (squeezed_axis <= static_cast<int64_t>(crop_axis))
+                            removed_before++;
+                    }
+                    reshape_axis = crop_axis + 1 - removed_before;
+                } else {
+                    for (size_t i = 0; i < output_pattern.size(); i++) {
+                        if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                            reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                        }
                     }
                 }
             }
@@ -787,6 +821,23 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     reshape_lower_sizes[0] = lower_sizes[0] * batch_stride_factor;
                     reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
                     reshape_dyn_pad_mask[0] = 1;
+                } else if (crop_dim_val == 1 && crop_axis > 0 &&
+                           static_cast<int64_t>(reshape_ps.size()) == static_cast<int64_t>(crop_axis) + 1) {
+                    // Middle-axis crop (dim==1) merged with trailing dims into single last output dim.
+                    // Pattern: [?,seq,1,H,S] → [?,seq,H*S] with crop_axis=2.
+                    // Each offset unit in crop_axis corresponds to H*S = product(dims after crop_axis)
+                    // elements in the merged output dim. Set padding on the last logical output dim
+                    // (reshape_ps.size()-1; physical y-axis for rank-3 bfyx) to lower_sizes[crop_axis] * stride.
+                    const auto& crop_ps_r = crop_layout.get_partial_shape();
+                    int64_t stride = 1;
+                    for (size_t d = crop_axis + 1; d < crop_ps_r.size(); d++)
+                        stride *= crop_ps_r[d].get_length();
+                    // Merged dim is the last logical output dim; for rank<=4 it maps to the same
+                    // physical index (b,f,y,x filled from the left), i.e. reshape_ps.size()-1.
+                    const size_t merged_axis = reshape_ps.size() - 1;
+                    reshape_lower_sizes[merged_axis] = lower_sizes[crop_axis] * stride;
+                    reshape_upper_sizes[merged_axis] = upper_sizes[crop_axis] * stride;
+                    reshape_dyn_pad_mask[merged_axis] = 1;
                 } else {
                     ov::Dimension::value_type divider = 1;
                     auto reshape_axis = reshape_ps.size();
@@ -824,10 +875,38 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 const auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
+                // Mirror the build-time axis selection and propagate_padding(): a squeeze that removes the
+                // cropped axis sinks the dynamic padding to the immediately-inner axis (crop_axis + 1). The
+                // split offset is measured in units of that inner axis, so scale by its (static) size.
+                bool crop_axis_squeezed = false;
+                if (reshape_mode == reshape::reshape_mode::squeeze) {
+                    for (auto squeezed_axis : output_pattern) {
+                        if (squeezed_axis == static_cast<int64_t>(crop_axis)) {
+                            crop_axis_squeezed = true;
+                            break;
+                        }
+                    }
+                }
+
                 int64_t reshape_axis = static_cast<int64_t>(crop_axis);
-                for (size_t i = 0; i < output_pattern.size(); i++) {
-                    if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
-                        reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                ov::Dimension::value_type pad_scale = 1;
+                if (crop_axis_squeezed) {
+                    size_t removed_before = 0;
+                    for (auto squeezed_axis : output_pattern) {
+                        if (squeezed_axis <= static_cast<int64_t>(crop_axis))
+                            removed_before++;
+                    }
+                    reshape_axis = static_cast<int64_t>(crop_axis) + 1 - static_cast<int64_t>(removed_before);
+                    const auto& crop_ps = crop_layout.get_partial_shape();
+                    OPENVINO_ASSERT(static_cast<size_t>(crop_axis) + 1 < crop_ps.size() &&
+                                        !crop_ps[crop_axis + 1].is_dynamic(),
+                                    "[GPU] In-place crop+squeeze requires a static inner axis to absorb the split padding.");
+                    pad_scale = crop_ps[crop_axis + 1].get_length();
+                } else {
+                    for (size_t i = 0; i < output_pattern.size(); i++) {
+                        if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                            reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                        }
                     }
                 }
 
@@ -838,8 +917,8 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                 OPENVINO_ASSERT(reshape_axis >= 0 && static_cast<size_t>(reshape_axis) < output_rank, "[GPU] Calculated reshape_axis is out of range.");
 
-                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
-                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
+                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis] * pad_scale;
+                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis] * pad_scale;
                 reshape_dyn_pad_mask[reshape_axis] = 1;
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
