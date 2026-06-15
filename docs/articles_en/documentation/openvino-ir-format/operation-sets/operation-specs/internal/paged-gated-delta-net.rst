@@ -50,8 +50,9 @@ value head ``h_v`` (``0 .. v_num_heads - 1``), where the corresponding query/key
     # Project with query to get output
     output[t, h_v] = q[t, h_q] @ S[h_v].transpose(1, 0)              # shape: [value_head_dim]
 
-The recurrent state is initialized to an all-zeros tensor. It is updated token by token within
-each sequence in causal order. The operation caches intermediate states at regular intervals
+For new input sequence the initial recurrent state should be zeroed. User can set own state if needed.
+It is updated token by token within each sequence in causal order.
+The operation caches intermediate states at regular intervals
 (controlled per sequence by ``cache_interval``) into the paged ``recurrent_state_table``, allowing
 efficient prefill replay and incremental decode.
 
@@ -61,23 +62,40 @@ The recurrent state table is organized as non-contiguous pages (blocks). Each bl
 complete state snapshot for all value heads at a particular token position in the sequence.
 
 For sequence ``s``, the assigned physical block indices are
-``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``.
+``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
 These indices address rows in ``recurrent_state_table``. The first block stores the state after
 ``cache_interval[s]`` tokens, the second after ``2 * cache_interval[s]`` tokens, and so on.
 When ``cache_interval[s] <= 0``, no state caching is performed for that sequence.
 
-The ``past_lens[s]`` value indicates how many tokens have already been processed for sequence
-``s``. Combined with the cached blocks, it determines the starting state for new tokens:
-the most recent cached block before ``past_lens[s]`` is loaded, and the remaining
-tokens up to ``past_lens[s]`` are replayed from that checkpoint.
+The ``num_processed_tokens[s]`` value indicates how many tokens have already been processed for sequence
+``s``. Denote ``num_current_tokens[s]`` as the number of current tokens to process.
+It can be computed as: ``subsequence_begins[s+1] - subsequence_begins[s]``.
+Then `N`, the number of blocks for writing, is computed as:
+``N = ceil((num_processed_tokens[s] % cache_interval[s] + num_current_tokens[s]) / cache_interval[s])``
+Let the blocks passed through `la_block_indices` be indexed as block `0, 1, ..., N`.
+Cases for reading and updating blocks:
 
-Use cases:
+1. **Prefill with no past**  
+   Read from block 0 and write to blocks 1...N.  
+   Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
-1. prefill with no past. Read from block 0, write to block 1...N
-2. prefill with past_len % cache_interval == 0. Read from block 0, write to block 1...N
-3. prefill with past_len % cache_interval !=0. Read from block 0, write to block 1...N
-4. decode with past_len % cache_interval == 0. Read from block 0, write to block 1
-5. decode with past_len % cache_interval !=0. Read from block 0, write to block 1
+2. **Prefill with `num_processed_tokens[s] % cache_interval[s] == 0`**  
+   Read from block 0 and write to blocks 1...N.  
+   Block 0 and block 1 refer to different blocks.
+
+3. **Prefill with `num_processed_tokens[s] % cache_interval[s] != 0`**  
+   Read from block 0 and write to blocks 1...N.  
+   Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
+
+4. **Decode with `num_processed_tokens[s] % cache_interval[s] == 0`**  
+   Read from block 0 and write to block 1.  
+   Block 0 and block 1 refer to different blocks.
+
+5. **Decode with `num_processed_tokens[s] % cache_interval[s] != 0`**  
+   Read from block 0 and write to block 1.  
+   Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
+
+
 **Attributes**
 
 * *use_qk_l2norm*
@@ -136,18 +154,18 @@ Use cases:
   ``query``, ``key``, ``value``). The tokens of sequence ``s`` span
   ``[subsequence_begins[s], subsequence_begins[s+1])``. **Required.**
 
-* **7**: ``block_indices`` - Tensor of type *T_IND* and shape ``[num_blocks]``.
+* **7**: ``la_block_indices`` - Tensor of type *T_IND* and shape ``[num_blocks]``.
   Physical block row indices into ``recurrent_state_table``, concatenated across all sequences.
   For example, ``[0, 1, 3, 2, 4]`` with five blocks. **Required.**
 
-* **8**: ``block_indices_begins`` - Tensor of type *T_IND* and shape
+* **8**: ``la_block_indices_begins`` - Tensor of type *T_IND* and shape
   ``[batch_size_in_sequences + 1]``.
-  Splits ``block_indices`` among sequences. The block indices for sequence ``s`` are
-  ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``.
-  For example, ``block_indices = [0, 1, 3, 2, 4]`` and ``block_indices_begins = [0, 3, 5]``
+  Splits ``la_block_indices`` among sequences. The block indices for sequence ``s`` are
+  ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
+  For example, ``la_block_indices = [0, 1, 3, 2, 4]`` and ``la_block_indices_begins = [0, 3, 5]``
   means sequence 0 uses blocks ``[0, 1, 3]`` and sequence 1 uses blocks ``[2, 4]``. **Required.**
 
-* **9**: ``past_lens`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
+* **9**: ``num_processed_tokens`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
   Number of tokens already processed for each sequence. Used together with the cached states
   in ``recurrent_state_table`` to determine the starting recurrent state for each sequence.
   **Required.**

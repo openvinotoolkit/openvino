@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/profiling.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -41,7 +42,6 @@
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -54,6 +54,7 @@
 
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
+thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
 
@@ -144,7 +145,7 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
 }
 
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
-                                                             const ExecutionConfig& config,
+                                                             ExecutionConfig& config,
                                                              const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
@@ -164,6 +165,17 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     auto config_copy = config.clone();
     config_copy.finalize(context.get(), model.get());
 
+    // Propagate auto-detected kv_cache_precision from the pre-transformation finalize
+    // to the original config. This is needed because model transformations may convert
+    // 4-bit weight constants (u4/i4) to higher precision, making the detection fail
+    // during the second finalize on the transformed model.
+    if (config.get_user_properties().find(ov::hint::kv_cache_precision.name()) == config.get_user_properties().end()) {
+        auto detected_kv_prec = config_copy.get_kv_cache_precision();
+        if (detected_kv_prec != ov::element::dynamic) {
+            config.set_user_property({ov::hint::kv_cache_precision(detected_kv_prec)}, OptionVisibility::RELEASE);
+        }
+    }
+
     std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
         auto path_base = ov::util::make_path(dump_path) / (cloned_model->get_name() + ".svg");
@@ -173,9 +185,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
     if (config_copy.get_enable_weightless()) {
-        const std::string& weights_path = config.get_weights_path();
+        const auto weight_path = ov::util::make_path(config.get_weights_path());
 
-        if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
+        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
 
@@ -251,8 +263,8 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
-
     auto context = get_default_context(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -275,6 +287,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     context_impl->initialize();
 
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
+    GPU_DEBUG_SET_ACTIVE_LUID(context_impl->get_device().get_info().luid);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -380,6 +393,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     return import_model(model, { context, nullptr }, config);
 }
 
@@ -392,6 +406,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     context_impl->initialize();
 
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
+    GPU_DEBUG_SET_ACTIVE_LUID(context_impl->get_device().get_info().luid);
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.
     auto _orig_config = orig_config;
@@ -413,10 +428,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
-                                                                                 context_impl->get_engine(),
-                                                                                 encryption_callbacks.decrypt)
-                           : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
+        encryption_callbacks.decrypt
+            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
+            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
     auto& ib = *ib_ptr;
 
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
@@ -427,9 +441,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     if (ov::util::is_weightless_enabled(config.get_user_properties()).value_or(false)) {
-        const std::string& weights_path = config.get_weights_path();
+        const auto& weights_path = ov::util::make_path(config.get_weights_path());
 
-        if (!ov::util::validate_weights_path(weights_path)) {
+        if (weights_path.extension() != ".bin") {
             // This is non IR case, e.g. onnxruntime.
             // This may not be required. Constant nodes should have the information already.
             // This is a temporary solution. A more robust solution will be implemented in future.
@@ -460,9 +474,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
+    // Store tensor base in thread-local storage
+    g_current_tensor_base = static_cast<const size_t*>(model.data());
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
-    return import_model(stream, context, config);
+    auto compiled_model = import_model(stream, context, config);
+
+    // Clear thread-local storage
+    g_current_tensor_base = nullptr;
+
+    // Ensure the tensor stays alive as long as the compiled model
+    auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
+    if (gpu_model) {
+        gpu_model->set_backing_tensor(std::make_shared<ov::Tensor>(model));
+    }
+
+    return compiled_model;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -672,6 +699,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         info.device = device_info.pci_info.pci_device;
         info.function = device_info.pci_info.pci_function;
         return decltype(ov::device::pci_info)::value_type {info};
+    } else if (name == ov::internal::cache_header_alignment) {
+        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
@@ -757,7 +786,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO}};
     return supported_internal_properties;
 }
 
@@ -782,6 +812,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     const auto& device_info = context->get_device().get_info();
     auto config = m_configs_map.at(device_id);
     config.set_property(ov::intel_gpu::partial_build_program(true));
@@ -925,6 +956,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     const auto& device_info = context->get_device().get_info();
 
     auto closest_pow_of_2 = [] (double x) {

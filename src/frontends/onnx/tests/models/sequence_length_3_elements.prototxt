@@ -1,0 +1,50 @@
+ir_version: 10
+graph {
+  node {
+    input: "a"
+    input: "b"
+    input: "c"
+    output: "seq"
+    op_type: "SequenceConstruct"
+  }
+  node {
+    input: "seq"
+    output: "length"
+    op_type: "SequenceLength"
+  }
+  name: "sequence_length_3_elements"
+  initializer {
+    dims: 2
+    data_type: 1
+    float_data: 1.0
+    float_data: 2.0
+    name: "a"
+  }
+  initializer {
+    dims: 2
+    data_type: 1
+    float_data: 3.0
+    float_data: 4.0
+    name: "b"
+  }
+  initializer {
+    dims: 2
+    data_type: 1
+    float_data: 5.0
+    float_data: 6.0
+    name: "c"
+  }
+  output {
+    name: "length"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

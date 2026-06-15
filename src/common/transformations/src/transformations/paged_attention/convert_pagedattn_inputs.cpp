@@ -12,8 +12,11 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
@@ -30,7 +33,9 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
       m_update_precision_func(std::move(update_precision_func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
-    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>();
+    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>() |
+                  pattern::wrap_type<ov::op::internal::PagedCausalConv1D>() |
+                  pattern::wrap_type<ov::op::internal::PagedGatedDeltaNet>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto root = m.get_match_root();
         bool status = false;
@@ -80,6 +85,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
             key_cache->set_element_type(key_cache_precision);
             value_cache->set_element_type(value_cache_precision);
+            enable_keep_const_precision(key_cache);
+            enable_keep_const_precision(value_cache);
             if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
                 pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
                 const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
@@ -112,10 +119,55 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 m_update_precision_func(value_cache_precision);
                 key_cache->set_element_type(key_cache_precision);
                 value_cache->set_element_type(value_cache_precision);
+                enable_keep_const_precision(key_cache);
+                enable_keep_const_precision(value_cache);
+            }
+
+            // Prevent the ConvertPrecision pass from converting sub-byte cache
+            // precisions (e.g. u4→u8). The PA executor handles quantized caches natively.
+            if (key_cache_precision.bitwidth() < 8) {
+                enable_keep_const_precision(key_cache);
+            }
+            if (value_cache_precision.bitwidth() < 8) {
+                enable_keep_const_precision(value_cache);
             }
 
             key_cache->validate_and_infer_types();
             value_cache->validate_and_infer_types();
+        }
+
+        if (const auto paged_conv = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(root)) {
+            auto conv_state_table = ov::as_type_ptr<v0::Parameter>(paged_conv->get_input_node_shared_ptr(1));
+            if (!conv_state_table) {
+                return false;
+            }
+
+            auto conv_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(conv_cache_precision);
+            }
+
+            conv_state_table->set_element_type(conv_cache_precision);
+            enable_keep_const_precision(conv_state_table);
+            conv_state_table->validate_and_infer_types();
+            return true;
+        }
+
+        if (const auto paged_gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(root)) {
+            auto gated_delta_state_table = ov::as_type_ptr<v0::Parameter>(paged_gdn->get_input_node_shared_ptr(3));
+            if (!gated_delta_state_table) {
+                return false;
+            }
+
+            auto gated_delta_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(gated_delta_cache_precision);
+            }
+
+            gated_delta_state_table->set_element_type(gated_delta_cache_precision);
+            enable_keep_const_precision(gated_delta_state_table);
+            gated_delta_state_table->validate_and_infer_types();
+            return true;
         }
 
         return status;

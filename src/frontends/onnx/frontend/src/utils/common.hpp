@@ -198,6 +198,12 @@ inline uint32_t convert_float_seed(const float seed) {
 /// \param rank         Rank used for axis normalization.
 /// \return             Normalized axis value.
 int64_t normalize_axis(const std::string& description, const int64_t axis, const Rank& rank);
+
+/// \brief Checks if a given node is a Constant with an empty data.
+/// \param node The node to check.
+/// \return `true` if the node is a Constant with an empty data, else `false`.
+bool is_constant_empty_node(const std::shared_ptr<ov::Node>& node);
+
 }  // namespace  common
 }  // namespace onnx
 }  // namespace frontend
