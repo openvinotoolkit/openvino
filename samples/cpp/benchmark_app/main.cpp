@@ -29,6 +29,7 @@
 #include "samples/common.hpp"
 #include "samples/slog.hpp"
 
+#include "affinity_utils.hpp"
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
@@ -187,6 +188,14 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                           std::string("Please re-compile your model with required precision.");
 
         throw std::logic_error(err);
+    }
+    if (!FLAGS_affinity.empty() && FLAGS_load_from_file) {
+        throw std::logic_error("-affinity is not supported with --load_from_file because benchmark_app compiles "
+                               "the model directly from file path and cannot apply per-op affinities.");
+    }
+    if (!FLAGS_affinity.empty() && isNetworkCompiled) {
+        throw std::logic_error("-affinity is not supported for compiled models (.blob). "
+                               "Please use an IR/ONNX model instead.");
     }
     return true;
 }
@@ -848,6 +857,9 @@ int main(int argc, char* argv[]) {
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
+            if (!FLAGS_affinity.empty()) {
+                apply_manual_affinities(model, FLAGS_affinity, hardware_devices);
+            }
             auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);

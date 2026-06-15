@@ -95,6 +95,14 @@ static const char data_shape_message[] =
     " or \"input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]\"."
     " If model shapes are all static specifying the option will cause an exception.";
 
+static const char affinity_message[] =
+    "Optional. Manually set node affinities before compile_model. Accepts either a device name like \"CPU\" "
+    "to assign all ops to one device, or a path to a JSON file with {node_name: device_name} mappings. "
+    "Ops not present in the JSON file fall back only when exactly one hardware device from -d is not already used "
+    "in the JSON mappings (for example NPU when -d is \"HETERO:NPU,CPU\" and the JSON only maps nodes to CPU). "
+    "Otherwise benchmark_app reports an explicit error and requires the remaining ops to be mapped manually. "
+    "This option is not supported with --load_from_file or compiled models (.blob).";
+
 static const char layout_message[] =
     "Optional. Prompts how model layouts should be treated by application. "
     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
@@ -293,6 +301,9 @@ DEFINE_string(shape, "", shape_message);
 /// @brief Define flag for input blob shape <br>
 DEFINE_string(data_shape, "", data_shape_message);
 
+/// @brief Define flag for manual affinities <br>
+DEFINE_string(affinity, "", affinity_message);
+
 /// @brief Define flag for layout shape <br>
 DEFINE_string(layout, "", layout_message);
 
@@ -410,6 +421,7 @@ static void show_usage() {
     std::cout << "    -b  <integer>                 " << batch_size_message << std::endl;
     std::cout << "    -shape                        " << shape_message << std::endl;
     std::cout << "    -data_shape                   " << data_shape_message << std::endl;
+    std::cout << "    -affinity                     " << affinity_message << std::endl;
     std::cout << "    -layout                       " << layout_message << std::endl;
     std::cout << std::endl;
     std::cout << "Advanced options" << std::endl;
