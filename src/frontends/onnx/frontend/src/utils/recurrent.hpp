@@ -29,7 +29,7 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            const std::string& input_name);
 
 // Runtime dimension values extracted from OV-layout X [batch, seq, input]
-// and R [num_dir, gates*hidden, hidden]. Each member is a rank-1 i32 node.
+// and R [num_dir, gates*hidden, hidden]. Each member is a rank-1 i64 node.
 struct LSTMDimensions {
     LSTMDimensions(const ov::Output<ov::Node>& x_ov_layout, const ov::Output<ov::Node>& r_ov_layout);
 

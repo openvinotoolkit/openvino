@@ -48,7 +48,6 @@ enum class DynamicQuantizeLSTMInput {
 // gate-reordering steps below.
 ov::Output<ov::Node> prepare_quantized_weights(const ov::frontend::onnx::Node& node,
                                                const ov::Output<ov::Node>& weights,
-                                               int64_t hidden_size,
                                                const std::string& input_name) {
     const auto& rank = weights.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
@@ -58,24 +57,11 @@ ov::Output<ov::Node> prepare_quantized_weights(const ov::frontend::onnx::Node& n
                      "' must have static rank 3. Got rank: ",
                      rank);
 
-    const auto gate_axis_size = 4 * hidden_size;
-    const auto& shape = weights.get_partial_shape();
-    const auto dim1_matches = shape[1].is_static() && shape[1].get_length() == gate_axis_size;
-    const auto dim2_matches = shape[2].is_static() && shape[2].get_length() == gate_axis_size;
-
-    CHECK_VALID_NODE(node,
-                     dim1_matches || dim2_matches,
-                     "DynamicQuantizeLSTM input '",
-                     input_name,
-                     "' must have either axis 1 or axis 2 equal to 4*hidden_size (",
-                     gate_axis_size,
-                     "). Got shape: ",
-                     shape);
-
-    if (!dim1_matches && dim2_matches) {
-        return ov::op::util::reorder_axes(weights, {0, 2, 1});
-    }
-    return weights;
+    // The com.microsoft spec always provides weights in [num_directions, K, 4*hidden_size] layout.
+    // Transpose unconditionally to the LSTM layout [num_directions, 4*hidden_size, K].
+    // A shape-based heuristic (checking which axis equals 4*hidden_size) is incorrect
+    // when K == 4*hidden_size, and would silently produce wrong results.
+    return ov::op::util::reorder_axes(weights, {0, 2, 1});
 }
 
 // Append trailing size-1 dims to scale/zero_point so right-aligned autobroadcast
@@ -181,8 +167,8 @@ struct DynamicQuantizeLSTMInputMap {
                              r_zero_point.get_element_type());
         }
 
-        auto prepared_w = prepare_quantized_weights(node, ng_inputs.at(1), hidden_size, "W");
-        auto prepared_r = prepare_quantized_weights(node, ng_inputs.at(2), hidden_size, "R");
+        auto prepared_w = prepare_quantized_weights(node, ng_inputs.at(1), "W");
+        auto prepared_r = prepare_quantized_weights(node, ng_inputs.at(2), "R");
 
         m_input_map[DynamicQuantizeLSTMInput::W] = ov::op::util::convert_lstm_node_format(
             dequantize_weights(node, prepared_w, ng_inputs.at(8), w_zero_point, "W"),
