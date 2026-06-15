@@ -82,19 +82,56 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
             return ov::util::normalize(axis, rank);
         });
 
-        for (size_t i = 0; i < pad_lower.size(); i++) {
-            auto rm_iter = unique_axes.find(i);
-            if (rm_iter == unique_axes.end()) {
-                update_pad_lower.push_back(pad_lower[i]);
-                update_pad_upper.push_back(pad_upper[i]);
-                update_pad_mask.push_back(pad_mask[i]);
-            } else {
-                // If we have a non-squeezable case (pad along removed axis), then out padding is reset
-                // and kernel must be executed
-                auto rm_axis = *rm_iter;
-                if (pad_lower[rm_axis] != 0 || pad_upper[rm_axis] != 0 || pad_mask[rm_axis] != 0 )
+        const auto& in_ps = in_layout.get_partial_shape();
+
+        // A squeezed axis may carry a dynamic-padding offset. This happens for the in-place
+        // Split + Squeeze pattern (e.g. QKV projection), where Crop produces a statically size-1
+        // axis whose dynamic padding encodes the slice offset into the parent buffer. Removing the
+        // axis must not drop that offset, so it is sunk into the nearest inner kept axis. Squeezing
+        // a size-1 axis leaves the element layout unchanged, hence the byte offset is preserved by
+        //   pad[target] = pad[removed] * prod(in_ps[removed + 1 .. target])
+        // which rescales the offset from the removed axis stride to the target axis stride.
+        std::vector<ov::Dimension::value_type> work_lower(pad_lower.begin(), pad_lower.end());
+        std::vector<ov::Dimension::value_type> work_upper(pad_upper.begin(), pad_upper.end());
+        std::vector<ov::Dimension::value_type> work_mask(pad_mask.begin(), pad_mask.end());
+
+        for (auto rm_axis : unique_axes) {
+            if (work_lower[rm_axis] == 0 && work_upper[rm_axis] == 0 && work_mask[rm_axis] == 0)
+                continue;
+            // Only a statically size-1 removed axis represents a pure offset that can be sunk.
+            // Any other padded-and-squeezed axis is non-squeezable: reset padding so the reshape
+            // kernel is executed instead of being optimized out.
+            if (in_ps[rm_axis].is_dynamic() || in_ps[rm_axis].get_length() != 1)
+                return padding();
+
+            int64_t target = -1;
+            ov::Dimension::value_type scale = 1;
+            for (size_t t = static_cast<size_t>(rm_axis) + 1; t < in_ps.size(); t++) {
+                if (in_ps[t].is_dynamic())
                     return padding();
+                scale *= static_cast<ov::Dimension::value_type>(in_ps[t].get_length());
+                if (unique_axes.find(static_cast<int64_t>(t)) == unique_axes.end()) {
+                    target = static_cast<int64_t>(t);
+                    break;
+                }
             }
+            if (target < 0)
+                return padding();
+
+            work_lower[target] += work_lower[rm_axis] * scale;
+            work_upper[target] += work_upper[rm_axis] * scale;
+            work_mask[target] = (work_mask[target] || work_mask[rm_axis]) ? 1 : 0;
+            work_lower[rm_axis] = 0;
+            work_upper[rm_axis] = 0;
+            work_mask[rm_axis] = 0;
+        }
+
+        for (size_t i = 0; i < work_lower.size(); i++) {
+            if (unique_axes.find(static_cast<int64_t>(i)) != unique_axes.end())
+                continue;
+            update_pad_lower.push_back(work_lower[i]);
+            update_pad_upper.push_back(work_upper[i]);
+            update_pad_mask.push_back(work_mask[i]);
         }
     }
 
