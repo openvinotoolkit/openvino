@@ -80,8 +80,8 @@ size_t PagedAttentionKey::hash() const {
 bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
     return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
            valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
-           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn &&
-           headSize == rhs.headSize && numKvHeads == rhs.numKvHeads;
+           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn && headSize == rhs.headSize &&
+           numKvHeads == rhs.numKvHeads;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -102,10 +102,12 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // BRGEMM kernels. Shapes cannot be used here because cache inputs are fully dynamic at
     // createPrimitive time.
     const auto& rt = op->get_rt_info();
-    if (rt.count("k_head_size"))
+    if (rt.count("k_head_size") != 0UL) {
         m_head_size = rt.at("k_head_size").as<size_t>();
-    if (rt.count("num_k_heads"))
+    }
+    if (rt.count("num_k_heads") != 0UL) {
         m_num_kv_heads = rt.at("num_k_heads").as<size_t>();
+    }
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
