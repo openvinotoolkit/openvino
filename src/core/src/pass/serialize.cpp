@@ -28,7 +28,7 @@
 #include "pugixml.hpp"
 #include "transformations/fp16_compression/convert_legacy_precision_attribute.hpp"
 #include "transformations/hash.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace {
