@@ -169,10 +169,47 @@ void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::st
     }
 }
 
+/// \brief Check whether the graph nodes are already in topological order.
+/// Mirrors editor.cpp's is_topologically_sorted: a single forward scan over
+/// node inputs against the set of already-known tensors (graph inputs, outputs,
+/// initializers, and outputs of previously-visited nodes).
+bool is_topologically_sorted(const GraphProto& graph) {
+    std::unordered_set<std::string> known_tensors;
+    for (const auto& input : graph.input()) {
+        known_tensors.insert(input.name());
+    }
+    for (const auto& output : graph.output()) {
+        known_tensors.insert(output.name());
+    }
+    for (const auto& init : graph.initializer()) {
+        known_tensors.insert(init.name());
+    }
+
+    for (const auto& node : graph.node()) {
+        for (const auto& input : node.input()) {
+            if (input.empty()) {
+                continue;
+            }
+            if (known_tensors.count(input) == 0) {
+                return false;
+            }
+        }
+        for (const auto& output_name : node.output()) {
+            known_tensors.insert(output_name);
+        }
+    }
+    return true;
+}
+
 /// \brief Topologically sort graph nodes, considering subgraph dependencies.
 void topological_sort_graph(GraphProto* graph) {
     const int num_nodes = graph->node_size();
     if (num_nodes == 0) {
+        return;
+    }
+
+    // Fast path: Skip building the full dependency graph if nodes are already in topological order.
+    if (is_topologically_sorted(*graph)) {
         return;
     }
 
