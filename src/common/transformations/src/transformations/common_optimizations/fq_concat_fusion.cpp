@@ -72,7 +72,6 @@ FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
 
         OutputVector new_concat_inputs;
         ov::NodeVector old_nodes{concat, output_fq};
-        old_nodes.reserve(concat->get_input_size() + 2);
 
         for (const auto& concat_input : concat->input_values()) {
             const auto input_fq = ov::as_type_ptr<v0::FakeQuantize>(concat_input.get_node_shared_ptr());
