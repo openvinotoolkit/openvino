@@ -78,7 +78,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\",\"ubuntu_24_04_x64_dgpu\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -92,6 +92,7 @@ jobs:
           images: |
             ov_build/ubuntu_24_04_x64
             ov_test/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64_dgpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -232,7 +233,7 @@ jobs:
 
   dGPU_B50_Nightly:
     name: dGPU Arc-B50 Tests Nightly
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
       max-parallel: 2
@@ -242,15 +243,15 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage' ]"
+      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage', 'Linux' ]"
       runner-group: 'Intel-GPU'
-      image: ubuntu:24.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     # if: ${{ github.event_name == 'schedule' }}
 
   dGPU_B580_Nightly:
       name: dGPU Arc-B580 Tests Nightly
-      needs: [ Build, Smart_CI ]
+      needs: [ Build, Smart_CI, Docker ]
       uses: ./.github/workflows/job_gpu_tests.yml
       strategy:
         max-parallel: 2
@@ -260,9 +261,9 @@ jobs:
       with:
         device: 'dgpu'
         test_type: ${{ matrix.TEST_TYPE }}
-        runner: "[ 'self-hosted', 'dgpu', 'Arc-B580', 'Battlemage' ]"
+        runner: "[ 'self-hosted', 'dgpu', 'Arc-B580', 'Battlemage', 'Linux' ]"
         runner-group: 'Intel-GPU'
-        image: ubuntu:24.04
+        image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
       # if: ${{ github.event_name == 'schedule' }}
 
