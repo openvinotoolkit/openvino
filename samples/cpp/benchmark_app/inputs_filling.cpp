@@ -32,10 +32,9 @@ static std::string normalize_input_name(std::string input_name) {
     }
 
     auto is_all_digits = [](const std::string& suffix) {
-        return !suffix.empty() &&
-               std::all_of(suffix.begin(), suffix.end(), [](unsigned char c) {
-                   return std::isdigit(c) != 0;
-               });
+        return !suffix.empty() && std::all_of(suffix.begin(), suffix.end(), [](unsigned char c) {
+            return std::isdigit(c) != 0;
+        });
     };
 
     // Strip common port/index suffixes like ":0" or ".1".
@@ -698,13 +697,18 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
             return special_tensor;
         }
         return create_tensor_random<int64_t, int64_t>(inputInfo.second);
-    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+    } else if (type == ov::element::u8) {
         if (try_get_special_random_tensor<uint8_t>(inputInfo.second, normalized_input_name, special_tensor)) {
             return special_tensor;
         }
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second);
+    } else if (type == ov::element::boolean) {
+        if (try_get_special_random_tensor<uint8_t>(inputInfo.second, normalized_input_name, special_tensor)) {
+            return special_tensor;
+        }
+        return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
@@ -715,8 +719,6 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<uint16_t, uint16_t>(inputInfo.second);
     } else if (type == ov::element::i16) {
         return create_tensor_random<int16_t, int16_t>(inputInfo.second);
-    } else if (type == ov::element::boolean) {
-        return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else if (type == ov::element::u4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::i4) {
