@@ -123,7 +123,7 @@ static void strategy_hint_prefetch(const std::filesystem::path& path, size_t fil
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
         const size_t copy_size = std::min(chunk_size, file_size - offset);
         std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1]; //prevents optimization
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
     }
 }
 
@@ -135,7 +135,7 @@ static void strategy_no_prefault(const std::filesystem::path& path, size_t file_
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
         const size_t copy_size = std::min(chunk_size, file_size - offset);
         std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1]; //prevents optimization
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
     }
 }
 
