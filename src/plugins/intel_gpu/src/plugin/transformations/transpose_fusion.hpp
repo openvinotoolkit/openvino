@@ -50,4 +50,10 @@ public:
     QKVSplitReshapeMatcher();
 };
 
+class TransposeSplitMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TransposeSplitMatcher");
+    TransposeSplitMatcher();
+};
+
 }   // namespace ov::intel_gpu
