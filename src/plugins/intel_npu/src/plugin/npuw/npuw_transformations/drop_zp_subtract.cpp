@@ -29,6 +29,8 @@ bool is_all_zero_constant(const ov::Output<ov::Node>& output) {
     });
 }
 
+}  // namespace
+
 class DropZeroPointSubtractMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::DropZeroPointSubtractMatcher");
@@ -53,8 +55,6 @@ public:
         register_matcher(std::make_shared<opp::Matcher>(subtract_pattern, "DropZeroPointSubtractMatcher"), callback);
     }
 };
-
-}  // namespace
 
 ov::npuw::DropZPSubtract::DropZPSubtract() {
     add_matcher<DropZeroPointSubtractMatcher>();

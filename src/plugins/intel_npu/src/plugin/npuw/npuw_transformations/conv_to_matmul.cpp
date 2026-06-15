@@ -226,6 +226,8 @@ bool rewrite_conv_to_matmul(const std::shared_ptr<ov::op::v1::Convolution>& conv
     return true;
 }
 
+}  // namespace
+
 class ConvToMatMulMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::ConvToMatMulMatcher");
@@ -268,8 +270,6 @@ public:
                          convolution_callback);
     }
 };
-
-}  // namespace
 
 ov::npuw::ConvToMatMul::ConvToMatMul() {
     add_matcher<ConvToMatMulMatcher>();

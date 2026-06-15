@@ -4,6 +4,7 @@
 
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
+#include "npuw_transformations/drop_zp_subtract.hpp"
 
 #include <algorithm>
 
@@ -202,10 +203,10 @@ TEST(CollapseUNQDQPassTest, PreservesOriginalOutputElementType) {
     EXPECT_EQ(model->get_results().front()->input_value(0).get_element_type(), ov::element::f32);
 }
 
-TEST(CollapseUNQDQPassTest, DropsSubtractWhenZeroPointIsAllZeros) {
+TEST(DropZPSubtractPassTest, DropsSubtractWhenZeroPointIsAllZeros) {
     const auto model = build_zero_point_subtract_model(true);
 
-    ov::npuw::CollapseUNQDQ pass;
+    ov::npuw::DropZPSubtract pass;
     pass.run_on_model(model);
     model->validate_nodes_and_infer_types();
 
@@ -214,10 +215,10 @@ TEST(CollapseUNQDQPassTest, DropsSubtractWhenZeroPointIsAllZeros) {
     EXPECT_TRUE(ov::is_type<ov::op::v0::Parameter>(model->get_results().front()->input_value(0).get_node_shared_ptr()));
 }
 
-TEST(CollapseUNQDQPassTest, KeepsSubtractWhenZeroPointIsNotAllZeros) {
+TEST(DropZPSubtractPassTest, KeepsSubtractWhenZeroPointIsNotAllZeros) {
     const auto model = build_zero_point_subtract_model(false);
 
-    ov::npuw::CollapseUNQDQ pass;
+    ov::npuw::DropZPSubtract pass;
     pass.run_on_model(model);
     model->validate_nodes_and_infer_types();
 
