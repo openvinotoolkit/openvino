@@ -27,7 +27,11 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
     }
 
     nlohmann::json affinity_json;
-    input >> affinity_json;
+    try {
+        input >> affinity_json;
+    } catch (const nlohmann::json::parse_error& ex) {
+        OPENVINO_THROW("Failed to parse affinity file ", file_path, ": ", ex.what());
+    }
     if (!affinity_json.is_object()) {
         OPENVINO_THROW("Affinity file must contain a JSON object with {node_name: device_name} mappings: ",
                        file_path);
@@ -35,9 +39,14 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
 
     std::unordered_set<std::string> mapped_devices;
     for (const auto& item : affinity_json.items()) {
-        if (item.value().is_string()) {
-            mapped_devices.insert(item.value().get<std::string>());
+        if (!item.value().is_string()) {
+            OPENVINO_THROW("Affinity file ",
+                           file_path,
+                           " contains non-string mapping value for node '",
+                           item.key(),
+                           "'. Expected device name as string.");
         }
+        mapped_devices.insert(item.value().get<std::string>());
     }
 
     std::vector<std::string> unmapped_hardware_devices;
