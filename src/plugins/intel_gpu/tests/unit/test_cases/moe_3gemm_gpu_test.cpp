@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/moe_3gemm_fused_compressed.hpp>
+#include <intel_gpu/primitives/moe_router_fused.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/runtime/layout.hpp>
@@ -392,7 +393,7 @@ struct Moe3GemmTestParams {
     bool is_signed = false;
 };
 
-class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MOE3GemmFusedCompressed::RoutingType, Moe3GemmTestParams>> {};
+class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MoERouterFused::RoutingType, Moe3GemmTestParams>> {};
 
 TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     const auto& [routing_type, param] = GetParam();
@@ -515,18 +516,36 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     topology.add(data("w2_scale", w2_scale_mem));
     topology.add(data("w2_zp", w2_zp_mem));
 
-    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    // Create MoERouterFused primitive
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    std::vector<input_info> router_inputs{input_info("routing_weights")};
+    if (routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS) {
+        router_config.routing_type = MoERouterFused::RoutingType::SIGMOID_BIAS;
+        topology.add(data("routing_bias", routing_bias_mem));
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(routing_eps_mem, {routing_eps_val});
+        get_test_stream().finish();
+        topology.add(data("routing_eps", routing_eps_mem));
+        router_inputs.push_back(input_info("routing_bias"));
+        router_inputs.push_back(input_info("routing_eps"));
+    }
+    topology.add(moe_router_fused("router", router_inputs, router_config));
+
+    // Create MOE3GemmFusedCompressed primitive
+    cldnn::MOECompressed::Config moe_config;
     moe_config.hidden_size = config.hidden_size;
     moe_config.inter_size = config.inter_size;
     moe_config.num_expert = config.num_experts;
     moe_config.top_k = config.top_k;
     moe_config.group_size = config.group_size;
     moe_config.out_type = data_types::f16;
-    moe_config.routing_type = routing_type;
     moe_config.has_zp = true;
 
     std::vector<input_info> moe_inputs{input_info("hidden_states"),
-                                       input_info("routing_weights"),
+                                       input_info("router", 0),  // topk_weights
+                                       input_info("router", 1),  // topk_indices
                                        input_info("w0_weight"),
                                        input_info("w0_scale"),
                                        input_info("w0_zp"),
@@ -536,21 +555,12 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                                        input_info("w2_weight"),
                                        input_info("w2_scale"),
                                        input_info("w2_zp")};
-    if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
-        topology.add(data("routing_bias", routing_bias_mem));
-        moe_inputs.push_back(input_info("routing_bias"));
-        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-        set_values(routing_eps_mem, {routing_eps_val});
-        get_test_stream().finish();
-        topology.add(data("routing_eps", routing_eps_mem));
-        moe_inputs.push_back(input_info("routing_eps"));
-    }
 
-    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config);
+    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config));
 
-    topology.add(moe_prim);
-
-    network network(engine, topology, get_test_default_config(engine));
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
 
@@ -559,12 +569,12 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    auto ref_output = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS
+    auto ref_output = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
-    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
     const float tolerance = base_tolerance * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
@@ -573,8 +583,8 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
-                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX,
+                                                              cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
                                             ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
@@ -589,7 +599,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 // to avoid known accuracy noise of the SOFTMAX path on some platforms.
 INSTANTIATE_TEST_SUITE_P(smoke_sub128_group_size,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
                                             ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64},
@@ -601,8 +611,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_sub128_group_size,
 // which avoids gather/scatter/CPU-sync overhead of the prefill GEMM path.
 INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
                          moe_3gemm_compressed_gpu_random,
-                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
-                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX,
+                                                              cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
                                             ::testing::Values(Moe3GemmTestParams{2, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{4, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{8, true, 128, 256, 4, 2, 128},
@@ -617,7 +627,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
                                                               Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64})));
 
-class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
+class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MoERouterFused::RoutingType> {};
 
 class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
 
@@ -789,16 +799,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     topology.add(data("w2_zp", w2_zp_mem));
 
     // Add shared inputs
-    // Insert dummy routing_bias/eps placeholders at indices 11-12 (SOFTMAX + shared expert)
-    auto dummy_bias_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-    set_values(dummy_bias_mem, {ov::float16(0.0f)});
-    get_test_stream().finish();
-    auto dummy_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-    set_values(dummy_eps_mem, {ov::float16(0.0f)});
-    get_test_stream().finish();
-    topology.add(data("dummy_routing_bias", dummy_bias_mem));
-    topology.add(data("dummy_routing_eps", dummy_eps_mem));
-
     topology.add(data("s_gate_weight", s_gate_weight_mem));
     topology.add(data("s_gate_scale", s_gate_scale_mem));
     topology.add(data("s_gate_zp", s_gate_zp_mem));
@@ -810,7 +810,14 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     topology.add(data("s_down_zp", s_down_zp_mem));
     topology.add(data("s_gate_scalar", s_gate_scalar_mem));
 
-    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    // Create MoERouterFused primitive (softmax for shared expert tests)
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    router_config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
+    topology.add(moe_router_fused("router", {input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
     moe_config.hidden_size = config.hidden_size;
     moe_config.inter_size = config.inter_size;
     moe_config.num_expert = config.num_experts;
@@ -819,40 +826,37 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     moe_config.out_type = data_types::f16;
     moe_config.num_shared_expert = 1;
     moe_config.has_zp = true;
-    // has_batch_dim default is 0.
 
-    // Create Primitive with extended inputs
-    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
-                                               {input_info("hidden_states"),
-                                                input_info("routing_weights"),
-                                                input_info("w0_weight"),
-                                                input_info("w0_scale"),
-                                                input_info("w0_zp"),
-                                                input_info("w1_weight"),
-                                                input_info("w1_scale"),
-                                                input_info("w1_zp"),
-                                                input_info("w2_weight"),
-                                                input_info("w2_scale"),
-                                                input_info("w2_zp"),
-                                                // Dummy placeholders for routing_bias/eps (indices 11-12)
-                                                input_info("dummy_routing_bias"),
-                                                input_info("dummy_routing_eps"),
-                                                // Shared Expert Inputs (indices 13-22)
-                                                input_info("s_gate_weight"),
-                                                input_info("s_gate_scale"),
-                                                input_info("s_gate_zp"),
-                                                input_info("s_up_weight"),
-                                                input_info("s_up_scale"),
-                                                input_info("s_up_zp"),
-                                                input_info("s_down_weight"),
-                                                input_info("s_down_scale"),
-                                                input_info("s_down_zp"),
-                                                input_info("s_gate_scalar")},
-                                               moe_config);
+    // Create Primitive with new input layout
+    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
+                                            {input_info("hidden_states"),
+                                             input_info("router", 0),  // topk_weights
+                                             input_info("router", 1),  // topk_indices
+                                             input_info("w0_weight"),
+                                             input_info("w0_scale"),
+                                             input_info("w0_zp"),
+                                             input_info("w1_weight"),
+                                             input_info("w1_scale"),
+                                             input_info("w1_zp"),
+                                             input_info("w2_weight"),
+                                             input_info("w2_scale"),
+                                             input_info("w2_zp"),
+                                             // Shared Expert Inputs (indices 12-21)
+                                             input_info("s_gate_weight"),
+                                             input_info("s_gate_scale"),
+                                             input_info("s_gate_zp"),
+                                             input_info("s_up_weight"),
+                                             input_info("s_up_scale"),
+                                             input_info("s_up_zp"),
+                                             input_info("s_down_weight"),
+                                             input_info("s_down_scale"),
+                                             input_info("s_down_zp"),
+                                             input_info("s_gate_scalar")},
+                                            moe_config));
 
-    topology.add(moe_prim);
-
-    network network(engine, topology, get_test_default_config(engine));
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
 
@@ -992,18 +996,35 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     topology.add(data("w2_zp", w2_zp));
 
     // Create MOE3GemmFusedCompressed config
-    cldnn::MOE3GemmFusedCompressed::Config config;
+    cldnn::MOECompressed::Config config;
     config.hidden_size = hidden_size;
     config.inter_size = inter_size;
     config.num_expert = num_experts;
     config.top_k = top_k;
     config.group_size = group_size;
     config.out_type = data_types::f16;
-    config.routing_type = routing_type;
     config.has_zp = true;
 
+    // Create MoERouterFused primitive
+    MoERouterFused::Config router_config;
+    router_config.num_expert = num_experts;
+    router_config.top_k = top_k;
+    std::vector<input_info> router_inputs{input_info("routing_weights")};
+    if (routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS) {
+        router_config.routing_type = MoERouterFused::RoutingType::SIGMOID_BIAS;
+        topology.add(data("routing_bias", routing_bias));
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(routing_eps_mem, {ov::float16(1e-6f)});
+        get_test_stream().finish();
+        topology.add(data("routing_eps", routing_eps_mem));
+        router_inputs.push_back(input_info("routing_bias"));
+        router_inputs.push_back(input_info("routing_eps"));
+    }
+    topology.add(moe_router_fused("router", router_inputs, router_config));
+
     std::vector<input_info> moe_inputs{input_info("hidden_states"),
-                                       input_info("routing_weights"),
+                                       input_info("router", 0),  // topk_weights
+                                       input_info("router", 1),  // topk_indices
                                        input_info("w0_weight"),
                                        input_info("w0_scale"),
                                        input_info("w0_zp"),
@@ -1013,21 +1034,14 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
                                        input_info("w2_weight"),
                                        input_info("w2_scale"),
                                        input_info("w2_zp")};
-    if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
-        topology.add(data("routing_bias", routing_bias));
-        moe_inputs.push_back(input_info("routing_bias"));
-        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-        set_values(routing_eps_mem, {ov::float16(1e-6f)});
-        get_test_stream().finish();
-        topology.add(data("routing_eps", routing_eps_mem));
-        moe_inputs.push_back(input_info("routing_eps"));
-    }
 
     // Create MOECompressed primitive
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, config));
 
     // Create and execute network
-    network network(engine, topology, get_test_default_config(engine));
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states);
     network.set_input_data("routing_weights", routing_weights);
 
@@ -1044,7 +1058,7 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     EXPECT_EQ(output_layout.batch(), batch_size);
     EXPECT_EQ(output_layout.feature(), seq_len);
 
-    const auto& output_reference = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? output_ref_sigmoid_bias : output_ref_softmax;
+    const auto& output_reference = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? output_ref_sigmoid_bias : output_ref_softmax;
     for (size_t i = 0; i < batch_size * seq_len * hidden_size; ++i) {
         EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(output_reference[i]), 1e-3f);
     }
@@ -1052,10 +1066,10 @@ TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_u4,
-                         ::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX, cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS));
+                         ::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX, cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS));
 
 // Symmetric quantization tests (i4/i8 weights, no zero points)
-class moe_3gemm_compressed_gpu_symmetric_random : public ::testing::TestWithParam<std::tuple<cldnn::MOE3GemmFusedCompressed::RoutingType, Moe3GemmTestParams>> {
+class moe_3gemm_compressed_gpu_symmetric_random : public ::testing::TestWithParam<std::tuple<cldnn::MoERouterFused::RoutingType, Moe3GemmTestParams>> {
 };
 
 TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
@@ -1175,18 +1189,35 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
     topology.add(data("w2_scale", w2_scale_mem));
     topology.add(data("w2_zp", w2_zp_mem));
 
-    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    // Create MoERouterFused primitive
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    std::vector<input_info> router_inputs{input_info("routing_weights")};
+    if (routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS) {
+        router_config.routing_type = MoERouterFused::RoutingType::SIGMOID_BIAS;
+        topology.add(data("routing_bias", routing_bias_mem));
+        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+        set_values(routing_eps_mem, {routing_eps_val});
+        get_test_stream().finish();
+        topology.add(data("routing_eps", routing_eps_mem));
+        router_inputs.push_back(input_info("routing_bias"));
+        router_inputs.push_back(input_info("routing_eps"));
+    }
+    topology.add(moe_router_fused("router", router_inputs, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
     moe_config.hidden_size = config.hidden_size;
     moe_config.inter_size = config.inter_size;
     moe_config.num_expert = config.num_experts;
     moe_config.top_k = config.top_k;
     moe_config.group_size = config.group_size;
     moe_config.out_type = data_types::f16;
-    moe_config.routing_type = routing_type;
     moe_config.has_zp = false;
 
     std::vector<input_info> moe_inputs{input_info("hidden_states"),
-                                       input_info("routing_weights"),
+                                       input_info("router", 0),  // topk_weights
+                                       input_info("router", 1),  // topk_indices
                                        input_info("w0_weight"),
                                        input_info("w0_scale"),
                                        input_info("w0_zp"),
@@ -1196,20 +1227,12 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
                                        input_info("w2_weight"),
                                        input_info("w2_scale"),
                                        input_info("w2_zp")};
-    if (routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS) {
-        topology.add(data("routing_bias", routing_bias_mem));
-        moe_inputs.push_back(input_info("routing_bias"));
-        auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-        set_values(routing_eps_mem, {routing_eps_val});
-        get_test_stream().finish();
-        topology.add(data("routing_eps", routing_eps_mem));
-        moe_inputs.push_back(input_info("routing_eps"));
-    }
 
-    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config);
-    topology.add(moe_prim);
+    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config));
 
-    network network(engine, topology, get_test_default_config(engine));
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
 
@@ -1218,11 +1241,11 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    auto ref_output = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS
+    auto ref_output = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
 
-    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.25f : 0.15f;
+    const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.25f : 0.15f;
     const float tolerance = base_tolerance * std::max(1, static_cast<int>(config.hidden_size / 128));
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
@@ -1231,8 +1254,8 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_compressed_gpu_symmetric_random,
-                         ::testing::Combine(::testing::Values(cldnn::MOE3GemmFusedCompressed::RoutingType::SOFTMAX,
-                                                              cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS),
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX,
+                                                              cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
                                             ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128, true},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128, true},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128, true},
@@ -1401,15 +1424,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
     topology.add(data("w2_scale", w2_scale_mem));
     topology.add(data("w2_zp", w2_zp_mem));
 
-    auto dummy_bias_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-    set_values(dummy_bias_mem, {ov::float16(0.0f)});
-    get_test_stream().finish();
-    auto dummy_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
-    set_values(dummy_eps_mem, {ov::float16(0.0f)});
-    get_test_stream().finish();
-    topology.add(data("dummy_routing_bias", dummy_bias_mem));
-    topology.add(data("dummy_routing_eps", dummy_eps_mem));
-
     topology.add(data("s_gate_weight", s_gate_weight_mem));
     topology.add(data("s_gate_scale", s_gate_scale_mem));
     topology.add(data("s_gate_zp", s_gate_zp_mem));
@@ -1421,7 +1435,14 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
     topology.add(data("s_down_zp", s_down_zp_mem));
     topology.add(data("s_gate_scalar", s_gate_scalar_mem));
 
-    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    // Create MoERouterFused primitive (softmax for shared expert tests)
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    router_config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
+    topology.add(moe_router_fused("router", {input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
     moe_config.hidden_size = config.hidden_size;
     moe_config.inter_size = config.inter_size;
     moe_config.num_expert = config.num_experts;
@@ -1431,20 +1452,35 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
     moe_config.num_shared_expert = 1;
     moe_config.has_zp = false;
 
-    auto moe_prim = moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
-                                               {input_info("hidden_states"),     input_info("routing_weights"), input_info("w0_weight"),
-                                                input_info("w0_scale"),          input_info("w0_zp"),           input_info("w1_weight"),
-                                                input_info("w1_scale"),          input_info("w1_zp"),           input_info("w2_weight"),
-                                                input_info("w2_scale"),          input_info("w2_zp"),           input_info("dummy_routing_bias"),
-                                                input_info("dummy_routing_eps"), input_info("s_gate_weight"),   input_info("s_gate_scale"),
-                                                input_info("s_gate_zp"),         input_info("s_up_weight"),     input_info("s_up_scale"),
-                                                input_info("s_up_zp"),           input_info("s_down_weight"),   input_info("s_down_scale"),
-                                                input_info("s_down_zp"),         input_info("s_gate_scalar")},
-                                               moe_config);
+    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
+                                            {input_info("hidden_states"),
+                                             input_info("router", 0),  // topk_weights
+                                             input_info("router", 1),  // topk_indices
+                                             input_info("w0_weight"),
+                                             input_info("w0_scale"),
+                                             input_info("w0_zp"),
+                                             input_info("w1_weight"),
+                                             input_info("w1_scale"),
+                                             input_info("w1_zp"),
+                                             input_info("w2_weight"),
+                                             input_info("w2_scale"),
+                                             input_info("w2_zp"),
+                                             // Shared Expert Inputs (indices 12-21)
+                                             input_info("s_gate_weight"),
+                                             input_info("s_gate_scale"),
+                                             input_info("s_gate_zp"),
+                                             input_info("s_up_weight"),
+                                             input_info("s_up_scale"),
+                                             input_info("s_up_zp"),
+                                             input_info("s_down_weight"),
+                                             input_info("s_down_scale"),
+                                             input_info("s_down_zp"),
+                                             input_info("s_gate_scalar")},
+                                            moe_config));
 
-    topology.add(moe_prim);
-
-    network network(engine, topology, get_test_default_config(engine));
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
 
