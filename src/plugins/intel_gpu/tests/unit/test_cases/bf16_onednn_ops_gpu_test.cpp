@@ -19,6 +19,7 @@
 #include <intel_gpu/primitives/data.hpp>
 
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #include <cmath>
 #include <vector>
@@ -452,6 +453,66 @@ TEST(bf16_onednn_ops, deconvolution_bf16) {
     auto result_f32 = run_network_get_f32_output(engine, tp_f32, "input", input_mem_f32, "output");
 
     compare_outputs(result_f32, result_bf16, 0.05f);
+}
+
+// =====================================================
+// TEST: Fully Connected bf16 activations x int8 compressed weights (mixed precision)
+// =====================================================
+TEST(bf16_onednn_ops, fully_connected_bf16_compressed_int8) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
+
+    tests::random_generator rg("bf16_fc_compressed");
+
+    const int batch = 4, input_f = 64, output_f = 32, group_size = 32;
+    const int scale_groups = input_f / group_size;
+
+    auto input_bf16 = generate_bf16_data(rg, batch * input_f);
+    auto weights_data = rg.generate_random_1d<int8_t>(output_f * input_f, -4, 4);
+    auto scale_data = rg.generate_random_1d<ov::float16>(output_f * scale_groups, -1.0f, 1.0f);
+
+    auto input_mem = engine.allocate_memory({ ov::PartialShape{batch, 1, input_f}, data_types::bf16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ ov::PartialShape{output_f, input_f}, data_types::i8, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ ov::PartialShape{output_f, scale_groups}, data_types::f16, format::bfyx });
+    set_values(input_mem, input_bf16);
+    set_values(weights_mem, weights_data);
+    set_values(scale_mem, scale_data);
+
+    topology tp;
+    tp.add(input_layout("input", input_mem->get_layout()));
+    tp.add(data("weights", weights_mem));
+    tp.add(data("scale", scale_mem));
+    tp.add(fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::bf16, 3, 2));
+    tp.add(reorder("output", input_info("fc"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+
+    network net(engine, tp, config);
+    net.set_input_data("input", input_mem);
+    auto out_mem = net.execute().at("output").get_memory();
+    mem_lock<float> result_ptr(out_mem, get_test_stream());
+    std::vector<float> result(result_ptr.begin(), result_ptr.end());
+
+    // F32 reference: decompressed_weight[o][i] = weights_i8[o][i] * scale[o][i/group_size]
+    std::vector<float> ref(batch * output_f, 0.0f);
+    for (int b = 0; b < batch; ++b) {
+        for (int o = 0; o < output_f; ++o) {
+            float acc = 0.0f;
+            for (int i = 0; i < input_f; ++i) {
+                float w = static_cast<float>(weights_data[o * input_f + i]) *
+                          static_cast<float>(scale_data[o * scale_groups + i / group_size]);
+                acc += static_cast<float>(input_bf16[b * input_f + i]) * w;
+            }
+            ref[b * output_f + o] = acc;
+        }
+    }
+
+    compare_outputs(ref, result, 0.1f);
 }
 
 #endif  // ENABLE_ONEDNN_FOR_GPU
