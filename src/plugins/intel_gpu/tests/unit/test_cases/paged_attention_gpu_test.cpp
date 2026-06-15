@@ -635,3 +635,269 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_perf_token_ids_ocl, page
     disable_reference_compare(paged_attention_test_params{ {{TOKEN_IDS_SEQ_LEN, 0}}, 1, 1, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, false, {}, true, gen_tokens_ids_test_data(TOKEN_IDS_SEQ_LEN, 1, TOKEN_IDS_SEQ_LEN) }),
 }));
 
+// Shared KV-cache test: simulates writer (write_kv_cache=true) + reader (write_kv_cache=false)
+// sharing the same KV cache. Verifies the reader produces correct attention output by comparing
+// against a reference SDPA computed with the writer's K,V data.
+class shared_kv_cache_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
+    auto p = GetParam();
+
+    if (p.has_xattention && !check_cm_available())
+        GTEST_SKIP() << "CM JIT support is required for XAttention tests";
+
+    // --- Step 1: Create writer PAM and run writer PA (write_kv_cache=true) to fill cache ---
+    PagedAttentionManager pam(rg,
+                              get_test_engine(),
+                              get_test_stream(),
+                              p.subsequences,
+                              p.num_heads,
+                              p.num_kv_heads,
+                              p.k_head_size,
+                              p.v_head_size,
+                              p.block_size,
+                              p.sliding_window_size,
+                              p.kv_cache_compression,
+                              p.key_cache_quant_mode,
+                              false,
+                              p.has_xattention,
+                              p.rotation_config);
+
+    if (p.has_xattention) {
+        pam.xattention_block_size.clear();
+        if (p.xattention_block_size.has_value())
+            pam.xattention_block_size = p.xattention_block_size.value();
+        pam.xattention_threshold.clear();
+        if (p.xattention_threshold.has_value()) {
+            for (const float t : p.xattention_threshold.value())
+                pam.xattention_threshold.emplace_back(static_cast<ov::float16>(t));
+        }
+        pam.xattention_stride.assign(p.subsequences.size(), 16);
+    }
+
+    auto writer_query_mem = pam.get_query_memory();
+    auto key_mem = pam.get_key_memory();
+    auto value_mem = pam.get_value_memory();
+    auto key_cache_mem = p.has_xattention ? pam.get_key_cache_memory_cm() : pam.get_key_cache_memory();
+    auto value_cache_mem = pam.get_value_cache_memory();
+    auto past_lens_mem = pam.get_past_lens_memory();
+    auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
+    auto block_indices_mem = pam.get_block_indices_memory();
+    auto block_indices_begins_mem = pam.get_block_indices_begins_memory();
+    auto scale_mem = pam.get_scale_memory();
+    auto sliding_window_mem = pam.get_sliding_window_memory();
+    auto alibi_mem = pam.get_alibi_memory();
+    auto max_context_len_mem = pam.get_max_context_len_memory();
+    auto score_aggregation_mem = pam.get_score_aggregation();
+    auto rotated_block_indices_mem = pam.get_rotated_block_indices_memory();
+    auto rotation_deltas_mem = pam.get_rotation_deltas_memory();
+    auto rotation_trig_lut_mem = pam.get_rotation_trig_lut_memory();
+    auto xattention_threshold_mem = pam.get_xattention_threshold_memory();
+    auto xattention_block_size_mem = pam.get_xattention_block_size_memory();
+    auto xattention_stride_mem = pam.get_xattention_stride_memory();
+    auto sinks_mem = pam.get_sinks_memory();
+    auto adaptive_rkv_start_size_mem = pam.get_adaptive_rkv_start_size_memory();
+    auto adaptive_rkv_evictable_sizes_mem = pam.get_adaptive_rkv_evictable_sizes_memory();
+    auto adaptive_rkv_diversity_block_set_indices_mem = pam.get_adaptive_rkv_diversity_block_set_indices_memory();
+    auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
+    auto token_type_ids_mem = pam.get_token_type_ids_memory();
+    auto qq_bias_mem = pam.get_qq_bias_memory();
+    auto qq_bias_begins_mem = pam.get_qq_bias_begins_memory();
+
+    auto query_layout = writer_query_mem->get_layout();
+    auto key_layout = key_mem->get_layout();
+    auto value_layout = value_mem->get_layout();
+    auto key_cache_layout = key_cache_mem->get_layout();
+    auto value_cache_layout = value_cache_mem->get_layout();
+
+    query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
+    key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_kv_heads * p.k_head_size });
+    value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_kv_heads * p.v_head_size });
+    { auto ps = key_cache_layout.get_partial_shape(); ps[0] = -1; key_cache_layout.set_partial_shape(ps); }
+    { auto ps = value_cache_layout.get_partial_shape(); ps[0] = -1; value_cache_layout.set_partial_shape(ps); }
+
+    auto build_pa_network = [&](bool write_kv_cache) {
+        std::vector<input_info> pa_inputs = {
+            input_info("query"), input_info("key"), input_info("value"),
+            input_info("key_cache"), input_info("value_cache"),
+            input_info("past_lens"), input_info("subsequence_begins"),
+            input_info("block_indices"), input_info("block_indices_begins"),
+            input_info("scale"), input_info("sliding_window"), input_info("alibi"),
+            input_info("max_context_len"), input_info("score_aggregation_window"),
+            input_info("rotated_block_indices"), input_info("rotation_deltas"),
+            input_info("rotation_trig_lut_modified"),
+            input_info("xattention_threshold"), input_info("xattention_block_size"),
+            input_info("xattention_stride"), input_info("sinks"),
+            input_info("adaptive_rkv_start_size"), input_info("adaptive_rkv_evictable_sizes"),
+            input_info("adaptive_rkv_diversity_block_set_indices"), input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+            input_info("token_type_ids"), input_info("qq_bias"), input_info("qq_bias_begins")
+        };
+
+        auto pa_prim = paged_attention("paged_attention", pa_inputs);
+        pa_prim.k_head_size = p.k_head_size;
+        pa_prim.v_head_size = p.v_head_size;
+        pa_prim.kv_heads_num = p.num_kv_heads;
+        pa_prim.heads_num = p.num_heads;
+        pa_prim.scale_val = pam.get_default_scale();
+        pa_prim.has_alibi = false;
+        pa_prim.num_outputs = 1;
+        pa_prim.sliding_window = p.sliding_window_size;
+        pa_prim.is_key_by_channel = (p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+        pa_prim.has_xattention = p.has_xattention;
+        pa_prim.write_kv_cache = write_kv_cache;
+
+        topology topo;
+        topo.add(
+            input_layout("query", query_layout),
+            input_layout("key", key_layout),
+            input_layout("value", value_layout),
+            input_layout("key_cache", key_cache_layout),
+            input_layout("value_cache", value_cache_layout),
+            input_layout("past_lens", past_lens_mem->get_layout()),
+            input_layout("subsequence_begins", subsequence_begins_mem->get_layout()),
+            input_layout("block_indices", block_indices_mem->get_layout()),
+            input_layout("block_indices_begins", block_indices_begins_mem->get_layout()),
+            input_layout("scale", scale_mem->get_layout()),
+            input_layout("sliding_window", sliding_window_mem->get_layout()),
+            input_layout("alibi", alibi_mem->get_layout()),
+            input_layout("max_context_len", max_context_len_mem->get_layout()),
+            input_layout("score_aggregation_window", score_aggregation_mem->get_layout()),
+            pa_prim,
+            reorder("output", input_info("paged_attention", 0), format::bfyx, data_types::f16)
+        );
+        topo.add(input_layout("rotated_block_indices", rotated_block_indices_mem->get_layout()));
+        topo.add(input_layout("rotation_deltas", rotation_deltas_mem->get_layout()));
+        topo.add(input_layout("rotation_trig_lut", rotation_trig_lut_mem->get_layout()));
+        topo.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
+        topo.add(input_layout("xattention_threshold", xattention_threshold_mem->get_layout()));
+        topo.add(input_layout("xattention_block_size", xattention_block_size_mem->get_layout()));
+        topo.add(input_layout("xattention_stride", xattention_stride_mem->get_layout()));
+        topo.add(input_layout("sinks", sinks_mem->get_layout()));
+        topo.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_mem->get_layout()));
+        topo.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem->get_layout()));
+        topo.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem->get_layout()));
+        topo.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout()));
+        topo.add(input_layout("token_type_ids", token_type_ids_mem->get_layout()));
+        topo.add(input_layout("qq_bias", qq_bias_mem->get_layout()));
+        topo.add(input_layout("qq_bias_begins", qq_bias_begins_mem->get_layout()));
+
+        ExecutionConfig config = get_test_default_config(get_test_engine());
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
+        return get_network(get_test_engine(), topo, config, get_test_stream_ptr(), false);
+    };
+
+    auto set_network_inputs = [&](network::ptr& net, memory::ptr query_mem_input) {
+        net->set_input_data("query", query_mem_input);
+        net->set_input_data("key", key_mem);
+        net->set_input_data("value", value_mem);
+        net->set_input_data("key_cache", key_cache_mem);
+        net->set_input_data("value_cache", value_cache_mem);
+        net->set_input_data("past_lens", past_lens_mem);
+        net->set_input_data("subsequence_begins", subsequence_begins_mem);
+        net->set_input_data("block_indices", block_indices_mem);
+        net->set_input_data("block_indices_begins", block_indices_begins_mem);
+        net->set_input_data("scale", scale_mem);
+        net->set_input_data("sliding_window", sliding_window_mem);
+        net->set_input_data("alibi", alibi_mem);
+        net->set_input_data("max_context_len", max_context_len_mem);
+        net->set_input_data("score_aggregation_window", score_aggregation_mem);
+        net->set_input_data("rotated_block_indices", rotated_block_indices_mem);
+        net->set_input_data("rotation_deltas", rotation_deltas_mem);
+        net->set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
+        net->set_input_data("xattention_threshold", xattention_threshold_mem);
+        net->set_input_data("xattention_block_size", xattention_block_size_mem);
+        net->set_input_data("xattention_stride", xattention_stride_mem);
+        net->set_input_data("sinks", sinks_mem);
+        net->set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
+        net->set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
+        net->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
+        net->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
+        net->set_input_data("token_type_ids", token_type_ids_mem);
+        net->set_input_data("qq_bias", qq_bias_mem);
+        net->set_input_data("qq_bias_begins", qq_bias_begins_mem);
+    };
+
+    // Execute writer PA to fill the KV cache
+    auto writer_network = build_pa_network(true);
+    set_network_inputs(writer_network, writer_query_mem);
+    writer_network->execute();
+
+    // Fill K,V with garbage to verify write_kv_cache=false skips cache write
+    {
+        mem_lock<ov::float16> key_lock(key_mem, get_test_stream());
+        std::fill(key_lock.begin(), key_lock.end(), ov::float16(0.0f));
+    }
+    {
+        mem_lock<ov::float16> value_lock(value_mem, get_test_stream());
+        std::fill(value_lock.begin(), value_lock.end(), ov::float16(0.0f));
+    }
+
+    // Generate a fresh query for the reader (different from writer's query)
+    std::vector<std::vector<ov::float16>> reader_query_data;
+    for (const auto& subsequence_desc : p.subsequences) {
+        size_t elements = static_cast<size_t>(p.num_heads) * subsequence_desc.num_tokens * p.k_head_size;
+        reader_query_data.push_back(rg.generate_random_1d<ov::float16>(elements, -1, 1));
+    }
+
+    int total_tokens = 0;
+    for (const auto& sd : p.subsequences)
+        total_tokens += sd.num_tokens;
+
+    auto reader_query_layout = layout{ ov::PartialShape{ total_tokens, p.num_heads * p.k_head_size }, data_types::f16, format::bfyx };
+    auto reader_query_mem = get_test_engine().allocate_memory(reader_query_layout);
+    {
+        mem_lock<ov::float16> lock(reader_query_mem, get_test_stream());
+        size_t offset = 0;
+        for (size_t seq_idx = 0; seq_idx < p.subsequences.size(); seq_idx++) {
+            size_t num_tokens = p.subsequences[seq_idx].num_tokens;
+            size_t elements = num_tokens * p.num_heads * p.k_head_size;
+            std::copy(reader_query_data[seq_idx].begin(),
+                      reader_query_data[seq_idx].begin() + elements,
+                      lock.begin() + offset);
+            offset += elements;
+        }
+    }
+
+    // --- Step 3: Execute reader PA (write_kv_cache=false) with the same cache ---
+    // Input: Q(reader), K,V(zeros), kv_cache(filled by writer). Attention uses Q + kv_cache only.
+    auto reader_network = build_pa_network(false);
+    set_network_inputs(reader_network, reader_query_mem);
+    auto reader_outputs = reader_network->execute();
+    auto reader_output_mem = reader_outputs.at("output").get_memory();
+    ASSERT_NE(reader_output_mem, nullptr);
+
+    // --- Step 4: Compute reference SDPA ---
+    // Input: Q(reader), K,V(writer's original data). Same data as what's in the cache.
+    pam.query_data = reader_query_data;
+    auto ref_data = PagedAttentionReference(pam).get_reference();
+    const auto& ref_output = std::get<0>(ref_data);
+
+    // --- Step 5: Compare reader output against reference ---
+    ASSERT_EQ(reader_output_mem->count(), ref_output.size());
+    mem_lock<ov::float16, mem_lock_type::read> output_lock(reader_output_mem, get_test_stream());
+    for (size_t i = 0; i < ref_output.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(output_lock[i]), static_cast<float>(ref_output[i]), 7e-3f)
+            << " at index=" << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_shared_kv_cache, shared_kv_cache_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Decode: 1 token, past=32 (cache already populated by writer)
+    paged_attention_test_params{ {{1, 32}}, 4, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 },
+    // Decode: 1 token, past=64 (longer context)
+    paged_attention_test_params{ {{1, 64}}, 4, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 },
+    // Multi-sequence decode
+    paged_attention_test_params{ {{1, 32}, {1, 64}}, 4, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 },
+}));
+
+// CM (XAttention) path
+INSTANTIATE_TEST_SUITE_P(smoke_shared_kv_cache_cm, shared_kv_cache_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Decode: 1 token, past=32
+    paged_attention_test_params{ {{1, 32}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // Decode: 1 token, past=64
+    paged_attention_test_params{ {{1, 64}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // Multi-sequence decode
+    paged_attention_test_params{ {{1, 32}, {1, 64}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128} },
+}));
+
