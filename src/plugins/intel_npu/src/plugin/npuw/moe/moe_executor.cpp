@@ -324,7 +324,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
 }
 
 void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx) {
-    LOG_DEBUG("\n[EXPERT_ITERATIVE] Processing multiple tokens with streaming parse+pipeline");
+    LOG_DEBUG("\n[EXPERT_ITERATIVE] Processing multiple tokens with async inference and overlapping NPU execution");
 
     const auto input_token_count = m_config.input_token_count;
     const auto& io = m_moe_io[idx];
@@ -456,10 +456,6 @@ void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx) {
         size_t expert_id = SIZE_MAX;  // which expert was pre-scanned (sentinel = none)
     };
     ParseAheadBuffer parse_ahead;
-
-    auto is_nonzero = [](auto v) {
-        return std::abs(static_cast<float>(v)) > 1e-6f;
-    };
 
     // Per-expert loop: three phases — Parse, Dispatch, Prefetch.
     auto stream_and_run = [&](auto* data) {

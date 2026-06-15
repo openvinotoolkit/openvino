@@ -107,7 +107,7 @@ std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITens
         for (size_t expert_id = 0; expert_id < num_experts; ++expert_id) {
             const auto* row = data + expert_id * num_tokens;
             for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
-                if (std::abs(static_cast<float>(row[token_id])) > 1e-6f) {
+                if (is_nonzero(row[token_id])) {
                     token_to_experts[token_id].push_back(expert_id);
                     expert_to_tokens[expert_id].push_back(token_id);
                 }
