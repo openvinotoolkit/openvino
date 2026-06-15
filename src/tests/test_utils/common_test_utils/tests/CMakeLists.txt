@@ -19,12 +19,12 @@ set(${TARGET_NAME}_SOURCES
 ov_add_test_target(
     NAME ${TARGET_NAME}
     SOURCES ${${TARGET_NAME}_SOURCES}
-    DEPENDENCIES
     LINK_LIBRARIES
-      common_test_utils
-      func_test_utils
-      base_func_tests
-    LABELS
-      OV UNIT
+        common_test_utils
+        func_test_utils
+        base_func_tests
+    LABELS OV UNIT
     GTEST_DISCOVER
+    TESTS_PER_SOURCE
 )
+

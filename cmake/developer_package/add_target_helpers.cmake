@@ -133,17 +133,112 @@ function(ov_add_target)
 endfunction()
 
 #[[
-Wrapper function over addIeTarget, that also adds a test with the same name.
-You could use
-  ov_add_test_target( ... LABELS labelOne labelTwo )
-also to provide labels for that test.
-Pass GTEST_DISCOVER to additionally register one CTest entry per TEST() macro
-via gtest_discover_tests() (requires GTest to be available).
-Important: you MUST pass LABELS as last argument, otherwise it will consume any parameters that come after.
+Creates one small test executable per source file, each registered as a CTest test.
+Intended for local iterative development — build and run a single file without
+recompiling the whole suite. Not intended for CI use.
+
+Usage:
+  ov_add_test_target_per_source(
+    NAME           <base-name>        # prefix for generated target names: <NAME>_<stem>
+    SOURCES        file1.cpp ...      # source files to split into individual targets
+    LINK_LIBRARIES <lib1> <lib2>      # same libs as the combined target
+    LABELS         <label1> <label2>
+    GTEST_DISCOVER                    # register per-TEST() CTest entries for each target
+  )
+
+Example targets produced for NAME=ov_util_tests:
+  ov_util_tests_file_util_test
+  ov_util_tests_graph_comparator_tests
+  ...
+
+Build / run one file:
+  cmake --build <dir> --target ov_util_tests_file_util_test
+  ctest --test-dir <dir> -R "ov_util_tests_file_util_test"
+#]]
+function(ov_add_test_target_per_source)
+    if(NOT ENABLE_TESTS_PER_SOURCE)
+        return()
+    endif()
+
+    set(options
+        GTEST_DISCOVER
+    )
+    set(oneValueRequiredArgs
+        NAME
+    )
+    set(multiValueArgs
+        SOURCES
+        LINK_LIBRARIES
+        LABELS
+    )
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(NOT ARG_NAME)
+        message(SEND_ERROR "ov_add_test_target_per_source: NAME is required.")
+        return()
+    endif()
+
+    if(NOT ARG_SOURCES)
+        message(SEND_ERROR "ov_add_test_target_per_source: SOURCES is required.")
+        return()
+    endif()
+
+    set(_has_gtest FALSE)
+
+    if(ARG_GTEST_DISCOVER)
+        include(GoogleTest)
+
+        if(COMMAND gtest_discover_tests AND(TARGET GTest::gtest OR TARGET GTest::GTest))
+            set(_has_gtest TRUE)
+        endif()
+    endif()
+
+    foreach(_src IN LISTS ARG_SOURCES)
+        get_filename_component(_stem "${_src}" NAME_WE)
+        set(_target "${ARG_NAME}_${_stem}")
+
+        add_executable(${_target} ${_src})
+
+        if(ARG_LINK_LIBRARIES)
+            target_link_libraries(${_target} PRIVATE ${ARG_LINK_LIBRARIES})
+        endif()
+
+        add_test(NAME ${_target} COMMAND ${_target})
+
+        if(ARG_LABELS)
+            set_property(TEST ${_target} PROPERTY LABELS ${ARG_LABELS})
+        endif()
+
+        if(_has_gtest)
+            gtest_discover_tests(${_target}
+                DISCOVERY_MODE POST_BUILD
+                PROPERTIES LABELS "${ARG_LABELS}"
+            )
+        endif()
+    endforeach()
+endfunction()
+
+#[[
+Wrapper function over ov_add_target that also registers the executable as a CTest test.
+All ov_add_target parameters (ROOT, SOURCES, LINK_LIBRARIES, INCLUDES, DEFINES,
+DEPENDENCIES, EXCLUDED_SOURCE_PATHS, etc.) are forwarded transparently.
+
+Usage:
+  ov_add_test_target(
+    NAME              <target-name>
+    LABELS            <label1> <label2>
+    GTEST_DISCOVER                          # register per-TEST() CTest entries (requires GTest)
+    TESTS_PER_SOURCE                        # delegate to ov_add_test_target_per_source (local dev only)
+    COMPONENT         <cpack-component>     # default: tests
+  )
+
+Note: LABELS must be the last keyword argument when ROOT or other ov_add_target
+  pass-through args are used, as it consumes all following tokens.
 #]]
 function(ov_add_test_target)
     set(options
-        GTEST_DISCOVER
+        GTEST_DISCOVER # Register per-TEST() CTest entries via gtest_discover_tests (requires GTest)
+        TESTS_PER_SOURCE # Create one executable per source file for local dev (not for CI)
     )
     set(oneValueRequiredArgs
         NAME
@@ -190,6 +285,20 @@ function(ov_add_test_target)
                 PROPERTIES LABELS "${ARG_LABELS}"
             )
         endif()
+    endif()
+
+    if(ARG_TESTS_PER_SOURCE)
+        set(_gtest_discover)
+
+        if(ARG_GTEST_DISCOVER)
+            set(_gtest_discover GTEST_DISCOVER)
+        endif()
+
+        ov_add_test_target_per_source(
+            NAME ${ARG_NAME}
+            LABELS ${ARG_LABELS}
+            ${_gtest_discover}
+            ${ARG_UNPARSED_ARGUMENTS})
     endif()
 
     install(TARGETS ${ARG_NAME}
