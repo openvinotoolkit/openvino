@@ -823,7 +823,7 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
     set_network_inputs(writer_network, writer_query_mem);
     writer_network->execute();
 
-    // Fill K,V with garbage to verify write_kv_cache=false skips cache write
+    // --- Step 2: Fill K,V with garbage to verify write_kv_cache=false skips cache write ---
     {
         mem_lock<ov::float16> key_lock(key_mem, get_test_stream());
         std::fill(key_lock.begin(), key_lock.end(), ov::float16(0.0f));
