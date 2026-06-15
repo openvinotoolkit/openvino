@@ -181,7 +181,6 @@ void pa_lsc_u8(
         if (kv_pos >= blk_end) return;
         if (kv_pos >= kv_stop) return;
 
-        // Ring slot for this load. Partition path uses a 2-deep ring matching the
         uint slm_offset = enable_head_size_partition
                           ? (slm_buff_id_write & 1) * slm_buff_size
                           : (slm_buff_id_write & 3) * slm_buff_size;
@@ -467,7 +466,6 @@ void pa_lsc_u8(
             kv_pos_in_block * sizeof(half);
         uint32_t v_zp_offset = v_dscale_offset + CMPA_BLOCK_SZ * sizeof(half);
 
-        // Ring slot for this load. Partition path uses a 2-deep ring matching the
         uint slm_offset = enable_head_size_partition
                           ? (slm_buff_id_write & 1) * slm_buff_size
                           : (slm_buff_id_write & 3) * slm_buff_size;
