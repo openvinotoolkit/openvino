@@ -69,6 +69,7 @@ public:
                                  {{std::string(ov::intel_gpu::mem_handle.name()), {}},
                                   {std::string(ov::intel_gpu::shared_mem_type.name()),
                                    {ov::Any(ov::intel_gpu::SharedMemType::OCL_BUFFER).as<std::string>(),
+                                    ov::Any(ov::intel_gpu::SharedMemType::CPU_POINTER).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::DX_BUFFER).as<std::string>()}}});
     }
@@ -340,6 +341,25 @@ public:
                         "Only SHARED_BUF memory type is supported for raw buffer pointer or NT handle");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE},
                          {ov::intel_gpu::os_handle.name(), shared_buffer}};
+        return create_tensor(type, shape, params).as<ClBufferTensor>();
+    }
+
+    /**
+     * @brief This function is used to obtain a remote tensor object from a user-supplied mmap-backed host pointer
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param mmap_ptr A pointer to already created mmap region that should be wrapped by a remote tensor
+    * @param memory_type Memory type to use; only MemType::cpu_pointer is supported by this overload
+     * @return A remote tensor instance
+     */
+    ClBufferTensor create_tensor(const element::Type type,
+                                 const Shape& shape,
+                                 void* mmap_ptr,
+                                 const MemType memory_type) {
+        OPENVINO_ASSERT(memory_type == MemType::cpu_pointer,
+                        "Only MMAPED_FILE memory type is supported for mmap pointer overload");
+        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_POINTER},
+                         {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(mmap_ptr)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 

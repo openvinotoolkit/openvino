@@ -6,6 +6,10 @@
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
+#ifndef WIN32
+#include <sys/mman.h>
+#endif
+
 #ifdef WIN32
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #elif defined(ENABLE_LIBVA)
@@ -45,6 +49,27 @@ int main() {
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
     //! [wrap_usm_pointer]
 }
+
+#ifndef WIN32
+{
+    //! [wrap_mmap_pointer]
+    size_t shared_buffer_bytes = input_size * in_element_type.size();
+    void* shared_buffer = mmap(nullptr,
+                               shared_buffer_bytes,
+                               PROT_READ | PROT_WRITE,
+                               MAP_SHARED | MAP_ANONYMOUS,
+                               -1,
+                               0);
+    if (shared_buffer != MAP_FAILED) {
+        auto remote_tensor = gpu_context.create_tensor(in_element_type,
+                                                       in_shape,
+                                                       shared_buffer,
+                                                       ov::intel_gpu::MemType::cpu_pointer);
+        munmap(shared_buffer, shared_buffer_bytes);
+    }
+    //! [wrap_mmap_pointer]
+}
+#endif
 
 {
     //! [wrap_cl_mem]

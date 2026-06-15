@@ -8,12 +8,21 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 
+#include <cstdint>
 #include <memory>
 
 namespace ov::intel_gpu {
 
 namespace {
+static bool is_page_aligned_ptr(const void* ptr) {
+    if (ptr == nullptr)
+        return false;
+
+    return (reinterpret_cast<std::uintptr_t>(ptr) % cldnn::CACHE_PAGE_SIZE) == 0;
+}
+
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
     if (element_type.bitwidth() < 8)
@@ -288,6 +297,7 @@ void RemoteTensorImpl::allocate() {
 
     auto context = std::dynamic_pointer_cast<RemoteContextImpl>(m_context);
     auto enable_caching = supports_caching();
+    auto& engine = context->get_engine();
 
     if (is_surface()) {
         m_layout.format = cldnn::format::nv12;  // Other formats are not supported
@@ -301,8 +311,6 @@ void RemoteTensorImpl::allocate() {
             return;
         }
     }
-
-    auto& engine = context->get_engine();
 
     // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
     // W/A for this issue:
@@ -352,6 +360,17 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.share_usm(m_layout, m_mem);
         break;
     }
+    case TensorType::BF_BUF_MMAPED_MEMORY: {
+        OPENVINO_ASSERT(engine.runtime_type() == cldnn::runtime_types::ocl,
+                        "[GPU] MMAP shared buffer is supported only for OCL runtime");
+        OPENVINO_ASSERT(is_page_aligned_ptr(m_mem),
+                        "[GPU] MMAP shared buffer pointer must be ", cldnn::CACHE_PAGE_SIZE, "-byte aligned");
+        m_memory_object = engine.create_mmap_hostbuffer(m_mem,
+                                                        m_layout.bytes_count(),
+                                                        cldnn::allocation_type::usm_host,
+                                                        m_layout);
+        break;
+    }
 #ifdef _WIN32
     case TensorType::BT_SURF_SHARED: {
         m_memory_object = engine.share_surface(m_layout, m_mem, m_plane);
@@ -389,6 +408,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
+           m_mem_type == TensorType::BF_BUF_MMAPED_MEMORY ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
            m_mem_type == TensorType::BT_SURF_SHARED ||
@@ -473,6 +493,13 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_USER_BUFFER),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
+        };
+        break;
+    case TensorType::BF_BUF_MMAPED_MEMORY:
+        m_properties = {
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_POINTER),
+            ov::intel_gpu::ocl_context(params.context),
+            ov::intel_gpu::mem_handle(m_mem),
         };
         break;
     case TensorType::BT_USM_HOST_INTERNAL:
