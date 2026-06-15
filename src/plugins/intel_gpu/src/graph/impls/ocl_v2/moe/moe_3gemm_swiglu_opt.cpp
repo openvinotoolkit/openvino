@@ -1121,6 +1121,7 @@ public:
     void prepare_internal_buffers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto& engine = instance.get_network().get_engine();
+
         // topk_id / topk_weights are read from inputs (computed by MoERouterFused).
         scratch.topk_weights = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_WEIGHTS));
         scratch.topk_id = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_INDICES));
@@ -1378,6 +1379,7 @@ public:
                 }
                 p_expert_index[i] = it->second;
             }
+
             batch_mem_ptr = scratch._expert_index_buffer;
             scratch.moe_fusion_wei_addr.weight[0] = shell_params.gate_w;
             scratch.moe_fusion_wei_addr.scale[0] = shell_params.gate_s;
@@ -2187,6 +2189,7 @@ public:
         if (_lru_expert_num) {
             // OTD path: read topk_ids, remap to LRU slots, build mask by slot index
             stream.finish();  // ensure routing kernel has written topk_ids
+
             size_t topk_count = static_cast<size_t>(token_num) * max_topk;
             std::vector<int32_t> raw_topk_ids(topk_count);
             batch_mem_ptr->copy_to(stream, raw_topk_ids.data(), 0, 0, topk_count * sizeof(int32_t), true);
@@ -2344,6 +2347,12 @@ public:
                                       {local_threads_count, 1, 1});
         }
 
+        // In OTD mode, ensure gather OCL kernel completes before OneDNN reads scratch.x.
+        // Non-OTD relies on the in-order queue's implicit ordering.
+        if (_lru_expert_num) {
+            stream.finish();
+        }
+
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
@@ -2437,6 +2446,11 @@ public:
             gk.down_prim.execute(dnn_stream, args);
         }
 
+        // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
+        if (_lru_expert_num) {
+            dnn_stream.wait();
+        }
+
         // ----------------------------------------------------------------
         // Step 6: scatter_reduce – weighted accumulate into output
         // ----------------------------------------------------------------
@@ -2523,10 +2537,12 @@ public:
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        // only the per-expert onednn loop path accumulates into the output via index_add,
-        // so it needs the buffer pre-zeroed; micro_gemm and grouped_gemm use scatter_reduce
-        // which writes atomically and does not require pre-zeroing.
-        if (!use_micro_gemm_prefill && !use_grouped_gemm_prefill) {
+        // Pre-zero output buffer for paths that accumulate into it.
+        // The per-expert onednn loop uses index_add (accumulates).
+        // The grouped_gemm scatter_reduce writes all token positions atomically,
+        // but in OTD mode the fallback to exec_prefill_onednn also accumulates.
+        // Always zero for safety when not using micro_gemm (which has its own scatter).
+        if (!use_micro_gemm_prefill) {
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
@@ -2549,6 +2565,14 @@ public:
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, cache, use_gpu_mask_gen);
         } else if (use_grouped_gemm_prefill) {
             ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch, cache);
+            // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
+            // grouped matmul on the same in-order queue. The framework's event-based
+            // scheduling may proceed to subsequent graph nodes before scatter_reduce
+            // completes, causing multi-iteration inference to degrade.
+            // Flush the queue only in OTD mode to avoid impacting non-OTD perf.
+            if (_lru_expert_num) {
+                stream.finish();
+            }
         } else {
             ret_env = exec_prefill_onednn(events, stream, instance, scratch, cache);
         }
