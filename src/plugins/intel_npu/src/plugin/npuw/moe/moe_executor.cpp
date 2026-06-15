@@ -235,7 +235,7 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
         });
     } else {
         m_profile->iterative["Total Expert Iterative"].record([&]() {
-            run_expert_iterative(idx, real_idx);
+            run_expert_iterative(idx);
         });
     }
 
@@ -323,15 +323,16 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     });
 }
 
-void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx) {
+void MoEExecutor::run_expert_iterative(size_t idx) {
     LOG_DEBUG("\n[EXPERT_ITERATIVE] Processing multiple tokens with async inference and overlapping NPU execution");
 
-    const auto input_token_count = m_config.input_token_count;
     const auto& io = m_moe_io[idx];
 
     // Precondition checks
     if (!m_resources.expert_output_accumulator)
         OPENVINO_THROW("MoE: Expert output accumulator is null");
+    if (!io.expert_input)
+        OPENVINO_THROW("MoE: Expert input tensor is not set — prologue must bind it before run()");
     if (!m_config.router_scores.compiled.has_value())
         OPENVINO_THROW("MoE: Router scores index not available");
     if (!m_config.expert_input.compiled.has_value())
@@ -350,7 +351,10 @@ void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx) {
     const auto output_shape = m_config.compiled_models.begin()->second->outputs()[0].get_shape();
     const size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
 
-    const size_t num_tokens = input_token_count;
+    // num_tokens and num_experts come from config, validated once during prepare().
+    // The router tensor's token dimension is guaranteed to match input_token_count because
+    // both are derived from the same compiled model structure at prepare() time.
+    const size_t num_tokens = m_config.input_token_count;
     const size_t num_experts = m_config.num_experts;
 
     // Chunk-size selector
@@ -429,7 +433,7 @@ void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx) {
                                                   inflight->chunk_start,
                                                   inflight->chunk_tokens,
                                                   embed_dim,
-                                                  input_token_count,
+                                                  num_tokens,
                                                   data.slots);
         });
     };

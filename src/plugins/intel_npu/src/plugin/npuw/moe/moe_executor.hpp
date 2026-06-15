@@ -264,9 +264,8 @@ private:
      * execution window of expert k.
      *
      * @param idx Function call index
-     * @param real_idx Submodel index
      */
-    void run_expert_iterative(size_t idx, size_t real_idx);
+    void run_expert_iterative(size_t idx);
 
     /**
      * @brief Execute batch experts inference (deprecated)
