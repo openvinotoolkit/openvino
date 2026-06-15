@@ -97,7 +97,7 @@ static const char data_shape_message[] =
 
 static const char affinity_message[] =
     "Optional. Manually set node affinities before compile_model. Accepts either a device name like \"CPU\" "
-    "to assign all ops to one device, or a path to a JSON file with {node_name: device_name} mappings. "
+    "to assign all ops to one device, or a path to a JSON file ending in .json with {node_name: device_name} mappings. "
     "Ops not present in the JSON file fall back only when exactly one hardware device from -d is not already used "
     "in the JSON mappings (for example NPU when -d is \"HETERO:NPU,CPU\" and the JSON only maps nodes to CPU). "
     "Otherwise benchmark_app reports an explicit error and requires the remaining ops to be mapped manually. "

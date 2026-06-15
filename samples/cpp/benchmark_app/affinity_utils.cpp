@@ -164,6 +164,23 @@ void apply_manual_affinities(const std::shared_ptr<ov::Model>& model,
         return;
     }
 
+    if (!hardware_devices.empty()) {
+        const std::unordered_set<std::string> allowed_devices(hardware_devices.begin(), hardware_devices.end());
+        if (allowed_devices.find(affinity_spec) == allowed_devices.end()) {
+            std::ostringstream devices_oss;
+            for (size_t i = 0; i < hardware_devices.size(); ++i) {
+                if (i != 0) {
+                    devices_oss << ", ";
+                }
+                devices_oss << hardware_devices[i];
+            }
+            OPENVINO_THROW("Affinity value '",
+                        affinity_spec,
+                        "' is not present in -d hardware devices list: ",
+                        devices_oss.str());
+        }
+    }
+
     for (auto&& node : model->get_ops()) {
         node->get_rt_info()["affinity"] = affinity_spec;
     }
