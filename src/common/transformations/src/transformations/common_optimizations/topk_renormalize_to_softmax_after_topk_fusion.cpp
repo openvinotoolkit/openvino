@@ -31,8 +31,9 @@ TopkRenormalizeToSoftmaxAfterTopkFusion::TopkRenormalizeToSoftmaxAfterTopkFusion
     auto p_softmax = pattern::wrap_type<v1::Softmax, v8::Softmax>({p_logits}, pattern::consumers_count(1));
     auto p_topk_k = pattern::any_input();
     // TopK.values (port 0) feeds only ReduceSum and Divide; extras would observe softmax-probs replaced by raw logits.
-    auto p_topk = pattern::wrap_type<ov::op::util::TopKBase>({p_softmax, p_topk_k},
-                                                             pattern::consumers_count(2) && pattern::output_index_matches(0));
+    auto p_topk =
+        pattern::wrap_type<ov::op::util::TopKBase>({p_softmax, p_topk_k},
+                                                   pattern::consumers_count(2) && pattern::output_index_matches(0));
     auto p_red_axes = pattern::wrap_type<v0::Constant>();
     auto p_reduce =
         pattern::wrap_type<v1::ReduceSum>({p_topk, p_red_axes}, pattern::attrs_match({{"keep_dims", true}}));
