@@ -180,7 +180,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
             }
 
-                    OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
+            return { reuse_memory(type, shape, mem, tensor_type), nullptr };
         }
     }
 }
