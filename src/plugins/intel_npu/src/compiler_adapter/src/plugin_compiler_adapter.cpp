@@ -76,17 +76,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         if (!config.has<COMPILATION_MODE>()) {
             const size_t headerSize = std::min(tensor.get_byte_size(), size_t{20});
             const std::string_view header(static_cast<const char*>(tensor.data()), headerSize);
-            if (header.find("llvm") != std::string_view::npos ||
-                header.find("NPUByte\x00") != std::string_view::npos) {
-                _logger.debug("HostCompile mode is detected based on blob header, use internal function to get metadata!");
+            if (header.find("llvm") != std::string_view::npos || header.find("NPUByte\x00") != std::string_view::npos) {
+                _logger.debug(
+                    "HostCompile mode is detected based on blob header, use internal function to get metadata!");
                 return true;
             }
         }
         return false;
     };
 
-    if ((config.get<COMPILATION_MODE>().find("HostCompile") == 0) ||
-        isHostCompiledBlob()) {
+    if ((config.get<COMPILATION_MODE>().find("HostCompile") == 0) || isHostCompiledBlob()) {
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
         // metadata will be obtained in initialze() of DynamicGraph
