@@ -4,7 +4,6 @@
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 
-#include <cmath>
 #include <functional>
 #include <memory>
 #include <numeric>
@@ -20,7 +19,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gru_sequence.hpp"

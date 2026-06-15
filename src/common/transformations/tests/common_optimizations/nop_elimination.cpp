@@ -31,7 +31,6 @@ using namespace std;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v5 = ov::op::v5;
-
 TEST(nop_elimination, shared_const_einsum_after_common_optimizations) {
     auto const_data = op::v0::Constant::create(element::f32, Shape{2, 2}, {1, 2, 3, 4});
 
