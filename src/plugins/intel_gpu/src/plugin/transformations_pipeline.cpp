@@ -573,6 +573,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on oneDNN supports platforms.
         // Note:  device_info.arch >= cldnn::gpu_arch::xe_lp are `oneDNN supports platforms`,  register all MOE3GEMM related pass-es.
+        // use_onednn is auto-enabled later by ExecutionConfig when MOE is detected. 
         if (device_info.arch >= cldnn::gpu_arch::xe_lp) {
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
