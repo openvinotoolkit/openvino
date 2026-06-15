@@ -577,7 +577,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
 #if DECOMPRESSION_SCALE_POST_OP
-                    half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                    ACCUMULATOR_TYPE weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #if TILE_OFM > 1
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
                     #else
@@ -1281,12 +1281,16 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             // Keep zero-point correction in fp32. Storing this value in int truncates
                             // the activation_sum term and diverges from the per-token path below.
                             float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(modified_calc_buff * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (modified_calc_buff * (float)ds * (float)de_quantize_scale[bi]);
                         #else
                             // Compose DQ and decompression scales before applying them to the accumulator.
                             // This reduces fp16 intermediate overflow risk on the f16 scale path, but it is not
                             // a mathematical overflow guard: very large accumulators or final f16 values can still overflow.
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * (de_quantize_scale[bi] * ds);
+                            // Keep the full scaling in fp32 until the final conversion so large int4 accumulators
+                            // do not overflow through an intermediate fp16 value before DQ/decompression scaling.
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (((float)((int *)(&acc_tmp[fi]))[bi]) *
+                                                                    (float)de_quantize_scale[bi] *
+                                                                    (float)ds);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1317,12 +1321,16 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             // Keep zero-point correction in fp32. Storing this value in int truncates
                             // the activation_sum term and diverges from the per-token path below.
                             float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(modified_calc_buff * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (modified_calc_buff * (float)ds * (float)de_quantize_scale[bi]);
                         #else
                             // Compose DQ and decompression scales before applying them to the accumulator.
                             // This reduces fp16 intermediate overflow risk on the f16 scale path, but it is not
                             // a mathematical overflow guard: very large accumulators or final f16 values can still overflow.
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * (de_quantize_scale[bi] * ds);
+                            // Keep the full scaling in fp32 until the final conversion so large int4 accumulators
+                            // do not overflow through an intermediate fp16 value before DQ/decompression scaling.
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (((float)((int *)(&acc_tmp[fi]))[bi]) *
+                                                                    (float)de_quantize_scale[bi] *
+                                                                    (float)ds);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1340,11 +1348,15 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                     // Keep zero-point corrected scaling in fp32 before the final f16 conversion to avoid
                     // fp16 intermediate overflow. The final f16 value can still overflow if the true result
                     // is outside the fp16 range.
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = (convert_half)(modified_calc_buff * (float)de_quantize_scale[bi] * (float)ds);
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = (modified_calc_buff * (float)de_quantize_scale[bi] * (float)ds);
                 #else
                     // Compose DQ and decompression scales first to reduce fp16 intermediate overflow risk.
                     // This is still not a mathematical overflow guard if the accumulator or final f16 value is too large.
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = convert_half(((int *)(&acc_tmp[fi]))[bi]) * (de_quantize_scale[bi] * ds);
+                    // Keep the full scaling in fp32 until the final conversion so large int4 accumulators
+                    // do not overflow through an intermediate fp16 value before DQ/decompression scaling.
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = (((float)((int *)(&acc_tmp[fi]))[bi]) *
+                                                           (float)de_quantize_scale[bi] *
+                                                           (float)ds);
                 #endif
             }
         }

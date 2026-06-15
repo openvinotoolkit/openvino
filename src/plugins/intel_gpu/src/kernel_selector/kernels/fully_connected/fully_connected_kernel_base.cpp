@@ -199,6 +199,9 @@ Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_para
     auto in_dt = params.inputs[0].GetDType();
     auto wei_dt = params.weights.GetDType();
 
+    if (params.compressed && (in_dt == Datatype::F16 || in_dt == Datatype::BF16))
+        return Datatype::F32;
+
     auto quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
     auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
 
