@@ -20,6 +20,8 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE
+        $<TARGET_PROPERTY:npu_vm_runtime_api,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -27,7 +29,6 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_common
         openvino::npu_al
         openvino::xml_util
-        openvino::npu_vm_runtime_api
 )
 
 #
