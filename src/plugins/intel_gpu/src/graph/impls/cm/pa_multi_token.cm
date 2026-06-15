@@ -298,21 +298,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #ifndef CM_HAS_LSC_UNTYPED_2D
     uint v_offset_bytes = v_offset; // U8: byte offset
 #endif
-
-    // For u8 at head_size=256, always use pa_lsc_u8 (Unify-thread-sync approach) with 2 workers.
-    // This is 45% faster than pa_kernel_lsc_prefetch_u8 even with XAttention pruning enabled,
-    // because the SLM-based cooperative loading is more efficient than inline dequant overhead.
-    {
-        pa_lsc_u8<is_causal, num_heads, num_kv_heads, head_size, 0>(
-                                slm_K,
-                                slm_V,
-                                slm_St,
-                                wg_local_id,
-                                local_size,
-                                q_start_local, //q_start within current subsequence,
-                                kv_stop,
-                                q_tokens_in_tile_sg,
-                                kv_seq_len, //kv_len,
+    pa_lsc_u8<is_causal, num_heads, num_kv_heads, head_size, 0>(
+                            slm_K,
+                            slm_V,
+                            slm_St,
+                            wg_local_id,
+                            local_size,
+                            q_start_local, //q_start within current subsequence,
+                            kv_stop,
+                            q_tokens_in_tile_sg,
+                            kv_seq_len, //kv_len,
 #ifdef CM_HAS_LSC_UNTYPED_2D
                             reinterpret_cast<svmptr_t>(query + q_offset),
 #else
@@ -333,7 +328,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             reinterpret_cast<svmptr_t>(output + q_offset),
                             past_q_lens,
                             block_indices_base);
-    }
 #else
     uint kv_offset = hkv*head_size*pa_block_sz;
 #ifndef CM_HAS_LSC_UNTYPED_2D

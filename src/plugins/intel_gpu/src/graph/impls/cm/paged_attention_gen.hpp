@@ -199,17 +199,9 @@ public:
         return 16;  // For Xe2+
     }
 
-    // head_size==256 uses 2 workers (8 teams * 2 workers = 16 lanes per WG) for both u8 and fp16.
-    // Each team handles one q_step-sized q-slice, so wg_seq_len = 8 * q_step = 128 tokens/WG.
-    // For head_size!=256, num_team=wg_size and num_worker=1 (wg_size * q_step).
-    //
-    // Note: u8 always uses pa_lsc_u8 (Unify-thread-sync) regardless of XAttention enabled/disabled,
-    // because it's 45% faster than pa_kernel_lsc_prefetch_u8 even with XAttention pruning benefits.
-    // The SLM-based cooperative loading is more efficient than inline dequant overhead.
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_attention>();
         if (desc->k_head_size == 256) {
-            // Always 8 teams (2 workers) for head_size=256, both u8 and fp16
             constexpr size_t num_team = 8;
             return num_team * get_q_step(params);
         }
