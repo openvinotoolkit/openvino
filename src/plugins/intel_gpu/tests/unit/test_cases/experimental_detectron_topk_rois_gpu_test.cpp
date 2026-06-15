@@ -168,7 +168,7 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
     std::vector<float> expected_output{3.0f, 2.0f, 7.0f, 9.0f, 1.0f, 1.0f, 4.0f, 5.0f};
 
     auto out_mem = result.at("plane_output").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(expected_output.size(), out_ptr.size());
     for (size_t i = 0; i < expected_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;

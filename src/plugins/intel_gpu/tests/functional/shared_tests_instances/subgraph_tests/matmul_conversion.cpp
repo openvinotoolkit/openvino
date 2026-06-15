@@ -445,4 +445,112 @@ INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantInput_basic_1,
                                             ::testing::ValuesIn({ov::element::f16})),
                          MatMulConversionConstantInput::getTestCaseName);
 
+using MatmulConversionConstantNDParams = std::tuple<ov::Shape,               // constant shape
+                                                    std::vector<InputShape>,  // input shapes
+                                                    ov::element::Type>;       // infer precision
+
+/*
+ * CVS-185671 regression test: 3D constant input to MatMul
+ * In the legacy shape infer path, a 3D f32 constant consumed via
+ * Const -> Convert -> MatMul was incorrectly reshaped from [B,M,K] to
+ * [1,B,M,K], causing transform_input_layouts to extract wrong dims and
+ * oneDNN matmul primitive descriptor creation to fail.
+ *
+ *      Const[B,M,K]       Input0
+ *       |                    |
+ *    Convert(FP16)       Convert(FP16)
+ *            \            /
+ *           (in0)      (in1)
+ *              \        /
+ *               MatMul_0
+ */
+class MatMulConversionConstantNDInput : public testing::WithParamInterface<MatmulConversionConstantNDParams>,
+                     virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulConversionConstantNDParams>& obj) {
+        const auto& [const_shape, input_shapes, input_precision] = obj.param;
+
+        std::ostringstream result;
+        result << "CS=" << ov::test::utils::vec2str(const_shape) << "_IS=(";
+        for (const auto& shape : input_shapes) {
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
+        }
+        result << ")_TS=";
+        for (const auto& shape : input_shapes) {
+            result << "(";
+            if (!shape.second.empty()) {
+                auto itr = shape.second.begin();
+                do {
+                    result << ov::test::utils::vec2str(*itr);
+                } while (++itr != shape.second.end() && result << "_");
+            }
+            result << ")_";
+        }
+        result << "infer_precision=" << input_precision;
+        return result.str();
+    }
+
+protected:
+    std::shared_ptr<ov::Model> init_subgraph(const ov::Shape& const_shape, std::vector<ov::PartialShape>& input_shapes) {
+        const auto input_precision = ov::element::f32;
+
+        auto t0 = ov::test::utils::create_and_fill_tensor(input_precision, const_shape, in_data);
+        auto c0 = std::make_shared<ov::op::v0::Constant>(t0);
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
+        auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(c0, input0, false, false);
+
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_1}, ov::ParameterVector{input0}, "MatMulConversionConstantNDInput");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, targetInputStaticShapes[i], in_data);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        abs_threshold = 0.01f;
+        in_data.start_from = -0.5;
+        in_data.range = 1;
+        in_data.resolution = 10;
+
+        const auto& [const_shape, input_shapes, infer_precision] = GetParam();
+
+        init_input_shapes(input_shapes);
+
+        inType = outType = ov::element::f32;
+        function = init_subgraph(const_shape, inputDynamicShapes);
+        this->configuration.insert({ov::hint::inference_precision(infer_precision)});
+    }
+
+private:
+        ov::test::utils::InputGenerateData in_data;
+};
+
+TEST_P(MatMulConversionConstantNDInput, Inference) {
+    run();
+}
+
+// 3D constant: Const[2,4,8] x Input[2,8,3] = [2,4,3]
+// Without the fix, [2,4,8] is reshaped to [1,2,4,8] breaking transform_input_layouts
+const std::vector<ov::Shape> matmul_const_3d_shapes = {
+    {2, 4, 8},
+};
+
+const std::vector<std::vector<InputShape>> matmul_conversion_3d_input_shapes = {
+    {{{}, {{2, 8, 3}}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantNDInput_3d,
+                         MatMulConversionConstantNDInput,
+                         ::testing::Combine(::testing::ValuesIn(matmul_const_3d_shapes),
+                                            ::testing::ValuesIn(matmul_conversion_3d_input_shapes),
+                                            ::testing::ValuesIn({ov::element::f16})),
+                         MatMulConversionConstantNDInput::getTestCaseName);
+
 } // namespace

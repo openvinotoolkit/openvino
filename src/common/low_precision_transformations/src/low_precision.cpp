@@ -40,6 +40,7 @@
 // prerequisite transformations
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
+#include "low_precision/resolve_precision_attribute.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include "low_precision/markup_bias.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
@@ -189,10 +190,12 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
 MarkupOptimizations::MarkupOptimizations(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,
     const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
-    const AttributeParameters& params)
+    const AttributeParameters& params,
+    const std::vector<std::shared_ptr<ov::pass::MatcherPass>>& additionalMarkupPasses)
     : precisionRestrictions(precisionRestrictions),
       quantizationRestrictions(quantizationRestrictions),
-      params(params) {}
+      params(params),
+      additionalMarkupPasses(additionalMarkupPasses) {}
 
 bool MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
@@ -214,6 +217,13 @@ bool MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
         markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
     markup.register_pass<low_precision::MarkupBias>();
+
+    const auto custom = markup.register_pass<GraphRewrite>();
+    for (const auto& tr : additionalMarkupPasses) {
+        custom->add_matcher(tr);
+    }
+    ADD_MATCHER(custom, low_precision::ResolvePrecisionAttribute)
+
     markup.run_passes(m);
     return false;
 }
@@ -235,7 +245,8 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     AttributeParameters attributeParams(params.deqPrecision, params.defaultPrecisions);
     manager.register_pass<low_precision::MarkupOptimizations>(precisionRestrictions,
                                                               quantizationRestrictions,
-                                                              attributeParams);
+                                                              attributeParams,
+                                                              additional_markup_passes);
 
     const auto common = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(common, AddTransformation, params)

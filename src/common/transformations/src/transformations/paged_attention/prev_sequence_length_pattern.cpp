@@ -55,7 +55,10 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
             replacement = prev_max_seq_len;
         } else {
             // it is not always required, so will be disposed if not needed
-            auto batch_dim = std::make_shared<v3::ShapeOf>(position_ids);
+            auto position_ids_shape = std::make_shared<v3::ShapeOf>(position_ids);
+            auto batch_dim = std::make_shared<v8::Gather>(position_ids_shape,
+                                                          v0::Constant::create(element::i64, Shape{}, {0}),
+                                                          v0::Constant::create(element::i64, Shape{}, {0}));
 
             // assumption that any other axis should point to batch dimension, precise reasoning is too complex
             // TODO: provide more reliable check

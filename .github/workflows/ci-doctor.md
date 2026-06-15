@@ -14,15 +14,14 @@ on:
       link:
          description: "Link to a workflow to investigate (for manual testing across repositories)"
          required: false
-  workflow_run:
-    workflows:
-      - "Debian 10 ARM"
-    types:
-      - completed
+  # workflow_run:
+  #   workflows:
+  #     - "Debian 10 ARM"
+  #   types:
+  #     - completed
 
-rate-limit:
-  max: 5 # Maximum runs per window
-  window: 60 # Time window in minutes
+concurrency:
+  group: gh-aw-${{ github.workflow }}
 
 # Only trigger for failures on master or PRs targeting master
 # Allow workflow_dispatch for manual testing

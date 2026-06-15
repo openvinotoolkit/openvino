@@ -14,6 +14,7 @@
 #include "../util.hpp"  // For TensorPtr
 #include "moe_config.hpp"
 #include "moe_resources.hpp"
+#include "moe_subgraph.hpp"
 #include "moe_types.hpp"  // For MoEIO
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -27,12 +28,9 @@ class CompiledModel;
 
 namespace ov {
 namespace npuw {
-
-// Forward declare CompiledModelDesc to avoid circular dependency
-// Will be included in implementation file
 namespace moe {
 class MoEExecutor;
-}
+}  // namespace moe
 
 // Import TensorPtr from util namespace for use in this header
 using ov::npuw::util::TensorPtr;
