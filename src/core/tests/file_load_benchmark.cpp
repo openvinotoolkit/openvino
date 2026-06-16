@@ -9,11 +9,14 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <numeric>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "openvino/util/mmap_object.hpp"
