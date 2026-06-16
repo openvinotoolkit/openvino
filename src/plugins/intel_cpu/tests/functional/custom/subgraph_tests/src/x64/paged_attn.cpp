@@ -1046,7 +1046,6 @@ public:
         rel_threshold = 0.1f;
         abs_threshold = 0.05f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
-        configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(inputShapes);
         this->sliding_window = 0;
