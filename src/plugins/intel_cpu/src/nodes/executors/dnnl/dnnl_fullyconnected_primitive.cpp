@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -354,26 +355,28 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const bool useSparseWeights,
                                           const bool useWeightsDecompression) {
-    auto prim_desc = createDescriptorInternal(inputDesc,
-                                              weightDesc,
-                                              biasDesc,
-                                              outputDesc,
-                                              attr,
-                                              engine,
-                                              useSparseWeights,
-                                              useWeightsDecompression);
-    OPENVINO_ASSERT(prim_desc, "Failed to create inner_product primitive descriptor");
-    auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
+    return withDnnlDescriptorConcurrency([&]() -> primitive_desc {
+        auto prim_desc = createDescriptorInternal(inputDesc,
+                                                  weightDesc,
+                                                  biasDesc,
+                                                  outputDesc,
+                                                  attr,
+                                                  engine,
+                                                  useSparseWeights,
+                                                  useWeightsDecompression);
+        OPENVINO_ASSERT(prim_desc, "Failed to create inner_product primitive descriptor");
+        auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
 
-    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, [&](impl_desc_type implType) {
-        return contains(implPriorities, implType);
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, [&](impl_desc_type implType) {
+            return contains(implPriorities, implType);
+        });
+
+        if (found) {
+            return std::move(prim_desc);
+        }
+
+        return std::move(first_desc);
     });
-
-    if (found) {
-        return std::move(prim_desc);
-    }
-
-    return std::move(first_desc);
 }
 
 static VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape) {

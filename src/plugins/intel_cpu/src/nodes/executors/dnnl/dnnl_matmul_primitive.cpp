@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "dnnl_postops_composer.h"
@@ -337,66 +338,68 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           [[maybe_unused]] const bool useSparseWeights,
                                           const bool useWeightsDecompression,
                                           const bool fcSemantic) {
-    auto createDescriptor = [&]() {
-        return fcSemantic ? createDescriptorInternalAsFc(inputDesc,
+    return withDnnlDescriptorConcurrency([&]() -> primitive_desc {
+        auto createDescriptor = [&]() {
+            return fcSemantic ? createDescriptorInternalAsFc(inputDesc,
+                                                             weightDesc,
+                                                             biasDesc,
+                                                             outputDesc,
+                                                             attr,
+                                                             engine,
+                                                             useWeightsDecompression)
+                              : createDescriptorInternal(inputDesc,
                                                          weightDesc,
                                                          biasDesc,
                                                          outputDesc,
                                                          attr,
                                                          engine,
-                                                         useWeightsDecompression)
-                          : createDescriptorInternal(inputDesc,
-                                                     weightDesc,
-                                                     biasDesc,
-                                                     outputDesc,
-                                                     attr,
-                                                     engine,
-                                                     transposeA,
-                                                     transposeB);
-    };
-    if (defaultImplType == impl_desc_type::undef) {
-        struct PrimitiveDescWithPriority {
-            dnnl::primitive_desc prim_desc;
-            size_t priority = 0UL;
+                                                         transposeA,
+                                                         transposeB);
         };
+        if (defaultImplType == impl_desc_type::undef) {
+            struct PrimitiveDescWithPriority {
+                dnnl::primitive_desc prim_desc;
+                size_t priority = 0UL;
+            };
 
-        PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), implPriorities.size()};
-        const bool first_match = implPriorities.front() == impl_desc_type::unknown;
+            PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), implPriorities.size()};
+            const bool first_match = implPriorities.front() == impl_desc_type::unknown;
 
-        auto cur_desc = createDescriptor();
+            auto cur_desc = createDescriptor();
 
-        DnnlExtensionUtils::for_each_implementation(
-            cur_desc,
-            first_match,
-            [&](impl_desc_type implType) {  // is acceptable implementation
-                return contains(implPriorities, implType);
-            },
-            [&](dnnl::primitive_desc& desc) {  // is implementation with highest priority
-                const impl_desc_type descImplType = parse_impl_name(desc.impl_info_str());
-                const auto it = std::find(implPriorities.begin(), implPriorities.end(), descImplType);
-                const size_t priorityId = std::distance(implPriorities.begin(), it);
-                const size_t highestPriority = prim_desc_w_priority.priority;
-                if (priorityId < highestPriority) {
-                    auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
-                    prim_desc_w_priority = {std::move(desc_copy), priorityId};
-                }
-            });
+            DnnlExtensionUtils::for_each_implementation(
+                cur_desc,
+                first_match,
+                [&](impl_desc_type implType) {
+                    return contains(implPriorities, implType);
+                },
+                [&](dnnl::primitive_desc& desc) {
+                    const impl_desc_type descImplType = parse_impl_name(desc.impl_info_str());
+                    const auto it = std::find(implPriorities.begin(), implPriorities.end(), descImplType);
+                    const size_t priorityId = std::distance(implPriorities.begin(), it);
+                    const size_t highestPriority = prim_desc_w_priority.priority;
+                    if (priorityId < highestPriority) {
+                        auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
+                        prim_desc_w_priority = {std::move(desc_copy), priorityId};
+                    }
+                });
 
-        return prim_desc_w_priority.prim_desc;
-    }
+            return prim_desc_w_priority.prim_desc;
+        }
 
-    auto prim_desc = createDescriptor();
+        auto prim_desc = createDescriptor();
 
-    OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");
-    auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
+        OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");
+        auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
 
-    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
 
-    if (found) {
-        return std::move(prim_desc);
-    }
+        if (found) {
+            return std::move(prim_desc);
+        }
 
-    return std::move(first_desc);
+        return std::move(first_desc);
+    });
 }
 
 static std::pair<VectorDims, VectorDims> makeDummyInputDims(const Shape& in0,

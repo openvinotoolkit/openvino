@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -195,24 +196,26 @@ void Lrn::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> executorPtr {
-        auto prim_desc = dnnl::lrn_forward::primitive_desc(engine,
-                                                           dnnl::prop_kind::forward_inference,
-                                                           key.alg,
-                                                           key.inp0->getDnnlDesc(),
-                                                           key.inp0->getDnnlDesc(),
-                                                           key.size,
-                                                           key.alpha,
-                                                           key.beta,
-                                                           static_cast<float>(key.k),
-                                                           key.attr);
+        return withDnnlDescriptorConcurrency([&]() -> executorPtr {
+            auto prim_desc = dnnl::lrn_forward::primitive_desc(engine,
+                                                               dnnl::prop_kind::forward_inference,
+                                                               key.alg,
+                                                               key.inp0->getDnnlDesc(),
+                                                               key.inp0->getDnnlDesc(),
+                                                               key.size,
+                                                               key.alpha,
+                                                               key.beta,
+                                                               static_cast<float>(key.k),
+                                                               key.attr);
 
-        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        if (!found) {
-            return nullptr;
-        }
+            if (!found) {
+                return nullptr;
+            }
 
-        return std::make_shared<DnnlExecutorLegacy>(prim_desc);
+            return std::make_shared<DnnlExecutorLegacy>(prim_desc);
+        });
     };
 
     auto cache = context->getParamsCache();

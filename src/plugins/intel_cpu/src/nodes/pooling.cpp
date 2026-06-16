@@ -21,6 +21,7 @@
 #include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "fake_quantize.h"
@@ -536,26 +537,28 @@ void Pooling::prepareParams() {
                           selected_pd->getImplementationType()};
         auto engine = getEngine();
         auto builder = [&engine](const PoolingKey& key) -> executorPtr {
-            auto prim_desc = createDescriptorHelper(engine,
-                                                    key.inp->getDnnlDesc(),
-                                                    key.out->getDnnlDesc(),
-                                                    key.alg,
-                                                    key.stride,
-                                                    key.kernel,
-                                                    key.effective_pad_begin,
-                                                    key.effective_pad_end,
-                                                    key.effective_dilation,
-                                                    key.attr);
+            return withDnnlDescriptorConcurrency([&]() -> executorPtr {
+                auto prim_desc = createDescriptorHelper(engine,
+                                                        key.inp->getDnnlDesc(),
+                                                        key.out->getDnnlDesc(),
+                                                        key.alg,
+                                                        key.stride,
+                                                        key.kernel,
+                                                        key.effective_pad_begin,
+                                                        key.effective_pad_end,
+                                                        key.effective_dilation,
+                                                        key.attr);
 
-            auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
-            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+                auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
+                const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-            if (found) {
-                return std::make_shared<DnnlExecutorLegacy>(prim_desc);
-            }
+                if (found) {
+                    return std::make_shared<DnnlExecutorLegacy>(prim_desc);
+                }
 
-            // use the first available
-            return std::make_shared<DnnlExecutorLegacy>(first_desc);
+                // use the first available
+                return std::make_shared<DnnlExecutorLegacy>(first_desc);
+            });
         };
 
         auto cache = context->getParamsCache();

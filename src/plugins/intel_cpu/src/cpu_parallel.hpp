@@ -12,6 +12,54 @@
 namespace ov::intel_cpu {
 class ThreadPool;
 
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+class DnnlMaxConcurrencyGuard {
+public:
+    explicit DnnlMaxConcurrencyGuard(int max_concurrency) {
+        if (dnnl_threadpool_interop_get_max_concurrency(&m_prev_max_concurrency) != dnnl_success) {
+            return;
+        }
+
+        if (m_prev_max_concurrency == max_concurrency) {
+            return;
+        }
+
+        if (dnnl_threadpool_interop_set_max_concurrency(max_concurrency) == dnnl_success) {
+            m_restore_required = true;
+        }
+    }
+
+    ~DnnlMaxConcurrencyGuard() {
+        if (m_restore_required) {
+            dnnl_threadpool_interop_set_max_concurrency(m_prev_max_concurrency);
+        }
+    }
+
+private:
+    int m_prev_max_concurrency = 0;
+    bool m_restore_required = false;
+};
+
+inline int getDnnlMaxConcurrency() {
+    int max_concurrency = 0;
+    if (dnnl_threadpool_interop_get_max_concurrency(&max_concurrency) != dnnl_success) {
+        return 0;
+    }
+    return max_concurrency;
+}
+
+template <typename F>
+decltype(auto) withDnnlDescriptorConcurrency(F&& f) {
+    DnnlMaxConcurrencyGuard guard(CpuParallel::get_num_worker_threads());
+    return std::forward<F>(f)();
+}
+#else
+template <typename F>
+decltype(auto) withDnnlDescriptorConcurrency(F&& f) {
+    return std::forward<F>(f)();
+}
+#endif
+
 class CpuParallel {
 public:
     // Default multiplier for the number of virtual threads when tbb partitioner is AUTO. This value is determined
@@ -41,7 +89,12 @@ public:
     [[nodiscard]] static int get_num_worker_threads() {
         return parallel_get_max_threads();
     }
-    void activate() const {
+    void activateForInit() const {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        dnnl_threadpool_interop_set_max_concurrency(get_num_worker_threads());
+#endif
+    }
+    void activateForExecution() const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
 #endif
