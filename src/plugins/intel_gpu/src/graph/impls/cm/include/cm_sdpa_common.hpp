@@ -14,7 +14,6 @@
  * limitations under the License.
  *******************************************************************************/
 #include "cm_attention_common.hpp"
-#define CM_HAS_LSC_UNTYPED_2D 1
 
 // Number of kv sub-tiles (kv_step rows each) processed per online-softmax update in
 // sdpa_kernel_lsc_prefetch. Larger amortizes the rO rescale + softmax bookkeeping over
@@ -23,70 +22,7 @@
 #define CMFLA_KV_BLK 2
 #endif
 
-// Flashattn-local online-softmax with tree reductions over the kv (row) dimension.
-// Identical math to online_softmax_update in cm_attention_common.hpp, but the max and
-// sum reductions are balanced binary trees (dependency depth log2(rows)=4 instead of the
-// linear chain's depth 15), which shortens the loop-carried softmax critical path.
-template<typename T, int rows, int cols>
-CM_INLINE vector<float, cols> online_softmax_update_tree(matrix_ref<T, rows, cols> St,
-                                                         vector_ref<T, cols> cur_max,
-                                                         vector_ref<T, cols> cur_sum) {
-    static_assert((rows & (rows - 1)) == 0, "tree reduction needs power-of-two rows");
-    // Reduce into rows/2 scratch (not a full copy) so register pressure stays low for
-    // large kv blocks. St itself is not modified during the max reduction (its values
-    // are still needed for the exp), so we fold pairs into scratch first.
-    vector<float, cols> new_max_t;
-    {
-        matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
-        #pragma unroll
-        for (int r = 0; r < rows/2; r++) t.row(r) = cm_max<float>(St[r], St[r + rows/2]);
-        #pragma unroll
-        for (int stride = rows/4; stride > 0; stride >>= 1)
-            #pragma unroll
-            for (int r = 0; r < stride; r++)
-                t.row(r) = cm_max<float>(t.row(r), t.row(r + stride));
-        new_max_t = cm_max<float>(t.row(0), cur_max);
-    }
-
-    // St is already in the log2 domain (Q was pre-scaled by scale_factor*log2e at load),
-    // so cm_exp (== exp2) needs no per-element *log2e here. cur_max/cur_sum stay in the
-    // same domain, so the running-max comparison and rescale are exact.
-    #pragma unroll
-    for (int r = 0; r < rows; r++) St[r] = cm_exp(St[r] - new_max_t);
-
-    // Sum reduction can fold St in place (values already consumed into exp form and the
-    // per-row sum is all we need afterwards).
-    vector<float, cols> row_sum_t;
-    {
-        matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
-        #pragma unroll
-        for (int r = 0; r < rows/2; r++) t.row(r) = cm_add<float>(St[r], St[r + rows/2]);
-        #pragma unroll
-        for (int stride = rows/4; stride > 0; stride >>= 1)
-            #pragma unroll
-            for (int r = 0; r < stride; r++)
-                t.row(r) = cm_add<float>(t.row(r), t.row(r + stride));
-        row_sum_t = t.row(0);
-    }
-
-    vector<float, cols> max_comp;
-    max_comp = cm_exp(cur_max - new_max_t);
-    cur_sum = cm_mul<float>(cur_sum, max_comp);
-    cur_sum = cm_add<float>(cur_sum, row_sum_t);
-    cur_max = new_max_t;
-    return max_comp;
-}
-
-// Transpose a [16,16] float score tile (kv x q) into a half [16,16] P tile (q x kv) for
-// the P@V matmul. Casting float->half first (one vectorized cm_mul-free copy) lets the
-// 16x16 shuffle network run at half width — roughly halving the mov count vs transposing
-// the float tile directly through Transpose_16x16<float,half>.
-CM_INLINE void transpose_St_to_P_half(matrix_ref<float, 16, 16> St, matrix_ref<half, 16, 16> P) {
-    matrix<half, 16, 16> Sh;
-    #pragma unroll
-    for (int r = 0; r < 16; r++) Sh.row(r) = St.row(r);
-    Transpose_16x16(Sh.select<16,1,16,1>(0,0), P);
-}
+// online_softmax_update_tree and transpose_St_to_P_half are defined in cm_attention_common.hpp
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
 //@prefetch_u8 would have duplicated decompress perf issue. comments out for now.

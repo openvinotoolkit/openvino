@@ -24,6 +24,8 @@ static_assert(__cplusplus >= 201703L);
 #define q_step   REG_N
 
 constexpr float scale_factor = CMFLA_SCALE_FACTOR;
+constexpr float log2e = 1.4426950408889634f;
+constexpr float q_scale_factor = scale_factor * log2e;
 
 static_assert(q_step == 16 || q_step == 8);
 static_assert(kv_step == 16);
@@ -301,11 +303,11 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
     new_max_t = cm_max<float>(new_max_t, cur_max);
 
     // Pt = torch.exp(St - new_max)
-    constexpr float log2e = 1.4426950408889634f;
+    constexpr float _log2e = 1.4426950408889634f;
 #ifdef ABLATE_NO_EXP
-    for(int r = 0; r < St.n_rows(); r++) St[r] = (St[r] - new_max_t)*log2e;
+    for(int r = 0; r < St.n_rows(); r++) St[r] = (St[r] - new_max_t)*_log2e;
 #else
-    for(int r = 0; r < St.n_rows(); r++) St[r] = cm_exp((St[r] - new_max_t)*log2e);
+    for(int r = 0; r < St.n_rows(); r++) St[r] = cm_exp((St[r] - new_max_t)*_log2e);
 #endif
 
     vector<float, cols> row_sum_t;
@@ -313,11 +315,66 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
     for(int r = 2; r < St.n_rows(); r++) row_sum_t = cm_add<float>(row_sum_t, St[r]);
 
     vector<float, cols> max_comp;
-    max_comp = cm_exp((cur_max - new_max_t)*log2e);
+    max_comp = cm_exp((cur_max - new_max_t)*_log2e);
     cur_sum = cm_mul<float>(cur_sum, max_comp);
     cur_sum = cm_add<float>(cur_sum, row_sum_t);
     cur_max = new_max_t;
     return max_comp;
+}
+
+// Tree-reduction variant: max/sum reductions use a balanced binary tree (depth log2(rows))
+// instead of a linear chain (depth rows-1), shortening the loop-carried dependency chain.
+// Requires rows to be a power of two; the PA kv_step=16 and KV_BLK*kv_step satisfy this.
+template<typename T, int rows, int cols>
+CM_INLINE vector<float, cols> online_softmax_update_tree(matrix_ref<T, rows, cols> St,
+                                                         vector_ref<T, cols> cur_max,
+                                                         vector_ref<T, cols> cur_sum) {
+    static_assert((rows & (rows - 1)) == 0, "tree reduction needs power-of-two rows");
+    vector<float, cols> new_max_t;
+    {
+        matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
+        #pragma unroll
+        for (int r = 0; r < rows/2; r++) t.row(r) = cm_max<float>(St[r], St[r + rows/2]);
+        #pragma unroll
+        for (int stride = rows/4; stride > 0; stride >>= 1)
+            #pragma unroll
+            for (int r = 0; r < stride; r++)
+                t.row(r) = cm_max<float>(t.row(r), t.row(r + stride));
+        new_max_t = cm_max<float>(t.row(0), cur_max);
+    }
+    #pragma unroll
+    for (int r = 0; r < rows; r++) St[r] = cm_exp(St[r] - new_max_t);
+
+    vector<float, cols> row_sum_t;
+    {
+        matrix<float, (rows > 1 ? rows/2 : 1), cols> t;
+        #pragma unroll
+        for (int r = 0; r < rows/2; r++) t.row(r) = cm_add<float>(St[r], St[r + rows/2]);
+        #pragma unroll
+        for (int stride = rows/4; stride > 0; stride >>= 1)
+            #pragma unroll
+            for (int r = 0; r < stride; r++)
+                t.row(r) = cm_add<float>(t.row(r), t.row(r + stride));
+        row_sum_t = t.row(0);
+    }
+
+    vector<float, cols> max_comp;
+    max_comp = cm_exp(cur_max - new_max_t);
+    cur_sum = cm_mul<float>(cur_sum, max_comp);
+    cur_sum = cm_add<float>(cur_sum, row_sum_t);
+    cur_max = new_max_t;
+    return max_comp;
+}
+
+// Transpose a [16,16] float score tile (kv x q) into a half [16,16] P tile (q x kv) for
+// the P@V matmul. Casting float->half first (one vectorized cm_mul-free copy) lets the
+// 16x16 shuffle network run at half width — roughly halving the mov count vs transposing
+// the float tile directly through Transpose_16x16<float,half>.
+CM_INLINE void transpose_St_to_P_half(matrix_ref<float, 16, 16> St, matrix_ref<half, 16, 16> P) {
+    matrix<half, 16, 16> Sh;
+    #pragma unroll
+    for (int r = 0; r < 16; r++) Sh.row(r) = St.row(r);
+    Transpose_16x16(Sh.select<16,1,16,1>(0,0), P);
 }
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
