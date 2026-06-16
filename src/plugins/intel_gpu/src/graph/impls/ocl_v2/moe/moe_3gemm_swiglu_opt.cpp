@@ -2203,9 +2203,8 @@ public:
                 unique_experts_set.insert(static_cast<uint32_t>(raw_topk_ids[i]));
 
             if (unique_experts_set.size() > _lru_expert_num) {
-                GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts="
-                                       << unique_experts_set.size() << " > lru_expert_num=" << _lru_expert_num
-                                       << ", falling back to per-expert onednn loop" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts=" << unique_experts_set.size()
+                                       << " > lru_expert_num=" << _lru_expert_num << ", falling back to per-expert onednn loop" << std::endl;
                 return exec_prefill_onednn(events, stream, instance, scratch, cache);
             }
 
@@ -2215,8 +2214,7 @@ public:
             std::vector<int32_t> remapped_ids(topk_count);
             for (size_t i = 0; i < topk_count; i++) {
                 auto expert_no = static_cast<uint32_t>(raw_topk_ids[i]);
-                OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts),
-                                "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
+                OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts), "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
                 auto it = expert_to_lru.find(expert_no);
                 if (it == expert_to_lru.end()) {
                     auto lru_slot = moe_otd::get_lru_expert_no(instance, expert_no, cache);
@@ -2538,11 +2536,12 @@ public:
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         // Pre-zero output buffer for paths that accumulate into it.
-        // The per-expert onednn loop uses index_add (accumulates).
-        // The grouped_gemm scatter_reduce writes all token positions atomically,
-        // but in OTD mode the fallback to exec_prefill_onednn also accumulates.
-        // Always zero for safety when not using micro_gemm (which has its own scatter).
-        if (!use_micro_gemm_prefill) {
+        // The per-expert onednn loop uses index_add (accumulates into output).
+        // The grouped_gemm scatter_reduce writes all token positions atomically
+        // and does not require pre-zeroing — except in OTD mode where the
+        // fallback to exec_prefill_onednn (when unique_experts > lru slots)
+        // also accumulates via index_add.
+        if (!use_micro_gemm_prefill && (!use_grouped_gemm_prefill || _lru_expert_num > 0)) {
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
