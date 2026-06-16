@@ -13,7 +13,6 @@
 #include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "compiler_adapter_utils.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
@@ -65,7 +64,7 @@ public:
         // use local zeGraphExt;
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
         GraphDescriptor localGraphDescriptor = {};
-        serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+        serializeIR();
         localGraphDescriptor = localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache());
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -103,6 +102,21 @@ protected:
         if (blob) {
             ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
         }
+    }
+
+    void serializeIR() {
+        auto compilerProperties = zeroInitStruct->getCompilerProperties();
+        const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+        // The test is not concerned with validating the serialization algorithm. Choose the "all-weights-copy" as the
+        // safest version.
+        serializedIR =
+            ::intel_npu::compiler_utils::serializeIR(model,
+                                                     compilerProperties.compilerVersion,
+                                                     maxOpsetVersion,
+                                                     ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                                                     [](const std::string&, const std::optional<std::string>&) {
+                                                         return true;
+                                                     });
     }
 
     bool bypassUmdCache() {
@@ -143,13 +157,13 @@ protected:
 using ZeroGraphCompilationTests = ZeroGraphTest;
 
 TEST_P(ZeroGraphCompilationTests, GetGraphInitIR) {
-    serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+    serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 }
 
 TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
-    serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+    serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
@@ -170,14 +184,14 @@ TEST_P(ZeroGraphTest, GetGraphInitBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
-    serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+    serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
 
     OV_ASSERT_NO_THROW(NetworkMetadata meta = zeGraphExt->getNetworkMeta(graphDescriptor));
 }
 
 TEST_P(ZeroGraphTest, QueryGraph) {
-    serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+    serializeIR();
     OV_ASSERT_NO_THROW(zeGraphExt->queryGraph(std::move(serializedIR), ""));
 }
 
@@ -194,7 +208,7 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
-    serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+    serializeIR();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
@@ -240,7 +254,7 @@ TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
         // use local zeGraphExt;
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
         GraphDescriptor localGraphDescriptor;
-        serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+        serializeIR();
         OV_ASSERT_NO_THROW(localGraphDescriptor =
                                localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
@@ -269,7 +283,7 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
         // use local zeGraphExt;
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
         GraphDescriptor localGraphDescriptor;
-        serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+        serializeIR();
         OV_ASSERT_NO_THROW(localGraphDescriptor =
                                localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
@@ -341,7 +355,7 @@ TEST_P(ZeroGraphTest, DontDestroyZeroGraphWhenZeroContextIsDestroyed) {
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
 
         auto localZeroGraphExt = std::make_shared<ZeGraphExtWrappers>(localZeroInitStruct);
-        serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+        serializeIR();
         GraphDescriptor localGraphDescriptor;
         OV_ASSERT_NO_THROW(localGraphDescriptor = localZeroGraphExt->getGraphDescriptor(serializedIR, ""));
         OV_ASSERT_NO_THROW(localZeroGraphExt->initializeGraph(localGraphDescriptor));
@@ -396,7 +410,7 @@ using EncryptionCallbacks = ZeroGraphTest;
 
 TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
     auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-    serializedIR = makeTestSerializedIR(model, zeroInitStruct);
+    serializeIR();
     if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
         OV_EXPECT_THROW(
             localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true),
