@@ -33,6 +33,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& value = input_shapes[2];
     const auto& value_rank = value.rank();
     bool gqa_mode = false;
+    TRShape n_dims_sub;
     if (n_dims_rank.is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
@@ -41,6 +42,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         l_dim = *(n_dims.end() - 2);
         e_dim = *(n_dims.end() - 1);
         n_dims.resize(n_dims.size() - 2);
+        n_dims_sub = TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1));
         bool success = false;
         if (key_rank.is_static() && key_rank.get_length() >= 3) {
             const ov::Dimension q_num_head = *(n_dims.end() - 1);
@@ -49,11 +51,12 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
                 if ((q_num_head.get_length() % k_num_head.get_length() == 0) &&
                     (q_num_head.get_length() != k_num_head.get_length())) {
                     gqa_mode = true;
+
                     success =
-                        TRShape::broadcast_merge_into(TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1)),
+                        TRShape::broadcast_merge_into(n_dims_sub,
                                                       TRShape(std::vector<DimType>(key.begin(), key.end() - 3)),
                                                       AutoBroadcastType::NUMPY) &&
-                        TRShape::broadcast_merge_into(TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1)),
+                        TRShape::broadcast_merge_into(n_dims_sub,
                                                       TRShape(std::vector<DimType>(value.begin(), value.end() - 3)),
                                                       AutoBroadcastType::NUMPY);
                     if (success == false)
@@ -67,7 +70,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         if (gqa_mode) {
             key_input_correctness =
                 key_rank.get_length() >= 3 &&
-                TRShape::broadcast_merge_into(TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1)),
+                TRShape::broadcast_merge_into(n_dims_sub,
                                               TRShape(std::vector<DimType>(key.begin(), key.end() - 3)),
                                               AutoBroadcastType::NUMPY) &&
                 DimType::merge(e_dim, e_dim, *(key.end() - 1));
@@ -91,7 +94,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         if (gqa_mode) {
             value_input_correctness =
                 value_rank.get_length() >= 3 &&
-                TRShape::broadcast_merge_into(TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1)),
+                TRShape::broadcast_merge_into(n_dims_sub,
                                               TRShape(std::vector<DimType>(value.begin(), value.end() - 3)),
                                               AutoBroadcastType::NUMPY) &&
                 DimType::merge(s_dim, s_dim, *(value.end() - 2));
