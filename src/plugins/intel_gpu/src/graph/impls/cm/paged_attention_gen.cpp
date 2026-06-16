@@ -381,6 +381,9 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
     jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
+    // Tree softmax: wins on INT8 (dequant amortises scratch, shorter dep-chain helps),
+    // regresses ~9% on FP16 (extra scratch matrix increases register pressure).
+    jit.make("CMPA_USE_TREE_SOFTMAX", get_kv_compressed(params) ? 1 : 0);
 
     return jit;
 }
