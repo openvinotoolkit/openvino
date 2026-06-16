@@ -18,7 +18,6 @@ The tables below list the key performance indicators for inference on built-in G
          :name: supportedModelsTable_V1
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-368H.csv
-         :data-column-hidden: [3,4,5]
          :data-order: [[ 0, "asc" ]]
          :data-page-length: 10
 
@@ -29,7 +28,6 @@ The tables below list the key performance indicators for inference on built-in G
          :name: supportedModelsTable_V2
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-255H.csv
-         :data-column-hidden: [3,4,5]
          :data-order: [[ 0, "asc" ]]
          :data-page-length: 10
 
@@ -40,7 +38,6 @@ The tables below list the key performance indicators for inference on built-in G
          :name: supportedModelsTable_V3
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
-         :data-column-hidden: [3,4,5]
          :data-order: [[ 0, "asc" ]]
 
    .. tab-item:: 5-330
@@ -50,7 +47,6 @@ The tables below list the key performance indicators for inference on built-in G
          :name: supportedModelsTable_V4
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_5-330.csv
-         :data-column-hidden: [3,4,5]
          :data-order: [[ 0, "asc" ]]
 
 
