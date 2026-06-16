@@ -29,7 +29,7 @@ namespace ov::intel_cpu::pass {
 
 RepackMatMulWeights::MatMulWeightsSource RepackMatMulWeights::get_weights_source(
     const std::shared_ptr<ov::Node>& matmul_node,
-    const MemoryPtr&) {
+    [[maybe_unused]] const MemoryPtr& orig_src_mem_ptr) {
     if (const auto& reorder =
             ov::as_type_ptr<ov::snippets::op::Reorder>(matmul_node->input_value(1).get_node_shared_ptr())) {
         const auto& port_desc = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(reorder->input(0));
@@ -69,13 +69,12 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto& orig_src_mem_ptr = m_src_mem_ptrs[i];
         const auto repacked = repack(consumer, get_weights_source(consumer, orig_src_mem_ptr), orig_src_mem_ptr);
         if (!repacked) {
-            if (!supports_runtime_repacking()) {
-                OPENVINO_THROW("Failed to repack weights input ",
-                               i,
-                               " for ",
-                               consumer->get_friendly_name(),
-                               ": runtime repacking is not supported");
-            }
+            OPENVINO_ASSERT(supports_runtime_repacking(),
+                            "Failed to repack weights input ",
+                            i,
+                            " for ",
+                            consumer->get_friendly_name(),
+                            ": runtime repacking is not supported");
             continue;
         }
 
