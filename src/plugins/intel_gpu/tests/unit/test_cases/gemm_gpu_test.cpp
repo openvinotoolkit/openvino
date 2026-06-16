@@ -1590,6 +1590,74 @@ public:
         }
     }
 
+    void test_transpose_matmul_1d_weight(bool is_input_dynamic, size_t M) {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        auto& engine = get_test_engine();
+
+        const size_t K = 33;
+        ov::Shape in0_shape = {M, K};
+        ov::Shape in1_shape = {K};
+
+        auto in0_layout = is_input_dynamic
+            ? layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfyx}
+            : layout{ov::PartialShape(in0_shape), data_types::f32, format::bfyx};
+        auto in1_layout = is_input_dynamic
+            ? layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx}
+            : layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
+        auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(in0_shape), data_types::f32, format::bfyx});
+        auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+
+        auto input0_data = rg.generate_random_1d<float>(ov::shape_size(in0_shape), -2, 2);
+        auto input1_data = rg.generate_random_1d<float>(ov::shape_size(in1_shape), -2, 2);
+        set_values(input0_mem, input0_data);
+        set_values(input1_mem, input1_data);
+
+        topology topology;
+        topology.add(input_layout("input0", in0_layout),
+                     input_layout("input1", in1_layout),
+                     gemm("gemm", { input_info("input0"), input_info("input1") },
+                          data_types::f32, false, true, 1.0f, 0.0f, 2, 1)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
+
+        if (is_input_dynamic) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
+
+        auto outputs = network->execute();
+        auto output_mem = outputs.at("gemm").get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+
+        ov::Shape out_shape = {M};
+        std::vector<float> ref_out(M, 0.f);
+        ov::reference::matmul<float>(input0_data.data(),
+                                     input1_data.data(),
+                                     ref_out.data(),
+                                     in0_shape,
+                                     in1_shape,
+                                     out_shape,
+                                     false,
+                                     true);
+
+        ASSERT_EQ(output_ptr.size(), ref_out.size());
+        for (size_t i = 0; i < ref_out.size(); ++i) {
+            ASSERT_NEAR(output_ptr[i], ref_out[i], 0.001f) << "at " << i;
+        }
+    }
+
     void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order, const double abs_error = 0.0001) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
@@ -1812,6 +1880,16 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f16) {
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f32) {
     this->test_transpose_matmul_f32(1, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_1d_weight_static) {
+    // 1D weight with transpose_input1=true
+    this->test_transpose_matmul_1d_weight(false, 1200);
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_1d_weight_dynamic) {
+    // Dynamic shape variant of 1D weight transpose test
+    this->test_transpose_matmul_1d_weight(true, 1200);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_2d_f16) {

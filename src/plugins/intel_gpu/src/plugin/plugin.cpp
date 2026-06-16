@@ -54,6 +54,7 @@
 
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
+thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
 
@@ -427,10 +428,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
-                                                                                 context_impl->get_engine(),
-                                                                                 encryption_callbacks.decrypt)
-                           : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
+        encryption_callbacks.decrypt
+            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
+            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
     auto& ib = *ib_ptr;
 
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
@@ -474,9 +474,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
+    // Store tensor base in thread-local storage
+    g_current_tensor_base = static_cast<const size_t*>(model.data());
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
-    return import_model(stream, context, config);
+    auto compiled_model = import_model(stream, context, config);
+
+    // Clear thread-local storage
+    g_current_tensor_base = nullptr;
+
+    // Ensure the tensor stays alive as long as the compiled model
+    auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
+    if (gpu_model) {
+        gpu_model->set_backing_tensor(std::make_shared<ov::Tensor>(model));
+    }
+
+    return compiled_model;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -686,6 +699,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         info.device = device_info.pci_info.pci_device;
         info.function = device_info.pci_info.pci_function;
         return decltype(ov::device::pci_info)::value_type {info};
+    } else if (name == ov::internal::cache_header_alignment) {
+        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
@@ -771,7 +786,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO}};
     return supported_internal_properties;
 }
 
