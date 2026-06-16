@@ -135,8 +135,10 @@ void expect_moe_experts_equal(const ov::npuw::compiled::MoEExperts& expected,
     EXPECT_EQ(expected.expert_hidden_dim, actual.expert_hidden_dim);
     EXPECT_EQ(expected.num_active_experts, actual.num_active_experts);
     EXPECT_EQ(expected.input_token_count, actual.input_token_count);
-    EXPECT_EQ(expected._router_scores_idx, actual._router_scores_idx);
-    EXPECT_EQ(expected._expert_input_param_idx, actual._expert_input_param_idx);
+    EXPECT_EQ(expected._router_scores.original, actual._router_scores.original);
+    EXPECT_EQ(expected._router_scores.compiled, actual._router_scores.compiled);
+    EXPECT_EQ(expected._expert_input.original, actual._expert_input.original);
+    EXPECT_EQ(expected._expert_input.compiled, actual._expert_input.compiled);
     EXPECT_EQ(expected._param_mapping, actual._param_mapping);
 }
 
@@ -564,8 +566,10 @@ TEST(SerializationTest, OVTypes_MoEExperts) {
     var.expert_hidden_dim = 128;
     var.num_active_experts = 2;
     var.input_token_count = 64;
-    var._router_scores_idx = 5;
-    var._expert_input_param_idx = 3;
+    var._router_scores.original = 5;
+    var._router_scores.compiled = 7;
+    var._expert_input.original = 3;
+    var._expert_input.compiled = 2;
     var._param_mapping = {{0, {1, 2}}, {4, {6, 7, 8}}};
 
     ov::npuw::compiled::MoEExperts res;

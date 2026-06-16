@@ -11,6 +11,8 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_KEEP_BLOCK_SIZE, std::size_t, 10, ov::inte
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ONLINE_DUMP_PLAN, std::string, "", ov::intel_npu::npuw::partitioning::online, dump_plan, "NPUW_ONLINE_DUMP_PLAN", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_PLAN, std::string, "", ov::intel_npu::npuw::partitioning, plan, "NPUW_PLAN", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FOLD, bool, false, ov::intel_npu::npuw::partitioning, fold, "NPUW_FOLD", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FOLD_ONLY, std::string, "", ov::intel_npu::npuw::partitioning, fold_only, "NPUW_FOLD_ONLY", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FUSE_UNFOLDED, bool, false, ov::intel_npu::npuw::partitioning, fuse_unfolded, "NPUW_FUSE_UNFOLDED", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_CWAI, bool, false, ov::intel_npu::npuw::partitioning, cwai, "NPUW_CWAI", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DQ, bool, false, ov::intel_npu::npuw::partitioning, dyn_quant, "NPUW_DQ", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DQ_FULL, bool, true, ov::intel_npu::npuw::partitioning, dyn_quant_full, "NPUW_DQ_FULL", ROOT, EXPOSED, CACHED, ALL)
