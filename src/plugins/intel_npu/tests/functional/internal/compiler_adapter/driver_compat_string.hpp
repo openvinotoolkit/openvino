@@ -67,16 +67,24 @@ protected:
 // a E2E test fails earlier (metadata parse), so this narrow unit test is the only coverage for the L0 driver validation
 // branch.
 TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
-    bool isCompatible = true;
-    OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor("not_a_valid_compat_string"));
-    EXPECT_FALSE(isCompatible);
+    if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        ASSERT_ANY_THROW(adapter->validate_compatibility_descriptor("not_a_valid_compat_string"));
+    } else {
+        bool isCompatible = true;
+        OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor("not_a_valid_compat_string"));
+        EXPECT_FALSE(isCompatible);
+    }
 }
 
 // no E2E test reaches this branch because compilation never produces an empty descriptor.
 TEST_P(DriverCompatStringTest, ValidateRejectsEmptyString) {
-    bool isCompatible = true;
-    OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor(""));
-    EXPECT_FALSE(isCompatible);
+    if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        ASSERT_ANY_THROW(adapter->validate_compatibility_descriptor(""));
+    } else {
+        bool isCompatible = true;
+        OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor(""));
+        EXPECT_FALSE(isCompatible);
+    }
 }
 
 }  // namespace ov::test::behavior
