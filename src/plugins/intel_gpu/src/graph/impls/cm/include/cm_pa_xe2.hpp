@@ -182,7 +182,7 @@ void pa_lsc_u8(
         if (kv_pos >= kv_stop) return;
 
         uint slm_offset = enable_head_size_partition
-                          ? (slm_buff_id_write & 1) * slm_buff_size
+                          ? (slm_buff_id_write % 3) * slm_buff_size
                           : (slm_buff_id_write & 3) * slm_buff_size;
 
         // kv_left for tail within kv_stop
@@ -360,7 +360,7 @@ void pa_lsc_u8(
 
                 {
                     uint slm_offset = enable_head_size_partition ?
-                                      (slm_buff_id_read & 1) * slm_buff_size :
+                                      (slm_buff_id_read % 3) * slm_buff_size :
                                       (slm_buff_id_read & 3) * slm_buff_size;
 
                     // Each worker computes partial St using its head_size chunk
@@ -467,7 +467,7 @@ void pa_lsc_u8(
         uint32_t v_zp_offset = v_dscale_offset + CMPA_BLOCK_SZ * sizeof(half);
 
         uint slm_offset = enable_head_size_partition
-                          ? (slm_buff_id_write & 1) * slm_buff_size
+                          ? (slm_buff_id_write % 3) * slm_buff_size
                           : (slm_buff_id_write & 3) * slm_buff_size;
         vector<half, kv_step> dscale;
         vector<half, kv_step> zp;
@@ -585,7 +585,7 @@ void pa_lsc_u8(
 
         {
             uint slm_offset = enable_head_size_partition ?
-                              (slm_buff_id_read & 1) * slm_buff_size :
+                              (slm_buff_id_read % 3) * slm_buff_size :
                               (slm_buff_id_read & 3) * slm_buff_size;
 
             // Each worker computes partial St using its head_size chunk
