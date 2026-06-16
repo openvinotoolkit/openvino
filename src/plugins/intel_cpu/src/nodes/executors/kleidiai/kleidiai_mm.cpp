@@ -27,6 +27,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
+#include "nodes/executors/common/offset_helper.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -298,7 +299,6 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     auto weiDims = weiMem->getDesc().getShape().getDims();
     size_t M = 0, K = 0, N = 0;
     if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
-        // Gather rows that are processed by this expert.
         OPENVINO_ASSERT(!gather_idx.empty(), "gather_idx is not set");
         M = srcDims[1];
         K = srcDims[2];

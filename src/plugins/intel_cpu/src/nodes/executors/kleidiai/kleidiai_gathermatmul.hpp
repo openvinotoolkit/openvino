@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
 
@@ -30,11 +29,10 @@ public:
     [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::kleidiai;
     }
-    static bool useDynamicQuantizationImpl(const MemoryDescPtr& weightDesc);
 
 private:
     ExecutorContext::CPtr m_context;
-    size_t numExperts = 0;
+    size_t gather_axis_size = 0;
     std::vector<MatMulKleidiAIExecutorPtr> executor;
     std::vector<MemoryArgs> memArgs;
 };

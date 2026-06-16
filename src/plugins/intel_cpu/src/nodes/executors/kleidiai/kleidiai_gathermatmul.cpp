@@ -12,14 +12,10 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_types.h"
-#include "dnnl_extension_utils.h"
-#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include "nodes/executors/dnnl/dnnl_utils.hpp"
+#include "nodes/executors/common/offset_helper.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
@@ -31,7 +27,7 @@
 
 namespace ov::intel_cpu {
 
-bool GatherMatMulKleidiAIExecutor::useDynamicQuantizationImpl(const MemoryDescPtr& weightDesc) {
+static bool useDynamicQuantizationImpl(const MemoryDescPtr& weightDesc) {
     if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
         return false;
     }
@@ -43,7 +39,7 @@ bool GatherMatMulKleidiAIExecutor::supports([[maybe_unused]] const GatherMatmulC
            useDynamicQuantizationImpl(config.descs.at(ARG_WEI));
 }
 
-GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor(const GatherMatmulAttrs& attrs,
+GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] const GatherMatmulAttrs& attrs,
                                                            const MemoryArgs& memory,
                                                            const ExecutorContext::CPtr& context)
     : m_context(context) {
@@ -54,68 +50,31 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor(const GatherMatmulAtt
     const auto& weiDims = weiMemoryDesc->getShape().getStaticDims();
     auto weiPrec = weiMemoryDesc->getPrecision();
     auto SrcPrec = srcMemoryDesc->getPrecision();
-    size_t N = weiDims[weiDims.size() - 2];
-    size_t K = weiDims[weiDims.size() - 1];
-    numExperts = weiDims[0];
+    const size_t N = weiDims[weiDims.size() - 2];
+    const size_t K = weiDims[weiDims.size() - 1];
+    gather_axis_size = weiDims[0];
 
+    MemoryPtr m_weightsMemory = memory.at(ARG_WEI);
     MemoryPtr m_scalesMemory = nullptr;
 
     OPENVINO_ASSERT(weiMemoryDesc->isDefined(), "Weights memory descriptor is not defined");
     OPENVINO_ASSERT(SrcPrec == ov::element::f32, "Activation currently supported only in f32");
 
-    auto addBatchDim = [](const BlockedMemoryDescPtr& desc, size_t batchDim) -> DnnlMemoryDescPtr {
-        const auto& weightsDims = desc->getShape().getStaticDims();
-        const auto& weightsBlockDims = desc->getBlockDims();
-        const auto& weightsOrder = desc->getOrder();
-        VectorDims newDims = {batchDim};
-        newDims.insert(newDims.end(), weightsDims.begin(), weightsDims.end());
-        VectorDims newBlockDims = {batchDim};
-        newBlockDims.insert(newBlockDims.end(), weightsBlockDims.begin(), weightsBlockDims.end());
-        VectorDims newOrder(weightsOrder.size() + 1);
-        newOrder[0] = 0;
-        for (size_t i = 0; i < weightsOrder.size(); i++) {
-            newOrder[i + 1] = weightsOrder[i] + 1;
-        }
-        auto targetDesc =
-            std::make_shared<CpuBlockedMemoryDesc>(desc->getPrecision(), Shape(newDims), newBlockDims, newOrder);
-        return MemoryDescUtils::convertToDnnlMemoryDesc(targetDesc);
-    };
-
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    if (attrs.isCompressedOperation) {
+    bool isCompressedOp = weiMemoryDesc->getPrecision().is_integral();
+    if (isCompressedOp) {
         const auto& scales = memory.at(ARG_SRC_3);
         if (scales && !scales->getDesc().empty()) {
             const auto& fullScalesShape = scales->getDesc().getShape().getStaticDims();
             if (1 == fullScalesShape.size()) {
                 OPENVINO_THROW(" broadcastable scales shape not supported ");
             } else {
-                auto expertScaleDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, Shape({N}));
-                auto expectedScaleMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(expertScaleDesc);
-                expectedScaleMemDesc =
-                    addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), numExperts);
-                if (expectedScaleMemDesc->isCompatible(scales->getDesc())) {
-                    m_scalesMemory = scales;
-                } else {
-                    m_scalesMemory = std::make_shared<Memory>(m_context->getEngine(), expectedScaleMemDesc);
-                    m_scalesMemory->load(*scales, false, false);
-                }
+                m_scalesMemory = scales;
             }
         } else {
             OPENVINO_THROW(" Scales cannot be empty for GatherMatmulCompressed op ");
         }
     }
-
-    auto expertWeiDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N, K}));
-    auto targetWeightsDesc = addBatchDim(expertWeiDesc, numExperts);
-    auto m_weightsMemory = utils::prepareWeightsMemory(MemoryDescUtils::convertToDnnlMemoryDesc(weiMemoryDesc),
-                                                       targetWeightsDesc,
-                                                       memory.at(ARG_WEI),
-                                                       context->getEngine(),
-                                                       context->getRuntimeCache(),
-                                                       context->getWeightsCache(),
-                                                       context->getPrivateWeightCache(),
-                                                       context->getThreadPool());
-
     MemoryDescArgs memDescArgs;
     memDescArgs[ARG_SRC] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(SrcPrec, Shape({1, K}));
     memDescArgs[ARG_DST] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(SrcPrec, Shape({1, N}));
@@ -127,7 +86,7 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor(const GatherMatmulAtt
     }
 
     FCAttrs fcArgs;
-    if (attrs.isCompressedOperation) {
+    if (isCompressedOp) {
         // set as uint64_max to enable dynamic quantization by default
         fcArgs.dynamicQuantizationGroupSize = std::numeric_limits<uint64_t>::max();
         memDescArgs[ARG_WEI | ARG_ATTR_SCALES] =
@@ -135,22 +94,22 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor(const GatherMatmulAtt
     }
 
     // As we call executors sequentially, execution-context can be shared
-    memArgs.reserve(numExperts);
-    for (size_t expert = 0; expert < numExperts; ++expert) {
+    memArgs.reserve(gather_axis_size);
+    for (size_t i = 0; i < gather_axis_size; ++i) {
         MemoryArgs mArgs;
-        mArgs[ARG_WEI] = split_horizontal(context->getEngine(), m_weightsMemory, 0, expert, numExperts, true);
+        mArgs[ARG_WEI] = split_horizontal(context->getEngine(), m_weightsMemory, 0, i, gather_axis_size, true);
         // wei_shape shape after split becomes: [1, N, K] --> redefine desc to [N, K]
         mArgs[ARG_WEI]->redefineDesc(memDescArgs[ARG_WEI]);
         if (biasMemoryDesc && !biasMemoryDesc->empty()) {
             auto bias = memory.at(ARG_BIAS);
-            mArgs[ARG_BIAS] = split_horizontal(context->getEngine(), bias, 0, expert, numExperts, true);
+            mArgs[ARG_BIAS] = split_horizontal(context->getEngine(), bias, 0, i, gather_axis_size, true);
             mArgs[ARG_BIAS]->redefineDesc(memDescArgs[ARG_BIAS]);
         } else {
             mArgs[ARG_BIAS] = std::make_shared<Memory>(context->getEngine(), MemoryDescUtils::makeEmptyDesc());
         }
-        if (attrs.isCompressedOperation) {
+        if (isCompressedOp) {
             mArgs[ARG_WEI | ARG_ATTR_SCALES] =
-                split_horizontal(context->getEngine(), m_scalesMemory, 0, expert, numExperts, true);
+                split_horizontal(context->getEngine(), m_scalesMemory, 0, i, gather_axis_size, true);
             mArgs[ARG_WEI | ARG_ATTR_SCALES]->redefineDesc(memDescArgs[ARG_WEI | ARG_ATTR_SCALES]);
         }
         mArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), memDescArgs[ARG_SRC]);
@@ -162,10 +121,10 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor(const GatherMatmulAtt
 }
 
 bool GatherMatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
-    for (size_t expert = 0; expert < numExperts; ++expert) {
-        memArgs[expert][ARG_SRC] = memory.at(ARG_SRC);
-        memArgs[expert][ARG_DST] = memory.at(ARG_DST);
-        executor[expert]->update(memArgs[expert]);
+    for (size_t i = 0; i < gather_axis_size; ++i) {
+        memArgs[i][ARG_SRC] = memory.at(ARG_SRC);
+        memArgs[i][ARG_DST] = memory.at(ARG_DST);
+        executor[i]->update(memArgs[i]);
     }
     return true;
 }
@@ -179,7 +138,6 @@ void GatherMatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     size_t B = indexShape[1];
 
     // all the gather idx for corresponding m index
-    const size_t gather_axis_size = numExperts;
     std::vector<std::pair<int32_t, int32_t>> gather_idx_map(gather_axis_size * M);
     std::vector<int32_t> elements_per_gather_indx(gather_axis_size, 0);
     for (size_t m = 0; m < M; m++) {
@@ -204,9 +162,8 @@ void GatherMatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         }
         memArgs[gather_axis_index][ARG_SRC] = memory.at(ARG_SRC);
         memArgs[gather_axis_index][ARG_DST] = memory.at(ARG_DST);
-        auto gather_idx_expertOffset = gather_idx_map.begin() + gather_axis_index * M;
-        std::vector<std::pair<int32_t, int32_t>> kai_gather_idx(gather_idx_expertOffset,
-                                                                gather_idx_expertOffset + num_valid_rows);
+        auto gather_idx_Offset = gather_idx_map.begin() + gather_axis_index * M;
+        std::vector<std::pair<int32_t, int32_t>> kai_gather_idx(gather_idx_Offset, gather_idx_Offset + num_valid_rows);
         executor[gather_axis_index]->set_gather_idx(kai_gather_idx);
         executor[gather_axis_index]->execute(memArgs[gather_axis_index]);
     }
