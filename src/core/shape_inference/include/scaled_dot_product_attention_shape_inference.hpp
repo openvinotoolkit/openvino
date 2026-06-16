@@ -41,11 +41,8 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         l_dim = *(n_dims.end() - 2);
         e_dim = *(n_dims.end() - 1);
         n_dims.resize(n_dims.size() - 2);
-    }
 
-    bool key_input_correctness = true;
-    if (key_rank.is_static()) {
-        if (key_rank.get_length() >= 3) {
+        if (key_rank.is_static() && key_rank.get_length() >= 3) {
             const ov::Dimension q_num_head = *(n_dims.end() - 1);
             const ov::Dimension k_num_head = (key_rank.is_static()) ? *(key.end() - 3) : ov::Dimension(1);
             if (q_num_head.is_static() && k_num_head.is_static()) {
@@ -64,6 +61,10 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
                 }
             }
         }
+    }
+
+    bool key_input_correctness = true;
+    if (key_rank.is_static()) {
         if (gqa_mode) {
             key_input_correctness =
                 key_rank.get_length() >= 3 &&
