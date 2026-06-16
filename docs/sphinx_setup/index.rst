@@ -39,33 +39,33 @@ OpenVINO 2026.2
 
 |
 
-**OpenVINO is an open-source toolkit** for deploying performant AI solutions in the cloud,
-on-prem, and on the edge alike. Develop your applications with both generative and conventional
-AI models, coming from the most popular model frameworks.
+**OpenVINO is an open-source toolkit** for deploying high-performance AI solutions across 
+cloud, AI PCs, edge devices, and Physical AI alike. Develop your applications 
+with both generative and conventional AI models, coming from the most popular model frameworks. 
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
-There are three main tools in OpenVINO to meet all your deployment needs:
+There are four main tools in OpenVINO to meet all your deployment needs:
 
 .. grid:: 1 2 2 4
-
-   .. grid-item-card:: OpenVINO GenAI
-      :link: ./openvino-workflow-generative.html
-
-      Run and deploy generative AI models
 
    .. grid-item-card:: OpenVINO Base Package
       :link: ./openvino-workflow.html
 
       Run and deploy conventional AI models
 
-   .. grid-item-card:: OpenVINO Model Server
-      :link: ./model-server/ovms_what_is_openvino_model_server.html
+   .. grid-item-card:: OpenVINO GenAI
+      :link: ./openvino-workflow-generative.html
 
-      Deploy both generative and conventional AI inference on a server
+      Run and deploy generative AI models
 
    .. grid-item-card:: OpenVINO Physical AI
       :link: ./physical-ai.html
 
       Deploy VLA models on robots
+
+   .. grid-item-card:: OpenVINO Model Server
+      :link: ./model-server/ovms_what_is_openvino_model_server.html
+
+      Deploy both generative and conventional AI inference on a server
 
 |
 | For a quick ramp-up, check out the
