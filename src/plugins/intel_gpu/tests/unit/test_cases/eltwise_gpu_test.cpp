@@ -5742,8 +5742,8 @@ INSTANTIATE_TEST_SUITE_P(eltwise_cpu_impl,
                              eltwise_random_test_param_generator()
                              .broadcast_params(data_types::f32, format::bfyx, format::bfyx, impl_types::cpu)
                              .broadcast_params(data_types::f16, format::bfyx, format::bfyx, impl_types::cpu)
-                             //.broadcast_params(data_types::bf16, format::bfyx, format::bfyx, impl_types::cpu)
+                             .broadcast_params(data_types::bf16, format::bfyx, format::bfyx, impl_types::cpu)
                              .simple_params(data_types::f32, format::bfyx, format::bfyx, impl_types::cpu)
                              .simple_params(data_types::f16, format::bfyx, format::bfyx, impl_types::cpu)
-                             //.simple_params(data_types::bf16, format::bfyx, format::bfyx, impl_types::cpu)
+                             .simple_params(data_types::bf16, format::bfyx, format::bfyx, impl_types::cpu)
                          ));
