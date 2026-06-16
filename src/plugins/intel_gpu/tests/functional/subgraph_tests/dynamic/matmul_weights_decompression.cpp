@@ -411,6 +411,15 @@ const std::vector<ShapeParams> input_shapes_basic = {
     {{{}, {{11, 339, 377}}}, {377, 335}}
 };
 
+const std::vector<ShapeParams> input_shapes_extra_multiply = {
+    {{{}, {{1, 4, 2}}}, {2, 32}, 2ul},
+    {{{}, {{1, 4, 16}}}, {1, 16, 32}},
+};
+
+const std::vector<ShapeParams> input_shapes_extra_multiply_non_trivial_batch_broadcast = {
+    {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
@@ -428,7 +437,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_extra_multiply,
                          MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_extra_multiply),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(activations_precisions),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(param_weights),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_extra_multiply_non_trivial_batch_broadcast_no_convert,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_extra_multiply_non_trivial_batch_broadcast),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(activations_precisions),
                                             ::testing::Values(false),
