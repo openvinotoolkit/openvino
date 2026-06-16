@@ -46,7 +46,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
             const ov::Dimension q_num_head = *(n_dims.end() - 1);
             const ov::Dimension k_num_head = (key_rank.is_static()) ? *(key.end() - 3) : ov::Dimension(1);
             if (q_num_head.is_static() && k_num_head.is_static()) {
-                if (q_num_head.get_length() > k_num_head.get_length()) {
+                if ((q_num_head.get_length() % k_num_head.get_length() == 0) && (q_num_head.get_length() != k_num_head.get_length())) {
                     gqa_mode = true;
                     //[7,2] and [2,1] cannot be broadcast 7 and 2 are not compatible
                     bool success =
@@ -62,7 +62,6 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
             }
         }
     }
-
     bool key_input_correctness = true;
     if (key_rank.is_static()) {
         if (gqa_mode) {
