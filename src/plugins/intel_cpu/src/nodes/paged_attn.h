@@ -60,11 +60,11 @@ private:
     struct AttentionExecutor;
     friend struct PagedAttentionKey;
 
+    size_t m_head_size = 0;
+    size_t m_num_kv_heads = 0;
     bool m_hasScore = false;
     bool m_has_adaptive_rkv_diversity_output = false;
     bool m_write_kv_cache = true;
-    size_t m_head_size = 0;
-    size_t m_num_kv_heads = 0;
 };
 
 }  // namespace ov::intel_cpu::node

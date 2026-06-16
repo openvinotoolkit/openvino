@@ -53,11 +53,11 @@ struct PagedAttentionKey {
     ov::element::Type rtPrecision;
     ov::element::Type keyCachePrecision;
     ov::element::Type valueCachePrecision;
-    bool quantKeyByChannel;
-    bool quantValueByChannel;
-    bool isSageAttn;
-    size_t headSize;
-    size_t numKvHeads;
+    size_t headSize = 0;
+    size_t numKvHeads = 0;
+    bool quantKeyByChannel = false;
+    bool quantValueByChannel = false;
+    bool isSageAttn = false;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -68,11 +68,11 @@ size_t PagedAttentionKey::hash() const {
     seed = hash_combine(seed, rtPrecision.hash());
     seed = hash_combine(seed, keyCachePrecision.hash());
     seed = hash_combine(seed, valueCachePrecision.hash());
+    seed = hash_combine(seed, headSize);
+    seed = hash_combine(seed, numKvHeads);
     seed = hash_combine(seed, quantKeyByChannel);
     seed = hash_combine(seed, quantValueByChannel);
     seed = hash_combine(seed, isSageAttn);
-    seed = hash_combine(seed, headSize);
-    seed = hash_combine(seed, numKvHeads);
 
     return seed;
 }
@@ -285,11 +285,11 @@ void PagedAttention::createPrimitive() {
     PagedAttentionKey key = {rtPrecision,
                              kCachePrecision,
                              vCachePrecision,
+                             m_head_size,
+                             m_num_kv_heads,
                              quantKeybyChannel,
                              quantValuebyChannel,
-                             cpuConfig.enableSageAttn,
-                             m_head_size,
-                             m_num_kv_heads};
+                             cpuConfig.enableSageAttn};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
