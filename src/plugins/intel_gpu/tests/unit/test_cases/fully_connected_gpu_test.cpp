@@ -4000,7 +4000,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         // Use positive gate-like activations to avoid cancellation while keeping the final
         // dequantized value well inside the fp16 range.
         // dq_scale ~= 0.75 / 127 = 0.0059, so the true result stays finite:
-        //   243840 * 0.0059 * 20 ~= 28.8K < 65504.
+        //   243840 (scales_group_size: 128 * int8: 127 * u4: 15) * 0.0059 * 20 ~= 28.8K < 65504.
         // The old code still overflows because it first converts the large int accumulator to fp16.
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.75f);
         set_values(input_mem, input_data);
