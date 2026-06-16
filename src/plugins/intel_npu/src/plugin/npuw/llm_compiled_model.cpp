@@ -487,14 +487,25 @@ void apply_moe_config(ov::AnyMap& stage_config,
                       const std::string& stage_name) {
     if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
         LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
-        // MoE expert and router pattern isolation options
+        // MoE expert and router pattern isolation options.
+        // Note: NPUW_ONLINE_ISOLATE is handled separately below to support coexistence
+        // with attention isolation (e.g. "ATTN" already set by dyn_attn_opts).  A plain
+        // merge_config_with would overwrite the existing value and silently drop ATTN.
         const ov::AnyMap expert_opts = {
             {"NPUW_ONLINE_PIPELINE", "REP"},
-            {"NPUW_ONLINE_ISOLATE", "MOE"},
             {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
             {"NPUW_UNFOLD_IREQS", "NO"},
         };
         merge_config_with(stage_config, expert_opts);
+        // Append "MOE" to any pre-existing isolation preset (e.g. "ATTN") rather than
+        // overwriting it.  getIsolates() accepts a comma-separated list of presets.
+        auto isol_it = stage_config.find("NPUW_ONLINE_ISOLATE");
+        if (isol_it != stage_config.end() && !isol_it->second.as<std::string>().empty()) {
+            isol_it->second = isol_it->second.as<std::string>() + ",MOE";
+            LOG_INFO("MoE config: appended MOE to NPUW_ONLINE_ISOLATE -> " << isol_it->second.as<std::string>());
+        } else {
+            stage_config["NPUW_ONLINE_ISOLATE"] = "MOE";
+        }
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
         if (stage_name == "PREFILL") {
             NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "
@@ -1151,6 +1162,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Compile multiple generate model variants with different sizes
+    // DBG: dump final effective config keys relevant to online partitioning / attention isolation
+    {
+        auto dump_key = [](const ov::AnyMap& cfg, const std::string& key, const std::string& label) {
+            auto it = cfg.find(key);
+            std::cout << "[LLM_CFG] " << label << " " << key << " = "
+                      << (it != cfg.end() ? it->second.as<std::string>() : "(not set)") << std::endl;
+        };
+        dump_key(prefill_config, "NPUW_ONLINE_PIPELINE", "PREFILL");
+        dump_key(prefill_config, "NPUW_ONLINE_ISOLATE", "PREFILL");
+        dump_key(prefill_config, "NPUW_ATTN", "PREFILL");
+        dump_key(generate_config, "NPUW_ONLINE_PIPELINE", "GENERATE");
+        dump_key(generate_config, "NPUW_ONLINE_ISOLATE", "GENERATE");
+        dump_key(generate_config, "NPUW_ATTN", "GENERATE");
+        dump_key(generate_config, "NPUW_UNFOLD_IREQS", "GENERATE");
+    }
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
