@@ -65,6 +65,23 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
     return view_tensor;
 }
 
+namespace {
+// Returns the token-count dimension from a 4-D router output shape.
+// Two layout variants exist depending on the opset version used during model export:
+//   Layout A: [num_experts, 1, token_num, 1]  → returns shape[2]
+//   Layout B: [num_experts, token_num, 1, 1]  → returns shape[1]
+// ASSERTs if neither layout is recognised.
+static size_t get_router_token_count(const ov::Shape& router_shape) {
+    NPUW_ASSERT(router_shape.size() == 4);
+    if (router_shape[1] == 1 && router_shape[3] == 1)
+        return router_shape[2];  // Layout A
+    if (router_shape[2] == 1 && router_shape[3] == 1)
+        return router_shape[1];  // Layout B
+    NPUW_ASSERT(false && "Unexpected router output shape - cannot determine token dimension!");
+    return 0;  // unreachable, suppress warning
+}
+}  // namespace
+
 std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITensor>& router_output,
                                                        size_t num_experts,
                                                        std::map<size_t, std::vector<size_t>>& token_to_experts,
@@ -77,13 +94,12 @@ std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITens
     token_to_experts.clear();
     expert_to_tokens.clear();
 
-    // Expected router output shape: [num_experts, 1, token_num, 1]
     auto shape = router_output->get_shape();
-    if (shape.size() != 4 || shape[0] != num_experts || shape[1] != 1 || shape[3] != 1) {
+    if (shape.size() != 4 || shape[0] != num_experts) {
         NPUW_ASSERT(false && "Unexpected router output shape!");
     }
 
-    size_t num_tokens = shape[2];  // token_num from shape
+    size_t num_tokens = get_router_token_count(shape);
 
     // Parse which expert each token selects based on non-zero weights
     auto parse_experts = [&](auto* data) {
@@ -157,11 +173,12 @@ void gather_router_scores(const ov::SoPtr<ov::ITensor>& router_source,
     // Calculate expert offset in source tensor
     size_t expert_offset;
     if (router_source_shape.size() == 4) {
-        expert_offset = expert_id * router_source_shape[2];  // [num_experts, 1, token_num, 1]
+        expert_offset = expert_id * get_router_token_count(router_source_shape);
     } else if (router_source_shape.size() == 2) {
         expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
     } else {
         NPUW_ASSERT(false && "Unexpected router source shape");
+        expert_offset = 0;  // unreachable, suppress uninitialized warning
     }
 
     // Gather router scores for chunk tokens

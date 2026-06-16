@@ -54,6 +54,45 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
 
+        auto introduces_non_trivial_batch_broadcast = [](const ov::PartialShape& original_shape,
+                                                         const ov::PartialShape& broadcasted_shape) {
+            if (!original_shape.rank().is_static() || !broadcasted_shape.rank().is_static()) {
+                return false;
+            }
+
+            const auto original_rank = static_cast<size_t>(original_shape.rank().get_length());
+            const auto broadcasted_rank = static_cast<size_t>(broadcasted_shape.rank().get_length());
+            if (broadcasted_rank < 2 || original_rank > broadcasted_rank) {
+                return false;
+            }
+
+            ov::PartialShape aligned_original_shape = original_shape;
+            for (size_t i = 0, cnt = broadcasted_rank - original_rank; i < cnt; ++i) {
+                aligned_original_shape.insert(aligned_original_shape.begin(), 1);
+            }
+
+            for (size_t i = 0; i < broadcasted_rank - 2; ++i) {
+                const auto& original_dim = aligned_original_shape[i];
+                const auto& broadcasted_dim = broadcasted_shape[i];
+                if (original_dim == 1 && broadcasted_dim.is_static() && broadcasted_dim.get_length() != 1) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        auto mul2_it = pattern_map.find(mul2_m);
+        if (mul2_it != pattern_map.end() && mul2_it->second.get_node_shared_ptr() == fc_input_b.get_node_shared_ptr()) {
+            const auto reshape_output = pattern_map.at(reshape_m);
+            // Keep valid 3D compressed FC cases enabled. Only reject the extra post-reshape multiply when broadcasting changes the weights
+            // from a shared matrix into data with real batch dimensions. For example, reshape may first squeeze the weights to [16, 32],
+            // then an extra multiply with scale [8, 1, 32] broadcasts them to [8, 16, 32], which makes the weights effectively batched again.
+            if (introduces_non_trivial_batch_broadcast(reshape_output.get_partial_shape(), fc_input_b.get_partial_shape())) {
+                return false;
+            }
+        }
+
         // If 'fc_input_b' is shared with another matmul, transposing 'fc_input_b' is restricted.
         // If it is connected to the 'input_a' of another matmul, do not transpose
         // If it is connected to the 'input_b' of another matmul and the transpose option differs between the two matmuls, do not transpose.
