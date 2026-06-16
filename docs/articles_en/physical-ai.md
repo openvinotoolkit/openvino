@@ -1,3 +1,7 @@
+---
+explore_github_url: https://github.com/openvinotoolkit/physicalai
+---
+
 # OpenVINO™ Physical AI
 
 ```{toctree}
