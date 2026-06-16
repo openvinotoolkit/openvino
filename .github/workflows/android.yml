@@ -293,10 +293,10 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
-          # If tests were installed under tests/, move CPU test binaries to expected path
+          # mv (not cp) so CPU test binaries are not duplicated into both tests/ and bin/ in the artifact
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
             echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
-            find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
+            find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec mv {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
             # Copy Template plugin library from tests installation into runtime package so tests can load it
             find ${INSTALL_TEST_DIR}/tests -name "libopenvino_template_plugin*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/lib/intel64/ \; 2>/dev/null || true
           fi
@@ -304,6 +304,26 @@ jobs:
           # Add TBB and libc++ shared to runtime package
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
+
+      # Release build keeps -g (NDK default); strip unused debug symbols to shrink every download
+      - name: Strip debug symbols from test binaries and runtime libraries
+        run: |
+          STRIP="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          if [ ! -x "$STRIP" ]; then
+            STRIP="$(command -v llvm-strip || true)"
+          fi
+          if [ -z "$STRIP" ]; then
+            echo "Error: llvm-strip not found (NDK path or PATH)"; exit 1
+          fi
+          echo "Using strip: $STRIP"
+          echo "Size before strip:"; du -shc ${INSTALL_TEST_DIR} ${INSTALL_DIR}
+          find ${INSTALL_TEST_DIR} -type f \
+            \( -name "ov_cpu_func_tests" -o -name "ov_cpu_unit_tests" \) \
+            -exec "$STRIP" --strip-all {} +
+          # --strip-unneeded keeps the dynamic symbol table needed to load .so's
+          find ${INSTALL_DIR} -type f -name "*.so*" \
+            -exec "$STRIP" --strip-unneeded {} +
+          echo "Size after strip:"; du -shc ${INSTALL_TEST_DIR} ${INSTALL_DIR}
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -313,11 +333,19 @@ jobs:
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Upload CPU test binaries
+      # One artifact per test binary so each emulator job downloads only the binary it runs
+      - name: Upload CPU functional test binary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ov_cpu_tests_android_${{ matrix.arch }}
-          path: ${{ env.INSTALL_TEST_DIR }}/
+          name: ov_cpu_func_tests_android_${{ matrix.arch }}
+          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_func_tests
+          if-no-files-found: 'error'
+
+      - name: Upload CPU unit test binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ov_cpu_unit_tests_android_${{ matrix.arch }}
+          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_unit_tests
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO runtime package (Android)
@@ -360,11 +388,11 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
-      - name: Download CPU test binaries
+      - name: Download CPU unit test binary
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: ov_cpu_tests_android_x64
-          path: ${{ env.INSTALL_TEST_DIR }}
+          name: ov_cpu_unit_tests_android_x64
+          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release
 
       - name: Download OpenVINO runtime package (Android)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -454,11 +482,11 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
-      - name: Download CPU test binaries
+      - name: Download CPU functional test binary
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: ov_cpu_tests_android_x64
-          path: ${{ env.INSTALL_TEST_DIR }}
+          name: ov_cpu_func_tests_android_x64
+          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release
 
       - name: Download OpenVINO runtime package (Android)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
