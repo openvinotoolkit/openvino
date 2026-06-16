@@ -23,6 +23,7 @@
 #include "test_utils.h"
 
 #include <optional>
+#include <string>
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -2864,6 +2865,8 @@ TEST_P(paged_attention_test, basic) {
     execute(p, p.run_reference);
 }
 
+class paged_attention_micro_sdpa_prefill_oob_sequence_test : public PagedAttentionTest<paged_attention_test_params> {};
+
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();
@@ -2954,6 +2957,42 @@ const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1,
 static paged_attention_test_params disable_reference_compare(paged_attention_test_params p) {
     p.run_reference = false;
     return p;
+}
+
+static paged_attention_test_params make_pa_micro_prefill_oob_param(int num_tokens, int num_heads, int num_kv_heads, int head_size) {
+    return paged_attention_test_params{
+        {{num_tokens, 0}},
+        num_heads,
+        num_kv_heads,
+        head_size,
+        head_size,
+        16,
+        0,
+        DISABLE_CACHE_COMPRESSION,
+        ov::internal::CacheQuantMode::BY_TOKEN,
+        STATIC_INPUT_PAD,
+        DISABLE_SCORES,
+        DISABLE_ROTATION,
+        DISABLE_FA_V2,
+        false,
+        0,
+        {},
+        false};
+}
+
+TEST_F(paged_attention_micro_sdpa_prefill_oob_sequence_test, partial_kv_tile_unpadded_key_input) {
+    auto warmup = make_pa_micro_prefill_oob_param(135, 16, 16, 256);
+    auto repro = make_pa_micro_prefill_oob_param(129, 16, 16, 256);
+
+    for (int iteration = 0; iteration < 16; iteration++) {
+        SCOPED_TRACE("warmup_iteration=" + std::to_string(iteration));
+        execute(warmup, warmup.run_reference);
+    }
+
+    for (int iteration = 0; iteration < 16; iteration++) {
+        SCOPED_TRACE("repro_iteration=" + std::to_string(iteration));
+        execute(repro, repro.run_reference);
+    }
 }
 
 static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_images, size_t avg_img_len) {

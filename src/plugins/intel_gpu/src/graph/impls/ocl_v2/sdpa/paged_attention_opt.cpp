@@ -1401,6 +1401,28 @@ public:
         return wg_tile_q;
     }
 
+    static size_t get_micro_tile_ksize(KernelData& kernel_data) {
+        OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_ksize() function");
+
+        const auto& gemms = kernel_data.micro_kernels;
+        const auto wg_tile_k = gemms[0]->p.getSetting("wg_tile_m");
+        return wg_tile_k;
+    }
+
+    static size_t get_rounded_key_buffer_bytes(const kernel_impl_params& params, size_t tile_tokens) {
+        const auto& key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
+        const auto key_pitches = key_layout.get_pitches();
+        OPENVINO_ASSERT(!key_pitches.empty(), "[GPU] Invalid key layout pitches for Paged Attention micro prefill");
+
+        const auto total_tokens = static_cast<size_t>(key_layout.get_partial_shape()[0].get_length());
+        const auto rounded_tokens = ceil_div(total_tokens, tile_tokens) * tile_tokens;
+        const auto padded_tokens = rounded_tokens + tile_tokens;
+        const auto key_row_pitch = static_cast<size_t>(key_pitches[0]);
+        const auto key_bitwidth = ov::element::Type(key_layout.data_type).bitwidth();
+        const auto key_row_bytes = (key_row_pitch * key_bitwidth + 7) / 8;
+        return key_layout.bytes_count() + (padded_tokens - total_tokens) * key_row_bytes;
+    }
+
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
@@ -1479,6 +1501,26 @@ public:
         update_rt_params(inst);
     }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    static event::ptr copy_key_to_tail_padded_buffer(const std::vector<event::ptr>& events, primitive_inst& instance) {
+        auto& stream = instance.get_network().get_stream();
+        stream.wait_for_events(events);
+
+        const auto key_mem = instance.input_memory_ptr(PagedAttentionInputIdx::KEY);
+        const auto& key_layout = key_mem->get_layout();
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        OPENVINO_ASSERT(intermediates_memories.size() > paged_attention_micro_sdpa_prefill_key_buffer_idx,
+                        "[GPU] Missing Paged Attention micro-SDPA prefill key buffer");
+
+        const auto padded_key_mem = intermediates_memories[paged_attention_micro_sdpa_prefill_key_buffer_idx];
+        const auto copy_size = key_layout.bytes_count();
+        OPENVINO_ASSERT(padded_key_mem->size() >= copy_size,
+                        "[GPU] Paged Attention micro-SDPA prefill key buffer is smaller than the key input");
+
+        return padded_key_mem->copy_from(stream, *key_mem, 0, 0, copy_size, false);
+    }
+#endif
+
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
@@ -1502,9 +1544,10 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa)
+            if (rt_params->use_micro_sdpa) {
+                res_event = {copy_key_to_tail_padded_buffer(res_event, instance)};
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
-            else
+            } else
 #endif
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
@@ -1576,7 +1619,9 @@ public:
          * +------------------------------------------------------------+-----------------------+--------------------+
          * | PA_SDPA (mixed mode) + scores output aggregation           | [3, 4, 5, 6, 7, 8, 9] |                    |
          * +------------------------------------------------------------+-----------------------+--------------------+
-         * | SDPA (1st token, micro-kernel)                             | [last (8/9/10)]       |                    |
+         * | SDPA (1st token, micro-kernel)                             | [3, 4]                |                    |
+         * +------------------------------------------------------------+-----------------------+--------------------+
+         * | PA_SDPA (mixed mode, micro-kernel)                         | [3]                   |                    |
          * +------------------------------------------------------------+-----------------------+--------------------+
          * | Adaptive RKV Diversity (scores output)                     | [8, 9, 10, 11]        |                    |
          * +------------------------------------------------------------+-----------------------+--------------------+
@@ -1599,10 +1644,12 @@ public:
          *              regardless of stage. Actual kernel execution determined at runtime by evictable_sizes.
          *              Index range depends on score_aggregation: without=[8-11], with=[9-12].
          *              Filled in pa_diversity_calc kernel.
-         * last       - Used for defining query block index for the currently processing subsequence and mapping
+         * 3          - Used for defining query block index for the currently processing subsequence and mapping
          *              gws index to subsequence idx. Values stored in pairs like:
          *              [block_idx0, subsequence_idx0, block_idx1, subsequence_idx0, ..., block_idx0, subsequence_idx1].
          *              Filled in paged_attention_inst::on_execute() call for sdpa-micro kernel only.
+         * 4          - Padded copy of the raw key input for the sdpa-micro prefill kernel. It rounds the
+         *              allocation up to KQ wg_tile_m rows and appends one guard tile so block K loads stay in bounds.
          */
 
         std::vector<BufferDescriptor> internal_buffers;
@@ -1718,7 +1765,17 @@ public:
             const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
+            OPENVINO_ASSERT(internal_buffers.size() == paged_attention_micro_sdpa_mapping_buffer_idx,
+                            "[GPU] Unexpected Paged Attention micro-SDPA mapping buffer index");
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
+
+            if (stage == PagedAttentionStage::PREFILL) {
+                const auto key_tile_tokens = get_micro_tile_ksize(pa_sdpa_micro->kd);
+                const auto rounded_key_bytes = get_rounded_key_buffer_bytes(params, key_tile_tokens);
+                OPENVINO_ASSERT(internal_buffers.size() == paged_attention_micro_sdpa_prefill_key_buffer_idx,
+                                "[GPU] Unexpected Paged Attention micro-SDPA prefill key buffer index");
+                internal_buffers.emplace_back(rounded_key_bytes, indexes_dt);
+            }
         }
 #endif
 
