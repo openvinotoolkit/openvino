@@ -20,10 +20,6 @@ constexpr auto get_vlsdpa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
-struct VLSDPARuntimeParams : public ImplRuntimeParams {
-    std::vector<int32_t> cu_seqlens;
-};
-
 class VLSDPAGenerator : public KernelGenerator {
 public:
     VLSDPAGenerator() : KernelGenerator("cm_sdpa_vlen") {}
@@ -103,7 +99,7 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             assert(!params.is_dynamic());
             auto desc = params.typed_desc<vl_sdpa>();
 
@@ -119,28 +115,27 @@ protected:
                 return transposed_pshape;
             };
             const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
-            const size_t num_q_heads = query_shape[query_shape.size() - 3];  // TODO: make it to be configuration of primitive_inst
+            const size_t num_q_heads = query_shape[query_shape.size() - 3];
 
-            const auto& vlsdpa_rt_params = static_cast<VLSDPARuntimeParams&>(*rt_params);
-            const auto& cu_seqlens = vlsdpa_rt_params.cu_seqlens;
+            // Read cu_seqlens via mem_lock — zero-cost on USM-host (PC), no GPU sync stall.
+            const auto cu_seqlens_mem = params.memory_deps.at(params.input_layouts.size() - 1);
+            mem_lock<int32_t, mem_lock_type::read> cu_seqlens_lock(cu_seqlens_mem, *params.strm);
 
             size_t max_seq_len = 0;
-            for (size_t i = 1; i < cu_seqlens.size(); i++) {
-                auto start_idx = cu_seqlens[i - 1];
-                auto end_idx = cu_seqlens[i];
+            for (size_t i = 1; i < cu_seqlens_lock.size(); i++) {
+                auto start_idx = cu_seqlens_lock[i - 1];
+                auto end_idx   = cu_seqlens_lock[i];
                 max_seq_len = std::max(max_seq_len, static_cast<size_t>(end_idx - start_idx));
             }
 
             const auto& info = params.get_device_info();
             const size_t CM_GRF_WIDTH = (info.arch <= gpu_arch::xe_hpc) ? 256 : 512;
-            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));  // or 8 on Xe1
+            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));
             size_t wg_size = static_cast<size_t>(std::floor((max_seq_len + q_step - 1) / q_step));
             int32_t need_wg_mapping = 0;
             if (wg_size > 16) {
-                // # seq_len is too big to fit into a single work-group
-                // # will use fixed work-group size 16, process 16*16 (or 16*8 on xe1)
-                // # part of sequence, in this case, kernel needs to figure-out which part
-                // # it needs to handle
+                // seq_len is too large for a single work-group; use wg_size=16 and let
+                // the kernel's while-loop scan cu_seqlens to find its sequence/block.
                 need_wg_mapping = 1;
                 wg_size = 16;
             }
@@ -149,13 +144,13 @@ protected:
             if (need_wg_mapping) {
                 wg_count = 0;
                 const auto wg_seq_len = wg_size * q_step;
-                for (size_t i = 1; i < cu_seqlens.size(); i++) {
-                    auto start_idx = cu_seqlens[i - 1];
-                    auto end_idx = cu_seqlens[i];
-                    wg_count += static_cast<size_t>(std::floor((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len));
+                for (size_t i = 1; i < cu_seqlens_lock.size(); i++) {
+                    auto start_idx = cu_seqlens_lock[i - 1];
+                    auto end_idx   = cu_seqlens_lock[i];
+                    wg_count += static_cast<size_t>((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len);
                 }
             } else {
-                wg_count = cu_seqlens.size() - 1;
+                wg_count = cu_seqlens_lock.size() - 1;
             }
 
             auto& wgs = kd.params.workGroups;
@@ -181,10 +176,10 @@ protected:
             std::vector<int32_t> scalars{need_wg_mapping, token_offset_q, token_offset_kv};
             kd.params.scalars.clear();
             for (auto i : scalars) {
-                scalar_desc desc;
-                desc.t = scalar_desc::Types::INT32;
-                desc.v.s32 = static_cast<int32_t>(i);
-                kd.params.scalars.push_back(desc);
+                scalar_desc s;
+                s.t = scalar_desc::Types::INT32;
+                s.v.s32 = static_cast<int32_t>(i);
+                kd.params.scalars.push_back(s);
             }
         }};
     }
@@ -196,30 +191,13 @@ public:
 
     Stage::Ptr vl_sdpa = make_stage<VLSDPAGenerator>();
 
-    VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {
-        m_rt_params = std::make_unique<VLSDPARuntimeParams>();
-    }
+    VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {}
     VLSDPAOptImpl(const program_node& node, const RuntimeParams& params) : VLSDPAOptImpl() {
         add_stage(vl_sdpa, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<VLSDPAOptImpl>(this);
-    }
-
-    void update_rt_params(const cldnn::primitive_inst& instance) override {
-        update_stages_flags(instance);
-
-        auto rt_params = static_cast<VLSDPARuntimeParams*>(m_rt_params.get());
-        auto& vlsdpa_instance = dynamic_cast<const typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
-        vlsdpa_instance.get_mask_seqlens_from_memory(rt_params->cu_seqlens);
-    }
-
-    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
-        if (m_rt_params == nullptr) {
-            m_rt_params = std::make_unique<VLSDPARuntimeParams>();
-        }
-        return PrimitiveImplCM::execute(events, instance);
     }
 };
 
