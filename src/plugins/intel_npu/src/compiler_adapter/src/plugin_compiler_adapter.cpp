@@ -301,7 +301,7 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
 
 bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
     if (compatibilityDescriptor.empty()) {
-        return false;
+        return true;  // no descriptor means no runtime requirements; treat as compatible
     }
 
     if (_zeroInitStruct && _zeroInitStruct->getDevice()) {

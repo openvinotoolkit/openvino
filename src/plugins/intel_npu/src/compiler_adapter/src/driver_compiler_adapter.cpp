@@ -341,7 +341,7 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 
 bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
     if (compatibilityDescriptor.empty()) {
-        return false;
+        return true;  // no descriptor means no runtime requirements; treat as compatible
     }
 
     if (_zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
