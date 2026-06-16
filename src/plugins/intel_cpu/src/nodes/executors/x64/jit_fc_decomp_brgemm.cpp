@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dnnl_fc_external_decompression.hpp"
+#include "jit_fc_decomp_brgemm.hpp"
 
+#include <any>
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -12,11 +13,15 @@
 #include <functional>
 #include <limits>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 #include "common/c_types_map.hpp"
+#include "common/primitive_attr.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
+#include "dnnl_extension_utils.h"
+#include "dnnl_postops_composer.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/memory_arguments.hpp"
@@ -64,6 +69,23 @@ struct DecompressionParamLayout {
 struct WeightsLayout {
     size_t inputChannels = 0;
     size_t outputChannels = 0;
+};
+
+bool hasBiasMemory(const MemoryArgs& memory);
+
+enum class ExecutionMode {
+    plainDecompress,
+    fusedPostOpsDecompress,
+    dynamicQuant,
+    dynamicQuantSeparatePostOps,
+};
+
+struct ExecutionPlan {
+    ExecutionMode mode = ExecutionMode::plainDecompress;
+    bool useDynamicQuant = false;
+    bool useFusedBrgemmPostOps = false;
+    bool useSeparateDynamicQuantPostOps = false;
+    bool canWriteDirectly = false;
 };
 
 int32_t readPackedValue(const uint8_t* data, ov::element::Type type, size_t index) {
@@ -376,6 +398,27 @@ bool supportsDynamicQuantization(const FCAttrs& attrs, const MemoryArgs& memory)
                                        memory.at(ARG_WEI)->getDescPtr(),
                                        scalesDesc,
                                        zeroPointsDesc);
+}
+
+ExecutionPlan buildExecutionPlan(const FCAttrs& attrs, const MemoryArgs& memory, const ov::element::Type dstType) {
+    ExecutionPlan plan;
+    const bool hasBias = hasBiasMemory(memory);
+    const bool hasPostOps = !attrs.postOps.empty();
+
+    plan.useDynamicQuant = supportsDynamicQuantization(attrs, memory);
+    plan.useFusedBrgemmPostOps = !plan.useDynamicQuant && (hasPostOps || hasBias);
+    plan.useSeparateDynamicQuantPostOps = plan.useDynamicQuant && (hasPostOps || hasBias);
+    plan.canWriteDirectly = !plan.useDynamicQuant && !plan.useFusedBrgemmPostOps && dstType == ov::element::f32;
+
+    if (plan.useSeparateDynamicQuantPostOps) {
+        plan.mode = ExecutionMode::dynamicQuantSeparatePostOps;
+    } else if (plan.useDynamicQuant) {
+        plan.mode = ExecutionMode::dynamicQuant;
+    } else if (plan.useFusedBrgemmPostOps) {
+        plan.mode = ExecutionMode::fusedPostOpsDecompress;
+    }
+
+    return plan;
 }
 
 void quantizeSourceDynamic(const float* srcData,
@@ -703,9 +746,193 @@ bool isSupportedDstType(const ov::element::Type type) {
     return dnnl::impl::utils::one_of(type, ov::element::f32, ov::element::bf16);
 }
 
+bool isSupportedDynamicQuantActivationPostOp(const ActivationPostOp::Type type) {
+    switch (type) {
+    case ActivationPostOp::Type::relu:
+    case ActivationPostOp::Type::tanh:
+    case ActivationPostOp::Type::elu:
+    case ActivationPostOp::Type::square:
+    case ActivationPostOp::Type::abs:
+    case ActivationPostOp::Type::sqrt:
+    case ActivationPostOp::Type::soft_relu:
+    case ActivationPostOp::Type::logistic:
+    case ActivationPostOp::Type::exp:
+    case ActivationPostOp::Type::gelu_erf:
+    case ActivationPostOp::Type::gelu_tanh:
+    case ActivationPostOp::Type::clip:
+    case ActivationPostOp::Type::swish:
+    case ActivationPostOp::Type::hardswish:
+    case ActivationPostOp::Type::mish:
+    case ActivationPostOp::Type::hsigmoid:
+    case ActivationPostOp::Type::round_half_to_even:
+    case ActivationPostOp::Type::round_half_away_from_zero:
+    case ActivationPostOp::Type::linear:
+    case ActivationPostOp::Type::floor:
+    case ActivationPostOp::Type::negative:
+    case ActivationPostOp::Type::ceiling:
+    case ActivationPostOp::Type::erf:
+    case ActivationPostOp::Type::soft_sign:
+    case ActivationPostOp::Type::log:
+        return true;
+    case ActivationPostOp::Type::powerstatic:
+        return false;
+    default:
+        return false;
+    }
+}
+
+bool isSupportedDynamicQuantPostOpChain(const PostOps& postOps) {
+    return std::all_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        if (const auto* const activationPostOp = std::any_cast<ActivationPostOp>(&postOp)) {
+            return isSupportedDynamicQuantActivationPostOp(activationPostOp->type());
+        }
+
+        if (const auto* const activationPostOp = std::any_cast<const ActivationPostOp>(&postOp)) {
+            return isSupportedDynamicQuantActivationPostOp(activationPostOp->type());
+        }
+
+        if (postOp.type() != typeid(ActivationPostOp)) {
+            return false;
+        }
+
+        return false;
+    });
+}
+
+bool isSupportedPostOpChain(const PostOps& postOps) {
+    return std::all_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        const auto& type = postOp.type();
+        return type == typeid(ActivationPostOp) || type == typeid(ScaleShiftPostOp) ||
+               type == typeid(FakeQuantizePostOp);
+    });
+}
+
+float applyActivationPostOp(float value, const ActivationPostOp& postOp) {
+    constexpr float sqrt2 = 1.4142135623730951F;
+    constexpr float sqrt2OverPi = 0.7978845608028654F;
+
+    switch (postOp.type()) {
+    case ActivationPostOp::Type::relu:
+        return value >= 0.0F ? value : postOp.alpha() * value;
+    case ActivationPostOp::Type::tanh:
+        return std::tanh(value);
+    case ActivationPostOp::Type::elu:
+        return value >= 0.0F ? value : postOp.alpha() * std::expm1(value);
+    case ActivationPostOp::Type::square:
+        return value * value;
+    case ActivationPostOp::Type::abs:
+        return std::fabs(value);
+    case ActivationPostOp::Type::sqrt:
+        return std::sqrt(value);
+    case ActivationPostOp::Type::soft_relu:
+        return value > 20.0F ? value : std::log1p(std::exp(value));
+    case ActivationPostOp::Type::logistic:
+        return 1.0F / (1.0F + std::exp(-value));
+    case ActivationPostOp::Type::exp:
+        return std::exp(value);
+    case ActivationPostOp::Type::gelu_erf:
+        return 0.5F * value * (1.0F + std::erf(value / sqrt2));
+    case ActivationPostOp::Type::gelu_tanh: {
+        const float cubic = value * value * value;
+        return 0.5F * value * (1.0F + std::tanh(sqrt2OverPi * (value + 0.044715F * cubic)));
+    }
+    case ActivationPostOp::Type::clip:
+        return std::max(postOp.alpha(), std::min(postOp.beta(), value));
+    case ActivationPostOp::Type::swish:
+        return value / (1.0F + std::exp(-postOp.alpha() * value));
+    case ActivationPostOp::Type::hardswish: {
+        const float gate = std::max(0.0F, std::min(1.0F, postOp.alpha() * value + postOp.beta()));
+        return value * gate;
+    }
+    case ActivationPostOp::Type::mish:
+        return value * std::tanh(value > 20.0F ? value : std::log1p(std::exp(value)));
+    case ActivationPostOp::Type::hsigmoid:
+        return std::max(0.0F, std::min(1.0F, postOp.alpha() * value + postOp.beta()));
+    case ActivationPostOp::Type::round_half_to_even:
+        return std::nearbyint(value);
+    case ActivationPostOp::Type::round_half_away_from_zero:
+        return value >= 0.0F ? std::floor(value + 0.5F) : std::ceil(value - 0.5F);
+    case ActivationPostOp::Type::linear:
+        return postOp.alpha() * value + postOp.beta();
+    case ActivationPostOp::Type::floor:
+        return std::floor(value);
+    case ActivationPostOp::Type::negative:
+        return -value;
+    case ActivationPostOp::Type::ceiling:
+        return std::ceil(value);
+    case ActivationPostOp::Type::erf:
+        return std::erf(value);
+    case ActivationPostOp::Type::soft_sign:
+        return value / (1.0F + std::fabs(value));
+    case ActivationPostOp::Type::log:
+        return std::log(value);
+    case ActivationPostOp::Type::powerstatic:
+        throw std::runtime_error("Unsupported dynamic-quantized post-op in separate stage");
+    default:
+        throw std::runtime_error("Unsupported dynamic-quantized post-op in separate stage");
+    }
+}
+
+void applyDynamicQuantSeparatePostOps(const FCAttrs& attrs,
+                                      const MemoryArgs& memory,
+                                      size_t rows,
+                                      size_t cols,
+                                      float* accumulationData) {
+    std::vector<float> biasCache;
+    const float* biasData = nullptr;
+    if (hasBiasMemory(memory)) {
+        const auto& biasMemory = memory.at(ARG_BIAS);
+        biasCache.resize(cols);
+        cpu_convert(biasMemory->getData(),
+                    biasCache.data(),
+                    biasMemory->getDesc().getPrecision(),
+                    ov::element::f32,
+                    biasCache.size());
+        biasData = biasCache.data();
+    }
+
+    for (size_t row = 0; row < rows; row++) {
+        float* dstRow = accumulationData + row * cols;
+
+        if (biasData != nullptr) {
+            for (size_t col = 0; col < cols; col++) {
+                dstRow[col] += biasData[col];
+            }
+        }
+
+        for (const auto& postOp : attrs.postOps) {
+            const auto* activationPostOp = std::any_cast<const ActivationPostOp>(&postOp);
+            OPENVINO_ASSERT(activationPostOp != nullptr,
+                            "Dynamic-quantized separate post-op stage supports activation post-ops only");
+            for (size_t col = 0; col < cols; col++) {
+                dstRow[col] = applyActivationPostOp(dstRow[col], *activationPostOp);
+            }
+        }
+    }
+}
+
+BrgemmKernelBinaryArgs extractBinaryPostOpArgs(const DnnlPrimitiveAttrs& primAttrs) {
+    BrgemmKernelBinaryArgs binaryArgs;
+    auto* primitiveAttr = primAttrs.attr.get();
+    const auto& postOps = primitiveAttr->post_ops_;
+    binaryArgs.reserve(postOps.entry_.size());
+
+    unsigned idx = 0;
+    for (const auto& postOp : postOps.entry_) {
+        if (postOp.is_binary() || postOp.is_depthwise() || postOp.is_quantization()) {
+            const auto it = primAttrs.cpuArgs.find(DNNL_ARG_ATTR_MULTIPLE_POST_OP(idx) | DNNL_ARG_SRC_1);
+            OPENVINO_ASSERT(it != primAttrs.cpuArgs.end() && it->second, "Missing binary post-op memory argument");
+            binaryArgs.emplace_back(it->second->getData());
+        }
+        ++idx;
+    }
+
+    return binaryArgs;
+}
+
 }  // namespace
 
-bool BrgemmFCExternalDecompressionExecutor::supports(const FCConfig& config) {
+bool JitFCDecompBrgemmExecutor::supports(const FCConfig& config) {
     if (!mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return false;
     }
@@ -734,7 +961,7 @@ bool BrgemmFCExternalDecompressionExecutor::supports(const FCConfig& config) {
         return false;
     }
 
-    if (!config.attrs.postOps.empty()) {
+    if (!isSupportedPostOpChain(config.attrs.postOps)) {
         return false;
     }
 
@@ -756,6 +983,10 @@ bool BrgemmFCExternalDecompressionExecutor::supports(const FCConfig& config) {
     }
 
     if (config.attrs.dynamicQuantizationGroupSize != 0) {
+        if (!isSupportedDynamicQuantPostOpChain(config.attrs.postOps)) {
+            return false;
+        }
+
         const auto scaleDesc = hasMemory(config, ARG_WEI | ARG_ATTR_SCALES) ? config.descs.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
         const auto zeroPointDesc = hasMemory(config, ARG_WEI | ARG_ATTR_ZERO_POINTS) ? config.descs.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
         return supportsDynamicQuantization(config.attrs,
@@ -768,22 +999,23 @@ bool BrgemmFCExternalDecompressionExecutor::supports(const FCConfig& config) {
     return true;
 }
 
-BrgemmFCExternalDecompressionExecutor::BrgemmFCExternalDecompressionExecutor(const FCAttrs& attrs,
-                                                                             const MemoryArgs& memory,
-                                                                             const ExecutorContext::CPtr& context)
+JitFCDecompBrgemmExecutor::JitFCDecompBrgemmExecutor(const FCAttrs& attrs,
+                             const MemoryArgs& memory,
+                             const ExecutorContext::CPtr& context)
     : m_attrs(attrs),
             m_context(context) {}
 
-BrgemmFCExternalDecompressionExecutor::~BrgemmFCExternalDecompressionExecutor() = default;
+JitFCDecompBrgemmExecutor::~JitFCDecompBrgemmExecutor() = default;
 
-void BrgemmFCExternalDecompressionExecutor::ensureDecompressedWeightsMemory(const MemoryArgs& memory) {
+void JitFCDecompBrgemmExecutor::ensureDecompressedWeightsMemory(const MemoryArgs& memory) {
     m_decompressedWeights = prepareDecompressedWeightsMemory(memory, m_attrs, m_context, m_decompressedWeights);
 }
 
-void BrgemmFCExternalDecompressionExecutor::rebuildKernel(const MemoryArgs& memory) {
+void JitFCDecompBrgemmExecutor::rebuildKernel(const MemoryArgs& memory) {
     const auto& srcMemory = memory.at(ARG_SRC);
+    const auto& dstMemory = memory.at(ARG_DST);
     const auto weightsLayout = getWeightsLayout(m_attrs, memory);
-    const bool useDynamicQuant = supportsDynamicQuantization(m_attrs, memory);
+    const auto plan = buildExecutionPlan(m_attrs, memory, dstMemory->getDesc().getPrecision());
 
     const size_t newM = flattenedRows(srcMemory);
     const size_t newK = srcMemory->getStaticDims().back();
@@ -803,61 +1035,184 @@ void BrgemmFCExternalDecompressionExecutor::rebuildKernel(const MemoryArgs& memo
     m_brgemmNBlock = 0;
     if (m_m >= BrgemmKernel::get_mblk_size() && m_n == 32) {
         constexpr size_t stableNBlock = 32;
-        if (useDynamicQuant) {
+        if (plan.useDynamicQuant) {
             const size_t dqGroupSize = static_cast<size_t>(m_attrs.dynamicQuantizationGroupSize);
-            const size_t kTail = m_k % dqGroupSize;
+            const size_t brgemmKTail = m_k % dqGroupSize;
             if (dqGroupSize >= 32) {
-                const auto weiType = isUnsignedCompressedWeightsType(memory.at(ARG_WEI)->getDesc().getPrecision())
-                                             ? ov::element::u8
-                                             : ov::element::i8;
+                // Dynamic quantization unpacks u4/i4 weights into byte-wide values before BRGEMM,
+                // so BRGEMM B always consumes u8/i8 even when the original FC weights tensor is 4-bit.
+                const auto brgemmBType = isUnsignedCompressedWeightsType(memory.at(ARG_WEI)->getDesc().getPrecision())
+                                                ? ov::element::u8
+                                                : ov::element::i8;
+                constexpr bool brgemmBIsTransposed = false;
+                constexpr bool accumulateIntoBrgemmC = false;
+                const auto brgemmAType = ov::element::i8;
+                const size_t brgemmN = stableNBlock;
+                const size_t brgemmLda = m_k;
+                const size_t brgemmLdb = m_n;
+                const size_t brgemmLdc = brgemmN;
                 m_brgemmNBlock = stableNBlock;
                 m_brgemmKernel = std::make_shared<BrgemmKernel>(m_m,
-                                                                stableNBlock,
+                                                                brgemmN,
                                                                 dqGroupSize,
-                                                                m_k,
-                                                                m_n,
-                                                                stableNBlock,
-                                                                false,
-                                                                ov::element::i8,
-                                                                weiType,
-                                                                false);
-                if (kTail != 0) {
+                                                                brgemmLda,
+                                                                brgemmLdb,
+                                                                brgemmLdc,
+                                                                brgemmBIsTransposed,
+                                                                brgemmAType,
+                                                                brgemmBType,
+                                                                accumulateIntoBrgemmC);
+                if (brgemmKTail != 0) {
                     m_brgemmTailKernel = std::make_shared<BrgemmKernel>(m_m,
-                                                                        stableNBlock,
-                                                                        kTail,
-                                                                        m_k,
-                                                                        m_n,
-                                                                        stableNBlock,
-                                                                        false,
-                                                                        ov::element::i8,
-                                                                        weiType,
-                                                                        false);
+                                                                        brgemmN,
+                                                                        brgemmKTail,
+                                                                        brgemmLda,
+                                                                        brgemmLdb,
+                                                                        brgemmLdc,
+                                                                        brgemmBIsTransposed,
+                                                                        brgemmAType,
+                                                                        brgemmBType,
+                                                                        accumulateIntoBrgemmC);
                 }
             }
         } else if (m_k >= 32) {
+            constexpr bool brgemmBIsTransposed = false;
+            const auto brgemmAType = ov::element::f32;
+            const size_t brgemmN = stableNBlock;
+            const size_t brgemmLda = m_k;
+            const size_t brgemmLdb = m_n;
+            const size_t brgemmLdc = brgemmN;
             m_brgemmNBlock = stableNBlock;
             m_brgemmKernel = std::make_shared<BrgemmKernel>(m_m,
-                                                            stableNBlock,
+                                                            brgemmN,
                                                             m_k,
-                                                            m_k,
-                                                            m_n,
-                                                            m_n,
-                                                            false,
-                                                            ov::element::f32);
+                                                            brgemmLda,
+                                                            brgemmLdb,
+                                                            brgemmLdc,
+                                                            brgemmBIsTransposed,
+                                                            brgemmAType);
+        }
+    }
+    if (plan.useDynamicQuant && m_brgemmKernel == nullptr) {
+        const size_t dqGroupSize = static_cast<size_t>(m_attrs.dynamicQuantizationGroupSize);
+        const size_t brgemmKTail = m_k % dqGroupSize;
+        const auto brgemmBType = isUnsignedCompressedWeightsType(memory.at(ARG_WEI)->getDesc().getPrecision())
+                                        ? ov::element::u8
+                                        : ov::element::i8;
+        constexpr bool brgemmBIsTransposed = false;
+        constexpr bool accumulateIntoBrgemmC = false;
+        const auto brgemmAType = ov::element::i8;
+        const size_t brgemmN = m_n;
+        const size_t brgemmLda = m_k;
+        const size_t brgemmLdb = m_n;
+        const size_t brgemmLdc = brgemmN;
+
+        m_brgemmKernel = std::make_shared<BrgemmKernel>(m_m,
+                                                        brgemmN,
+                                                        dqGroupSize,
+                                                        brgemmLda,
+                                                        brgemmLdb,
+                                                        brgemmLdc,
+                                                        brgemmBIsTransposed,
+                                                        brgemmAType,
+                                                        brgemmBType,
+                                                        accumulateIntoBrgemmC);
+        if (brgemmKTail != 0) {
+            m_brgemmTailKernel = std::make_shared<BrgemmKernel>(m_m,
+                                                                brgemmN,
+                                                                brgemmKTail,
+                                                                brgemmLda,
+                                                                brgemmLdb,
+                                                                brgemmLdc,
+                                                                brgemmBIsTransposed,
+                                                                brgemmAType,
+                                                                brgemmBType,
+                                                                accumulateIntoBrgemmC);
         }
     }
     rebuildDecompressionKernel(memory);
     rebuildSourceQuantizationKernel(memory);
+
+    BrgemmKernelPostOpsConfig postOpsConfig;
+    BrgemmKernelBinaryArgs binaryArgs;
+    if (plan.useFusedBrgemmPostOps) {
+        if (!m_attrs.postOps.empty()) {
+            const auto primAttrs = buildBrgemmPostOps(memory);
+            postOpsConfig.attr = primAttrs.attr;
+            postOpsConfig.cpuArgs = primAttrs.cpuArgs;
+            binaryArgs = extractBinaryPostOpArgs(primAttrs);
+        }
+        postOpsConfig.dstType = dstMemory->getDesc().getPrecision();
+        postOpsConfig.biasType = hasBiasMemory(memory) ? dstMemory->getDesc().getPrecision() : ov::element::dynamic;
+        postOpsConfig.enabled = true;
+    }
+
+    if (plan.useFusedBrgemmPostOps || m_brgemmKernel == nullptr) {
+        m_brgemmTailKernel.reset();
+        m_brgemmNBlock = 0;
+        constexpr bool brgemmBIsTransposed = false;
+        constexpr bool accumulateIntoBrgemmC = false;
+        const auto brgemmAType = ov::element::f32;
+        const size_t brgemmN = m_n;
+        const size_t brgemmLda = m_k;
+        const size_t brgemmLdb = m_n;
+        const size_t brgemmLdc = brgemmN;
+        if (plan.useFusedBrgemmPostOps) {
+            m_brgemmKernel = std::make_shared<BrgemmKernel>(m_m,
+                                                            brgemmN,
+                                                            m_k,
+                                                            brgemmLda,
+                                                            brgemmLdb,
+                                                            brgemmLdc,
+                                                            brgemmBIsTransposed,
+                                                            brgemmAType,
+                                                            postOpsConfig,
+                                                            accumulateIntoBrgemmC);
+            if (!binaryArgs.empty()) {
+                m_brgemmKernel->setPostOpBinaryArgs(std::move(binaryArgs));
+            }
+        } else {
+            postOpsConfig.dstType = dstMemory->getDesc().getPrecision();
+            postOpsConfig.enabled = true;
+            m_brgemmKernel = std::make_shared<BrgemmKernel>(m_m,
+                                                            brgemmN,
+                                                            m_k,
+                                                            brgemmLda,
+                                                            brgemmLdb,
+                                                            brgemmLdc,
+                                                            brgemmBIsTransposed,
+                                                            brgemmAType,
+                                                            postOpsConfig,
+                                                            accumulateIntoBrgemmC);
+        }
+    }
+
     m_packedWeights.clear();
     const size_t scratchASize = std::max(m_brgemmKernel ? m_brgemmKernel->get_scratch_a_size() : 0,
                                          m_brgemmTailKernel ? m_brgemmTailKernel->get_scratch_a_size() : 0);
     m_scratchA.resize(m_brgemmKernel ? m_threads * scratchASize : 0);
     m_wsp.resize(m_brgemmKernel ? m_threads * BrgemmKernel::get_wsp_size() : 0);
     m_accum.clear();
-    m_groupAccum.resize(useDynamicQuant && m_brgemmKernel ? m_threads * BrgemmKernel::get_mblk_size() * m_n : 0);
+    m_groupAccum.resize(plan.useDynamicQuant && m_brgemmKernel ? m_threads * BrgemmKernel::get_mblk_size() * m_n : 0);
 }
 
-void BrgemmFCExternalDecompressionExecutor::rebuildDecompressionKernel(const MemoryArgs& memory) {
+DnnlPrimitiveAttrs JitFCDecompBrgemmExecutor::buildBrgemmPostOps(const MemoryArgs& memory) const {
+    const auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(memory.at(ARG_DST)->getDesc().getPrecision());
+    DnnlPostOpsComposer composer(m_attrs.postOps,
+                                 m_context->getEngine(),
+                                 {m_m, m_n},
+                                 1,
+                                 false,
+                                 1 << 0,
+                                 memory,
+                                 outputDataType,
+                                 {},
+                                 PostOpsMode::Original,
+                                 false);
+    return composer.compose();
+}
+
+void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& memory) {
     m_jitDecompressionKernel.reset();
     m_jitWeightUnpackKernel.reset();
 
@@ -899,7 +1254,7 @@ void BrgemmFCExternalDecompressionExecutor::rebuildDecompressionKernel(const Mem
     }
 }
 
-void BrgemmFCExternalDecompressionExecutor::rebuildSourceQuantizationKernel(const MemoryArgs& memory) {
+void JitFCDecompBrgemmExecutor::rebuildSourceQuantizationKernel(const MemoryArgs& memory) {
     m_jitSourceQuantKernel.reset();
 
     if (!supportsDynamicQuantization(m_attrs, memory)) {
@@ -917,12 +1272,12 @@ void BrgemmFCExternalDecompressionExecutor::rebuildSourceQuantizationKernel(cons
     }
 }
 
-void BrgemmFCExternalDecompressionExecutor::refreshDecompressedWeights(const MemoryArgs& memory) {
+void JitFCDecompBrgemmExecutor::refreshDecompressedWeights(const MemoryArgs& memory) {
     ensureDecompressedWeightsMemory(memory);
     decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernel.get());
 }
 
-void BrgemmFCExternalDecompressionExecutor::refreshDynamicQuantWeights(const MemoryArgs& memory) {
+void JitFCDecompBrgemmExecutor::refreshDynamicQuantWeights(const MemoryArgs& memory) {
     const size_t dqGroupSize = static_cast<size_t>(m_attrs.dynamicQuantizationGroupSize);
     refreshDynamicQuantWeightParams(m_attrs,
                                     memory,
@@ -944,21 +1299,23 @@ void BrgemmFCExternalDecompressionExecutor::refreshDynamicQuantWeights(const Mem
     m_packedWeights.resize(fullGroups * mainPackedSize + (m_brgemmTailKernel ? tailPackedSize : 0));
 
     for (size_t group = 0; group < fullGroups; group++) {
-        m_brgemmKernel->copy_buffer_b(m_dynamicQuantWeights.data() + group * dqGroupSize * m_n,
-                                      m_packedWeights.data() + group * mainPackedSize);
+        auto* brgemmBGroupSrc = m_dynamicQuantWeights.data() + group * dqGroupSize * m_n;
+        auto* brgemmBGroupDst = m_packedWeights.data() + group * mainPackedSize;
+        m_brgemmKernel->copy_buffer_b(brgemmBGroupSrc, brgemmBGroupDst);
     }
 
     if (m_brgemmTailKernel != nullptr) {
-        m_brgemmTailKernel->copy_buffer_b(m_dynamicQuantWeights.data() + fullGroups * dqGroupSize * m_n,
-                                          m_packedWeights.data() + fullGroups * mainPackedSize);
+        auto* brgemmBTailSrc = m_dynamicQuantWeights.data() + fullGroups * dqGroupSize * m_n;
+        auto* brgemmBTailDst = m_packedWeights.data() + fullGroups * mainPackedSize;
+        m_brgemmTailKernel->copy_buffer_b(brgemmBTailSrc, brgemmBTailDst);
     }
 }
 
-bool BrgemmFCExternalDecompressionExecutor::requiresPackedWeights() const {
+bool JitFCDecompBrgemmExecutor::requiresPackedWeights() const {
     return false;
 }
 
-bool BrgemmFCExternalDecompressionExecutor::update(const MemoryArgs& memory) {
+bool JitFCDecompBrgemmExecutor::update(const MemoryArgs& memory) {
     if (!memory.at(ARG_SRC)->getDesc().getShape().isStatic() ||
         !memory.at(ARG_WEI)->getDesc().getShape().isStatic() ||
         !memory.at(ARG_DST)->getDesc().getShape().isStatic()) {
@@ -970,42 +1327,250 @@ bool BrgemmFCExternalDecompressionExecutor::update(const MemoryArgs& memory) {
     return true;
 }
 
-void BrgemmFCExternalDecompressionExecutor::executeBrgemm(const MemoryArgs& memory) {
+const float* JitFCDecompBrgemmExecutor::prepareBrgemmSourceData(const MemoryPtr& srcMemory,
+                                                                 std::vector<float>& srcCache) const {
+    if (srcMemory->getDesc().getPrecision() == ov::element::f32) {
+        return srcMemory->getDataAs<const float>();
+    }
+
+    srcCache.resize(m_m * m_k);
+    cpu_convert(srcMemory->getData(),
+                srcCache.data(),
+                srcMemory->getDesc().getPrecision(),
+                ov::element::f32,
+                srcCache.size());
+    return srcCache.data();
+}
+
+const void* JitFCDecompBrgemmExecutor::prepareBrgemmWeights(const float* decompressedWeightsData,
+                                                             bool useDynamicQuant) {
+    const size_t scratchBSize = m_brgemmKernel->get_scratch_b_size();
+    if (!useDynamicQuant && scratchBSize != 0) {
+        m_packedWeights.resize(scratchBSize);
+        m_brgemmKernel->copy_buffer_b(const_cast<float*>(decompressedWeightsData), m_packedWeights.data());
+        return m_packedWeights.data();
+    }
+
+    return decompressedWeightsData;
+}
+
+const void* JitFCDecompBrgemmExecutor::prepareFusedBiasData(const MemoryArgs& memory,
+                                                             std::vector<float>& biasCache) const {
+    if (!hasBiasMemory(memory)) {
+        return nullptr;
+    }
+
+    const auto& biasMemory = memory.at(ARG_BIAS);
+    biasCache.resize(m_n);
+    cpu_convert(biasMemory->getData(),
+                biasCache.data(),
+                biasMemory->getDesc().getPrecision(),
+                ov::element::f32,
+                biasCache.size());
+    return biasCache.data();
+}
+
+void JitFCDecompBrgemmExecutor::executeDynamicQuantBrgemm(float* accumulationData,
+                                                          size_t quantizedSrcGroups,
+                                                          const int8_t* quantizedSrcData,
+                                                          const float* quantizedSrcScales) {
+    const size_t dqGroupSize = static_cast<size_t>(m_attrs.dynamicQuantizationGroupSize);
+    const size_t mBlockSize = m_brgemmKernel->get_mblk_size();
+    const size_t mBlocks = (m_m + mBlockSize - 1) / mBlockSize;
+    const size_t fullGroups = m_k / dqGroupSize;
+    const size_t packedGroupSize = m_brgemmKernel->get_scratch_b_size();
+    const size_t packedTailOffset = fullGroups * packedGroupSize;
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0;
+        size_t end = 0;
+        splitter(mBlocks, nthr, ithr, start, end);
+
+        auto* wspPtr = m_wsp.empty() ? nullptr : m_wsp.data() + ithr * BrgemmKernel::get_wsp_size();
+        auto* scratchAPtr = m_scratchA.empty() ? nullptr : m_scratchA.data() + ithr * (m_scratchA.size() / m_threads);
+        auto* groupAccum = m_groupAccum.empty() ? nullptr : m_groupAccum.data() + ithr * mBlockSize * m_n;
+
+        for (size_t block = start; block < end; block++) {
+            const size_t mStart = block * mBlockSize;
+            const size_t mEnd = std::min(mStart + mBlockSize, m_m);
+            const size_t mCount = mEnd - mStart;
+
+            for (size_t group = 0; group < quantizedSrcGroups; group++) {
+                const size_t kStart = group * dqGroupSize;
+                const size_t kCount = std::min(dqGroupSize, m_k - kStart);
+                auto* kernel = kCount == dqGroupSize ? m_brgemmKernel.get() : m_brgemmTailKernel.get();
+                OPENVINO_ASSERT(kernel != nullptr, "Dynamic-quantized BRGEMM tail kernel is not available");
+                OPENVINO_ASSERT(groupAccum != nullptr, "Dynamic-quantized BRGEMM requires per-thread accumulation buffer");
+
+                std::fill(groupAccum, groupAccum + mCount * m_n, 0);
+
+                auto* packedWeights = reinterpret_cast<void*>(m_packedWeights.data()
+                                                              + (group < fullGroups ? group * packedGroupSize : packedTailOffset));
+                const bool isBrgemmMTail = mCount < mBlockSize;
+                auto* brgemmABlock = const_cast<int8_t*>(quantizedSrcData + mStart * m_k + kStart);
+                auto* brgemmBBlock = packedWeights;
+                auto* brgemmCBlock = groupAccum;
+                kernel->executeGemm(isBrgemmMTail,
+                                    brgemmABlock,
+                                    brgemmBBlock,
+                                    brgemmCBlock,
+                                    nullptr,
+                                    nullptr,
+                                    wspPtr,
+                                    scratchAPtr);
+
+                for (size_t row = 0; row < mCount; row++) {
+                    const float srcScale = quantizedSrcScales[(mStart + row) * quantizedSrcGroups + group];
+                    const int32_t srcSum = m_dynamicQuantGroupedSums[(mStart + row) * quantizedSrcGroups + group];
+                    float* dstRow = accumulationData + (mStart + row) * m_n;
+                    const int32_t* brgemmCRow = groupAccum + row * m_n;
+                    const float* brgemmBScales = m_dynamicQuantWeightScales.data() + group * m_n;
+                    const float* brgemmBZeroPoints = m_dynamicQuantWeightZeroPoints.data() + group * m_n;
+
+                    for (size_t col = 0; col < m_n; col++) {
+                        const float scale = srcScale * brgemmBScales[col];
+                        const float compensation = static_cast<float>(srcSum) * brgemmBZeroPoints[col] * scale;
+                        dstRow[col] += static_cast<float>(brgemmCRow[col]) * scale - compensation;
+                    }
+                }
+            }
+        }
+    });
+}
+
+void JitFCDecompBrgemmExecutor::executeFusedPostOpsBrgemm(const MemoryArgs& memory,
+                                                          const float* fcSrcData,
+                                                          const void* brgemmBData,
+                                                          const void* biasData) {
+    const auto& dstMemory = memory.at(ARG_DST);
+    const auto dstType = dstMemory->getDesc().getPrecision();
+    const size_t scratchASize = m_brgemmKernel->get_scratch_a_size();
+    const size_t wspSize = BrgemmKernel::get_wsp_size();
+    const size_t mblk = BrgemmKernel::get_mblk_size();
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0;
+        size_t end = 0;
+        splitter((m_m + mblk - 1) / mblk, nthr, ithr, start, end);
+
+        auto* threadScratchA = scratchASize == 0 ? nullptr : m_scratchA.data() + ithr * scratchASize;
+        auto* threadWsp = m_wsp.data() + ithr * wspSize;
+
+        for (size_t block = start; block < end; block++) {
+            const size_t row = block * mblk;
+            const bool isTail = row + mblk > m_m;
+            auto* brgemmABlock = const_cast<float*>(fcSrcData + row * m_k);
+            auto* brgemmDBlock = reinterpret_cast<uint8_t*>(dstMemory->getData()) + row * m_n * dstType.size();
+
+            BrgemmKernelPostOpsCallArgs postOpsArgs;
+            postOpsArgs.bias = biasData;
+            postOpsArgs.dstDataAnchor = reinterpret_cast<const char*>(dstMemory->getData());
+            postOpsArgs.dstRowLogicalOffset = row * m_n;
+            m_brgemmKernel->executeGemmWithPostOps(isTail,
+                                                   brgemmABlock,
+                                                   const_cast<void*>(brgemmBData),
+                                                   brgemmDBlock,
+                                                   brgemmDBlock,
+                                                   nullptr,
+                                                   threadWsp,
+                                                   threadScratchA,
+                                                   postOpsArgs);
+        }
+    });
+}
+
+void JitFCDecompBrgemmExecutor::executePlainBrgemm(const float* fcSrcData,
+                                                   const float* decompressedWeightsData,
+                                                   const void* brgemmBData,
+                                                   float* accumulationData) {
+    const size_t mBlockSize = m_brgemmKernel->get_mblk_size();
+    const size_t mBlocks = (m_m + mBlockSize - 1) / mBlockSize;
+    const size_t nBlock = m_brgemmNBlock;
+    const size_t fullN = nBlock == 0 ? 0 : (m_n / nBlock) * nBlock;
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0;
+        size_t end = 0;
+        splitter(mBlocks, nthr, ithr, start, end);
+
+        auto* wspPtr = m_wsp.empty() ? nullptr : m_wsp.data() + ithr * BrgemmKernel::get_wsp_size();
+        auto* scratchAPtr = m_scratchA.empty() ? nullptr : m_scratchA.data() + ithr * (m_scratchA.size() / m_threads);
+
+        for (size_t block = start; block < end; block++) {
+            const size_t mStart = block * mBlockSize;
+            const size_t mEnd = std::min(mStart + mBlockSize, m_m);
+            const size_t mCount = mEnd - mStart;
+            float* brgemmABlock = const_cast<float*>(fcSrcData + mStart * m_k);
+
+            BrgemmKernelPostOpsCallArgs postOpsArgs;
+            postOpsArgs.dstDataAnchor = reinterpret_cast<const char*>(accumulationData);
+            postOpsArgs.dstRowLogicalOffset = mStart * m_n;
+
+            for (size_t nStart = 0; nStart < fullN; nStart += nBlock) {
+                const bool isBrgemmMTail = mCount < mBlockSize;
+                auto* brgemmBBlock = const_cast<float*>(decompressedWeightsData + nStart);
+                auto* brgemmCBlock = accumulationData + mStart * m_n + nStart;
+                m_brgemmKernel->executeGemm(isBrgemmMTail,
+                                            brgemmABlock,
+                                            brgemmBBlock,
+                                            brgemmCBlock,
+                                            nullptr,
+                                            nullptr,
+                                            wspPtr,
+                                            scratchAPtr);
+            }
+
+            if (nBlock == 0) {
+                auto* brgemmCBlock = accumulationData + mStart * m_n;
+                m_brgemmKernel->executeGemmWithPostOps(mCount < mBlockSize,
+                                                       brgemmABlock,
+                                                       const_cast<void*>(brgemmBData),
+                                                       brgemmCBlock,
+                                                       brgemmCBlock,
+                                                       nullptr,
+                                                       wspPtr,
+                                                       scratchAPtr,
+                                                       postOpsArgs);
+            } else if (m_brgemmTailKernel != nullptr) {
+                auto* brgemmBTailBlock = const_cast<float*>(decompressedWeightsData + fullN);
+                auto* brgemmCTailBlock = accumulationData + mStart * m_n + fullN;
+                m_brgemmTailKernel->executeGemm(mCount < mBlockSize,
+                                                brgemmABlock,
+                                                brgemmBTailBlock,
+                                                brgemmCTailBlock,
+                                                nullptr,
+                                                nullptr,
+                                                wspPtr,
+                                                scratchAPtr);
+            }
+        }
+    });
+}
+
+void JitFCDecompBrgemmExecutor::executeBrgemm(const MemoryArgs& memory) {
     const auto& srcMemory = memory.at(ARG_SRC);
     const auto& dstMemory = memory.at(ARG_DST);
     const auto dstType = dstMemory->getDesc().getPrecision();
-    const bool useDynamicQuant = supportsDynamicQuantization(m_attrs, memory);
-    const bool hasBias = hasBiasMemory(memory);
-    const bool canWriteDirectly = !useDynamicQuant && !hasBias && dstType == ov::element::f32;
+    const auto plan = buildExecutionPlan(m_attrs, memory, dstType);
 
-    if (!canWriteDirectly) {
+    if (!plan.canWriteDirectly) {
         m_accum.resize(m_m * m_n);
     }
 
-    auto* accumData = canWriteDirectly ? dstMemory->getDataAs<float>() : m_accum.data();
-    if (useDynamicQuant) {
-        std::fill(accumData, accumData + m_m * m_n, 0.0F);
+    // FC tensors map to BRGEMM operands as src -> A, weights -> B, accumulation buffer -> C, dst -> D.
+    auto* accumulationData = plan.canWriteDirectly ? dstMemory->getDataAs<float>() : m_accum.data();
+    if (plan.useDynamicQuant) {
+        std::fill(accumulationData, accumulationData + m_m * m_n, 0.0F);
     }
     std::vector<float> srcCache;
-    const float* srcData = nullptr;
-    if (srcMemory->getDesc().getPrecision() == ov::element::f32) {
-        srcData = srcMemory->getDataAs<const float>();
-    } else {
-        srcCache.resize(m_m * m_k);
-        cpu_convert(srcMemory->getData(),
-                    srcCache.data(),
-                    srcMemory->getDesc().getPrecision(),
-                    ov::element::f32,
-                    srcCache.size());
-        srcData = srcCache.data();
-    }
+    const float* fcSrcData = prepareBrgemmSourceData(srcMemory, srcCache);
 
-    const int8_t* qsrcData = nullptr;
-    const float* qsrcScales = nullptr;
-    size_t qsrcGroups = 0;
+    const int8_t* quantizedSrcData = nullptr;
+    const float* quantizedSrcScales = nullptr;
+    size_t quantizedSrcGroups = 0;
     const size_t dqGroupSize = static_cast<size_t>(m_attrs.dynamicQuantizationGroupSize);
-    if (useDynamicQuant) {
-        quantizeSourceDynamic(srcData,
+    if (plan.useDynamicQuant) {
+        quantizeSourceDynamic(fcSrcData,
                               m_m,
                               m_k,
                               dqGroupSize,
@@ -1013,185 +1578,40 @@ void BrgemmFCExternalDecompressionExecutor::executeBrgemm(const MemoryArgs& memo
                               m_dynamicQuantizedSrc,
                               m_dynamicQuantScales,
                               m_dynamicQuantGroupedSums);
-        qsrcData = m_dynamicQuantizedSrc.data();
-        qsrcScales = m_dynamicQuantScales.data();
-        qsrcGroups = (m_k + dqGroupSize - 1) / dqGroupSize;
+        quantizedSrcData = m_dynamicQuantizedSrc.data();
+        quantizedSrcScales = m_dynamicQuantScales.data();
+        quantizedSrcGroups = (m_k + dqGroupSize - 1) / dqGroupSize;
     }
 
-    const float* weightsData = m_decompressedWeights->getDataAs<const float>();
+    const float* decompressedWeightsData = m_decompressedWeights->getDataAs<const float>();
+    OPENVINO_ASSERT(m_brgemmKernel != nullptr, "BRGEMM kernel is not initialized");
 
-    if (m_brgemmKernel != nullptr) {
-        if (useDynamicQuant) {
-            const size_t mBlockSize = m_brgemmKernel->get_mblk_size();
-            const size_t mBlocks = (m_m + mBlockSize - 1) / mBlockSize;
-            const size_t fullGroups = m_k / dqGroupSize;
-            const size_t packedGroupSize = m_brgemmKernel->get_scratch_b_size();
-            const size_t packedTailOffset = fullGroups * packedGroupSize;
+    const void* brgemmBData = prepareBrgemmWeights(decompressedWeightsData, plan.useDynamicQuant);
 
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                size_t start = 0;
-                size_t end = 0;
-                splitter(mBlocks, nthr, ithr, start, end);
+    const size_t scratchASize = m_brgemmKernel->get_scratch_a_size();
+    const size_t wspSize = BrgemmKernel::get_wsp_size();
+    m_scratchA.resize(scratchASize * m_threads);
+    m_wsp.resize(wspSize * m_threads);
+    std::vector<float> biasCache;
+    const void* biasData = plan.useFusedBrgemmPostOps ? prepareFusedBiasData(memory, biasCache) : nullptr;
 
-                auto* wspPtr = m_wsp.empty() ? nullptr : m_wsp.data() + ithr * BrgemmKernel::get_wsp_size();
-                auto* scratchAPtr = m_scratchA.empty() ? nullptr : m_scratchA.data() + ithr * (m_scratchA.size() / m_threads);
-                auto* groupAccum = m_groupAccum.empty() ? nullptr : m_groupAccum.data() + ithr * mBlockSize * m_n;
-
-                for (size_t block = start; block < end; block++) {
-                    const size_t mStart = block * mBlockSize;
-                    const size_t mEnd = std::min(mStart + mBlockSize, m_m);
-                    const size_t mCount = mEnd - mStart;
-
-                    for (size_t group = 0; group < qsrcGroups; group++) {
-                        const size_t kStart = group * dqGroupSize;
-                        const size_t kCount = std::min(dqGroupSize, m_k - kStart);
-                        auto* kernel = kCount == dqGroupSize ? m_brgemmKernel.get() : m_brgemmTailKernel.get();
-                        OPENVINO_ASSERT(kernel != nullptr, "Dynamic-quantized BRGEMM tail kernel is not available");
-                        OPENVINO_ASSERT(groupAccum != nullptr, "Dynamic-quantized BRGEMM requires per-thread accumulation buffer");
-
-                        std::fill(groupAccum, groupAccum + mCount * m_n, 0);
-
-                        auto* packedWeights = reinterpret_cast<void*>(m_packedWeights.data()
-                                                                      + (group < fullGroups ? group * packedGroupSize
-                                                                                            : packedTailOffset));
-                        kernel->executeGemm(mCount < mBlockSize,
-                                            const_cast<int8_t*>(qsrcData + mStart * m_k + kStart),
-                                            packedWeights,
-                                            groupAccum,
-                                            nullptr,
-                                            nullptr,
-                                            wspPtr,
-                                            scratchAPtr);
-
-                        for (size_t row = 0; row < mCount; row++) {
-                            const float srcScale = qsrcScales[(mStart + row) * qsrcGroups + group];
-                            const int32_t srcSum = m_dynamicQuantGroupedSums[(mStart + row) * qsrcGroups + group];
-                            float* dstRow = accumData + (mStart + row) * m_n;
-                            const int32_t* groupRow = groupAccum + row * m_n;
-                            const float* weiScales = m_dynamicQuantWeightScales.data() + group * m_n;
-                            const float* weiZeroPoints = m_dynamicQuantWeightZeroPoints.data() + group * m_n;
-
-                            for (size_t col = 0; col < m_n; col++) {
-                                const float scale = srcScale * weiScales[col];
-                                const float compensation = static_cast<float>(srcSum) * weiZeroPoints[col] * scale;
-                                dstRow[col] += static_cast<float>(groupRow[col]) * scale - compensation;
-                            }
-                        }
-                    }
-                }
-            });
-            return;
-        }
-
-        const size_t mBlockSize = m_brgemmKernel->get_mblk_size();
-        const size_t mBlocks = (m_m + mBlockSize - 1) / mBlockSize;
-        const size_t nBlock = m_brgemmNBlock;
-        const size_t fullN = (m_n / nBlock) * nBlock;
-
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0;
-            size_t end = 0;
-            splitter(mBlocks, nthr, ithr, start, end);
-
-            auto* wspPtr = m_wsp.empty() ? nullptr : m_wsp.data() + ithr * BrgemmKernel::get_wsp_size();
-            auto* scratchAPtr = m_scratchA.empty() ? nullptr : m_scratchA.data() + ithr * (m_scratchA.size() / m_threads);
-
-            for (size_t block = start; block < end; block++) {
-                const size_t mStart = block * mBlockSize;
-                const size_t mEnd = std::min(mStart + mBlockSize, m_m);
-                const size_t mCount = mEnd - mStart;
-                float* brgemmSrc = const_cast<float*>(srcData + mStart * m_k);
-
-                for (size_t nStart = 0; nStart < fullN; nStart += nBlock) {
-                    m_brgemmKernel->executeGemm(mCount < mBlockSize,
-                                                brgemmSrc,
-                                                const_cast<float*>(weightsData + nStart),
-                                                accumData + mStart * m_n + nStart,
-                                                nullptr,
-                                                nullptr,
-                                                wspPtr,
-                                                scratchAPtr);
-                }
-
-                if (m_brgemmTailKernel != nullptr) {
-                    m_brgemmTailKernel->executeGemm(mCount < mBlockSize,
-                                                    brgemmSrc,
-                                                    const_cast<float*>(weightsData + fullN),
-                                                    accumData + mStart * m_n + fullN,
-                                                    nullptr,
-                                                    nullptr,
-                                                    wspPtr,
-                                                    scratchAPtr);
-                }
-            }
-        });
+    switch (plan.mode) {
+    case ExecutionMode::dynamicQuantSeparatePostOps:
+    case ExecutionMode::dynamicQuant:
+        executeDynamicQuantBrgemm(accumulationData, quantizedSrcGroups, quantizedSrcData, quantizedSrcScales);
+        return;
+    case ExecutionMode::fusedPostOpsDecompress:
+        executeFusedPostOpsBrgemm(memory, fcSrcData, brgemmBData, biasData);
+        return;
+    case ExecutionMode::plainDecompress:
+        executePlainBrgemm(fcSrcData, decompressedWeightsData, brgemmBData, accumulationData);
         return;
     }
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0;
-        size_t end = 0;
-        splitter(m_m, nthr, ithr, start, end);
-
-        for (size_t row = start; row < end; row++) {
-            const float* srcRow = srcData + row * m_k;
-            const int8_t* qsrcRow = useDynamicQuant ? (qsrcData + row * m_k) : nullptr;
-            const float* qsrcRowScales = useDynamicQuant ? (qsrcScales + row * qsrcGroups) : nullptr;
-            float* dstRow = accumData + row * m_n;
-            for (size_t col = 0; col < m_n; col++) {
-                float acc = 0.0F;
-                if (useDynamicQuant) {
-                    for (size_t group = 0; group < qsrcGroups; group++) {
-                        const size_t groupBegin = group * dqGroupSize;
-                        const size_t groupEnd = std::min(groupBegin + dqGroupSize, m_k);
-                        const float dscale = qsrcRowScales[group];
-                        if (dscale == 0.0F) {
-                            continue;
-                        }
-
-                        float groupAcc = 0.0F;
-                        for (size_t k = groupBegin; k < groupEnd; k++) {
-                            groupAcc += static_cast<float>(qsrcRow[k]) * weightsData[k * m_n + col];
-                        }
-                        acc += groupAcc * dscale;
-                    }
-                } else {
-                    for (size_t k = 0; k < m_k; k++) {
-                        acc += srcRow[k] * weightsData[k * m_n + col];
-                    }
-                }
-                dstRow[col] = acc;
-            }
-        }
-    });
 }
 
-void BrgemmFCExternalDecompressionExecutor::finalizeOutput(const MemoryArgs& memory, float* accumData) const {
+void JitFCDecompBrgemmExecutor::finalizeOutput(const MemoryArgs& memory, float* accumData) const {
     const auto& dstMemory = memory.at(ARG_DST);
     const auto dstType = dstMemory->getDesc().getPrecision();
-
-    std::vector<float> biasCache;
-    if (hasBiasMemory(memory)) {
-        const auto& biasMemory = memory.at(ARG_BIAS);
-        biasCache.resize(m_n);
-        cpu_convert(biasMemory->getData(),
-                    biasCache.data(),
-                    biasMemory->getDesc().getPrecision(),
-                    ov::element::f32,
-                    biasCache.size());
-
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0;
-            size_t end = 0;
-            splitter(m_m, nthr, ithr, start, end);
-            for (size_t row = start; row < end; row++) {
-                float* rowData = accumData + row * m_n;
-                for (size_t col = 0; col < m_n; col++) {
-                    rowData[col] += biasCache[col];
-                }
-            }
-        });
-    }
 
     if (dstType == ov::element::bf16) {
         cpu_convert(accumData,
@@ -1204,14 +1624,14 @@ void BrgemmFCExternalDecompressionExecutor::finalizeOutput(const MemoryArgs& mem
     }
 }
 
-void BrgemmFCExternalDecompressionExecutor::execute(const MemoryArgs& memory) {
+void JitFCDecompBrgemmExecutor::execute(const MemoryArgs& memory) {
     update(memory);
-    const bool useDynamicQuant = supportsDynamicQuantization(m_attrs, memory);
+    const auto plan = buildExecutionPlan(m_attrs, memory, memory.at(ARG_DST)->getDesc().getPrecision());
     OPENVINO_ASSERT(memory.at(ARG_SRC)->getDesc().getShape().isStatic() &&
                     memory.at(ARG_WEI)->getDesc().getShape().isStatic() &&
                     memory.at(ARG_DST)->getDesc().getShape().isStatic(),
                     "External decompression executor requires static runtime shapes");
-    if (useDynamicQuant && m_brgemmKernel != nullptr) {
+    if (plan.useDynamicQuant && m_brgemmKernel != nullptr) {
         refreshDynamicQuantWeights(memory);
     } else {
         refreshDecompressedWeights(memory);
@@ -1219,16 +1639,24 @@ void BrgemmFCExternalDecompressionExecutor::execute(const MemoryArgs& memory) {
 
     executeBrgemm(memory);
 
-    if (useDynamicQuant || hasBiasMemory(memory) || memory.at(ARG_DST)->getDesc().getPrecision() == ov::element::bf16) {
+    if (plan.useSeparateDynamicQuantPostOps) {
+        applyDynamicQuantSeparatePostOps(m_attrs, memory, m_m, m_n, m_accum.data());
+    }
+
+    if (plan.useFusedBrgemmPostOps) {
+        return;
+    }
+
+    if (plan.useDynamicQuant || memory.at(ARG_DST)->getDesc().getPrecision() == ov::element::bf16) {
         finalizeOutput(memory, m_accum.data());
     }
 }
 
-impl_desc_type BrgemmFCExternalDecompressionExecutor::implType() const {
+impl_desc_type JitFCDecompBrgemmExecutor::implType() const {
     return impl_desc_type::unknown;
 }
 
-void BrgemmFCExternalDecompressionExecutor::moveMemToNumaNode([[maybe_unused]] int numaID) {
+void JitFCDecompBrgemmExecutor::moveMemToNumaNode([[maybe_unused]] int numaID) {
 }
 
 }  // namespace ov::intel_cpu

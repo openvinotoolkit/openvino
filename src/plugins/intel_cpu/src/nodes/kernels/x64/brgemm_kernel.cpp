@@ -89,13 +89,38 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            size_t lda,
                            size_t ldb,
                            size_t ldc,
+                           bool b_transposed,
+                           ov::element::Type inType,
+                           const BrgemmKernelPostOpsConfig& postOps,
+                           bool b_accumulate)
+    : BrgemmKernel(M,
+                   N,
+                   K,
+                   lda,
+                   ldb,
+                   ldc,
+                   ldc,
+                   b_transposed,
+                   inType,
+                   postOps.dstType,
+                   BrgemmKernel::ScaleType::NONE,
+                   b_accumulate,
+                   postOps) {}
+
+BrgemmKernel::BrgemmKernel(size_t M,
+                           size_t N,
+                           size_t K,
+                           size_t lda,
+                           size_t ldb,
+                           size_t ldc,
                            size_t ldd,
                            bool b_transposed,
                            ov::element::Type inType,
                            ov::element::Type DType,
                            BrgemmKernel::ScaleType bScaleType,
-                           bool b_accumulate)
-    : BrgemmKernel(M, N, K, lda, ldb, ldc, ldd, b_transposed, inType, inType, DType, bScaleType, b_accumulate) {}
+                           bool b_accumulate,
+                           const BrgemmKernelPostOpsConfig& postOps)
+    : BrgemmKernel(M, N, K, lda, ldb, ldc, ldd, b_transposed, inType, inType, DType, bScaleType, b_accumulate, postOps) {}
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -109,7 +134,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type weiType,
                            ov::element::Type DType,
                            BrgemmKernel::ScaleType bScaleType,
-                           bool b_accumulate)
+                           bool b_accumulate,
+                           const BrgemmKernelPostOpsConfig& postOps)
     : M(M),
       M_blk(matmulOptimalM),
       M_tail(M % M_blk),
@@ -126,7 +152,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
       weiType(weiType),
       srcType(srcType),
       bScaleType(bScaleType),
-      b_accumulate(b_accumulate) {
+      b_accumulate(b_accumulate),
+      m_postOpsConfig(postOps) {
         const bool is_float_path = srcType == weiType
             && dnnl::impl::utils::one_of(srcType, ov::element::bf16, ov::element::f16, ov::element::f32);
         const bool is_int8_path = srcType == ov::element::i8
@@ -274,7 +301,7 @@ size_t BrgemmKernel::get_scratch_a_size() const {
 }
 
 size_t BrgemmKernel::get_scratch_b_size() const {
-    return packedBSize;
+    return brgCopyBKernel ? packedBSize : 0;
 }
 
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
@@ -325,17 +352,29 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                    ctx.K,
                                    nullptr);
 
-    if (bScaleType != BrgemmKernel::ScaleType::NONE) {
+    if (bScaleType != BrgemmKernel::ScaleType::NONE || m_postOpsConfig.enabled) {
         ctx.has_post_ops = true;
-        dnnl::impl::primitive_attr_t attr;
+        auto* attr = reinterpret_cast<dnnl::impl::primitive_attr_t*>(m_postOpsConfig.attr.get());
+        dnnl::impl::primitive_attr_t scalesAttr;
+        if (!attr) {
+            attr = &scalesAttr;
+        }
         memory_desc_t Dmd;
         dims_t dims{static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
         dims_t strides{static_cast<dnnl_dim_t>(ldd), static_cast<dnnl_dim_t>(1)};
-        // set scales for B
+        const auto dstDataType = m_postOpsConfig.dstType == ov::element::dynamic
+                                     ? dnnl_data_type_t::dnnl_f32
+                                     : static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(
+                                           m_postOpsConfig.dstType));
+        status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dstDataType, strides);
+        if (bScaleType != BrgemmKernel::ScaleType::NONE) {
+            attr->scales_.set(DNNL_ARG_WEIGHTS, 2);
+        }
 
-        status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
-        attr.scales_.set(DNNL_ARG_WEIGHTS, 2);
-        status = brgemm_desc_set_postops(&brgDesc, &attr, &Dmd, ldd, data_type::undef);
+        const auto biasType = m_postOpsConfig.biasType == ov::element::dynamic
+                                  ? data_type::undef
+                                  : static_cast<data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_postOpsConfig.biasType));
+        status = brgemm_desc_set_postops(&brgDesc, attr, &Dmd, ldd, biasType);
     }
 
     if (status != dnnl_success) {
@@ -357,13 +396,20 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         }
     }
 
+    status = brgemm_desc_finalize(&brgDesc);
+    if (status != dnnl_success) {
+        THROW_ERROR("cannot be executed due to brgemm_desc_finalize failed");
+    }
+
     ctx.is_with_amx = use_amx;
     status = brgemm_init_tiles(brgDesc, ctx.palette);
     if (use_amx) {
         amx_tile_configure(ctx.palette);
     }
     // s8s8 kernel are only support for amx/vnni_2, s8s8 vis compensation pass is not support
-    ctx.has_post_ops = false;
+    if (!m_postOpsConfig.enabled && bScaleType == BrgemmKernel::ScaleType::NONE) {
+        ctx.has_post_ops = false;
+    }
 
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
@@ -510,14 +556,46 @@ void BrgemmKernel::executeGemm(bool is_M_tail,
                                void* a,
                                void* b,
                                void* c,
-                               [[maybe_unused]] void* d,
-                               [[maybe_unused]] float* scale_b,
+                               void* d,
+                               float* scale_b,
                                void* wsp,
                                void* scratch_a) {
-    execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+    if (scale_b != nullptr) {
+        BrgemmKernelPostOpsCallArgs postOps;
+        postOps.weiScales = scale_b;
+        execute_without_scale(is_M_tail, a, b, c, d, wsp, scratch_a, &postOps);
+        return;
+    }
+
+    execute_without_scale(is_M_tail, a, b, c, d, wsp, scratch_a);
 }
 
-void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
+void BrgemmKernel::executeGemmWithPostOps(bool is_M_tail,
+                                          void* a,
+                                          void* b,
+                                          void* c,
+                                          void* d,
+                                          float* scale_b,
+                                          void* wsp,
+                                          void* scratch_a,
+                                          const BrgemmKernelPostOpsCallArgs& postOps) {
+    BrgemmKernelPostOpsCallArgs callArgs = postOps;
+    callArgs.weiScales = scale_b;
+    execute_without_scale(is_M_tail, a, b, c, d, wsp, scratch_a, &callArgs);
+}
+
+void BrgemmKernel::setPostOpBinaryArgs(BrgemmKernelBinaryArgs binaryArgs) {
+    m_postOpsBinaryRhsArgs = std::move(binaryArgs);
+}
+
+void BrgemmKernel::execute_without_scale(bool is_M_tail,
+                                         void* a,
+                                         void* b,
+                                         void* c,
+                                         void* d,
+                                         void* wsp,
+                                         void* scratch_a,
+                                         const BrgemmKernelPostOpsCallArgs* postOps) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -566,15 +644,31 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void*
                 auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto* out_ptr = ptr_C + C_stride;
+                dnnl::impl::cpu::x64::brgemm_post_ops_data_t postOpsData{};
+                dnnl::impl::cpu::x64::brgemm_post_ops_data_t* postOpsDataPtr = nullptr;
+                if (postOps != nullptr && ((k == 0 && K_tail == 0) || k == 1)) {
+                    if (postOps->bias != nullptr && m_postOpsConfig.biasType != ov::element::dynamic) {
+                        postOpsData.bias = reinterpret_cast<const uint8_t*>(postOps->bias) +
+                                           n * count_N * m_postOpsConfig.biasType.size();
+                    } else {
+                        postOpsData.bias = postOps->bias;
+                    }
+                    postOpsData.binary_post_ops_rhs = m_postOpsBinaryRhsArgs.empty() ? nullptr : m_postOpsBinaryRhsArgs.data();
+                    postOpsData.oc_logical_off = n * count_N;
+                    postOpsData.dst_row_logical_off = postOps->dstRowLogicalOffset;
+                    postOpsData.data_C_ptr_ = postOps->dstDataAnchor;
+                    postOpsData.first_mb_matrix_addr_off = postOps->dstRowLogicalOffset + n * count_N;
+                    postOpsData.wei_scales = postOps->weiScales ? postOps->weiScales + n * count_N : nullptr;
+                    postOpsDataPtr = &postOpsData;
+                }
                 callBrgemm(brgemmCtx,
                            brgKernels[getBrgIdx(mIdx, k, n)],
                            local_a_ptr,
                            weight_ptr,
                            out_ptr,
-                           nullptr,
-                           nullptr,
+                           d ? reinterpret_cast<uint8_t*>(d) + C_stride : nullptr,
                            wsp,
-                           false);
+                           postOpsDataPtr);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -593,19 +687,16 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               const void* pin1,
                               void* Cout,
                               void* Dout,
-                              const float* bScale,
                               void* wsp,
-                              bool doPostops) {
+                              const dnnl::impl::cpu::x64::brgemm_post_ops_data_t* postOpsData) {
     if (ctx.is_with_amx) {
         amx_tile_configure(ctx.palette);
     }
-    if (doPostops) {
-        brgemm_post_ops_data_t post_ops_data;
-        post_ops_data.wei_scales = bScale;
+    if (postOpsData != nullptr) {
         brgemm_batch_element_t addr_batch;
         addr_batch.ptr.A = pin0;
         addr_batch.ptr.B = pin1;
-        brgemm_kernel_execute_postops(brgKernel.get(), 1, &addr_batch, Cout, Dout, post_ops_data, wsp);
+        brgemm_kernel_execute_postops(brgKernel.get(), 1, &addr_batch, Cout, Dout, *postOpsData, wsp);
     } else {
         brgemm_batch_element_t addr_batch;
         addr_batch.ptr.A = pin0;
@@ -641,7 +732,7 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                                         void* scratch_a) {
     // If no scale is provided, run kernel without post-scales
     if (scale_b == nullptr) {
-        execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+        execute_without_scale(is_M_tail, a, b, c, d, wsp, scratch_a);
         return;
     }
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
@@ -695,15 +786,20 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                 auto* c_ptr = ptr_C + C_stride;
                 auto* d_ptr = ptr_D + C_stride;
                 bool do_post = ((k == 0 && K_tail == 0) || k == 1);
+                dnnl::impl::cpu::x64::brgemm_post_ops_data_t postOpsData;
+                dnnl::impl::cpu::x64::brgemm_post_ops_data_t* postOpsPtr = nullptr;
+                if (do_post) {
+                    postOpsData.wei_scales = scale_b + n * count_N;
+                    postOpsPtr = &postOpsData;
+                }
                 callBrgemm(brgemmCtx,
                            brgKernels[getBrgIdx(mIdx, k, n)],
                            local_a_ptr,
                            weight_ptr,
                            c_ptr,
                            d_ptr,
-                           scale_b + n * count_N,
                            wsp,
-                           do_post);
+                           postOpsPtr);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;

@@ -9,7 +9,9 @@
 #include <memory>
 #include <vector>
 
+#include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/executor.hpp"
+#include "cpu_memory.h"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -19,13 +21,13 @@ namespace ov::intel_cpu {
 class FCWeightDecompressionKernelBase;
 class FCSourceQuantizationKernelBase;
 
-class BrgemmFCExternalDecompressionExecutor : public Executor {
+class JitFCDecompBrgemmExecutor : public Executor {
 public:
-    BrgemmFCExternalDecompressionExecutor(const FCAttrs& attrs,
-                                          const MemoryArgs& memory,
-                                          const ExecutorContext::CPtr& context);
+    JitFCDecompBrgemmExecutor(const FCAttrs& attrs,
+                              const MemoryArgs& memory,
+                              const ExecutorContext::CPtr& context);
 
-    ~BrgemmFCExternalDecompressionExecutor() override;
+    ~JitFCDecompBrgemmExecutor() override;
 
     bool update(const MemoryArgs& memory) override;
 
@@ -50,7 +52,30 @@ private:
 
     void refreshDynamicQuantWeights(const MemoryArgs& memory);
 
+    [[nodiscard]] DnnlPrimitiveAttrs buildBrgemmPostOps(const MemoryArgs& memory) const;
+
     [[nodiscard]] bool requiresPackedWeights() const;
+
+    [[nodiscard]] const float* prepareBrgemmSourceData(const MemoryPtr& srcMemory, std::vector<float>& srcCache) const;
+
+    [[nodiscard]] const void* prepareBrgemmWeights(const float* decompressedWeightsData, bool useDynamicQuant);
+
+    [[nodiscard]] const void* prepareFusedBiasData(const MemoryArgs& memory, std::vector<float>& biasCache) const;
+
+    void executeDynamicQuantBrgemm(float* accumulationData,
+                                   size_t quantizedSrcGroups,
+                                   const int8_t* quantizedSrcData,
+                                   const float* quantizedSrcScales);
+
+    void executeFusedPostOpsBrgemm(const MemoryArgs& memory,
+                                   const float* fcSrcData,
+                                   const void* brgemmBData,
+                                   const void* biasData);
+
+    void executePlainBrgemm(const float* fcSrcData,
+                            const float* decompressedWeightsData,
+                            const void* brgemmBData,
+                            float* accumulationData);
 
     void executeBrgemm(const MemoryArgs& memory);
 
