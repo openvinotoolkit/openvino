@@ -54,16 +54,15 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
                     //[7,2] and [2,1] cannot be broadcast 7 and 2 are not compatible
                     bool success =
                         TRShape::broadcast_merge_into(n_dims,
-                                                                TRShape(std::vector<DimType>(key.begin(), key.end() - 3)),
-                                                                AutoBroadcastType::NUMPY) &&
+                                                      TRShape(std::vector<DimType>(key.begin(), key.end() - 3)),
+                                                      AutoBroadcastType::NUMPY) &&
                         TRShape::broadcast_merge_into(n_dims,
-                                                        TRShape(std::vector<DimType>(value.begin(), value.end() - 3)),
-                                                        AutoBroadcastType::NUMPY);
+                                                      TRShape(std::vector<DimType>(value.begin(), value.end() - 3)),
+                                                      AutoBroadcastType::NUMPY);
                     if (success == false)
                         gqa_mode = false;
                 }
             }
-
         }
         if (gqa_mode) {
             key_input_correctness =
