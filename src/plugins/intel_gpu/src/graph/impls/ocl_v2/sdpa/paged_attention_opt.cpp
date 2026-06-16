@@ -1185,6 +1185,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
+        if (desc->has_sink_input) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1255,6 +1259,12 @@ public:
 
         if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
+
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
         }
 
         return jit;
@@ -1349,17 +1359,22 @@ public:
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
+        const auto desc = params.typed_desc<paged_attention>();
 
         if (params.get_device_info().supports_immad) {
             const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
+            // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
+            // accuracy issues (produces inf/nan) after oneDNN main branch integration.
+            if (params.get_device_info().arch == gpu_arch::xe3p && desc->k_head_size <= 64) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        const auto desc = params.typed_desc<paged_attention>();
         ov::Dimension head_num = desc->heads_num;
         ov::Dimension kv_heads_num = desc->kv_heads_num;
 
@@ -1627,9 +1642,16 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = has_stage(pa_sdpa_micro) && valid_micro_stage(stage);
-        if (stage == PagedAttentionStage::GENERATE && (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
-            can_use_micro_sdpa = false;
+        // Keep internal buffer layout decision aligned with execute() path.
+        // If runtime params are already prepared, they are the source of truth.
+        if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
+            can_use_micro_sdpa = rt_params->use_micro_sdpa;
+        } else {
+            can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && desc->has_token_type_ids == false;
+            if (stage == PagedAttentionStage::GENERATE) {
+                can_use_micro_sdpa = false;
+            }
+        }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1770,6 +1792,18 @@ public:
         const bool has_scores_output = desc->has_scores_output();
         const bool has_score_aggregation = desc->has_score_aggregation;
 
+        const auto required_mixed_stage_index = [&]() -> size_t {
+            size_t sequential_gws_subseq_mapping_idx = 3;
+            sequential_gws_subseq_mapping_idx += 3;  // exp_sums, max_logits, tmp_out
+            if (has_scores_output) {
+                sequential_gws_subseq_mapping_idx += 2;  // buffers 3, 4
+                if (has_score_aggregation) {
+                    sequential_gws_subseq_mapping_idx += 1;  // buffer 5
+                }
+            }
+            return sequential_gws_subseq_mapping_idx;
+        };
+
         if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa))
             return;
 
@@ -1850,21 +1884,20 @@ public:
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
 
         if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
-            // Calculate the index dynamically based on what buffers were actually allocated
-            // Base: 0, 1, 2 (3 buffers)
-            size_t sequential_gws_subseq_mapping_idx = 3;
+            const auto sequential_gws_subseq_mapping_idx = required_mixed_stage_index();
+            const auto required_intermediate_buffers = sequential_gws_subseq_mapping_idx + 1;
 
-            // exp_sums, max_logits, tmp_out (3 buffers)
-            sequential_gws_subseq_mapping_idx += 3;
-            if (has_scores_output) {
-                sequential_gws_subseq_mapping_idx += 2;  // buffers 3, 4
-                if (has_score_aggregation) {
-                    sequential_gws_subseq_mapping_idx += 1;  // buffer 5
-                }
-            }
-
-            OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
-                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
+            OPENVINO_ASSERT(intermediates_memories.size() >= required_intermediate_buffers,
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage: expected at least ",
+                            required_intermediate_buffers,
+                            ", got ",
+                            intermediates_memories.size(),
+                            ", scores_output=",
+                            has_scores_output,
+                            ", score_aggregation=",
+                            has_score_aggregation,
+                            ", micro_sdpa=",
+                            use_micro_sdpa);
 
             auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
@@ -1872,6 +1905,13 @@ public:
 
         if (use_micro_sdpa) {
             const auto memory_idx = 3;  // intermediate_idx for micro kernel
+            OPENVINO_ASSERT(intermediates_memories.size() > memory_idx,
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for micro SDPA: expected at least ",
+                            memory_idx + 1,
+                            ", got ",
+                            intermediates_memories.size(),
+                            ", mixed_stage_index=",
+                            required_mixed_stage_index());
             auto& memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }

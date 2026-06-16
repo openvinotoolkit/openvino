@@ -22,8 +22,8 @@ namespace test {
 namespace behavior {
 
 inline std::shared_ptr<ov::Model> createMaxPoolModel() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
-                                                         ov::PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
     input->set_friendly_name("input1");
 
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -37,8 +37,18 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
 
     auto result = std::make_shared<ov::op::v0::Result>(maxpool);
     result->set_friendly_name("output");
+    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
 
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
+    // making input and output to be NHWC
+    auto preProc = ov::preprocess::PrePostProcessor(model);
+    preProc.input(0).tensor().set_layout("NHWC");
+    preProc.input(0).model().set_layout("NCHW");
+    preProc.output(0).tensor().set_layout("NHWC");
+    preProc.output(0).model().set_layout("NCHW");
+
+    model = preProc.build();
+
+    return model;
 }
 
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
@@ -300,7 +310,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with the largest shape in the dynamic range.
-    ov::Shape shape = {1, 16, 720, 1280};
+    ov::Shape shape = {1, 720, 1280, 16};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -333,7 +343,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         << logCapture.str();
 
     logCapture.clear();
-    ov::Shape shape2 = {1, 16, 720, 720};
+    ov::Shape shape2 = {1, 720, 720, 16};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -371,7 +381,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with a smaller valid dynamic shape.
-    ov::Shape shape = {1, 16, 720, 720};
+    ov::Shape shape = {1, 720, 720, 16};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -404,7 +414,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
         << logCapture.str();
 
     logCapture.clear();
-    ov::Shape shape2 = {1, 16, 720, 1280};
+    ov::Shape shape2 = {1, 720, 1280, 16};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -440,7 +450,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto& testContext = setupResult.context;
 
     // Start from a regular host tensor.
-    ov::Shape shape = {1, 16, 720, 1280};
+    ov::Shape shape = {1, 720, 1280, 16};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
