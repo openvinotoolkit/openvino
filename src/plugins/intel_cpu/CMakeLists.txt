@@ -183,6 +183,10 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
+if(X86_64 OR AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
+endif()
+
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
@@ -332,9 +336,19 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/mha_kv_cache_codec.cpp
         API         src/nodes/kernels/scaled_attn/mha_kv_cache_codec.hpp
-        NAME        mha_kv_cache
+        NAME        mha_kv_cache turboq_head_bytes
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp
+        API         src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp
+        NAME        turboq_quantize_head turboq_quantize
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);
+## SIMD WHT butterfly is inline in turboq_rotation.hpp and gets ISA-specialized
+## when included by cross-compiled translation units.
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY

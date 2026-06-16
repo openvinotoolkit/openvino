@@ -336,12 +336,24 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     const std::size_t moe_chunk_size) {
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> registrations;
-    registrations.reserve(3);
+    registrations.reserve(5);
 
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Router>().scoped());
 
     registrations.emplace_back(
         registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
+            .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
+                transform_experts(function, ctx, moe_chunk_size);
+            })
+            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                           ov::npuw::v1::subgraphs::Context& compiled_context) {
+                configure_expert_compile(compiled_pipeline, compiled_context);
+            })
+            .scoped());
+
+    registrations.emplace_back(
+        registry.on<ov::npuw::patterns::moe::Qwen3Expert>()
             .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
                 transform_experts(function, ctx, moe_chunk_size);
             })
