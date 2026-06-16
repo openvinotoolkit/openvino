@@ -183,6 +183,10 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
+if(X86_64 OR AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
+endif()
+
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
