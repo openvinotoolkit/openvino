@@ -77,7 +77,9 @@ FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                         auto reshaped_input = reshape_node->clone_with_new_inputs(
                             {limit_input,
                              v0::Constant::create(element::i64, {new_limit_shape.size()}, new_limit_shape)});
+                        ov::copy_runtime_info(limit_input.get_node_shared_ptr(), reshaped_input);
                         if (auto constant = ov::util::get_constant_from_source(reshaped_input)) {
+                            ov::copy_runtime_info(reshaped_input, constant);
                             reshaped_input = constant;
                         }
                         renewed_inputs.push_back(reshaped_input);
@@ -91,7 +93,9 @@ FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
 
         auto reshaped_input =
             reshape_node->clone_with_new_inputs({pattern_map.at(data_p), reshape_node->input_value(1)});
+        ov::copy_runtime_info(reshape_node, reshaped_input);
         if (auto constant = ov::util::get_constant_from_source(reshaped_input)) {
+            ov::copy_runtime_info(reshaped_input, constant);
             reshaped_input = constant;
         }
         if (pattern_map.count(convert_p)) {
@@ -102,13 +106,11 @@ FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         }
         renewed_inputs.insert(renewed_inputs.begin(), reshaped_input);
 
-        for (auto& new_input : renewed_inputs)
-            copy_runtime_info({reshape_node, fq_node}, new_input.get_node_shared_ptr());
         const auto new_fq_node = fq_node->clone_with_new_inputs(renewed_inputs);
         register_new_node(new_fq_node);
         replace_node(reshape_node, new_fq_node);
         new_fq_node->set_friendly_name(reshape_node->get_friendly_name());
-        copy_runtime_info({fq_node, reshape_node}, new_fq_node);
+        copy_runtime_info(fq_node, new_fq_node);
         return true;
     };
 
