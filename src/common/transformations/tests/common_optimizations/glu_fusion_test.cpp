@@ -11,6 +11,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
@@ -19,6 +20,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/glu.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
@@ -157,6 +159,65 @@ TEST_F(TransformationTestsF, GeGLUFusionTest1) {
                                                               split_lenghts,
                                                               ov::op::internal::GLU::GluType::Gelu,
                                                               1,
+                                                              ov::element::f16);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, GLUFusionTestFluxDynamicSplitLengths) {
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 18432});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto half = v0::Constant::create(ov::element::i32, ov::Shape{1}, {9216});
+        auto split_lengths = std::make_shared<v1::Concat>(ov::OutputVector{half, half}, 0);
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<v1::Multiply>(swish, variadic_split->output(1));
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+        manager.register_pass<GLUFusion>();
+    }
+    {
+        int64_t axis = -1;
+        int64_t split_lenghts = 9216;
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 18432});
+        auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
+                                                              axis,
+                                                              split_lenghts,
+                                                              ov::op::internal::GLU::GluType::Swish,
+                                                              0,
+                                                              ov::element::f16);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, GLUFusionTestTypeRelaxedMultiply) {
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<ov::op::TypeRelaxed<v1::Multiply>>(
+            std::vector<element::Type>{ov::element::f16, ov::element::f16},
+            std::vector<element::Type>{ov::element::f16},
+            swish->output(0),
+            variadic_split->output(1));
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+        manager.register_pass<GLUFusion>();
+    }
+    {
+        int64_t axis = -1;
+        int64_t split_lenghts = 3;
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
+                                                              axis,
+                                                              split_lenghts,
+                                                              ov::op::internal::GLU::GluType::Swish,
+                                                              0,
                                                               ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});

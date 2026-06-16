@@ -15,6 +15,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/glu.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
@@ -51,15 +52,18 @@ GLUFusion::GLUFusion() {
     // Mul(Xw, Xv) = Swish(Xw) * Xv
     auto glu_m = std::make_shared<pattern::op::Or>(OutputVector{swish_m, gelu_m});
     auto mul_m = pattern::wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)});
+    auto mul_relaxed_m =
+        pattern::wrap_type<ov::op::TypeRelaxed<v1::Multiply>>({glu_m, variadic_split_m->output(1)});
+    auto mul_or_m = std::make_shared<pattern::op::Or>(OutputVector{mul_m, mul_relaxed_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        OPENVINO_ASSERT(pattern_map.count(mul_m));
+        OPENVINO_ASSERT(pattern_map.count(mul_or_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
-        auto mul = ov::as_type_ptr<v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        if (!mul || transformation_callback(mul))
+        const auto mul_node = pattern_map.at(mul_or_m).get_node_shared_ptr();
+        if (!mul_node || transformation_callback(mul_node))
             return false;
 
         auto isSwiGLU = pattern_map.count(swish_m);
@@ -72,8 +76,8 @@ GLUFusion::GLUFusion() {
             glu_type = ov::op::internal::GLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
-            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
+            size_t split_in_idx = ov::is_type<v4::Swish>(mul_node->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul_node->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else if (isGeGLU) {
             auto gelu = ov::as_type_ptr<v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
@@ -82,8 +86,8 @@ GLUFusion::GLUFusion() {
                            : ov::op::internal::GLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
-            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
+            size_t split_in_idx = ov::is_type<v7::Gelu>(mul_node->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul_node->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else {
             OPENVINO_THROW("'glu_type' not initialized");
@@ -134,7 +138,7 @@ GLUFusion::GLUFusion() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(mul_m, "GLUFusion");
+    auto m = std::make_shared<pattern::Matcher>(mul_or_m, "GLUFusion");
     this->register_matcher(m, callback);
 }
 
