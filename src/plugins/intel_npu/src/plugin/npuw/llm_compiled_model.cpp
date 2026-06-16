@@ -502,7 +502,7 @@ void apply_moe_config(ov::AnyMap& stage_config,
                                  "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
                                  "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
         }
-        stage_config["NPUW_UNFOLD_IREQS"] = "NO";
+        stage_config["NPUW_UNFOLD_IREQS"] = "YES";
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
         LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
         // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
@@ -736,14 +736,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Auto-detect MoE model by scanning for router/expert nodes
     const bool is_moe = is_moe_model(model);
     if (is_moe) {
-        // Only apply MoE defaults if not explicitly set in external config
-        if (npuw_llm_props.find("NPUW_LLM_SHARED_HEAD") == npuw_llm_props.end()) {
-            m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
-        }
-        if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
-            m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
-        }
-
         // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
         // HOST_ROUTED
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
