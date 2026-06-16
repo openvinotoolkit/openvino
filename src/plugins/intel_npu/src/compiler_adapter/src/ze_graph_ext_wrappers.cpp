@@ -559,6 +559,69 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
     }
 }
 
+std::optional<std::string> ZeGraphExtWrappers::fetchCompatibilityDescriptor(ze_graph_handle_t graphHandle) const {
+    if (graphHandle == nullptr || _zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        return std::nullopt;
+    }
+
+    ze_runtime_requirements_graph_desc_t requirementsDesc = {};
+    requirementsDesc.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_GRAPH_DESC;
+    requirementsDesc.pNext = nullptr;
+    requirementsDesc.requirementsSrc = graphHandle;
+
+    size_t size = 0;
+    ze_result_t result =
+        zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, nullptr);
+    if (result != ZE_RESULT_SUCCESS) {
+        _logger.warning("zeDeviceGetRuntimeRequirements (size query) returned error: 0x%x",
+                        static_cast<uint32_t>(result));
+        return std::nullopt;
+    }
+    if (size == 0) {
+        return std::nullopt;
+    }
+
+    // The driver writes a null-terminated string; size includes the terminator
+    std::string descriptor(size, '\0');
+    result = zeDeviceGetRuntimeRequirements(_zeroInitStruct->getDevice(), &requirementsDesc, &size, descriptor.data());
+    if (result != ZE_RESULT_SUCCESS) {
+        _logger.warning("zeDeviceGetRuntimeRequirements (data query) returned error: 0x%x",
+                        static_cast<uint32_t>(result));
+        return std::nullopt;
+    }
+
+    _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
+    return descriptor;
+}
+
+bool ZeGraphExtWrappers::validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const {
+    if (compatibilityDescriptor.empty()) {
+        return true;  // no descriptor means no runtime requirements; treat as compatible
+    }
+
+    if (_zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
+    }
+
+    ze_validate_runtime_requirements_output_t output = {};
+    output.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_OUTPUT;
+    output.pNext = nullptr;
+
+    const ze_result_t result =
+        zeDeviceValidateRuntimeRequirements(_zeroInitStruct->getDevice(), compatibilityDescriptor.c_str(), &output);
+
+    if (result != ZE_RESULT_SUCCESS) {
+        _logger.warning("zeDeviceValidateRuntimeRequirements returned error: 0x%x", static_cast<uint32_t>(result));
+        return false;
+    }
+
+    // Only REQUIREMENTS_MET and MET_RECOMPILATION_ADVISABLE are treated as compatible.
+    // NOT_APPLICABLE (the descriptor does not apply to this device) and REQUIREMENTS_NOT_MET are
+    // intentionally treated as incompatible, since neither guarantees the blob runs correctly here
+    return output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET ||
+           output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
+}
+
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor) const {
     ze_graph_properties_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
