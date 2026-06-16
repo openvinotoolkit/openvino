@@ -7,6 +7,8 @@
 # oob_deprecated_builtin_code.tflite — deprecated_builtin_code=-1 (0xFF as ubyte,
 #   read back as int8_t=-1 < BuiltinOperator_MIN=0; triggers lower-bound check)
 # oob_builtin_code.tflite — builtin_code=9999 > BuiltinOperator_MAX=209
+# null_sentinel_builtin_code.tflite — builtin_code=210, the nullptr entry
+#   at EnumNamesBuiltinOperator()[210] (one past STABLEHLO_CASE=209=MAX)
 
 import os
 import sys
@@ -130,7 +132,14 @@ if __name__ == "__main__":
         f.write(model)
 
     # 2. builtin_code path: deprecated_builtin_code = 127 (>= PLACEHOLDER threshold)
-    #    so the builtin_code field is used instead; set it to 9999 > BuiltinOperator_MAX.
+    #    so the builtin_code field is used instead; set it to 9999 > BuiltinOperator_MAX (158).
     model = build_minimal_tflite_with_opcode(deprecated_builtin_code=127, builtin_code=9999)
     with open(os.path.join(path_to_model_dir, 'oob_builtin_code.tflite'), 'wb') as f:
+        f.write(model)
+
+    # 3. Second fuzzing crash: builtin_code = 210, which is the
+    #    nullptr sentinel at EnumNamesBuiltinOperator()[210] (one past STABLEHLO_CASE=209=MAX).
+    #    Without the fix: string::operator=(nullptr) → strlen(nullptr) → SIGSEGV.
+    model = build_minimal_tflite_with_opcode(deprecated_builtin_code=127, builtin_code=210)
+    with open(os.path.join(path_to_model_dir, 'null_sentinel_builtin_code.tflite'), 'wb') as f:
         f.write(model)

@@ -95,4 +95,5 @@ INSTANTIATE_TEST_SUITE_P(MissingTensorName,
 INSTANTIATE_TEST_SUITE_P(OobBuiltinOpcode,
                          MalformedModelLoadTest,
                          ::testing::Values("oob_builtin_opcode/oob_deprecated_builtin_code.tflite",
-                                           "oob_builtin_opcode/oob_builtin_code.tflite"));
+                                           "oob_builtin_opcode/oob_builtin_code.tflite",
+                                           "oob_builtin_opcode/null_sentinel_builtin_code.tflite"));
