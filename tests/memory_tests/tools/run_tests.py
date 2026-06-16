@@ -281,7 +281,7 @@ class TestSession:
                 "metrics": sample.as_dict(),
                 "cpu_family": CPU_FAMILY,
                 "model_size": test.weights_size,
-                "ext": {"original_model_source": test.original_model_path}
+                "ext": {"originalSource": test.original_model_path}
             })
             test_report.append(sample_report)
         response = attempt(self.api, "v2/memory/push-2-db-facade", {"data": test_report})
@@ -329,37 +329,40 @@ class TestSession:
             new_files = sorted(new_files)
             yield from ((path.removeprefix(cache_dir).replace("\\", "/"), path) for path in new_files)
 
-    def get_description(self, model_path) -> dict[str, str] | None:
-        model_dir = os.path.dirname(model_path)
-        description_path = f"{model_dir}/description.txt"
+    def get_description(self, model_path: Path) -> dict[str, str] | None:
+        description_path = model_path.parent / "description.txt"
+        description_text = None
         try:
-            with open(description_path) as infile:
-                return dict([
-                    item.strip("\r\n").split(":", 1)
-                    for item in infile.readlines()
-                    if ":" in item
-                ])
-        except (IOError, OSError):
-            return None
+            description_text = description_path.read_text()
+        except OSError:
+            pass
+        if not description_text:
+            description_path = model_path.parent.parent / "description.txt"
+            try:
+                description_text = description_path.read_text()
+            except OSError:
+                return None
+        return dict([
+            line.split(":", 1)
+            for line in description_text.splitlines()
+            if ":" in line
+        ])
 
     def generate_test_cases(self):
         for ir_cache_dir in self.ir_cache_dirs:
             for (model_id, model_path) in self.scan_directory(ir_cache_dir):
-                weights_path, _ = os.path.splitext(model_path)
-                weights_path = f"{weights_path}.bin"
-                if os.path.isfile(weights_path):
-                    weights_size = os.path.getsize(weights_path)
-                else:
+                model_path = Path(model_path)
+                weights_path = model_path.with_suffix(".bin")
+                if not weights_path.is_file():
                     print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
                     continue
-                model_description = self.get_description(model_path)
-                original_model_path = ""
-                if model_description:
-                    original_model_path = model_description.get("src_model_path", "")
+                weights_size = weights_path.stat().st_size
+                model_description = self.get_description(model_path) or {}
+                original_model_path = model_description.get("src_model_path", "")
                 for device in self.devices:
                     yield TestCase(
                         model_id=model_id,
-                        model_path=model_path,
+                        model_path=str(model_path),
                         device=device,
                         original_model_path=original_model_path,
                         weights_size=weights_size,
