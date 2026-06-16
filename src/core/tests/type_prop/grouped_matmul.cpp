@@ -198,8 +198,6 @@ TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_missing_offsets) {
     OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b), ov::NodeValidationFailure, HasSubstr("requires offsets"));
 }
 
-// ==================== Error cases ====================
-
 TEST_F(TypePropGroupedMatMulTest, unsupported_ndim_combination) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
     const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{64, 128});
@@ -237,8 +235,6 @@ TEST_F(TypePropGroupedMatMulTest, offsets_not_1d) {
                     ov::NodeValidationFailure,
                     HasSubstr("offsets must be 1D"));
 }
-
-// ==================== Dynamic shapes ====================
 
 TEST_F(TypePropGroupedMatMulTest, fully_dynamic_shapes) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
