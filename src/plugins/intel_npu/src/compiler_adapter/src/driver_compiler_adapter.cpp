@@ -305,14 +305,14 @@ bool DriverCompilerAdapter::is_option_supported(std::string optName, std::option
                            RUNTIME_REQUIREMENTS::key(),
                            "' is a read-only property and does not accept any value.");
 
-        return ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements != nullptr;
+        return _zeroInitStruct->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
     }
 
     if (optName == COMPATIBILITY_CHECK::key()) {
         if (optValue.has_value())
             OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
 
-        return ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements != nullptr;
+        return _zeroInitStruct->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
     }
 
     auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
@@ -344,7 +344,7 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
         return false;
     }
 
-    if (ZeroApi::get_instance()->zeDeviceValidateRuntimeRequirements == nullptr) {
+    if (_zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
         OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
     }
 
@@ -368,7 +368,7 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
 }
 
 std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
-    if (graphHandle == nullptr || ZeroApi::get_instance()->zeDeviceGetRuntimeRequirements == nullptr) {
+    if (graphHandle == nullptr || _zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
         return std::nullopt;
     }
 
