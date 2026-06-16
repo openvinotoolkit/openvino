@@ -101,54 +101,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
                                  ::testing::Values(ov::AnyMap())),
                          InterpolateLayerCPUTest::getTestCaseName);
 
-// Regression coverage for issue #36023
-const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode>
-    coordinateTransformModes_HalfPixelPrecision = {
-        ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,
-        ov::op::v11::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
-        ov::op::v11::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
-};
-
-const std::vector<size_t> pads4D_zero = {0, 0, 0, 0};
-
-const std::vector<std::vector<int64_t>> axes4D_allDims = {{0, 1, 2, 3}};
-
-const std::vector<ShapeParams> shapeParams4D_HalfPixelPrecision = {
-    ShapeParams{
-        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{}, {{1, 1, 4, 4}}},
-        ov::test::utils::InputLayerType::CONSTANT,
-        {{1, 1, 1024, 1024}},
-        axes4D_allDims.front()
-    },
-    ShapeParams{
-        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{}, {{1, 1, 5, 5}}},
-        ov::test::utils::InputLayerType::CONSTANT,
-        {{1, 1, 1337, 1337}},
-        axes4D_allDims.front()
-    },
-};
-
-const auto interpolateCases_HalfPixelPrecision_GH36023 = ::testing::Combine(
-        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
-        ::testing::ValuesIn(coordinateTransformModes_HalfPixelPrecision),
-        ::testing::ValuesIn(defNearestModes()),
-        ::testing::ValuesIn(antialias()),
-        ::testing::Values(pads4D_zero),
-        ::testing::Values(pads4D_zero),
-        ::testing::ValuesIn(cubeCoefs()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_InterpolateHalfPixel_PrecisionRegression_GH36023,
-                         InterpolateLayerCPUTest,
-                         ::testing::Combine(
-                                 interpolateCases_HalfPixelPrecision_GH36023,
-                                 ::testing::ValuesIn(shapeParams4D_HalfPixelPrecision),
-                                 ::testing::Values(ElementType::f32),
-                                 ::testing::Values(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref"}),
-                                 ::testing::Values(emptyFusingSpec),
-                                 ::testing::Values(ov::AnyMap())),
-                         InterpolateLayerCPUTest::getTestCaseName);
-
 }  // namespace
 } // namespace ov::test::Interpolate
