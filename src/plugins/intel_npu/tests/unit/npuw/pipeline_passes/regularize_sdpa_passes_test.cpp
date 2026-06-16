@@ -99,9 +99,12 @@ static std::shared_ptr<Model> build_attention_broadcast4_static_model() {
     auto concat_gather = std::make_shared<op::v0::Concat>(
         OutputVector{dim_a, dim_c, dim_b, gather}, /*axis=*/0);
 
-    // Reshape concat_gather (shape {4}) into {2,2} – target shape is any_input.
-    auto reshape_target = op::v0::Constant::create(element::i64, Shape{2}, {2, 2});
-    auto reshape_gather = std::make_shared<op::v1::Reshape>(concat_gather, reshape_target, false);
+    // The AttentionBroadcast4 pattern roots at Reshape({any_input, concat_gather}),
+    // i.e. concat_gather is the *shape* (second) input of the Reshape.
+    // concat_gather evaluates to [1, 2, 1, 4] (product = 8), so the data input has
+    // 8 elements.
+    auto reshape_data = op::v0::Constant::create(element::f32, Shape{8}, {0, 1, 2, 3, 4, 5, 6, 7});
+    auto reshape_gather = std::make_shared<op::v1::Reshape>(reshape_data, concat_gather, false);
     reshape_gather->set_friendly_name("reshape_gather");
 
     auto result = std::make_shared<op::v0::Result>(reshape_gather);
@@ -132,8 +135,11 @@ static std::shared_ptr<Model> build_attention_broadcast4_dynamic_model() {
     auto concat_gather = std::make_shared<op::v0::Concat>(
         OutputVector{dim_a, dim_c, dim_b, gather}, /*axis=*/0);
 
-    auto reshape_target = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    auto reshape_gather = std::make_shared<op::v1::Reshape>(concat_gather, reshape_target, true);
+    // concat_gather is the shape (second) input of the Reshape, matching the
+    // AttentionBroadcast4 pattern.  The sequence dim is dynamic so the concat bound
+    // cannot be fully evaluated and the pass must not fire.
+    auto reshape_data = op::v0::Constant::create(element::f32, Shape{8}, {0, 1, 2, 3, 4, 5, 6, 7});
+    auto reshape_gather = std::make_shared<op::v1::Reshape>(reshape_data, concat_gather, false);
 
     auto result = std::make_shared<op::v0::Result>(reshape_gather);
     auto model  = std::make_shared<Model>(ResultVector{result}, ParameterVector{kv_param});
