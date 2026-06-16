@@ -138,7 +138,7 @@ size_t count_resident_pages(const void* data, size_t size) {
     const size_t aligned_size = size + gap;
     const size_t num_pages = (aligned_size + page - 1) / page;
     std::vector<unsigned char> vec(num_pages, 0);
-    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, vec.data()) != 0)
+    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, reinterpret_cast<char*>(vec.data())) != 0)
         return 0;
     return static_cast<size_t>(std::count_if(vec.begin(), vec.end(), [](unsigned char v) {
         return (v & 1) != 0;
