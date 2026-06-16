@@ -13,6 +13,7 @@
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
+#include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
@@ -123,6 +124,11 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
     auto prepared_properties = with_gqa_defaults(model, properties);
+    // Untangle shared scale constants so every DequantizeLinear Multiply
+    // gets its own copy.  Some exporters reuse a single scale node across
+    // multiple layers; NPUW's FOLD pass requires per-instance scalars.
+    ov::npuw::UntangleDQScale untangle_dq_scale;
+    untangle_dq_scale.run_on_model(model);
     // Drop all-zero zero-point Subtract nodes so ConvToMatMul sees a clean
     // Convert(Parameter) → Multiply(scale) weight chain.
     ov::npuw::DropZPSubtract drop_zp_subtract;
