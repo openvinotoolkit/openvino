@@ -175,6 +175,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             FRONT_END_THROW("Unsupported bits count");
             break;
         }
+        // Propagate tensor names from the original B constant so weight-sharing
+        // infrastructure can identify this node by its ONNX initializer name.
+        ov::as_type_ptr<v0::Constant>(casted_b.get_node_shared_ptr())
+            ->get_output_tensor(0).set_names(b_const->get_output_tensor(0).get_names());
+
 
         ov::Output<ov::Node> converted_zero_points;
         if (!zero_points.get_node_shared_ptr()) {
@@ -216,9 +221,14 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                  zp_shape);
 
                 ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
-                converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
+                {
+                    auto zp_fp_const = std::make_shared<v0::Constant>(a.get_element_type(),
                                                                        casted_zp_shape,
                                                                        zero_points_const->get_data_ptr());
+                    zp_fp_const->get_output_tensor(0).set_names(
+                        zero_points_const->get_output_tensor(0).get_names());
+                    converted_zero_points = zp_fp_const;
+                }
             } else if (zero_points.get_element_type() == ov::element::u8) {
                 // for alignment, n_blocks_per_col might not aligned to num_per_byte
                 uint64_t num_per_byte = 8 / bits;
@@ -228,6 +238,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
+                casted_zp_org->get_output_tensor(0).set_names(
+                    zero_points_const->get_output_tensor(0).get_names());
                 converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 if (n_blocks_per_col != num_elements_aligned) {
                     // if not align

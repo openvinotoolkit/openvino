@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/identity.hpp"
 #include "openvino/op/matmul.hpp"
@@ -166,4 +167,23 @@ OPENVINO_TEST(onnx_tensor_names, subgraph_gemm_with_bias) {
     EXPECT_EQ(result1->input(0).get_source_output().get_names(), std::unordered_set<std::string>({"y"}));
 
     EXPECT_NE(nullptr, find_by_friendly_name<op::v0::MatMul>(ops, "y/WithoutBiases"));
+}
+
+OPENVINO_TEST(onnx_tensor_names, matmulnbits_b_tensor_name_propagation) {
+    // Verify that MatMulNBits preserves the B initializer tensor name on the casted constant
+    const auto model = convert_model("com.microsoft/matmulnbits_3x4.onnx");
+
+    const auto ops = model->get_ordered_ops();
+
+    // After decomposition, there must be a Constant whose output tensor carries the name "b_Q4"
+    // (the original ONNX initializer name).  Without the fix this name was lost.
+    const bool found = std::any_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+        if (ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+            const auto& names = op->get_output_tensor(0).get_names();
+            return names.count("b_Q4") > 0;
+        }
+        return false;
+    });
+
+    EXPECT_TRUE(found) << "No Constant node with tensor name 'b_Q4' found after MatMulNBits decomposition";
 }
