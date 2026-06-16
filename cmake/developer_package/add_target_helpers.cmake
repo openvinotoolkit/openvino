@@ -185,7 +185,7 @@ function(ov_add_test_target_per_source)
 
     set(_has_gtest FALSE)
 
-    if(ARG_GTEST_DISCOVER)
+    if(ARG_GTEST_DISCOVER AND(NOT CMAKE_CROSSCOMPILING OR CMAKE_CROSSCOMPILING_EMULATOR))
         include(GoogleTest)
 
         if(COMMAND gtest_discover_tests AND(TARGET GTest::gtest OR TARGET GTest::GTest))
@@ -276,7 +276,7 @@ function(ov_add_test_target)
         set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
     endif()
 
-    if(ARG_GTEST_DISCOVER)
+    if(ARG_GTEST_DISCOVER AND(NOT CMAKE_CROSSCOMPILING OR CMAKE_CROSSCOMPILING_EMULATOR))
         include(GoogleTest OPTIONAL RESULT_VARIABLE has_gtest)
 
         if(has_gtest)

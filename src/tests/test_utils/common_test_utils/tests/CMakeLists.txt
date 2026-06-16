@@ -27,4 +27,3 @@ ov_add_test_target(
     GTEST_DISCOVER
     TESTS_PER_SOURCE
 )
-
