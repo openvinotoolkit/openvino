@@ -22,7 +22,7 @@ Install OpenVINO™ 2026.2
 
    <script type="module" crossorigin src="../_static/selector-tool/assets/index-khnahajn.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="../_static/selector-tool/selector-e6eb87b.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="../_static/selector-tool/selector-897b5c1.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 OpenVINO 2026.2, described here, is not a Long-Term-Support version!
 All currently supported versions are:
