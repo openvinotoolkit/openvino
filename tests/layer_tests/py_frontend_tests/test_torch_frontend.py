@@ -2686,3 +2686,219 @@ def test_dynamo_auto_patches_gptq():
 
     # Verify output shape
     assert ov_model.output(0).get_partial_shape()[-1].get_length() == out_features
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  compressed-tensors (NeuralMagic) export pipeline tests
+# ──────────────────────────────────────────────────────────────────────
+
+def _make_fake_ct_model(in_features=32, out_features=64, group_size=32):
+    """Return ``(model, x, FakeCompressedLinear)`` for compressed-tensors tests.
+
+    The fake module exposes all attributes consumed by
+    ``compressed_tensors.build_extensions``:
+
+    * ``weight_packed``       – int32, shape ``[out, in//8]``
+    * ``weight_scale``        – float32, shape ``[out, n_groups]``
+    * ``quantization_scheme`` – object with ``.weights.num_bits``,
+                                ``.weights.symmetric``, ``.weights.strategy``,
+                                ``.weights.group_size``
+    * ``out_features``        – plain int
+    * ``bias``                – None
+
+    The outer ``CTModel`` has ``config.quantization_config.quant_method``
+    set to ``"compressed-tensors"`` so that ``detect_quantized_model``
+    returns the right type.
+    """
+    rng = torch.Generator().manual_seed(0)
+    n_groups = in_features // group_size
+    _group_size = group_size  # captured before class definition to avoid class-scope NameError
+
+    class FakeWeightArgs:
+        num_bits = 4
+        symmetric = True
+        strategy = "group"
+        group_size = _group_size
+
+    class FakeScheme:
+        weights = FakeWeightArgs()
+
+    class FakeQuantConfig:
+        quant_method = "compressed-tensors"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeCompressedLinear(torch.nn.Module):
+        """Minimal stand-in for ``compressed_tensors.linear.CompressedLinear``."""
+
+        def __init__(self):
+            super().__init__()
+            self.out_features = out_features
+            self.in_features = in_features
+            self.register_buffer(
+                "weight_packed",
+                torch.randint(
+                    -(2 ** 31), 2 ** 31,
+                    (out_features, in_features // 8),
+                    dtype=torch.int32,
+                    generator=rng,
+                ),
+            )
+            self.register_buffer(
+                "weight_scale",
+                torch.randn(out_features, n_groups, dtype=torch.float32, generator=rng),
+            )
+            self.quantization_scheme = FakeScheme()
+            self.bias = None
+
+        def forward(self, x):
+            return torch.zeros(*x.shape[:-1], self.out_features, dtype=x.dtype)
+
+    class CTModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = FakeCompressedLinear()
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = CTModel()
+    x = torch.randn(2, in_features, generator=rng)
+    return model, x, FakeCompressedLinear
+
+
+def _inject_fake_ct_module(fake_linear_class):
+    """Inject a stub ``compressed_tensors`` package into ``sys.modules`` so that
+    ``compressed_tensors.build_extensions`` resolves ``CompressedLinear`` to
+    ``fake_linear_class``.
+
+    Returns a dict of the previous ``sys.modules`` state for the touched keys so
+    the caller can restore it (pass to ``_restore_ct_modules``).
+    """
+    import types
+    _CT_KEYS = [
+        "compressed_tensors",
+        "compressed_tensors.linear",
+        "compressed_tensors.linear.compressed_linear",
+    ]
+    prior = {k: sys.modules.get(k) for k in _CT_KEYS}
+
+    fake_ct_pkg = prior["compressed_tensors"] or types.ModuleType("compressed_tensors")
+    fake_linear_mod = types.ModuleType("compressed_tensors.linear.compressed_linear")
+    fake_linear_mod.CompressedLinear = fake_linear_class
+    sys.modules.setdefault("compressed_tensors", fake_ct_pkg)
+    sys.modules["compressed_tensors.linear"] = types.ModuleType("compressed_tensors.linear")
+    sys.modules["compressed_tensors.linear.compressed_linear"] = fake_linear_mod
+    return prior
+
+
+def _restore_ct_modules(prior):
+    """Restore ``sys.modules`` entries saved by ``_inject_fake_ct_module``."""
+    for key, value in prior.items():
+        if value is None:
+            sys.modules.pop(key, None)
+        else:
+            sys.modules[key] = value
+
+
+def test_compressed_tensors_build_extensions_returns_non_empty():
+    """``build_extensions()`` returns a non-empty dict keyed by ``CompressedLinear``."""
+    from openvino.frontend.pytorch.compressed_tensors import build_extensions
+    from openvino.frontend.pytorch import ModuleExtension
+
+    _, _, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        extensions = build_extensions(for_export=False)
+        assert extensions, "build_extensions() returned an empty dict"
+        assert FakeCompressedLinear in extensions, \
+            "CompressedLinear class not in extensions dict"
+        assert isinstance(extensions[FakeCompressedLinear], ModuleExtension)
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_convert_keeps_u4():
+    """TorchScript conversion of a compressed-tensors model must keep 4-bit
+    (i4/u4) weight constants — weights must NOT be decompressed to float.
+
+    The ``TorchScriptPythonDecoder`` auto-detects the quant type via
+    ``detect_quantized_model`` and patches the model internally, so no manual
+    ``patch_model`` call is needed here.
+    """
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(x,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        four_bit_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) in (Type.i4, Type.u4)
+        ]
+        assert four_bit_consts, \
+            "Expected a packed 4-bit (i4/u4) weight constant in the OV model"
+    finally:
+        _restore_ct_modules(prior)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_compressed_tensors_export_pipeline():
+    """``patch_quantized_for_export`` + ``torch.export`` + ``convert_model``
+    must produce a valid OV model and preserve ``ov_ext.ct_gemm`` in the
+    exported graph."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        patch_quantized_for_export(model)
+        try:
+            with torch.no_grad():
+                ep = torch.export.export(model, (x,))
+
+            ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+            assert "ov_ext.ct_gemm.default" in ops, \
+                f"ov_ext.ct_gemm not found in exported graph. Ops: {ops}"
+
+            ov_model = convert_model(ep)
+            assert ov_model is not None
+            cm = compile_model(ov_model, "CPU", default_cfg)
+            res = cm([x.numpy()])
+            assert res[0].shape == (2, 64)
+        finally:
+            unpatch_quantized_for_export(model)
+
+        for _, m in model.named_modules():
+            assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_dynamo_auto_patches_compressed_tensors():
+    """``convert_model(dynamo=True)`` must auto-patch a compressed-tensors model
+    and produce a valid OV model with the expected output shape."""
+    from openvino import convert_model
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        ov_model = convert_model(model, example_input=[x], dynamo=True)
+        assert ov_model is not None
+
+        for _, m in model.named_modules():
+            assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+        assert ov_model.output(0).get_partial_shape()[-1].get_length() == 64
+    finally:
+        _restore_ct_modules(prior)
