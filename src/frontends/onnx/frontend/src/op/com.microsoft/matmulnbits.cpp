@@ -176,6 +176,18 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             break;
         }
 
+        // Propagate the ONNX B initializer identity onto the PACKED low-bit weight constant so that
+        // weight-sharing infrastructure (e.g. the OpenVINO EP plugin weights-as-input pass) can
+        // identify this node by its ONNX initializer name and promote it to a graph input without
+        // const-folding it to full precision. The name is set on BOTH the friendly_name and the
+        // output tensor names because consumers may match on either. Only the WEIGHT (B) is named;
+        // the scale and zero-point dequantization parameters are intentionally left unnamed so that
+        // weight-sharing never promotes them (they must stay Constants for correct/NPU-safe dequant).
+        if (const auto casted_b_const = ov::as_type_ptr<v0::Constant>(casted_b.get_node_shared_ptr())) {
+            casted_b_const->set_friendly_name(b_const->get_friendly_name());
+            casted_b_const->get_output_tensor(0).set_names(b_const->get_output_tensor(0).get_names());
+        }
+
         ov::Output<ov::Node> converted_zero_points;
         if (!zero_points.get_node_shared_ptr()) {
             converted_zero_points = std::make_shared<v0::Convert>(default_zp, a.get_element_type());
