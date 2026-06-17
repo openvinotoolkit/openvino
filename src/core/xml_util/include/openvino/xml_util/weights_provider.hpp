@@ -25,13 +25,13 @@ public:
     virtual ~WeightsProvider() = default;
 
     /**
-     * @brief Loads a contiguous region of weights.
+     * @brief Make a contiguous region of weights.
      *
      * @param offset Byte offset from the beginning of the weights source.
      * @param size Number of bytes to load.
      * @return Buffer containing the requested weights region.
      */
-    virtual std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) = 0;
+    virtual std::shared_ptr<ov::AlignedBuffer> make_region(size_t offset, size_t size) = 0;
 
     /**
      * @brief Returns the total size of the weights source in bytes.
@@ -60,7 +60,7 @@ public:
      * @param size Number of bytes to expose.
      * @return Buffer referencing the requested region.
      */
-    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) override;
+    std::shared_ptr<ov::AlignedBuffer> make_region(size_t offset, size_t size) override;
 
     /**
      * @brief Returns the total size of the backing weights buffer in bytes.
@@ -94,7 +94,7 @@ public:
      * @param size Number of bytes to load.
      * @return Buffer containing the requested file region.
      */
-    std::shared_ptr<ov::AlignedBuffer> load_region(size_t offset, size_t size) override;
+    std::shared_ptr<ov::AlignedBuffer> make_region(size_t offset, size_t size) override;
 
     /**
      * @brief Returns the total size of the weights file in bytes.

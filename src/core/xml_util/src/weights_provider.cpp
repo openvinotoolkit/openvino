@@ -36,7 +36,7 @@ private:
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
     : m_weights(std::move(weights)) {}
 
-std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::load_region(size_t offset, size_t size) {
+std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
     OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
                     "Incorrect weights in bin file!");
@@ -58,7 +58,7 @@ FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
     OPENVINO_ASSERT(weights_stream.is_open(), "Weights file ", m_weights_path, " cannot be opened!");
 }
 
-std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::load_region(size_t offset, size_t size) {
+std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(offset <= m_weights_size && size <= m_weights_size - offset, "Incorrect weights in bin file!");
 
     const FileWeightsProvider::WeightsRegionKey key{offset, size};
