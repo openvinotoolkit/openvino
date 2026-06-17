@@ -3,19 +3,19 @@
 Developer-only benchmarks for comparing file-loading strategies. Use these to evaluate I/O
 performance on new hardware or to validate changes to `ov::MappedMemory`.
 
-These tests are **not compiled by default** — `ENABLE_DEVELOPER_TESTS` is OFF.
+These tests are **not compiled by default** — the target uses `EXCLUDE_FROM_ALL`.
 
 ## Build
 
 ```bash
-cmake -DENABLE_TESTS=ON -DENABLE_DEVELOPER_TESTS=ON -DCMAKE_BUILD_TYPE=Release <other flags> ..
-cmake --build . --target ov_core_unit_tests
+cmake -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release <other flags> ..
+cmake --build <dir> --target ov_file_load_benchmark
 ```
 
 ## Run
 
 ```bash
-./ov_core_unit_tests --gtest_filter=*FileLoadBenchmark*
+./ov_file_load_benchmark --gtest_filter=*FileLoadBenchmark*
 ```
 
 ## Environment Requirements
