@@ -6,8 +6,8 @@
 
 #include <sstream>
 
+#include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 
 namespace intel_npu {

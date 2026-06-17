@@ -69,18 +69,30 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     config.walkEnables([&](const std::string& key) {
         bool isEnabled = false;
         auto opt = config.getOpt(key);
-        if (opt.mode() != intel_npu::OptionMode::RunTime && !isSpecialBothProperty(key)) {
+        // Special case for some both configs. Don't need compiler for these Both properties.
+        // Runtime (plugin-only) options are always enabled
+        if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
             if (legacy) {
+                // Compiler or common option in Legacy mode? Checking its supported version
                 if (compilerVersion >= opt.compilerSupportVersion()) {
                     isEnabled = true;
                 }
             } else {
+                // We have compiler, we are not in legacy mode = we have a valid list of supported options
+                // Searching in the list
                 const auto& supportedOptions = compilerSupportList.value();
                 auto it = std::find(supportedOptions.begin(), supportedOptions.end(), key);
                 if (it != supportedOptions.end()) {
                     isEnabled = true;
-                } else if (compiler != nullptr) {
-                    isEnabled = compiler->is_option_supported(key);
+                } else {
+                    // Not found in the supported options list.
+                    if (compiler != nullptr) {
+                        // Checking if it is a private option?
+                        isEnabled = compiler->is_option_supported(key);
+                    } else {
+                        // Not in the list and not a private option = disabling
+                        isEnabled = false;
+                    }
                 }
             }
 
@@ -89,10 +101,17 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
             } else {
                 logger.debug("Enabled config option %s", key.c_str());
             }
+
+            // update enable flag
             config.enable(key, isEnabled);
         }
     });
 
+    // Special cases
+    // NPU_TURBO which might not be supported by compiler, but driver will still use it
+    // if it exists in config = driver supports it
+    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
@@ -111,11 +130,15 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
 
     config.walkEnables([&](const std::string& key) {
         auto opt = config.getOpt(key);
+        // Special case for some both configs. Don't need compiler for these Both properties.
+        // Runtime (plugin-only) options are always enabled
         if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
             config.enable(key, false);
         }
     });
 
+    // Special cases
+    // NPU_TURBO might be supported by the driver
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
