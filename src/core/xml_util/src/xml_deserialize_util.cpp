@@ -828,7 +828,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
                 m_weights_provider,
                 "Constant node references binary weights, but no weights buffer or weights file was provided.");
 
-            auto raw_buffer = m_weights_provider->load_region(offset, size);
+            auto raw_buffer = m_weights_provider->make_region(offset, size);
             auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
                 raw_buffer->get_ptr<char>(),
                 size);
@@ -899,7 +899,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto el_type = ov::element::Type(el_type_str);
     if (el_type == element::string) {
-        auto raw_buffer = m_weights_provider->load_region(offset, size);
+        auto raw_buffer = m_weights_provider->make_region(offset, size);
         auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
             raw_buffer->get_ptr<char>(),
             size);
@@ -917,7 +917,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                            ov::util::get_memory_size(el_type, ov::shape_size(shape)));
         }
 
-        auto buffer = m_weights_provider->load_region(offset, size);
+        auto buffer = m_weights_provider->make_region(offset, size);
         adapter.set(buffer);
     }
 }

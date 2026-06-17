@@ -184,7 +184,7 @@ void parse_pre_process(pugi::xml_node& root,
             }
             const size_t offset = item.second.second;
             OPENVINO_ASSERT(weights_provider, "Empty weights data in bin file or bin file cannot be found!");
-            auto buffer = weights_provider->load_region(offset, item.second.first);
+            auto buffer = weights_provider->make_region(offset, item.second.first);
             const char* data = buffer->get_ptr<char>();
             per_channel_values[item.first] = ov::op::v0::Constant::create(input_type, mean_shape, data);
         }
