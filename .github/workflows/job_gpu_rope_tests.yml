@@ -192,7 +192,8 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
             -m precommit \
             --html=${INSTALL_TEST_DIR}/TEST-gpu_rope_tests.html \
-            --self-contained-html -v --tb=short -n 2
+            --self-contained-html -v --tb=short -n 2 \
+            --log-cli-level=DEBUG --log-cli-format="%(name)s - %(message)s"
 
       - name: Upload RoPE Test Results
         if: ${{ always() }}
