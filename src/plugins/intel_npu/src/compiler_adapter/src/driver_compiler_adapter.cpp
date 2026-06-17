@@ -343,6 +343,9 @@ bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string&
 }
 
 std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
+    if (graphHandle == nullptr || _zeGraphExt == nullptr) {
+        return std::nullopt;
+    }
     return _zeGraphExt->fetchCompatibilityDescriptor(graphHandle);
 }
 

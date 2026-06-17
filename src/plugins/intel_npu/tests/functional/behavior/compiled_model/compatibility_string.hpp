@@ -224,9 +224,6 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheckCID
 
     std::vector<ov::PropertyName> properties;
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-    if (find(properties.cbegin(), properties.cend(), ov::runtime_requirements) == properties.cend()) {
-        GTEST_SKIP() << "Driver does not implement the runtime requirements extension; CID path not available";
-    }
 
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));

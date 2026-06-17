@@ -78,13 +78,9 @@ TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
 
 // no E2E test reaches this branch because compilation never produces an empty descriptor.
 TEST_P(DriverCompatStringTest, ValidateAcceptsEmptyString) {
-    if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
-        ASSERT_ANY_THROW(adapter->validate_compatibility_descriptor(""));
-    } else {
-        bool isCompatible = false;
-        OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor(""));
-        EXPECT_TRUE(isCompatible);
-    }
+    bool isCompatible = false;
+    OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor(""));
+    EXPECT_TRUE(isCompatible);
 }
 
 }  // namespace ov::test::behavior
