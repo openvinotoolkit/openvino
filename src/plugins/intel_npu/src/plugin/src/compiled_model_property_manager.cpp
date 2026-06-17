@@ -36,10 +36,6 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig&
 void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (properties.find(ov::log::level.name()) != properties.end()) {
-        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
-    }
-
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(_logger);
     }

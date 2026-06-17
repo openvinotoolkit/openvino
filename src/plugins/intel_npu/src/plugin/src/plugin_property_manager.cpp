@@ -483,10 +483,6 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         return _config.get<PLATFORM>();
     };
 
-    if (properties.find(ov::log::level.name()) != properties.end()) {
-        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
-    }
-
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(_logger);
     }
