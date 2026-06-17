@@ -720,7 +720,36 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         beam_idx_output = beam_idx->output(0);
     }
 
-    auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+    ov::Output<ov::Node> token_type_ids_output;
+    if (config.use_token_type_ids) {
+        auto tti = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "token_type_ids");
+        token_type_ids_output = tti->output(0);
+    }
+
+    const bool has_sliding = config.sliding_window_size > 0;
+    const bool has_full_layers = !has_sliding || config.sliding_to_full_ratio > 0;
+
+    ov::Output<ov::Node> full_mask;
+    ov::Output<ov::Node> sliding_mask;
+
+    if (has_full_layers) {
+        full_mask = config.boolean_causal_mask ? make_causal_mask_boolean(seq_source, attention_mask->output(0), prec)
+                                               : make_causal_mask(seq_source, attention_mask->output(0), prec);
+    }
+    if (has_sliding) {
+        const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
+        sliding_mask = mask_fn(seq_source, attention_mask->output(0), prec, config.sliding_window_size);
+    }
+
+    // Apply VLM bidirectional modifier for image tokens
+    if (token_type_ids_output.get_node()) {
+        if (full_mask.get_node())
+            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, seq_source, prec);
+        if (sliding_mask.get_node())
+            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, seq_source, prec);
+    }
+
+    auto default_mask = full_mask.get_node() ? full_mask : sliding_mask;
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
@@ -744,7 +773,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.bias_fn = config.attn_bias;
     attn.qk_norm = config.qk_norm;
     attn.rope_fn = config.rope;
-    attn.sdpa_mask = sdpa_mask;
+    attn.sdpa_mask = default_mask;
     attn.shared_broadcast_shape = shared_broadcast;
 
     if (config.use_kv_cache) {
@@ -777,6 +806,11 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+                                    // Per-layer mask: N sliding layers then 1 full, repeating.
+                                    if (has_sliding && config.sliding_to_full_ratio > 0) {
+                                        const size_t cycle = config.sliding_to_full_ratio + 1;
+                                        attn.sdpa_mask = (layer % cycle == cycle - 1) ? full_mask : sliding_mask;
+                                    }
                                     if (config.pre_norm) {
                                         return make_pre_norm_layer(
                                             input,
@@ -936,7 +970,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
                                                            d,
                                                            prec,
                                                            "model.decoder.");
-    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.");
+    auto shared_mask = make_whisper_causal_mask(cache_pos, "model.decoder.", config.boolean_causal_mask);
 
     // Self-attention (layer-0 reuses pre-built key Variable)
     Attention self_attn{};

@@ -26,6 +26,10 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<InferRequest>& inferR
     }
 }
 
+void AsyncInferRequest::cancel() {
+    OPENVINO_THROW("Inference cancellation is not supported by the Intel NPU plugin");
+}
+
 AsyncInferRequest::~AsyncInferRequest() {
     stop_and_wait();
 }
