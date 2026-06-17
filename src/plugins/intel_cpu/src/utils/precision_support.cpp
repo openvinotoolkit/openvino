@@ -7,6 +7,9 @@
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
+#endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -54,11 +57,46 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
+bool hasArmASIMDSupport() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#else
+    return false;
+#endif
+}
+
+bool hasArmSVESupport() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return with_cpu_sve() && dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128);
+#else
+    return false;
+#endif
+}
+
 bool hasIntDotProductSupport() {
     return with_cpu_arm_dotprod();
 }
 
 bool hasInt8MMSupport() {
     return with_cpu_arm_i8mm();
+}
+
+bool hasArmISASupport(ArmISA isa) {
+#if defined(OPENVINO_ARCH_ARM64)
+    switch (isa) {
+    case ArmISA::ASIMD:
+        return hasArmASIMDSupport();
+    case ArmISA::SVE:
+        return hasArmSVESupport();
+    case ArmISA::DOTPROD:
+        return hasIntDotProductSupport();
+    case ArmISA::I8MM:
+        return hasInt8MMSupport();
+    }
+    return true;
+#else
+    (void)isa;
+    return true;
+#endif
 }
 }  // namespace ov::intel_cpu
