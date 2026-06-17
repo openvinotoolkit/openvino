@@ -294,15 +294,14 @@ void PluginPropertyManager::registerPluginProperties() const {
             return false;
         }());
     if (_config.isAvailable(ov::compatibility_check.name())) {
-        register_named_property_with_args(_properties,
-                                          ov::compatibility_check.name(),
-                                          true,
-                                          ov::PropertyMutability::RO,
-                                          [this](const Config&, const ov::AnyMap& arguments) {
-                                              return validateCompatibilityDescriptor(
-                                                  determineCompilerTypeForCompatibilityCheck(),
-                                                  arguments);
-                                          });
+        register_named_property_with_args(
+            _properties,
+            ov::compatibility_check.name(),
+            true,
+            ov::PropertyMutability::RO,
+            [this](const Config&, const ov::AnyMap& arguments) {
+                return validateCompatibilityDescriptor(determineCompilerTypeForCompatibilityCheck(), arguments);
+            });
     }
     try_register_custom_property(_config,
                                  _properties,

@@ -90,9 +90,13 @@ inline void try_register_simple_property(const ConfigLike& config, PropertyMap& 
     }
 
     const auto& option = config.getOpt(propertyName);
-    register_named_property(properties, propertyName, option.isPublic(), option.mutability(), [](const Config& configValue) {
-        return configValue.get<OptionType>();
-    });
+    register_named_property(properties,
+                            propertyName,
+                            option.isPublic(),
+                            option.mutability(),
+                            [](const Config& configValue) {
+                                return configValue.get<OptionType>();
+                            });
 }
 
 /**
@@ -108,9 +112,13 @@ inline void try_register_npuw_option_property(const ConfigLike& config, Property
     }
 
     const auto& option = config.getOpt(propertyName);
-    register_named_property(properties, propertyName, option.isPublic(), option.mutability(), [](const Config& configValue) {
-        return configValue.get<OptionType>();
-    });
+    register_named_property(properties,
+                            propertyName,
+                            option.isPublic(),
+                            option.mutability(),
+                            [](const Config& configValue) {
+                                return configValue.get<OptionType>();
+                            });
 }
 
 /**
@@ -146,7 +154,11 @@ inline void try_register_customfunc_property(const ConfigLike& config,
     }
 
     const auto& option = config.getOpt(propertyName);
-    register_named_property(properties, propertyName, option.isPublic(), option.mutability(), std::forward<Getter>(getter));
+    register_named_property(properties,
+                            propertyName,
+                            option.isPublic(),
+                            option.mutability(),
+                            std::forward<Getter>(getter));
 }
 
 /**
@@ -176,7 +188,11 @@ inline void force_register_custom_property(PropertyMap& properties,
                                            bool isPublic,
                                            ov::PropertyMutability mutability,
                                            Getter&& getter) {
-    register_named_property(properties, std::string(property.name()), isPublic, mutability, std::forward<Getter>(getter));
+    register_named_property(properties,
+                            std::string(property.name()),
+                            isPublic,
+                            mutability,
+                            std::forward<Getter>(getter));
 }
 
 /**
@@ -221,9 +237,13 @@ inline void try_register_compiled_model_property(const ConfigLike& config,
     }
 
     const auto& option = config.getOpt(propertyName);
-    register_named_property(properties, propertyName, option.isPublic(), ov::PropertyMutability::RO, [](const Config& configValue) {
-        return configValue.get<OptionType>();
-    });
+    register_named_property(properties,
+                            propertyName,
+                            option.isPublic(),
+                            ov::PropertyMutability::RO,
+                            [](const Config& configValue) {
+                                return configValue.get<OptionType>();
+                            });
 }
 
 /**
