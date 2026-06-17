@@ -75,6 +75,26 @@ void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
     }
 }
 
+// Weight dequantization chain used by Qwen3Expert projections and Qwen3Router.
+// Supports both regular and group-quantized weight layouts via opp::optional:
+//   Regular quant:  [Convert_in?] -> Multiply(weight, scale) -> [Reshape?] -> Convert_out -> MatMul
+//   Group quant:     Convert_in   -> Multiply(weight, scale) ->  Reshape   -> Convert_out -> MatMul
+struct WeightChainPattern {
+    std::shared_ptr<ov::Node> convert_in;   // optional: Convert(I4->FP) for INT4/group quant
+    std::shared_ptr<ov::Node> multiply;     // required: Multiply(weight, scale)
+    std::shared_ptr<ov::Node> reshape;      // optional: Reshape(3D->2D) for group quant
+    std::shared_ptr<ov::Node> convert_out;  // required: final Convert before MatMul
+};
+
+static WeightChainPattern make_weight_chain() {
+    WeightChainPattern wc;
+    wc.convert_in  = opp::optional<ov::op::v0::Convert>({opp::any_input()});
+    wc.multiply    = opp::wrap_type<ov::op::v1::Multiply>({wc.convert_in, opp::any_input()});
+    wc.reshape     = opp::optional<ov::op::v1::Reshape>({wc.multiply, opp::any_input()});
+    wc.convert_out = opp::wrap_type<ov::op::v0::Convert>({wc.reshape});
+    return wc;
+}
+
 // Extract K from a TopK node's constant second input and write it to rt_info
 // under the RT_INFO_MOE_K key so that PartitioningCallbacks::find_node_with_rt_info
 // can retrieve it during the partition stage.  Returns true on success.
@@ -327,25 +347,32 @@ GPTOSSRouter::GPTOSSRouter([[maybe_unused]] const std::shared_ptr<ov::npuw::onli
     Input preparation:
         Tile -> Reshape1
 
+    Each projection (gate/up/down) uses a WeightChainPattern (gw/uw/dw) that handles
+    both regular and group-quantized weight dequantization transparently:
+        Regular quant:  [Convert_in?] -> Multiply(weight, scale) -> [Reshape?] -> Convert_out -> MatMul
+        Group quant:     Convert_in   -> Multiply(weight, scale) ->  Reshape   -> Convert_out -> MatMul
+
     Gate projection (SwiGLU gate branch):
-        Reshape1 -> MatMul_gate (with weights: Multiply -> Convert) -> Swish
+        Reshape1 -> [gw] -> MatMul_gate -> Swish
 
     Up projection (SwiGLU up branch):
-        Reshape1 -> MatMul_up  (with weights: Multiply -> Convert)
+        Reshape1 -> [uw] -> MatMul_up
 
     SwiGLU merge:
         Swish + MatMul_up -> Multiply_swiglu
 
     Down projection:
-        Multiply_swiglu -> MatMul_down (with weights: Multiply -> Convert) -> Reshape2
+        Multiply_swiglu -> [dw] -> MatMul_down -> Reshape2
 
     Output (scaled by router scores):
         Reshape2 * router_score -> Multiply_output   <-- pattern root
         (router_score = opp::any_input(), produced entirely by Qwen3Router)
 
-    Expert isolates: Tile, Reshape1, weight-dequant nodes, MatMuls, SwiGLU Multiply, Reshape2, output Multiply.
-    Router isolates: Softmax, TopK, ReduceSum, Divide, Scatter, Transpose, Reshape, Unsqueeze.
-    Shape-compute chains (ShapeOf->Gather->...) stay outside both as subgraph parameters.
+    Isolation boundary:
+    - Expert claims: Tile, Reshape1, all weight-dequant nodes, MatMuls, SwiGLU Multiply, Reshape2, output Multiply
+    - Router claims: Softmax, TopK, ReduceSum, Divide, ScatterElementsUpdate, Transpose, Reshape_score, Unsqueeze_score
+    - Shared shape-compute nodes (ShapeOf->Gather->Unsqueeze->Concat chains) stay outside both,
+      becoming parameter inputs at subgraph boundaries.
 */
 Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     LOG_DEBUG("Qwen3Expert pattern matcher registered with tag: " << isol_tag);
@@ -354,32 +381,27 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
     auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
     auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
 
-    // Gate projection weights: Multiply(quantized weight, scale) -> Convert
-    auto gate_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto gate_weights_convert = opp::wrap_type<ov::op::v0::Convert>({gate_weights_multiply});
-    // Gate MatMul + Swish activation
-    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gate_weights_convert});
+    // Per-projection weight chains (regular quant and group quant both handled via opp::optional)
+    auto gw = make_weight_chain();  // gate weights
+    auto uw = make_weight_chain();  // up weights
+    auto dw = make_weight_chain();  // down weights
+
+    // Gate projection: reshape1 -> [gw] -> MatMul_gate -> Swish
+    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gw.convert_out});
     auto swish = opp::wrap_type<ov::op::v4::Swish>({matmul_gate});
 
-    // Up projection weights: Multiply(quantized weight, scale) -> Convert
-    auto up_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto up_weights_convert = opp::wrap_type<ov::op::v0::Convert>({up_weights_multiply});
-    // Up MatMul
-    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, up_weights_convert});
+    // Up projection: reshape1 -> [uw] -> MatMul_up
+    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, uw.convert_out});
 
-    // SwiGLU: gate * up
+    // SwiGLU merge: gate * up
     auto multiply_swiglu = opp::wrap_type<ov::op::v1::Multiply>({swish, matmul_up});
 
-    // Down projection weights: Multiply(quantized weight, scale) -> Convert
-    auto down_weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto down_weights_convert = opp::wrap_type<ov::op::v0::Convert>({down_weights_multiply});
-    // Down MatMul -> Reshape
-    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({multiply_swiglu, down_weights_convert});
+    // Down projection: multiply_swiglu -> [dw] -> MatMul_down -> Reshape2
+    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({multiply_swiglu, dw.convert_out});
     auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
 
     // Pattern root: expert_output * router_score
-    // The router score (Unsqueeze output) is produced entirely by Qwen3Router and flows
-    // in as opp::any_input() here to avoid double-claiming shared nodes.
+    // The router score (Unsqueeze output) is produced entirely by Qwen3Router.
     auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
@@ -391,27 +413,35 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
         auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
 
         LOG_DEBUG("Qwen3Expert pattern matched: " << matched_tile->get_friendly_name());
-
-        LOG_DEBUG("Qwen3 Expert Multiply output_shape: " << matched_output_multiply->get_output_partial_shape(0));
         const bool is_decoding = is_decoding_stage(matched_output_multiply);
         LOG_DEBUG("Qwen3 Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
 
-        auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
-            isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
+        // Isolate a required pattern node.
+        auto isolate = [&](const std::shared_ptr<ov::Node>& pat) {
+            isolate_node(node_to_output.at(pat).get_node_shared_ptr(), isol_tag, node_to_gptr);
+        };
+        // Isolate all nodes in a weight chain; optional nodes (convert_in, reshape) are
+        // skipped when not present (type-check distinguishes the fallback map entry).
+        auto isolate_weight_chain = [&](const WeightChainPattern& wc) {
+            auto n_cin = node_to_output.at(wc.convert_in).get_node_shared_ptr();
+            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(n_cin))
+                isolate_node(n_cin, isol_tag, node_to_gptr);
+            isolate_node(node_to_output.at(wc.multiply).get_node_shared_ptr(), isol_tag, node_to_gptr);
+            auto n_rs = node_to_output.at(wc.reshape).get_node_shared_ptr();
+            if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(n_rs))
+                isolate_node(n_rs, isol_tag, node_to_gptr);
+            isolate_node(node_to_output.at(wc.convert_out).get_node_shared_ptr(), isol_tag, node_to_gptr);
         };
 
         isolate(tile);
         isolate(reshape1);
-        isolate(gate_weights_multiply);
-        isolate(gate_weights_convert);
+        isolate_weight_chain(gw);
         isolate(matmul_gate);
         isolate(swish);
-        isolate(up_weights_multiply);
-        isolate(up_weights_convert);
+        isolate_weight_chain(uw);
         isolate(matmul_up);
         isolate(multiply_swiglu);
-        isolate(down_weights_multiply);
-        isolate(down_weights_convert);
+        isolate_weight_chain(dw);
         isolate(matmul_down);
         isolate(reshape2);
         isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
@@ -431,16 +461,19 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
     Qwen3 Router Pattern:
 
     Router weights (quantized, dequantized via weight chain):
-        Convert(weight) -> Multiply(weight, scale) -> Convert -> MatMul(input, weight)
+        Convert(weight) -> Multiply(weight, scale) -> [Reshape?] -> Convert -> MatMul(input, weight)
 
     Score computation:
-        MatMul -> Softmax -> TopK(values, indices)
+        MatMul -> Softmax -> TopK(values[out0], indices[out1])
 
     Score normalization:
-        TopK(values) -> ReduceSum -> Divide(values, sum)   [renormalize over K selected]
+        TopK[out0] -> ReduceSum
+        TopK[out0] / ReduceSum = Divide -> [Slice?] (optional, present in group-quantized models)
 
     Scatter to full expert dimension:
-        TopK(indices) + Divide(scores) -> ScatterElementsUpdate(zero_broadcast, indices, scores)
+        TopK[out1] -> Convert(i64->i32)  ──┐
+        Divide -> [Slice?] ────────────────┤
+        zero_broadcast ────────────────────→ ScatterElementsUpdate
 
     Shape to [num_experts, token_count, 1, 1] for expert broadcast:
         ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
@@ -451,11 +484,10 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
                          [[maybe_unused]] const std::string& isol_tag) {
     LOG_DEBUG("Qwen3Router pattern matcher registered (K-extraction only, no isolation)");
 
-    // Router weights: Convert(weight) -> Multiply(weight, scale) -> Convert -> MatMul
-    auto weights_convert_in = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
-    auto weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({weights_convert_in, opp::any_input()});
-    auto weights_convert_out = opp::wrap_type<ov::op::v0::Convert>({weights_multiply});
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), weights_convert_out});
+    // Router weight dequantization chain (same layout as Qwen3Expert projections).
+    // Supports both regular and group-quantized weight tensors via opp::optional.
+    auto wc = make_weight_chain();
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), wc.convert_out});
 
     // Score: Softmax -> TopK
     auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
@@ -465,9 +497,20 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
     auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
 
-    // Scatter to full expert shape (pattern root = Unsqueeze)
-    auto scatter =
-        opp::wrap_type<ov::op::v12::ScatterElementsUpdate>({opp::any_input(), topk, divide, opp::any_input()});
+    // Optional Slice of normalized scores before Scatter.
+    // Present in group-quantized models (Divide -> Slice -> Scatter port 2).
+    // Absent in regular models (Divide -> Scatter port 2 directly).
+    auto slice = opp::optional<ov::op::v8::Slice>(
+        {divide, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+
+    // Scatter to full expert shape.
+    // port 0: zero broadcast (any_input)
+    // port 1: Convert(TopK indices i64->i32) — TopK output(1) cannot be expressed in
+    //         wrap_type (always binds output(0)), so use any_input() here
+    // port 2: slice (normalized scores, or Divide directly if Slice absent)
+    // port 3: axis constant (any_input)
+    auto scatter = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {opp::any_input(), opp::any_input(), slice, opp::any_input()});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter, opp::any_input()});
     auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});

@@ -216,6 +216,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
     }
     if (!found) {
         LOG_WARN("collect_from_expert_output: cannot identify expert output in output_multiply");
+        std::cout << "collect_from_expert_output: cannot identify expert output in output_multiply" << std::endl;
         return nodes;
     }
 
@@ -288,7 +289,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
     }
 
     if (nodes.num_experts == 0) {
-        LOG_WARN("collect_from_expert_output: no Tile with repeats[0] > k_value found");
+        std::cout << "collect_from_expert_output: no Tile with repeats[0] > k_value found" << std::endl;
         return nodes;
     }
 
@@ -298,6 +299,13 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
             std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
         auto shape_data = shape_const->cast_vector<int64_t>();
         if (!shape_data.empty() && shape_data[0] == static_cast<int64_t>(nodes.num_experts)) {
+            // Skip group-quant weight-chain Reshapes: Multiply(weight, scale) -> Reshape -> Convert -> MatMul.
+            // These must NOT be modified by transform_constant_reshapes (the Gather inserted by
+            // transform_matmuls on the final Convert output handles the expert slicing instead).
+            if (std::dynamic_pointer_cast<ov::op::v1::Multiply>(
+                    reshape->input_value(0).get_node_shared_ptr())) {
+                continue;
+            }
             nodes.constant_reshapes.push_back(reshape);
         }
     }
@@ -305,7 +313,7 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
     nodes.dynamic_reshapes = std::move(all_dyn_reshapes);
 
     // Returns true if a constant somewhere in the weight chain has shape[0] == expert_dim.
-    // Recursively peels Convert and both inputs of Multiply (the two recognized chain patterns).
+    // Recursively peels Convert, Multiply, and Reshape (group-quant: Multiply→Reshape→Convert).
     // Returns false for any unrecognized node type, signalling an unknown weight chain.
     std::function<bool(const ov::Output<ov::Node>&, size_t, bool&)> weight_has_expert_dim;
     weight_has_expert_dim = [&](const ov::Output<ov::Node>& input, size_t expert_dim, bool& chain_recognized) -> bool {
@@ -320,7 +328,12 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
             return weight_has_expert_dim(mul->input_value(0), expert_dim, chain_recognized) ||
                    weight_has_expert_dim(mul->input_value(1), expert_dim, chain_recognized);
         }
-        // Unrecognized node in weight chain (e.g. Reshape, Gather, custom op).
+        if (auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
+            // Group-quant: Multiply(weight, scale) -> Reshape([N,O,G*Gs]) -> Convert -> MatMul
+            // Peel through the reshape to find the expert dimension in the upstream Multiply.
+            return weight_has_expert_dim(reshape->input_value(0), expert_dim, chain_recognized);
+        }
+        // Unrecognized node in weight chain (e.g. Gather, custom op).
         chain_recognized = false;
         return false;
     };
@@ -338,6 +351,9 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
             LOG_WARN("collect_from_expert_output: MatMul '" << matmul->get_friendly_name()
                                                             << "' has expert-dim weight through an unrecognized chain; "
                                                                "skipping transformation for this layer");
+            std::cout << "collect_from_expert_output: MatMul '" << matmul->get_friendly_name()
+                      << "' has expert-dim weight through an unrecognized chain; skipping transformation for this layer"
+                      << std::endl;
             nodes.matmuls.clear();
             return nodes;
         }
@@ -621,6 +637,7 @@ bool apply_layer_transformation(const RouterInfo& router, LayerNodes& nodes) {
                          << ", DynReshapes: " << nodes.dynamic_reshapes.size() << ", MatMuls: " << nodes.matmuls.size()
                          << ", Adds: " << nodes.adds.size() << ", Multiplies: " << nodes.multiplies.size()
                          << ", K=" << router.k_value);
+    std::cout << "  Router node: " << router.topk_node->get_friendly_name() << std::endl;
 
     return true;
 }
@@ -645,8 +662,11 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
         // Step 1: Detect router by topology (name-independent, works for GPT-OSS and Qwen3)
         auto router = detect_router_by_topology(node);
-        if (!router.has_value())
+        if (!router.has_value()) {
+            std::cout << "DeviceRoutedMoETransform: Scatter node '" << node->get_friendly_name()
+                      << "' does not match expected MoE router topology; skipping" << std::endl;
             continue;
+        }
 
         // Step 2: Collect expert nodes via backward BFS from output_multiply
         auto layer_nodes = collect_from_expert_output(router.value());

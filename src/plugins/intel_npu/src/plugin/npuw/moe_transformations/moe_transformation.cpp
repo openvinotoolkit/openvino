@@ -389,27 +389,27 @@ std::optional<MoEDownstream> detect_and_transform_moe_downstream(const std::shar
     // Looking for a parameter with shape [N, ..., W] where:
     //   dim 0  = N (total experts, > 1)
     //   dim n-1 = W (hidden_dim)
-    //   at least one of dims 1..n-2 equals 1 (singleton "batch" dimension)
-    // Both [N, 1, H, W] (GPT-OSS) and [N, H, 1, W] (Qwen) are accepted.
+    //   Accepted layouts:
+    //     4-D: [N, 1, H, W] (GPT-OSS) or [N, H, 1, W] (Qwen, decoding)
+    //     3-D: [N, token, W] (Qwen, prefill — token may be > 1)
+    // The primary discriminator is check_downstream_pattern() (Parameter -> [Convert] -> ReduceSum).
     const auto& params = model->get_parameters();
 
     for (size_t param_idx = 0; param_idx < params.size(); ++param_idx) {
         const auto& param = params[param_idx];
 
-        // Validate shape: must be 4-D with dim 0 > 1
+        // Validate shape: must be 3-D or 4-D with dim 0 > 1
         auto param_shape = param->get_partial_shape();
-        if (!param_shape.rank().is_static() || param_shape.rank().get_length() != 4) {
+        if (!param_shape.rank().is_static()) {
+            continue;
+        }
+        const auto rank = param_shape.rank().get_length();
+        if (rank < 3 || rank > 4) {
             continue;
         }
 
         auto shape = param_shape.to_shape();
         if (shape[0] <= 1) {
-            continue;
-        }
-
-        // At least one of dims 1..2 must be 1 (singleton expansion dim)
-        bool has_singleton_dim = (shape[1] == 1 || shape[2] == 1);
-        if (!has_singleton_dim) {
             continue;
         }
 
@@ -468,6 +468,7 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
     LOG_BLOCK();
 
     LOG_INFO("Using K=" << active_experts_num << " active experts for downstream");
+    std::cout << "Using K=" << active_experts_num << " active experts for downstream" << std::endl;
 
     auto downstream_info = detect_and_transform_moe_downstream(model, active_experts_num);
     if (downstream_info && downstream_info->is_valid()) {
@@ -481,6 +482,7 @@ std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Mod
     }
 
     LOG_WARN("Failed to create MoEDownstream - downstream pattern not found");
+    std::cout << "Failed to create MoEDownstream - downstream pattern not found" << std::endl;
     return std::nullopt;
 }
 
