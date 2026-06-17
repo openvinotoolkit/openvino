@@ -575,14 +575,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Note:  device_info.arch >= cldnn::gpu_arch::xe_lp are `oneDNN supports platforms`,  register all MOE3GEMM related pass-es.
         // use_onednn is auto-enabled later by ExecutionConfig when MOE is detected. 
         if (device_info.arch >= cldnn::gpu_arch::xe_lp) {
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
+            const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
+                                                                                    ov::element::i4,
+                                                                                    ov::element::i8,
+                                                                                    ov::element::u8};
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
             // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
-                std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
-                                               ov::element::i8, ov::element::u8});
+                supported_compressed_weights_types);
             manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
             if (!disable_moe_opt) {
