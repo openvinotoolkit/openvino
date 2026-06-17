@@ -181,41 +181,41 @@ const std::vector<ov::op::v4::Interpolate::CoordinateTransformMode> halfPixel_co
     ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
 };
 
-const std::vector<ov::Shape> input_shapes_halfPixel_GH36023 = {
+const std::vector<ov::Shape> input_shapes_halfPixel = {
     {1, 1, 4, 4},
 };
 
-const std::vector<ov::Shape> target_shapes_halfPixel_GH36023 = {
+const std::vector<ov::Shape> target_shapes_halfPixel = {
     {1, 1, 1024, 1024},
 };
 
-const std::vector<std::vector<float>> scales_halfPixel_GH36023 = {
+const std::vector<std::vector<float>> scales_halfPixel = {
     {1.f, 1.f, 256.f, 256.f},
 };
 
-const std::vector<std::vector<size_t>> pads_halfPixel_GH36023 = {
+const std::vector<std::vector<size_t>> pads_halfPixel = {
     {0, 0, 0, 0},
 };
 
-const auto interpolateCases_halfPixel_GH36023 = ::testing::Combine(
+const auto interpolateCases_halfPixel = ::testing::Combine(
         ::testing::ValuesIn(nearest_mode),
         ::testing::Values(ov::op::v4::Interpolate::ShapeCalcMode::SIZES),
         ::testing::ValuesIn(halfPixel_coordinateTransformModes),
         ::testing::ValuesIn(default_nearest_mode),
         ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads_halfPixel_GH36023),
-        ::testing::ValuesIn(pads_halfPixel_GH36023),
+        ::testing::ValuesIn(pads_halfPixel),
+        ::testing::ValuesIn(pads_halfPixel),
         ::testing::ValuesIn(cube_coefs),
         ::testing::ValuesIn(default_axes),
-        ::testing::ValuesIn(scales_halfPixel_GH36023));
+        ::testing::ValuesIn(scales_halfPixel));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_HalfPixel_PrecisionRegression_GH36023,
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_HalfPixel_PrecisionRegression,
         InterpolateLayerTest,
         ::testing::Combine(
-                interpolateCases_halfPixel_GH36023,
+                interpolateCases_halfPixel,
                 ::testing::Values(ov::element::f32),
-                ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_halfPixel_GH36023)),
-                ::testing::ValuesIn(target_shapes_halfPixel_GH36023),
+                ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_halfPixel)),
+                ::testing::ValuesIn(target_shapes_halfPixel),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         InterpolateLayerTest::getTestCaseName);

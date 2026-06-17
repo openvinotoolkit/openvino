@@ -1066,7 +1066,7 @@ const std::vector<ShapeParams> shapeParams4D_HalfPixelPrecision = {
     },
 };
 
-const auto interpolateCases_HalfPixelPrecision_GH36023 = ::testing::Combine(
+const auto interpolateCases_HalfPixelPrecision = ::testing::Combine(
         ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
         ::testing::ValuesIn(coordinateTransformModes_HalfPixelPrecision),
         ::testing::ValuesIn(defNearestModes()),
@@ -1075,10 +1075,10 @@ const auto interpolateCases_HalfPixelPrecision_GH36023 = ::testing::Combine(
         ::testing::Values(pads4D_zero),
         ::testing::ValuesIn(cubeCoefs()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_InterpolateHalfPixel_PrecisionRegression_GH36023,
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateHalfPixel_PrecisionRegression,
                          InterpolateLayerCPUTest,
                          ::testing::Combine(
-                                 interpolateCases_HalfPixelPrecision_GH36023,
+                                 interpolateCases_HalfPixelPrecision,
                                  ::testing::ValuesIn(shapeParams4D_HalfPixelPrecision),
                                  ::testing::Values(ElementType::f32),
                                  ::testing::ValuesIn(filterCPUInfoForDevice_HalfPixelPrecision()),
