@@ -157,6 +157,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/add_position_ids_param_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/collapse_unqdq_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/conv_to_matmul_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/patch_sliding_mask_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/remove_empty_kv_inputs_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/stateful_to_stateless_test.cpp
 )
