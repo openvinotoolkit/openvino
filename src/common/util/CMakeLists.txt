@@ -42,6 +42,7 @@ target_sources(${TARGET_NAME}
         ${UTIL_INCLUDE_DIR}/openvino/util/file_path.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/file_util.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/log.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/memory.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/mmap_object.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/os.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/ov_version.hpp
