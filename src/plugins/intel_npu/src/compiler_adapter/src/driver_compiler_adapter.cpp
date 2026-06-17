@@ -5,10 +5,6 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <vector>
 
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"

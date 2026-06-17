@@ -12,11 +12,10 @@
 #include <string>
 #include <tuple>
 
-#include "common/utils.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace ov::test::behavior {
