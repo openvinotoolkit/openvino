@@ -26,6 +26,8 @@ public:
                           const ov::SoPtr<IEngineBackend>& backend,
                           Logger& logger);
 
+    PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
+
     void setProperty(const ov::AnyMap& properties);
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
@@ -43,6 +45,21 @@ public:
 
 private:
     PluginPropertyManager(const PluginPropertyManager& other);
+    struct CopyState {
+        FilteredConfig config;
+        std::shared_ptr<Metrics> metrics;
+        ov::SoPtr<IEngineBackend> backend;
+        Logger logger;
+        ov::intel_npu::CompilerType currentlyUsedCompiler;
+        ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
+        std::string currentlyUsedPlatform;
+        bool compilerConfigsFilteredByCompiler;
+        bool compatibilityCheckFiltered;
+        std::map<std::string, PropertyDescriptor> properties;
+        std::vector<ov::PropertyName> supportedProperties;
+    };
+
+    explicit PluginPropertyManager(CopyState&& state);
 
     void registerProperties() const;
     void registerPluginProperties() const;
@@ -63,8 +80,10 @@ private:
     mutable std::string _currentlyUsedPlatform;
     mutable bool _compilerConfigsFilteredByCompiler = false;
     mutable bool _compatibilityCheckFiltered = false;
+
     mutable std::map<std::string, PropertyDescriptor> _properties;
     mutable std::vector<ov::PropertyName> _supportedProperties;
+
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
@@ -96,6 +115,7 @@ private:
         });
         return properties;
     }();
+
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
                                                                         ov::internal::cache_header_alignment.name()};

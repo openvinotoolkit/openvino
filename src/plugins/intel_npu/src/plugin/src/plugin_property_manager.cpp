@@ -151,23 +151,10 @@ static auto get_specified_device_name(const intel_npu::Config& config) {
     return std::string();
 }
 
-std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properties) {
-    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     if (properties.count(ov::hint::model.name())) {
-        try {
-            modelPtr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
-        } catch (const ov::Exception&) {
-            try {
-                modelPtr = std::const_pointer_cast<const ov::Model>(
-                    properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
-                               "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
-            }
-        }
         properties.erase(ov::hint::model.name());
     }
-    return modelPtr;
 }
 
 }  // namespace
@@ -186,22 +173,33 @@ PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
 }
 
 PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
-    : _config([&other]() {
+    : PluginPropertyManager([&other]() {
           std::lock_guard<std::mutex> lock(other._mutex);
-          return other._config;
-      }()),
-      _metrics(other._metrics),
-      _backend(other._backend),
-      _logger(other._logger) {
-    std::lock_guard<std::mutex> lock(other._mutex);
-    _currentlyUsedCompiler = other._currentlyUsedCompiler;
-    _compilerForCompatibilityCheck = other._compilerForCompatibilityCheck;
-    _currentlyUsedPlatform = other._currentlyUsedPlatform;
-    _compilerConfigsFilteredByCompiler = other._compilerConfigsFilteredByCompiler;
-    _compatibilityCheckFiltered = other._compatibilityCheckFiltered;
-    _properties = other._properties;
-    _supportedProperties = other._supportedProperties;
-}
+          return CopyState{other._config,
+                           other._metrics,
+                           other._backend,
+                           other._logger,
+                           other._currentlyUsedCompiler,
+                           other._compilerForCompatibilityCheck,
+                           other._currentlyUsedPlatform,
+                           other._compilerConfigsFilteredByCompiler,
+                           other._compatibilityCheckFiltered,
+                           other._properties,
+                           other._supportedProperties};
+      }()) {}
+
+PluginPropertyManager::PluginPropertyManager(CopyState&& state)
+    : _config(std::move(state.config)),
+      _metrics(std::move(state.metrics)),
+      _backend(std::move(state.backend)),
+      _logger(std::move(state.logger)),
+      _currentlyUsedCompiler(state.currentlyUsedCompiler),
+      _compilerForCompatibilityCheck(state._compilerForCompatibilityCheck),
+      _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
+      _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
+      _compatibilityCheckFiltered(state.compatibilityCheckFiltered),
+      _properties(std::move(state.properties)),
+      _supportedProperties(std::move(state.supportedProperties)) {}
 
 void PluginPropertyManager::registerProperties() const {
     _properties.clear();
@@ -300,8 +298,8 @@ void PluginPropertyManager::registerPluginProperties() const {
             } catch (...) {
                 _logger.warning("Metrics GetMaxTiles failed to get value from device.");
             }
-            return config.get<MAX_TILES>();
         }
+        return config.get<MAX_TILES>();
     });
 
     try_register_varpub_property<RUN_INFERENCES_SEQUENTIALLY>(
@@ -740,19 +738,22 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
         return std::make_tuple(_config, _compilerConfigsFilteredByCompiler, _logger);
     }();
 
+    auto pluginProperties = properties;
+    exclude_model_ptr_from_map(pluginProperties);
+
     if (compilerConfigsFilteredByCompiler) {
         disableCompilerProperties(updatedConfig, _backend);
     }
 
-    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+    if (pluginProperties.find(ov::hint::enable_cpu_pinning.name()) != pluginProperties.end()) {
         logCpuPinningDeprecationWarning(logger);
     }
 
-    if (properties.empty()) {
+    if (pluginProperties.empty()) {
         return std::move(updatedConfig);
     }
 
-    const std::map<std::string, std::string> rawConfig = any_copy(properties);
+    const std::map<std::string, std::string> rawConfig = any_copy(pluginProperties);
     std::map<std::string, std::string> cfgsToSet;
     ov::AnyMap specialCfgsToSet;
     for (const auto& [key, value] : rawConfig) {
@@ -774,7 +775,7 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
         }
 
         if (key == ov::cache_encryption_callbacks.name()) {
-            specialCfgsToSet.emplace(key, properties.at(key));
+            specialCfgsToSet.emplace(key, pluginProperties.at(key));
         } else {
             cfgsToSet.emplace(key, value);
         }
@@ -802,16 +803,19 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
         logCpuPinningDeprecationWarning(logger);
     }
 
+    auto pluginProperties = properties;
+    exclude_model_ptr_from_map(pluginProperties);
+
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
     if (compilerConfigsFilteredByCompiler) {
-        auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
-        if (compilerType != properties.end()) {
+        auto compilerType = pluginProperties.find(ov::intel_npu::compiler_type.name());
+        if (compilerType != pluginProperties.end()) {
             propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
         }
     }
-    auto platform = properties.find(ov::intel_npu::platform.name());
-    if (platform != properties.end()) {
+    auto platform = pluginProperties.find(ov::intel_npu::platform.name());
+    if (platform != pluginProperties.end()) {
         propertiesPlatform = platform->second.as<std::string>();
     }
 
@@ -821,7 +825,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
         filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
     }
 
-    const std::map<std::string, std::string> rawConfig = any_copy(properties);
+    const std::map<std::string, std::string> rawConfig = any_copy(pluginProperties);
     std::map<std::string, std::string> cfgsToSet;
     ov::AnyMap specialCfgsToSet;
     for (const auto& [key, value] : rawConfig) {
@@ -831,7 +835,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
             }
             updatedConfig.addOrUpdateInternal(key, value);
         } else if (key == ov::cache_encryption_callbacks.name()) {
-            specialCfgsToSet.emplace(key, properties.at(key));
+            specialCfgsToSet.emplace(key, pluginProperties.at(key));
         } else {
             cfgsToSet.emplace(key, value);
         }

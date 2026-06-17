@@ -191,23 +191,22 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     return nullptr;
 }
 
-std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properties) {
-    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+std::shared_ptr<const ov::Model> get_model_ptr_from_map(ov::AnyMap& properties) {
     if (properties.count(ov::hint::model.name())) {
         try {
-            modelPtr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            return properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
         } catch (const ov::Exception&) {
             try {
-                modelPtr = std::const_pointer_cast<const ov::Model>(
+                return std::const_pointer_cast<const ov::Model>(
                     properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
                                "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
             }
         }
-        properties.erase(ov::hint::model.name());
     }
-    return modelPtr;
+
+    return nullptr;
 }
 
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
@@ -402,12 +401,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);
         }
-    }
-
-    // ov::hint::model has no corresponding "Config" implementation thus we need to
-    // remove it from the list of properties
-    if (exclude_model_ptr_from_map(localProperties)) {
-        _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
     if (_backend != nullptr) {
@@ -626,14 +619,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    auto npuPluginProperties = remoteProperties;
-    exclude_model_ptr_from_map(npuPluginProperties);
-    return std::make_shared<RemoteContextImpl>(_backend, npuPluginProperties);
+    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remoteProperties) const {
-    auto npuPluginProperties = remoteProperties;
-    exclude_model_ptr_from_map(npuPluginProperties);
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
@@ -769,7 +758,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     update_log_level(properties);
 
     auto localProperties = properties;
-    exclude_model_ptr_from_map(localProperties);
 
     if (_backend != nullptr) {
         _backend->updateInfo(localProperties);
@@ -813,9 +801,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     auto localProperties = properties;
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to
-    // remove it from the list of properties
-    auto originalModel = exclude_model_ptr_from_map(localProperties);
+    auto originalModel = get_model_ptr_from_map(localProperties);
 
     std::shared_ptr<IDevice> device =
         utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
