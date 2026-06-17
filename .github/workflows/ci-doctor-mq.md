@@ -608,13 +608,7 @@ ELSE:
 
 ### Phase 7: Output Format Validation (MANDATORY before any safe-output call)
 
-The `ingest agent output` step validates every field against its declared JSON
-type **before** the notification job runs. If even a single field has the wrong
-type, the entire item is rejected — you will see a log line such as
-`Warning: Validation errors found: - Line 1: pr_number must be a string` followed
-by `Successfully parsed 0 valid output items`, and the `notify_teams` job is
-**silently skipped**. This means a fully completed investigation produces no Teams
-notification. You MUST prevent this by validating and normalizing the payload
+You MUST validate and normalise the payload
 before calling `notify_teams` or `notify_teams_recurring`.
 
 **Every numeric-looking field in these tools is declared as `type: string` and
