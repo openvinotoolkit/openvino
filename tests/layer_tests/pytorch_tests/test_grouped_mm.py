@@ -117,6 +117,7 @@ class TestGroupedMMConstWeights(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_grouped_mm_const_b(self, a_shape, b_shape, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
             caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
@@ -160,6 +161,7 @@ class TestGroupedMMOffsetsConstWeights(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_grouped_mm_offs_const_b(self, total_tokens, k, n, offsets, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
             caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
@@ -280,6 +282,7 @@ class TestFunctionalGroupedMMConstWeights(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_functional_grouped_mm_const_b(self, a_shape, b_shape, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
             caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
@@ -323,6 +326,7 @@ class TestFunctionalGroupedMMOffsetsConstWeights(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_functional_grouped_mm_offs_const_b(self, total_tokens, k, n, offsets, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
             caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
