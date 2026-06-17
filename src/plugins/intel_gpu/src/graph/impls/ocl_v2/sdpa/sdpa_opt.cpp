@@ -6,6 +6,7 @@
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_micro.hpp"
+#include "sdpa_gen_ocl.hpp"
 // clang-format on
 
 #include "sdpa_opt.hpp"
@@ -59,6 +60,8 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
+    // Stage::Ptr regular_micro_single_token = make_stage<SDPAOclGenerator>(!prefill);
+    // Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAOclGenerator>(prefill);
 #endif
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
