@@ -72,11 +72,16 @@ namespace {
 //   Layout B: [num_experts, token_num, 1, 1]  → returns shape[1]
 // ASSERTs if neither layout is recognised.
 static size_t get_router_token_count(const ov::Shape& router_shape) {
+    if (router_shape.size() == 3) {
+        // 3-D [num_experts, token_count, 1] (Qwen3 prefill)
+        NPUW_ASSERT(router_shape[2] == 1 && "Unexpected 3-D router shape: trailing dim must be 1");
+        return router_shape[1];
+    }
     NPUW_ASSERT(router_shape.size() == 4);
     if (router_shape[1] == 1 && router_shape[3] == 1)
-        return router_shape[2];  // Layout A
+        return router_shape[2];  // Layout A: [num_experts, 1, token_count, 1]
     if (router_shape[2] == 1 && router_shape[3] == 1)
-        return router_shape[1];  // Layout B
+        return router_shape[1];  // Layout B: [num_experts, token_count, 1, 1]
     NPUW_ASSERT(false && "Unexpected router output shape - cannot determine token dimension!");
     return 0;  // unreachable, suppress warning
 }
@@ -95,7 +100,7 @@ std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITens
     expert_to_tokens.clear();
 
     auto shape = router_output->get_shape();
-    if (shape.size() != 4 || shape[0] != num_experts) {
+    if ((shape.size() != 4 && shape.size() != 3) || shape[0] != num_experts) {
         NPUW_ASSERT(false && "Unexpected router output shape!");
     }
 
@@ -168,8 +173,10 @@ void gather_router_scores(const ov::SoPtr<ov::ITensor>& router_source,
     size_t expert_offset;
     if (router_source_shape.size() == 4) {
         expert_offset = expert_id * get_router_token_count(router_source_shape);
-    } else if (router_source_shape.size() == 2) {
-        expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
+    } else if (router_source_shape.size() == 3 || router_source_shape.size() == 2) {
+        // 3-D [num_experts, token_num, 1] or 2-D [num_experts, token_num]
+        // trailing singleton dim (if any) does not affect linear stride between experts
+        expert_offset = expert_id * router_source_shape[1];
     } else {
         NPUW_ASSERT(false && "Unexpected router source shape");
         expert_offset = 0;  // unreachable, suppress uninitialized warning
