@@ -193,7 +193,7 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
     : _config(std::move(state.config)),
       _metrics(std::move(state.metrics)),
       _backend(std::move(state.backend)),
-      _logger(std::move(state.logger)),
+      _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
       _compilerForCompatibilityCheck(state._compilerForCompatibilityCheck),
       _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),

@@ -49,7 +49,7 @@ private:
         FilteredConfig config;
         std::shared_ptr<Metrics> metrics;
         ov::SoPtr<IEngineBackend> backend;
-        Logger logger;
+        Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
         std::string currentlyUsedPlatform;
