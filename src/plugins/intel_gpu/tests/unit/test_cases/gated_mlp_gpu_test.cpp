@@ -33,6 +33,15 @@ std::vector<ov::float16> to_f16(const std::vector<float>& src) {
     return dst;
 }
 
+template <typename T>
+std::vector<T> transpose_2d(const std::vector<T>& data, int rows, int cols) {
+    std::vector<T> result(data.size());
+    for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+            result[c * rows + r] = data[r * cols + c];
+    return result;
+}
+
 std::vector<float> gated_mlp_reference(const std::vector<float>& src,
                                        const std::vector<float>& w_gate,
                                        const std::vector<float>& w_up,
@@ -228,9 +237,9 @@ TEST_P(GatedMlpGPU_FP16, basic) {
     const int batch = p.batch, ifm = p.ifm, hidden = p.hidden;
 
     auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, data_types::f16, format::bfyx});
-    auto gate_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
-    auto up_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
-    auto down_mem = engine.allocate_memory({{hidden, ifm}, data_types::f16, format::bfyx});
+    auto gate_mem = engine.allocate_memory({{hidden, ifm}, data_types::f16, format::bfyx});
+    auto up_mem = engine.allocate_memory({{hidden, ifm}, data_types::f16, format::bfyx});
+    auto down_mem = engine.allocate_memory({{ifm, hidden}, data_types::f16, format::bfyx});
 
     std::vector<float> src(batch * ifm);
     std::vector<float> gate_w(ifm * hidden);
@@ -247,9 +256,9 @@ TEST_P(GatedMlpGPU_FP16, basic) {
         down_w[i] = 0.1f * static_cast<float>(static_cast<int>(i % 13) - 6);
 
     set_values(src_mem, to_f16(src));
-    set_values(gate_mem, to_f16(gate_w));
-    set_values(up_mem, to_f16(up_w));
-    set_values(down_mem, to_f16(down_w));
+    set_values(gate_mem, to_f16(transpose_2d(gate_w, ifm, hidden)));
+    set_values(up_mem, to_f16(transpose_2d(up_w, ifm, hidden)));
+    set_values(down_mem, to_f16(transpose_2d(down_w, hidden, ifm)));
 
     auto ref = gated_mlp_reference(src, gate_w, up_w, down_w, batch, ifm, hidden);
     auto net = create_fp16_network(engine, batch, ifm, hidden, src_mem, gate_mem, up_mem, down_mem);
@@ -313,9 +322,9 @@ protected:
             src[i] = 0.1f * static_cast<float>(static_cast<int>(i % 7) - 3);
         set_values(src_mem, to_f16(src));
 
-        auto gate_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
-        auto up_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
-        auto down_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+        auto gate_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+        auto up_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+        auto down_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
 
         std::vector<QType> gate_q(ifm * hidden), up_q(ifm * hidden), down_q(hidden * ifm);
         if constexpr (std::is_unsigned_v<QType>) {
@@ -333,9 +342,9 @@ protected:
             for (size_t i = 0; i < down_q.size(); i++)
                 down_q[i] = static_cast<QType>(-5 + static_cast<int>(i % 11));
         }
-        set_values(gate_mem, gate_q);
-        set_values(up_mem, up_q);
-        set_values(down_mem, down_q);
+        set_values(gate_mem, transpose_2d(gate_q, ifm, hidden));
+        set_values(up_mem, transpose_2d(up_q, ifm, hidden));
+        set_values(down_mem, transpose_2d(down_q, hidden, ifm));
 
         auto [sr_gu, sc_gu] = get_scale_dims(p, hidden);
         auto [sr_d, sc_d] = get_scale_dims(p, ifm);
@@ -406,9 +415,9 @@ protected:
             src[i] = 0.1f * static_cast<float>(static_cast<int>(i % 7) - 3);
         set_values(src_mem, to_f16(src));
 
-        auto gate_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
-        auto up_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
-        auto down_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+        auto gate_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+        auto up_mem = engine.allocate_memory({{hidden, ifm}, p.weight_dt, format::bfyx});
+        auto down_mem = engine.allocate_memory({{ifm, hidden}, p.weight_dt, format::bfyx});
 
         uint8_t gate_val = (p.weight_dt == data_types::u4) ? 0x77 : 0x11;
         uint8_t up_val = (p.weight_dt == data_types::u4) ? 0x66 : 0x22;

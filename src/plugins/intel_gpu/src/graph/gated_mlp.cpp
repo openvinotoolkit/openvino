@@ -39,7 +39,7 @@ std::vector<layout> gated_mlp_inst::calc_output_layouts(gated_mlp_node const& no
 
     ov::op::v0::MatMul matmul;
     matmul.set_transpose_a(false);
-    matmul.set_transpose_b(false);
+    matmul.set_transpose_b(true);
 
     auto up_shapes = ov::op::v0::shape_infer(&matmul, std::vector<ShapeType>{input_shapes[0], input_shapes[2]});
     auto gate_shapes = ov::op::v0::shape_infer(&matmul, std::vector<ShapeType>{input_shapes[0], input_shapes[1]});
@@ -66,12 +66,12 @@ std::string gated_mlp_inst::to_string(gated_mlp_node const& node) {
     gated_mlp_info.add("weights_up_id", node.weights_up().id());
     gated_mlp_info.add("weights_down_id", node.weights_down().id());
     gated_mlp_info.add("compressed_weights", desc->compressed_weights);
-    gated_mlp_info.add("has_decompression_zero_points", desc->has_decompression_zero_points);
+    gated_mlp_info.add("has_decompression_zero_points", desc->decompression_zero_point_gate.is_valid());
     if (desc->compressed_weights) {
         gated_mlp_info.add("decompression_scale_gate_id", node.decompression_scale_gate().id());
         gated_mlp_info.add("decompression_scale_up_id", node.decompression_scale_up().id());
         gated_mlp_info.add("decompression_scale_down_id", node.decompression_scale_down().id());
-        if (desc->has_decompression_zero_points) {
+        if (desc->decompression_zero_point_gate.is_valid()) {
             gated_mlp_info.add("decompression_zero_point_gate_id", node.decompression_zero_point_gate().id());
             gated_mlp_info.add("decompression_zero_point_up_id", node.decompression_zero_point_up().id());
             gated_mlp_info.add("decompression_zero_point_down_id", node.decompression_zero_point_down().id());

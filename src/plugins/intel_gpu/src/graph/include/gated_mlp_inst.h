@@ -19,7 +19,7 @@ struct typed_program_node<gated_mlp> : public typed_program_node_base<gated_mlp>
     program_node& weights_up() const { return get_dependency(2); }
     program_node& weights_down() const { return get_dependency(3); }
     bool has_compressed_weights() const { return get_primitive()->compressed_weights; }
-    bool has_decompression_zero_points() const { return get_primitive()->has_decompression_zero_points; }
+    bool has_dynamic_quantized_activation() const { return get_primitive()->dynamic_quantized_activation; }
     program_node& decompression_scale_gate() const { return get_dependency(4); }
     program_node& decompression_scale_up() const { return get_dependency(5); }
     program_node& decompression_scale_down() const { return get_dependency(6); }
