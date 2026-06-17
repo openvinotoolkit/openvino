@@ -745,7 +745,7 @@ For example, the following code snippet will run **Text Encoder** on **CPU**, **
       .. code-block:: python
 
          # Run Text Encoder on CPU, UNet on NPU, and VAE decoder on GPU
-         pipe.compile("CPU", "NPU", "GPU", CACHE_DIR="cache")
+         pipe.compile(text_encode_device="CPU", denoise_device="NPU", vae_device="GPU", CACHE_DIR="cache")
 
    .. tab-item:: C++
       :sync: cpp
