@@ -36,13 +36,16 @@ private:
     void registerProperties();
     std::string buildRuntimeRequirements() const;
 
-    mutable std::mutex _mutex;
     FilteredConfig _config;
+
     std::shared_ptr<IGraph> _graph;
     std::optional<int64_t> _batchSize;
     Logger& _logger;
+
     std::map<std::string, PropertyDescriptor> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
+
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

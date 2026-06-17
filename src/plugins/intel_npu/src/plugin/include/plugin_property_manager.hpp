@@ -70,11 +70,12 @@ private:
     ov::CompatibilityCheck validateCompatibilityDescriptor(ov::intel_npu::CompilerType compilerType,
                                                            const ov::AnyMap& arguments) const;
 
-    mutable std::mutex _mutex;
     mutable FilteredConfig _config;
+
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
     Logger& _logger;
+
     mutable ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
     mutable ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
     mutable std::string _currentlyUsedPlatform;
@@ -119,6 +120,8 @@ private:
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
                                                                         ov::internal::cache_header_alignment.name()};
+
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

@@ -133,6 +133,7 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
         // Special case for some both configs. Don't need compiler for these Both properties.
         // Runtime (plugin-only) options are always enabled
         if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
+            // Disable all compiler options
             config.enable(key, false);
         }
     });
@@ -493,6 +494,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
             propertyIsRegistered = false;
             break;
         }
+        // Special case for some both configs. Don't need to check compiler support for these Both properties.
         const bool isNotSpecialBothProperty = !isSpecialBothProperty(property.first);
         if (_config.hasOpt(property.first) && isNotSpecialBothProperty) {
             auto opt = _config.getOpt(property.first);
@@ -503,6 +505,8 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         }
     }
 
+    // Check if one of the properties is compiler config which needs to return different values based on compiler
+    // and platform configuration
     if (propertyIsCompilerConfig || !propertyIsRegistered) {
         auto compilerType = resolveCompilerTypeWithoutLock(properties);
         auto deviceId = resolveDeviceIdWithoutLock(properties);
@@ -513,12 +517,17 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
             device == nullptr ? std::move(deviceId) : device->getName(),
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
+        // Create a compiler to get the type and fetch version and supported options if needed
         CompilerAdapterFactory factory;
         compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
         if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
               compilationPlatform == _currentlyUsedPlatform)) {
+            // In case properties are not initialized or the compiler/platform was changed since last call -
+            // filter out options again
             filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+
+            // reset properties for the new options
             registerProperties();
             _compilerConfigsFilteredByCompiler = true;
             _currentlyUsedCompiler = compilerType;
@@ -530,8 +539,10 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     ov::AnyMap special_cfgs_to_set;
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
+            // property doesn't exist - checking as internal now
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
+                    // if compiler reports it supported > registering as internal
                     _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
                 } else {
                     OPENVINO_THROW("Unsupported configuration key: ", value.first);
@@ -577,9 +588,12 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
 
     bool propertyIsCompilerConfig = false;
     bool propertyIsRegistered = true;
+    // If the property is not registered, there is no point of checking the config.
     if (!isPropertyRegistered(name)) {
         propertyIsRegistered = false;
     } else if (_config.hasOpt(name) && !isSpecialBothProperty(name)) {
+        // Property is already registered but need to re-check if the CompilerTime config is still supported by the
+        // current compiler.
         auto opt = _config.getOpt(name);
         if (opt.mode() != OptionMode::RunTime) {
             propertyIsCompilerConfig = true;
@@ -590,6 +604,8 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
     if (name == ov::compatibility_check.name() || name == ov::supported_properties.name()) {
         needToResetProperties = disableCompatibilityCheckIfNeeded();
     }
+    // Special case for Supported Properties and Caching Properties as they are compiler dependent. So we need to
+    // check compiler support for those properties on each getProperty call as well.
     if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name() ||
         name == ov::internal::caching_properties.name()) {
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -602,6 +618,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
             device == nullptr ? std::move(deviceId) : device->getName(),
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
+        // Create a compiler to get the type and fetch version and supported options if needed
         CompilerAdapterFactory factory;
         try {
             compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
@@ -618,6 +635,8 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
 
         if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                                      compilationPlatform == _currentlyUsedPlatform)) {
+            // In case properties are not initialized or the compiler/platform was changed since last call -
+            // filter out options again
             filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
 
             _compilerConfigsFilteredByCompiler = true;
@@ -628,14 +647,12 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
     }
 
     if (needToResetProperties) {
+        // reset properties for the new options
         registerProperties();
     }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
-        if (configIterator->second.getWithArgs) {
-            return configIterator->second.getWithArgs(_config, arguments);
-        }
         if (configIterator->second.mutability == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());
             return ov::Any();
@@ -673,6 +690,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     const bool isConfigOption = _config.hasOpt(name);
 
     if (!isRegistered && !isConfigOption) {
+        // Property is neither registered nor known by config
         return false;
     }
 
@@ -685,16 +703,20 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     }
 
     if (isRegistered) {
+        // Registered and not a config option: always supported. Or it is a special both property which is always
+        // supported.
         if (!isConfigOption || isSpecialBothProperty(name)) {
             return true;
         }
 
+        // Registered as a config option: runtime mode is always supported.
         auto opt = _config.getOpt(name);
         if (opt.mode() == OptionMode::RunTime) {
             return true;
         }
     }
 
+    // Property is compiler config, need to check compiler support
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     auto compilerType = _config.get<COMPILER_TYPE>();
     auto deviceId = _config.get<DEVICE_ID>();
@@ -705,6 +727,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
                                       device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
+    // Create a compiler to get the type and fetch version and supported options if needed
     CompilerAdapterFactory factory;
     try {
         compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
@@ -721,8 +744,11 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
 
     if (compiler != nullptr && !(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
                                  compilationPlatform == _currentlyUsedPlatform)) {
+        // In case properties are not initialized or the compiler/platform was changed since last call -
+        // filter out options again
         filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
 
+        // reset properties for the new options
         registerProperties();
         _compilerConfigsFilteredByCompiler = true;
         _currentlyUsedCompiler = compilerType;
@@ -819,9 +845,12 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
         propertiesPlatform = platform->second.as<std::string>();
     }
 
+    // filter out unsupported options
     if (!(compilerConfigsFilteredByCompiler &&
           propertiesCompilerType.value_or(currentlyUsedCompiler) == currentlyUsedCompiler &&
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
+        // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
+        // filter out options again
         filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
     }
 
@@ -830,6 +859,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
     ov::AnyMap specialCfgsToSet;
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
+            // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
