@@ -1026,7 +1026,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_HalfPixelPrecision() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx512"}, "jit_avx512"});
     } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
