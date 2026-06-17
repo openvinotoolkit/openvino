@@ -15,7 +15,6 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "sdpa_utils.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -954,7 +953,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     std::size_t query_size = q_shape_static[2];  // seq_len at index 2
     LOG_DEBUG("Extracted query_size (seq_len) from Q shape: " << query_size);
 
-    auto mask_param = find_mask_parameter(pattern_nodes.add_node);
+    auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
         LOG_WARN("Could not find mask parameter in model");
         return std::nullopt;

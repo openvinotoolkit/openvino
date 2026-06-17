@@ -12,7 +12,6 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "sdpa_utils.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -25,14 +24,14 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const std::map<std::string, size_t>& past_key_sequence_dims,
     const std::map<std::string, size_t>& past_value_sequence_dims) {
     // Find SDPA pattern nodes in the model
-    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
         LOG_WARN("Could not find SDPA pattern in model");
         return std::nullopt;
     }
 
     // Find mask parameter in the model
-    auto mask_param = find_mask_parameter(pattern_nodes.add_node);
+    auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
         LOG_WARN("Could not find mask parameter in model");
         return std::nullopt;
@@ -197,7 +196,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         };
 
         // Find SDPA pattern in the cloned model.
-        auto cloned_pattern = find_sdpa_pattern_nodes(cloned_model);
+        auto cloned_pattern = ov::npuw::util::find_sdpa_pattern_nodes(cloned_model);
         if (!cloned_pattern.is_valid()) {
             LOG_WARN("Could not find SDPA pattern in block-mode cloned model (model_idx=" << model_idx << ")");
             return std::nullopt;
@@ -232,7 +231,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         // Directly set partial shape on the Parameter node — bypasses reshape() name/pointer
         // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
         // tensor names (not friendly names), so set_partial_shape() is the safest path.
-        auto mask_param = find_mask_parameter(cloned_pattern.add_node);
+        auto mask_param = ov::npuw::util::find_mask_parameter(cloned_pattern.add_node);
         if (!mask_param) {
             LOG_WARN("Could not find mask parameter for block-mode pyramid model[" << model_idx << "]");
             return std::nullopt;
@@ -360,7 +359,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 // Helper function to validate model and extract necessary information for pyramid attention
 std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(const std::shared_ptr<ov::Model>& model) {
     // Find SDPA pattern nodes using the extracted function
-    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
         LOG_WARN("Could not find valid SDPA pattern in model");
         return std::nullopt;
