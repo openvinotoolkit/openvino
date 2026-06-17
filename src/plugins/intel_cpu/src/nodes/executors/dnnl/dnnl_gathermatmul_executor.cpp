@@ -25,6 +25,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #endif
+#include "cpu_parallel.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -116,13 +117,15 @@ public:
 
         const auto& bias_md = key.bias_md;
 
-        auto ip_prim_desc = dnnl::inner_product_forward::primitive_desc(eng,
-                                                                        dnnl::prop_kind::forward_inference,
-                                                                        m_input_md,
-                                                                        weights_md,
-                                                                        bias_md,
-                                                                        m_output_md,
-                                                                        m_attr);
+        auto ip_prim_desc = withDnnlDescriptorConcurrency([&]() {
+            return dnnl::inner_product_forward::primitive_desc(eng,
+                                                               dnnl::prop_kind::forward_inference,
+                                                               m_input_md,
+                                                               weights_md,
+                                                               bias_md,
+                                                               m_output_md,
+                                                               m_attr);
+        });
 
         m_impl_type = parse_impl_name(ip_prim_desc.impl_info_str());
         m_wei_md = ip_prim_desc.weights_desc();
