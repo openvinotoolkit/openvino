@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_cpu/properties.hpp>
 #include <chrono>
