@@ -13,6 +13,17 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 
+# prepare header dependencies
+target_link_libraries(${TARGET_NAME} INTERFACE
+    LevelZero::NPUExt     # contain ze_graph_ext.h
+    openvino::zero_loader # contain level_zero/ze_api.h>
+)
+
+# prepare file for build
+if(TARGET prepare_ze_headers)
+    add_dependencies(${TARGET_NAME} prepare_ze_headers)
+endif()
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_developer_package_export_targets(TARGET openvino::npu_vm_runtime_api
