@@ -209,6 +209,7 @@ std::string toString(EltwiseMode b_mode) {
         case EltwiseMode::SQRT:   return "SQRT";
         case EltwiseMode::RSQRT:  return "RSQRT";
         case EltwiseMode::ASSIGN: return "ASSIGN";
+        case EltwiseMode::ATAN2:  return "ATAN2";
         default: return "";
     }
 }

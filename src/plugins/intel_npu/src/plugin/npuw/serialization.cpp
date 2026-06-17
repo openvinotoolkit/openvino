@@ -105,7 +105,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {
     stream & var.num_experts & var.expert_hidden_dim & var.num_active_experts & var.input_token_count &
-        var._router_scores_idx & var._expert_input_param_idx & var._param_mapping;
+        var._router_scores.original & var._router_scores.compiled & var._expert_input.original &
+        var._expert_input.compiled & var._param_mapping;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var) {
