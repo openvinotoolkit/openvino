@@ -4,8 +4,8 @@
 
 #include "drop_zp_subtract.hpp"
 
+#include <algorithm>
 #include <memory>
-
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
