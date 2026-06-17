@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import numpy as np
 import pytest
 import torch
 
@@ -27,9 +26,8 @@ class TestIndexCopy(PytorchLayerTest):
                 input_tensor.index_copy_(self.dim, self.index, values)
                 return input_tensor
 
-        ref_net = None
         op_name = "aten::index_copy_" if inplace else "aten::index_copy"
-        return aten_index_copy_(dim, index, inplace), ref_net, op_name
+        return aten_index_copy_(dim, index, inplace), op_name
 
     @pytest.mark.parametrize(
         "input_data",
@@ -84,8 +82,8 @@ class TestIndexCopy(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize('inplace', [skip_if_export(True), False])
     def test_index_copy_single_index(self, inplace, ie_device, precision, ir_version, input_data):
-        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
-        self.values = np.random.randn(*input_data["values_shape"]).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_data["input_shape"])
+        self.values = self.random.randn(*input_data["values_shape"])
         index = input_data["index"]
         dim = input_data["dim"]
         self._test(*self.create_model(dim, index, inplace), ie_device, precision, ir_version)

@@ -119,7 +119,8 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             if (need_normalization)
                 return false;
         }
-        const size_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
+        const size_t slice_indices_length =
+            axes_vec.empty() ? 0 : (*std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1);
         const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
         const bool are_axes_sorted = std::is_sorted(axes_vec.begin(), axes_vec.end());

@@ -34,11 +34,17 @@ public:
 
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
     bool applicable() const override {
-        return !m_executors.empty();
+        return !m_repacked_inputs.empty();
     }
 
 private:
     using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
+    struct RepackedInputConfig {
+        BrgemmCopyBKernelConfig kernel_config;
+        RepackExecutorPtr executor = nullptr;
+        bool needs_runtime_repacking = false;
+    };
+
     static CpuBlockedMemoryDescPtr get_desc(const ov::snippets::VectorDims& planar_shape,
                                             const ov::element::Type& prc,
                                             size_t wei_k_blk,
@@ -52,11 +58,12 @@ private:
                               size_t N,
                               size_t K);
 
-    static RepackExecutorPtr create_executor(const ov::snippets::lowered::ExpressionPtr& param,
+    static BrgemmCopyBKernelConfig get_kernel_config(const ov::snippets::lowered::ExpressionPtr& param);
+    static RepackExecutorPtr create_executor(const BrgemmCopyBKernelConfig& kernel_config,
                                              const ov::intel_cpu::MultiCacheWeakPtr& cache);
 
     static const size_t brgemm_kernel_rank;
-    std::unordered_map<size_t, RepackExecutorPtr> m_executors;
+    std::unordered_map<size_t, RepackedInputConfig> m_repacked_inputs;
 };
 
 }  // namespace ov::intel_cpu::pass

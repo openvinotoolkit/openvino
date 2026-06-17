@@ -24,15 +24,30 @@ bool FilteredConfig::isOptPublic(std::string_view key) const {
     }
 }
 
-void FilteredConfig::update(const ConfigMap& options, OptionMode mode) {
+void FilteredConfig::update(const ConfigMap& options) {
     auto log = Logger::global().clone("Config");
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         if (isAvailable(p.first)) {
-            const auto opt = _desc->get(p.first, mode);
-            _impl[opt.key().data()] = opt.validateAndParse(p.second);
+            const auto opt = _desc->get(p.first);
+            _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
+        } else {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
+        }
+    }
+}
+
+void FilteredConfig::updateAny(const ov::AnyMap& options) {
+    auto log = Logger::global().clone("Config");
+
+    for (const auto& p : options) {
+        log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
+
+        if (isAvailable(p.first)) {
+            const auto opt = _desc->get(p.first);
+            _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
         } else {
             OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
         }
@@ -97,7 +112,6 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
 }
 
 std::string FilteredConfig::getInternal(std::string key) const {
-    auto log = Logger::global().clone("Config");
     if (_internal_compiler_configs.count(key) == 0) {
         OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));
     }
@@ -120,7 +134,7 @@ std::string FilteredConfig::toStringForCompiler() const {
         const auto& key = it->first;
 
         // Only include available configs which options have OptionMode::Compile or OptionMode::Both
-        if (isAvailable(key)) {
+        if (isAvailable(key.data())) {
             if (_desc->has(key)) {
                 if (_desc->get(key).mode() != OptionMode::RunTime) {
                     resultStream << key << "=\"" << it->second->toString() << "\"";
@@ -133,14 +147,6 @@ std::string FilteredConfig::toStringForCompiler() const {
     }
 
     return resultStream.str();
-}
-
-void FilteredConfig::markAsInitialized() {
-    _initialized = true;
-}
-
-bool FilteredConfig::wasInitialized() const {
-    return _initialized;
 }
 
 }  // namespace intel_npu

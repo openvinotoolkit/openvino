@@ -25,7 +25,8 @@ void dequantize_inputs(OutputVector& deq_inputs);
 std::shared_ptr<SparsityInfo> get_sparsity(const flatbuffers::Vector<int32_t>* tf_shape,
                                            const tflite::SparsityParameters* tf_sparsity,
                                            const ov::element::Type target_type,
-                                           const uint8_t* buffer);
+                                           const uint8_t* buffer,
+                                           size_t buffer_size = 0);
 
 template <typename T>
 OutputVector get_indexed_outputs(const T& outputs);

@@ -3,7 +3,6 @@
 
 import os
 import time
-from datetime import datetime
 from math import ceil
 from openvino import Core, get_version, AsyncInferQueue
 
@@ -27,6 +26,8 @@ class Benchmark:
         self.inference_only = inference_only
         self.latency_groups = []
         self.max_irate = maximum_inference_rate
+        self._timer = time.perf_counter
+        self._timer_resolution = time.get_clock_info('perf_counter').resolution
 
     def __del__(self):
         del self.core
@@ -92,12 +93,18 @@ class Benchmark:
             delay = nextRunFinishTime - exec_time
             time.sleep(delay if delay > 0 else 0)
 
+    def _elapsed_time(self, start_time):
+        return self._timer() - start_time
+
+    def _total_duration(self, start_time):
+        return max(self._elapsed_time(start_time), self._timer_resolution)
+
     def sync_inference(self, request, data_queue):
         processed_frames = 0
         exec_time = 0
         iteration = 0
         times = []
-        start_time = datetime.utcnow()
+        start_time = self._timer()
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds):
             processed_frames += data_queue.get_next_batch_size()
@@ -107,9 +114,9 @@ class Benchmark:
             times.append(request.latency)
             iteration += 1
 
-            exec_time = (datetime.utcnow() - start_time).total_seconds()
+            exec_time = self._elapsed_time(start_time)
             self.inference_rate_delay(processed_frames, exec_time)
-        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        total_duration_sec = self._total_duration(start_time)
         return sorted(times), total_duration_sec, iteration
 
     def async_inference_only(self, infer_queue, data_queue):
@@ -118,7 +125,7 @@ class Benchmark:
         iteration = 0
         times = []
         in_fly = set()
-        start_time = datetime.utcnow()
+        start_time = self._timer()
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % self.nireq):
@@ -131,11 +138,11 @@ class Benchmark:
             infer_queue.start_async()
             iteration += 1
 
-            exec_time = (datetime.utcnow() - start_time).total_seconds()
+            exec_time = self._elapsed_time(start_time)
             self.inference_rate_delay(processed_frames, exec_time)
 
         infer_queue.wait_all()
-        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        total_duration_sec = self._total_duration(start_time)
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)
         return sorted(times), total_duration_sec, iteration
@@ -146,7 +153,7 @@ class Benchmark:
         iteration = 0
         times = []
         num_groups = len(self.latency_groups)
-        start_time = datetime.utcnow()
+        start_time = self._timer()
         in_fly = set()
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
@@ -164,10 +171,10 @@ class Benchmark:
             infer_queue.start_async(userdata=group_id)
             iteration += 1
 
-            exec_time = (datetime.utcnow() - start_time).total_seconds()
+            exec_time = self._elapsed_time(start_time)
             self.inference_rate_delay(processed_frames, exec_time)
         infer_queue.wait_all()
-        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        total_duration_sec = self._total_duration(start_time)
 
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)

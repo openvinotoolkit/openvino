@@ -21,6 +21,8 @@
   OpenVINO, provide the information in proper articles. You can do it yourself, 
   or contact one of OpenVINO documentation contributors to work together on
   developing the right content. 
+* Complete the AI section in the [PR template](./.github/pull_request_template.md)
+  for every PR and follow the [AI Usage Policy](./AI_USAGE_POLICY.md).
 * For Work In Progress, or checking test results early, use a Draft PR.
 
 
@@ -53,6 +55,82 @@ Regardless of the automated tests, you should ensure the quality of your changes
   * the "master" branch for future releases,
   * the most recently published version for fixes,
   * LTS versions (for two years from their release dates).
+
+
+## Pull Request Activity and Review Process
+
+### What is considered activity
+
+A Pull Request (PR) is considered **active** when there is meaningful progress, such as:
+
+* Code updates addressing review feedback
+* Technical discussion resolving open questions
+* Significant rework or design clarification
+
+Simple reminders, “ping” messages, or trivial updates (e.g. rebasing without changes) are not considered meaningful activity.
+
+
+### Response expectations
+
+After review feedback is provided:
+
+* Contributors are expected to respond within **21 days**
+* If there is no response, the PR may be considered **inactive**
+
+This helps ensure that review bandwidth is focused on contributions that are actively progressing.
+
+
+### Stale Pull Requests
+
+If a PR becomes inactive:
+
+* A maintainer may mark it with a `stale` label
+* A reminder comment may be added requesting an update
+
+This is a signal that the PR requires attention to continue review.
+
+
+### Closing inactive Pull Requests
+
+If there is no meaningful activity within **7 days after being marked as stale**:
+
+* The PR may be **closed by maintainers**
+
+Closing a PR due to inactivity:
+
+* Is an **administrative action**, not a rejection
+* Does **not prevent resubmission** of the contribution later
+
+
+### Continuing or reviving work
+
+If a PR has been closed due to inactivity:
+
+* Contributors are welcome to reopen it (if possible), or
+* Submit a new PR referencing the previous work
+
+Maintainers will resume the review once activity continues.
+
+
+### Maintainer continuation
+
+To avoid losing valuable contributions:
+
+* If a PR is inactive but relevant, maintainers may:
+  * Continue work directly on top of the PR, or
+  * Create a follow-up PR based on the original contribution
+
+In such cases, credit to the original author will be preserved.
+
+
+### Community reviews
+
+OpenVINO encourages community participation in the review process.
+
+* Any PRs are open for review by external contributors
+* Constructive feedback from the community may be considered during merge decisions
+
+Community contributions are highly valued and help improve review scalability.
 
 
 ## Need Additional Help? Check these Articles

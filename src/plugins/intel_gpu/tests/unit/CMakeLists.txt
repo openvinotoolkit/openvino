@@ -11,7 +11,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
-if(OV_COMPILER_IS_INTEL_LLVM AND UNIX)
+if(OV_GPU_WITH_SYCL AND UNIX)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
   string(REPLACE "-pie" "" CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
 endif()
@@ -33,6 +33,44 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/common_utils.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/simple_math.cpp"
   )
+
+# Those tests have dependency on OpenCL runtime
+# Need to be excluded from the build with a different runtime
+file(GLOB_RECURSE SOURCES_WITH_OCL_RT
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/device_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/engine_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/events_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/network_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/usm_memory_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/convert_color_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/cl_mem_input_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/mem_perf_test.cpp"
+  )
+if (NOT GPU_RT_TYPE STREQUAL "OCL")
+    foreach (SOURCE_FILE IN LISTS SOURCES_WITH_OCL_RT)
+        list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+    endforeach()
+endif()
+
+file(GLOB_RECURSE SOURCES_WITH_ZE_RT
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze/*.cpp"
+  )
+
+if (NOT GPU_RT_TYPE STREQUAL "ZE")
+    foreach (SOURCE_FILE IN LISTS SOURCES_WITH_ZE_RT)
+        list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+    endforeach()
+endif()
+
+file(GLOB_RECURSE SOURCES_WITH_SYCL_RT
+  "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/sycl/*.cpp"
+  )
+
+if (NOT GPU_RT_TYPE STREQUAL "SYCL")
+  foreach (SOURCE_FILE IN LISTS SOURCES_WITH_SYCL_RT)
+    list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+  endforeach()
+endif()
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)
     set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
@@ -60,6 +98,7 @@ add_executable(${TARGET_NAME} ${SOURCES_ALL})
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -69,7 +108,6 @@ endif()
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
-                                             OpenCL::OpenCL
                                              gtest
                                              gtest_main
                                              gflags

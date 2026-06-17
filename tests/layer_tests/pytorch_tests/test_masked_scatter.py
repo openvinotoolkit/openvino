@@ -5,13 +5,13 @@ import pytest
 import torch
 from packaging.version import parse as parse_version
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestMaskedScatter(PytorchLayerTest):
     def _prepare_input(self, shape, x_dtype="float32", mask_dtype="bool", out=False):
         import numpy as np
-        x = np.random.randn(*shape).astype(x_dtype)
+        x = self.random.randn(*shape, dtype=x_dtype)
         mask = (x > 0.5).astype(mask_dtype)
         source = np.arange(np.size(x)).reshape(shape).astype(x_dtype)
         if not out:
@@ -24,7 +24,7 @@ class TestMaskedScatter(PytorchLayerTest):
 
         class aten_masked_scatter(torch.nn.Module):
             def __init__(self, out, inplace):
-                super(aten_masked_scatter, self).__init__()
+                super().__init__()
                 if inplace:
                     self.forward = self.forward_inplace
                 if out:
@@ -39,16 +39,16 @@ class TestMaskedScatter(PytorchLayerTest):
             def forward_inplace(self, x, mask, source):
                 return x.masked_scatter_(mask, source), x
 
-        ref_net = None
 
-        return aten_masked_scatter(out, inplace), ref_net, "aten::masked_scatter" if not inplace else "aten::masked_scatter_"
+        return aten_masked_scatter(out, inplace), "aten::masked_scatter" if not inplace else "aten::masked_scatter_"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("shape", [[2, 5], [10, 10], [2, 3, 4], [10, 5, 10, 3], [2, 6, 4, 1]])
     @pytest.mark.parametrize("input_dtype", ["float32", "int32", "float", "int", "uint8"])
     @pytest.mark.parametrize("mask_dtype", ["bool"])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_masked_scatter(self, shape, input_dtype, mask_dtype, out, ie_device, precision, ir_version):
         self._test(*self.create_model(out), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"shape": shape, "x_dtype": input_dtype, "mask_dtype": mask_dtype, "out": out})

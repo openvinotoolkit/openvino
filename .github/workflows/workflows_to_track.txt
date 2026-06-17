@@ -35,8 +35,6 @@ name: Debian 10 ARM
 name: Android
 ==> ./code_style.yml <==
 name: Code Style
-==> ./manylinux_2014.yml <==
-name: Manylinux 2014
 ==> ./manylinux_2_28.yml <==
 name: Manylinux 2_28
 ==> ./linux_arm64.yml <==

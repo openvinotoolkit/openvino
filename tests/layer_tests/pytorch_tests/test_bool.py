@@ -9,14 +9,14 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestBool(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randint(0, 10, 1).astype(np.int32),)
+        return (self.random.randint(0, 10, 1, dtype=np.int32),)
 
     def create_model(self, input_type):
         import torch
 
         class prim_bool(torch.nn.Module):
             def __init__(self, input_type):
-                super(prim_bool, self).__init__()
+                super().__init__()
                 self.forward = self.forward_tensor if input_type != "scalar" else self.forward_scalar
 
             def forward_tensor(self, x):
@@ -25,9 +25,8 @@ class TestBool(PytorchLayerTest):
             def forward_scalar(self, x:int):
                 return bool(x)
 
-        ref_net = None
 
-        return prim_bool(input_type), ref_net, "aten::Bool"
+        return prim_bool(input_type), "aten::Bool"
 
     @pytest.mark.parametrize("input_type", ["tensor", "scalar"])
     @pytest.mark.nightly

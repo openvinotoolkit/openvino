@@ -143,13 +143,7 @@ elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
     # Warnings as errors
     #
-
     ov_add_compiler_flags(/WX)
-
-    #
-    # Disable noisy warnings
-    #
-    ov_disable_deprecated_warnings()
 else()
     #
     # Common enabled warnings
@@ -162,6 +156,7 @@ else()
 
     # This enables all the warnings about constructions that some users consider questionable, and that are easy to avoid
     ov_add_compiler_flags(-Wall)
+    ov_add_compiler_flags(-Wignored-qualifiers)
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ov_add_compiler_flags(-Wundef)
 
@@ -189,7 +184,6 @@ else()
 
     if(OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(-Wno-tautological-constant-compare)
-        ov_disable_deprecated_warnings()
     endif()
 
     #

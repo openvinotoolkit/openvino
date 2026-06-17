@@ -51,6 +51,10 @@ if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
         endif()
     else()
         add_subdirectory(thirdparty/ittapi)
+        ov_developer_package_export_targets(
+            TARGET ittapi::ittnotify
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:ittapi::ittnotify,INTERFACE_INCLUDE_DIRECTORIES>/)
     endif()
     add_subdirectory(thirdparty/itt_collector)
 endif()
@@ -68,7 +72,7 @@ endif()
 # LevelZero
 #
 
-if(ENABLE_INTEL_NPU)
+if(ENABLE_OV_ZERO_LOADER)
     if(ENABLE_SYSTEM_LEVEL_ZERO)
         pkg_search_module(level_zero QUIET
                           IMPORTED_TARGET
@@ -83,7 +87,20 @@ if(ENABLE_INTEL_NPU)
     if(NOT level_zero_FOUND)
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
+        ov_developer_package_export_targets(
+            TARGET ze_loader
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/ze_api.h
+                $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/loader)
+        ov_install_static_lib(ze_loader ${OV_CPACK_COMP_CORE})
     endif()
+    add_library(level_zero_headers INTERFACE)
+    add_library(LevelZero::Headers ALIAS level_zero_headers)
+    if (TARGET prepare_ze_headers)
+        add_dependencies(level_zero_headers prepare_ze_headers)
+    endif()
+    get_target_property(ZE_INCLUDE_DIRS LevelZero::LevelZero INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(level_zero_headers INTERFACE ${ZE_INCLUDE_DIRS})
 endif()
 
 #
@@ -388,8 +405,8 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
             foreach(proto_target protoc libprotobuf libprotobuf-lite)
                 if(TARGET ${proto_target})
-                    target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
-                    target_link_options(${proto_target} PUBLIC -fno-sanitize=thread)
+                    target_compile_options(${proto_target} PRIVATE -fno-sanitize=thread)
+                    target_link_options(${proto_target} PRIVATE -fno-sanitize=thread)
                 endif()
             endforeach()
         endif()
@@ -459,6 +476,13 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
                 # NPU compiler requires flatbuffers and flatc defined as target
                 add_executable(flatc ALIAS flatbuffers::flatc)
             endif()
+        endif()
+        # disable TSan for flatc binary, only used as a build time tool, not in runtime.
+        if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
+            target_compile_options(flatc PRIVATE -fno-sanitize=thread)
+            target_link_options(flatc PRIVATE -fno-sanitize=thread)
+            string(REPLACE "-shared-libsan" "" _flatc_exe_flags "${CMAKE_EXE_LINKER_FLAGS}")
+            set_target_properties(flatc PROPERTIES LINK_FLAGS "${_flatc_exe_flags}")
         endif()
     endif()
 

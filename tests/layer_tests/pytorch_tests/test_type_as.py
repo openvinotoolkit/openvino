@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestTypeAs(PytorchLayerTest):
     def _prepare_input(self, input_dtype=np.float32, cast_dtype=np.float32):
-        input_data = np.random.randint(127, size=(1, 3, 224, 224))
+        input_data = self.random.randint(127, size=(1, 3, 224, 224))
         return (input_data.astype(input_dtype), input_data.astype(cast_dtype))
 
     def create_model(self):
@@ -20,9 +20,8 @@ class TestTypeAs(PytorchLayerTest):
             def forward(self, x, y):
                 return x.type_as(y)
 
-        ref_net = None
 
-        return aten_type_as(), ref_net, "aten::type_as"
+        return aten_type_as(), "aten::type_as"
 
     @pytest.mark.parametrize("input_dtype", [np.float64, np.float32, np.int64, np.int32, np.int16, np.int8, np.uint8])
     @pytest.mark.parametrize("cast_dtype", [np.float64, np.float32, np.int64, np.int32, np.int16, np.int8, np.uint8])
@@ -39,9 +38,8 @@ class TestComplexTypeAs(PytorchLayerTest):
 
     def _prepare_input(self, input_dtype=np.float32, cast_dtype=np.float64):
         # Complex tensor represented as real with shape [..., 2]
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((2, 4, 2)).astype(input_dtype),
-                rng.standard_normal((2, 4, 2)).astype(cast_dtype))
+        return (self.random.randn(2, 4, 2, dtype=input_dtype),
+                self.random.randn(2, 4, 2, dtype=cast_dtype))
 
     def create_model(self):
         import torch
@@ -54,7 +52,7 @@ class TestComplexTypeAs(PytorchLayerTest):
                 result = cx.type_as(cy)
                 return torch.view_as_real(result)
 
-        return ComplexTypeAs(), None, "aten::type_as"
+        return ComplexTypeAs(), "aten::type_as"
 
     @pytest.mark.parametrize("input_dtype", [np.float32, np.float64])
     @pytest.mark.parametrize("cast_dtype", [np.float32, np.float64])

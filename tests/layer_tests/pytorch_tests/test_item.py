@@ -15,16 +15,15 @@ from pytorch_layer_test_class import PytorchLayerTest
 @pytest.mark.parametrize("shape", [[], [1], [1, 1, 1]])
 class TestItem(PytorchLayerTest):
     def _prepare_input(self):
-        return [np.random.randn(1).astype(self.dtype).reshape(self.shape)]
+        return [self.random.randn(1, dtype=self.dtype).reshape(self.shape)]
 
     def create_model(self):
         class aten_item(torch.nn.Module):
             def forward(self, x: torch.Tensor):
                 return x.item()
 
-        ref_net = None
 
-        return aten_item(), ref_net, "aten::item"
+        return aten_item(), "aten::item"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

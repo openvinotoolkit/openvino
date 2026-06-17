@@ -43,6 +43,11 @@ public:
         return jit_term;
     }
 
+    JitTerm lt(const JitTerm& rhs) const {
+        JitTerm jit_term {"(" + text + "<" + rhs.str() + ")"};
+        return jit_term;
+    }
+
 private:
     std::string text;
 };
@@ -100,6 +105,16 @@ JitTerm tanh(const JitTerm& arg) {
 
 JitTerm log(const JitTerm& arg) {
     JitTerm jit_term{"(log(" + arg.str() + "))"};
+    return jit_term;
+}
+
+JitTerm sqrt(const JitTerm& arg) {
+    JitTerm jit_term{"(sqrt(" + arg.str() + "))"};
+    return jit_term;
+}
+
+JitTerm fabs(const JitTerm& arg) {
+    JitTerm jit_term{"(fabs(" + arg.str() + "))"};
     return jit_term;
 }
 
@@ -369,7 +384,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
             _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
             _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
-            _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
+            _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -1368,6 +1383,50 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(round(input))"));
             break;
+        case ActivationFunction::ERFINV: {
+          // NOTE: exactly the same implementation can be found
+          // in fused_ops_jitter.cpp - ideally both should be defined
+          // in common place, but that would require deeper refactoring
+          // (e.g. class JitTerm is also defined in multiple places and
+          // it is a different implementation in different jitters)
+          // which is out of scope for the current change....
+          const bool is_f32 = (out_dt == Datatype::F32);
+          const std::string type_suffix = is_f32 ? "f" : "h";
+          const JitTerm elem_inf{is_f32 ? "INFINITY" : "((half)INFINITY)"};
+          auto cf = [&](const char* lit) { return JitTerm{lit + type_suffix}; };
+          auto horner = [&](const JitTerm& s,
+                            std::initializer_list<JitTerm> coefs) {
+            auto it = coefs.begin();
+            JitTerm r = *it++;
+            for (; it != coefs.end(); ++it) {
+              r = r * s + *it;
+            }
+            return r;
+          };
+          const JitTerm& x = input;
+          const JitTerm w = neg(log((cf("1.0") - x) * (cf("1.0") + x)));
+          const JitTerm s_lo = w - cf("2.5");
+          const JitTerm s_hi = sqrt(w) - cf("3.0");
+          const JitTerm p_lo = horner(
+              s_lo,
+              {cf("2.81022636e-08"), cf("3.43273939e-07"), cf("-3.5233877e-06"),
+               cf("-4.39150654e-06"), cf("0.00021858087"), cf("-0.00125372503"),
+               cf("-0.00417768164"), cf("0.246640727"), cf("1.50140941")});
+          const JitTerm p_hi = horner(
+              s_hi,
+              {cf("-0.000200214257"), cf("0.000100950558"), cf("0.00134934322"),
+               cf("-0.00367342844"), cf("0.00573950773"), cf("-0.0076224613"),
+               cf("-0.00943887047"), cf("1.00167406"), cf("2.83297682")});
+          const JitTerm poly = x * ternary(w.lt(cf("5.0")), p_lo, p_hi);
+          // x = 0     -> poly yields 0 naturally.
+          // |x| > 1   -> log of a negative produces NaN, propagated by poly.
+          // x = +/-1  -> log(0) blows up the polynomial; force +/-inf via x *
+          // INFINITY.
+          jitConstants.AddConstant(MakeJitConstant(
+              macro_def,
+              ternary(fabs(x).eq(cf("1.0")), x * elem_inf, poly).str()));
+          break;
+        }
         case ActivationFunction::NONE:
         default:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "input"));
@@ -1516,11 +1575,15 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
         case Datatype::INT4:
             type = "char";
+            to_type = "convert_char(v)";
+            to_type_sat = "convert_char_sat(v)";
             type_size = "0.5f";
             is_fp = false;
             break;
         case Datatype::UINT4:
             type = "uchar";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
             type_size = "0.5f";
             is_fp = false;
             break;

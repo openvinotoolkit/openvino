@@ -61,5 +61,16 @@ class SimpleIfNotConstConditionUnusedOutputPortsTest : public SimpleIfNotConstCo
 protected:
     void SetUp() override;
 };
+
+class SimpleIfNoRedefinePathTest : public SimpleIfTest {
+public:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+
+protected:
+    void SetUp() override;
+
+    size_t m_cond_iter = 0;
+    size_t m_input_gen_iter = 0;
+};
 }  // namespace test
 }  // namespace ov

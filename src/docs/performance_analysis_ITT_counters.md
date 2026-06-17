@@ -37,7 +37,7 @@ Generated file can be opened with Vtune client.
 
 ## Adding new ITT counters
 
-Use API defined in [openvino/itt](https://docs.openvinotoolkit.org/latest/itt_2include_2openvino_2itt_8hpp.html) module.
+Use API defined in [openvino/itt](https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__dev__profiling.html) module.
 
 ## See also
 

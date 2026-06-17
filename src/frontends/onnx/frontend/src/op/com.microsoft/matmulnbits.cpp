@@ -8,6 +8,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -47,7 +48,19 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         "bits",
         4);  // required, in docs: number of bits used for weight quantization (default 4)
 
-    const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
+    // Validate attributes before any arithmetic to prevent division-by-zero and signed overflow
+    CHECK_VALID_NODE(node, K > 0, "Wrong K attribute value: ", K);
+    CHECK_VALID_NODE(node, N > 0, "Wrong N attribute value: ", N);
+    CHECK_VALID_NODE(node,
+                     block_size >= 16 && (block_size & (block_size - 1)) == 0,
+                     "Wrong block size, should be >=16 and be a power of 2, got: ",
+                     block_size);
+    CHECK_VALID_NODE(node, bits == 2 || bits == 4 || bits == 8, "Unsupported bits value: ", bits);
+    CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
+
+    const auto u_K = static_cast<uint64_t>(K);
+    const auto u_block_size = static_cast<uint64_t>(block_size);
+    const uint64_t n_blocks_per_col = (u_K + u_block_size - 1) / u_block_size;
     const auto blob_size = (block_size * bits + 7) / 8;
 
     const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
@@ -82,12 +95,6 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         b_quantized.get_element_type() == ov::element::u8 || b_quantized.get_element_type() == ov::element::i32,
         "Unsupported input B type, accepted U8 or I32, got: ",
         b_quantized.get_element_type());
-
-    CHECK_VALID_NODE(node,
-                     block_size >= 16 && (block_size & (block_size - 1)) == 0,
-                     "Wrong block size, should be >=16 and be a power of 2, got: ",
-                     block_size);
-    CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
 
     if (common::is_input_valid(node, 3)) {
         zero_points = inputs[3];
@@ -248,15 +255,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
         // use fp16 for compute
 
-        // convert b to fp16
-        auto converted_b = std::make_shared<v0::Convert>(casted_b, a.get_element_type());
-
-        // sub and scale
-        const auto sub_b = std::make_shared<v1::Subtract>(converted_b, converted_zero_points);
+        // sub and scale via the shared low-precision dequantization helper
         const auto scales_fp16 = std::make_shared<v0::Convert>(scales, a.get_element_type());
         const auto scales_reshaped =
             op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
-        const auto scaled_b = std::make_shared<v1::Multiply>(sub_b, scales_reshaped);
+
+        auto scaled_b = ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
 
         // reshape b to [N, K]
         auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});

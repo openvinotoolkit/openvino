@@ -8,20 +8,19 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestConvTranspose2D(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 3, 10, 10).astype(np.float32),)
+        return (self.random.randn(1, 3, 10, 10),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, output_padding):
         import torch
         import torch.nn.functional as F
 
         class aten_conv_transpose2d(torch.nn.Module):
-            def __init__(self):
-                super(aten_conv_transpose2d, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(groups)
+                    self.bias = rng.torch_randn(groups)
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -31,9 +30,8 @@ class TestConvTranspose2D(PytorchLayerTest):
             def forward(self, x):
                 return F.conv_transpose2d(x, weight=self.weight, bias=self.bias, stride=self.strides, padding=self.pads, output_padding=self.output_padding, dilation=self.dilations, groups=self.groups)
 
-        ref_net = None
 
-        return aten_conv_transpose2d(), ref_net, "aten::conv_transpose2d"
+        return aten_conv_transpose2d(self.random), "aten::conv_transpose2d"
 
     @pytest.mark.parametrize("params",
                              [{'weights_shape': [3, 1, 1, 1], 'strides': [1, 1], 'pads': [0, 0],
@@ -70,20 +68,19 @@ class TestConvTranspose2D(PytorchLayerTest):
 
 class TestConvTranspose1D(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 3, 10).astype(np.float32),)
+        return (self.random.randn(1, 3, 10),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, output_padding):
         import torch
         import torch.nn.functional as F
 
         class aten_conv_transpose1d(torch.nn.Module):
-            def __init__(self):
-                super(aten_conv_transpose1d, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(groups)
+                    self.bias = rng.torch_randn(groups)
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -102,9 +99,8 @@ class TestConvTranspose1D(PytorchLayerTest):
                     groups=self.groups
                 )
 
-        ref_net = None
 
-        return aten_conv_transpose1d(), ref_net, "aten::conv_transpose1d"
+        return aten_conv_transpose1d(self.random), "aten::conv_transpose1d"
 
     @pytest.mark.parametrize("params",
                              [{'weights_shape': [3, 1, 1], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 1, 'output_padding': 0},
@@ -130,20 +126,19 @@ class TestConvTranspose1D(PytorchLayerTest):
 
 class TestConvTranspose3D(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 3, 10, 10, 4).astype(np.float32),)
+        return (self.random.randn(1, 3, 10, 10, 4),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, output_padding):
         import torch
         import torch.nn.functional as F
 
         class aten_conv_transpose3d(torch.nn.Module):
-            def __init__(self):
-                super(aten_conv_transpose3d, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(groups)
+                    self.bias = rng.torch_randn(groups)
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -162,9 +157,8 @@ class TestConvTranspose3D(PytorchLayerTest):
                     groups=self.groups
                 )
 
-        ref_net = None
 
-        return aten_conv_transpose3d(), ref_net, "aten::conv_transpose3d"
+        return aten_conv_transpose3d(self.random), "aten::conv_transpose3d"
 
     @pytest.mark.parametrize("params",
                              [{'weights_shape': [3, 1, 1, 1, 1], 'strides': [1, 1, 1], 'pads': [0, 0, 0],

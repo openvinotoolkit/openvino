@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 
@@ -25,9 +24,8 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.nn.functional.adaptive_avg_pool3d(input_tensor, self.output_size)
 
-        ref_net = None
 
-        return aten_adaptive_avg_pool3d(output_size), ref_net, "aten::adaptive_avg_pool3d"
+        return aten_adaptive_avg_pool3d(output_size), "aten::adaptive_avg_pool3d"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -36,7 +34,7 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
     def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size):
         if ie_device == "GPU" and len(input_tensor) < 5:
             pytest.xfail(reason="Unsupported shape for adaptive pool on GPU")
-        self.input_tensor = np.random.randn(*input_tensor).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_tensor)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
@@ -57,16 +55,15 @@ class TestAdaptiveAvgPool2D(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.nn.functional.adaptive_avg_pool2d(input_tensor, self.output_size)
 
-        ref_net = None
 
-        return aten_adaptive_avg_pool2d(output_size), ref_net, "aten::adaptive_avg_pool2d"
+        return aten_adaptive_avg_pool2d(output_size), "aten::adaptive_avg_pool2d"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool2d(self, ie_device, precision, ir_version, input_shape, output_size):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
@@ -87,14 +84,13 @@ class TestAdaptiveAvgPool1D(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.nn.functional.adaptive_avg_pool1d(input_tensor, self.output_size)
 
-        ref_net = None
 
-        return aten_adaptive_avg_pool1d(output_size), ref_net, "aten::adaptive_avg_pool1d"
+        return aten_adaptive_avg_pool1d(output_size), "aten::adaptive_avg_pool1d"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool1d(self, ie_device, precision, ir_version, input_shape, output_size):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)

@@ -442,6 +442,104 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_wei
     }
 }
 
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_parameter_weights) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 2});
+        auto weights = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{1, 2, 2});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, weights});
+        manager.register_pass<ConvertMatMulToFullyConnected>();
+    }
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 2});
+        auto weights = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{1, 2, 2});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {3}, {0, 2, 1});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(mul, transpose_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto matmul = std::make_shared<op::FullyConnected>(data, transpose, no_bias);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, weights});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_weights_extra_multiply) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 4, 2});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{1, 2, 32}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 32}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {2, 32});
+        auto reshape = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
+        auto extra_mul = std::make_shared<ov::opset1::Multiply>(reshape, mul_const);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, extra_mul);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+        bool support_immad = true;
+        manager.register_pass<ConvertMatMulToFullyConnected>(support_immad);
+    }
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 4, 2});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{1, 2, 32}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 32}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {2, 32});
+        auto reshape = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
+        auto extra_mul = std::make_shared<ov::opset1::Multiply>(reshape, mul_const);
+
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {3}, {0, 2, 1});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(extra_mul, transpose_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto matmul = std::make_shared<op::FullyConnected>(data, transpose, no_bias);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_weights_extra_multiply_non_trivial_batch_broadcast) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{8, 2, 32}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{8, 1, 32}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {16, 32});
+        auto reshape = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
+        auto extra_mul = std::make_shared<ov::opset1::Multiply>(reshape, mul_const);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, extra_mul);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+        bool support_immad = true;
+        manager.register_pass<ConvertMatMulToFullyConnected>(support_immad);
+    }
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{8, 2, 32}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{8, 1, 32}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {16, 32});
+        auto reshape = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
+        auto extra_mul = std::make_shared<ov::opset1::Multiply>(reshape, mul_const);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, extra_mul);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u4_weights_3D) {
     {
         auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{3, 2, 2});
@@ -594,7 +692,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
             break;
         }
     }
-    ASSERT_TRUE(success == false);
+    ASSERT_TRUE(success == true);
 
     func = CreateMatMul(false, false, false, true);
     manager.run_passes(func);
@@ -606,7 +704,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
             break;
         }
     }
-    ASSERT_TRUE(success == false);
+    ASSERT_TRUE(success == true);
 }
 
 TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul_same_input) {
@@ -668,6 +766,40 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
     ASSERT_TRUE(success == false);
 }
 
+TEST(TransformationTests, ConvertMatMulToFullyConnected_clone_shared_convert) {
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 32});
+    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+    auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+    auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
+    ov::mark_as_decompression(convert);
+
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc1 = std::make_shared<op::FullyConnected>(input1, convert, no_bias);
+    auto matmul2 = std::make_shared<ov::opset1::MatMul>(input2, convert, false, false);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{fc1, matmul2},
+                                             ov::ParameterVector{input1, input2});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+    // Without the fix, the pass mutates the shared Convert in-place and breaks fc1's
+    // weight shape, causing validate_and_infer_types to throw inside run_passes.
+    ASSERT_NO_THROW(manager.run_passes(model));
+
+    size_t fc_count = 0;
+    size_t matmul_count = 0;
+    for (auto& op : model->get_ops()) {
+        std::string type_name(op->get_type_name());
+        if (type_name.find("FullyConnected") != std::string::npos) {
+            ++fc_count;
+        } else if (type_name == "MatMul") {
+            ++matmul_count;
+        }
+    }
+    ASSERT_EQ(fc_count, 2u);
+    ASSERT_EQ(matmul_count, 0u);
+}
+
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
     {
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
@@ -694,5 +826,24 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert_2, convert, true, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_rank_a_less_than_rank_b) {
+    {
+        auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 256, 128}, {1.0f});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true
+    }
+    {
+        // Expected: MatMul remains unchanged (rank_a=2 < rank_b=4 rejected by rank check)
+        auto activation = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 256, 128}, {1.0f});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(activation, weights, false, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{activation});
     }
 }

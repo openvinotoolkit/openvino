@@ -1916,10 +1916,11 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 
 //     Const(W) -> to(f16) ->
 //     Const(Z) -> to(f16) -> Subtract
-//     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
+//     Const(S) ---------------------> Multiply -> [to(f32) ->] MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
+                                                           PreserveConstDictMatMulAsymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1927,10 +1928,25 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
     auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
-    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    std::shared_ptr<Node> qres;
+
+    // MatMul -> Divide -> Tanh -> Multiply -> Result
+    if (ctx.get().mm_gate) {
+        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({qmm, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+
+        auto matmul_or =
+            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{qmm->output(0), matmul_multiply->output(0)});
+
+        qres = opp::wrap_type<ov::op::v0::Result>({matmul_or});
+    } else {
+        qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    }
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1948,8 +1964,13 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        // Standard layout: weight [OC, IC], scale [OC, 1], transpose_b=true
+        const bool standard_layout = qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&
+                                     !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b();
+        // Pre-transposed layout: weight [IC, OC], scale [1, OC], transpose_b=false
+        const bool pretransposed_layout = qcoeff_shape.size() == 2 && qcoeff_shape[0] == 1 &&
+                                          !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
+        if (ov::element::u8 == matched_qweight->get_element_type() && (standard_layout || pretransposed_layout)) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
@@ -1964,14 +1985,28 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep) {
+PreserveConstDictMatMulFP8::PreserveConstDictMatMulFP8(Context::Ref ctx, PreserveConstDictMatMulFP8::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto optional_cvt = opp::optional<ov::op::v0::Convert>({qmuls});
     auto qmmi = opp::any_input();
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qmuls});
-    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, optional_cvt});
+    std::shared_ptr<Node> qres;
+    // // MatMul -> Divide -> Tanh -> Multiply -> Result
+    if (ctx.get().mm_gate) {
+        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({qmm, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+
+        auto matmul_or =
+            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{qmm->output(0), matmul_multiply->output(0)});
+
+        qres = opp::wrap_type<ov::op::v0::Result>({matmul_or});
+    } else {
+        qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    }
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1997,7 +2032,7 @@ PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMul
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulSymm"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulFP8"), std::move(callback));
 }
 
 SliceLastMatmul::SliceLastMatmul() {

@@ -17,9 +17,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <utility>
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+#endif
 
 #include "cache/multi_cache.h"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
@@ -288,7 +290,7 @@ void BrgemmAMXKernelExecutor::execute_brgemm_copy_a_kernel(
     ctx.current_M_blk = M;
     ctx.zp_b_compensation_buffer_ptr = nullptr;
     ctx.zp_a_compensation_result_ptr = nullptr;
-    ctx.zp_b_neg_value_ptr = nullptr;
+    ctx.zp_b_neg_val_ptr = nullptr;
     ctx.zp_ab_comp_ptr = nullptr;
     ctx.src = src;
     ctx.tr_src = tr_src;

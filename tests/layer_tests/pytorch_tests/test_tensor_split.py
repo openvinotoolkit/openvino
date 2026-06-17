@@ -4,7 +4,6 @@
 from collections.abc import Collection
 from numbers import Number
 
-import numpy as np
 import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest
@@ -12,7 +11,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestTensorSplit(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.rand(*self.input_shape),)
+        return (self.random.rand(*self.input_shape),)
 
     def create_model(self, splits, axis):
         class aten_tensor_split(torch.nn.Module):
@@ -39,7 +38,7 @@ class TestTensorSplit(PytorchLayerTest):
                 a, b, c, d = torch.tensor_split(input_tensor, self.splits, dim=self.dim)
                 return a, b, c, d
 
-        return aten_tensor_split(splits, axis), None, "aten::tensor_split"
+        return aten_tensor_split(splits, axis), "aten::tensor_split"
 
     @pytest.mark.parametrize("input_shape", [(2, 1, 8), (3, 5, 7, 11)])
     @pytest.mark.parametrize(

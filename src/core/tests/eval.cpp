@@ -37,6 +37,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -68,8 +69,9 @@
 #include "sequence_generator.hpp"
 #include "utils/eval_utils.hpp"
 
-using namespace std;
-using namespace ov;
+namespace ov::test {
+using ov::op::v0::Parameter, ov::op::v0::Constant;
+using std::make_shared, std::vector;
 using namespace testing;
 
 namespace {
@@ -4274,3 +4276,23 @@ TEST(eval, evaluate_concat_string_basic) {
     const auto result_const = ov::op::v0::Constant(out_vector.at(0));
     EXPECT_EQ(out_expected, result_const.get_value_strings());
 }
+
+TEST(eval, interpolate_padding_overflow) {
+    const auto input = std::make_shared<Parameter>(element::f32, Shape{1, 1, 1, 3});
+    const auto output_shape = Constant::create(element::i64, Shape{1}, {4});
+    const auto scales = Constant::create(element::f32, Shape{1}, {1.f});
+    const auto axes = Constant::create(element::i64, Shape{1}, {3});
+    op::v4::Interpolate::InterpolateAttrs attrs{};
+    attrs.pads_begin = {0U, 0U, 0U, 0U};
+    attrs.pads_end = {0U, 0U, 0U, std::numeric_limits<size_t>::max()};
+    const auto op = std::make_shared<op::v4::Interpolate>(input, output_shape, scales, axes, attrs);
+
+    auto outputs = TensorVector{{element::f32, Shape{}}};
+    const auto inputs = TensorVector{{element::f32, Shape{1, 1, 1, 3}},
+                                     {element::i64, Shape{1}},
+                                     {element::f32, Shape{1}},
+                                     {element::i64, Shape{1}}};
+
+    OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
+}
+}  // namespace ov::test

@@ -7,8 +7,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/symbol.hpp"
 
-using namespace std;
-using namespace ov;
+namespace ov::test {
 
 TEST(dimension, broadcast_merge_static_1_and_10) {
     Dimension result;
@@ -167,3 +166,57 @@ TEST(dimension, dimension_symbolic_equality) {
     ov::symbol::set_equal(A, D);
     EXPECT_TRUE(ov::symbol::are_equal(B, C));
 }
+
+TEST(dimension, from_string_static) {
+    Dimension dim("10");
+    EXPECT_TRUE(dim.is_static());
+    EXPECT_EQ(dim.get_length(), 10);
+    EXPECT_EQ(dim.get_min_length(), 10);
+    EXPECT_EQ(dim.get_max_length(), 10);
+}
+
+TEST(dimension, from_string_dynamic) {
+    {
+        Dimension dim("?");
+        EXPECT_TRUE(dim.is_dynamic());
+        EXPECT_EQ(dim.get_min_length(), 0);
+        EXPECT_EQ(dim.get_max_length(), -1);
+    }
+    {
+        Dimension dim("-1");
+        EXPECT_TRUE(dim.is_dynamic());
+        EXPECT_EQ(dim.get_min_length(), 0);
+        EXPECT_EQ(dim.get_max_length(), -1);
+    }
+}
+
+TEST(dimension, from_string_interval) {
+    {
+        Dimension dim("2..10");
+        EXPECT_TRUE(dim.is_dynamic());
+        EXPECT_EQ(dim.get_min_length(), 2);
+        EXPECT_EQ(dim.get_max_length(), 10);
+    }
+    {
+        Dimension dim("..10");
+        EXPECT_TRUE(dim.is_dynamic());
+        EXPECT_EQ(dim.get_min_length(), 0);
+        EXPECT_EQ(dim.get_max_length(), 10);
+    }
+    {
+        Dimension dim("2..");
+        EXPECT_TRUE(dim.is_dynamic());
+        EXPECT_EQ(dim.get_min_length(), 2);
+        EXPECT_EQ(dim.get_max_length(), -1);
+    }
+}
+
+TEST(dimension, from_string_interval_invalid) {
+    {
+        Dimension dim("12..2");
+        EXPECT_TRUE(dim.is_dynamic());
+        EXPECT_EQ(dim.get_min_length(), -1);
+        EXPECT_EQ(dim.get_max_length(), -1);
+    }
+}
+}  // namespace ov::test

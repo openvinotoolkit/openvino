@@ -58,7 +58,7 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
                          (pad_before_y + idx_y) * y_pitch +
                          (pad_before_x + idx_x) * x_pitch;
 #else  // defined(INPUT0_LAYOUT_BFWZYX) && defined(OUTPUT_LAYOUT_BFWZYX)
-    uint8 input_indices;
+    uint input_indices[6];
 
     input_indices[0] = INPUT0_BATCH_NUM;
     input_indices[1] = INPUT0_FEATURE_NUM;
@@ -139,7 +139,7 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
                          (pad_before_x + idx_x) * x_pitch;
 
 #else  // defined(INPUT0_LAYOUT_BFZYX) && defined(OUTPUT_LAYOUT_BFZYX)
-    uint8 input_indices;
+    uint input_indices[5];
 
     input_indices[0] = INPUT0_BATCH_NUM;
     input_indices[1] = INPUT0_FEATURE_NUM;
@@ -211,7 +211,7 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
 
 #else  // defined(INPUT0_LAYOUT_BFYX) && defined(OUTPUT_LAYOUT_BFYX)
 
-    uint4 input_indices;
+    uint input_indices[4];
 
     input_indices[0] = INPUT0_BATCH_NUM;
     input_indices[1] = INPUT0_FEATURE_NUM;

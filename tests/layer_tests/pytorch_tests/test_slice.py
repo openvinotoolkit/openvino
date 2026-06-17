@@ -16,9 +16,8 @@ class TestSlice1D(PytorchLayerTest):
             def forward(self, x, params):
                 return x[params[0] : params[1] : params[2]]
 
-        ref_net = None
 
-        return aten_slice(), ref_net, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.parametrize(
         "params",
@@ -49,9 +48,8 @@ class TestSlice2D(PytorchLayerTest):
             def forward(self, x, params_0a, params_1a):
                 return x[params_0a[0] : params_0a[1] : params_0a[2], params_1a[0] : params_1a[1] : params_1a[2]]
 
-        ref_net = None
 
-        return aten_slice(), ref_net, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.parametrize(
         "params_0a",
@@ -86,7 +84,7 @@ class TestSliceComplex(PytorchLayerTest):
                 x = x[params[0]: params[1]: params[2]]
                 return torch.view_as_real(x)
 
-        return aten_slice(), None, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.parametrize("params", [[0, -1, 1],
                                         [0, -1, 3],
@@ -104,7 +102,7 @@ class TestSliceComplex(PytorchLayerTest):
 
 class TestSliceAndSqueeze(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1, 1, 32).astype(np.float32),)
+        return (self.random.randn(1, 1, 32),)
 
     def create_model(self):
         class aten_slice(torch.nn.Module):
@@ -112,7 +110,7 @@ class TestSliceAndSqueeze(PytorchLayerTest):
                 a = torch.squeeze(x, 1)
                 return a[:, None, :]
 
-        return aten_slice(), None, "aten::slice"
+        return aten_slice(), "aten::slice"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

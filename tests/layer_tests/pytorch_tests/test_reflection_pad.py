@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestReflectionPad(PytorchLayerTest):
     def _prepare_input(self, n):
-        import numpy as np
-        return (np.random.randn(*(2, 5, 6, 7, 8)[:n+2]).astype(np.float32),)
+        return (self.random.randn(*(2, 5, 6, 7, 8)[:n+2]),)
 
     def create_model(self, pad, n):
 
@@ -31,7 +30,7 @@ class TestReflectionPad(PytorchLayerTest):
 
         model = aten_reflection_pad(pad)
         model.forward = model.__getattribute__(f"forward_{n}d")
-        return model, None, f"aten::reflection_pad{n}d"
+        return model, f"aten::reflection_pad{n}d"
 
     @pytest.mark.parametrize(("pad", "n"), [
         ((1, 1), 1),

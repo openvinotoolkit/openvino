@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -19,8 +20,9 @@ namespace ov::pass {
 
 ReshapePRelu::ReshapePRelu() {
     MATCHER_SCOPE(ReshapePRelu);
-    auto input_m = pattern::any_input(pattern::has_static_rank());
-    auto slope_m = pattern::any_input(pattern::has_static_rank());
+    // PRelu input must have rank >= 2 to access channel_dim_idx=1
+    auto input_m = pattern::any_input(pattern::has_static_rank() && pattern::rank_more_than(1));
+    auto slope_m = pattern::any_input(pattern::has_static_rank() && pattern::rank_equals(1));
     auto prelu_m = pattern::wrap_type<v0::PRelu>({input_m, slope_m});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -32,10 +34,6 @@ ReshapePRelu::ReshapePRelu() {
         const auto prelu_pshape = prelu->get_input_partial_shape(0);
         const auto prelu_rank = prelu_pshape.rank();
         const auto slope_pshape = prelu->get_input_partial_shape(1);
-        const auto slope_rank = slope_pshape.rank();
-        if (prelu_rank.get_length() == 1 || slope_rank.get_length() != 1) {
-            return false;
-        }
 
         const auto channel_dim_idx = 1;
         if (slope_pshape.is_static()) {

@@ -12,7 +12,7 @@ class TestBucketize(PytorchLayerTest):
 
     def _prepare_input(self, input_shape, boundaries_range, input_dtype, boundaries_dtype):
         return (
-            np.random.randn(*input_shape).astype(input_dtype),
+            self.random.randn(*input_shape, dtype=input_dtype),
             np.arange(*boundaries_range).astype(boundaries_dtype))
 
     def create_model(self, out_int32, right, is_out):
@@ -33,9 +33,8 @@ class TestBucketize(PytorchLayerTest):
                 else:
                     return torch.bucketize(input, boundaries, out_int32=self.out_int32, right=self.right)
 
-        ref_net = None
 
-        return aten_bucketize(out_int32, right, is_out), ref_net, "aten::bucketize"
+        return aten_bucketize(out_int32, right, is_out), "aten::bucketize"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

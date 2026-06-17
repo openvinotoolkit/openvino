@@ -142,9 +142,8 @@ d3_params = [
 
 class TestConvolution(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
-        import numpy as np
         shape = (1, 3, 10, 10, 10)
-        return (np.random.randn(*shape[:ndim]).astype(np.float32),)
+        return (self.random.randn(*shape[:ndim]),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, transposed, output_padding=0,
                      bias_shape=None, underscore=True):
@@ -154,13 +153,13 @@ class TestConvolution(PytorchLayerTest):
         bias_dim = 0
 
         class aten__convolution(torch.nn.Module):
-            def __init__(self):
-                super(aten__convolution, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias_shape = bias_shape
                 if self.bias_shape is None:
                     self.bias_shape = weights_shape[bias_dim]
-                self.bias = torch.randn(self.bias_shape) if bias else None
+                self.bias = rng.torch_randn(self.bias_shape) if bias else None
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -176,13 +175,13 @@ class TestConvolution(PytorchLayerTest):
                 )
 
         class aten_convolution(torch.nn.Module):
-            def __init__(self):
-                super(aten_convolution, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias_shape = bias_shape
                 if self.bias_shape is None:
                     self.bias_shape = weights_shape[bias_dim]
-                self.bias = torch.randn(self.bias_shape) if bias else None
+                self.bias = rng.torch_randn(self.bias_shape) if bias else None
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -197,10 +196,9 @@ class TestConvolution(PytorchLayerTest):
                     self.output_padding, self.groups
                 )
 
-        ref_net = None
         if underscore:
-            return aten__convolution(), ref_net, "aten::_convolution"
-        return aten_convolution(), ref_net, "aten::convolution"
+            return aten__convolution(self.random), "aten::_convolution"
+        return aten_convolution(self.random), "aten::convolution"
 
     @pytest.mark.parametrize("params", d1_params)
     @pytest.mark.parametrize("bias", [True, False])

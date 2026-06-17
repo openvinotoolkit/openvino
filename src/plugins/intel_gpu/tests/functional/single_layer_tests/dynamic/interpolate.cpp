@@ -4,6 +4,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include "openvino/op/parameter.hpp"
@@ -739,11 +740,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCacheG
     InterpolateLayerCacheGPUTest::getTestCaseName);
 
 TEST_P(InterpolateLayerCacheGPUTest, InferenceCache) {
-    std::stringstream ss;
-    ss << "gpu_model_cache_" << std::hash<std::string>{}(
-        std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-        std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-    std::string cacheDirName = ss.str();
+    std::string cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";
 
     ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
     ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");

@@ -20,9 +20,8 @@ class TestOr(PytorchLayerTest):
             def forward(self, tensor_a, tensor_b):
                 return tensor_a | tensor_b
 
-        ref_net = None
 
-        return aten_or_tensor(), ref_net, "aten::__or__"
+        return aten_or_tensor(), "aten::__or__"
 
     def create_model_bool_input(self):
         class aten_or_bool(torch.nn.Module):
@@ -32,9 +31,8 @@ class TestOr(PytorchLayerTest):
             def forward(self, bool_a: bool, bool_b: bool):
                 return bool_a | bool_b
 
-        ref_net = None
 
-        return aten_or_bool(), ref_net, "aten::__or__"
+        return aten_or_bool(), "aten::__or__"
 
     def create_model_int_input(self):
         class aten_or_int(torch.nn.Module):
@@ -44,9 +42,8 @@ class TestOr(PytorchLayerTest):
             def forward(self, int_a: int, int_b: int):
                 return int_a | int_b
 
-        ref_net = None
 
-        return aten_or_int(), ref_net, "aten::__or__"
+        return aten_or_int(), "aten::__or__"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

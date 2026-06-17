@@ -61,60 +61,16 @@ The supported by decomposition Transpose orders are defined by `TokenizeMHASnipp
 
 **Please note: the "unsupported" Transpose actually can be executed via Snippets decomposition, however CPU plugin implementation is expected to work faster in this particular case.**
 
-### SplitDimensionM
+## MHAParallelWAOptimizer: Parallel Work Amount Optimization
 
-[SplitDimensionM](../src/pass/split_dimension_m.cpp) splits M dimension of MHA in 2 parts (`batch_m` and `new_m`) by inserting Reshape on A input of the first Matmul and output of the second Matmul (the rest Subgraph's inputs are reshaped by Unsqueeze-like reshapes in order not to break subgraph semantic).
-This optimization increases parallel work amount by `batch_m` times thus enabling a more efficient parallel execution in some cases.
-The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::split` method.
-
-Let's consider an example of the transformation:
-
-```mermaid
- graph LR
-   subgraph left[" "]
-      direction TB
-      MM0A_1[Matmul0 Input A]
-      MM0B_1[Matmul0 Input B]
-      MM1B_1[Matmul1 Input B]
-      S_1["Subgraph"]
-      MM1C_1[Matmul1 Output]
-
-      MM0A_1-->|"[1, M, K1]"|S_1
-      MM0B_1-->|"[1, K1, N1]"|S_1
-      MM1B_1-->|"[1, N1, N2]"|S_1
-      S_1-->|"[1, M, N2]"|MM1C_1
-   end
-   subgraph middle[" "]
-      direction TB
-      MM0A_2[Matmul0 Input A]
-      Reshape1["Input SplitM Reshape"]
-      MM0B_2[Matmul0 Input B]
-      Reshape2["Unsqueeze-like Reshape 1"]
-      MM1B_2[Matmul1 Input B]
-      Reshape3["Unsqueeze-like Reshape 2"]
-      S_2["Subgraph"]
-      Reshape4["Output SplitM Reshape"]
-      MM1C_2[Matmul1 Output]
-
-      MM0A_2-->|"[1, M, K1]"|Reshape1
-      Reshape1-->|"[1, batch_M, new_M, K1]"|S_2
-      MM0B_2-->|"[1, K1, N1]"|Reshape2
-      Reshape2-->|"[1, 1, K1, N1]"|S_2
-      MM1B_2-->|"[1, N1, N2]"|Reshape3
-      Reshape3-->|"[1, 1, N1, N2]"|S_2
-      S_2-->|"[1, batch_M, new_M, N2]"|Reshape4
-      Reshape4-->|"[1, M, N2]"|MM1C_2
-   end
-   left-->|SplitDimensionM|middle
-%%   middle-->|<font size=+1>Attach Add\n to Subgraph</font>|right
-   classDef no-bg-color fill:none,stroke-width:0px
-   class left,middle,right no-bg-color
-```
+[MHAParallelWAOptimizer](../src/lowered/pass/mha_parallel_wa_optimizer.cpp) increases the parallel work amount for MHA by logically splitting the M dimension into `batch_m` and `new_m` parts.
+Unlike graph-level transformations, it **does not modify the model graph**: it operates entirely at the runtime level by adjusting loop work amounts and tensor layouts inside the `RuntimeConfigurator`.
+The heuristic algorithm is implemented in `MHAParallelWAOptimizer::split`.
 
 **Important notes:**
-- Since `SplitDimensionM` depends on parallel concurrency, the transformation result depends not only on the HW platform, but on number of streams used during model inference as well.
-For instance, this might lead to different result in throughput and latency hint modes.
-- `SplitDimensionM::can_be_optimized` is used in CPU plugin callback: if this method reports that appropriate parallel work amount can not be set for the MHA, the tokenization doesn't happen.
+- Since `MHAParallelWAOptimizer` depends on parallel concurrency, the result depends not only on the HW platform, but also on the number of streams used during inference.
+For instance, this may lead to different behavior in throughput and latency hint modes.
+- `MHAParallelWAOptimizer::can_be_optimized` is used in the CPU plugin callback: if this method reports that an appropriate parallel work amount cannot be achieved for the MHA, tokenization is skipped.
 
 ## Brgemm Blocking
 
@@ -140,7 +96,7 @@ Based on previously discussed information, we provide the following recommendati
 2. Check how the graph was changed by [CommonOptimizations](#snippets-common-optimizations).
 In local experiments, some transformations might be worth to change:
     - Disable [ExtractUnsupportedTransposes](#extractunsupportedtransposes) transformation in order to benchmark Snippets Transpose implementation.
-    - Adjust [SplitDimensionM](#splitdimensionm) heuristics in order to benchmark another splitting, or disable the pass at all.
+    - Adjust [MHAParallelWAOptimizer](#mhaparallelwaoptimizer-parallel-work-amount-optimization) heuristics in order to benchmark another splitting, or disable the optimization at all.
 3. [Blocking parameters](#blocking-parameters): adjust blocking heuristics in `BrgemmCPUBlocking`.
     - Please note that there are 2 Matmul nodes inside a single MHA, and each Matmul can have his own optimal K, N blocking params.
     M block is better to keep the same since the corresponding blocking loop is shared between both Matmuls.

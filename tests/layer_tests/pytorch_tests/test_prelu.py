@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestPRelu(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(1, 3, 224, 224),)
 
     def create_model(self, alpha):
         import torch
@@ -17,15 +16,14 @@ class TestPRelu(PytorchLayerTest):
 
         class aten_prelu(torch.nn.Module):
             def __init__(self, alpha):
-                super(aten_prelu, self).__init__()
+                super().__init__()
                 self.alpha = torch.Tensor([alpha])
 
             def forward(self, x):
                 return x, F.prelu(x, self.alpha)
 
-        ref_net = None
 
-        return aten_prelu(alpha), ref_net, "aten::prelu"
+        return aten_prelu(alpha), "aten::prelu"
 
     @pytest.mark.parametrize("alpha", [0.01, 1.01, -0.01])
     @pytest.mark.nightly

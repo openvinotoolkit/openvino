@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/stft.hpp"
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -26,10 +28,32 @@ namespace ai_onnx {
 namespace opset_17 {
 
 ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
+    common::default_op_checks(node, 2, 4);
+
     const ov::OutputVector ov_inputs{node.get_ov_inputs()};
     auto signal = ov_inputs.at(0);
+    const auto signal_param_shape = signal.get_partial_shape();
+    const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
     const auto dft_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
+
+    // Use ov::op::v15::STFT for 2D signal - all inputs are required, output is onesided
+    // Even if 2D input is not described in onnx spec, it is allowed by onnx model checker,
+    // 2D input can be seen in real models and is supported by frameworks (including OpenVINO STFT)
+    // The 2D shape is compatible with 3D case [batch, signal_length, 1] -> [batch, signal_length]
+    const auto is_2d_signal = signal_param_shape.rank().is_static() && signal_param_shape.size() == 2;
+    if (is_2d_signal && onesided && window_node_provided && dft_length_provided) {
+        // ONNX STFT inputs: signal, frame_step, window (optional), frame_length (optional)
+        // ONNX STFT output shape: [batch_size, num_frames, fft_length, 2]
+        // OpenVINO v15::STFT inputs: data, window, frame_size, frame_step
+        // OpenVINO v15::STFT output shape: [batch_size, num_frames, fft_length, 2] (transpose_frames=false)
+        constexpr bool transpose_frames = false;
+        return {std::make_shared<v15::STFT>(signal, ov_inputs[2], ov_inputs[3], ov_inputs[1], transpose_frames)};
+    }
+    // Use DFT-based decomposition for 3D signal or optional inputs
+    CHECK_VALID_NODE(node,
+                     signal_param_shape.is_static() && signal_param_shape.size() == 3,
+                     "Shape of signal input must be static with the rank equal to 3.");
     const int64_t axis = 1;
 
     const auto& frame_step_node = ov_inputs.at(1);
@@ -39,10 +63,10 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
                      "frame_step input must be a scalar or Shape{1} constant.");
     const auto frame_step =
         ov::as_type_ptr<v0::Constant>(frame_step_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
-    const auto signal_param_shape = signal.get_partial_shape();
     CHECK_VALID_NODE(node,
-                     signal_param_shape.is_static() && signal_param_shape.size() == 3,
-                     "Shape of signal input must be static with the rank equal to 3.");
+                     frame_step > 0,
+                     "Provided frame_step input value must be greater than zero. Got: ",
+                     frame_step);
 
     int64_t frame_length = signal_param_shape[axis].get_length() / frame_step;  // default value
     if (dft_length_provided) {
@@ -55,7 +79,6 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
             ov::as_type_ptr<v0::Constant>(frame_length_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
     }
 
-    const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
     if (window_node_provided) {  // window input provided
         if (ov_inputs[2].get_partial_shape().rank().is_static()) {
             CHECK_VALID_NODE(node,

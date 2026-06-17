@@ -28,6 +28,7 @@
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -263,12 +264,6 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
     DEBUG_LOG("\t outputScale=[", printable(outputScale), "]");
     DEBUG_LOG("\t outputShift=[", printable(outputShift), "]");
 
-    auto isPerTensor =
-        [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
-            return std::all_of(v.cbegin(), v.cend(), [&](float val) {
-                return abs(val - ref) < zero_thr;
-            });
-        };
     size_t OC = std::max({inputScale.size(),
                           inputShift.size(),
                           cropLow.size(),
@@ -289,7 +284,7 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
     //     per-channel input shift, this threshold was chosen carefully
     //     to recorver the per-Tensor nature w/o mistaking a real
     //     per-channel FQ.
-    if (isPerTensor(inputShift, inputShift[0], 0.00005F)) {
+    if (isPerTensorDataWithTolerance(inputShift, 0.00005F)) {
         f.ish.resize(OC);
         for (auto& v : f.ish) {
             v = inputShift[0];
@@ -491,11 +486,21 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
+    ov::element::Type binaryType = ov::element::f32;
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    if (outDataType == dnnl::memory::data_type::f16) {
+        // ACL executor is not able to handle different precisions between convolution output and post op input
+        // in this case original post op tensor is f32 even the model runs in f16 precision
+        // to avoid fp32 convolution, postop is converted to f16
+        binaryType = ov::element::f16;
+    }
+#endif
+
+    DnnlBlockedMemoryDesc memoryDesc(binaryType, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
-    // copy the data as args
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
+    // convert will just copy in case of non-ARM
+    cpu_convert(data.data(), mem->getData(), ov::element::f32, binaryType, data.size());
 
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
@@ -679,15 +684,21 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     }
 }
 
-void DnnlPostOpsComposer::appendDepthwiseConvolution(int inH,
-                                                     int inW,
-                                                     int kerH,
-                                                     int kerW,
-                                                     int strH,
-                                                     int strW,
+void DnnlPostOpsComposer::appendDepthwiseConvolution(size_t inH,
+                                                     size_t inW,
+                                                     size_t kerH,
+                                                     size_t kerW,
+                                                     size_t strH,
+                                                     size_t strW,
                                                      dnnl::memory::data_type inDataType) {
     DEBUG_LOG("Append DW convolution");
-    ops.append_dw_conv(inH, inW, kerH, kerW, strH, strW, dnnl::memory::convert_to_c(inDataType));
+    ops.append_dw_conv(static_cast<int>(inH),
+                       static_cast<int>(inW),
+                       static_cast<int>(kerH),
+                       static_cast<int>(kerW),
+                       static_cast<int>(strH),
+                       static_cast<int>(strW),
+                       dnnl::memory::convert_to_c(inDataType));
 }
 
 void DnnlPostOpsComposer::appendZeroPoints(const MemoryArgs& memory) {
@@ -760,8 +771,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
         return {};
     }
 
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
+    auto N = static_cast<int64_t>(weiDims[weiDims.size() - 2]);
+    auto K = static_cast<int64_t>(weiDims[weiDims.size() - 1]);
     dnnl::memory::dim groupN = N / scaleDims[0];
     dnnl::memory::dim groupK = K / scaleDims[1];
 
@@ -771,8 +782,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
 static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
     const int maskN = 1 << (weiDims.size() - 1);
     const int maskK = 1 << (weiDims.size() - 2);
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
+    auto N = static_cast<int64_t>(weiDims[weiDims.size() - 2]);
+    auto K = static_cast<int64_t>(weiDims[weiDims.size() - 1]);
     int mask = 0;
     if (!groupDims.empty() && groupDims[1] != N) {
         mask += maskN;
@@ -894,7 +905,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp
 
     // always align for legacy scale/shift post ops
     constexpr int bufferAlignment = 16;
-    int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+    auto bufferPaddingSize = static_cast<int64_t>(rnd_up(channelSize, bufferAlignment) - channelSize);
     depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
 
     std::array<size_t, 2> offsets = {0};

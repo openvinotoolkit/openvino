@@ -41,7 +41,7 @@ enum class ExecutorType : uint8_t {
     Kleidiai,
 };
 
-enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise };
+enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise, GatherMatmul };
 
 std::string ExecutorTypeToString(ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
@@ -90,6 +90,10 @@ public:
 
     [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
+    }
+
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return cpuParallel;
     }
 
     [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {

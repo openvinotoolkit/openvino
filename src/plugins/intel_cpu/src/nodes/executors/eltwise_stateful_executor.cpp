@@ -29,7 +29,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
-#include "utils/debug_capabilities.h"
 
 #ifndef OPENVINO_ARCH_ARM64
 #    include "nodes/executors/implementation_utils.hpp"
@@ -317,7 +316,7 @@ void EltwiseStatefulExecutor::execute(const MemoryArgs& memory) {
         args_ptrs.dst_offsets = m_execParams.outOffsets.data();
     }
 
-    m_executor->exec(args_ptrs, outDims);
+    m_executor->exec(args_ptrs, outDims, m_context->getCpuParallel());
 }
 
 impl_desc_type EltwiseStatefulExecutor::implType() const {

@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -210,7 +211,7 @@ public:
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
     std::shared_ptr<ov::Model>                     m_model;
-    std::string                                    m_model_path;
+    std::filesystem::path                          m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;
     std::string                                    m_str_devices;
     std::vector<std::string>                       m_str_devices_initial;

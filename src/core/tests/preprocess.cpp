@@ -6,6 +6,10 @@
 
 #include <math.h>
 
+#include <atomic>
+#include <thread>
+#include <vector>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
@@ -130,6 +134,45 @@ TEST(pre_post_process, simple_mean_scale_getters_f64) {
     p.input("tensor_input1").preprocess().mean(1).scale(2);
     f = p.build();
     EXPECT_EQ(f->get_output_element_type(0), element::f64);
+}
+
+TEST(pre_post_process, build_is_thread_safe_for_parallel_invocations) {
+    constexpr size_t num_threads = 8;
+    static constexpr size_t iterations_per_thread = 50;
+    std::atomic_size_t failures{0};
+
+    auto worker = [&failures]() {
+        for (size_t i = 0; i < iterations_per_thread; ++i) {
+            try {
+                auto f = create_conv(element::f32, Shape{1, 3, 8, 8}, element::f16);
+                auto p = PrePostProcessor(f);
+
+                p.input().tensor().set_element_type(element::u8).set_layout("NHWC");
+                p.input().model().set_layout("NCHW");
+                p.input().preprocess().convert_element_type(element::f32).convert_layout("NCHW").mean(1.f).scale(2.f);
+
+                f = p.build();
+
+                const auto& input = f->input();
+                if (input.get_partial_shape() != PartialShape{1, 8, 8, 3} || layout::get_layout(input) != "NHWC") {
+                    ++failures;
+                }
+            } catch (...) {
+                ++failures;
+            }
+        }
+    };
+
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    for (size_t t = 0; t < num_threads; ++t) {
+        threads.emplace_back(worker);
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(failures.load(), 0U);
 }
 
 TEST(pre_post_process, clamp_operation_on_input_preprocess) {

@@ -90,7 +90,7 @@ public:
         virtual ~PropertyGroup() = default;
 
         void parseAndSet(const std::string& str) {
-            const auto& options = ov::util::split(str, ' ');
+            const auto& options = ov::util::split(str, " ");
             const auto& propertySetters = getPropertySetters();
             bool failed = false;
             auto getHelp = [propertySetters]() {
@@ -106,7 +106,7 @@ public:
                 if (option.empty()) {
                     continue;
                 }
-                const auto& parts = ov::util::split(option, '=');
+                const auto& parts = ov::util::split(option, "=");
                 if (parts.size() > 2) {
                     failed = true;
                     break;
@@ -118,7 +118,7 @@ public:
                                                            return setter->getPropertyName() == propertyName;
                                                        });
                 if (foundSetter == propertySetters.end() ||
-                    !(*foundSetter)->parseAndSet(parts.size() == 1 ? "" : parts.back())) {
+                    !(*foundSetter)->parseAndSet(parts.size() == 1 ? "" : std::string(parts.back()))) {
                     failed = true;
                     break;
                 }
@@ -210,7 +210,7 @@ private:
 
         bool parseAndSet(const std::string& str) override {
             const auto& tokens =
-                str.empty() ? std::vector<std::string>{"all"} : ov::util::split(ov::util::to_lower(str), ',');
+                str.empty() ? std::vector<std::string_view>{"all"} : ov::util::split(ov::util::to_lower(str), ",");
             property.reset();
             for (const auto& token : tokens) {
                 const bool tokenVal = (token.front() != '-');
@@ -230,13 +230,12 @@ private:
             return true;
         }
         [[nodiscard]] std::string getPropertyValueDescription() const override {
-            std::string supportedTokens = "comma separated filter tokens: ";
-            for (size_t i = 0; i < propertyTokens.size(); i++) {
-                if (i) {
-                    supportedTokens.push_back(',');
-                }
-                supportedTokens.append(propertyTokens[i].name);
+            std::vector<std::string> tokenNames;
+            tokenNames.reserve(propertyTokens.size());
+            for (const auto& token : propertyTokens) {
+                tokenNames.push_back(token.name);
             }
+            std::string supportedTokens = "comma separated filter tokens: " + ov::util::join(tokenNames, ",");
             supportedTokens.append(
                 "; -'token' is used for exclusion, case does not matter, no tokens is treated as 'all'");
             return supportedTokens;

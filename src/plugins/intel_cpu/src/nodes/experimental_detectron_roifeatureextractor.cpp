@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -22,7 +23,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
@@ -146,12 +146,13 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                 const int sampling_ratio,
                                 const T* bottom_rois,
                                 const bool aligned,
-                                T* top_data) {
+                                T* top_data,
+                                const std::shared_ptr<CpuParallel>& cpu_parallel) {
     int roi_cols = 4;
 
     int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
-    parallel_for(n_rois, [&](size_t n) {
+    cpu_parallel->parallel_for(n_rois, [&](size_t n) {
         int index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
@@ -329,6 +330,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 }
 
 void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
@@ -370,7 +372,8 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
                                               sampling_ratio_,
                                               &reordered_rois[4 * level_rois_offset],
                                               aligned_,
-                                              &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+                                              &output_rois_features_temp[feaxels_per_roi * level_rois_offset],
+                                              cpu_parallel);
         }
     }
 
