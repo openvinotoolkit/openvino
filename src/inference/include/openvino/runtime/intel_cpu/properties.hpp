@@ -118,9 +118,12 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 /**
- * @brief This property enables synchronous infer execution in the invoking application thread context,
- * avoiding CPU plugin sync path dispatch through internal worker scheduling.
+ * @brief This CPU-specific opt-in property enables synchronous infer execution in the invoking
+ * application thread context, avoiding sync-path dispatch through internal worker scheduling.
  * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * This mode is intended for workloads where multiple application threads share one compiled model
+ * and each thread drives its own synchronous request/stream.
  *
  * The following code enables invoking-thread sync execution.
  *

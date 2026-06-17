@@ -197,6 +197,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::intel_cpu::multi_app_thread_sync_execution.name()) {
             try {
                 multiAppThreadSyncExecution = val.as<bool>();
+                streamExecutorConfig.set_inline_mode(multiAppThreadSyncExecution);
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),

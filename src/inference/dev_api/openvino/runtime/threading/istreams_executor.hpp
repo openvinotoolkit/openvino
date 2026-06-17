@@ -99,6 +99,7 @@ public:
         int _sub_streams = 0;
         std::vector<int> _rank = {};
         bool _add_lock = true;
+        bool _inline_mode = false;  //!< Run inference inline on the calling thread (skip run_and_wait dispatch)
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information,
@@ -213,6 +214,12 @@ public:
         std::vector<int> get_rank() const {
             return _rank;
         }
+        bool get_inline_mode() const {
+            return _inline_mode;
+        }
+        void set_inline_mode(bool v) {
+            _inline_mode = v;
+        }
         StreamsMode get_sub_stream_mode() const {
             const auto proc_type_table = get_proc_type_table();
             int sockets = proc_type_table.size() > 1 ? static_cast<int>(proc_type_table.size()) - 1 : 1;
@@ -283,6 +290,16 @@ public:
      * @brief Reset cpu map table when user set enable_cpu_reservation = true
      */
     virtual void cpu_reset() = 0;
+
+    /**
+     * @brief Return whether sync inference should run inline on the calling thread
+     *
+     * The decision is owned by plugin configuration (for example
+     * ov::intel_cpu::multi_app_thread_sync_execution) and consumed here by the
+     * shared sync executor path.
+     * @return true if inline execution is enabled (set via ov::intel_cpu::multi_app_thread_sync_execution)
+     */
+    virtual bool get_inline_mode() = 0;
 
     /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints

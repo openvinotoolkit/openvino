@@ -509,6 +509,10 @@ void CPUStreamsExecutor::cpu_reset() {
     }
 }
 
+bool CPUStreamsExecutor::get_inline_mode() {
+    return _impl->_config.get_inline_mode();
+}
+
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
