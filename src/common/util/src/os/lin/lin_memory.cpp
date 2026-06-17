@@ -28,29 +28,20 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 }
 
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
+    // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    const auto pages = util::align_size_up(size, page_size) / page_size;
-
-    const auto hw_threads = std::max<size_t>(1, std::thread::hardware_concurrency());
-    constexpr size_t min_chunk_size = 1024 * 1024;  // 1 MiB per thread minimum
-    constexpr size_t max_prefault_threads = 10;
-    const auto n_threads =
-        std::min({num_threads, hw_threads, pages, max_prefault_threads, std::max<size_t>(1, size / min_chunk_size)});
+    const size_t pages = size / page_size;
 
     const auto base = reinterpret_cast<const uint8_t*>(ptr);
     std::vector<std::thread> threads;
-    threads.reserve(n_threads);
+    threads.reserve(num_threads);
 
-    for (size_t tid = 0; tid < n_threads; ++tid) {
+    for (size_t tid = 0; tid < num_threads; ++tid) {
         threads.emplace_back([&, tid] {
-            const size_t begin_page = pages * tid / n_threads;
-            const size_t end_page = pages * (tid + 1) / n_threads;
             volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
-            for (size_t p = begin_page; p < end_page; ++p) {
-                const size_t off = p * page_size;
-                if (off < size) {
-                    local += base[off];
-                }
+            const size_t last = pages * (tid + 1) / num_threads;
+            for (size_t first = pages * tid / num_threads; first < last; ++first) {
+                local += base[first * page_size];
             }
         });
     }
@@ -116,7 +107,7 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
         // Option 1: OS advisory hints — async, low overhead.
         madvise_hint(ptr, size);
     } else {
-        // Option 2: parallel synchronous touch — blocks until every page_size is resident.
+        // Option 2: parallel synchronous touch — blocks until every page is resident.
         populate_pages(ptr, size, num_threads);
     }
 }
