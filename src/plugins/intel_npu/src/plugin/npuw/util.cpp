@@ -894,7 +894,9 @@ ov::npuw::util::TensorPtr ov::npuw::util::allocMem(const ov::element::Type type,
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
+    OPENVINO_ASSERT(plugin, "allocMem: plugin must be non-null for non-CPU device '", device, "'");
     auto remote_ctx = plugin->get_core()->get_default_context(device)._ptr;
+    OPENVINO_ASSERT(remote_ctx, "allocMem: failed to obtain remote context for device '", device, "'");
     auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
