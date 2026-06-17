@@ -22,8 +22,8 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
+                          ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
