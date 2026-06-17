@@ -31,6 +31,7 @@ permissions: read-all
 env:
   HF_HUB_CACHE_LIN: /mnt/caches/huggingface
   HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
+  HF_HUB_VERBOSITY: debug
 
 jobs:
   GPU_RoPE:
