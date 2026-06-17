@@ -28,21 +28,16 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 }
 
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
-    const auto page = static_cast<size_t>(util::get_system_page_size());
-    const auto pages = util::align_size_up(size, page) / page;
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    const auto pages = util::align_size_up(size, page_size) / page_size;
 
-    // Cap the thread count: honour the caller's limit but also clamp to hardware, page count,
-    // a maximum of 10 prefetch threads, and a minimum of 1 MiB of work per thread.
-    const size_t hw_threads = std::max<size_t>(1, std::thread::hardware_concurrency());
+    const auto hw_threads = std::max<size_t>(1, std::thread::hardware_concurrency());
     constexpr size_t min_chunk_size = 1024 * 1024;  // 1 MiB per thread minimum
     constexpr size_t max_prefault_threads = 10;
-    const size_t n_threads = std::min({num_threads,
-                                       hw_threads,
-                                       pages,
-                                       max_prefault_threads,
-                                       std::max<size_t>(1, size / min_chunk_size)});
+    const auto n_threads =
+        std::min({num_threads, hw_threads, pages, max_prefault_threads, std::max<size_t>(1, size / min_chunk_size)});
 
-    const auto* base = reinterpret_cast<const uint8_t*>(ptr);
+    const auto base = reinterpret_cast<const uint8_t*>(ptr);
     std::vector<std::thread> threads;
     threads.reserve(n_threads);
 
@@ -52,7 +47,7 @@ void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
             const size_t end_page = pages * (tid + 1) / n_threads;
             volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
             for (size_t p = begin_page; p < end_page; ++p) {
-                const size_t off = p * page;
+                const size_t off = p * page_size;
                 if (off < size) {
                     local += base[off];
                 }
@@ -121,7 +116,7 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
         // Option 1: OS advisory hints — async, low overhead.
         madvise_hint(ptr, size);
     } else {
-        // Option 2: parallel synchronous touch — blocks until every page is resident.
+        // Option 2: parallel synchronous touch — blocks until every page_size is resident.
         populate_pages(ptr, size, num_threads);
     }
 }
