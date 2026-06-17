@@ -49,7 +49,7 @@
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "utils/cpu_utils.hpp"
 #endif
@@ -57,6 +57,10 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+
+#ifndef CPU_DEBUG_CAPS
+#    include <ostream>
+#endif
 
 using namespace dnnl;
 using namespace openvino;
@@ -183,7 +187,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
-    if (fp16_compression_is_disabled(op)) {
+    if (is_conversion_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
 }
@@ -401,7 +405,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                     if (!isReorderRequired(parentDesc, curDesc)) {
                         estimate += 1;
                     } else {
-                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
+                        estimate += static_cast<int>(
+                            ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims()));
                     }
                 }
 
@@ -549,7 +554,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
             auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
-            const auto& childEdges = getChildEdgesAtPort(i);
+            const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
 
             for (const auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
@@ -862,7 +867,7 @@ void Node::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) 
 }
 
 void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const {
-    const auto edges = getChildEdgesAtPort(port);
+    const auto edges = getChildEdgesAtPort(static_cast<int>(port));
 
     static const VectorDims single_element_shape = {1};
 
@@ -1479,16 +1484,18 @@ bool Node::isConfigDefined(const NodeConfig& config) {
 
 MemoryDescPtr Node::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(static_cast<int>(idx)),
+                                                     getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(static_cast<int>(idx)));
 }
 
 MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(static_cast<int>(idx)),
+                                                     getOutputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(static_cast<int>(idx)));
 }
 
 void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
@@ -1715,8 +1722,8 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
     } else if (any_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
         const auto* const power = dynamic_cast<const Eltwise*>(this);
         OPENVINO_ASSERT(power, "Cannot cast ", getName(), " to Eltwise");
-        scales.push_back(static_cast<float>(power->getBeta()));
-        shifts.push_back(static_cast<float>(power->getGamma()));
+        scales.push_back(power->getBeta());
+        shifts.push_back(power->getGamma());
     } else {
         OPENVINO_THROW("Can't fill scale and shifts for node: ", getName(), " with type: ", NameFromType(getType()));
     }

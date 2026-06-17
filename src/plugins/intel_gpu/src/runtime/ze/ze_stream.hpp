@@ -17,6 +17,7 @@ namespace ze {
 class ze_stream : public stream {
 public:
     ze_command_list_handle_t get_queue() const { return m_command_list; }
+    const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(ze_stream&& other)
@@ -26,7 +27,8 @@ public:
         , m_queue_counter(other.m_queue_counter.load())
         , m_last_barrier(other.m_last_barrier.load())
         , m_last_barrier_ev(other.m_last_barrier_ev)
-        , m_ev_factory(other.m_ev_factory.release()) {
+        , m_ev_factory(std::move(other.m_ev_factory))
+        , m_user_ev_factory(std::move(other.m_user_ev_factory)) {
             other.m_command_list = nullptr;
         }
 
@@ -49,6 +51,7 @@ public:
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
+    ze_context_handle_t get_context() const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
@@ -62,7 +65,8 @@ private:
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;
-    std::unique_ptr<ze_base_event_factory> m_ev_factory;
+    std::shared_ptr<ze_base_event_factory> m_ev_factory;
+    std::shared_ptr<ze_base_event_factory> m_user_ev_factory;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;

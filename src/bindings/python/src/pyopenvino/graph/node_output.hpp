@@ -178,6 +178,6 @@ void regclass_graph_Output(py::module m, std::string typestring)
                                 ov::Output<VT>::get_rt_info,
                                 py::return_value_policy::reference_internal);
 
-    // define functions avaliable only for specific type
+    // define functions available only for specific type
     def_type_dependent_functions<VT>(output);
 }

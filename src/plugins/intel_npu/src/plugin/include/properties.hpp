@@ -73,6 +73,7 @@ public:
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
+    ov::intel_npu::CompilerType determineCompilerTypeForCompatibilityCheck() const;
 
 private:
     struct CopyState {
@@ -84,6 +85,7 @@ private:
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
+        bool compatibilityCheckFiltered;
         std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
             properties;
         std::vector<ov::PropertyName> supportedProperties;
@@ -98,14 +100,22 @@ private:
     Logger _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
     std::string _currentlyUsedPlatform;
 
-    bool _compilerConfigsFilteredByCompiler =
-        false;  ///< Boolean to check whether properties was filtered with compiler supported properties
+    // Boolean to check whether properties were filtered with compiler supported properties
+    bool _compilerConfigsFilteredByCompiler = false;
+    // Boolean to signal that compatibility check was already filtered by compiler support
+    bool _compatibilityCheckFiltered = false;
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
+
+    // The compatibility_check property is supported only in case at least one of the compilers (CID or CIP) supports it
+    // To avoid loading the compiler library and check the support when the property is registered, the check can
+    // be performed at a later stage, when the property is actually queried.
+    bool disable_compatibility_check_if_needed();
 
     /**
      * @brief Checks whether a property was registered by its name

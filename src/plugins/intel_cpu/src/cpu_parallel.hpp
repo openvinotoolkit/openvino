@@ -82,8 +82,9 @@ public:
         return m_thread_pool;
     }
     [[nodiscard]] int get_num_threads() const {
-        int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
-                                                                         : parallel_get_max_threads() * m_multiplier;
+        int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC
+                      ? parallel_get_max_threads()
+                      : parallel_get_max_threads() * static_cast<int>(m_multiplier);
         return num;
     }
     [[nodiscard]] static int get_num_worker_threads() {
@@ -509,7 +510,7 @@ private:
     }
 
     ov::intel_cpu::TbbPartitioner m_partitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-    size_t m_multiplier = default_multiplier;
+    int m_multiplier = default_multiplier;
     std::shared_ptr<ThreadPool> m_thread_pool = nullptr;
 };
 

@@ -28,7 +28,12 @@ op::util::PadBase::PadBase(const Output<Node>& arg,
                            const Output<Node>& pads_begin,
                            const Output<Node>& pads_end,
                            op::PadMode pad_mode)
-    : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), Shape{}, {0})}),
+    : Op({arg,
+          pads_begin,
+          pads_end,
+          arg.get_element_type() == element::string
+              ? op::v0::Constant::create(arg.get_element_type(), Shape{}, std::initializer_list<std::string>{""})
+              : op::v0::Constant::create(arg.get_element_type(), Shape{}, {0})}),
       m_pad_mode{pad_mode} {
     mark_as_precision_sensitive(input(1));
     mark_as_precision_sensitive(input(2));
@@ -84,6 +89,10 @@ void op::util::PadBase::validate_and_infer_types() {
     }
 
     NODE_VALIDATION_CHECK(this,
+                          arg_element_type != element::string || m_pad_mode == op::PadMode::CONSTANT,
+                          "Only CONSTANT pad mode is supported for element::string");
+
+    NODE_VALIDATION_CHECK(this,
                           pads_begin_element_type.is_integral_number(),
                           "pads_begin must be an integral number, but is: ",
                           pads_begin_element_type,
@@ -101,42 +110,46 @@ void op::util::PadBase::validate_and_infer_types() {
 
 bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& data = inputs[0];
-    const auto elem_size = data.get_element_type().size();
-
-    const char* pad_value = nullptr;
-    const std::vector<char> pad_zero_value(elem_size, 0);
-    if (get_input_size() == 4) {
-        pad_value = static_cast<const char*>(inputs[3].data());
-    } else {
-        pad_value = pad_zero_value.data();
-    }
-
-    // compute pads_begin and pads_end CoordinateDiffs from pads_begin
-    // and pads_end shapes and reshape output to determine shape
-    // (in case pads_begin and pads_end are Parameters, output is dynamic with static rank).
-
-    op::v0::Constant pads_begin_const(inputs[1]);
-    CoordinateDiff pads_begin_coord(pads_begin_const.cast_vector<ptrdiff_t>());
-    op::v0::Constant pads_end_const(inputs[2]);
-    CoordinateDiff pads_end_coord(pads_end_const.cast_vector<ptrdiff_t>());
-
     const auto& data_shape = data.get_shape();
-    ov::Shape padded_shape(data_shape.size());
-    for (size_t i = 0; i < data_shape.size(); ++i) {
-        padded_shape[i] = data_shape[i] + pads_begin_coord[i] + pads_end_coord[i];
+
+    const CoordinateDiff pads_begin = op::v0::Constant(inputs[1]).cast_vector<ptrdiff_t>();
+    const CoordinateDiff pads_end = op::v0::Constant(inputs[2]).cast_vector<ptrdiff_t>();
+
+    ov::Shape out_shape(data_shape.size());
+    for (size_t i = 0; i < data_shape.size(); ++i)
+        out_shape[i] = ov::util::dim::padded(data_shape[i], pads_begin[i] + pads_end[i]);
+    outputs[0].set_shape(out_shape);
+
+    if (data.get_element_type() == element::string) {
+        const std::string_view pad_str =
+            (get_input_size() == 4) ? std::string_view{*inputs[3].data<std::string>()} : std::string_view{};
+
+        ov::reference::pad(data.data<std::string>(),
+                           pad_str,
+                           outputs[0].data<std::string>(),
+                           data_shape,
+                           out_shape,
+                           pads_begin,
+                           pads_end);
+    } else {
+        const auto elem_size = data.get_element_type().size();
+        const std::vector<char> pad_zero_value(elem_size, 0);
+        const char* pad_value =
+            (get_input_size() == 4) ? static_cast<const char*>(inputs[3].data()) : pad_zero_value.data();
+
+        // compute pads_begin and pads_end CoordinateDiffs from pads_begin
+        // and pads_end shapes and reshape output to determine shape
+        // (in case pads_begin and pads_end are Parameters, output is dynamic with static rank).
+        ov::reference::pad(static_cast<const char*>(inputs[0].data()),
+                           pad_value,
+                           static_cast<char*>(outputs[0].data()),
+                           elem_size,
+                           data_shape,
+                           out_shape,
+                           pads_begin,
+                           pads_end,
+                           get_pad_mode());
     }
-    outputs[0].set_shape(padded_shape);
-
-    ov::reference::pad(static_cast<const char*>(inputs[0].data()),
-                       pad_value,
-                       static_cast<char*>(outputs[0].data()),
-                       elem_size,
-                       data_shape,
-                       padded_shape,
-                       pads_begin_coord,
-                       pads_end_coord,
-                       get_pad_mode());
-
     return true;
 }
 

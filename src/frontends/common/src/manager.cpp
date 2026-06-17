@@ -107,9 +107,8 @@ public:
     }
 
     void register_front_end(const std::string& name, const std::filesystem::path& library_path) {
-        auto lib_path = ov::util::get_plugin_path(library_path);
         PluginInfo plugin;
-        plugin.m_file_path = ov::util::get_plugin_path(ov::util::make_path(library_path));
+        plugin.m_file_path = ov::util::get_plugin_path(library_path);
         plugin.m_file_name = plugin.m_file_path.filename();
         FRONT_END_GENERAL_CHECK(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
         std::lock_guard<std::mutex> guard(m_loading_mutex);

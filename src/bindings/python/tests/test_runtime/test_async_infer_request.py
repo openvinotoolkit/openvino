@@ -7,7 +7,6 @@ from copy import deepcopy
 import numpy as np
 import pytest
 import time
-import sysconfig
 
 import openvino.opset13 as ops
 from openvino import (
