@@ -144,6 +144,10 @@ struct BaseModelConfig {
     RoPEFn rope;                        ///< Empty = auto HalfRotationRoPE. Set identity lambda to disable.
     ov::Output<ov::Node> position_ids;  ///< Empty = auto-creates 2D Parameter + HalfRotationRoPE
     NormFn qk_norm;
+    /// Build the causal mask as boolean (true = attend) instead of float.
+    /// Exercises NPUW's boolean-mask handlers (SDPA decomposition for LLMs,
+    /// Whisper decoder model preparation).
+    bool boolean_causal_mask = false;
 
     BaseModelConfig() : lm_head_weight(weight) {}
 
@@ -153,6 +157,16 @@ struct BaseModelConfig {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
     }
 };
+
+/// Sliding-window mask construction. Inputs: seq_source (input_ids/inputs_embeds),
+/// attention_mask, output element type, window size. Returns a 4D mask suitable
+/// for SDPA. Empty = default Gemma-4-style float construction; set to a builder
+/// like make_sliding_window_mask_phi3 to test the older boolean Phi3 pattern.
+/// Builder declarations live in model_builder_masks.hpp.
+using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
+                                                         const ov::Output<ov::Node>&,
+                                                         ov::element::Type,
+                                                         size_t)>;
 
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
@@ -165,6 +179,13 @@ struct LLMConfig : public BaseModelConfig {
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
     size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+
+    size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
+    /// 0 = uniform: every layer gets the same mask (all sliding if sliding_window_size > 0,
+    /// else all full causal). N > 0 = N sliding layers per 1 full, alternating (Gemma 2: 1, Gemma 3: 5).
+    size_t sliding_to_full_ratio = 0;
+    bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
+    SlidingMaskFn sliding_mask_fn;       ///< Empty = default float SWA (matches no NPUW pass; set make_sliding_window_mask_phi3 for Phi-3/Gemma-2/Gemma-3).
 };
 
 struct WhisperConfig : public BaseModelConfig {

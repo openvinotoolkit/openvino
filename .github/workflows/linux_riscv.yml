@@ -190,7 +190,7 @@ jobs:
           -DENABLE_STRICT_DEPENDENCIES=OFF
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DENABLE_WHEEL=OFF
-          -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
           -DTHREADING=OMP
           -S ${OPENVINO_REPO}
