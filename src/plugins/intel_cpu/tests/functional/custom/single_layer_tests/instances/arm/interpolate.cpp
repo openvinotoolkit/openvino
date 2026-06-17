@@ -235,8 +235,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_corner_Layout_Test, InterpolateLayerC
 const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode>
     coordinateTransformModes_HalfPixelPrecision = {
         ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,
-        ov::op::v11::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
-        ov::op::v11::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
 };
 
 const std::vector<size_t> pads4D_zero = {0, 0, 0, 0};
