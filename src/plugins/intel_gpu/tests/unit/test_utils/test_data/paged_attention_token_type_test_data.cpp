@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_op/paged_attention_token_type.hpp"
+#include "paged_attention_token_type_test_data.h"
 
-using namespace ov::op;
-
-namespace ov {
 namespace test {
 
-std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadNum1() {
+static std::vector<TestData> GetTestDataForHeadSize32HeadNum1() {
     std::vector<TestData> testData;
+    const int sliding_window_size = 0;
 
     {
         const std::string name = "plain_casual";
@@ -163,7 +161,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             -0.308003, 0.027901,  -0.193572, 0.030041,  -0.003273, -0.011198, 0.11971,   -0.113571, 0.096788,
             0.267463,  0.206419,  -0.269637, 0.570271,  -0.336993, 0.193851,  0.012757,  0.050464,  0.260114,
             -0.194947, -0.03562,  -0.219055, 0.196855,  0.047158};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -317,7 +315,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             -0.308003, 0.027901,  -0.193572, 0.030041,  -0.003273, -0.011198, 0.11971,   -0.113571, 0.096788,
             0.267463,  0.206419,  -0.269637, 0.570271,  -0.336993, 0.193851,  0.012757,  0.050464,  0.260114,
             -0.194947, -0.03562,  -0.219055, 0.196855,  0.047158};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -555,7 +553,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.124981,  0.204197,  -0.058794, 0.098339,  -0.011927, 0.211357,  -0.041711, 0.098862,  0.119303,
             0.067251,  -0.152045, 0.27265,   -0.10156,  0.138649,  -0.130894, -0.155933, -0.095668, -0.104816,
             0.008138,  0.12806,   0.215425,  -0.036746, 0.117335,  0.172523,  0.036049,  0.197724};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -793,7 +791,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.124981,  0.204197,  -0.058794, 0.098339,  -0.011927, 0.211357,  -0.041711, 0.098862,  0.119303,
             0.067251,  -0.152045, 0.27265,   -0.10156,  0.138649,  -0.130894, -0.155933, -0.095668, -0.104816,
             0.008138,  0.12806,   0.215425,  -0.036746, 0.117335,  0.172523,  0.036049,  0.197724};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -2699,7 +2697,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.036639,  -0.014603, -0.107071, -0.001154, -0.071759, 0.043341,  0.019358,  -0.01315,  -0.004735,
             -0.001274, 0.064109,  0.022396,  0.038025,  0.100135,  -0.015358, -0.094546, 0.048992,  -0.004058,
             0.018969,  -0.068489, -0.095415, 0.03516,   -0.006241, 0.009353,  0.028247,  0.030636};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -5162,7 +5160,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.001951,  -0.042289, 0.042452,  -0.085086, -0.078698, 0.024427,  -0.019972, 0.114998,  -0.011411,
             -0.010484, 0.010148,  0.034235,  -0.080249, 0.027983,  -0.013981, -0.010044, 0.025208,  -0.022628,
             -0.036155, -0.05289,  -0.010923, 0.014724,  0.046534};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -6315,14 +6313,15 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             -0.069667, -0.015423, 0.040691,  -0.106843, 0.04387,   0.006794,  0.070803,  0.032478,  0.066869,
             -0.090667, -0.090796, -0.106503, 0.138459,  -0.064017, 0.1206,    0.045981,  0.110657,  -0.049117,
             -0.013569, -0.019554, 0.062624,  0.01151};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     return testData;
 }
 
-std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadNum1SlidingWindowSize5() {
+static std::vector<TestData> GetTestDataForHeadSize32HeadNum1SlidingWindowSize5() {
     std::vector<TestData> testData;
+    const int sliding_window_size = 5;
     {
         const std::string name = "only_sliding_window";
         const std::vector<int32_t> token_types{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -6546,7 +6545,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.248161,  -0.120971, -0.02436,  0.157455,  0.04565,   -0.20967,  -0.238891, -0.251281, 0.091486,
             0.107387,  -0.101826, -0.146468, 0.008208,  0.217812,  0.369781,  -0.020876, 0.074199,  -0.056155,
             -0.200816, -0.087326, 0.350625};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -6772,7 +6771,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.248161,  -0.120971, -0.02436,  0.157455,  0.04565,   -0.20967,  -0.238891, -0.251281, 0.091486,
             0.107387,  -0.101826, -0.146468, 0.008208,  0.217812,  0.369781,  -0.020876, 0.074199,  -0.056155,
             -0.200816, -0.087326, 0.350625};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -7155,7 +7154,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             -0.275347, -0.133337, 0.05895,   -0.296771, -0.223556, -0.203761, -0.224432, 0.138675,  0.369687,
             0.076605,  0.125778,  -0.257924, -0.156964, 0.152194,  0.259834,  -0.205936, -0.243631, -0.354199,
             0.140052,  0.231083,  0.026353,  -0.162425};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -9903,7 +9902,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.030964,  0.268971,  0.186284,  -0.003771, -0.295209, -0.084093, 0.117445,  0.245304,  0.089725,
             -0.329711, -0.453279, 0.080331,  0.152678,  -0.458175, -0.187473, -0.402553, 0.225154,  -0.069841,
             -0.423506, 0.367267,  -0.40356,  0.16414,   -0.655346, -0.295128};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -13336,7 +13335,7 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             0.251237,  0.237103,  0.358358,  -0.762111, -0.364944, -0.04633,  0.120133,  -0.249979, 0.265841,
             -0.181785, -0.328781, 0.336781,  -0.117505, -0.034779, 0.00199,   -0.349486, 0.606767,  0.237495,
             0.311784,  -0.089736, -0.162392};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     {
@@ -16056,11 +16055,19 @@ std::vector<TestData> PagedAttentionTokenTypeTest::GetTestDataForHeadSize32HeadN
             -0.000925, -0.053269, -0.01973,  -0.07028,  -0.054812, 0.035725,  0.01787,   0.05495,   -0.014351,
             -0.023094, -0.001283, 0.077208,  -0.046138, 0.013706,  -0.027749, 0.034011,  0.089154,  -0.015186,
             -0.021743, -0.018396, 0.010127,  0.005655,  0.074629};
-        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output});
+        testData.push_back({name, token_types, q_data, k_data, v_data, wanted_output, sliding_window_size});
     }
 
     return testData;
 }
 
+std::vector<TestData> PagedAttentionTokenTypeTestData::GetTestData() {
+    std::vector<TestData> testData;
+    auto data1 = GetTestDataForHeadSize32HeadNum1();
+    testData.insert(testData.end(), data1.begin(), data1.end());
+    auto data2 = GetTestDataForHeadSize32HeadNum1SlidingWindowSize5();
+    testData.insert(testData.end(), data2.begin(), data2.end());
+    return testData;
+}
+
 }  // namespace test
-}  // namespace ov
