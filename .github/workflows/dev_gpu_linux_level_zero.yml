@@ -123,7 +123,7 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-      test_filter: '*fully_connected*'
+      test_filter: '*smoke*fully_connected*:*convolution_gpu_bfyx_f16*:*convolution_f16_fw_gpu*:*smoke*convolution*:-*deconvolution*:-*DISABLED*:'
 
   Arc_B50_dGPU_func:
       name: Arc B50 dGPU Functional Tests Level Zero
