@@ -67,7 +67,7 @@ void set_disabled_tests_filter_from_patterns() {
     }
 
     precomputed_disabled_tests = std::move(disabled_tests);
-    precomputed_disabled_tests_enabled = true;
+    // precomputed_disabled_tests_enabled = true;
 }
 
 bool current_test_is_disabled() {
