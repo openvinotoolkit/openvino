@@ -100,6 +100,14 @@ ov::pass::TransposeFQ::TransposeFQ() {
         if (!transpose_order || !fq)
             return false;
 
+        // Only sink when FQ's sole consumer is another Transpose; the purpose of
+        // this pass is to create a Transpose-FQ-Transpose pattern so TransposeFuse
+        // can eliminate the pair
+        const auto& fq_target_inputs = fq->get_output_target_inputs(0);
+        if (fq_target_inputs.size() != 1 ||
+            !ov::is_type<v1::Transpose>(fq_target_inputs.begin()->get_node()))
+            return false;
+
         ov::NodeVector new_ops;
 
         const auto& reverse_order_constant = get_reversed_order_constant(transpose_order);
