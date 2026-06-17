@@ -370,10 +370,10 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
             DnnlExtensionUtils::for_each_implementation(
                 cur_desc,
                 first_match,
-                [&](impl_desc_type implType) {
+                [&](impl_desc_type implType) {  // is acceptable implementation
                     return contains(implPriorities, implType);
                 },
-                [&](dnnl::primitive_desc& desc) {
+                [&](dnnl::primitive_desc& desc) {  // is implementation with highest priority
                     const impl_desc_type descImplType = parse_impl_name(desc.impl_info_str());
                     const auto it = std::find(implPriorities.begin(), implPriorities.end(), descImplType);
                     const size_t priorityId = std::distance(implPriorities.begin(), it);

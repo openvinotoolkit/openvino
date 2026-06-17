@@ -40,14 +40,6 @@ private:
     bool m_restore_required = false;
 };
 
-inline int getDnnlMaxConcurrency() {
-    int max_concurrency = 0;
-    if (dnnl_threadpool_interop_get_max_concurrency(&max_concurrency) != dnnl_success) {
-        return 0;
-    }
-    return max_concurrency;
-}
-
 template <typename F>
 decltype(auto) withDnnlDescriptorConcurrency(F&& f) {
     DnnlMaxConcurrencyGuard guard(CpuParallel::get_num_worker_threads());

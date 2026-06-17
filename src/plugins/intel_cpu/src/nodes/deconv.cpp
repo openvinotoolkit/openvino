@@ -1047,9 +1047,8 @@ void Deconvolution::prepareParams() {
                      selected_pd->getImplementationType()};
 
     auto engine = getEngine();
-    const auto worker_threads = context->getCpuParallel()->get_num_worker_threads();
 
-    auto builder = [&engine, worker_threads](const DeconvKey& key) -> executorPtr {
+    auto builder = [&engine](const DeconvKey& key) -> executorPtr {
         dnnl::primitive_desc desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         dnnl::memory::desc dnnlBiasDesc;
