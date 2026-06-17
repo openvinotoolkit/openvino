@@ -110,6 +110,7 @@ private:
     size_t m_weights_size = 0;
     size_t m_weights_source_id = 0;
     std::shared_ptr<ov::AlignedBuffer> m_weights_source_handle;
+    // Cache of previously loaded weights regions, keyed by (offset, size) of the region in the weights file.
     std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };
 }  // namespace ov::util
