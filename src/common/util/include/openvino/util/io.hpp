@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <system_error>
 
-#include "openvino/util/mmap_object.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov::util {
 
