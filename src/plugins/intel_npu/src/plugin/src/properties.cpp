@@ -26,6 +26,12 @@ inline bool isSpecialBothProperty(const std::string& key) {
            key == ov::log::level.name();
 }
 
+inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
                                        const intel_npu::ICompilerAdapter* compiler,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
@@ -104,6 +110,14 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
+
+    if (config.isAvailable(ov::intel_npu::enable_strides_for.name())) {
+        if (backend && backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
+            logger.info("Config option %s not supported by the driver! Requirements not met.",
+                        ov::intel_npu::enable_strides_for.name());
+            config.enable(ov::intel_npu::enable_strides_for.name(), false);
+        }
+    }
 }
 
 void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
@@ -125,6 +139,14 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
+}
+
+// Helper function for retrieving the device name
+std::string get_specified_device_name(const intel_npu::Config& config) {
+    if (config.has<intel_npu::DEVICE_ID>()) {
+        return config.get<intel_npu::DEVICE_ID>();
+    }
+    return std::string();
 }
 
 }  // namespace
@@ -397,41 +419,6 @@ namespace intel_npu {
                             std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, PROP_RETFUNC)); \
     } while (0)
 
-// Local helper function for appending platform name to the config
-static Config add_platform_to_the_config(Config config, const std::string_view platform) {
-    config.update({{ov::intel_npu::platform.name(), std::string(platform)}});
-    return config;
-}
-
-// Local helper function for retrieving the device name
-static auto get_specified_device_name(const Config config) {
-    if (config.has<DEVICE_ID>()) {
-        return config.get<DEVICE_ID>();
-    }
-    return std::string();
-}
-
-// Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
-// Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
-// preference for number of parallel requests via dedicated configuration
-static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
-    const std::string platform = config.get<PLATFORM>();
-
-    if (platform == ov::intel_npu::Platform::NPU3720) {
-        if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
-            return 4;
-        } else {
-            return 1;
-        }
-    } else {
-        if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
-            return 8;
-        } else {
-            return 1;
-        }
-    }
-}
-
 Properties::Properties(const PropertiesType pType,
                        const FilteredConfig& config,
                        const std::shared_ptr<Metrics>& metrics,
@@ -524,7 +511,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
@@ -547,7 +533,9 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
@@ -596,7 +584,6 @@ void Properties::registerPluginProperties() {
                                      // This implementation here serves only to publish it in supported_properties
                                      return false;
                                  });
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
     TRY_REGISTER_CUSTOM_PROPERTY(
         ov::cache_encryption_callbacks,
@@ -632,16 +619,15 @@ void Properties::registerPluginProperties() {
     if (_metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
         REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
-        REGISTER_SIMPLE_METRIC(
-            ov::optimal_number_of_infer_requests,
-            true,
-            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-                config,
-                utils::getCompilationPlatform(
-                    config.get<PLATFORM>(),
-                    _backend == nullptr ? config.get<DEVICE_ID>()
-                                        : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
+        REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
+                               true,
+                               utils::getOptimalNumberOfInferRequestsInParallel(
+                                   utils::getCompilationPlatform(
+                                       config.get<PLATFORM>(),
+                                       _backend == nullptr ? config.get<DEVICE_ID>()
+                                                           : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
+                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()),
+                                   config.get<PERFORMANCE_HINT>()));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
@@ -739,7 +725,9 @@ void Properties::registerCompiledModelProperties() {
     // FORCE_REGISTER_CUSTOM_PROPERTY format: (property, visibility, mutability, custom_return_lambda_function)
 
     // Permanent properties
+    OPENVINO_SUPPRESS_DEPRECATED_START
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
@@ -750,6 +738,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_version, COMPILER_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
@@ -839,9 +828,10 @@ void Properties::registerCompiledModelProperties() {
         // this implementation here serves only to publish it in supported_properties
         return std::string("invalid");
     });
-    REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
-                           true,
-                           static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
+    REGISTER_SIMPLE_METRIC(
+        ov::optimal_number_of_infer_requests,
+        true,
+        utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(), config.get<PERFORMANCE_HINT>()));
     REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
@@ -852,6 +842,11 @@ void Properties::registerCompiledModelProperties() {
 
 ov::Any Properties::getProperty(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
+
+    if (name == ov::hint::enable_cpu_pinning.name()) {
+        logCpuPinningDeprecationWarning(_logger);
+    }
+
     if (_pType == PropertiesType::PLUGIN) {
         bool propertyIsCompilerConfig = false;
         bool propertyIsRegistered = true;
@@ -941,8 +936,12 @@ ov::Any Properties::getProperty(const std::string& name) {
 void Properties::setProperty(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (properties.count(ov::log::level.name()) != 0) {
+    if (properties.find(ov::log::level.name()) != properties.end()) {
         _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
+    }
+
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logCpuPinningDeprecationWarning(_logger);
     }
 
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -1034,6 +1033,10 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
 bool Properties::isPropertySupported(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
+    if (name == ov::hint::enable_cpu_pinning.name()) {
+        logCpuPinningDeprecationWarning(_logger);
+    }
+
     if (_pType == PropertiesType::PLUGIN) {
         const bool isRegistered = isPropertyRegistered(name);
         const bool isConfigOption = _config.hasOpt(name);
@@ -1128,6 +1131,10 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
                                    _logger);
         }();
 
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logCpuPinningDeprecationWarning(logger);
+    }
+
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
     if (compilerConfigsFilteredByCompiler) {
@@ -1182,6 +1189,10 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
 
     if (compilerConfigsFilteredByCompiler) {
         disableCompilerProperties(updatedConfig, _backend);
+    }
+
+    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
+        logCpuPinningDeprecationWarning(logger);
     }
 
     if (properties.empty()) {

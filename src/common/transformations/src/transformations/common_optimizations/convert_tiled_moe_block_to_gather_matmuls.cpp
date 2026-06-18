@@ -28,6 +28,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_matmul.hpp"
+#include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 namespace {
 using namespace ov::pass;
@@ -47,6 +48,14 @@ void validate_nodes(const pattern::PatternValueMap& map, const std::initializer_
         map.at(node).get_node_shared_ptr()->validate_and_infer_types();
     }
 };
+
+// Build a per-expert MatMul weight pattern
+std::shared_ptr<ov::Node> make_expert_weight_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
+    if (supported_weights_types.empty()) {
+        return pattern::any_input();
+    }
+    return std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
+}
 
 std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<ov::Node>& data) {
     auto zero_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
@@ -68,14 +77,14 @@ struct MOE2GEMMPatternNodes {
     std::shared_ptr<ov::Node> mul3, reduce_sum;
 };
 
-MOE2GEMMPatternNodes build_2gemm_pattern() {
+MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
     MOE2GEMMPatternNodes p;
 
     p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(1));
     p.gate_up_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.after_tile_reshape, pattern::any_input()},
+        {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.gate_up_bias = pattern::wrap_const();
     p.gate_up_add = pattern::wrap_type<v1::Add>({p.gate_up_matmul, p.gate_up_bias}, pattern::consumers_count(2));
@@ -100,7 +109,7 @@ MOE2GEMMPatternNodes build_2gemm_pattern() {
 
     // Down projection
     p.down_proj_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.multiply2, pattern::any_input()},
+        {p.multiply2, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.down_proj_bias = pattern::wrap_const();
     p.down_proj_add = pattern::wrap_type<v1::Add>({p.down_proj_matmul, p.down_proj_bias}, pattern::consumers_count(1));
@@ -136,7 +145,7 @@ struct MOE3GEMMPatternNodes {
     std::shared_ptr<ov::Node> mul3, reduce_sum;
 };
 
-MOE3GEMMPatternNodes build_3gemm_pattern() {
+MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
     MOE3GEMMPatternNodes p;
 
     p.experts_input = pattern::any_input();
@@ -145,19 +154,19 @@ MOE3GEMMPatternNodes build_3gemm_pattern() {
 
     // First GEMM (activation gate)
     p.gate_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.after_tile_reshape, pattern::any_input()},
+        {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.swish = pattern::wrap_type<v4::Swish, v7::Gelu>({p.gate_matmul}, pattern::consumers_count(1));
     // Second GEMM (up_projection)
     p.up_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.after_tile_reshape, pattern::any_input()},
+        {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     // Join: Multiply (SwiGLU)
     p.swiglu = pattern::wrap_type<v1::Multiply>({p.swish, p.up_matmul}, pattern::consumers_count(1));
 
     // Third GEMM (down_projection)
     p.down_matmul = pattern::wrap_type<v0::MatMul>(
-        {p.swiglu, pattern::any_input()},
+        {p.swiglu, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
     p.end_reshape_target_shape = pattern::any_input();
     p.end_reshape =
@@ -190,10 +199,11 @@ using ov::op::internal::GatherMatmul;
 // BGM-producing passes (IR → GatherMatmul)
 // ============================================================================
 
-ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
+ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
+    const std::vector<ov::element::Type>& supported_weights_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo2GatherMatmuls);
 
-    auto p = build_2gemm_pattern();
+    auto p = build_2gemm_pattern(supported_weights_types);
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
@@ -281,10 +291,11 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
     this->register_matcher(matcher, callback);
 }
 
-ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
+ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
+    const std::vector<ov::element::Type>& supported_weights_types) {
     MATCHER_SCOPE(ConvertTiledMoeBlockTo3GatherMatmuls);
 
-    auto p = build_3gemm_pattern();
+    auto p = build_3gemm_pattern(supported_weights_types);
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();

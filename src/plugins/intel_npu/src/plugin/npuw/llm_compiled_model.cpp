@@ -20,6 +20,7 @@
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -36,6 +37,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
@@ -444,6 +446,7 @@ void update_config_for_whisper(ov::AnyMap& config) {
 void disable_ws_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_FUNCALL_FOR_ALL");
     config.erase("NPUW_FOLD");
+    config.erase("NPUW_FOLD_ONLY");
     config.erase("NPUW_CWAI");
 }
 
@@ -553,6 +556,16 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
     }
 
     return lm_head_model;
+}
+
+bool has_phi_v5_longrope_pattern(const std::shared_ptr<ov::Model>& model) {
+    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
+    bool matched = false;
+    long_rope->transform_cb = [&]() {
+        matched = true;
+    };
+    long_rope->run_on_model(model);
+    return matched;
 }
 
 }  // namespace
@@ -1068,13 +1081,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
         apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
 
-        // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
+        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
+        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
+        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        for (auto&& model_variant : generate_model_variants) {
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+        }
+
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
+            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
+            // transformations)
             for (auto&& model_variant : generate_model_variants) {
                 ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
-            LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
     }
 
@@ -1095,8 +1115,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
+        const bool force_rope_cache = has_phi_v5_longrope_pattern(prefill_model);
 
-        if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
+        if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
             ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
                 max_prompt_len,
@@ -1107,7 +1128,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Apply RoPE Cache to all generate variant models
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
             const uint32_t kv_size = m_kvcache_sizes[i];
-            if (!is_best || (kv_size >= CACHE_ROPE_START)) {
+            if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
                 ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
                     kv_size,

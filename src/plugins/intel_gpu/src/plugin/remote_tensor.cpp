@@ -149,13 +149,15 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    TensorType mem_type,
                                    cldnn::shared_handle mem,
                                    cldnn::shared_surface surf,
-                                   uint32_t plane)
+                                   uint32_t plane,
+                                   ov::intel_gpu::os_handle_param os_handle)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
     , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
     , m_mem_type(mem_type)
     , m_mem(mem)
+    , m_os_handle(os_handle)
     , m_surf(surf)
     , m_plane(plane) {
     update_hash();
@@ -317,7 +319,13 @@ void RemoteTensorImpl::allocate() {
 
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
+        if (engine.supports_allocation(cldnn::allocation_type::cl_mem)) {
+            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
+        } else if (engine.supports_allocation(cldnn::allocation_type::sycl_buffer)) {
+            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::sycl_buffer, reset);
+        } else {
+            OPENVINO_THROW("[GPU] Can't allocate buffer as engine does not support cl_mem or sycl_buffer allocation types");
+        }
         break;
     }
     case TensorType::BT_USM_HOST_INTERNAL: {
@@ -330,6 +338,10 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_BUF_SHARED: {
         m_memory_object = engine.share_buffer(m_layout, m_mem);
+        break;
+    }
+    case TensorType::BT_BUF_SHARED_FROM_HANDLE: {
+        m_memory_object = engine.import_buffer(m_layout, m_os_handle);
         break;
     }
     case TensorType::BT_USM_SHARED: {
@@ -372,6 +384,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 
 bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
+           m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
            m_mem_type == TensorType::BT_SURF_SHARED ||
@@ -385,6 +398,7 @@ bool RemoteTensorImpl::supports_caching() const {
 void RemoteTensorImpl::update_hash() {
     if (supports_caching()) {
         m_hash = cldnn::hash_combine(0, m_mem);
+        m_hash = cldnn::hash_combine(m_hash, m_os_handle);
         m_hash = cldnn::hash_combine(m_hash, m_surf);
         m_hash = cldnn::hash_combine(m_hash, m_plane);
         m_hash = cldnn::hash_combine(m_hash, m_shape.size());
@@ -451,6 +465,13 @@ void RemoteTensorImpl::update_properties() {
     case TensorType::BT_BUF_SHARED:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER),
+            ov::intel_gpu::ocl_context(params.context),
+            ov::intel_gpu::mem_handle(params.mem),
+        };
+        break;
+    case TensorType::BT_BUF_SHARED_FROM_HANDLE:
+        m_properties = {
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
         };

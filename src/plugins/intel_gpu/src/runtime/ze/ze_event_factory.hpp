@@ -12,7 +12,7 @@
 namespace cldnn {
 namespace ze {
 
-// Interface for creating l0 events using event pools
+// Interface for creating ze events using event pools
 struct ze_event_factory : public ze_base_event_factory {
 public:
     ze_event_factory(const ze_engine &engine, bool enable_profiling, uint32_t capacity = 255);

@@ -11,7 +11,7 @@ engine_types get_default_engine_type() {
     return engine_types::ze;
 #elif defined(OV_GPU_WITH_OCL_RT)
     return engine_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL)
+#elif defined(OV_GPU_WITH_SYCL_RT)
     return engine_types::sycl;
 #else
     #error "Expected OpenVINO GPU runtime macros to be defined"
@@ -23,6 +23,8 @@ runtime_types get_default_runtime_type() {
     return runtime_types::ze;
 #elif defined(OV_GPU_WITH_OCL_RT)
     return runtime_types::ocl;
+#elif defined(OV_GPU_WITH_SYCL_RT)
+    return runtime_types::sycl;
 #else
     #error "Expected OpenVINO GPU runtime macros to be defined"
 #endif

@@ -10,7 +10,7 @@
 namespace cldnn {
 namespace ze {
 
-// L0 event. Can be either in signaled state or not signaled state.
+// ZE event. Can be either in signaled state or not signaled state.
 struct ze_event : public ze_base_event {
 public:
     ze_event(uint64_t queue_stamp, const ze_base_event_factory& factory, ze_event_resource ev)

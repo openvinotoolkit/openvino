@@ -208,7 +208,7 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
 #ifdef OV_GPU_WITH_ZE_RT
-    OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+    OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
     dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
 #endif
@@ -219,6 +219,11 @@ dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, cons
     OPENVINO_THROW("[GPU] Grouped memory is not supported for gpu_buffer.");
 }
 #endif
+
+gpu_buffer_from_handle::~gpu_buffer_from_handle() {
+    auto cl_engine = downcast<const ocl_engine>(_engine);
+    cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+}
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem()
@@ -664,7 +669,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
 #ifdef OV_GPU_WITH_ZE_RT
-        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
     dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
@@ -675,7 +680,7 @@ dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset)
 dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
     auto onednn_engine = _engine->get_onednn_engine();
 #ifdef OV_GPU_WITH_ZE_RT
-        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(offsets.get_allocation_type()));
     OPENVINO_ASSERT(offsets.get_engine() == this->_engine);

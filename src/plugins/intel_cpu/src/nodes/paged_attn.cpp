@@ -24,8 +24,10 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
@@ -51,9 +53,11 @@ struct PagedAttentionKey {
     ov::element::Type rtPrecision;
     ov::element::Type keyCachePrecision;
     ov::element::Type valueCachePrecision;
-    bool quantKeyByChannel;
-    bool quantValueByChannel;
-    bool isSageAttn;
+    size_t headSize = 0;
+    size_t numKvHeads = 0;
+    bool quantKeyByChannel = false;
+    bool quantValueByChannel = false;
+    bool isSageAttn = false;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -64,6 +68,8 @@ size_t PagedAttentionKey::hash() const {
     seed = hash_combine(seed, rtPrecision.hash());
     seed = hash_combine(seed, keyCachePrecision.hash());
     seed = hash_combine(seed, valueCachePrecision.hash());
+    seed = hash_combine(seed, headSize);
+    seed = hash_combine(seed, numKvHeads);
     seed = hash_combine(seed, quantKeyByChannel);
     seed = hash_combine(seed, quantValueByChannel);
     seed = hash_combine(seed, isSageAttn);
@@ -74,7 +80,8 @@ size_t PagedAttentionKey::hash() const {
 bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
     return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
            valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
-           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn;
+           quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn && headSize == rhs.headSize &&
+           numKvHeads == rhs.numKvHeads;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -86,6 +93,19 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
     m_has_adaptive_rkv_diversity_output = !op->get_output_target_inputs(2).empty();
+    const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
+    CPU_NODE_ASSERT(pa, "Only PagedAttentionExtension is supported in PagedAttention node.");
+    m_write_kv_cache = pa->get_write_kv_cache();
+    // Head dimensions are always set by SDPAToPagedAttention transformation (it asserts they
+    // are static). They are used as part of the executor cache key so that layers with different
+    // head_size (e.g. Gemma4 mixes 256 and 512) get separate executors with correctly-sized
+    // BRGEMM kernels. Shapes cannot be used here because cache inputs are fully dynamic at
+    // createPrimitive time.
+    const auto& rt = op->get_rt_info();
+    CPU_NODE_ASSERT(rt.count("k_head_size") != 0UL && rt.count("num_k_heads") != 0UL,
+                    "Runtime info k_head_size and num_k_heads are required for PagedAttention node.");
+    m_head_size = rt.at("k_head_size").as<size_t>();
+    m_num_kv_heads = rt.at("num_k_heads").as<size_t>();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -265,6 +285,8 @@ void PagedAttention::createPrimitive() {
     PagedAttentionKey key = {rtPrecision,
                              kCachePrecision,
                              vCachePrecision,
+                             m_head_size,
+                             m_num_kv_heads,
                              quantKeybyChannel,
                              quantValuebyChannel,
                              cpuConfig.enableSageAttn};
@@ -378,7 +400,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
     }
 
-    m_executor->execute(inputs, outputs);
+    m_executor->execute(inputs, outputs, m_write_kv_cache);
 }
 
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,

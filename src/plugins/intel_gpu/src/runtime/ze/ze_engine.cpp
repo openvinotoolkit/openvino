@@ -99,6 +99,10 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
     }
 }
 
+memory::ptr ze_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
@@ -168,6 +172,10 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
                              usm_res,
                              memory.get_allocation_type(),
                              memory.get_mem_tracker());
+}
+
+memory_ptr ze_engine::create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {

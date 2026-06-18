@@ -207,7 +207,9 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
             first_input ? transposed_input_pshape.insert(transposed_input_pshape.begin(), 1)
                         : transposed_input_pshape.insert(transposed_input_pshape.end(), 1);
 
-            if (transpose) {
+            // Do not swap weight (2nd input) because TRANSPOSE_Y_LAST expects [Y=K, X=N];
+            // swapping would make input1_offset1 = TILE_K * K instead of TILE_K * N.
+            if (transpose && first_input) {
                 std::swap(transposed_input_pshape[0], transposed_input_pshape[1]);
             }
         }
