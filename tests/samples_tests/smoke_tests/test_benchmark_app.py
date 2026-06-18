@@ -114,7 +114,11 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_benchmark_app_help(sample_language):
-    get_cmd_output(get_executable(sample_language), '-h')
+    output = get_cmd_output(get_executable(sample_language), '-h')
+    if sample_language == 'C++':
+        assert '-high_precision_latency' in output
+    else:
+        assert '-high_precision_latency' not in output
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
@@ -487,9 +491,17 @@ def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, ca
 
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='sub-millisecond formatting is validated on CPU')
-@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize(
+    'sample_language,high_precision_latency,expect_microseconds',
+    [('C++', False, False), ('C++', True, True), ('Python', False, True)],
+)
 @pytest.mark.parametrize('json_stats', [False, True])
-def test_benchmark_app_sub_ms_console_output_only(sample_language, json_stats, cache, tmp_path):
+def test_benchmark_app_sub_ms_console_output_only(sample_language,
+                                                  high_precision_latency,
+                                                  expect_microseconds,
+                                                  json_stats,
+                                                  cache,
+                                                  tmp_path):
     model = create_low_latency_model()
     report_folder = tmp_path / ('json_report' if json_stats else 'csv_report')
     report_folder.mkdir()
@@ -503,13 +515,15 @@ def test_benchmark_app_sub_ms_console_output_only(sample_language, json_stats, c
         '-niter', '20',
         '-report_type', 'no_counters',
         '-report_folder', report_folder,
+        *(('-high_precision_latency',) if high_precision_latency else ()),
         *(('-json_stats=true',) if json_stats else ()),
     )
 
     assert 'Latency:' in output
     assert 'Average:' in output
-    assert ' us' in output
     assert 'Throughput' in output
+    average_line = next(line for line in output.splitlines() if 'Average:' in line)
+    assert (' us' in average_line) == expect_microseconds
 
     if json_stats:
         with (report_folder / 'benchmark_report.json').open(encoding='utf-8') as file:

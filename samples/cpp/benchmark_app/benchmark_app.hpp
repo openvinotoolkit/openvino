@@ -255,6 +255,10 @@ static const char no_warmup_message[] =
     "Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments.\n"
     "Otherwise, not recommended.";
 
+static const char high_precision_latency_message[] =
+    "Optional. For console output only, print latency values in microseconds when the measured average latency is "
+    "below 1 ms. CSV and JSON reports remain unchanged.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -389,6 +393,9 @@ DEFINE_string(dump_config, "", dump_config_message);
 /// @brief Skips warmup inference and measures only the first inference
 DEFINE_bool(no_warmup, false, no_warmup_message);
 
+/// @brief Enables sub-millisecond latency formatting for console output
+DEFINE_bool(high_precision_latency, false, high_precision_latency_message);
+
 /**
  * @brief This function show a help message
  */
@@ -423,6 +430,7 @@ static void show_usage() {
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
     std::cout << "    -no_warmup                    " << no_warmup_message << std::endl;
+    std::cout << "    -high_precision_latency       " << high_precision_latency_message << std::endl;
     std::cout << std::endl;
     std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
