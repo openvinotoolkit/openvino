@@ -51,6 +51,11 @@ FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         const auto& reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();
         const auto& original_data_rank = fq_node->get_input_shape(0).size();
 
+        const auto& data_node = pattern_map.at(data_p).get_node_shared_ptr();
+        if (!ov::is_type<v0::Constant>(data_node) &&
+            fq_node->get_input_element_type(0) != fq_node->get_output_element_type(0))
+            return false;
+
         OutputVector renewed_inputs = {};
         for (auto i = 1; i < 5; ++i) {
             Output<Node> limit_input = fq_node->input_value(i);
