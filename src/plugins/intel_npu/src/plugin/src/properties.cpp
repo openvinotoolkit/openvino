@@ -110,6 +110,14 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
+
+    if (config.isAvailable(ov::intel_npu::enable_strides_for.name())) {
+        if (backend && backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
+            logger.info("Config option %s not supported by the driver! Requirements not met.",
+                        ov::intel_npu::enable_strides_for.name());
+            config.enable(ov::intel_npu::enable_strides_for.name(), false);
+        }
+    }
 }
 
 void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
@@ -131,6 +139,14 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
+}
+
+// Helper function for retrieving the device name
+std::string get_specified_device_name(const intel_npu::Config& config) {
+    if (config.has<intel_npu::DEVICE_ID>()) {
+        return config.get<intel_npu::DEVICE_ID>();
+    }
+    return std::string();
 }
 
 }  // namespace
@@ -403,41 +419,6 @@ namespace intel_npu {
                             std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, PROP_RETFUNC)); \
     } while (0)
 
-// Local helper function for appending platform name to the config
-static Config add_platform_to_the_config(Config config, const std::string_view platform) {
-    config.update({{ov::intel_npu::platform.name(), std::string(platform)}});
-    return config;
-}
-
-// Local helper function for retrieving the device name
-static auto get_specified_device_name(const Config config) {
-    if (config.has<DEVICE_ID>()) {
-        return config.get<DEVICE_ID>();
-    }
-    return std::string();
-}
-
-// Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
-// Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
-// preference for number of parallel requests via dedicated configuration
-static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
-    const std::string platform = config.get<PLATFORM>();
-
-    if (platform == ov::intel_npu::Platform::NPU3720) {
-        if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
-            return 4;
-        } else {
-            return 1;
-        }
-    } else {
-        if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
-            return 8;
-        } else {
-            return 1;
-        }
-    }
-}
-
 Properties::Properties(const PropertiesType pType,
                        const FilteredConfig& config,
                        const std::shared_ptr<Metrics>& metrics,
@@ -638,16 +619,15 @@ void Properties::registerPluginProperties() {
     if (_metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
         REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
-        REGISTER_SIMPLE_METRIC(
-            ov::optimal_number_of_infer_requests,
-            true,
-            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-                config,
-                utils::getCompilationPlatform(
-                    config.get<PLATFORM>(),
-                    _backend == nullptr ? config.get<DEVICE_ID>()
-                                        : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
+        REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
+                               true,
+                               utils::getOptimalNumberOfInferRequestsInParallel(
+                                   utils::getCompilationPlatform(
+                                       config.get<PLATFORM>(),
+                                       _backend == nullptr ? config.get<DEVICE_ID>()
+                                                           : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
+                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()),
+                                   config.get<PERFORMANCE_HINT>()));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
@@ -758,6 +738,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_version, COMPILER_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
@@ -847,9 +828,10 @@ void Properties::registerCompiledModelProperties() {
         // this implementation here serves only to publish it in supported_properties
         return std::string("invalid");
     });
-    REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
-                           true,
-                           static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
+    REGISTER_SIMPLE_METRIC(
+        ov::optimal_number_of_infer_requests,
+        true,
+        utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(), config.get<PERFORMANCE_HINT>()));
     REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly

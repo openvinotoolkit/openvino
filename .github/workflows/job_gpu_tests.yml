@@ -29,6 +29,11 @@ on:
         type: string
         required: false
         default: ''
+      test_filter:
+        description: 'Custom gtest filter, overrides the default unit/func filter'
+        type: string
+        required: false
+        default: ''
 
 permissions: read-all
 
@@ -85,6 +90,7 @@ jobs:
         env:
           TEST_TYPE: ${{ inputs.test_type }}
           DEVICE: ${{ inputs.device }}
+          CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
@@ -94,8 +100,9 @@ jobs:
           rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}
 
           test_filter=''
-          if [[ "${TEST_TYPE}" == "unit" ]]; then
-            # Ticket: 138018
+          if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
+            test_filter="${CUSTOM_TEST_FILTER}"
+          elif [[ "${TEST_TYPE}" == "unit" ]]; then
             test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
           else
             test_filter='*smoke*'
