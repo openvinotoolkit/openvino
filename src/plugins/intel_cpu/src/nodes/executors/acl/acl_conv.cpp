@@ -26,6 +26,7 @@
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
+#include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
@@ -117,6 +118,9 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
+    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly
+    // so the executor is selected only on a core that provides the required ISA.
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);

@@ -21,6 +21,7 @@
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"
+#include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/implementation_utils.hpp"
@@ -78,6 +79,9 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
+    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly
+    // so the executor is selected only on a core that provides the required ISA.
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);

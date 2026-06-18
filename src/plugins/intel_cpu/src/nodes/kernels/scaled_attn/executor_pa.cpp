@@ -40,7 +40,6 @@
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-#include "utils/precision_support.h"
 #include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -2927,9 +2926,6 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
-    if (!ov::intel_cpu::hasArmSVESupport()) {
-        OPENVINO_THROW("make_pa_executor: ARM implementation requires SVE support");
-    }
     if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor =
@@ -2937,15 +2933,14 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
-    } else if (data_type == ov::element::f16) {
+    }
+    if (data_type == ov::element::f16) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params,
                                                                                                           cpu_parallel);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
-    } else {
-        OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
 
 #else

@@ -67,7 +67,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-    VERIFY(hasArmASIMDSupport(), UNSUPPORTED_ISA);
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }

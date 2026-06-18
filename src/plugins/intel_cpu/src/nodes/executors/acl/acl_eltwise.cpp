@@ -31,6 +31,7 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/eltwise_config.hpp"
+#include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
@@ -76,6 +77,11 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
 }
 
 bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
+    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly
+    // so the executor is selected only on a core that provides the required ISA.
+    if (!hasArmISASupport(ArmISA::ASIMD)) {
+        return false;
+    }
     std::vector<MemoryDescPtr> srcDescs(config.descs.size() - 1);
     std::vector<MemoryDescPtr> dstDescs{config.descs.at(ARG_DST)};
 
