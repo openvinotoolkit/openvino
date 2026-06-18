@@ -864,8 +864,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 !(value_ps.size() == 3 || value_ps.size() == 4))
                 return false;
 
-            // - The head size of all Q, K, and V inputs should be the same static value
-            if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
+            // - The head size of Q, K, and V is the same value (the QK^T contraction
+            //   dim E and the softmax@V output dim, guaranteed equal across the three
+            //   inputs by SDPA shape inference). The opt/micro kernels need it as a
+            //   compile-time constant, but it only has to be static on ONE input to be
+            //   known for all. Recover it from whichever input carries it statically;
+            //   only bail (decompose) when it is dynamic on every input.
+            auto static_head_size = [](const ov::PartialShape& ps) -> int64_t {
+                const auto& d = ps[ps.size() - 1];
+                return d.is_static() ? d.get_length() : -1;
+            };
+            int64_t recovered_head_size = static_head_size(query_ps);
+            if (recovered_head_size < 0)
+                recovered_head_size = static_head_size(key_ps);
+            if (recovered_head_size < 0)
+                recovered_head_size = static_head_size(value_ps);
+            if (recovered_head_size < 0) {
                 return false;
             }
 
@@ -879,7 +893,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                  return false;
              }
 
-            const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
+            const auto head_size = static_cast<uint64_t>(recovered_head_size);
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 

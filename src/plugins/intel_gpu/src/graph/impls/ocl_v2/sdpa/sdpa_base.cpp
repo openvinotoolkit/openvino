@@ -325,6 +325,15 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             }
         }
 
+        // General head_size recovery: K/V head_size equals Q head_size (the QK^T
+        // contraction dim) by SDPA shape inference. When K/V carry it dynamically
+        // (get_head_size returns -1) recover from Q so the kernel is jitted with a
+        // valid compile-time constant rather than -1.
+        if (k_head_size < 0)
+            k_head_size = q_head_size;
+        if (v_head_size < 0)
+            v_head_size = q_head_size;
+
         jit.make("HEAD_SIZE", q_head_size);
         jit.make("NUM_HEADS", q_num_head);
         jit.make("K_HEAD_SIZE", k_head_size);

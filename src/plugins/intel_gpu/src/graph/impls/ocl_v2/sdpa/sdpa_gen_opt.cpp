@@ -75,6 +75,20 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             }
         }
 
+        // General head_size recovery: head_size is the QK^T contraction dim, equal
+        // across Q/K/V by SDPA shape inference. When K/V carry it dynamically (-1) but
+        // Q has it statically, recover from Q so the kernel still gets a compile-time
+        // constant instead of falling back to the ref kernel. (validate_impl applies
+        // the same recovery to admit this case.)
+        {
+            auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+            auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+            if (k_head_size < 0)
+                k_head_size = (v_head_size >= 0) ? v_head_size : q_head_size;
+            if (v_head_size < 0)
+                v_head_size = (k_head_size >= 0) ? k_head_size : q_head_size;
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
@@ -208,6 +222,10 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
                 head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
+            // General recovery: V head_size == Q head_size by SDPA shape inference;
+            // recover from Q when V carries it dynamically.
+            if (head_size < 0)
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
 
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
@@ -254,6 +272,10 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
                 head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
+            // General recovery: V head_size == Q head_size by SDPA shape inference;
+            // recover from Q when V carries it dynamically.
+            if (head_size < 0)
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
 
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
 
@@ -304,6 +326,10 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
                 head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
+            // General recovery: V head_size == Q head_size by SDPA shape inference;
+            // recover from Q when V carries it dynamically.
+            if (head_size < 0)
+                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";

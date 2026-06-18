@@ -55,8 +55,20 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
-        auto dim_size = desc->input_k_transpose_order.size();
-        auto k_head_size = k_layout.get_partial_shape()[desc->input_k_transpose_order[dim_size - 1]];
+        // The opt kernel needs head_size as a compile-time constant. It is the QK^T
+        // contraction dim, equal across Q/K/V by SDPA shape inference, so a dynamic K
+        // head_size is still known when Q (or V) carries it statically. Recover it
+        // from a sibling input instead of bailing to the ref kernel; only reject when
+        // head_size is dynamic on every input. (Mirrors the recovery the opt kernel's
+        // jit already does for int4 KV-cache layouts in sdpa_gen_opt.cpp.)
+        auto head_size_of = [](const cldnn::layout& l, const std::vector<int64_t>& order) -> ov::Dimension {
+            return l.get_partial_shape()[order[order.size() - 1]];
+        };
+        auto k_head_size = head_size_of(k_layout, desc->input_k_transpose_order);
+        if (k_head_size.is_dynamic())
+            k_head_size = head_size_of(q_layout, desc->input_q_transpose_order);
+        if (k_head_size.is_dynamic())
+            k_head_size = head_size_of(v_layout, desc->input_v_transpose_order);
         if (k_head_size.is_dynamic()) {
             return false;
         }
