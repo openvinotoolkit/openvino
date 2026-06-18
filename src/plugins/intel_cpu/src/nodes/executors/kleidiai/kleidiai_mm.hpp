@@ -8,10 +8,9 @@
 
 #include "arm_neon.h"
 #include "cpu_memory.h"
+#include "kleidiai_common.hpp"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
-
-#include "kleidiai_common.hpp"
 
 namespace ov::intel_cpu {
 
@@ -32,7 +31,7 @@ public:
 
     void moveMemToNumaNode(int numaNodeID) override;
 
-    bool isGroupQuantizationEnabled(const FCAttrs& attrs, const MemoryArgs& memory);
+    static bool isGroupQuantizationEnabled(const MemoryArgs& memory);
 
 private:
     DnnlScratchPadPtr scratchPad;
@@ -43,7 +42,6 @@ private:
     size_t M = 0UL, N = 0UL, K = 0UL;
     ExecutorContext::CPtr executorContext;
     std::shared_ptr<kai_common::uKernelBase> _kernel;
-
 };
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;
