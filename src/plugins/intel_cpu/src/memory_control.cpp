@@ -272,10 +272,12 @@ public:
             // We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             // the intermediate computation results from possible loss due to the tensor resize
             OPENVINO_ASSERT(box.finish >= 0, "box.finish must be non-negative");
-            // [start, finish) is the lifespan of the box. Extend it only if that interval crosses a sync point.
-            const auto first_sync_in_lifetime = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
+            // [start, finish) is the lifespan of the box. Extend it only if that interval contains a sync point,
+            // which means the tensor spans more than one sync section.
+            const auto first_sync_at_or_after_start = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
             const auto first_sync_at_or_after_finish = std::lower_bound(syncInds.begin(), syncInds.end(), box.finish);
-            if (first_sync_in_lifetime != first_sync_at_or_after_finish) {  // across sections
+            const bool crosses_sync_section = first_sync_at_or_after_start != first_sync_at_or_after_finish;
+            if (crosses_sync_section) {
                 if (first_sync_at_or_after_finish == syncInds.end()) {
                     box.finish = -1;
                 } else {
