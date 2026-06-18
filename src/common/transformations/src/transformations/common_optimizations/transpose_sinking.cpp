@@ -83,20 +83,15 @@ ov::pass::TransposeFQ::TransposeFQ() {
 
     auto transpose_order_m = wrap_type<v0::Constant>();
     auto transpose_label = wrap_type<v1::Transpose>({any_input(pattern::has_static_rank()), transpose_order_m});
-    // Only sink when FQ's sole consumer is another Transpose; the purpose of this
-    // pass is to create a Transpose-FQ-Transpose pattern so TransposeFuse can
-    // eliminate the pair
-    auto fq_consumer_is_transpose = [](const Output<Node>& output) {
-        const auto& target_inputs = output.get_target_inputs();
-        return target_inputs.size() == 1 &&
-               ov::is_type<v1::Transpose>(target_inputs.begin()->get_node());
-    };
     auto fq_label = wrap_type<v0::FakeQuantize>({transpose_label,
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank())},
-                                                fq_consumer_is_transpose);
+                                                consumers_count(1));
+    // The downstream Transpose is part of the pattern: TransposeFQ only makes sense
+    // when FQ is between two Transposes so TransposeFuse can later eliminate the pair
+    auto transpose_after_label = wrap_type<v1::Transpose>({fq_label, any_input()});
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -153,7 +148,7 @@ ov::pass::TransposeFQ::TransposeFQ() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(fq_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_after_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
