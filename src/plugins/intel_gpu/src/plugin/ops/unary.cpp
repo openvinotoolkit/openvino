@@ -24,6 +24,7 @@
 #include "openvino/op/floor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/negative.hpp"
@@ -196,6 +197,10 @@ static void CreateErfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Erf
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::erf, {});
 }
 
+static void CreateErfInvOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v17::ErfInv>& op) {
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::erfinv, {});
+}
+
 static void CreateHardSigmoidOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::HardSigmoid>& op) {
     validate_inputs_count(op, {3});
     auto alpha_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
@@ -348,6 +353,7 @@ REGISTER_FACTORY_IMPL(v0, Floor);
 REGISTER_FACTORY_IMPL(v0, Ceiling);
 REGISTER_FACTORY_IMPL(v0, Sqrt);
 REGISTER_FACTORY_IMPL(v0, Erf);
+REGISTER_FACTORY_IMPL(v17, ErfInv);
 REGISTER_FACTORY_IMPL(v0, HardSigmoid);
 REGISTER_FACTORY_IMPL(v0, Log);
 REGISTER_FACTORY_IMPL(v0, Negative);

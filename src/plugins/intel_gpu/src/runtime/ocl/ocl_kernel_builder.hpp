@@ -79,6 +79,11 @@ class ocl_kernel_builder : public kernel_builder{
             }
             for (auto& k : kernels) {
                 const auto &entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                // Intel_Symbol_Table_Void_Program does not correspond to any real kernel
+                // Ignore this entry point as workaround for GSD-12674
+                if (entry_point == "Intel_Symbol_Table_Void_Program") {
+                    continue;
+                }
                 out.push_back(std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, m_device.get_usm_helper()), entry_point));
             }
     }

@@ -9,86 +9,16 @@
 #include <intel_gpu/primitives/swiglu.hpp>
 #include <limits>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov {
-namespace op {
-namespace internal {
-using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
-using MOECompressed = ov::intel_gpu::op::MOECompressed;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
-
 namespace ov::intel_gpu {
 using namespace cldnn;
-
-static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op) {
-    auto inputs = p.GetInputInfo(op);
-    const auto& config = op->get_config();
-    ///   0: hidden_states - input tensor with hidden representations
-    ///   1: routing_weights - [num_seq, num_experts] routing weights for all experts
-    ///   2: w0_weight - expert weights for first projection,
-    ///                  shape [num_experts, inter_size, group_num, group_size]
-    ///   3: w0_scale - expert scale for first projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   4: w0_zp - expert zp for first projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   5: w1_weight - expert weights for second projection,
-    ///                  shape [num_experts, inter_size, group_num, group_size]
-    ///   6: w1_scale - expert scale for second projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   7: w1_zp - expert zp for second projection for compressed experts,
-    ///                  shape [num_experts, inter_size, group_num, 1]
-    ///   8: w2_weight - expert weights for final projection,
-    ///                  shape [num_experts, hidden_size, group_num, group_size]
-    ///   9: w2_scale - expert scale for final projection for compressed experts,
-    ///                  shape [num_experts, hidden_size, group_num, 1]
-    ///   10: w2_zp - expert zp for final projection for compressed experts,
-    ///                  shape [num_experts, hidden_size, group_num, 1]
-    ///   11: routing_bias (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
-    ///                  [1, num_experts] routing bias for sigmoid routing
-    ///   12: routing_eps (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
-    ///                  scalar epsilon for normalization
-    ///
-    ///   Options for shared experts (if config.num_shared_expert > 0, always starting at index 13):
-    ///   13: shared_gate_weight - shared expert weights for first projection,
-    ///                   shape [1, inter_size, group_num, group_size]
-    ///   14: shared_gate_scale - shared expert scale for first projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   15: shared_gate_zp - shared expert zp for first projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   16: shared_up_weight - shared expert weights for second projection,
-    ///                   shape [1, inter_size, group_num, group_size]
-    ///   17: shared_up_scale - shared expert scale for second projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   18: shared_up_zp - shared expert zp for second projection,
-    ///                   shape [1, inter_size, group_num, 1]
-    ///   19: shared_down_weight - shared expert weights for final projection,
-    ///                   shape [1, hidden_size, group_num, group_size]
-    ///   20: shared_down_scale - shared expert scale for final projection,
-    ///                   shape [1, hidden_size, group_num, 1]
-    ///   21: shared_down_zp - shared expert zp for final projection,
-    ///                   shape [1, hidden_size, group_num, 1]
-    ///   22: shared_gate_gate_weight - shared expert gate weight for gating,
-    ///                   shape [hidden_size]
-    const size_t expected_inputs = config.num_shared_expert > 0 ? 23
-                                 : config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
-                                 : 11;
-    validate_inputs_count(op, {expected_inputs});
-
-    const std::string layerName = layer_type_name_ID(op);
-    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config);
-
-    p.add_primitive(*op, moe);
-}
 
 static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
     auto inputs = p.GetInputInfo(op);
@@ -98,31 +28,14 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         input_infos.push_back(cldnn::input_info(input));
     }
     if (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
-        // Create GEMM3_SWIGLU specific primitives
-        //   0: hidden_states - input tensor with hidden representations
-        //   1: routing_weights - [num_experts, ...] normalized weights for selected experts
-        //      (input to final multiplication)
-        //   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
-        //   3: w0_weight - expert weights for first projection,
-        //   shape [num_experts, inter_size, group_num, group_size]
-        //   4: w0_scale - expert scale for first projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   5: w0_zp - expert zp for first projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   6: w1_weight - expert weights for second projection,
-        //   shape [num_experts, inter_size, group_num, group_size]
-        //   7: w1_scale - expert scale for second projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   8: w1_zp - expert zp for second projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   9: w2_weight - expert weights for final projection,
-        //   shape [num_experts, hidden_size, group_num, group_size]
-        //   10: w2_scale - expert scale for final projection for compressed experts,
-        //   shape [num_experts, hidden_size, group_num, 1]
-        //   11: w2_zp - expert zp for final projection for compressed experts,
-        //   shape [num_experts, hidden_size, group_num, 1]
+        const size_t base_inputs = 12;
+        const size_t shared_inputs = config.num_shared_expert > 0 ? 10 : 0;
+        const size_t expected_inputs = base_inputs + shared_inputs;
+        validate_inputs_count(op, {expected_inputs});
 
-        // Use moe_3gemm_fused_compressed to replace it.
+        const std::string layerName = layer_type_name_ID(op);
+        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config);
+        p.add_primitive(*op, moe);
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
@@ -190,26 +103,19 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         moe_gemm_up.has_bias = true;
         p.add_primitive(*op, moe_gemm_up);
 
-        // gpt-oss swiglu pattern
-        // config.expert_alpha : clamp_max
-        // config.expert_beta : swish_beta which is slightly different from usual swiglu pattern
-        // - Applied clamp
-        // - Added one for up value
-        // - Gate stride is 1 (not splitting to half and half)
-        // - config.expert_alpha : clamp_max
-        // - config.expert_beta : swish_beta
-        // TODO : update for each new pattern
+        // GPT-OSS swiglu: stride-2 interleave (gate=swish, up=clamp+add).
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
                                              2,  // axis
                                              2,  // glu_stride
                                              ov::op::internal::GLU::GluType::Swish,
-                                             0,                     // gate idx
+                                             config.gate_idx,
                                              -config.expert_alpha,  // clamp_min
                                              config.expert_alpha,   // clamp_max
                                              config.expert_beta,    // swish beta
                                              1.0f,                  // up_add_val
-                                             cldnn::tensor());
+                                             cldnn::tensor(),
+                                             config.scale_factor.value_or(-1.0f));   // activations scaling
         p.add_primitive(*op, moe_swiglu_prim);
         std::vector<cldnn::input_info> moe_gemm_down_inputs = {
             input_info(moe_swiglu_name),
@@ -245,7 +151,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
-REGISTER_FACTORY_IMPL(internal, MOE3GemmFusedCompressed);
+
 REGISTER_FACTORY_IMPL(internal, MOECompressed);
 
 }  // namespace ov::intel_gpu

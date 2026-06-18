@@ -74,10 +74,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 else
                     new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
                                                             : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+            } else if (current_shape.size() == 4 && is_weight_3d) {
+                new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
+                                                        : ov::Shape{current_shape[0], current_shape[1], current_shape[2] * current_shape[3]};
+            } else if (current_shape.size() == 4 && !is_weight_3d) {
+                new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1] * current_shape[2], current_shape[3]}
+                                                        : ov::Shape{current_shape[0] * current_shape[1], current_shape[2] * current_shape[3]};
             } else {
-                OPENVINO_ASSERT(current_shape.size() == 4 && is_weight_3d);
-                    new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
-                                                            : ov::Shape{current_shape[0], current_shape[1], current_shape[3] * current_shape[2]};
+                OPENVINO_THROW("Unexpected constant shape rank ", current_shape.size(),
+                                " with is_weight_3d=", is_weight_3d);
             }
             auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
 

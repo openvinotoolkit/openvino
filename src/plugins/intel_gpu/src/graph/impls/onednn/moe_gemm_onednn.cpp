@@ -7,7 +7,6 @@
 #include "primitive_onednn_base.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -28,65 +27,73 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(moe_gemm_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
-        auto& engine = instance.get_network().get_engine();
-        auto& onednn_engine = engine.get_onednn_engine();
         auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(*instance.get_impl_params());
 
         {
             auto& input = instance.input_memory(moe_gemm::MoEGemmInputIdx::INPUT);
             auto& offsets = instance.input_memory(moe_gemm::MoEGemmInputIdx::INPUT_OFFSET_PER_EXPERT);
-            OPENVINO_ASSERT(input.get_allocation_type() >= allocation_type::usm_host, "[GPU] oneDNN MOE GEMM implementation supports only USM input memory");
-            dnnl::memory input_mem = dnnl::ocl_interop::make_memory(_pd.src_desc(0), onednn_engine, dnnl::ocl_interop::memory_kind::usm,
-                {reinterpret_cast<uint8_t*>(input.buffer_ptr()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
-
+            dnnl::memory input_mem = input.get_onednn_grouped_memory(_pd.src_desc(0), offsets);
             args.insert({DNNL_ARG_SRC, input_mem});
         }
 
         {
             auto& output = instance.output_memory(0);
             auto& offsets = instance.input_memory(moe_gemm::MoEGemmInputIdx::INPUT_OFFSET_PER_EXPERT);
-            OPENVINO_ASSERT(output.get_allocation_type() >= allocation_type::usm_host, "[GPU] oneDNN MOE GEMM implementation supports only USM output memory");
-            dnnl::memory output_mem = dnnl::ocl_interop::make_memory(_pd.dst_desc(0), onednn_engine, dnnl::ocl_interop::memory_kind::usm,
-                {reinterpret_cast<uint8_t*>(output.buffer_ptr()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
-
+            dnnl::memory output_mem = output.get_onednn_grouped_memory(_pd.dst_desc(0), offsets);
             args.insert({DNNL_ARG_DST, output_mem});
         }
 
         {
             auto& weights = instance.input_memory(moe_gemm::MoEGemmInputIdx::WEIGHT);
-            dnnl::memory weights_mem = dnnl::ocl_interop::make_memory(_pd.weights_desc(0), onednn_engine, dnnl::ocl_interop::memory_kind::usm,
-                reinterpret_cast<uint8_t*>(weights.buffer_ptr()));
+            dnnl::memory weights_mem = weights.get_onednn_memory(_pd.weights_desc(0), 0);
             args.insert({DNNL_ARG_WEIGHTS, weights_mem});
         }
 
         if (moe_cfg.is_weight_quantized) {
+            // cldnn [E,N,G] -> onednn [E,G,N] (matches byfx physical from prepare_quantization).
             auto& wei_scales = instance.input_memory(moe_cfg.weight_scale_idx);
             auto wei_scales_shape = wei_scales.get_layout().get_shape();
             dnnl::memory::dim d0 = wei_scales_shape[0];
             dnnl::memory::dim d1 = wei_scales_shape[1];
             dnnl::memory::dim d2 = wei_scales_shape[2];
-            dnnl::memory::dims wei_scales_dims = (moe_cfg.weight_group_size == -1) ? dnnl::memory::dims{d0, d2} : dnnl::memory::dims{d0, d1, d2};
-            dnnl::memory::format_tag wei_scales_fmt = (moe_cfg.weight_group_size == -1) ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::abc;
+            // Cross-check moe_cfg.weight_group_size (from compile-time scale_shape[2]) vs runtime memory.
+            const auto& weight_layout = instance.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT);
+            const auto& w_shape = weight_layout.get_shape();
+            const dnnl::memory::dim K = (w_shape.size() == 4) ? w_shape[2] * w_shape[3] : w_shape[2];
+            const dnnl::memory::dim runtime_num_groups = (moe_cfg.weight_group_size == -1)
+                ? 1
+                : (K / moe_cfg.weight_group_size);
+            const dnnl::memory::dim scale_num_groups = (wei_scales_shape.size() >= 3) ? d2 : 1;
+            OPENVINO_ASSERT(scale_num_groups == runtime_num_groups,
+                            "moe_gemm scale shape ", wei_scales_shape, " implies num_groups=",
+                            scale_num_groups, " but moe_cfg.weight_group_size=", moe_cfg.weight_group_size,
+                            " (K=", K, ") implies ", runtime_num_groups);
+            dnnl::memory::dims wei_scales_dims = (moe_cfg.weight_group_size == -1)
+                ? dnnl::memory::dims{d0, d1}
+                : dnnl::memory::dims{d0, d2, d1};
+            dnnl::memory::format_tag wei_scales_fmt = (moe_cfg.weight_group_size == -1)
+                ? dnnl::memory::format_tag::ab
+                : dnnl::memory::format_tag::abc;
             dnnl::memory::desc wei_scales_md(
-                    wei_scales_dims, convert_data_type(wei_scales.get_layout().data_type), wei_scales_fmt);
-            dnnl::memory wei_scales_mem = dnnl::ocl_interop::make_memory(wei_scales_md, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
-                reinterpret_cast<uint8_t*>(wei_scales.buffer_ptr()));
+                wei_scales_dims, convert_data_type(wei_scales.get_layout().data_type), wei_scales_fmt);
+            dnnl::memory wei_scales_mem = wei_scales.get_onednn_memory(wei_scales_md, 0);
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, wei_scales_mem});
 
             if (!moe_cfg.is_weight_symmetric_quantized) {
                 auto& wei_zp = instance.input_memory(moe_cfg.weight_zp_idx);
+                const auto& zp_shape = wei_zp.get_layout().get_shape();
+                OPENVINO_ASSERT(zp_shape == wei_scales_shape,
+                                "moe_gemm scale shape ", wei_scales_shape, " does not match zp shape ", zp_shape);
                 dnnl::memory::desc wei_zp_md(
-                        wei_scales_dims, convert_data_type(wei_zp.get_layout().data_type), wei_scales_fmt);
-                dnnl::memory wei_zp_mem = dnnl::ocl_interop::make_memory(wei_zp_md, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
-                    reinterpret_cast<uint8_t*>(wei_zp.buffer_ptr()));
+                    wei_scales_dims, convert_data_type(wei_zp.get_layout().data_type), wei_scales_fmt);
+                dnnl::memory wei_zp_mem = wei_zp.get_onednn_memory(wei_zp_md, 0);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, wei_zp_mem});
             }
         }
 
         if (moe_cfg.has_bias) {
             auto& bias = instance.input_memory(moe_gemm::MoEGemmInputIdx::BIAS);
-            dnnl::memory bias_mem = dnnl::ocl_interop::make_memory(_pd.weights_desc(1), onednn_engine, dnnl::ocl_interop::memory_kind::usm,
-                reinterpret_cast<uint8_t*>(bias.buffer_ptr()));
+            dnnl::memory bias_mem = bias.get_onednn_memory(_pd.weights_desc(1), 0);
             args.insert({DNNL_ARG_BIAS, bias_mem});
         }
 
@@ -200,4 +207,5 @@ std::unique_ptr<primitive_impl> MoEGemmImplementationManager::create_impl(const 
 }  // namespace onednn
 }  // namespace cldnn
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_gemm)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::moe_gemm_onednn)

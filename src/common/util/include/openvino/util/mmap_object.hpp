@@ -11,6 +11,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -27,6 +28,10 @@ using FileHandle = void*;
 // Linux/Unix uses int for file descriptors
 using FileHandle = int;
 #endif
+/**
+ * @brief Generic constant to indicate automatic size calculation is required.
+ */
+inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
 
 /**
  * @brief This class represents a mapped memory.
@@ -39,12 +44,16 @@ public:
     virtual size_t size() const noexcept = 0;
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
+    virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
+    /**
+     * @brief Hint that the given region of the mapping will be accessed soon.
+     *
+     * @param offset Offset within the mapping where prefetching starts.
+     * @param size   Number of bytes to prefetch. Defaults to the rest of the
+     *               mapping when set to auto_size.
+     */
+    virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
 };
-
-/**
- * @brief Generic constant to indicate automatic size calculation is required.
- */
-inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
 
 /**
  * @brief Returns mapped memory for a file from provided path.
@@ -54,11 +63,15 @@ inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
  * @param path Path to a file which memory will be mmaped.
  * @param offset Offset in the file where the mapping starts.
  * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
+ * @param no_placeholder When true, skip the Windows 10+ placeholder/VEH mechanism and use the legacy
+ *                       single-call MapViewOfFile path instead. This guarantees a uniform AllocationBase
+ *                       across the whole mapping, required for NPU zero-copy blob import. On Linux ignored.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset = 0,
-                                                   size_t size = auto_size);
+                                                   size_t size = auto_size,
+                                                   bool no_placeholder = false);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).

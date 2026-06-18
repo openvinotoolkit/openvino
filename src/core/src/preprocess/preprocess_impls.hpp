@@ -125,7 +125,7 @@ public:
         m_names_compatiblity_mode = compatiblity_mode;
     }
 
-    const bool get_names_compatibility_mode() const {
+    bool get_names_compatibility_mode() const {
         return m_names_compatiblity_mode;
     }
 

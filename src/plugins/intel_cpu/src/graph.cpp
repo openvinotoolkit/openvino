@@ -58,7 +58,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
@@ -76,6 +75,9 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
+#ifdef CPU_DEBUG_CAPS
+#    include "openvino/core/partial_shape.hpp"
+#endif
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
      OV_THREAD == OV_THREAD_OMP)
@@ -104,6 +106,7 @@ namespace ov::intel_cpu {
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
     CPU_DEBUG_CAP_ENABLE(average_counters(*this));
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template <typename NET>
@@ -2137,6 +2140,10 @@ void Graph::EnforceInferencePrecision() const {
 
                 // kvcache of PagedAttention should be written directly
                 if (node->getType() == Type::PagedAttention && any_of(inPort, 3U, 4U)) {
+                    return true;
+                }
+                // kv cache of PaKVReorder should be written directly
+                if (node->getType() == Type::PaKVReorder && any_of(inPort, 0U, 1U)) {
                     return true;
                 }
                 const auto& parent = node->getParentEdgeAt(inPort)->getParent();

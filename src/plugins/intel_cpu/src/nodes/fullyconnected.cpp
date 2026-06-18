@@ -22,6 +22,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
 #include "executors/memory_arguments.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
@@ -94,9 +95,14 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // @todo enable for bf16 as well
-    // after EnforceInferencePrecision is replaced with ConvertPrecision
-    return {Type_t::f32};
+    // BF16 compressed-activations path is intended for SIMD (avx512_vnni)
+    // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
+    // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
+    // path handle bf16 inference precision.
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        return {Type_t::f32};
+    }
+    return {Type_t::f32, Type_t::bf16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
 #else
