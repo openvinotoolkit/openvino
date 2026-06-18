@@ -83,12 +83,20 @@ ov::pass::TransposeFQ::TransposeFQ() {
 
     auto transpose_order_m = wrap_type<v0::Constant>();
     auto transpose_label = wrap_type<v1::Transpose>({any_input(pattern::has_static_rank()), transpose_order_m});
+    // Only sink when FQ's sole consumer is another Transpose; the purpose of this
+    // pass is to create a Transpose-FQ-Transpose pattern so TransposeFuse can
+    // eliminate the pair
+    auto fq_consumer_is_transpose = [](const Output<Node>& output) {
+        const auto& target_inputs = output.get_target_inputs();
+        return target_inputs.size() == 1 &&
+               ov::is_type<v1::Transpose>(target_inputs.begin()->get_node());
+    };
     auto fq_label = wrap_type<v0::FakeQuantize>({transpose_label,
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank()),
                                                  any_input(ov::pass::pattern::has_static_rank())},
-                                                consumers_count(1));
+                                                fq_consumer_is_transpose);
 
     matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -98,14 +106,6 @@ ov::pass::TransposeFQ::TransposeFQ() {
         auto transpose_order =
             ov::as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_order_m).get_node_shared_ptr());
         if (!transpose_order || !fq)
-            return false;
-
-        // Only sink when FQ's sole consumer is another Transpose; the purpose of
-        // this pass is to create a Transpose-FQ-Transpose pattern so TransposeFuse
-        // can eliminate the pair
-        const auto& fq_target_inputs = fq->get_output_target_inputs(0);
-        if (fq_target_inputs.size() != 1 ||
-            !ov::is_type<v1::Transpose>(fq_target_inputs.begin()->get_node()))
             return false;
 
         ov::NodeVector new_ops;
