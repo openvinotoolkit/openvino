@@ -328,6 +328,7 @@ ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_
         for (size_t i = 0; i < num; i++) {
             _profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
             _profiling_info_arr[i].real_time = infos[i].real_time.count();
+            _profiling_info_arr[i].start_time = infos[i].start_time.count();
             _profiling_info_arr[i].cpu_time = infos[i].cpu_time.count();
 
             _profiling_info_arr[i].node_name = str_to_char_array(infos[i].node_name);

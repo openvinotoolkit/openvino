@@ -62,6 +62,7 @@ def test_get_profiling_info(device):
     assert soft_max_node
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
+    assert isinstance(soft_max_node.start_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
     assert isinstance(soft_max_node.exec_type, str)
 

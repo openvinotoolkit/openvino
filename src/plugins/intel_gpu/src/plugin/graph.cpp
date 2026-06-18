@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <fstream>
 #include <utility>
+#include <optional>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -658,6 +659,72 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         return name;
     };
 
+    // Backend priority for relative timeline stitching:
+    // ZE-like timestamps first, then OCL, then unknown/other.
+    std::unordered_map<std::string, int> backend_priority_by_layer;
+    std::unordered_map<std::string, int> backend_priority_by_prim;
+    std::unordered_map<std::string, std::string> source_prim_by_layer;
+    auto merge_backend_priority = [&](const std::string& layer_name, int backend_priority) {
+        auto it = backend_priority_by_layer.find(layer_name);
+        if (it == backend_priority_by_layer.end()) {
+            backend_priority_by_layer.emplace(layer_name, backend_priority);
+        } else if (backend_priority < it->second) {
+            // Keep the strongest backend signal for a shared layer name: ZE(0) > OCL(1) > unknown(2).
+            it->second = backend_priority;
+        }
+    };
+
+    struct timestamp_stage_state {
+        std::optional<std::chrono::microseconds> earliest_timestamp;
+        std::optional<std::chrono::microseconds> executing_timestamp;
+        bool has_starting_stage = false;
+    };
+
+    auto update_timestamp_stage_state = [&](timestamp_stage_state& state,
+                                            const cldnn::instrumentation::profiling_interval& interval) {
+        if (interval.stage == cldnn::instrumentation::profiling_stage::starting) {
+            state.has_starting_stage = true;
+        }
+
+        if (!interval.has_timestamps) {
+            return;
+        }
+
+        auto interval_start = std::chrono::duration_cast<std::chrono::microseconds>(interval.start);
+        if (!state.earliest_timestamp.has_value() || interval_start < state.earliest_timestamp.value()) {
+            state.earliest_timestamp = interval_start;
+        }
+
+        if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
+            if (!state.executing_timestamp.has_value() || interval_start < state.executing_timestamp.value()) {
+                state.executing_timestamp = interval_start;
+            }
+        }
+    };
+
+    auto get_start_time_and_backend_priority = [&](const timestamp_stage_state& state)
+        -> std::pair<std::optional<std::chrono::microseconds>, int> {
+        auto start_time = state.executing_timestamp.value_or(state.earliest_timestamp.value_or(std::chrono::microseconds::zero()));
+        std::optional<std::chrono::microseconds> final_start_time = start_time;
+        if (final_start_time == std::chrono::microseconds::zero()) {
+            final_start_time.reset();
+        }
+
+        int backend_priority = 2;
+        // OCL profiling always produces a 'starting' interval (CL_PROFILING_COMMAND_SUBMIT
+        // -> CL_PROFILING_COMMAND_START), which represents queue wait time.
+        // ZE-like backends (Level Zero) report only 'submission' and 'executing' intervals
+        // with no 'starting' stage, so the absence of 'starting' combined with a valid
+        // timestamp identifies them as ZE.
+        if (state.has_starting_stage) {
+            backend_priority = 1;  // OCL: identified by presence of 'starting' stage
+        } else if (state.earliest_timestamp.has_value()) {
+            backend_priority = 0;  // ZE-like: has timestamps but no 'starting' stage
+        }
+
+        return {final_start_time, backend_priority};
+    };
+
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
@@ -667,6 +734,21 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
+        std::optional<std::chrono::microseconds> start_time;
+
+        auto execIter = executedPrimitives.find(primId);
+        if (execIter != executedPrimitives.end() && execIter->second) {
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, execIter->second->get_profiling_info()};
+            timestamp_stage_state ts_state;
+            for (auto& interval : cldnnInfo.intervals) {
+                update_timestamp_stage_state(ts_state, interval);
+            }
+
+            int backend_priority = 2;
+            std::tie(start_time, backend_priority) = get_start_time_and_backend_priority(ts_state);
+            merge_backend_priority(layerName, backend_priority);
+            backend_priority_by_prim[primId] = backend_priority;
+        }
 
         if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
             return false;
@@ -692,7 +774,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         extPerfEntry.status = perfCounter.status;
         extPerfEntry.cpu_time = std::chrono::microseconds(perfCounter.cpu_avg());
         extPerfEntry.real_time = std::chrono::microseconds(perfCounter.realTime_avg());
+        extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
         extPerfEntry.node_name = layerName;
+        source_prim_by_layer[layerName] = primId;
 
         if (combinePrimByIRLayers) {
             std::string kernelId = "";
@@ -743,6 +827,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             // Collect timings
             long long cpuTime = 0;
             long long deviceTime = 0;
+            std::optional<std::chrono::microseconds> start_time;
+            timestamp_stage_state ts_state;
 
             for (auto &interval : cldnnInfo.intervals) {
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
@@ -755,9 +841,15 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                 } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                     cpuTime += count;
                 }
+                update_timestamp_stage_state(ts_state, interval);
             }
 
+            int backend_priority = 2;
+            std::tie(start_time, backend_priority) = get_start_time_and_backend_priority(ts_state);
+
             std::string layerName = getClearName(primId);
+            merge_backend_priority(layerName, backend_priority);
+            backend_priority_by_prim[primId] = backend_priority;
 
             for (auto& pi : primitivesInfo) {
                 if (pi.original_id == primId) {
@@ -780,6 +872,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     extPerfEntry.status = ov::ProfilingInfo::Status::EXECUTED;
                     extPerfEntry.cpu_time = std::chrono::microseconds(cpuTime);
                     extPerfEntry.real_time = std::chrono::microseconds(deviceTime);
+                    extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
+                    source_prim_by_layer[layerName] = primId;
 
                     if (pi.type_id == "input_layout") {
                         extPerfEntry.node_type = "Input";
@@ -807,8 +901,120 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if (first_res != result.end() && second_res != result.end() && first_res != second_res) {
             std::swap(first_res->second.cpu_time,        second_res->second.cpu_time);
             std::swap(first_res->second.real_time,   second_res->second.real_time);
+            std::swap(first_res->second.start_time,      second_res->second.start_time);
             std::swap(first_res->second.status,          second_res->second.status);
             std::swap(first_res->second.exec_type,       second_res->second.exec_type);
+
+            auto first_prim_it = source_prim_by_layer.find(first_res->first);
+            auto second_prim_it = source_prim_by_layer.find(second_res->first);
+            if (first_prim_it != source_prim_by_layer.end() && second_prim_it != source_prim_by_layer.end()) {
+                std::swap(first_prim_it->second, second_prim_it->second);
+            }
+        }
+    }
+
+    // Build execution-order slots to align timestamps from different backend clocks (ZE/OCL)
+    // into one relative timeline. Heuristic:
+    // 1) find first OCL task,
+    // 2) insert it into ZE sequence by exec_id anchor,
+    // 3) order remaining tasks by exec_id.
+    std::unordered_map<std::string, int64_t> exec_order_by_prim;
+    for (const auto& pi : primitivesInfo) {
+        exec_order_by_prim[pi.original_id] = pi.exec_id;
+    }
+
+    struct ordered_profile_entry {
+        ov::ProfilingInfo* info;
+        int backend_priority;
+        int64_t exec_order;
+        std::chrono::microseconds original_start;
+        int stitch_phase = 2;
+    };
+    std::vector<ordered_profile_entry> ordered_entries;
+    ordered_entries.reserve(result.size());
+
+    for (auto& kv : result) {
+        auto& info = kv.second;
+        if (info.start_time == std::chrono::microseconds::zero()) {
+            continue;
+        }
+
+        auto source_prim_it = source_prim_by_layer.find(kv.first);
+        if (source_prim_it == source_prim_by_layer.end()) {
+            continue;
+        }
+
+        auto order_it = exec_order_by_prim.find(source_prim_it->second);
+        if (order_it == exec_order_by_prim.end()) {
+            continue;
+        }
+
+        int backend_priority = 2;
+        auto backend_by_prim_it = backend_priority_by_prim.find(source_prim_it->second);
+        if (backend_by_prim_it != backend_priority_by_prim.end()) {
+            backend_priority = backend_by_prim_it->second;
+        } else {
+            auto backend_it = backend_priority_by_layer.find(kv.first);
+            if (backend_it != backend_priority_by_layer.end()) {
+                backend_priority = backend_it->second;
+            }
+        }
+
+        ordered_entries.push_back({&info, backend_priority, order_it->second, info.start_time, 2});
+    }
+
+    std::vector<ordered_profile_entry*> ze_entries;
+    std::vector<ordered_profile_entry*> ocl_entries;
+    for (auto& entry : ordered_entries) {
+        if (entry.backend_priority == 0) {
+            ze_entries.push_back(&entry);
+        } else if (entry.backend_priority == 1) {
+            ocl_entries.push_back(&entry);
+        }
+    }
+
+    auto by_exec_order_then_start = [](const ordered_profile_entry* lhs, const ordered_profile_entry* rhs) {
+        if (lhs->exec_order != rhs->exec_order) {
+            return lhs->exec_order < rhs->exec_order;
+        }
+        return lhs->original_start < rhs->original_start;
+    };
+    std::sort(ze_entries.begin(), ze_entries.end(), by_exec_order_then_start);
+    std::sort(ocl_entries.begin(), ocl_entries.end(), by_exec_order_then_start);
+
+    if (!ze_entries.empty() && !ocl_entries.empty()) {
+        auto first_ocl = ocl_entries.front();
+        size_t ze_insert_idx = 0;
+        while (ze_insert_idx < ze_entries.size() && ze_entries[ze_insert_idx]->exec_order <= first_ocl->exec_order) {
+            ze_insert_idx++;
+        }
+
+        for (size_t i = 0; i < ze_insert_idx; i++) {
+            ze_entries[i]->stitch_phase = 0;
+        }
+        first_ocl->stitch_phase = 1;
+    }
+
+    std::sort(ordered_entries.begin(), ordered_entries.end(),
+              [](const ordered_profile_entry& lhs, const ordered_profile_entry& rhs) {
+                  if (lhs.stitch_phase != rhs.stitch_phase) {
+                      return lhs.stitch_phase < rhs.stitch_phase;
+                  }
+                  if (lhs.exec_order != rhs.exec_order) {
+                      return lhs.exec_order < rhs.exec_order;
+                  }
+                  if (lhs.backend_priority != rhs.backend_priority) {
+                      return lhs.backend_priority < rhs.backend_priority;
+                  }
+                  return lhs.original_start < rhs.original_start;
+              });
+
+    std::chrono::microseconds timeline_cursor{0};
+    for (auto& entry : ordered_entries) {
+        entry.info->start_time = timeline_cursor;
+
+        if (entry.info->real_time > std::chrono::microseconds::zero()) {
+            timeline_cursor += entry.info->real_time;
         }
     }
 
