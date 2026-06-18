@@ -208,6 +208,23 @@ You can use the GraphViz utility or a file converter to view the images. On the 
 * ``sudo apt-get install xdot``
 * ``xdot hetero_subgraphs.dot``
 
+For HETERO compilation-time diagnostics, you can also enable internal performance logging with the
+``OPENVINO_HETERO_PERF`` environment variable:
+
+* ``OPENVINO_HETERO_PERF=1`` enables high-level compilation timing for:
+
+   * ``Plugin::compile_model`` - top-level HETERO compilation flow.
+   * ``CompiledModel::compile_model`` - submodel compilation and overall HETERO compiled-model construction.
+   * ``CompiledModel::compile_model submodel[...]`` - per-subgraph compile time on the target device.
+
+* ``OPENVINO_HETERO_PERF=2`` enables all level-1 logs and additional subgraph-splitting diagnostics for:
+
+   * ``SubgraphCollector::SubgraphCollector`` - subgraph collector setup.
+   * ``SubgraphCollector::split_cyclic_dependencies`` - affinity-boundary and cycle-resolution work during graph splitting.
+
+These logs are intended for HETERO-specific compilation analysis and are separate from runtime layer profiling such as
+sample application ``-pc`` output.
+
 You can use performance data (in sample applications, it is the option ``-pc``) to get the performance data on each subgraph.
 
 Here is an example of the output for Googlenet v1 running on HDDL (device no longer supported) with fallback to CPU:

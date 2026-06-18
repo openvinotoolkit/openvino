@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <chrono>
 #include <memory>
 
 #include "async_infer_request.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "perf_log.hpp"
 #include "properties.hpp"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -40,6 +42,17 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 }
 
 void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels) {
+    using clock = std::chrono::steady_clock;
+    const auto to_ms = [](clock::duration d) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+    };
+    const bool perf_logging_enabled = perf_log_enabled(m_cfg.perf_log_level());
+    clock::time_point t0{};
+    clock::duration compile_submodels_time{};
+    if (perf_logging_enabled) {
+        t0 = clock::now();
+    }
+
     const bool add_exclusive = submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();
     const auto& core = hetero_plugin->get_core();
@@ -48,7 +61,15 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
     m_compiled_submodels.clear();
     m_compiled_submodels.reserve(submodels.size());
 
+    size_t submodel_index = 0;
     for (const auto& [device, sub_model] : submodels) {
+        clock::time_point t_submodel_start{};
+        clock::time_point t_compile_start{};
+        clock::time_point t_compile_end{};
+        clock::time_point t_submodel_end{};
+        if (perf_logging_enabled) {
+            t_submodel_start = clock::now();
+        }
         // get meta devices properties for the target device
         auto meta_devices = hetero_plugin->get_properties_per_device(device, device_properties);
 
@@ -71,10 +92,53 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
         CompiledModelDesc desc;
         desc.device = device;
         desc.model = sub_model;
+        if (perf_logging_enabled) {
+            t_compile_start = clock::now();
+        }
         desc.compiled_model = core->compile_model(sub_model, device, device_config);
+        if (perf_logging_enabled) {
+            t_compile_end = clock::now();
+        }
         m_compiled_submodels.emplace_back(std::move(desc));
+
+        if (perf_logging_enabled) {
+            t_submodel_end = clock::now();
+            compile_submodels_time += t_submodel_end - t_submodel_start;
+            HETERO_PERF_LOG_LEVEL(PerfLogLevel::Basic,
+                                  "CompiledModel::compile_model submodel[",
+                                  submodel_index,
+                                  "] device=",
+                                  device,
+                                  " ops=",
+                                  sub_model ? sub_model->get_ordered_ops().size() : 0,
+                                  " total=",
+                                  to_ms(t_submodel_end - t_submodel_start),
+                                  " ms, core_compile=",
+                                  to_ms(t_compile_end - t_compile_start),
+                                  " ms");
+        }
+        ++submodel_index;
+    }
+
+    clock::time_point t_set_io_start{};
+    clock::time_point t_set_io_end{};
+    if (perf_logging_enabled) {
+        t_set_io_start = clock::now();
     }
     set_inputs_and_outputs();
+    if (perf_logging_enabled) {
+        t_set_io_end = clock::now();
+        HETERO_PERF_LOG_LEVEL(PerfLogLevel::Basic,
+                              "CompiledModel::compile_model timing: total=",
+                              to_ms(t_set_io_end - t0),
+                              " ms, submodels=",
+                              submodels.size(),
+                              ", compile_submodels=",
+                              to_ms(compile_submodels_time),
+                              " ms, set_inputs_and_outputs=",
+                              to_ms(t_set_io_end - t_set_io_start),
+                              " ms");
+    }
 }
 
 ov::hetero::CompiledModel::CompiledModel(std::istream& model,

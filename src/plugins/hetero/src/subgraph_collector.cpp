@@ -5,6 +5,7 @@
 #include "subgraph_collector.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <iterator>
@@ -22,11 +23,13 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
+#include "perf_log.hpp"
 #include "transformations/utils/utils.hpp"
 namespace {
 
@@ -69,8 +72,40 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
       _affinities{affinities},
       _subgraph_inputs{},
       _subgraph_parameter_to_prev_result{} {
+    using clock = std::chrono::steady_clock;
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::SplitDetails);
+    clock::time_point t0{};
+    clock::time_point t_init_start{};
+    clock::time_point t_init_end{};
+    clock::time_point t_split_start{};
+    clock::time_point t_split_end{};
+    if (perf_logging_enabled) {
+        t0 = clock::now();
+        t_init_start = t0;
+    }
     init();
+    if (perf_logging_enabled) {
+        t_init_end = clock::now();
+        t_split_start = t_init_end;
+    }
     _subgraph_ids = split_cyclic_dependencies();
+    if (perf_logging_enabled) {
+        t_split_end = clock::now();
+    }
+
+    const auto to_ms = [](clock::duration d) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+    };
+    if (perf_logging_enabled) {
+        HETERO_PERF_LOG_LEVEL(PerfLogLevel::SplitDetails,
+                              "SubgraphCollector::SubgraphCollector timing: total=",
+                              to_ms(t_split_end - t0),
+                              " ms, init=",
+                              to_ms(t_init_end - t_init_start),
+                              " ms, split_cyclic_dependencies=",
+                              to_ms(t_split_end - t_split_start),
+                              " ms");
+    }
 }
 
 bool ov::hetero::SubgraphCollector::is_graph_input_node(const ov::Node* node) const {
@@ -100,6 +135,20 @@ void ov::hetero::SubgraphCollector::init() {
 }
 
 ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
+    using clock = std::chrono::steady_clock;
+    const auto to_ms = [](clock::duration d) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+    };
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::SplitDetails);
+    clock::time_point t0{};
+    clock::duration collect_ids_time{};
+    size_t per_node_iterations = 0;
+    size_t scc_iterations = 0;
+    size_t scc_promoted_edges = 0;
+    if (perf_logging_enabled) {
+        t0 = clock::now();
+    }
+
     // Iteratively detect cross-subgraph cycles (subgraph A feeds B and B feeds A) and break them
     // by promoting offending edges into _subgraph_inputs until no new boundaries are added.
     //
@@ -193,11 +242,24 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     std::vector<SubgraphId> subgraph_id_by_index(nodes_count);
 
     // Split cyclic dependencies.
+    clock::time_point t_per_node_start{};
+    clock::time_point t_per_node_end{};
+    if (perf_logging_enabled) {
+        t_per_node_start = clock::now();
+    }
     for (size_t prev_subgraphs = 0, cyclic_split_step = 0; prev_subgraphs != _subgraph_inputs.size();
          ++cyclic_split_step) {
         OPENVINO_ASSERT(cyclic_split_step < _ordered_ops.size(), "Cannot resolve cycles during submodels split!");
+        clock::time_point t_collect_start{};
+        if (perf_logging_enabled) {
+            ++per_node_iterations;
+            t_collect_start = clock::now();
+        }
         prev_subgraphs = _subgraph_inputs.size();
         subgraph_ids = collect_subgraphs_ids();
+        if (perf_logging_enabled) {
+            collect_ids_time += clock::now() - t_collect_start;
+        }
 
         for (const auto& node : _ordered_ops) {
             const auto index = get_index_by_node(node.get());
@@ -348,6 +410,10 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
         for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
             promote_boundaries_for_node(node_idx);
         }
+    }
+
+    if (perf_logging_enabled) {
+        t_per_node_end = clock::now();
     }
 
     // === Subgraph-level SCC fallback. ===========================================================
@@ -649,11 +715,25 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     // so the ids it computed at the top of that final iteration are still in sync. Recompute
     // only after the SCC step actually modifies _subgraph_inputs.
     bool ids_valid = true;
+    clock::time_point t_scc_start{};
+    if (perf_logging_enabled) {
+        t_scc_start = clock::now();
+    }
     for (size_t scc_step = 0;; ++scc_step) {
         OPENVINO_ASSERT(scc_step < total_node_inputs + 1,
                         "Subgraph SCC fallback did not converge: exceeded node-input edge budget");
+        if (perf_logging_enabled) {
+            ++scc_iterations;
+        }
         if (!ids_valid) {
+            clock::time_point t_collect_start{};
+            if (perf_logging_enabled) {
+                t_collect_start = clock::now();
+            }
             subgraph_ids = collect_subgraphs_ids();
+            if (perf_logging_enabled) {
+                collect_ids_time += clock::now() - t_collect_start;
+            }
             for (size_t i = 0; i < nodes_count; ++i) {
                 subgraph_id_by_index[i] = subgraph_ids.at(_ordered_ops[i]);
             }
@@ -677,6 +757,9 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
         OPENVINO_ASSERT(promoted > 0,
                         "Subgraph SCC fallback found a cyclic subgraph DAG but the chosen node "
                         "had no same-subgraph inputs to promote; helper invariant violated.");
+        if (perf_logging_enabled) {
+            scc_promoted_edges += promoted;
+        }
         // Defensive: each iteration must grow _subgraph_inputs strictly. If insert() ever found
         // all promoted edges already present (logic bug), surface it here instead of looping
         // silently until the edge budget runs out.
@@ -688,7 +771,34 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     // Edge case: if init() produced no _subgraph_inputs at all, the per-node loop never ran and
     // subgraph_ids is empty. Materialize the final mapping in that case.
     if (subgraph_ids.empty()) {
+        clock::time_point t_collect_start{};
+        if (perf_logging_enabled) {
+            t_collect_start = clock::now();
+        }
         subgraph_ids = collect_subgraphs_ids();
+        if (perf_logging_enabled) {
+            collect_ids_time += clock::now() - t_collect_start;
+        }
+    }
+    if (perf_logging_enabled) {
+        const auto t_end = clock::now();
+        HETERO_PERF_LOG_LEVEL(PerfLogLevel::SplitDetails,
+                              "SubgraphCollector::split_cyclic_dependencies timing: total=",
+                              to_ms(t_end - t0),
+                              " ms, node_scan_total=",
+                              to_ms(t_per_node_end - t_per_node_start),
+                              " ms, node_scan_nodes_per_iteration=",
+                              nodes_count,
+                              ", node_scan_iterations=",
+                              per_node_iterations,
+                              ", collect_subgraphs_ids=",
+                              to_ms(collect_ids_time),
+                              " ms, scc_fallback=",
+                              to_ms(t_end - t_scc_start),
+                              " ms, scc_iterations=",
+                              scc_iterations,
+                              ", scc_promoted_edges=",
+                              scc_promoted_edges);
     }
     return subgraph_ids;
 }

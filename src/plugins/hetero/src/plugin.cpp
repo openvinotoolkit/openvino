@@ -4,6 +4,7 @@
 
 #include "plugin.hpp"
 
+#include <chrono>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -23,7 +24,9 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/common_util.hpp"
+#include "perf_log.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
 
@@ -102,12 +105,45 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
                                                                       const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
 
+    using clock = std::chrono::steady_clock;
+    const auto to_ms = [](clock::duration d) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+    };
+
     auto config = Configuration{properties, m_cfg};
+    const bool perf_logging_enabled = perf_log_enabled(config.perf_log_level());
+    clock::time_point t0{};
+    clock::time_point t_clone_start{};
+    clock::time_point t_clone_end{};
+    clock::time_point t_split_start{};
+    clock::time_point t_split_end{};
+    clock::time_point t_context_start{};
+    clock::time_point t_context_end{};
+    clock::time_point t_compiled_model_start{};
+    clock::time_point t_compiled_model_end{};
+    if (perf_logging_enabled) {
+        t0 = clock::now();
+        t_clone_start = t0;
+    }
     auto cloned_model = model->clone();
+    if (perf_logging_enabled) {
+        t_clone_end = clock::now();
+    }
+
     SubgraphsMappingInfo mapping_info;
     std::vector<ov::hetero::SubmodelInfo> submodels;
+    if (perf_logging_enabled) {
+        t_split_start = clock::now();
+    }
     std::tie(mapping_info, submodels) = split_graph(cloned_model, config);
+    if (perf_logging_enabled) {
+        t_split_end = clock::now();
+    }
+
     ov::hetero::RemoteContext::Ptr remote_context;
+    if (perf_logging_enabled) {
+        t_context_start = clock::now();
+    }
     try {
         std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
         for (const auto& [device_name, _] : submodels) {
@@ -116,12 +152,36 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
         remote_context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
     } catch (const ov::Exception&) {
     }
-    return std::make_shared<CompiledModel>(cloned_model,
-                                           submodels,
-                                           mapping_info,
-                                           shared_from_this(),
-                                           remote_context,
-                                           config);
+    if (perf_logging_enabled) {
+        t_context_end = clock::now();
+        t_compiled_model_start = t_context_end;
+    }
+
+    auto compiled_model = std::make_shared<CompiledModel>(cloned_model,
+                                                           submodels,
+                                                           mapping_info,
+                                                           shared_from_this(),
+                                                           remote_context,
+                                                           config);
+    if (perf_logging_enabled) {
+        t_compiled_model_end = clock::now();
+        HETERO_PERF_LOG_LEVEL(PerfLogLevel::Basic,
+                              "Plugin::compile_model timing: total=",
+                              to_ms(t_compiled_model_end - t0),
+                              " ms, submodels=",
+                              submodels.size(),
+                              ", clone_model=",
+                              to_ms(t_clone_end - t_clone_start),
+                              " ms, split_graph=",
+                              to_ms(t_split_end - t_split_start),
+                              " ms, create_remote_context=",
+                              to_ms(t_context_end - t_context_start),
+                              " ms, construct_compiled_model=",
+                              to_ms(t_compiled_model_end - t_compiled_model_start),
+                              " ms");
+    }
+
+    return compiled_model;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
