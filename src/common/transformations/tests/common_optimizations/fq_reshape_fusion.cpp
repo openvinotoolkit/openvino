@@ -302,10 +302,8 @@ TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataSamePrecision) {
         const auto& oh = op::v0::Constant::create(element::f32, Shape{1}, {14.22});
 
         const auto& fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 255);
-        const auto& reshape = std::make_shared<opset4::Reshape>(
-            fq,
-            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
-            true);
+        const auto& reshape =
+            std::make_shared<opset4::Reshape>(fq, op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}), true);
 
         model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
 
@@ -314,10 +312,10 @@ TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataSamePrecision) {
 
     {
         const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
-        const auto& reshaped_data = std::make_shared<opset4::Reshape>(
-            data,
-            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
-            true);
+        const auto& reshaped_data =
+            std::make_shared<opset4::Reshape>(data,
+                                              op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
+                                              true);
 
         const auto& il = op::v0::Constant::create(element::f32, Shape{1, 2, 1, 1}, {0});
         const auto& ih = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {254});
@@ -341,14 +339,12 @@ TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataMismatchedPrecision) {
 
         auto fq_base = opset4::FakeQuantize(data, il, ih, ol, oh, 255);
         const auto& fq = std::make_shared<ov::op::TypeRelaxed<opset4::FakeQuantize>>(fq_base,
-                                                                                        TypeVector{},
-                                                                                        TypeVector{element::f16});
+                                                                                     TypeVector{},
+                                                                                     TypeVector{element::f16});
         ASSERT_NE(fq->get_input_element_type(0), fq->get_output_element_type(0));
 
-        const auto& reshape = std::make_shared<opset4::Reshape>(
-            fq,
-            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
-            true);
+        const auto& reshape =
+            std::make_shared<opset4::Reshape>(fq, op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}), true);
 
         model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
         model_ref = model->clone();

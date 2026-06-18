@@ -149,9 +149,7 @@ TEST_F(TransformationTestsF, FQTransposeNegativeMismatchedPrecision) {
     auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
 
     auto fq_base = v0::FakeQuantize(sigmoid, input_low, input_high, output_low, output_high, 1);
-    auto fq = std::make_shared<ov::op::TypeRelaxed<v0::FakeQuantize>>(fq_base,
-                                                                       TypeVector{},
-                                                                       TypeVector{element::f16});
+    auto fq = std::make_shared<ov::op::TypeRelaxed<v0::FakeQuantize>>(fq_base, TypeVector{}, TypeVector{element::f16});
     ASSERT_NE(fq->get_input_element_type(0), fq->get_output_element_type(0));
 
     auto transpose = std::make_shared<v1::Transpose>(fq, transpose_order);
