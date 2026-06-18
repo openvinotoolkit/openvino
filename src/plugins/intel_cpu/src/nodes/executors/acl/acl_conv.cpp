@@ -32,7 +32,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -118,9 +117,6 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly
-    // so the executor is selected only on a core that provides the required ISA.
-    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);

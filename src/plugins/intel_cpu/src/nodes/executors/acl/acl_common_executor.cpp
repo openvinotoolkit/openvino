@@ -17,6 +17,7 @@
 #include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -75,6 +76,15 @@ ACLCommonExecutor::ACLCommonExecutor() {
 }
 
 bool ACLCommonExecutor::update(const MemoryArgs& memory) {
+    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD). Declare the required ISA once
+    // here, in the common base of every ACL executor, so that on a core lacking it the
+    // executor declines and the framework falls back to a baseline implementation instead
+    // of running an unsupported instruction. ASIMD is always present on AArch64, so this
+    // never over-restricts; it is the single hoisted gate for all ACLCommonExecutor children.
+    if (!hasArmISASupport(ArmISA::ASIMD)) {
+        return false;
+    }
+
     // Initialize ACL tensors params
     ACLShapes aclMemoryShapes;
     ACLTypes aclDataType{};

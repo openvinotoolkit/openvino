@@ -24,7 +24,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -76,9 +75,6 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
-    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly
-    // so the executor is selected only on a core that provides the required ISA.
-    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     VERIFY(any_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(any_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(postOpsNumbers(config) < 2, UNSUPPORTED_NUMBER_OF_POSTOPS);
