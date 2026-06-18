@@ -43,6 +43,14 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     }
 }
 
+inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
+    return v_head_size / u4_elems_per_byte % subgroup_size == 0;
+}
+
+inline bool can_use_dual_nibble_v(bool is_kv_compressed, ov::element::Type kv_cache_dt, size_t v_head_size) {
+    return is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt) && is_v_head_aligned_for_dual_nibble(v_head_size);
+}
+
 inline size_t get_element_size(ov::element::Type_t type) {
     return ov::element::Type(type).size();
 }
@@ -266,7 +274,7 @@ JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params)
 
         // Dual-nibble V-cache optimization: each lane reads 1 packed byte (2 nibbles) via BLOCK_READN
         // Only applicable when PACKED_V_HEAD_SIZE is divisible by SUBGROUP_SIZE (no padding lanes needed)
-        if (desc->v_head_size / u4_elems_per_byte % subgroup_size == 0) {
+        if (is_v_head_aligned_for_dual_nibble(desc->v_head_size)) {
             jit.make("USE_DUAL_NIBBLE_V_OPT", 1);
         }
     } else {
@@ -300,7 +308,7 @@ public:
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
 
         // For dual-nibble V opt, use PACKED_V_HEAD_SIZE for SG_SCALE_FACTOR calculation to match WG dispatch
-        const bool dual_nibble_v = is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt) && (desc->v_head_size / u4_elems_per_byte % subgroup_size == 0);
+        const bool dual_nibble_v = can_use_dual_nibble_v(is_kv_compressed, kv_cache_dt, desc->v_head_size);
         const size_t effective_head_size = dual_nibble_v ? desc->v_head_size / u4_elems_per_byte : desc->k_head_size;
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), effective_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
 
@@ -488,8 +496,7 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t v_head_size = desc->v_head_size;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool dual_nibble_v =
-                get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) && (v_head_size / u4_elems_per_byte % subgroup_size == 0);
+            const bool dual_nibble_v = can_use_dual_nibble_v(get_kv_compressed(params), kv_cache_dt, v_head_size);
             const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
 
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
@@ -531,8 +538,7 @@ public:
             const size_t v_head_size = desc->v_head_size;
             const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool dual_nibble_v =
-                get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) && (v_head_size / u4_elems_per_byte % subgroup_size == 0);
+            const bool dual_nibble_v = can_use_dual_nibble_v(get_kv_compressed(params), kv_cache_dt, v_head_size);
             const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             // GQA
@@ -700,8 +706,7 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t v_head_size = desc->v_head_size;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const bool dual_nibble_v =
-                get_kv_compressed(params) && data_type_traits::is_i4_u4(kv_cache_dt) && (v_head_size / u4_elems_per_byte % subgroup_size == 0);
+            const bool dual_nibble_v = can_use_dual_nibble_v(get_kv_compressed(params), kv_cache_dt, v_head_size);
             const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
 
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));

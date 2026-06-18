@@ -729,12 +729,10 @@ KERNEL(pa_sdpa_opt)(
                 v_vals_packed[i] = (nibble_sel == 0) ? buff.s0 : buff.s1;
             }
 
-#if IS_KV_COMPRESSED
             VALUE_BLOCK_UNCOMPRESSED value_vals;
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
                 value_vals[i] = (TO_VALUE_UNCOMPRESSED_TYPE(v_vals_packed[i]) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
             }
-#endif
 
             unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                 OUTPUT_TYPE qk_val = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + block_num * PAGED_ATTENTION_BLOCK_SIZE + sglid];
