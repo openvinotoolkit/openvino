@@ -31,8 +31,6 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-  PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
 jobs:
   Smart_CI:
@@ -86,6 +84,9 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
+
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
@@ -304,6 +305,8 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
