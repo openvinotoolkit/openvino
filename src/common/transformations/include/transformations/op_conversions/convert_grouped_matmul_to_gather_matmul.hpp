@@ -32,11 +32,8 @@ namespace ov::pass {
 ///        gm      = GatherMatmul(A', B', indices)                    // [1, T, N]
 ///        out     = Squeeze(gm, 0)                                   // [T, N]
 ///
-///  * Case 3 (2D x 2D weight gradient): NOT supported — left untouched.
-///
 /// The pass requires the weights tensor (input B) to be a Constant (or reachable
-/// through a constant-foldable chain). Otherwise the public op is left in place
-/// so the reference GroupedMatMul::evaluate is used.
+/// through a constant-foldable chain).
 class TRANSFORMATIONS_API ConvertGroupedMatMulToGatherMatmul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGroupedMatMulToGatherMatmul");

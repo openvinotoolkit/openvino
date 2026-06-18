@@ -83,46 +83,13 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
         return {TRShape{total_rows, n}};
     }
 
-    // Case: 2D × 2D (MoE weight gradient) - requires offsets
-    if (mat_a_rank == 2 && mat_b_rank == 2) {
-        NODE_VALIDATION_CHECK(op, num_inputs == 3, "GroupedMatMul 2D×2D case requires offsets input.");
-
-        const auto& offsets_shape = input_shapes[2];
-        NODE_VALIDATION_CHECK(op,
-                              offsets_shape.rank().is_dynamic() || offsets_shape.size() == 1,
-                              "GroupedMatMul offsets must be 1D tensor.");
-
-        const auto& k = mat_a_shape[0];
-        const auto& total_tokens_a = mat_a_shape[1];
-        const auto& n = mat_b_shape[0];
-        const auto& total_tokens_b = mat_b_shape[1];
-
-        auto merged_tokens = DimType();
-        NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_tokens, total_tokens_a, total_tokens_b),
-                              "GroupedMatMul 2D×2D: shared dimension mismatch mat_a: ",
-                              total_tokens_a,
-                              ", mat_b: ",
-                              total_tokens_b);
-
-        // Output shape is (g, k, n) where g is determined by offsets
-        auto g = DimType();
-        if (offsets_shape.rank().is_static() && offsets_shape[0].is_static()) {
-            g = offsets_shape[0];
-        } else {
-            g = Dimension::dynamic();
-        }
-
-        return {TRShape{g, k, n}};
-    }
-
     NODE_VALIDATION_CHECK(op,
                           false,
                           "GroupedMatMul unsupported combination: mat_a ",
                           mat_a_rank,
                           "D × mat_b ",
                           mat_b_rank,
-                          "D. Supported: 2D×3D, 3D×3D, 2D×2D.");
+                          "D. Supported: 2D×3D, 3D×3D.");
 
     return {PartialShape::dynamic()};
 }

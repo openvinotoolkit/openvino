@@ -88,49 +88,11 @@ void grouped_matmul_2d_3d(const T* mat_a,
     }
 }
 
-/// @brief 2D × 2D MoE weight gradient with offsets.
-template <typename T, typename TIdx>
-void grouped_matmul_2d_2d(const T* mat_a,
-                          const T* mat_b,
-                          const TIdx* offsets,
-                          T* out,
-                          const Shape& mat_a_shape,
-                          const Shape& mat_b_shape,
-                          size_t num_groups) {
-    const size_t K = mat_a_shape[0];
-    const size_t total_tokens = mat_a_shape[1];
-    const size_t N = mat_b_shape[0];  // mat_b is [N, total_tokens]
-
-    const size_t out_group_stride = K * N;
-
-    size_t start = 0;
-    for (size_t g = 0; g < num_groups; ++g) {
-        const size_t end = static_cast<size_t>(offsets[g]);
-        const size_t num_tokens = end - start;
-
-        T* out_ptr = out + g * out_group_stride;
-        std::fill(out_ptr, out_ptr + out_group_stride, T{0});
-
-        if (num_tokens > 0) {
-            for (size_t row = 0; row < K; ++row) {
-                for (size_t t = 0; t < num_tokens; ++t) {
-                    const T a_val = mat_a[row * total_tokens + (start + t)];
-                    for (size_t col = 0; col < N; ++col) {
-                        out_ptr[row * N + col] += a_val * mat_b[col * total_tokens + (start + t)];
-                    }
-                }
-            }
-        }
-        start = end;
-    }
-}
-
 /// @brief Reference kernel for GroupedMatMul computation.
 ///
-/// Supports three input combinations:
+/// Supports two input combinations:
 /// - 2D × 3D: MoE forward pass with offsets
 /// - 3D × 3D: Batched uniform groups, no offsets
-/// - 2D × 2D: MoE weight gradient with offsets
 ///
 /// @tparam T Data type of input and output tensors.
 /// @tparam TIdx Data type for offset indices.
@@ -159,8 +121,6 @@ void grouped_matmul(const T* mat_a,
         grouped_matmul_3d_3d(mat_a, mat_b, out, mat_a_shape, mat_b_shape);
     } else if (a_ndim == 2 && b_ndim == 3) {
         grouped_matmul_2d_3d(mat_a, mat_b, offsets, out, mat_a_shape, mat_b_shape);
-    } else if (a_ndim == 2 && b_ndim == 2) {
-        grouped_matmul_2d_2d(mat_a, mat_b, offsets, out, mat_a_shape, mat_b_shape, num_groups);
     }
 }
 

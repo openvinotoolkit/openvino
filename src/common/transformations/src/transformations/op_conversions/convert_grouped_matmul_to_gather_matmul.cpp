@@ -185,9 +185,8 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(out);
             replacement = out;
         } else {
-            // 2Dx2D (weight gradient) and any unexpected shape combinations
-            // are not handled by GatherMatmul — leave the graph untouched so the
-            // default decomposition / reference path can take over.
+            // Unexpected shape combinations are not handled by GatherMatmul — leave
+            // the graph untouched so the default decomposition / reference path can take over.
             return false;
         }
 

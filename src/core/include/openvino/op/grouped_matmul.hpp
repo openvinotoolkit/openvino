@@ -10,7 +10,7 @@ namespace ov::op::v17 {
 /// \brief Grouped Matrix Multiplication operation for Mixture of Experts (MoE).
 ///
 /// Computes multiple matrix multiplications where each group processes a subset
-/// of the input data. This operation supports three input combinations:
+/// of the input data. This operation supports two input combinations:
 ///
 /// - **Case 1 (2D × 3D)**: MoE forward pass
 ///   - mat_a: (total_tokens, K) - rows partitioned by offsets
@@ -21,11 +21,6 @@ namespace ov::op::v17 {
 ///   - mat_a: (G, M, K) - per-group inputs
 ///   - mat_b: (G, N, K) - per-group weights (stored transposed)
 ///   - output: (G, M, N) - per-group outputs
-///
-/// - **Case 3 (2D × 2D)**: MoE weight gradient
-///   - mat_a: (K, total_tokens) - trailing dim partitioned by offsets
-///   - mat_b: (N, total_tokens) - columns partitioned by offsets (stored transposed)
-///   - output: (G, K, N) - per-group gradient matrices
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GroupedMatMul : public ov::op::Op {
@@ -40,13 +35,12 @@ public:
     /// \param mat_b Second input tensor (G, N, K)
     GroupedMatMul(const Output<Node>& mat_a, const Output<Node>& mat_b);
 
-    /// \brief Constructs a GroupedMatMul operation with offsets (2D × 3D or 2D × 2D).
+    /// \brief Constructs a GroupedMatMul operation with offsets (2D × 3D).
     ///
     /// \param mat_a First input tensor
     /// \param mat_b Second input tensor
     /// \param offsets Cumulative offsets tensor of shape (G,) indicating group boundaries.
     ///                For 2D×3D: partitions rows of mat_a.
-    ///                For 2D×2D: partitions shared dimension of both operands.
     GroupedMatMul(const Output<Node>& mat_a, const Output<Node>& mat_b, const Output<Node>& offsets);
 
     bool visit_attributes(AttributeVisitor& visitor) override;

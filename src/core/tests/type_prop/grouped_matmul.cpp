@@ -155,49 +155,6 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_inner_dim_mismatch) {
                     HasSubstr("inner dimension mismatch"));
 }
 
-// ==================== Case 3: 2D × 2D (weight gradient) ====================
-
-TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_basic) {
-    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
-    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
-
-    const auto op = make_op(mat_a, mat_b, offsets);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 64, 128}));
-}
-
-TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_dynamic_groups) {
-    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
-    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-
-    const auto op = make_op(mat_a, mat_b, offsets);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 64, 128}));
-}
-
-TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_shared_dim_mismatch) {
-    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 20});  // 20 != 16
-    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
-
-    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets),
-                    ov::NodeValidationFailure,
-                    HasSubstr("shared dimension mismatch"));
-}
-
-TEST_F(TypePropGroupedMatMulTest, case3_2d_2d_missing_offsets) {
-    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{64, 16});
-    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{128, 16});
-
-    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b), ov::NodeValidationFailure, HasSubstr("requires offsets"));
-}
-
 TEST_F(TypePropGroupedMatMulTest, unsupported_ndim_combination) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
     const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{64, 128});

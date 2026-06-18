@@ -18,7 +18,7 @@ GroupedMatMul
 a subset of the input data. This operation is optimized for Mixture of Experts (MoE) workloads
 where tokens are routed to different expert networks.
 
-The operation supports three input combinations based on tensor dimensions:
+The operation supports two input combinations based on tensor dimensions:
 
 **Case 1: 2D × 3D (MoE Forward Pass)**
 
@@ -46,18 +46,6 @@ For each group ``i``, computes: ``output[i] = mat_a[i] @ mat_b[i].T``
 
 Output shape: ``[G, M, N]``
 
-**Case 3: 2D × 2D (MoE Weight Gradient)**
-
-Used during backpropagation for computing per-expert weight gradients:
-
-* ``mat_a``: Shape ``[K, total_tokens]`` - transposed activations
-* ``mat_b``: Shape ``[N, total_tokens]`` - gradient output (stored transposed)
-* ``offsets``: Shape ``[G]`` - cumulative token boundaries
-
-For group ``i``, computes: ``output[i] = mat_a[:, start:end] @ mat_b[:, start:end].T``
-
-Output shape: ``[G, K, N]``
-
 **Offsets Format**
 
 The ``offsets`` tensor contains cumulative token counts. For G groups:
@@ -77,18 +65,16 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
   
   * Case 1 (2D×3D): Shape ``[total_tokens, K]``
   * Case 2 (3D×3D): Shape ``[G, M, K]``
-  * Case 3 (2D×2D): Shape ``[K, total_tokens]``
 
 * **2**: ``mat_b`` - Tensor of type *T* with second operand. Required.
   
   * Case 1 (2D×3D): Shape ``[G, N, K]``
   * Case 2 (3D×3D): Shape ``[G, N, K]``
-  * Case 3 (2D×2D): Shape ``[N, total_tokens]``
 
 * **3**: ``offsets`` - 1D tensor of type *T_IDX* with group boundaries. Optional.
   
   * Shape: ``[G]`` containing cumulative offsets
-  * Required for Case 1 (2D×3D) and Case 3 (2D×2D)
+  * Required for Case 1 (2D×3D)
   * Must not be provided for Case 2 (3D×3D)
 
 **Outputs**
@@ -97,7 +83,6 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
   
   * Case 1 (2D×3D): Shape ``[total_tokens, N]``
   * Case 2 (3D×3D): Shape ``[G, M, N]``
-  * Case 3 (2D×2D): Shape ``[G, K, N]``
 
 **Types**
 
@@ -161,30 +146,4 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
        </output>
    </layer>
 
-*Weight Gradient (Case 3: 2D × 2D)*
 
-.. code-block:: xml
-   :force:
-
-   <layer ... type="GroupedMatMul" version="opset17">
-       <input>
-           <port id="0">  <!-- mat_a: K=64, total_tokens=16 -->
-               <dim>64</dim>
-               <dim>16</dim>
-           </port>
-           <port id="1">  <!-- mat_b: N=128, total_tokens=16 -->
-               <dim>128</dim>
-               <dim>16</dim>
-           </port>
-           <port id="2">  <!-- offsets: [4, 12, 16] for 3 groups -->
-               <dim>3</dim>
-           </port>
-       </input>
-       <output>
-           <port id="3">  <!-- output: 3 groups, K=64, N=128 -->
-               <dim>3</dim>
-               <dim>64</dim>
-               <dim>128</dim>
-           </port>
-       </output>
-   </layer>
