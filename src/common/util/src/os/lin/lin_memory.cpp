@@ -28,6 +28,19 @@ void madvise_hint(void* ptr, size_t size) noexcept {
     ::madvise(ptr, size, MADV_WILLNEED);
 }
 
+struct PageToucher {
+    const uint8_t* m_begin;
+    const uint8_t* m_end;
+    const size_t m_page_size;
+
+    void operator()() const noexcept {
+        volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
+        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
+            local += *begin;
+        }
+    }
+};
+
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
     // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
     const auto page_size = static_cast<size_t>(get_system_page_size());
@@ -36,13 +49,8 @@ void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
     std::vector<std::thread> threads;
     threads.reserve(ceil_div(size, chunk_size));
 
-    for (auto page = reinterpret_cast<const uint8_t*>(ptr), end = page + size; page < end; page += chunk_size) {
-        threads.emplace_back([page, chunk_end = std::min(page + chunk_size, end), page_size] {
-            volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
-            for (auto p = page; p < chunk_end; p += page_size) {
-                local += *p;
-            }
-        });
+    for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last; first += chunk_size) {
+        threads.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
     }
     for (auto& t : threads) {
         t.join();
@@ -63,13 +71,14 @@ void aligned_free(void* ptr) noexcept {
 }
 
 void* vm_reserve(size_t size, std::error_code& ec) noexcept {
-    const auto p = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (p == MAP_FAILED) {
+    void* result = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (result != MAP_FAILED) {
+        ec = {};
+    } else {
         ec = std::error_code(errno, std::system_category());
-        return nullptr;
+        result = nullptr;
     }
-    ec = {};
-    return p;
+    return result;
 }
 
 void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {

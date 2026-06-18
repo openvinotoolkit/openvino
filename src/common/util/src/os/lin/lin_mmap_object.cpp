@@ -175,8 +175,7 @@ public:
         constexpr size_t one_mb = 1024 * 1024;
         // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
         if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
-            const size_t hw_threads = std::thread::hardware_concurrency();
-            const auto num_threads = std::min<size_t>(hw_threads, 10);
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
             const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
             util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
         }
