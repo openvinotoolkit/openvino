@@ -85,13 +85,13 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 
 /*
     Decomposed SDPA Pattern:
-            Convert
+
                 \       /
                  Concat
                     |
                 opt:Unsqueeze
                     |
-                opt:Broadcast   Convert
+                opt:Broadcast
                     |       \       /
                 opt:Reshape       Concat
         \           /           |
@@ -111,9 +111,29 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 
 SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                const std::string& isol_tag) {
-    // Match Concat with any number of inputs (including multi-input from KV cache block split)
-    // Don't constrain the number of inputs - just match any Concat node
-    auto concat1 = opp::wrap_type<ov::op::v0::Concat>();
+    // KV-cache Concat predicate: all inputs except the last (current KV slice) must be
+    // Parameters or Parameter-through-Convert.  This guards against matching Eagle-style
+    // concats or DQ-chain concats whose non-last inputs are intermediate nodes such as
+    // Multiply/Subtract produced by a dequantisation path.
+    auto kv_concat_pred = [](const ov::Output<ov::Node>& output) {
+        auto concat = output.get_node_shared_ptr();
+        const auto num_inputs = concat->get_input_size();
+        if (num_inputs < 2)
+            return false;
+        for (size_t i = 0; i + 1 < num_inputs; ++i) {
+            auto inp = concat->get_input_node_shared_ptr(i);
+            if (ov::as_type_ptr<ov::op::v0::Parameter>(inp))
+                continue;
+            if (auto cvt = ov::as_type_ptr<ov::op::v0::Convert>(inp)) {
+                if (ov::as_type_ptr<ov::op::v0::Parameter>(cvt->get_input_node_shared_ptr(0)))
+                    continue;
+            }
+            return false;
+        }
+        return true;
+    };
+
+    auto concat1 = opp::wrap_type<ov::op::v0::Concat>(kv_concat_pred);
 
     // GQA optional nodes — require single consumer so shared KV (e.g. Gemma4) does not
     // accidentally match: if any expansion node is shared across multiple heads the
@@ -126,7 +146,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()}, single_user);
     auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()}, single_user);
 
-    auto concat2 = opp::wrap_type<ov::op::v0::Concat>();
+    auto concat2 = opp::wrap_type<ov::op::v0::Concat>(kv_concat_pred);
 
     // GQA optional nodes — same single-consumer guard
     auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()}, single_user);
