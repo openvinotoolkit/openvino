@@ -24,9 +24,11 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
+#include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "utils/general_utils.h"
@@ -225,17 +227,19 @@ void VariableStateSingleBuffer::commit_impl() {
 VariableStateKVcache::VariableStateKVcache(const std::string& name,
                                            MemoryDescPtr external_desc,
                                            BlockedMemoryDescPtr dense_internal_desc,
-                                           const bool quant_by_channel,
-                                           const size_t group_size)
+                                           ov::Extensions::Cpu::CacheSpec spec)
     : VariableStateBase(name, std::move(external_desc)),
       m_dense_internal_desc(std::move(dense_internal_desc)),
-      m_quant_by_channel(quant_by_channel),
-      m_group_size(group_size) {
+      m_spec(spec) {
     auto&& shape = get_external_desc()->getShape();
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
+    OPENVINO_ASSERT(m_spec.alg != ov::internal::CacheQuantAlgorithm::TURBO,
+                    "get_state() is not supported for KV cache with TURBO quantization. "
+                    "TURBO stores packed bits and per-token norm in separate metadata; "
+                    "scalar dequant path cannot reconstruct the original tensor.");
     if (!m_internal_mem || !m_hidden_state || is_reset_state()) {
         auto new_desc = to_static(get_external_desc());
         auto external_mem = std::make_shared<Memory>(get_engine(), new_desc);
@@ -273,10 +277,10 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     if (pastkv.get_precision() == element::u8) {
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
-        if (m_quant_by_channel) {
+        if (m_spec.by_channel) {
             parallel_for3d(L0, B, H, [&](size_t ithr, size_t m, size_t b, size_t h) {
                 auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
-                size_t group_id = m / m_group_size;
+                size_t group_id = m / m_spec.group_size;
                 buffers[ithr].resize<float>({S});
                 attn_dequant_by_channel_u8(pastkv.ptr<uint8_t>(m, b_kv, h),
                                            buffers[ithr].ptr<float>(),
@@ -292,10 +296,10 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
             parallel_for3d(L0, B, H, [&](size_t ithr, size_t m, size_t b, size_t h) {
                 auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
                 buffers[ithr].resize<float>({S});
-                for (size_t group_id = 0; group_id < S / m_group_size; group_id++) {
-                    attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h, group_id * m_group_size),
-                                    buffers[ithr].ptr<float>() + group_id * m_group_size,
-                                    m_group_size,
+                for (size_t group_id = 0; group_id < S / m_spec.group_size; group_id++) {
+                    attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h, group_id * m_spec.group_size),
+                                    buffers[ithr].ptr<float>() + group_id * m_spec.group_size,
+                                    m_spec.group_size,
                                     m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2));
                 }
                 cpu_convert(buffers[ithr].ptr<float>(), output.ptr_v(m, b, h), element::f32, output.m_dt, S);
@@ -312,6 +316,10 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
 }
 
 void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
+    OPENVINO_ASSERT(m_spec.alg != ov::internal::CacheQuantAlgorithm::TURBO,
+                    "set_state() is not supported for KV cache with TURBO quantization. "
+                    "TURBO requires rotation+codebook encoding plus per-token norm metadata "
+                    "owned by the SDPA node; external state cannot be injected directly.");
     // 1. reset the memory object
     m_state = state;  // simply to extend the lifetime
     auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
@@ -339,11 +347,11 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         auto S = internal.size(3);
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
-        if (m_quant_by_channel) {
-            size_t group_nums = div_up(L0, m_group_size);
+        if (m_spec.by_channel) {
+            size_t group_nums = div_up(L0, m_spec.group_size);
             m_scale_zp.resize<float>({group_nums * 2, B, H, S});
             parallel_for3d(group_nums, B, H, [&](size_t ithr, size_t group_id, size_t b, size_t h) {
-                size_t valid_seq = std::min(m_group_size, L0 - group_id * m_group_size);
+                size_t valid_seq = std::min(m_spec.group_size, L0 - group_id * m_spec.group_size);
                 buffers[ithr].resize<float>({valid_seq, S});
                 cpu_convert(external.ptr_v(valid_seq, b, h),
                             buffers[ithr].ptr<float>(),
@@ -351,7 +359,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                             element::f32,
                             valid_seq * S);
                 attn_quant_by_channel_u8(buffers[ithr].ptr<float>(),
-                                         internal.ptr<uint8_t>(group_id * m_group_size, b, h),
+                                         internal.ptr<uint8_t>(group_id * m_spec.group_size, b, h),
                                          valid_seq,
                                          S,
                                          S,
@@ -360,14 +368,14 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                                          m_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
             });
         } else {
-            m_scale_zp.resize<float>({L0, B, H, 2 * S / m_group_size});
+            m_scale_zp.resize<float>({L0, B, H, 2 * S / m_spec.group_size});
             parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
                 buffers[ithr].resize<float>({S});
                 cpu_convert(external.ptr_v(m, b, h), buffers[ithr].ptr<float>(), external.m_dt, element::f32, S);
-                for (size_t group_id = 0; group_id < S / m_group_size; group_id++) {
-                    attn_quant_u8(buffers[ithr].ptr<float>() + group_id * m_group_size,
-                                  internal.ptr<uint8_t>(m, b, h, group_id * m_group_size),
-                                  m_group_size,
+                for (size_t group_id = 0; group_id < S / m_spec.group_size; group_id++) {
+                    attn_quant_u8(buffers[ithr].ptr<float>() + group_id * m_spec.group_size,
+                                  internal.ptr<uint8_t>(m, b, h, group_id * m_spec.group_size),
+                                  m_spec.group_size,
                                   m_scale_zp.at<float>({m, b, h, group_id * 2}),
                                   m_scale_zp.at<float>({m, b, h, group_id * 2 + 1}));
                 }
