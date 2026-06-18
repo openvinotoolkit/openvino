@@ -216,17 +216,12 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     for (auto& node : constUsers) {
         auto outOp = node.get_node();
         size_t user_index = node.get_index();
-        bool apply_rank2_matmul_wa = false;
         auto is_convert_matmul_pattern = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
             if (ov::is_type<ov::op::v0::Convert>(convert_node) && !p.use_new_shape_infer()) {
                 auto convert_consumers = convert_node->get_output_target_inputs(0);
                 for (auto& consumer_input : convert_consumers) {
                     if (ov::is_type<ov::op::v0::MatMul>(consumer_input.get_node()) && consumer_input.get_index() < 2) {
                         matmul_input_index_ref = consumer_input.get_index();
-                        auto* matmul = consumer_input.get_node();
-                        const size_t opposite_input_idx = (matmul_input_index_ref == 0) ? 1 : 0;
-                        const auto opposite_rank = matmul->get_input_partial_shape(opposite_input_idx).rank();
-                        apply_rank2_matmul_wa = opposite_rank.is_static() && opposite_rank.get_length() > 2;
                         return true;
                     }
                 }
@@ -305,7 +300,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                     : (const_static_max_dims - 2);
                 reshaped_const_dims[const_idx] = constDims[0];
                 constDims = std::move(reshaped_const_dims);
-            } else if (constDims.size() == 2 && user_index == 0 && apply_rank2_matmul_wa) {
+            } else if (constDims.size() == 2) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
                 const auto offset = const_static_max_dims - constDims.size();
                 for (size_t i = 0; i < constDims.size(); ++i) {
