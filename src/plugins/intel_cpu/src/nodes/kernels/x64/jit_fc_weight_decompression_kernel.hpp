@@ -28,6 +28,10 @@ struct FCWeightDecompressionKernelCompileParams {
     bool broadcastScales = false;
     bool broadcastZeroPoints = false;
     ov::element::Type weightsType = ov::element::dynamic;
+    // For sub-byte types (u4, u2): which element within the packed byte
+    // u4: 0 or 1 (2 values per byte)
+    // u2: 0, 1, 2, or 3 (4 values per byte)
+    int icIndex = 0;
 };
 
 class FCWeightDecompressionKernelBase {
@@ -87,6 +91,10 @@ private:
         return Vmm(2);
     }
 
+    Vmm vmmMask4() const {
+        return Vmm(3);
+    }
+
     FCWeightDecompressionKernelCompileParams m_params;
     size_t m_blockSize = 0;
     void (*m_kernel)(const FCWeightDecompressionKernelRuntimeParams*) = nullptr;
@@ -94,6 +102,7 @@ private:
     Xbyak::Reg64 regDst = r9;
     Xbyak::Reg64 regScales = r10;
     Xbyak::Reg64 regZeroPoints = r11;
+    Xbyak::Reg64 regTmp = r12;
 };
 
 }  // namespace ov::intel_cpu

@@ -39,7 +39,7 @@ using namespace dnnl::impl::cpu::x64;
 namespace {
 
 bool isSupportedCompressedWeightsType(const ov::element::Type type) {
-    return dnnl::impl::utils::one_of(type, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4);
+    return dnnl::impl::utils::one_of(type, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2);
 }
 
 bool isSupportedScaleType(const ov::element::Type type) {
@@ -47,7 +47,7 @@ bool isSupportedScaleType(const ov::element::Type type) {
 }
 
 bool isUnsignedCompressedWeightsType(const ov::element::Type type) {
-    return dnnl::impl::utils::one_of(type, ov::element::u8, ov::element::u4);
+    return dnnl::impl::utils::one_of(type, ov::element::u8, ov::element::u4, ov::element::u2);
 }
 
 bool isSignedCompressedWeightsType(const ov::element::Type type) {
@@ -103,6 +103,11 @@ int32_t readPackedValue(const uint8_t* data, ov::element::Type type, size_t inde
         int32_t nibble = (index % 2 == 0) ? (value & 0x0F) : (value >> 4);
         nibble = (nibble & 0x08) ? (nibble - 16) : nibble;
         return nibble;
+    }
+    case ov::element::u2: {
+        const uint8_t value = data[index / 4];
+        const int shift = (index % 4) * 2;
+        return (value >> shift) & 0x03;
     }
     default:
         OPENVINO_THROW("Unsupported compressed precision: ", type);
@@ -354,7 +359,7 @@ bool supportsDynamicQuantization(const FCAttrs& attrs,
         return false;
     }
 
-    if (hasWeightZp && !dnnl::impl::utils::one_of(zeroPointsDesc->getPrecision(), ov::element::u8, ov::element::u4)) {
+    if (hasWeightZp && !dnnl::impl::utils::one_of(zeroPointsDesc->getPrecision(), ov::element::u8, ov::element::u4, ov::element::u2)) {
         return false;
     }
 
@@ -495,7 +500,7 @@ void quantizeSourceDynamic(const float* srcData,
 void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
                                      const MemoryArgs& memory,
                                      size_t dqGroupSize,
-                                     const FCWeightDecompressionKernelBase* jitUnpackKernel,
+                                     const std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>>& jitUnpackKernels,
                                      std::vector<uint8_t>& weights,
                                      std::vector<float>& weightScales,
                                      std::vector<float>& weightZeroPoints,
@@ -533,21 +538,35 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
     weightScales.resize(groups * oc);
     weightZeroPoints.resize(groups * oc);
 
-    const bool canUseJitUnpack = jitUnpackKernel != nullptr && attrs.weightsNonTransposed
-            && dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8);
-    const size_t jitBlock = canUseJitUnpack ? jitUnpackKernel->blockSize() : 0;
+    const bool canUseJitUnpack = !jitUnpackKernels.empty() && attrs.weightsNonTransposed
+            && dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8,
+                                         ov::element::u4, ov::element::i4, ov::element::u2);
+    const size_t jitBlock = canUseJitUnpack ? jitUnpackKernels[0]->blockSize() : 0;
     if (canUseJitUnpack) {
         unpackCache.resize(jitBlock);
     }
+
+    // Determine sub-byte packing factor for dynamic quant
+    const size_t icInternalSize = (compressedType == ov::element::u4 || compressedType == ov::element::i4) ? 2
+                                 : (compressedType == ov::element::u2) ? 4
+                                 : 1;
 
     for (size_t icIdx = 0; icIdx < ic; icIdx++) {
         size_t ocIdx = 0;
         if (canUseJitUnpack) {
             for (; ocIdx + jitBlock <= oc; ocIdx += jitBlock) {
+                // For sub-byte types: calculate packed address
+                const size_t packedIcIdx = icIdx / icInternalSize;
+                const size_t internalIcIdx = icIdx % icInternalSize;
+                const size_t compressedWeightsAddr = packedIcIdx * oc + ocIdx;
+
+                // Select the appropriate kernel for this IC index
+                const auto* selectedKernel = jitUnpackKernels[internalIcIdx].get();
+
                 FCWeightDecompressionKernelRuntimeParams rtParams{};
-                rtParams.weights = compressedData + icIdx * oc + ocIdx;
+                rtParams.weights = compressedData + compressedWeightsAddr;
                 rtParams.dst = unpackCache.data();
-                (*jitUnpackKernel)(&rtParams);
+                (*selectedKernel)(&rtParams);
 
                 for (size_t lane = 0; lane < jitBlock; lane++) {
                     const float value = unpackCache[lane];
@@ -639,7 +658,7 @@ MemoryPtr prepareDecompressedWeightsMemory(const MemoryArgs& memory,
 void decompressWeights(const FCAttrs& attrs,
                        const MemoryArgs& memory,
                        const MemoryPtr& decompressedWeights,
-                       const FCWeightDecompressionKernelBase* jitKernel) {
+                       const std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>>& jitKernels) {
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto scalesIt = memory.find(ARG_WEI | ARG_ATTR_SCALES);
     const auto zeroPointsIt = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS);
@@ -669,8 +688,13 @@ void decompressWeights(const FCAttrs& attrs,
     std::vector<float> scaleCache;
     std::vector<float> zeroPointCache;
 
-    const bool canUseJit = jitKernel != nullptr && supportsJitDecompression(attrs, compressedType, scaleLayout, zeroPointLayout);
-    const size_t jitBlock = canUseJit ? jitKernel->blockSize() : 0;
+    const bool canUseJit = !jitKernels.empty() && supportsJitDecompression(attrs, compressedType, scaleLayout, zeroPointLayout);
+    const size_t jitBlock = canUseJit ? jitKernels[0]->blockSize() : 0;
+
+    // Determine sub-byte packing factor
+    const size_t icInternalSize = (compressedType == ov::element::u4 || compressedType == ov::element::i4) ? 2
+                                 : (compressedType == ov::element::u2) ? 4
+                                 : 1;
 
     for (size_t icIdx = 0; icIdx < ic; icIdx++) {
         const size_t scaleGroup = std::min(icIdx / scaleGroupSize, scaleGroups - 1);
@@ -693,12 +717,23 @@ void decompressWeights(const FCAttrs& attrs,
                     break;
                 }
 
+                // For sub-byte types: calculate packed address
+                // u4/i4: 2 values per byte, u2: 4 values per byte
+                const size_t packedIcIdx = icIdx / icInternalSize;
+                const size_t internalIcIdx = icIdx % icInternalSize;
+                const size_t compressedWeightsAddr = attrs.weightsNonTransposed
+                    ? (packedIcIdx * oc + ocIdx)
+                    : (ocIdx * (ic / icInternalSize) + packedIcIdx);
+
+                // Select the appropriate kernel for this IC index
+                const auto* selectedKernel = jitKernels[internalIcIdx].get();
+
                 FCWeightDecompressionKernelRuntimeParams rtParams{};
-                rtParams.weights = compressedData + (icIdx * oc + ocIdx);
+                rtParams.weights = compressedData + compressedWeightsAddr;
                 rtParams.dst = decompressedData + icIdx * oc + ocIdx;
                 rtParams.scales = scalesPtr;
                 rtParams.zeroPoints = zeroPointsPtr;
-                (*jitKernel)(&rtParams);
+                (*selectedKernel)(&rtParams);
             }
         }
 
@@ -1213,12 +1248,14 @@ DnnlPrimitiveAttrs JitFCDecompBrgemmExecutor::buildBrgemmPostOps(const MemoryArg
 }
 
 void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& memory) {
-    m_jitDecompressionKernel.reset();
-    m_jitWeightUnpackKernel.reset();
+    m_jitDecompressionKernels.clear();
+    m_jitWeightUnpackKernels.clear();
 
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto compressedType = weightsMemory->getDesc().getPrecision();
-    if (!m_attrs.weightsNonTransposed || !dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8)) {
+    if (!m_attrs.weightsNonTransposed ||
+        !dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8,
+                                    ov::element::u4, ov::element::i4, ov::element::u2)) {
         return;
     }
 
@@ -1234,23 +1271,42 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
         return;
     }
 
-    FCWeightDecompressionKernelCompileParams params{};
-    params.withScales = scalesMemory != nullptr;
-    params.withZeroPoints = zeroPointsMemory != nullptr;
-    params.broadcastScales = scaleLayout.scalar;
-    params.broadcastZeroPoints = zeroPointLayout.scalar;
-    params.weightsType = compressedType;
+    // Determine how many kernels we need based on the weight type
+    const size_t icInternalSize = (compressedType == ov::element::u4 || compressedType == ov::element::i4) ? 2
+                                 : (compressedType == ov::element::u2) ? 4
+                                 : 1;
 
-    if (mayiuse(avx512_core)) {
-        m_jitDecompressionKernel = std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx512_core>>(params);
-        FCWeightDecompressionKernelCompileParams unpackParams{};
-        unpackParams.weightsType = compressedType;
-        m_jitWeightUnpackKernel = std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx512_core>>(unpackParams);
-    } else if (mayiuse(cpu_isa_t::avx2)) {
-        m_jitDecompressionKernel = std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx2>>(params);
-        FCWeightDecompressionKernelCompileParams unpackParams{};
-        unpackParams.weightsType = compressedType;
-        m_jitWeightUnpackKernel = std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx2>>(unpackParams);
+    m_jitDecompressionKernels.clear();
+    m_jitWeightUnpackKernels.clear();
+
+    for (size_t icIdx = 0; icIdx < icInternalSize; icIdx++) {
+        FCWeightDecompressionKernelCompileParams params{};
+        params.withScales = scalesMemory != nullptr;
+        params.withZeroPoints = zeroPointsMemory != nullptr;
+        params.broadcastScales = scaleLayout.scalar;
+        params.broadcastZeroPoints = zeroPointLayout.scalar;
+        params.weightsType = compressedType;
+        params.icIndex = static_cast<int>(icIdx);
+
+        if (mayiuse(avx512_core)) {
+            m_jitDecompressionKernels.push_back(
+                std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx512_core>>(params));
+
+            FCWeightDecompressionKernelCompileParams unpackParams{};
+            unpackParams.weightsType = compressedType;
+            unpackParams.icIndex = static_cast<int>(icIdx);
+            m_jitWeightUnpackKernels.push_back(
+                std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx512_core>>(unpackParams));
+        } else if (mayiuse(cpu_isa_t::avx2)) {
+            m_jitDecompressionKernels.push_back(
+                std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx2>>(params));
+
+            FCWeightDecompressionKernelCompileParams unpackParams{};
+            unpackParams.weightsType = compressedType;
+            unpackParams.icIndex = static_cast<int>(icIdx);
+            m_jitWeightUnpackKernels.push_back(
+                std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx2>>(unpackParams));
+        }
     }
 }
 
@@ -1274,7 +1330,7 @@ void JitFCDecompBrgemmExecutor::rebuildSourceQuantizationKernel(const MemoryArgs
 
 void JitFCDecompBrgemmExecutor::refreshDecompressedWeights(const MemoryArgs& memory) {
     ensureDecompressedWeightsMemory(memory);
-    decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernel.get());
+    decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernels);
 }
 
 void JitFCDecompBrgemmExecutor::refreshDynamicQuantWeights(const MemoryArgs& memory) {
@@ -1282,7 +1338,7 @@ void JitFCDecompBrgemmExecutor::refreshDynamicQuantWeights(const MemoryArgs& mem
     refreshDynamicQuantWeightParams(m_attrs,
                                     memory,
                                     dqGroupSize,
-                                    m_jitWeightUnpackKernel.get(),
+                                    m_jitWeightUnpackKernels,
                                     m_dynamicQuantWeights,
                                     m_dynamicQuantWeightScales,
                                     m_dynamicQuantWeightZeroPoints,

@@ -35,6 +35,12 @@ void JitFCWeightDecompressionKernel<isa>::generate() {
     mov(regWeights, ptr[param1 + offWeights()]);
     mov(regDst, ptr[param1 + offDst()]);
 
+    // Initialize mask for u4 decompression
+    if (m_params.weightsType == ov::element::u4) {
+        mov(regTmp.cvt32(), 0x0F);
+        uni_vpbroadcastd(vmmMask4(), regTmp.cvt32());
+    }
+
     if (m_params.withScales) {
         mov(regScales, ptr[param1 + offScales()]);
         if (m_params.broadcastScales) {
@@ -60,6 +66,30 @@ void JitFCWeightDecompressionKernel<isa>::generate() {
         break;
     case ov::element::i8:
         uni_vpmovsxbd(vmmWeights(), ptr[regWeights]);
+        uni_vcvtdq2ps(vmmWeights(), vmmWeights());
+        break;
+    case ov::element::u4:
+        // Load packed u4 values and extract nibbles
+        uni_vpmovzxbd(vmmWeights(), ptr[regWeights]);
+        if (m_params.icIndex == 0) {
+            // Lower nibble: value & 0x0F
+            uni_vpand(vmmWeights(), vmmWeights(), vmmMask4());
+        } else {
+            // Upper nibble: value >> 4
+            uni_vpsrld(vmmWeights(), vmmWeights(), 4);
+        }
+        uni_vcvtdq2ps(vmmWeights(), vmmWeights());
+        break;
+    case ov::element::u2:
+        // Load packed u2 values and extract 2-bit values
+        uni_vpmovzxbd(vmmWeights(), ptr[regWeights]);
+        // Shift to extract the correct 2-bit value based on icIndex (0-3)
+        if (m_params.icIndex == 0) {
+            uni_vpsrld(vmmWeights(), vmmWeights(), 6);
+        } else {
+            uni_vpslld(vmmWeights(), vmmWeights(), 24 + 2 * m_params.icIndex);
+            uni_vpsrld(vmmWeights(), vmmWeights(), 30);
+        }
         uni_vcvtdq2ps(vmmWeights(), vmmWeights());
         break;
     default:

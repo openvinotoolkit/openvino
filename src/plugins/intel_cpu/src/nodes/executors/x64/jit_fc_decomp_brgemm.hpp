@@ -84,8 +84,11 @@ private:
     FCAttrs m_attrs;
     ExecutorContext::CPtr m_context;
     MemoryPtr m_decompressedWeights;
-    std::unique_ptr<FCWeightDecompressionKernelBase> m_jitDecompressionKernel;
-    std::unique_ptr<FCWeightDecompressionKernelBase> m_jitWeightUnpackKernel;
+    // For sub-byte types (u4/u2), we need multiple kernels for different IC indices
+    // u4: 2 kernels (icIndex 0, 1), u2: 4 kernels (icIndex 0, 1, 2, 3)
+    // For other types: only 1 kernel (index 0)
+    std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>> m_jitDecompressionKernels;
+    std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>> m_jitWeightUnpackKernels;
     std::unique_ptr<FCSourceQuantizationKernelBase> m_jitSourceQuantKernel;
     std::shared_ptr<BrgemmKernel> m_brgemmKernel;
     std::shared_ptr<BrgemmKernel> m_brgemmTailKernel;
