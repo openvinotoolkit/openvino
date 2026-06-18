@@ -324,9 +324,10 @@ file located in the path specified with ``-report_folder``. The application also
 saves executable graph information to an XML file, located in a folder
 specified with the ``-exec_graph_path`` parameter.
 
-When the measured average latency is below 1 ms, the console latency block is
-printed in microseconds for readability. CSV and JSON reports keep the existing
-millisecond-based values and field names.
+When the measured average latency is below 1 ms, the Python console latency block
+is printed in microseconds for readability. For the C++ benchmark app, pass
+``-high_precision_latency`` to enable the same console-only formatting. CSV and
+JSON reports keep the existing millisecond-based values and field names.
 
 .. _all-configuration-options-python-benchmark:
 
