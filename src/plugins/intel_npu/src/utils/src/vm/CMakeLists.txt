@@ -21,8 +21,11 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:npu_vm_runtime_api,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:openvino_npu_zero_utils,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+target_link_libraries(${TARGET_NAME} INTERFACE
+    LevelZero::NPUExt     # contain ze_graph_ext.h for npu_vm_runtime.hpp
+    openvino::zero_loader # contain level_zero/ze_api.h> for npu_vm_runtime.hpp
 )
 
 if(NOT BUILD_SHARED_LIBS)
