@@ -824,9 +824,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
             if (!getParameters<int64_t>(dn, "shape", shape))
                 return;
 
-            OPENVINO_ASSERT(
-                m_weights_provider,
-                "Constant node references binary weights, but no weights buffer or weights file was provided.");
+            OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
+
+            if (m_weights_provider->size() < offset + size)
+                OPENVINO_THROW("Incorrect weights in bin file!");
 
             auto raw_buffer = m_weights_provider->make_region(offset, size);
             auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
@@ -880,6 +881,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
+    OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
     std::vector<int64_t> shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
