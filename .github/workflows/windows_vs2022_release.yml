@@ -24,8 +24,9 @@ concurrency:
 
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
+  PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+  PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
 permissions: read-all
 
@@ -162,7 +163,7 @@ jobs:
 
       - name: Samples tests
         run: |
-          python3 -m pip install --ignore-installed PyYAML -r ./tests/smoke_tests/requirements.txt
+          python3 -m pip install --no-cache-dir --ignore-installed PyYAML -r ./tests/smoke_tests/requirements.txt
           . "./setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
           python3 -bb -W error -X dev -X warn_default_encoding -m pytest ./tests/smoke_tests --numprocesses auto
@@ -329,9 +330,6 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install Python API tests dependencies
-        env:
-          PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-          PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
         run: |
           # To enable pytest parallel features
           python3 -m pip install --no-cache-dir pytest-xdist[psutil]
@@ -479,7 +477,7 @@ jobs:
           free-threaded-python: ${{ contains(matrix.python-version, 't') }}
 
       - name: Install Python API tests dependencies
-        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+        run: python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
       - name: Python API Tests
         shell: cmd
@@ -491,8 +489,8 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip uninstall -y numpy
-          python3 -m pip install "numpy>=2.0.0,<2.1.0"
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+          python3 -m pip install --no-cache-dir "numpy>=2.0.0,<2.1.0"
+          python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
           # for 'template' extension
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
           set PATH=${{ env.INSTALL_TEST_DIR }};%PATH%
@@ -612,7 +610,7 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install python dependencies
-        run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
+        run: python3 -m pip install --no-cache-dir -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

@@ -31,6 +31,8 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+  PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
 jobs:
   Smart_CI:
@@ -125,7 +127,7 @@ jobs:
       - name: Install certifi
         run: |
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
+          python3 -m pip install --no-cache-dir certifi
 
       #
       # Build

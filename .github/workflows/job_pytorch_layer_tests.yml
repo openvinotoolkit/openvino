@@ -24,12 +24,12 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
-  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
   HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
+  PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+  PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
 jobs:
   PyTorch_Layer_Tests:
@@ -109,18 +109,11 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Install Pytorch Layer tests dependencies (Windows)
-        if: runner.os == 'Windows'
-        env:
-          PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-          PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
-        run: python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
-
       - name: Install Pytorch Layer tests dependencies
         if: runner.os != 'Windows'
         run: |
           # pytorch test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196

@@ -32,9 +32,9 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
-  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
+  PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
 jobs:
   Openvino_tokenizers:
