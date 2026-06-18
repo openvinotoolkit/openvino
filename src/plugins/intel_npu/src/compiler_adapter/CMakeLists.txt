@@ -21,7 +21,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
-        $<TARGET_PROPERTY:npu_vm_runtime_api,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino_npu_vm_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${TARGET_NAME}
