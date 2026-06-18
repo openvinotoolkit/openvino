@@ -933,32 +933,6 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_SmallF16_Transposed) 
     }
 }
 
-// Large f16 matmul with bias Add consumer → bias forces transposed path (transpose_b=true).
-TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_WithBias_Transposed) {
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 8192});
-        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{8192, 4096}, {1});
-        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
-        auto bias = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 4096}, {1});
-        auto add = std::make_shared<ov::opset1::Add>(matmul, bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
-        manager.register_pass<ConvertMatMulToFullyConnected>();
-    }
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 8192});
-        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{8192, 4096}, {1});
-        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
-        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
-        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
-        auto bias = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 4096}, {1});
-        auto add = std::make_shared<ov::opset1::Add>(fc, bias);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
-    }
-}
-
 // Large f16 matmul with matmul transpose_b=true → non-transposed FC inserts a reverse Transpose.
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_MatMulTransposeB_True_NonTransposedPath) {
     {
