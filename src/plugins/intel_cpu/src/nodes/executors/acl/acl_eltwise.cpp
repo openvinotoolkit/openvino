@@ -31,12 +31,12 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/eltwise_config.hpp"
-#include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 

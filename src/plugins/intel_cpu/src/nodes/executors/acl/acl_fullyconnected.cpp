@@ -17,7 +17,6 @@
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"
-#include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/implementation_utils.hpp"
@@ -25,6 +24,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
