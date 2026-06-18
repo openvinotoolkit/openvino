@@ -46,7 +46,7 @@ RUN wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_pa
 
 # Install dgpu drivers
 RUN add-apt-repository -y ppa:kobuk-team/intel-graphics && \
-    apt-get update && apt-get install ocl-icd-libopencl1 libzedev libze1 && \
+    apt-get update && apt-get install ocl-icd-libopencl1 libze-dev libze1 && \
     mkdir drivers && \
     cd drivers && \
     wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-core-2_2.32.7+21184_amd64.deb && \
