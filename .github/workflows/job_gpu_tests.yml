@@ -59,6 +59,8 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
+      NEO_CACHE_STATS: 1
     steps:
 
       - name: Download OpenVINO artifacts (package)
