@@ -82,13 +82,11 @@ void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
     expect_tensors_equal(expected.attend_all, actual.attend_all);
 }
 
-void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttention& expected,
-                                    const ov::npuw::compiled::PyramidAttention& actual) {
+void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionContiguous& expected,
+                                    const ov::npuw::compiled::PyramidAttentionContiguous& actual) {
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
-    EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
-    EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
@@ -101,6 +99,23 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttention& 
             EXPECT_EQ(lhs.params[j].idx, rhs.params[j].idx);
             EXPECT_EQ(lhs.params[j].dim, rhs.params[j].dim);
         }
+    }
+}
+
+void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBlock& expected,
+                                    const ov::npuw::compiled::PyramidAttentionBlock& actual) {
+    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.full_context_size, actual.full_context_size);
+    EXPECT_EQ(expected._context_lengths, actual._context_lengths);
+    EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
+    EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
+    ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
+    for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
+        const auto& lhs = expected._attention_infos[i];
+        const auto& rhs = actual._attention_infos[i];
+        EXPECT_EQ(lhs.mask_idx, rhs.mask_idx);
+        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.past_key_block_port_map, rhs.past_key_block_port_map);
         EXPECT_EQ(lhs.past_value_block_port_map, rhs.past_value_block_port_map);
         EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
@@ -525,18 +540,18 @@ TEST(SerializationTest, OVTypes_Attention) {
 TEST(SerializationTest, OVTypes_PyramidAttention) {
     using namespace ov::npuw::s11n;
 
-    ov::npuw::compiled::PyramidAttention var;
+    ov::npuw::compiled::PyramidAttentionContiguous var;
     var.query_size = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
 
-    ov::npuw::compiled::PyramidAttentionInfo info1;
+    ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
     info1.mask_idx = 4;
     info1.query_size = 16;
     info1.context_length = 32;
 
-    ov::npuw::compiled::PyramidAttentionInfo info2;
+    ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
     info2.params = {{2, 1}};
     info2.mask_idx = 5;
     info2.query_size = 16;
@@ -544,7 +559,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
 
     var._attention_infos = {info1, info2};
 
-    ov::npuw::compiled::PyramidAttention res;
+    ov::npuw::compiled::PyramidAttentionContiguous res;
 
     std::stringstream ss;
 
@@ -557,14 +572,14 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
 TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     using namespace ov::npuw::s11n;
 
-    ov::npuw::compiled::PyramidAttention var;
+    ov::npuw::compiled::PyramidAttentionBlock var;
     var.query_size = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
     var.past_value_block_global_param_indices = {20, 21, 22};
 
-    ov::npuw::compiled::PyramidAttentionInfo info1;
+    ov::npuw::compiled::PyramidAttentionBlockInfo info1;
     info1.mask_idx = 4;
     info1.query_size = 16;
     info1.context_length = 32;
@@ -575,7 +590,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
                                        {21, std::numeric_limits<size_t>::max()},
                                        {22, std::numeric_limits<size_t>::max()}};
 
-    ov::npuw::compiled::PyramidAttentionInfo info2;
+    ov::npuw::compiled::PyramidAttentionBlockInfo info2;
     info2.mask_idx = 5;
     info2.query_size = 16;
     info2.context_length = 64;
@@ -590,7 +605,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
 
     var._attention_infos = {info1, info2};
 
-    ov::npuw::compiled::PyramidAttention res;
+    ov::npuw::compiled::PyramidAttentionBlock res;
 
     std::stringstream ss;
 

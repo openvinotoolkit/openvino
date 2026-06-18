@@ -217,26 +217,34 @@ void ensure_pyramid_requests(ov::npuw::v1::subgraphs::InferContext& ctx, Runtime
     }
 
     const auto& main_inputs = compiled_model->inputs();
-    const bool block_mode = !pyramid->past_key_block_global_param_indices.empty();
+    const bool block_mode = pyramid->is_block_mode();
 
     // Block KV: alias all block slots on the main request to the same buffer (block_0).
     // bind_block_ports() in prologue() will set the real per-block tensors at inference time.
     if (block_mode) {
-        auto alias_block_slots = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
-                                     const std::vector<size_t>& global_indices) {
-            if (global_indices.empty()) {
+        auto alias_block_slots = [&](ov::SoPtr<ov::IAsyncInferRequest>& req, size_t num_blocks, auto get_global_idx) {
+            if (num_blocks == 0) {
                 return;
             }
-            auto block0 = req->get_tensor(main_inputs[global_indices[0]]);
-            for (size_t i = 1; i < global_indices.size(); ++i) {
-                req->set_tensor(main_inputs[global_indices[i]], block0);
+            auto block0 = req->get_tensor(main_inputs[get_global_idx(0)]);
+            for (size_t i = 1; i < num_blocks; ++i) {
+                req->set_tensor(main_inputs[get_global_idx(i)], block0);
             }
         };
-        alias_block_slots(state.base_request, pyramid->past_key_block_global_param_indices);
-        alias_block_slots(state.base_request, pyramid->past_value_block_global_param_indices);
+        const size_t nk = pyramid->num_key_blocks_global();
+        alias_block_slots(state.base_request, nk, [&](size_t i) {
+            return pyramid->key_block_global_at(i);
+        });
+        alias_block_slots(state.base_request, nk, [&](size_t i) {
+            return pyramid->val_block_global_at(i);
+        });
         if (is_piped) {
-            alias_block_slots(state.base_pipeline_request, pyramid->past_key_block_global_param_indices);
-            alias_block_slots(state.base_pipeline_request, pyramid->past_value_block_global_param_indices);
+            alias_block_slots(state.base_pipeline_request, nk, [&](size_t i) {
+                return pyramid->key_block_global_at(i);
+            });
+            alias_block_slots(state.base_pipeline_request, nk, [&](size_t i) {
+                return pyramid->val_block_global_at(i);
+            });
         }
     }
 
@@ -257,14 +265,13 @@ void ensure_pyramid_requests(ov::npuw::v1::subgraphs::InferContext& ctx, Runtime
 
         auto share_inputs_for_req = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
                                         ov::SoPtr<ov::IAsyncInferRequest>& main_req) {
-            const auto& info = pyramid->_attention_infos[model_idx];
             const auto& variant_inputs = pyramid_models[model_idx]->inputs();
-            const auto& key_block_ports = info.past_key_block_port_set;
-            const auto& val_block_ports = info.past_value_block_port_set;
+            const auto& key_block_ports = pyramid->key_block_port_set_at(model_idx);
+            const auto& val_block_ports = pyramid->val_block_port_set_at(model_idx);
             ov::SoPtr<ov::ITensor> key_block0, val_block0;
             if (block_mode) {
-                key_block0 = main_req->get_tensor(main_inputs[pyramid->past_key_block_global_param_indices[0]]);
-                val_block0 = main_req->get_tensor(main_inputs[pyramid->past_value_block_global_param_indices[0]]);
+                key_block0 = main_req->get_tensor(main_inputs[pyramid->key_block_global_at(0)]);
+                val_block0 = main_req->get_tensor(main_inputs[pyramid->val_block_global_at(0)]);
             }
 
             for (size_t j = 0; j < variant_inputs.size(); ++j) {
@@ -560,8 +567,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
                         ensure_pyramid_selector(ctx, state);
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
-                        const auto& info = pyramid->_attention_infos[pyramid_id];
-                        const bool is_mask = (input_idx == info.mask_idx);
+                        const std::size_t info_mask_idx = pyramid->mask_idx_at(pyramid_id);
+                        const bool is_mask = (input_idx == info_mask_idx);
                         const auto& iport = compiled_model->inputs()[input_idx];
                         if (pyramid->is_block_mode()) {
                             // Block KV mode: bind block tensors directly to variant ports;
@@ -585,8 +592,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 ctx.target_request->set_tensor(block_iport, tensor);
                                 return true;
                             };
-                            if (try_bind_block(info.past_key_block_port_map) ||
-                                try_bind_block(info.past_value_block_port_map)) {
+                            if (try_bind_block(pyramid->key_block_port_map_at(pyramid_id)) ||
+                                try_bind_block(pyramid->val_block_port_map_at(pyramid_id))) {
                                 return true;  // Block KV input handled.
                             }
                             // Not a block KV input: mask is deferred to prologue(), others bind directly.
@@ -596,17 +603,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 ctx.target_request->set_tensor(iport, tensor);
                             }
                         } else {
-                            // Contiguous KV mode: slice/copy the appropriate past KV window
-                            // into each pyramid variant's input port.
-                            auto param_it = std::find_if(info.params.begin(), info.params.end(), [&](const auto& p) {
-                                return p.idx == input_idx;
-                            });
-                            const bool is_kv_param = (param_it != info.params.end());
+                            // Contiguous KV mode: look up whether input_idx is a KV param
+                            // and retrieve its sequence dimension via the virtual interface.
+                            const auto dim_opt = pyramid->kv_param_dim(pyramid_id, input_idx);
+                            const bool is_kv_param = dim_opt.has_value();
                             if (is_mask) {
                                 // Mask requires context-dependent construction — defer to prologue()
                                 io.inputs.at(input_idx) = tensor;
                             } else if (is_kv_param) {
-                                const auto& param = *param_it;
+                                const auto dim = dim_opt.value();
                                 using namespace ov::npuw::runtime;
                                 // iport comes from the main compiled model (full KV shape).
                                 // For set_tensor we must use the port from the pyramid model's compiled
@@ -632,50 +637,52 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
 
                                     const auto& input_shape = tensor->get_shape();
                                     if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                                        if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
+                                        if (static_cast<int64_t>(input_shape[dim]) == past_len) {
                                             ctx.target_request->set_tensor(pyramid_iport, tensor);
                                         } else {
-                                            const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
+                                            const auto& view = ov::npuw::util::view(tensor, dim, 0, past_len);
                                             const auto& shape = view->get_shape();
                                             if (ov::shape_size(shape) == 0) {
                                                 ctx.target_request->get_tensor(iport)->set_shape(shape);
                                             } else if (use_tensor_view) {
-                                                const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                                                            static_cast<int64_t>(info.query_size);
+                                                const auto model_past_len =
+                                                    static_cast<int64_t>(pyramid->get_context_length(pyramid_id)) -
+                                                    static_cast<int64_t>(pyramid->query_size_at(pyramid_id));
                                                 LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
                                                                                        << model_past_len);
                                                 ctx.target_request->set_tensor(
                                                     pyramid_iport,
-                                                    ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                                    ov::npuw::util::view(tensor, dim, 0, model_past_len));
                                             } else {
                                                 const auto& dst = ctx.target_request->get_tensor(iport);
                                                 ov::npuw::util::copy_tensor_by_dim(view,
                                                                                    dst,
-                                                                                   static_cast<uint32_t>(param.dim),
-                                                                                   static_cast<uint32_t>(param.dim));
+                                                                                   static_cast<uint32_t>(dim),
+                                                                                   static_cast<uint32_t>(dim));
                                             }
                                         }
                                     } else {
                                         NPUW_ASSERT(this_case == pyramid_attention::Selector::Case::GENERATE);
-                                        NPUW_ASSERT(static_cast<int64_t>(input_shape[param.dim]) != past_len);
+                                        NPUW_ASSERT(static_cast<int64_t>(input_shape[dim]) != past_len);
                                         const auto& dst = ctx.target_request->get_tensor(iport);
                                         if (dst->get_shape() == input_shape) {
                                             ctx.target_request->set_tensor(pyramid_iport, tensor);
                                         } else if (use_tensor_view) {
-                                            const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                                                        static_cast<int64_t>(info.query_size);
+                                            const auto model_past_len =
+                                                static_cast<int64_t>(pyramid->get_context_length(pyramid_id)) -
+                                                static_cast<int64_t>(pyramid->query_size_at(pyramid_id));
                                             LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
                                                                                    << model_past_len);
                                             ctx.target_request->set_tensor(
                                                 pyramid_iport,
-                                                ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                                ov::npuw::util::view(tensor, dim, 0, model_past_len));
                                         } else {
-                                            const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
-                                            const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
+                                            const auto& view = ov::npuw::util::view(tensor, dim, 0, past_len);
+                                            const auto& dst_slice = ov::npuw::util::view(dst, dim, 0, past_len);
                                             ov::npuw::util::copy_tensor_by_dim(view,
                                                                                dst_slice,
-                                                                               static_cast<uint32_t>(param.dim),
-                                                                               static_cast<uint32_t>(param.dim));
+                                                                               static_cast<uint32_t>(dim),
+                                                                               static_cast<uint32_t>(dim));
                                         }
                                     }
                                 }
@@ -789,11 +796,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 case BehaviorKind::Pyramid:
                     if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(pipeline.context)) {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
-                        const auto& dynamic = pyramid->_attention_infos[pyramid_id];
-                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dynamic.mask_idx];
-                        const auto& graph_mask = io.inputs.at(dynamic.mask_idx);
+                        const std::size_t dyn_mask_idx = pyramid->mask_idx_at(pyramid_id);
+                        const std::size_t dyn_query_size = pyramid->query_size_at(pyramid_id);
+                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dyn_mask_idx];
+                        const auto& graph_mask = io.inputs.at(dyn_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
-                        const auto present_len = dynamic.query_size;
+                        const auto present_len = dyn_query_size;
                         const auto& dst = ctx.target_request->get_tensor(mask_iport);
 
                         auto copy_mask_segment = [&](std::size_t dst_offset,
@@ -1156,13 +1164,19 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
         put_compiled_dynamic(context, std::make_shared<ov::npuw::compiled::Attention>(dynamic.value()));
     }
 
-    std::optional<ov::npuw::compiled::PyramidAttention> pyramid;
-    if (const auto* state = get_compiled_pyramid(context)) {
-        pyramid = *state;
-    }
-    stream & pyramid;
-    if (stream.input() && pyramid.has_value()) {
-        put_compiled_pyramid(context, std::make_shared<ov::npuw::compiled::PyramidAttention>(pyramid.value()));
+    bool has_pyramid = (get_compiled_pyramid(context) != nullptr);
+    stream & has_pyramid;
+    if (has_pyramid) {
+        if (stream.output()) {
+            uint8_t tag = get_compiled_pyramid(context)->is_block_mode() ? 1u : 0u;
+            stream & tag;
+            ov::npuw::orc::serialize(stream, *get_compiled_pyramid(context));
+        } else {
+            uint8_t tag;
+            stream & tag;
+            auto pyramid_ptr = ov::npuw::orc::make_pyramid_from_stream(stream, tag);
+            put_compiled_pyramid(context, std::move(pyramid_ptr));
+        }
     }
 
     auto* mutable_pyramid = get_compiled_pyramid(context);
@@ -1278,8 +1292,7 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
             return;
         }
         if (f._pyramid_attention.has_value()) {
-            put_compiled_pyramid(ctx,
-                                 std::make_shared<ov::npuw::compiled::PyramidAttention>(f._pyramid_attention.value()));
+            put_compiled_pyramid(ctx, ov::npuw::compiled::PyramidAttention::make(f._pyramid_attention.value()));
             ctx.put<BehaviorKind>(BehaviorKind::Pyramid);
             return;
         }

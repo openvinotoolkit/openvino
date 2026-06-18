@@ -78,7 +78,7 @@ static void collect_concat_block_indices(const std::shared_ptr<ov::Model>& model
             node = cvt->input_value(0).get_node_shared_ptr();
         }
         if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
-            out.push_back(model->get_parameter_index(param));
+            out.push_back(static_cast<size_t>(model->get_parameter_index(param)));
         }
     }
 }
@@ -410,10 +410,10 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         std::vector<size_t> full_key_indices, full_val_indices;
         collect_concat_block_indices(model, pattern_nodes.past_key_concat_node, full_key_indices);
         collect_concat_block_indices(model, pattern_nodes.past_value_concat_node, full_val_indices);
-        return PyramidValidationResult::make_block(query_length,
-                                                   full_context_length,
-                                                   std::move(full_key_indices),
-                                                   std::move(full_val_indices));
+        return PyramidValidationBlockResult{query_length,
+                                            full_context_length,
+                                            std::move(full_key_indices),
+                                            std::move(full_val_indices)};
     }
 
     // Pre-analyze original model to find sequence dimensions for past key/value parameters
@@ -474,11 +474,11 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
-    return PyramidValidationResult::make_contiguous(query_length,
-                                                    full_context_length,
-                                                    past_kv_length,
-                                                    past_key_sequence_dims,
-                                                    past_value_sequence_dims);
+    return PyramidValidationContiguousResult{query_length,
+                                             full_context_length,
+                                             past_kv_length,
+                                             std::move(past_key_sequence_dims),
+                                             std::move(past_value_sequence_dims)};
 }
 
 std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov::Model>& model) {
@@ -488,12 +488,33 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
         return std::nullopt;
     }
 
-    size_t query_length = validation_result->query_length;
-    size_t full_past_kv_length = validation_result->past_kv_length;
-    size_t full_context_length = validation_result->full_context_length;
-    const auto& past_key_sequence_dims = validation_result->past_key_sequence_dims;
-    const auto& past_value_sequence_dims = validation_result->past_value_sequence_dims;
-    const bool is_block_split = validation_result->is_block_split;
+    // Extract shared fields and mode-specific fields from the variant.
+    size_t query_length = 0;
+    size_t full_past_kv_length = 0;
+    size_t full_context_length = 0;
+    std::map<std::string, size_t> past_key_sequence_dims;
+    std::map<std::string, size_t> past_value_sequence_dims;
+    bool is_block_split = false;
+    std::vector<size_t> block_key_global_indices;
+    std::vector<size_t> block_val_global_indices;
+
+    std::visit(
+        [&](auto&& result) {
+            using T = std::decay_t<decltype(result)>;
+            query_length = result.query_length;
+            full_context_length = result.full_context_length;
+            if constexpr (std::is_same_v<T, PyramidValidationContiguousResult>) {
+                full_past_kv_length = result.past_kv_length;
+                past_key_sequence_dims = result.past_key_sequence_dims;
+                past_value_sequence_dims = result.past_value_sequence_dims;
+            } else {
+                static_assert(std::is_same_v<T, PyramidValidationBlockResult>);
+                is_block_split = true;
+                block_key_global_indices = result.past_key_block_global_param_indices;
+                block_val_global_indices = result.past_value_block_global_param_indices;
+            }
+        },
+        *validation_result);
 
     std::vector<std::shared_ptr<ov::Model>> pyramid_models;
 
@@ -525,12 +546,11 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 
             // In block mode the last model IS the full/original model (N blocks).
             // Propagate the full-model block indices into this variant's attention so
-            // compiled::PyramidAttentionInfo can copy them without re-scanning the graph.
+            // The info structs (PyramidAttentionContiguousInfo / PyramidAttentionBlockInfo) can copy them without
+            // re-scanning the graph.
             if (is_block_split) {
-                last_attention->past_key_block_variant_param_indices =
-                    validation_result->past_key_block_global_param_indices;
-                last_attention->past_value_block_variant_param_indices =
-                    validation_result->past_value_block_global_param_indices;
+                last_attention->past_key_block_variant_param_indices = block_key_global_indices;
+                last_attention->past_value_block_variant_param_indices = block_val_global_indices;
             }
 
             pyramid_attentions.push_back(std::move(*last_attention));
@@ -564,8 +584,8 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
     // Block indices are empty in contiguous mode; assigned unconditionally for simplicity.
-    pyramid_attention.past_key_block_global_param_indices = validation_result->past_key_block_global_param_indices;
-    pyramid_attention.past_value_block_global_param_indices = validation_result->past_value_block_global_param_indices;
+    pyramid_attention.past_key_block_global_param_indices = std::move(block_key_global_indices);
+    pyramid_attention.past_value_block_global_param_indices = std::move(block_val_global_indices);
 
     LOG_INFO("Returning pyramid attention with " << pyramid_models.size() << " models");
     LOG_INFO("  Query length: " << pyramid_attention._query_length);
@@ -578,80 +598,133 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
 
 namespace compiled {
 
-// Constructor implementation - extracts metadata and stores models for compilation.
-// KV block parameter indices are read from function::Attention::past_key/value_block_variant_param_indices,
-// which were populated in process_pyramid_model (block path) from the Concat inputs.
-PyramidAttention::PyramidAttention(const function::PyramidAttention& func_pyramid)
-    : query_size(func_pyramid._query_length),
-      full_context_size(func_pyramid._full_context_length),
-      _models_to_compile(func_pyramid._models) {  // Store models for later compilation
+// ── Static empty containers (returned by contiguous subclass block-mode stubs) ────
+static const std::unordered_set<size_t> s_empty_port_set;
+static const std::unordered_map<size_t, size_t> s_empty_port_map;
+
+// ── PyramidAttentionContiguous virtual implementations ────────────────────────────
+
+const std::unordered_set<size_t>& PyramidAttentionContiguous::key_block_port_set_at(size_t) const {
+    return s_empty_port_set;
+}
+const std::unordered_set<size_t>& PyramidAttentionContiguous::val_block_port_set_at(size_t) const {
+    return s_empty_port_set;
+}
+const std::unordered_map<size_t, size_t>& PyramidAttentionContiguous::key_block_port_map_at(size_t) const {
+    return s_empty_port_map;
+}
+const std::unordered_map<size_t, size_t>& PyramidAttentionContiguous::val_block_port_map_at(size_t) const {
+    return s_empty_port_map;
+}
+
+std::optional<std::size_t> PyramidAttentionContiguous::kv_param_dim(size_t pyramid_id, size_t input_idx) const {
+    const auto& params = _attention_infos[pyramid_id].params;
+    auto it = std::find_if(params.begin(), params.end(), [input_idx](const auto& p) {
+        return p.idx == input_idx;
+    });
+    if (it == params.end()) {
+        return std::nullopt;
+    }
+    return it->dim;
+}
+
+void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& model, std::string& out) const {
+    if (_attention_infos.empty()) {
+        return;
+    }
+    for (const auto& param : _attention_infos[0].params) {
+        if (!out.empty()) {
+            out += ",";
+        }
+        out += model.inputs()[param.idx].get_any_name();
+    }
+}
+
+// ── PyramidAttention::make() static factory ───────────────────────────────────────
+
+std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::PyramidAttention& func_pyramid) {
     NPUW_ASSERT(func_pyramid._models.size() == func_pyramid._attentions.size());
 
     const size_t num_models = func_pyramid._models.size();
-    _attention_infos.reserve(num_models);
-    _context_lengths.reserve(num_models);
+    const auto& gk = func_pyramid.past_key_block_global_param_indices;
+    const auto& gv = func_pyramid.past_value_block_global_param_indices;
+    const bool is_block = !gk.empty();
 
-    LOG_INFO("Constructing compiled::PyramidAttention with " << num_models << " models");
+    LOG_INFO("Constructing compiled::PyramidAttention (" << (is_block ? "block" : "contiguous") << ") with "
+                                                         << num_models << " models");
 
-    // Extract metadata from each model
-    for (size_t i = 0; i < num_models; ++i) {
-        const auto& func_attn = func_pyramid._attentions[i];
-        const auto& model = func_pyramid._models[i];
+    if (!is_block) {
+        auto obj = std::make_shared<PyramidAttentionContiguous>();
+        obj->query_size = func_pyramid._query_length;
+        obj->full_context_size = func_pyramid._full_context_length;
+        obj->_models_to_compile = func_pyramid._models;
+        obj->_attention_infos.reserve(num_models);
+        obj->_context_lengths.reserve(num_models);
 
-        // Build attention info
-        PyramidAttentionInfo attention_info;
-        attention_info.params.reserve(func_attn._inputs.size());
-
-        for (const auto& input : func_attn._inputs) {
-            std::size_t p_idx = model->get_parameter_index(input.param);
-            attention_info.params.push_back({p_idx, input.dim});
+        for (size_t i = 0; i < num_models; ++i) {
+            const auto& func_attn = func_pyramid._attentions[i];
+            const auto& model = func_pyramid._models[i];
+            PyramidAttentionContiguousInfo info;
+            info.params.reserve(func_attn._inputs.size());
+            for (const auto& input : func_attn._inputs) {
+                info.params.push_back({static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
+            }
+            info.mask_idx = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
+            info.query_size = func_attn.query_len();
+            info.context_length = func_attn.context_len();
+            obj->_context_lengths.push_back(info.context_length);
+            obj->_attention_infos.push_back(std::move(info));
         }
+        LOG_INFO("compiled::PyramidAttentionContiguous metadata extracted");
+        return obj;
+    } else {
+        auto obj = std::make_shared<PyramidAttentionBlock>();
+        obj->query_size = func_pyramid._query_length;
+        obj->full_context_size = func_pyramid._full_context_length;
+        obj->_models_to_compile = func_pyramid._models;
+        obj->past_key_block_global_param_indices = gk;
+        obj->past_value_block_global_param_indices = gv;
+        obj->_attention_infos.reserve(num_models);
+        obj->_context_lengths.reserve(num_models);
 
-        attention_info.mask_idx = model->get_parameter_index(func_attn._mask);
-        attention_info.query_size = func_attn.query_len();
-        attention_info.context_length = func_attn.context_len();
-
-        // Precompute global→variant port maps (for O(1) binding in bind_function_input) and
-        // variant port sets (for O(1) block-port detection in ensure_pyramid_requests).
-        // std::numeric_limits<size_t>::max() means this variant has no port for that block.
-        const auto& gk = func_pyramid.past_key_block_global_param_indices;
-        const auto& gv = func_pyramid.past_value_block_global_param_indices;
-        const auto& vk = func_attn.past_key_block_variant_param_indices;
-        const auto& vv = func_attn.past_value_block_variant_param_indices;
         constexpr size_t NO_PORT = std::numeric_limits<size_t>::max();
-        for (size_t m = 0; m < gk.size(); ++m) {
-            const size_t port = (m < vk.size()) ? vk[m] : NO_PORT;
-            attention_info.past_key_block_port_map[gk[m]] = port;
-            if (port != NO_PORT) {
-                attention_info.past_key_block_port_set.insert(port);
-            }
-        }
-        for (size_t m = 0; m < gv.size(); ++m) {
-            const size_t port = (m < vv.size()) ? vv[m] : NO_PORT;
-            attention_info.past_value_block_port_map[gv[m]] = port;
-            if (port != NO_PORT) {
-                attention_info.past_value_block_port_set.insert(port);
-            }
-        }
+        for (size_t i = 0; i < num_models; ++i) {
+            const auto& func_attn = func_pyramid._attentions[i];
+            const auto& model = func_pyramid._models[i];
+            PyramidAttentionBlockInfo info;
+            info.mask_idx = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
+            info.query_size = func_attn.query_len();
+            info.context_length = func_attn.context_len();
 
-        _attention_infos.push_back(std::move(attention_info));
-        _context_lengths.push_back(_attention_infos.back().context_length);
+            const auto& vk = func_attn.past_key_block_variant_param_indices;
+            const auto& vv = func_attn.past_value_block_variant_param_indices;
+            for (size_t m = 0; m < gk.size(); ++m) {
+                const size_t port = (m < vk.size()) ? vk[m] : NO_PORT;
+                info.past_key_block_port_map[gk[m]] = port;
+                if (port != NO_PORT) {
+                    info.past_key_block_port_set.insert(port);
+                }
+            }
+            for (size_t m = 0; m < gv.size(); ++m) {
+                const size_t port = (m < vv.size()) ? vv[m] : NO_PORT;
+                info.past_value_block_port_map[gv[m]] = port;
+                if (port != NO_PORT) {
+                    info.past_value_block_port_set.insert(port);
+                }
+            }
+            obj->_context_lengths.push_back(info.context_length);
+            obj->_attention_infos.push_back(std::move(info));
+        }
+        LOG_INFO("compiled::PyramidAttentionBlock metadata extracted, " << gk.size() << " K blocks / " << gv.size()
+                                                                        << " V blocks in full model");
+        return obj;
     }
-
-    // Full-model block indices are pre-computed in function::PyramidAttention::from().
-    // Simple copy; no further graph traversal needed.
-    past_key_block_global_param_indices = func_pyramid.past_key_block_global_param_indices;
-    past_value_block_global_param_indices = func_pyramid.past_value_block_global_param_indices;
-
-    LOG_INFO("compiled::PyramidAttention metadata extracted, "
-             << past_key_block_global_param_indices.size() << " K blocks / "
-             << past_value_block_global_param_indices.size() << " V blocks in full model");
 }
 
 // Set compiled models after parallel compilation and clear temporary storage.
 // Block indices are already populated in the constructor from the graph.
 void PyramidAttention::set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>>&& compiled_models) {
-    NPUW_ASSERT(compiled_models.size() == _attention_infos.size() && "Compiled models count must match metadata count");
+    NPUW_ASSERT(compiled_models.size() == num_models() && "Compiled models count must match metadata count");
     _compiled_models = std::move(compiled_models);
 
     // Clear temporary models storage

@@ -80,18 +80,48 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
     stream & var.idx & var.dim;
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
+    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
     stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
         var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
-        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
+    // Output only — dynamic_cast dispatch; input path handled by make_pyramid_from_stream.
+    if (auto* c = dynamic_cast<ov::npuw::compiled::PyramidAttentionContiguous*>(&var)) {
+        serialize(stream, *c);
+    } else if (auto* b = dynamic_cast<ov::npuw::compiled::PyramidAttentionBlock*>(&var)) {
+        serialize(stream, *b);
+    }
 }
 
-void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var) {
+std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyramid_from_stream(Stream& stream,
+                                                                                              uint8_t tag) {
+    if (tag == 0u) {
+        auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionContiguous>();
+        serialize(stream, *obj);
+        return obj;
+    } else {
+        auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
+        serialize(stream, *obj);
+        return obj;
+    }
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
+    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
     stream & var.idx & var.dim;
+}
+
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
+    stream & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
+        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
