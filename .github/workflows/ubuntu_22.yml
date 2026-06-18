@@ -640,7 +640,7 @@ jobs:
     uses: ./.github/workflows/job_gpu_rope_tests.yml
     with:
       device: 'igpu'
-      runner: "[ 'self-hosted', 'igpu', 'Linux', 'ov-dmz-21' ]"
+      runner: "[ 'self-hosted', 'igpu', 'Linux', 'ov-dmz-15' ]"
       runner-group: 'Intel-GPU'
       image: buildpack-deps:22.04-scm
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
