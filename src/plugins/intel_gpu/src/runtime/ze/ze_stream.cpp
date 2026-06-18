@@ -31,6 +31,9 @@
 #include <oneapi/dnnl/dnnl_ze.hpp>
 #endif
 
+// Required for queue type detection
+#include "ze_ocl_common.hpp"
+
 namespace cldnn {
 namespace ze {
 
@@ -192,6 +195,17 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
     }
 }
 
+QueueTypes detect_queue_type(ze_command_list_resource& cmd_list) {
+    OPENVINO_ASSERT(cmd_list.has_ocl_handle<ocl_resource_type::command_queue>(), "[GPU] Queue type detection requires OpenCL handle");
+    auto queue = cmd_list.get_ocl_handle<ocl_resource_type::command_queue>();
+    cl_command_queue_properties properties;
+
+    auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
+    OPENVINO_ASSERT(status == CL_SUCCESS, "[GPU] clGetCommandQueueInfo failed with error: ", status);
+
+    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? QueueTypes::out_of_order : QueueTypes::in_order;
+}
+
 }  // namespace
 
 ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
@@ -241,7 +255,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 }
 
 ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list)
-    : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
+    : stream(detect_queue_type(cmd_list), stream::get_expected_sync_method(config))
     , _engine(engine)
     , m_cmd_list(std::move(cmd_list)) {
     const auto &info = engine.get_device_info();
