@@ -88,17 +88,31 @@ class Kernels2CHeaders(object):
         content = []
         with open(filename) as f:
             content += f.readlines()
+
+        # Detect include guard macros (#ifndef X paired with #define X for the
+        # same name) to avoid adding #undef for them. Without this, the guard
+        # is defeated when multiple kernels with the same inlined header are
+        # batched into a single compilation unit.
+        ifndef_names = set()
+        for line in content:
+            stripped = line.strip()
+            if stripped.startswith('#ifndef '):
+                ifndef_names.add(stripped.split(" ")[1])
+            elif stripped.startswith('# ifndef '):
+                ifndef_names.add(stripped.split(" ")[2])
         for line in content:
             if '#define' in line:
                 name = line.strip().split(" ")[1].split("(")[0]
-                undefs += "#ifdef " + name + "\n"
-                undefs += "#undef " + name + "\n"
-                undefs += "#endif\n"
+                if name not in ifndef_names:
+                    undefs += "#ifdef " + name + "\n"
+                    undefs += "#undef " + name + "\n"
+                    undefs += "#endif\n"
             if '# define' in line:
                 name = line.strip().split(" ")[2].split("(")[0]
-                undefs += "#ifdef " + name + "\n"
-                undefs += "#undef " + name + "\n"
-                undefs += "#endif\n"
+                if name not in ifndef_names:
+                    undefs += "#ifdef " + name + "\n"
+                    undefs += "#undef " + name + "\n"
+                    undefs += "#endif\n"
         if filename in self.include_files:
             for include_file in self.include_files[filename]:
                 include_file_undefs = self.append_undefs(include_file)

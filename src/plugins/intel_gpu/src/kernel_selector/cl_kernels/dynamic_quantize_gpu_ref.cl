@@ -6,7 +6,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8
-#include "include/batch_headers/f8_utils.cl"
+#include "include/f8_utils.cl"
 #endif
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF

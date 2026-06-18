@@ -5,9 +5,9 @@
 #define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 #include "include/batch_headers/fetch_data.cl"
-// #if IS_F8
-// #include "include/batch_headers/f8_utils.cl"
-// #endif
+#if IS_F8
+#include "include/f8_utils.cl"
+#endif
 
 #if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"

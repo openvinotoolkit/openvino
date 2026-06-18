@@ -78,7 +78,18 @@ class Code2CHeaders(object):
         defines = set(match.group(1) for match in define_pattern.finditer(content))
         undef_directives = []
         content_lines = content.split("\n")
+
+        # Detect include guard macros (#ifndef X paired with #define X for the
+        # same name) to avoid adding #undef for them. Without this, the guard is
+        # defeated when multiple kernels with the same inlined header are batched
+        # into a single compilation unit.
+        ifndef_pattern = re.compile(r'#ifndef\s+(\w+)')
+        ifndef_names = set(match.group(1) for match in ifndef_pattern.finditer(content))
+
         for define in defines:
+            if define in ifndef_names:
+                continue
+
             # Regex to check if #undef for this define already exists
             undef_pattern = re.compile(r'#undef\s+' + re.escape(define) + r'\s*(?:\n|$)')
 

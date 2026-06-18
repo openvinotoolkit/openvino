@@ -4,6 +4,9 @@
 
 // TODO: Replace `_intel_convert*` with bultins when ready, current implementations are copied from XeTLA:
 
+#ifndef OV_GPU_OCL_F8_UTILS_H
+#define OV_GPU_OCL_F8_UTILS_H
+
 uchar _f16_to_bf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
     const ushort *p = (ushort *)&val_fp16;
@@ -1277,3 +1280,6 @@ uchar16 __attribute__((overloadable)) _as_uchar16(fp8e8m0_t16 val) {
                      val.data.s8,  val.data.s9,  val.data.sA, val.data.sB,
                      val.data.sC, val.data.sD, val.data.sE, val.data.sF);
 }
+
+#endif
+
