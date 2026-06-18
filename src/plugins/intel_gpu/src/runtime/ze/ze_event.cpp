@@ -3,11 +3,12 @@
 //
 
 #include "ze_event.hpp"
-#include "ze/ze_common.hpp"
 
 #include <cassert>
 #include <chrono>
 #include <list>
+
+#include "ze/ze_common.hpp"
 
 using namespace cldnn;
 using namespace ze;
@@ -59,7 +60,7 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
         return true;
     }
     ze_kernel_timestamp_result_t timestamp = opt_timestamp.value();
-    auto &dev_info = m_factory.get_engine().get_device_info();
+    auto& dev_info = m_factory.get_engine().get_device_info();
     auto wallclock_time = timestamp_to_duration(dev_info, timestamp.global);
     auto exec_time = timestamp_to_duration(dev_info, timestamp.context);
     auto submit_time = wallclock_time - exec_time;
@@ -70,10 +71,8 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
     auto period_exec = std::make_shared<instrumentation::profiling_period_basic>(exec_time);
     auto period_submit = std::make_shared<instrumentation::profiling_period_basic>(submit_time);
 
-    info.push_back({ instrumentation::profiling_stage::submission, period_submit,
-                     abs_start, true });
-    info.push_back({ instrumentation::profiling_stage::executing, period_exec,
-                     abs_start + submit_time, true });
+    info.push_back({instrumentation::profiling_stage::submission, period_submit, abs_start, true});
+    info.push_back({instrumentation::profiling_stage::executing, period_exec, abs_start + submit_time, true});
 
     return true;
 }
