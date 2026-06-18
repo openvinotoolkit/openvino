@@ -250,7 +250,6 @@ TEST(TransposeFQNoSinkingTest, TransposeFQNotAppliedWhenFQConsumerIsNotTranspose
     auto relu = std::make_shared<ov::op::v0::Relu>(fq);
 
     auto model = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
-    auto model_ref = model->clone();
 
     pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
