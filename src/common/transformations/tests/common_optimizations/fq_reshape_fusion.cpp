@@ -21,6 +21,7 @@
 #include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/init_node_info.hpp"
@@ -289,5 +290,69 @@ TEST_F(TransformationTestsF, FQOptimizations) {
                                                                             Strides{1, 1});
 
         model_ref = std::make_shared<ov::Model>(OutputVector{group_conv}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataSamePrecision) {
+    {
+        const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
+        const auto& il = op::v0::Constant::create(element::f32, Shape{2, 1}, {0});
+        const auto& ih = op::v0::Constant::create(element::f32, Shape{1}, {254});
+        const auto& ol = op::v0::Constant::create(element::f32, Shape{1}, {-14.22});
+        const auto& oh = op::v0::Constant::create(element::f32, Shape{1}, {14.22});
+
+        const auto& fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 255);
+        const auto& reshape = std::make_shared<opset4::Reshape>(
+            fq,
+            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
+            true);
+
+        model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
+    }
+
+    {
+        const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
+        const auto& reshaped_data = std::make_shared<opset4::Reshape>(
+            data,
+            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
+            true);
+
+        const auto& il = op::v0::Constant::create(element::f32, Shape{1, 2, 1, 1}, {0});
+        const auto& ih = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {254});
+        const auto& ol = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {-14.22});
+        const auto& oh = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {14.22});
+
+        const auto& fq = std::make_shared<opset4::FakeQuantize>(reshaped_data, il, ih, ol, oh, 255);
+        model_ref = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataMismatchedPrecision) {
+    {
+        using TypeVector = ov::element::TypeVector;
+
+        const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
+        const auto& il = op::v0::Constant::create(element::f32, Shape{2, 1}, {0});
+        const auto& ih = op::v0::Constant::create(element::f32, Shape{1}, {254});
+        const auto& ol = op::v0::Constant::create(element::f32, Shape{1}, {-14.22});
+        const auto& oh = op::v0::Constant::create(element::f32, Shape{1}, {14.22});
+
+        auto fq_base = opset4::FakeQuantize(data, il, ih, ol, oh, 255);
+        const auto& fq = std::make_shared<ov::op::TypeRelaxed<opset4::FakeQuantize>>(fq_base,
+                                                                                        TypeVector{},
+                                                                                        TypeVector{element::f16});
+        ASSERT_NE(fq->get_input_element_type(0), fq->get_output_element_type(0));
+
+        const auto& reshape = std::make_shared<opset4::Reshape>(
+            fq,
+            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
+            true);
+
+        model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
+        model_ref = model->clone();
+
+        manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
     }
 }

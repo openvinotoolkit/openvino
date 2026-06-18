@@ -20,6 +20,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -28,6 +29,7 @@ using namespace testing;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+
 TEST_F(TransformationTestsF, FQTransposeTest1) {
     {
         auto data = v0::Constant::create(element::f32, Shape{1, 1, 3}, {1, 2, 3});
@@ -126,6 +128,35 @@ TEST_F(TransformationTestsF, FQTransposeNegativeMultipleConsumers) {
     };
 
     model = create_graph();
+    model_ref = model->clone();
+
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
+    manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ov::Model> f) {
+        check_rt_info(f);
+    });
+}
+
+TEST_F(TransformationTestsF, FQTransposeNegativeMismatchedPrecision) {
+    using TypeVector = ov::element::TypeVector;
+
+    auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 3, 1});
+    auto sigmoid = std::make_shared<v0::Sigmoid>(data);
+    auto input_low = v0::Constant::create(element::f32, Shape{1}, {2});
+    auto input_high = v0::Constant::create(element::f32, Shape{1}, {3});
+    auto output_low = v0::Constant::create(element::f32, Shape{1}, {2});
+    auto output_high = v0::Constant::create(element::f32, Shape{1}, {3});
+    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+
+    auto fq_base = v0::FakeQuantize(sigmoid, input_low, input_high, output_low, output_high, 1);
+    auto fq = std::make_shared<ov::op::TypeRelaxed<v0::FakeQuantize>>(fq_base,
+                                                                       TypeVector{},
+                                                                       TypeVector{element::f16});
+    ASSERT_NE(fq->get_input_element_type(0), fq->get_output_element_type(0));
+
+    auto transpose = std::make_shared<v1::Transpose>(fq, transpose_order);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{data});
     model_ref = model->clone();
 
     manager.register_pass<ov::pass::InitNodeInfo>();
