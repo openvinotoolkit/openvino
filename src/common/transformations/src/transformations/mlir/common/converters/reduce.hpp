@@ -92,7 +92,8 @@ struct ConvertReduce {
             auto divisor = ::mlir::arith::ConstantOp::create(builder,
                                                              loc,
                                                              ::mlir::DenseElementsAttr::get(result_type, divisor_attr));
-            result = ::mlir::linalg::DivOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{result})
+            auto empty = ::mlir::tensor::EmptyOp::create(builder, loc, result_type, ValueRange{});
+            result = ::mlir::linalg::DivOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty})
                          .getResult(0);
         }
 
