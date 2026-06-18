@@ -132,7 +132,7 @@ if __name__ == "__main__":
         f.write(model)
 
     # 2. builtin_code path: deprecated_builtin_code = 127 (>= PLACEHOLDER threshold)
-    #    so the builtin_code field is used instead; set it to 9999 > BuiltinOperator_MAX (158).
+    #    so the builtin_code field is used instead; set it to 9999 > BuiltinOperator_MAX (209).
     model = build_minimal_tflite_with_opcode(deprecated_builtin_code=127, builtin_code=9999)
     with open(os.path.join(path_to_model_dir, 'oob_builtin_code.tflite'), 'wb') as f:
         f.write(model)
