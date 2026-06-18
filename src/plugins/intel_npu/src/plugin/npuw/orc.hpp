@@ -209,7 +209,9 @@ void serialize(Stream& stream, std::unordered_map<K, V>& value) {
     if (stream.output()) {
         auto size = value.size();
         stream & size;
-        for (auto& el : value) {
+        // Iterate in sorted key order for deterministic blob output.
+        std::map<K, V> ordered(value.begin(), value.end());
+        for (auto& el : ordered) {
             auto pair = el;
             stream & pair;
         }

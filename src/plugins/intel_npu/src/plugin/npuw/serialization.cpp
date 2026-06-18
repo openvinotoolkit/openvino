@@ -105,6 +105,7 @@ std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyrami
         serialize(stream, *obj);
         return obj;
     } else {
+        NPUW_ASSERT(tag == 1u && "Unknown PyramidAttention serialization tag");
         auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
         serialize(stream, *obj);
         return obj;
