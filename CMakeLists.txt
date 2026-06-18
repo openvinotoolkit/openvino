@@ -4,10 +4,10 @@
 
 if(CPACK_GENERATOR STREQUAL "DEB")
     # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-    cmake_minimum_required(VERSION 3.20)
+    cmake_minimum_required(VERSION 3.20...3.30)
 else()
     # 3.18: default choice as minimum version for onnx 1.18
-    cmake_minimum_required(VERSION 3.18)
+    cmake_minimum_required(VERSION 3.18...3.30)
 endif()
 
 if(POLICY CMP0091)
