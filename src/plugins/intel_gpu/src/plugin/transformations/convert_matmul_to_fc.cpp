@@ -94,17 +94,6 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             }
         }
 
-        bool has_bias = false;
-
-        for (const auto& target_input : matmul->output(0).get_target_inputs()) {
-           auto consumer = target_input.get_node()->shared_from_this();
-           // Check if the consumer is an Add node
-           if (auto add = ov::as_type_ptr<ov::op::v1::Add>(consumer)) {
-               if (ov::is_type<ov::op::v0::Constant>(ov::as_type_ptr<ov::op::v1::Add>(consumer)->get_input_node_shared_ptr(1)))
-                   has_bias = true;
-           }
-        }
-
         // If 'fc_input_b' is shared with another matmul, transposing 'fc_input_b' is restricted.
         // If it is connected to the 'input_a' of another matmul, do not transpose
         // If it is connected to the 'input_b' of another matmul and the transpose option differs between the two matmuls, do not transpose.
@@ -251,9 +240,6 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                  is_small_matmul = false;
              }
         }
-
-        if (has_bias)
-            is_small_matmul = true;
 
         if (is_small_matmul) {
             // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
