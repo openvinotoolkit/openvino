@@ -52,6 +52,7 @@ private:
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
+        bool compatibilityCheckSupported;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
@@ -63,12 +64,8 @@ private:
 
     void registerProperties() const;
     void registerPluginProperties() const;
-    bool disableCompatibilityCheckIfNeeded() const;
+    void initializeCompatibilityCheckSupportIfNeeded() const;
     bool isPropertyRegistered(const std::string& propertyName) const;
-    ov::intel_npu::CompilerType determineCompilerTypeForCompatibilityCheck() const;
-
-    ov::CompatibilityCheck validateCompatibilityDescriptor(ov::intel_npu::CompilerType compilerType,
-                                                           const ov::AnyMap& arguments) const;
 
     mutable FilteredConfig _config;
 
@@ -78,6 +75,7 @@ private:
 
     mutable ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
     mutable ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
+    mutable bool _compatibilityCheckSupported = false;
     mutable std::string _currentlyUsedPlatform;
     mutable bool _compilerConfigsFilteredByCompiler = false;
     mutable bool _compatibilityCheckFiltered = false;

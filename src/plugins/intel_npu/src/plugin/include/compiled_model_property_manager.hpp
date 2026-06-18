@@ -34,7 +34,6 @@ public:
 
 private:
     void registerProperties();
-    std::string buildRuntimeRequirements() const;
 
     FilteredConfig _config;
 

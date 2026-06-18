@@ -158,6 +158,71 @@ void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     }
 }
 
+bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
+    using namespace intel_npu;
+
+    const auto initStructs = backend ? backend->getInitStructs() : nullptr;
+    if (initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
+        return true;
+    }
+
+    // Fallback to plugin compiler if the driver does not expose compatibility check API.
+    CompilerAdapterFactory compilerFactory;
+    auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+    try {
+        auto tempCompiler = compilerFactory.getCompiler(backend, compilerType, std::string_view{});
+        return tempCompiler->is_option_supported(ov::compatibility_check.name());
+    } catch (...) {
+        return false;
+    }
+}
+
+ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                                                       const ov::AnyMap& arguments) {
+    using namespace intel_npu;
+
+    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
+    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
+
+    std::unique_ptr<MetadataBase> metadata = nullptr;
+    try {
+        metadata = read_as_text(runtimeRequirements);
+    } catch (...) {
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
+
+    const auto descriptorView = metadata->get_compatibility_descriptor();
+    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
+
+    if (compatibilityDescriptor.empty()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
+    const auto device = backend ? backend->getDevice() : nullptr;
+    const auto initStructs = backend ? backend->getInitStructs() : nullptr;
+
+    if (device != nullptr && initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
+        auto result = device->validateCompatibilityDescriptor(compatibilityDescriptor);
+        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+    }
+
+    // fallback on compiler in plugin if driver does not support compatibility check
+    CompilerAdapterFactory factory;
+    auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+    try {
+        auto compiler = factory.getCompiler(backend, compilerType, std::string_view{});
+
+        auto result =
+            compiler->is_option_supported(ov::compatibility_check.name(), std::make_optional(compatibilityDescriptor));
+        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+    } catch (...) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -182,6 +247,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
                            other._logger,
                            other._currentlyUsedCompiler,
                            other._compilerForCompatibilityCheck,
+                           other._compatibilityCheckSupported,
                            other._currentlyUsedPlatform,
                            other._compilerConfigsFilteredByCompiler,
                            other._compatibilityCheckFiltered,
@@ -196,6 +262,7 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
       _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
       _compilerForCompatibilityCheck(state._compilerForCompatibilityCheck),
+      _compatibilityCheckSupported(state.compatibilityCheckSupported),
       _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
       _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
       _compatibilityCheckFiltered(state.compatibilityCheckFiltered),
@@ -316,16 +383,6 @@ void PluginPropertyManager::registerPluginProperties() const {
             return false;
         }());
 
-    if (_config.isAvailable(ov::compatibility_check.name())) {
-        register_named_property_with_args(
-            _properties,
-            ov::compatibility_check.name(),
-            true,
-            ov::PropertyMutability::RO,
-            [this](const Config&, const ov::AnyMap& arguments) {
-                return validateCompatibilityDescriptor(determineCompilerTypeForCompatibilityCheck(), arguments);
-            });
-    }
     try_register_custom_property(_config,
                                  _properties,
                                  ov::cache_encryption_callbacks,
@@ -453,6 +510,44 @@ void PluginPropertyManager::registerPluginProperties() const {
             }
             return caching_props;
         });
+    }
+
+    register_named_property_with_args(_properties,
+                                      ov::compatibility_check.name(),
+                                      _compatibilityCheckFiltered && _compatibilityCheckSupported,
+                                      ov::PropertyMutability::RO,
+                                      [this](const Config&, const ov::AnyMap& arguments) {
+                                          return validateCompatibilityDescriptor(_backend, arguments);
+                                      });
+}
+
+void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() const {
+    if (_compatibilityCheckFiltered) {
+        return;
+    }
+
+    _compatibilityCheckSupported = isCompatibilityCheckSupported(_backend);
+    _compatibilityCheckFiltered = true;
+
+    const auto compatibilityCheckName = std::string(ov::compatibility_check.name());
+
+    // Keep only one descriptor for this property and update it after the one-time probe.
+    _properties.erase(compatibilityCheckName);
+
+    register_named_property_with_args(_properties,
+                                      compatibilityCheckName,
+                                      _compatibilityCheckSupported,
+                                      ov::PropertyMutability::RO,
+                                      [this](const Config&, const ov::AnyMap& arguments) {
+                                          return validateCompatibilityDescriptor(_backend, arguments);
+                                      });
+
+    // Update supported_properties incrementally for compatibility_check only.
+    _supportedProperties.erase(
+        std::remove(_supportedProperties.begin(), _supportedProperties.end(), compatibilityCheckName),
+        _supportedProperties.end());
+    if (_compatibilityCheckSupported) {
+        _supportedProperties.emplace_back(ov::PropertyName(compatibilityCheckName, ov::PropertyMutability::RO));
     }
 }
 
@@ -587,6 +682,10 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
         logCpuPinningDeprecationWarning(_logger);
     }
 
+    if (name == ov::supported_properties.name() || name == ov::compatibility_check.name()) {
+        initializeCompatibilityCheckSupportIfNeeded();
+    }
+
     bool propertyIsCompilerConfig = false;
     bool propertyIsRegistered = true;
     // If the property is not registered, there is no point of checking the config.
@@ -601,10 +700,6 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
         }
     }
 
-    bool needToResetProperties = false;
-    if (name == ov::compatibility_check.name() || name == ov::supported_properties.name()) {
-        needToResetProperties = disableCompatibilityCheckIfNeeded();
-    }
     // Special case for Supported Properties and Caching Properties as they are compiler dependent. So we need to
     // check compiler support for those properties on each getProperty call as well.
     if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name() ||
@@ -640,16 +735,12 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
             // filter out options again
             filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
 
+            // reset properties for the new options
+            registerProperties();
             _compilerConfigsFilteredByCompiler = true;
             _currentlyUsedCompiler = compilerType;
             _currentlyUsedPlatform = std::move(compilationPlatform);
-            needToResetProperties = true;
         }
-    }
-
-    if (needToResetProperties) {
-        // reset properties for the new options
-        registerProperties();
     }
 
     auto&& configIterator = _properties.find(name);
@@ -691,20 +782,16 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
         logCpuPinningDeprecationWarning(_logger);
     }
 
+    if (name == ov::compatibility_check.name()) {
+        initializeCompatibilityCheckSupportIfNeeded();
+    }
+
     const bool isRegistered = isPropertyRegistered(name);
     const bool isConfigOption = _config.hasOpt(name);
 
     if (!isRegistered && !isConfigOption) {
         // Property is neither registered nor known by config
         return false;
-    }
-
-    if (name == ov::compatibility_check.name()) {
-        bool disabled = disableCompatibilityCheckIfNeeded();
-        if (disabled) {
-            registerProperties();
-            return false;
-        }
     }
 
     if (isRegistered) {
@@ -911,90 +998,6 @@ ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerType(const o
 
 bool PluginPropertyManager::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
-}
-
-bool PluginPropertyManager::disableCompatibilityCheckIfNeeded() const {
-    if (_compatibilityCheckFiltered) {
-        return false;
-    }
-
-    _compatibilityCheckFiltered = true;
-
-    CompilerAdapterFactory factory;
-    auto compilerType = ov::intel_npu::CompilerType::DRIVER;
-    try {
-        auto tempCompiler = factory.getCompiler(_backend, compilerType, std::string_view{});
-        if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
-            compilerType = ov::intel_npu::CompilerType::PLUGIN;
-            try {
-                tempCompiler = factory.getCompiler(_backend, compilerType, std::string_view{});
-                if (!tempCompiler->is_option_supported(ov::compatibility_check.name())) {
-                    _logger.debug("Neither CID nor CIP support the compatibility check! Disabling the property.");
-                    _config.enable(ov::compatibility_check.name(), false);
-                    return true;
-                }
-                _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::PLUGIN;
-            } catch (const std::exception&) {
-                _logger.debug("CIP is not present! Disabling the compatibility check property.");
-                _config.enable(ov::compatibility_check.name(), false);
-                return true;
-            }
-        } else {
-            _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
-        }
-    } catch (const std::exception&) {
-        _logger.debug("Driver is not present! Disabling the compatibility check property.");
-        _config.enable(ov::compatibility_check.name(), false);
-        return true;
-    }
-
-    return false;
-}
-
-ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerTypeForCompatibilityCheck() const {
-    return _compilerForCompatibilityCheck;
-}
-
-ov::CompatibilityCheck PluginPropertyManager::validateCompatibilityDescriptor(ov::intel_npu::CompilerType compilerType,
-                                                                              const ov::AnyMap& arguments) const {
-    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-
-    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-    _logger.debug("Received runtime_requirements: %s length: %zu",
-                  runtimeRequirements.c_str(),
-                  runtimeRequirements.length());
-
-    std::unique_ptr<MetadataBase> metadata = nullptr;
-    try {
-        metadata = read_as_text(runtimeRequirements);
-    } catch (const std::exception& ex) {
-        _logger.debug("Failed to read metadata from the runtime requirements. The requirements are not met. %s",
-                      ex.what());
-        return ov::CompatibilityCheck::UNSUPPORTED;
-    }
-
-    const auto descriptorView = metadata->get_compatibility_descriptor();
-    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
-    _logger.debug("Retrieved compatibility descriptor from metadata: %s length: %zu",
-                  compatibilityDescriptor.c_str(),
-                  compatibilityDescriptor.length());
-
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    CompilerAdapterFactory factory;
-    try {
-        compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
-
-        auto result = compiler->validate_compatibility_descriptor(compatibilityDescriptor);
-        _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
-        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
-    } catch (const std::exception&) {
-        _logger.error("Failed to create the recommended compiler type for the compatibility check %d. The requirements "
-                      "are not met.",
-                      static_cast<int>(compilerType));
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
 }
 
 }  // namespace intel_npu

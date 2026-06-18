@@ -39,10 +39,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    if (!_graph->get_compatibility_descriptor().has_value()) {
-        _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
-        localConfig.enable(ov::runtime_requirements.name(), false);
-    }
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);

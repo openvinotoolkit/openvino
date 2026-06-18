@@ -10,17 +10,51 @@
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 
-namespace intel_npu {
-
 namespace {
 
-inline void logCpuPinningDeprecationWarning(Logger& logger) {
+inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    logger.warning(ENABLE_CPU_PINNING::deprecationMessage());
+    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& graph,
+                                     const std::optional<int64_t>& batchSize,
+                                     intel_npu::Logger& logger) {
+    OPENVINO_ASSERT(graph != nullptr, "Missing graph");
+
+    auto compatibilityDescriptor = graph->get_compatibility_descriptor();
+    if (!compatibilityDescriptor.has_value()) {
+        OPENVINO_THROW("RUNTIME_REQUIREMENTS can not be generated for this compiled model.");
+    }
+    const auto descriptorView = compatibilityDescriptor.value();
+    logger.debug("Runtime requirements from the graph %.*s length: %zu",
+                 static_cast<int>(descriptorView.size()),
+                 descriptorView.data(),
+                 descriptorView.size());
+
+    std::ostringstream requirementsString;
+    intel_npu::Metadata<intel_npu::CURRENT_METADATA_VERSION>(0,
+                                                             intel_npu::CURRENT_OPENVINO_VERSION,
+                                                             std::nullopt,
+                                                             batchSize,
+                                                             std::nullopt,
+                                                             std::nullopt,
+                                                             std::nullopt,
+                                                             std::nullopt,
+                                                             compatibilityDescriptor)
+        .write_as_text(requirementsString);
+
+    logger.debug("Runtime requirements string: %s length: %zu",
+                 requirementsString.str().c_str(),
+                 requirementsString.str().length());
+
+    return requirementsString.str();
+}
+
 }  // namespace
+
+namespace intel_npu {
 
 CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
                                                            const std::shared_ptr<IGraph>& graph,
@@ -218,11 +252,14 @@ void CompiledModelPropertyManager::registerProperties() {
     register_custom_metric(_properties, ov::execution_devices, true, [](const Config&) {
         return ov::Any(std::string("NPU"));
     });
-    if (_config.isAvailable(ov::runtime_requirements.name())) {
-        register_custom_metric(_properties, ov::runtime_requirements, true, [this](const Config&) {
-            return ov::Any(buildRuntimeRequirements());
-        });
-    }
+
+    register_custom_metric(_properties,
+                           ov::runtime_requirements,
+                           _graph != nullptr && _graph->get_compatibility_descriptor().has_value(),
+                           [this](const Config&) {
+                               return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
+                           });
+
     register_custom_metric(_properties, ov::supported_properties, true, [this](const Config&) {
         return ov::Any(_supportedProperties);
     });
@@ -232,37 +269,6 @@ void CompiledModelPropertyManager::registerProperties() {
             _supportedProperties.emplace_back(property.first, property.second.mutability);
         }
     }
-}
-
-std::string CompiledModelPropertyManager::buildRuntimeRequirements() const {
-    OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
-
-    auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
-    if (compatibilityDescriptor.has_value()) {
-        const auto descriptorView = compatibilityDescriptor.value();
-        _logger.debug("Runtime requirements from the graph %.*s length: %zu",
-                      static_cast<int>(descriptorView.size()),
-                      descriptorView.data(),
-                      descriptorView.size());
-    }
-
-    std::ostringstream requirementsString;
-    Metadata<CURRENT_METADATA_VERSION>(0,
-                                       CURRENT_OPENVINO_VERSION,
-                                       std::nullopt,
-                                       _batchSize,
-                                       std::nullopt,
-                                       std::nullopt,
-                                       std::nullopt,
-                                       std::nullopt,
-                                       compatibilityDescriptor)
-        .write_as_text(requirementsString);
-
-    _logger.debug("Runtime requirements string: %s length: %zu",
-                  requirementsString.str().c_str(),
-                  requirementsString.str().length());
-
-    return requirementsString.str();
 }
 
 }  // namespace intel_npu
