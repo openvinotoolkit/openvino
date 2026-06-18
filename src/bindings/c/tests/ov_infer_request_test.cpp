@@ -414,6 +414,7 @@ TEST_P(ov_infer_request_test, get_profiling_info) {
     OV_EXPECT_OK(ov_infer_request_get_profiling_info(infer_request, &profiling_infos));
     EXPECT_NE(0, profiling_infos.size);
     EXPECT_NE(nullptr, profiling_infos.profiling_infos);
+    EXPECT_GE(profiling_infos.profiling_infos[0].start_time, 0);
 
     ov_profiling_info_list_free(&profiling_infos);
 }

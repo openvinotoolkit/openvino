@@ -4220,6 +4220,7 @@ class ProfilingInfo:
     exec_type: str
     node_name: str
     node_type: str
+    start_time: datetime.timedelta
     real_time: datetime.timedelta
     status: ProfilingInfo.Status
     def __init__(self) -> None:

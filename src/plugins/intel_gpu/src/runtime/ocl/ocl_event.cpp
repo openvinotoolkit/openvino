@@ -28,7 +28,7 @@ bool is_event_profiled(const cl::Event& event) {
 instrumentation::profiling_interval get_profiling_interval(instrumentation::profiling_stage stage, cl_ulong start,  cl_ulong end) {
     auto diff = std::chrono::nanoseconds(end - start);
     auto period = std::make_shared<instrumentation::profiling_period_basic>(diff);
-    return { stage, period };
+    return { stage, period, std::chrono::nanoseconds(start), true };
 }
 
 }  // namespace
@@ -219,12 +219,23 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
     }
 
     for (auto& period : profiling_periods) {
+        auto& durations = all_durations[period.stage];
+        if (durations.empty()) {
+            auto zero_period = std::make_shared<instrumentation::profiling_period_basic>(std::chrono::nanoseconds(0));
+            info.push_back({period.stage, zero_period});
+            continue;
+        }
+
+        // Find min start across all merged (non-overlapping) intervals for this stage.
+        // The OCL timestamps are absolute nanoseconds from the device profiling clock.
+        unsigned long long min_start = durations.front().first;
         unsigned long long sum = 0;
-        for (auto& duration : all_durations[period.stage]) {
+        for (auto& duration : durations) {
+            if (duration.first < min_start) min_start = duration.first;
             sum += (duration.second - duration.first);
         }
 
-        info.push_back(get_profiling_interval(period.stage, 0, sum));
+        info.push_back(get_profiling_interval(period.stage, min_start, min_start + sum));
     }
 
     return true;

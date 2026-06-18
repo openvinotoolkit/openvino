@@ -43,6 +43,7 @@ typedef struct {
         EXECUTED            //!< A node is executed.
     } status;               //!< status
     int64_t real_time;      //!< The absolute time, in microseconds, that the node ran (in total).
+    int64_t start_time;     //!< The backend-specific timestamp, in microseconds, when the node started.
     int64_t cpu_time;       //!< The net host CPU time that the node ran.
     const char* node_name;  //!< Name of a node.
     const char* exec_type;  //!< Execution type of a unit.
