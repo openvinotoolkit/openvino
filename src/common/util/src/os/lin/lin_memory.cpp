@@ -4,10 +4,12 @@
 
 #include <sys/mman.h>
 
+#include <cassert>
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <tuple>
 
 #include "openvino/util/memory.hpp"
 
@@ -24,39 +26,40 @@ void aligned_free(void* ptr) noexcept {
     std::free(ptr);
 }
 
-void* reserve_buffer(size_t size, std::string* error) noexcept {
+void* vm_reserve(size_t size, std::error_code& ec) noexcept {
     const auto p = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) {
-        if (error) {
-            *error = std::string{"mmap failed, err: "} + std::strerror(errno);
-        }
+        ec = std::error_code(errno, std::system_category());
         return nullptr;
     }
+    ec = {};
     return p;
 }
 
-void acquire_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
-    if (mprotect(reserved_buffer, size, PROT_READ | PROT_WRITE) == -1) {
-        if (error) {
-            *error = std::string{"mprotect failed, err: "} + std::strerror(errno);
-        }
+void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
+    if (mprotect(ptr, size, PROT_READ | PROT_WRITE) == -1) {
+        ec = std::error_code(errno, std::system_category());
+    } else {
+        ec = {};
     }
 }
 
-void evict_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
-    if (mmap(reserved_buffer, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
-        if (error) {
-            *error = std::string{"mprotect failed, err: "} + std::strerror(errno);
-        }
-    }
+void vm_decommit(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
+#if defined(__linux__)
+    std::ignore = mprotect(ptr, size, PROT_NONE);
+    std::ignore = madvise(ptr, size, MADV_DONTNEED);
+#elif defined(__APPLE__) && defined(MADV_FREE_REUSABLE)
+    std::ignore = mprotect(ptr, size, PROT_NONE);
+    std::ignore = madvise(ptr, size, MADV_FREE_REUSABLE);
+#else
+    std::ignore = mmap(ptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+#endif
 }
 
-void release_buffer(void* reserved_buffer, size_t byte_size, std::string* error) noexcept {
-    if (munmap(reserved_buffer, byte_size) == -1) {
-        if (error) {
-            *error = std::string{"munmap failed, err: "} + std::strerror(errno);
-        }
-    }
+void vm_release(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
+    std::ignore = munmap(ptr, size);
 }
 
 }  // namespace ov::util
