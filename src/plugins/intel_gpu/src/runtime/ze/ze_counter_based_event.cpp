@@ -3,11 +3,12 @@
 //
 
 #include "ze_counter_based_event.hpp"
-#include "ze/ze_common.hpp"
 
 #include <cassert>
 #include <chrono>
 #include <list>
+
+#include "ze/ze_common.hpp"
 
 using namespace cldnn;
 using namespace ze;
@@ -54,7 +55,7 @@ bool ze_counter_based_event::get_profiling_info_impl(std::list<instrumentation::
         return true;
     }
     ze_kernel_timestamp_result_t timestamp = opt_timestamp.value();
-    auto &dev_info = m_factory.get_engine().get_device_info();
+    auto& dev_info = m_factory.get_engine().get_device_info();
     auto wallclock_time = timestamp_to_duration(dev_info, timestamp.global);
     auto exec_time = timestamp_to_duration(dev_info, timestamp.context);
     auto submit_time = wallclock_time - exec_time;
@@ -68,10 +69,8 @@ bool ze_counter_based_event::get_profiling_info_impl(std::list<instrumentation::
     // Report start + duration for upper-layer profiling. Real end timestamp is intentionally omitted.
     auto exec_start = abs_start + submit_time;
 
-    info.push_back({ instrumentation::profiling_stage::submission, period_submit,
-                     abs_start, true });
-    info.push_back({ instrumentation::profiling_stage::executing, period_exec,
-                     exec_start, true });
+    info.push_back({instrumentation::profiling_stage::submission, period_submit, abs_start, true});
+    info.push_back({instrumentation::profiling_stage::executing, period_exec, exec_start, true});
 
     return true;
 }
