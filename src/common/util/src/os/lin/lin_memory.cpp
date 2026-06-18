@@ -15,6 +15,7 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -29,19 +30,17 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
     // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    const size_t pages = size / page_size;
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    const auto chunk_size = std::max<size_t>(align_size_up(size / num_threads, page_size), 1024 * 1024);
 
-    const auto base = reinterpret_cast<const uint8_t*>(ptr);
     std::vector<std::thread> threads;
-    threads.reserve(num_threads);
+    threads.reserve(ceil_div(size, chunk_size));
 
-    for (size_t tid = 0; tid < num_threads; ++tid) {
-        threads.emplace_back([&, tid] {
+    for (auto page = reinterpret_cast<const uint8_t*>(ptr), end = page + size; page < end; page += chunk_size) {
+        threads.emplace_back([page, chunk_end = std::min(page + chunk_size, end), page_size] {
             volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
-            const size_t last = pages * (tid + 1) / num_threads;
-            for (size_t first = pages * tid / num_threads; first < last; ++first) {
-                local += base[first * page_size];
+            for (auto p = page; p < chunk_end; p += page_size) {
+                local += *p;
             }
         });
     }
@@ -101,7 +100,7 @@ void vm_release(void* ptr, size_t size) noexcept {
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
-    // assert if region is not mmap-baked.
+    // assert if region is not mmap-backed.
 
     if (num_threads == 0) {
         // Option 1: OS advisory hints — async, low overhead.
