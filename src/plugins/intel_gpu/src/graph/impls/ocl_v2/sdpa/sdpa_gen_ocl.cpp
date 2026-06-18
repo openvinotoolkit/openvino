@@ -26,8 +26,9 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 static constexpr int SubgroupSize = 16;
-static constexpr int sgPerWG = 8;
-static constexpr int wgTileQ = 64;
+static constexpr int sgPerWG = 32;
+static constexpr int wgTileK = 256;
+static constexpr int wgTileQ = 128;
 
 size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
@@ -656,13 +657,13 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             const auto& out = params.output_layouts[0];
             const auto& out_ps = out.get_partial_shape();
 
-            const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, wgTileQ);
+            const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, wgTileK);
             const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, wgTileQ);
             const auto v_head_size = micro_get_head_size(params, 2);
 
             size_t q = n_queries.get_length();
 
-            wgs.local = {16, 8, 1};
+            wgs.local = {SubgroupSize, sgPerWG, 1};
             wgs.global = wgs.local;
             wgs.global[0] = wgs.global[0] * ((q + wgTileQ - 1) / wgTileQ);
             wgs.global[1] *= out_ps[1].get_length();
