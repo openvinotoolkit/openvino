@@ -315,6 +315,7 @@ void PluginPropertyManager::registerPluginProperties() const {
             }
             return false;
         }());
+
     if (_config.isAvailable(ov::compatibility_check.name())) {
         register_named_property_with_args(
             _properties,
@@ -656,6 +657,10 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
         if (configIterator->second.mutability == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());
             return ov::Any();
+        }
+        // Check if property requires arguments (registered with register_named_property_with_args)
+        if (configIterator->second.getWithArgs) {
+            return configIterator->second.getWithArgs(_config, arguments);
         }
         return configIterator->second.get(_config);
     }
