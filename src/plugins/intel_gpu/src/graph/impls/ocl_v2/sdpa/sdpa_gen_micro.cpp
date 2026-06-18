@@ -1334,8 +1334,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_qq_bias = desc->has_qq_bias;
         if (m_is_prefill) {
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
-                            paged_attention_micro_sdpa_prefill_key_buffer_idx});  // Key
+            if (requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
+                                paged_attention_micro_sdpa_prefill_key_buffer_idx});  // Key
+            } else {
+                args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
+            }
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
             args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // Value
         } else {

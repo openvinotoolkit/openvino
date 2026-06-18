@@ -1545,7 +1545,9 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
-                res_event = {copy_key_to_tail_padded_buffer(res_event, instance)};
+                if (requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
+                    res_event = {copy_key_to_tail_padded_buffer(res_event, instance)};
+                }
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             } else
 #endif
@@ -1769,7 +1771,8 @@ public:
                             "[GPU] Unexpected Paged Attention micro-SDPA mapping buffer index");
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
 
-            if (stage == PagedAttentionStage::PREFILL) {
+            if (stage == PagedAttentionStage::PREFILL &&
+                requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
                 const auto key_tile_tokens = get_micro_tile_ksize(pa_sdpa_micro->kd);
                 const auto rounded_key_bytes = get_rounded_key_buffer_bytes(params, key_tile_tokens);
                 OPENVINO_ASSERT(internal_buffers.size() == paged_attention_micro_sdpa_prefill_key_buffer_idx,
