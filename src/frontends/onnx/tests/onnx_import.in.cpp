@@ -580,6 +580,62 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6) {
+    auto model = convert_model("relu_opset6.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
+    auto model = convert_model("relu_opset13.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::bfloat16>(
+        {ov::bfloat16(-1), ov::bfloat16(-2), ov::bfloat16(0), ov::bfloat16(1), ov::bfloat16(2), ov::bfloat16(3)});
+    test_case.add_expected_output<ov::bfloat16>(
+        {ov::bfloat16(0), ov::bfloat16(0), ov::bfloat16(0), ov::bfloat16(1), ov::bfloat16(2), ov::bfloat16(3)});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int8) {
+    auto model = convert_model("relu_opset14_int8.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int8_t>({-3, -1, 0, 1, 2, 5});
+    test_case.add_expected_output<int8_t>({0, 0, 0, 1, 2, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int16) {
+    auto model = convert_model("relu_opset14_int16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int16_t>({-300, -1, 0, 1, 200, 500});
+    test_case.add_expected_output<int16_t>({0, 0, 0, 1, 200, 500});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int32) {
+    auto model = convert_model("relu_opset14_int32.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int32_t>({-100000, -1, 0, 1, 200000, 500000});
+    test_case.add_expected_output<int32_t>({0, 0, 0, 1, 200000, 500000});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14_int64) {
+    auto model = convert_model("relu_opset14_int64.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({-1000000000LL, -1, 0, 1, 1000000000LL, 2000000000LL});
+    test_case.add_expected_output<int64_t>({0, 0, 0, 1, 1000000000LL, 2000000000LL});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sum_opset1) {
     // Simple Sum test for opset1.
     auto model = convert_model("sum_opset1.onnx");
@@ -3626,8 +3682,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
-    EXPECT_THROW(convert_model("scatter_nd_opset16_reduction_add.onnx"), ov::Exception)
-        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+    const auto model = convert_model("scatter_nd_opset16_reduction_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Duplicate indices (1 appears twice) exercise the `add` reduction:
+    // updates 10 and 12 both target index 1, so result[1] = 2 + 10 + 12 = 24.
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_input<int64_t>({4, 1, 1, 7});
+    test_case.add_input<float>({9.f, 10.f, 12.f, 11.f});
+    test_case.add_expected_output<float>(Shape{8}, {1.f, 24.f, 3.f, 4.f, 14.f, 6.f, 7.f, 19.f});
+
+    test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {

@@ -17,7 +17,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/elu.hpp"
-#include "openvino/op/gelu.hpp"
 #include "openvino/op/round.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/general_utils.h"
@@ -117,12 +116,12 @@ public:
     }
 };
 
-class jit_gelu_v0_emitter : public jit_dnnl_emitter {
+class jit_gelu_erf_emitter : public jit_dnnl_emitter {
 public:
-    jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
-                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& n,
-                        ov::element::Type exec_prc = ov::element::f32)
+    jit_gelu_erf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
+                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                         const std::shared_ptr<ov::Node>& n,
+                         ov::element::Type exec_prc = ov::element::f32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         kind = dnnl_eltwise_gelu_erf;
 
@@ -130,24 +129,14 @@ public:
     }
 };
 
-class jit_gelu_v7_emitter : public jit_dnnl_emitter {
+class jit_gelu_tanh_emitter : public jit_dnnl_emitter {
 public:
-    jit_gelu_v7_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
-                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                        const std::shared_ptr<ov::Node>& n,
-                        ov::element::Type exec_prc = ov::element::f32)
+    jit_gelu_tanh_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
+                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                          const std::shared_ptr<ov::Node>& n,
+                          ov::element::Type exec_prc = ov::element::f32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
-        auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(n);
-        ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-        if (approximationMode == ov::op::GeluApproximationMode::ERF) {
-            kind = dnnl_eltwise_gelu_erf;
-        } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
-            kind = dnnl_eltwise_gelu_tanh;
-        } else {
-            OPENVINO_THROW_NOT_IMPLEMENTED(
-                "Subgraph node doesn't support ngraph operation Gelu with approximation mode: ",
-                approximationMode);
-        }
+        kind = dnnl_eltwise_gelu_tanh;
 
         set_injector();
     }
