@@ -133,7 +133,7 @@ void parse_pre_process(pugi::xml_node& root,
                                    " x ",
                                    input_type.size());
                 }
-                if (const_offset > weights_provider->size() || const_size > weights_provider->size() - const_offset) {
+                if (const_offset + const_size > weights_provider->size()) {
                     OPENVINO_THROW("mean value offset and size are out of weights size range");
                 }
                 mean_values.insert({chanNo, {const_size, const_offset}});
