@@ -7,23 +7,23 @@
 
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
-#define KQ_WG_TILE_KEYS      128
-#define KQ_WG_TILE_QUERIES   64
-#define KQ_SG_PER_WG_KEYS    4
-#define KQ_SG_PER_WG_QUERIES 2
+#define KQ_WG_TILE_KEYS      256
+#define KQ_WG_TILE_QUERIES   128
+#define KQ_SG_PER_WG_KEYS    8
+#define KQ_SG_PER_WG_QUERIES 4
 #define KQ_SG_TILE_KEYS      (KQ_WG_TILE_KEYS / KQ_SG_PER_WG_KEYS)    // 32
 #define KQ_SG_TILE_QUERIES   (KQ_WG_TILE_QUERIES / KQ_SG_PER_WG_QUERIES)    // 32
 #define KQ_MB                (KQ_SG_TILE_KEYS / 8)       // 4
 #define KQ_QB                (KQ_SG_TILE_QUERIES / 16)      // 2
 
-#define ugemm_vs_sg_per_wg_m 2
-#define ugemm_vs_sg_per_wg_n 4
-#define ugemm_vs_sg_tile_m   (D_MAX / ugemm_vs_sg_per_wg_m)                 // 32
-#define ugemm_vs_sg_tile_n   (KQ_WG_TILE_QUERIES / ugemm_vs_sg_per_wg_n)    // 16
+#define ugemm_vs_sg_per_wg_m ((D_MAX <= 64) ? 2 : 4)
+#define ugemm_vs_sg_per_wg_n (sg_per_wg / ugemm_vs_sg_per_wg_m)
+#define ugemm_vs_sg_tile_m   (D_MAX / ugemm_vs_sg_per_wg_m)
+#define ugemm_vs_sg_tile_n   (KQ_WG_TILE_QUERIES / ugemm_vs_sg_per_wg_n)
 #define VS_DB                (ugemm_vs_sg_tile_m / 16)      // 2
-#define VS_QB                (ugemm_vs_sg_tile_n / 8)       // 2
-#define VS_KB                (KQ_WG_TILE_KEYS / 16)      // 8
-#define Q_BLOCKS             (KQ_WG_TILE_QUERIES / SUBGROUP_SIZE)   // 4
+#define VS_QB                (ugemm_vs_sg_tile_n / 8)
+#define VS_KB                (KQ_WG_TILE_KEYS / 16)
+#define Q_BLOCKS             (KQ_WG_TILE_QUERIES / SUBGROUP_SIZE)
 
 #define sg_per_wg (KQ_SG_PER_WG_KEYS * KQ_SG_PER_WG_QUERIES)
 
@@ -139,6 +139,33 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         for (int ii = 0; ii < KQ_SG_TILE_KEYS / SUBGROUP_SIZE; ++ii)
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
 
+        #if WITH_ATTN_MASK
+            half16 mask_full[KQ_QB][KQ_SG_TILE_KEYS / SUBGROUP_SIZE];
+            if (MSK_D2 > 1 && MSK_D3 > 1) {
+                #pragma unroll
+                for (int qb = 0; qb < KQ_QB; ++qb) {
+                    const int mask_query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane;
+                    #pragma unroll
+                    for (int ii = 0; ii < KQ_SG_TILE_KEYS / SUBGROUP_SIZE; ++ii) {
+                        const int mask_key = key_base + ii * SUBGROUP_SIZE;
+                        half16 mv = (half16)0.0f;
+                        if (mask_query < q) {
+                            if (mask_key + SUBGROUP_SIZE <= k) {
+                                mv = vload16(0, msk + MSK_OFF(0, 0, mask_query, mask_key));
+                            } else {
+                                #pragma unroll
+                                for (int kk = 0; kk < SUBGROUP_SIZE; ++kk) {
+                                    if (mask_key + kk < k)
+                                        mv[kk] = msk[MSK_OFF(0, 0, mask_query, mask_key + kk)];
+                                }
+                            }
+                        }
+                        mask_full[qb][ii] = mv;
+                    }
+                }
+            }
+        #endif
+
         float8 S_tile[KQ_MB][KQ_QB];
         #pragma unroll
         for (int mb = 0; mb < KQ_MB; ++mb)
@@ -196,6 +223,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     #if WITH_ATTN_MASK
                         if (MSK_D2 == 1 && MSK_D3 > 1) {
                             s += sub_group_broadcast(mask_tile_float[mask_idx], mask_lane);
+                        } else if (MSK_D2 > 1 && MSK_D3 > 1) {
+                            s += convert_float(mask_full[qb][mask_idx][mask_lane]) * iscale;
                         } else if (query < q && key < k) {
                             const int mask_query = (MSK_D2 == 1) ? 0 : query;
                             const int mask_key = (MSK_D3 == 1) ? 0 : key;

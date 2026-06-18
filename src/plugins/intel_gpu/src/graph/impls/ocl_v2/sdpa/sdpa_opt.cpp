@@ -58,13 +58,24 @@ public:
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
-    Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
-    // Stage::Ptr regular_micro_single_token = make_stage<SDPAOclGenerator>(!prefill);
-    // Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAOclGenerator>(prefill);
+    Stage::Ptr regular_micro_single_token;
+    Stage::Ptr regular_micro_multi_tokens;
 #endif
 
-    SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
+    SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
+        const char* env = std::getenv("TEST_USE_SDPA_OCL");
+        const bool use_ocl = env && env[0] == '1';
+        if (use_ocl) {
+            regular_micro_single_token = make_stage<SDPAOclGenerator>(!prefill);
+            regular_micro_multi_tokens = make_stage<SDPAOclGenerator>(prefill);
+        } else {
+            regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
+            regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
+        }
+#endif
+    }
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
