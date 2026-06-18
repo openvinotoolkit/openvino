@@ -16,10 +16,12 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/mvn.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -101,6 +103,7 @@ void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
 bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
                                         const std::vector<MemoryDescPtr>& srcDescs,
                                         const std::vector<MemoryDescPtr>& dstDescs) const {
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     if ((srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16) ||
         srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
         DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",

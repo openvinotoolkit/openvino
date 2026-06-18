@@ -20,9 +20,11 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/convert.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -100,6 +102,7 @@ void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vec
 bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                                             [[maybe_unused]] const MemoryDescPtr& srcDesc,
                                             [[maybe_unused]] const MemoryDescPtr& dstDesc) const {
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (none_of(convertParams.srcPrc,
                     ov::element::i8,

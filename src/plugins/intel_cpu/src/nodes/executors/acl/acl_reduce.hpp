@@ -8,6 +8,7 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "nodes/executors/reduce.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -42,6 +43,10 @@ public:
     [[nodiscard]] bool isSupported(const ReduceAttrs& reduceAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
+        // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly.
+        if (!hasArmISASupport(ArmISA::ASIMD)) {
+            return false;
+        }
         if (reduceAttrs.operation == Algorithm::ReduceMean) {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
                 (srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16)) {

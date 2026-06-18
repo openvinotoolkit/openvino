@@ -7,6 +7,7 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "nodes/executors/pooling.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -53,6 +54,10 @@ public:
     [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
+        // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly.
+        if (!hasArmISASupport(ArmISA::ASIMD)) {
+            return false;
+        }
         auto isSupportedPrecision = [](const ov::element::Type precision) {
             return any_of(precision, ov::element::f32, ov::element::f16, ov::element::u8, ov::element::i8);
         };
