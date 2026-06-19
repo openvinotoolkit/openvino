@@ -99,13 +99,13 @@ struct Builder {
         // translation: t = J_l(phi) @ tau = tau + c1*(phi x tau) + c2*(phi x (phi x tau))
         // c1 = (1 - cos theta) / theta^2, c2 = (theta - sin theta) / theta^3
         auto c1 = make<v1::Divide>(make<v1::Subtract>(fconst(1.0f, tau_phi), make<v0::Cos>(theta)), theta2_eps);
-        auto c2 = make<v1::Divide>(make<v1::Subtract>(theta, make<v0::Sin>(theta)),
-                                   make<v1::Multiply>(theta2_eps, theta));
+        auto c2 =
+            make<v1::Divide>(make<v1::Subtract>(theta, make<v0::Sin>(theta)), make<v1::Multiply>(theta2_eps, theta));
         auto phi_x_tau = cross_last(phi, tau);
         auto phi_x_phi_x_tau = cross_last(phi, phi_x_tau);
-        auto t = make<v1::Add>(tau,
-                               make<v1::Add>(make<v1::Multiply>(c1, phi_x_tau),
-                                             make<v1::Multiply>(c2, phi_x_phi_x_tau)));
+        auto t =
+            make<v1::Add>(tau,
+                          make<v1::Add>(make<v1::Multiply>(c1, phi_x_tau), make<v1::Multiply>(c2, phi_x_phi_x_tau)));
         return make<v0::Concat>(OutputVector{t, q}, -1);
     }
 
