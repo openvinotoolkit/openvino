@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
