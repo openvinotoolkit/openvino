@@ -65,24 +65,21 @@ bool hasInt8MMSupport() {
     return with_cpu_arm_i8mm();
 }
 
+// aarch64::mayiuse exists only on AArch64, so the ISA queries live in the ARM64 branch;
+// 32-bit ARM has no SVE and NEON as its baseline, so its gate is permissive.
 #if defined(OPENVINO_ARCH_ARM64)
 static bool hasArmASIMDSupport() {
     return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 }
 
-// "Baseline" SVE = the lowest SVE tier (sve_128). oneDNN models SVE vector width as
-// distinct ISA levels (sve_128/sve_256/sve_512); sve_128 is the minimum, so
-// mayiuse(sve_128) answers "does this core have SVE at all". We additionally require
-// with_cpu_sve() because the two detect SVE through different paths (OpenVINO's HWCAP
-// view vs. oneDNN's), and an executor's kernels are dispatched through oneDNN.
+// sve_128 is the lowest SVE level in oneDNN's ISA hierarchy, so mayiuse(sve_128) tests
+// for SVE presence; with_cpu_sve() is the OpenVINO-side HWCAP check. Both are required
+// because executor kernels are dispatched through oneDNN.
 static bool hasArmBaselineSVESupport() {
     return with_cpu_sve() && dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128);
 }
-#endif
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 bool hasArmISASupport(ArmISA isa) {
-#    if defined(OPENVINO_ARCH_ARM64)
     switch (isa) {
     case ArmISA::ASIMD:
         return hasArmASIMDSupport();
@@ -94,12 +91,10 @@ bool hasArmISASupport(ArmISA isa) {
         return hasInt8MMSupport();
     }
     return true;
-#    else
-    // 32-bit ARM: NEON is the baseline and there is no SVE; keep the gate permissive
-    // so the ARM executors that only require ASIMD are never declined.
-    (void)isa;
+}
+#elif defined(OPENVINO_ARCH_ARM)
+bool hasArmISASupport(ArmISA /*isa*/) {
     return true;
-#    endif
 }
 #endif
 }  // namespace ov::intel_cpu
