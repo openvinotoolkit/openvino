@@ -107,7 +107,7 @@ ov::Output<ov::Node> dequantize_weights(const ov::frontend::onnx::Node& node,
                                         const ov::Output<ov::Node>& zero_point,
                                         const std::string& weights_name) {
     const auto aligned_scale = align_dequant_param(node, scale, weights_name + "_scale");
-    const ov::Output<ov::Node> aligned_zp = !ov::op::util::is_null(zero_point)
+    const ov::Output<ov::Node> aligned_zp = (zero_point.get_node() != nullptr && !ov::op::util::is_null(zero_point))
                                                 ? align_dequant_param(node, zero_point, weights_name + "_zero_point")
                                                 : ov::Output<ov::Node>{};
     return ov::decomposition::low_precision_dequantize(prepared_weights, aligned_scale, aligned_zp);
