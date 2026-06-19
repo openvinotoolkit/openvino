@@ -49,5 +49,12 @@ set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
     $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}/level_zero>
 )
 
+# Install Level Zero loader next to the GPU plugin on all supported platforms.
+install(TARGETS ze_loader
+    LIBRARY DESTINATION runtime/lib/intel64
+    RUNTIME DESTINATION runtime/lib/intel64
+    ARCHIVE DESTINATION runtime/lib/intel64
+    COMPONENT gpu)
+
 # This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
 file(REMOVE "${CMAKE_BINARY_DIR}/VERSION")
