@@ -44,8 +44,9 @@ PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto input_rank = fq->input(0).get_partial_shape().rank().get_length();
 
         const auto& weights_node = pattern_map[weights].get_node_shared_ptr();
-        if (!ov::is_type<v0::Constant>(weights_node) && fq->get_input_element_type(0) != fq->get_output_element_type(0))
+        if (ov::is_type<ov::op::v0::Parameter>(weights_node)) {
             return false;
+        }
 
         ov::OutputVector fq_inputs;
         for (size_t i = 0; i < fq->inputs().size(); ++i) {
