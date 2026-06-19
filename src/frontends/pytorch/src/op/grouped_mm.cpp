@@ -40,9 +40,8 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
     // If b is already a Transpose with the expected permutation, fold it by taking
     // the input of that existing Transpose instead of stacking another one.
     const auto b_rank = b.get_partial_shape().rank();
-    PYTORCH_OP_CONVERSION_CHECK(
-        !b_rank.is_static() || b_rank.get_length() != 2,
-        "grouped_mm: 2D × 2D (weight gradient) case is not supported.");
+    PYTORCH_OP_CONVERSION_CHECK(!b_rank.is_static() || b_rank.get_length() != 2,
+                                "grouped_mm: 2D × 2D (weight gradient) case is not supported.");
     if (b_rank.is_static() && b_rank.get_length() == 3) {
         const std::vector<int32_t> expected_perm{0, 2, 1};
         auto existing_transpose = ov::as_type_ptr<v1::Transpose>(b.get_node_shared_ptr());
