@@ -26,9 +26,9 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 static constexpr int SubgroupSize = 16;
-static constexpr int sgPerWG = 32;
-static constexpr int wgTileK = 256;
-static constexpr int wgTileQ = 128;
+static constexpr int sgPerWG = 16;
+static constexpr int wgTileK = 128;
+static constexpr int wgTileQ = 32;
 
 size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
@@ -230,7 +230,6 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
-    extra_options += " -cl-intel-256-GRF-per-thread";
 
     return base_options + extra_options;
 }

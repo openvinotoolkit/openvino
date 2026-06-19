@@ -7,16 +7,19 @@
 
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
-#define KQ_WG_TILE_KEYS      256
-#define KQ_WG_TILE_QUERIES   128
+#define KQ_WG_TILE_KEYS      128
+#define KQ_WG_TILE_QUERIES   32
 #define KQ_SG_PER_WG_KEYS    8
-#define KQ_SG_PER_WG_QUERIES 4
-#define KQ_SG_TILE_KEYS      (KQ_WG_TILE_KEYS / KQ_SG_PER_WG_KEYS)    // 32
-#define KQ_SG_TILE_QUERIES   (KQ_WG_TILE_QUERIES / KQ_SG_PER_WG_QUERIES)    // 32
-#define KQ_MB                (KQ_SG_TILE_KEYS / 8)       // 4
-#define KQ_QB                (KQ_SG_TILE_QUERIES / 16)      // 2
+#define KQ_SG_PER_WG_QUERIES 2
+#define KQ_SG_TILE_KEYS      (KQ_WG_TILE_KEYS / KQ_SG_PER_WG_KEYS)    // 16
+#define KQ_SG_TILE_QUERIES   (KQ_WG_TILE_QUERIES / KQ_SG_PER_WG_QUERIES)    // 16
+#define KQ_MB                (KQ_SG_TILE_KEYS / 8)       // 2
+#define KQ_QB                (KQ_SG_TILE_QUERIES / 16)      // 1
 
-#define ugemm_vs_sg_per_wg_m ((D_MAX <= 64) ? 2 : 4)
+// VS subgroup layout matched to sdpa_micro (xehpc_h128_s32: wg_m_vs=8, wg_n_vs=2).
+// For D_MAX=128 this gives 8 (head-dim) x 2 (query) subgroups, sg tile 16(D) x 16(Q),
+// so the VS query split (sg_j_vs = sg_ij/8) matches the KQ split (sg_j_kq = sg_ij/8).
+#define ugemm_vs_sg_per_wg_m ((D_MAX <= 64) ? 4 : 8)
 #define ugemm_vs_sg_per_wg_n (sg_per_wg / ugemm_vs_sg_per_wg_m)
 #define ugemm_vs_sg_tile_m   (D_MAX / ugemm_vs_sg_per_wg_m)
 #define ugemm_vs_sg_tile_n   (KQ_WG_TILE_QUERIES / ugemm_vs_sg_per_wg_n)
@@ -140,7 +143,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
 
         #if WITH_ATTN_MASK
-            half16 mask_full[KQ_QB][KQ_SG_TILE_KEYS / SUBGROUP_SIZE];
+            // Full 2D mask [query x key]: each lane loads its own query row (strided,
+            // same access pattern as sdpa_micro's tile_load_t). Pre-scale by iscale at
+            // load time and keep it as float so the softmax max-loop below only does a
+            // branchless add (mirrors micro's tile_elementwise(unscale)+tile_binary add).
+            float16 mask_full[KQ_QB][KQ_SG_TILE_KEYS / SUBGROUP_SIZE];
             if (MSK_D2 > 1 && MSK_D3 > 1) {
                 #pragma unroll
                 for (int qb = 0; qb < KQ_QB; ++qb) {
@@ -160,7 +167,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                 }
                             }
                         }
-                        mask_full[qb][ii] = mv;
+                        mask_full[qb][ii] = convert_float16(mv) * iscale;
                     }
                 }
             }
@@ -184,7 +191,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
 
             ushort8 k_raw[KQ_MB];
-            intel_sub_group_2d_block_read_16b_32r16x1c(
+            intel_sub_group_2d_block_read_16b_16r16x1c(
                 (global void *)K, KD_w, KD_h, KD_p,
                 (int2)(db * KSTEP, key_base), (private ushort *)&k_raw[0]);
 
@@ -196,6 +203,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
 
+#if 0
+        // V prefetch: disabled. Ablation showed it costs ~11us net (it prefetches the
+        // same V tiles consumed by the transform-load in this same iteration, with no
+        // intervening compute to hide latency, so it is pure overhead here).
         #pragma unroll
         for (int cp = 0; cp < VS_KB; ++cp) {
             #pragma unroll
@@ -205,6 +216,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     (int2)(sg_i0_vs + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
             }
         }
+#endif
 
         float alpha[KQ_QB];
         #pragma unroll
@@ -224,7 +236,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         if (MSK_D2 == 1 && MSK_D3 > 1) {
                             s += sub_group_broadcast(mask_tile_float[mask_idx], mask_lane);
                         } else if (MSK_D2 > 1 && MSK_D3 > 1) {
-                            s += convert_float(mask_full[qb][mask_idx][mask_lane]) * iscale;
+                            s += mask_full[qb][mask_idx][mask_lane];
                         } else if (query < q && key < k) {
                             const int mask_query = (MSK_D2 == 1) ? 0 : query;
                             const int mask_key = (MSK_D3 == 1) ? 0 : key;
@@ -312,8 +324,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
             int8 vb[VS_DB];
             #pragma unroll
-            for (int cd = 0; cd < VS_DB; cd += 2) {
-                intel_sub_group_2d_block_read_transform_16b_16r16x2c(
+            for (int cd = 0; cd < VS_DB; ++cd) {
+                intel_sub_group_2d_block_read_transform_16b_16r16x1c(
                     (global void *)V, VD_w, VD_h, VD_p,
                     (int2)(sg_i0_vs + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
             }
