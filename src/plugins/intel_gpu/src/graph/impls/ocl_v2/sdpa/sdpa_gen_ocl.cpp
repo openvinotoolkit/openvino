@@ -369,8 +369,39 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         } else {
             jit.make("WITH_ATTN_MASK", has_attn_mask_input ? 1 : 0);
         }
+        // Compile-time mask-kind specialization to drop the per-element runtime branch
+        // over MSK_D2/MSK_D3 (which are shape_info-driven and thus runtime for dynamic
+        // shapes). The runtime branch blocks IGC optimization across the whole hot loop;
+        // pinning the kind at JIT time recovers a large amount of cmp/control-flow.
+        //   2 = full 2D (query>1 & key>1), 1 = per-key (query==1 & key>1),
+        //   0 = scalar/broadcast, -1 = unknown -> keep the runtime branch.
+        int mask_kind = -1;
+        if (has_attn_mask_input && !config.has_const_attn_mask_val) {
+            const auto& msk_ps = params.input_layouts[ScaledDotProductAttentionInputIdx::ATTN_MASK].get_partial_shape();
+            const auto r = msk_ps.size();
+            if (r >= 2) {
+                const auto& dq = msk_ps[r - 2];  // mask query dim
+                const auto& dk = msk_ps[r - 1];  // mask key dim
+                if (dq.is_static() && dk.is_static()) {
+                    // Exact classification when both trailing dims are known.
+                    const bool q_gt1 = dq.get_length() > 1;
+                    const bool k_gt1 = dk.get_length() > 1;
+                    mask_kind = (q_gt1 && k_gt1) ? 2 : (!q_gt1 && k_gt1) ? 1 : 0;
+                } else {
+                    // Dynamic trailing dims: infer from the SDPA stage. Prefill processes
+                    // many query tokens at once, so the mask is full 2D [.,.,q>1,k>1]
+                    // (kind 2). The generate/single-token stage always has query dim == 1
+                    // with a per-key mask [B,H,1,K] (kind 1). Both stages are compiled as
+                    // separate kernels (regular_micro_multi_tokens / _single_token), each
+                    // getting the right specialization here.
+                    mask_kind = m_is_prefill ? 2 : 1;
+                }
+            }
+        }
+        jit.make("MASK_KIND", mask_kind);
     } else {
         jit.make("WITH_ATTN_MASK", 0);
+        jit.make("MASK_KIND", -1);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
     }
 
