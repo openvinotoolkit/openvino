@@ -145,6 +145,8 @@ ov::pass::TransposeFQ::TransposeFQ() {
 
         ov::copy_runtime_info({fq, transpose}, new_ops);
         ov::replace_node(fq, new_transpose);
+        // Re-enqueue the downstream Transpose (match root) so TransposeFuse can fire on the new_transpose
+        register_new_node(m.get_match_root());
         return true;
     };
 
