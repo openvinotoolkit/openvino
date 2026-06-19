@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/identity.hpp"
 #include "openvino/op/matmul.hpp"
@@ -166,4 +167,55 @@ OPENVINO_TEST(onnx_tensor_names, subgraph_gemm_with_bias) {
     EXPECT_EQ(result1->input(0).get_source_output().get_names(), std::unordered_set<std::string>({"y"}));
 
     EXPECT_NE(nullptr, find_by_friendly_name<op::v0::MatMul>(ops, "y/WithoutBiases"));
+}
+
+OPENVINO_TEST(onnx_tensor_names, matmulnbits_b_name_preserved) {
+    // MatMulNBits repacks B into a low-bit Constant; it must keep the ONNX initializer name "b_Q4".
+    const auto model = convert_model("com.microsoft/matmulnbits_3x4.onnx");
+
+    const auto ops = model->get_ordered_ops();
+
+    // The repacked u4 weight carries "b_Q4" as friendly_name and tensor name.
+    std::shared_ptr<op::v0::Constant> packed_b;
+    for (const auto& op : ops) {
+        const auto c = ov::as_type_ptr<op::v0::Constant>(op);
+        if (c && c->get_element_type() == element::u4 && c->get_friendly_name() == "b_Q4") {
+            packed_b = c;
+        }
+    }
+    ASSERT_NE(packed_b, nullptr);
+    EXPECT_EQ(packed_b->get_output_tensor(0).get_names(), std::unordered_set<std::string>({"b_Q4"}));
+}
+
+OPENVINO_TEST(onnx_tensor_names, matmulnbits_shared_b_name_collision_resolved) {
+    // One B initializer feeding two MatMulNBits mints two same-named Constants. ResolveNameCollisions
+    // (run during normalize) keeps "b_Q4" on one and suffixes the other - no manual postfix needed.
+    const auto model = convert_model("com.microsoft/matmulnbits_shared_b.onnx");
+
+    const auto ops = model->get_ordered_ops();
+
+    // Two named u4 weights; unnamed u4 zero-point constants are excluded by the name check.
+    std::vector<std::shared_ptr<op::v0::Constant>> packed_weights;
+    for (const auto& op : ops) {
+        const auto c = ov::as_type_ptr<op::v0::Constant>(op);
+        if (c && c->get_element_type() == element::u4 && !c->get_output_tensor(0).get_names().empty()) {
+            packed_weights.push_back(c);
+        }
+    }
+    ASSERT_EQ(packed_weights.size(), 2u);
+
+    // Both friendly_names and tensor names are unique after normalization.
+    std::unordered_set<std::string> friendly_names;
+    std::unordered_set<std::string> tensor_names;
+    for (const auto& c : packed_weights) {
+        friendly_names.insert(c->get_friendly_name());
+        const auto& names = c->get_output_tensor(0).get_names();
+        tensor_names.insert(names.begin(), names.end());
+    }
+    EXPECT_EQ(friendly_names.size(), 2u);
+    EXPECT_EQ(tensor_names.size(), 2u);
+
+    // Exactly one keeps "b_Q4" so weight sharing still matches; the other is suffixed.
+    EXPECT_EQ(friendly_names.count("b_Q4"), 1u);
+    EXPECT_EQ(tensor_names.count("b_Q4"), 1u);
 }
