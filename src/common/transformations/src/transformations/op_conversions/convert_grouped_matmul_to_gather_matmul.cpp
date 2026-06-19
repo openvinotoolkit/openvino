@@ -23,6 +23,9 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_matmul.hpp"
 #include "transformations/utils/utils.hpp"
@@ -104,17 +107,28 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
 ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
     MATCHER_SCOPE(ConvertGroupedMatMulToGatherMatmul);
 
-    auto gmm_m = ov::pass::pattern::wrap_type<v17::GroupedMatMul>(ov::pass::pattern::has_static_rank());
+    using namespace ov::pass::pattern;
+
+    auto matrix_b_3d = any_input(rank_equals(3));
+
+    // ---- 3Dx3D: no offsets ----
+    // A:[G,M,K] B:[G,N,K]
+    auto matrix_a_3d = any_input(rank_equals(3));
+    auto gmm_3d = wrap_type<v17::GroupedMatMul>({matrix_a_3d, matrix_b_3d});
+
+    // ---- 2Dx3D: with offsets ----
+    // A:[T,K] B:[G,N,K] offsets:[G]
+    auto matrix_a_2d = any_input(rank_equals(2));
+    auto offsets = any_input(rank_equals(1));
+    auto gmm_2d_3d = wrap_type<v17::GroupedMatMul>({matrix_a_2d, matrix_b_3d, offsets});
+
+    auto gmm_pattern = gmm_3d | gmm_2d_3d;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto gmm = ov::as_type_ptr<v17::GroupedMatMul>(m.get_match_root());
         if (!gmm || transformation_callback(gmm)) {
             return false;
         }
-
-        const size_t a_rank = gmm->get_input_partial_shape(0).size();
-        const size_t b_rank = gmm->get_input_partial_shape(1).size();
-        const size_t input_size = gmm->get_input_size();
 
         const auto mat_a = gmm->input_value(0);
         const auto mat_b = gmm->input_value(1);
@@ -128,14 +142,15 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
         ov::NodeVector new_nodes;
         std::shared_ptr<ov::Node> replacement;
 
-        if (a_rank == 3 && b_rank == 3 && input_size == 2) {
+        // The matcher guarantees only the 3Dx3D (2 inputs) and 2Dx3D (3 inputs) cases reach here.
+        if (gmm->get_input_size() == 2) {
             // ---- 3Dx3D: no offsets ----
             // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
             auto indices = build_3dx3d_indices(mat_a, new_nodes);
             auto gm = std::make_shared<GatherMatmul>(mat_a, mat_b, indices);
             new_nodes.push_back(gm);
             replacement = gm;
-        } else if (a_rank == 2 && b_rank == 3 && input_size == 3) {
+        } else {
             // ---- 2Dx3D: with offsets ----
             // A:[T,K] B:[G,N,K] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), B, idx[T,1]), 0) -> [T,N]
             const auto offsets = gmm->input_value(2);
@@ -155,9 +170,6 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(squeeze_axis);
             new_nodes.push_back(out);
             replacement = out;
-        } else {
-            // Case not handled by GroupedMatMul - leave the graph untouched
-            return false;
         }
 
         replacement->set_friendly_name(gmm->get_friendly_name());
@@ -166,7 +178,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(gmm_m, matcher_name);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(gmm_pattern, matcher_name);
     register_matcher(matcher, callback);
 }
 
