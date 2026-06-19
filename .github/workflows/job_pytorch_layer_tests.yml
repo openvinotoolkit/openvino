@@ -110,7 +110,6 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install Pytorch Layer tests dependencies
-        if: runner.os != 'Windows'
         run: |
           # pytorch test requirements
           python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
