@@ -369,6 +369,19 @@ inline bool floating_point_equal(ov::float16 x, ov::float16 y, int max_ulps_diff
     }
 }
 
+inline bool floating_point_equal(ov::bfloat16 x, ov::bfloat16 y, int max_ulps_diff = 4) {
+    int16_t sign_bit_mask = 1;
+    sign_bit_mask <<= 15;
+    int16_t a = reinterpret_cast<int16_t&>(x), b = reinterpret_cast<int16_t&>(y);
+    if ((a & sign_bit_mask) != (b & sign_bit_mask)) {
+        a &= ~sign_bit_mask;
+        b &= ~sign_bit_mask;
+        return a == 0 && b == 0;
+    } else {
+        return std::abs(a - b) < (1 << (max_ulps_diff));
+    }
+}
+
 inline bool floating_point_equal(float x, float y, int max_ulps_diff = 4) {
     int32_t sign_bit_mask = 1;
     sign_bit_mask <<= 31;
