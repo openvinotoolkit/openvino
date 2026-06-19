@@ -487,7 +487,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
-        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f8e8m0};
+        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
     const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
@@ -577,8 +577,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                            ov::element::u4,
                                                                                            ov::element::f8e4m3,
                                                                                            ov::element::f8e5m2,
-                                                                                           ov::element::f4e2m1,
-                                                                                           ov::element::f8e8m0},
+                                                                                           ov::element::f4e2m1},
                                                             !device_info.supports_immad);
         if (ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(*func)) {
             manager.register_pass<ov::pass::MarkDequantization>(
