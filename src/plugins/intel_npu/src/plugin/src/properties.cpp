@@ -110,6 +110,14 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
     }
+
+    if (config.isAvailable(ov::intel_npu::enable_strides_for.name())) {
+        if (backend && backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
+            logger.info("Config option %s not supported by the driver! Requirements not met.",
+                        ov::intel_npu::enable_strides_for.name());
+            config.enable(ov::intel_npu::enable_strides_for.name(), false);
+        }
+    }
 }
 
 void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
