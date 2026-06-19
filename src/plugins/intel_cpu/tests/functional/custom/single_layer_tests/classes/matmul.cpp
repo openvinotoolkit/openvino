@@ -193,6 +193,7 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     }
     run();
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
+    FAIL() << "intentional failure to observe new run_parallel.py output";  // @todo claude
 }
 
 // On some architectures (e.g. RISC-V) filterCPUInfo filters out all backends
