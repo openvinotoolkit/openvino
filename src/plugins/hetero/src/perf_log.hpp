@@ -65,4 +65,4 @@ inline void perf_log_impl(const char* file, int line, PerfLogLevel level, Args&&
 }  // namespace ov::hetero
 
 #define HETERO_PERF_LOG_LEVEL(level, ...) ::ov::hetero::perf_log_impl(__FILE__, __LINE__, level, __VA_ARGS__)
-#define HETERO_PERF_LOG(...) HETERO_PERF_LOG_LEVEL(::ov::hetero::PerfLogLevel::Basic, __VA_ARGS__)
+#define HETERO_PERF_LOG(...)              HETERO_PERF_LOG_LEVEL(::ov::hetero::PerfLogLevel::Basic, __VA_ARGS__)

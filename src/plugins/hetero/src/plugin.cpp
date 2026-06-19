@@ -158,11 +158,11 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     }
 
     auto compiled_model = std::make_shared<CompiledModel>(cloned_model,
-                                                           submodels,
-                                                           mapping_info,
-                                                           shared_from_this(),
-                                                           remote_context,
-                                                           config);
+                                                          submodels,
+                                                          mapping_info,
+                                                          shared_from_this(),
+                                                          remote_context,
+                                                          config);
     if (perf_logging_enabled) {
         t_compiled_model_end = clock::now();
         HETERO_PERF_LOG_LEVEL(PerfLogLevel::Basic,
