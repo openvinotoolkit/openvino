@@ -23,6 +23,7 @@
 
 #ifdef __linux__
 #    include <fcntl.h>
+#    include <sys/mman.h>
 #endif
 
 #include "common_test_utils/common_utils.hpp"
@@ -119,9 +120,26 @@ static double throughput_mbs(size_t size_mb, long long ms) {
     return static_cast<double>(size_mb) * 1000.0 / static_cast<double>(ms);
 }
 
-// Strategy: mmap + hint_prefetch — measures time to make all data accessible
-// without any copy overhead. data is accessible via the mapping at zero extra cost.
-static void strategy_hint_prefetch(const std::filesystem::path& path, size_t file_size) {
+namespace strategy {
+
+static void mmap_prefetch_mlock(const std::filesystem::path& path, size_t file_size) {
+    auto mapped = load_mmap_object(path);
+    mapped->hint_prefetch();
+    ::mlock(mapped->data(), mapped->size());
+    ::munlock(mapped->data(), mapped->size());
+}
+
+static void mmap_mlock(const std::filesystem::path& path, size_t file_size) {
+    auto mapped = load_mmap_object(path);
+    volatile uint8_t sink = 0;
+    for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += 1024) {
+        sink += *first;
+    }
+    ::mlock(mapped->data(), mapped->size());
+    ::munlock(mapped->data(), mapped->size());
+}
+
+static void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch();
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
@@ -134,7 +152,7 @@ static void strategy_hint_prefetch(const std::filesystem::path& path, size_t fil
     }
 }
 
-static void strategy_no_prefault(const std::filesystem::path& path, size_t file_size) {
+static void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
     std::vector<char> buffer(std::min(chunk_size, file_size));
@@ -147,7 +165,7 @@ static void strategy_no_prefault(const std::filesystem::path& path, size_t file_
 }
 
 // Strategy: ifstream into a single pre-allocated buffer — one kernel→user copy
-static void strategy_ifstream_read(const std::filesystem::path& path, size_t file_size) {
+static void ifstream_read(const std::filesystem::path& path, size_t file_size) {
     std::vector<char> read_buffer(file_size);
     std::ifstream f(path, std::ios::binary);
     f.read(read_buffer.data(), static_cast<std::streamsize>(file_size));
@@ -155,10 +173,10 @@ static void strategy_ifstream_read(const std::filesystem::path& path, size_t fil
     (void)sink;
 }
 
-static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
-                                           size_t /*file_size*/,
-                                           size_t offset,
-                                           size_t size) {
+static void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
+                                              size_t /*file_size*/,
+                                              size_t offset,
+                                              size_t size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch(offset, size);
     const auto total_copy_size = std::min(size, mapped->size() - offset);
@@ -173,11 +191,13 @@ static void strategy_hint_prefetch_partial(const std::filesystem::path& path,
     }
 }
 
+}  // namespace strategy
+
 // See developer_benchmarks.md for build/run instructions.
 
 class FileLoadBenchmark : public ::testing::Test {};
 
-TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
+TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -198,7 +218,7 @@ TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
         files.push_back(tf);
     }
 
-    // Collect results: [file_idx] -> {hint_prefetch, no_prefault, ifstream}
+    // Collect results: [file_idx] -> {mmap_prefetch_memcpy, mmap_memcpy, ifstream}
     struct Row {
         size_t mb;
         long long t_hint_prefetch;
@@ -212,7 +232,7 @@ TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
         r.mb = tf.size_mb;
         r.t_ifstream = bench(
             [&]() {
-                strategy_ifstream_read(tf.path, tf.size_bytes);
+                strategy::ifstream_read(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
@@ -220,7 +240,7 @@ TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
             runs);
         r.t_no_prefault = bench(
             [&]() {
-                strategy_no_prefault(tf.path, tf.size_bytes);
+                strategy::mmap_then_memcpy(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
@@ -228,7 +248,7 @@ TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
             runs);
         r.t_hint_prefetch = bench(
             [&]() {
-                strategy_hint_prefetch(tf.path, tf.size_bytes);
+                strategy::mmap_prefetch_then_memcpy(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
@@ -238,14 +258,14 @@ TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_prefetch", "no-prefault", "ifstream");
+    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "prefetch+memcpy", "mmap+memcpy", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
     for (const auto& r : results) {
         printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mb, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
     }
 
     printf("\n--- Throughput (MB/s) ---\n");
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "hint_prefetch", "no-prefault", "ifstream");
+    printf("%-10s | %17s | %13s | %13s\n", "Size (MB)", "prefetch+memcpy", "mmap+memcpy", "ifstream");
     printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
     for (const auto& r : results) {
         printf("%-10zu | %12.0f MB/s | %8.0f MB/s | %8.0f MB/s\n",
@@ -253,6 +273,75 @@ TEST_F(FileLoadBenchmark, strategists_latency_and_throughput_table) {
                throughput_mbs(r.mb, r.t_hint_prefetch),
                throughput_mbs(r.mb, r.t_no_prefault),
                throughput_mbs(r.mb, r.t_ifstream));
+    }
+}
+
+TEST_F(FileLoadBenchmark, strategies_mlock) {
+    const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
+
+    // Generate all test files
+    struct TestFile {
+        size_t size_mb;
+        size_t size_bytes;
+        std::filesystem::path path;
+    };
+    std::vector<TestFile> files;
+    for (size_t mb : sizes_mb) {
+        TestFile tf;
+        tf.size_mb = mb;
+        tf.size_bytes = mb * 1024 * 1024;
+        tf.path = generate_test_file(tf.size_bytes);
+        evict_cache(tf.path, tf.size_bytes);
+        files.push_back(tf);
+    }
+
+    // Collect results: [file_idx] -> {mmap_prefetch_mlock, mmap_mlock}
+    struct Row {
+        size_t mb;
+        long long t_prefetch_mlock;
+        long long t_mlock;
+    };
+    std::vector<Row> results;
+
+    for (const auto& tf : files) {
+        Row r{};
+        r.mb = tf.size_mb;
+        r.t_mlock = bench(
+            [&]() {
+                strategy::mmap_mlock(tf.path, tf.size_bytes);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
+        r.t_prefetch_mlock = bench(
+            [&]() {
+                strategy::mmap_prefetch_mlock(tf.path, tf.size_bytes);
+            },
+            tf.path,
+            tf.size_bytes,
+            warmup,
+            runs);
+        results.push_back(r);
+    }
+
+    printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
+    printf("%-10s | %17s | %13s\n", "Size (MB)", "prefetch+mlock", "mmap+mlock");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    for (const auto& r : results) {
+        printf("%-10zu | %14lld ms | %10lld ms\n", r.mb, r.t_prefetch_mlock, r.t_mlock);
+    }
+
+    printf("\n--- Throughput (MB/s) ---\n");
+    printf("%-10s | %17s | %13s\n", "Size (MB)", "prefetch+mlock", "mmap+mlock");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    for (const auto& r : results) {
+        printf("%-10zu | %12.0f MB/s | %8.0f MB/s\n",
+               r.mb,
+               throughput_mbs(r.mb, r.t_prefetch_mlock),
+               throughput_mbs(r.mb, r.t_mlock));
     }
 }
 
@@ -278,7 +367,7 @@ TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
                 continue;
             results[si][oi] = bench(
                 [&]() {
-                    strategy_hint_prefetch_partial(file_path, file_size, off_bytes, sz_bytes);
+                    strategy::mmap_prefetch_then_memcpy_partial(file_path, file_size, off_bytes, sz_bytes);
                 },
                 file_path,
                 file_size,
