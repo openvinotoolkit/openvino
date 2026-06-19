@@ -492,7 +492,9 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
-        res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        if (desc->write_kv_cache) {
+            res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        }
 
         const auto execute_multi_token_path = [&]() {
             if (rt_params->multi_token_wg_count == 0) {
