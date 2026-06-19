@@ -74,8 +74,7 @@ ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::
 //     idx_1d     = SearchSorted(offsets, positions, right=true)    [T]
 //     indices    = Unsqueeze(idx_1d, -1)                           [T, 1]
 //
-// `offsets` may be i32 or i64; we Convert to i32 and use i32 positions to keep
-// SearchSorted's type contract happy and to match GatherMatmul's preferred index type.
+// `offsets` may be i32 or i64; we Convert to i32 only when needed and use i32
 ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
                                          const ov::Output<ov::Node>& offsets,
                                          ov::NodeVector& new_nodes) {
@@ -84,7 +83,14 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
     // Scalar i32 0, reused as the Gather axis, the T index, and the Range start.
     auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
 
-    auto offsets_i32 = std::make_shared<v0::Convert>(offsets, i32);
+    // SearchSorted requires the sorted sequence and probe values to share an element
+    // type; convert `offsets` to i32 only when it isn't already i32.
+    ov::Output<ov::Node> offsets_i32 = offsets;
+    if (offsets.get_element_type() != i32) {
+        auto offsets_convert = std::make_shared<v0::Convert>(offsets, i32);
+        offsets_i32 = offsets_convert;
+        new_nodes.push_back(offsets_convert);
+    }
 
     auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [T, K]
     auto t_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar T
@@ -98,7 +104,7 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
 
     new_nodes.insert(
         new_nodes.end(),
-        {zero, offsets_i32, shape_a, t_scalar, one, positions, idx_1d, unsqueeze_axis, indices});
+        {zero, shape_a, t_scalar, one, positions, idx_1d, unsqueeze_axis, indices});
     return indices;
 }
 
