@@ -123,6 +123,7 @@
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
+#include "plugin/transformations/disable_fp16_comp_flux2_rope.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -757,6 +758,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<DisableFP16ComSinGenPatternForHiFiGAN>(
             [](const_node_ptr& node) -> bool { return ov::is_conversion_disabled(node, ov::element::f16); });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
+        manager.register_pass<DisableFP16CompFlux2RoPEPattern>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
