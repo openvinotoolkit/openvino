@@ -60,7 +60,7 @@ inline void perf_log_impl(const char* file, int line, PerfLogLevel level, Args&&
         return;
     }
 
-    ov::util::LogHelper helper(ov::util::LOG_TYPE::_LOG_TYPE_DEBUG, file, line);
+    ov::util::LogHelper helper(ov::util::LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, file, line);
     auto& stream = helper.stream();
     (stream << ... << std::forward<Args>(args));
 }
