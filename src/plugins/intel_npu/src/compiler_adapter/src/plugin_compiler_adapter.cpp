@@ -286,7 +286,7 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
     if (optname == COMPATIBILITY_CHECK::key()) {
-        if (_zeroInitStruct->getDevice() == nullptr) {
+        if (_zeroInitStruct == nullptr || _zeroInitStruct->getDevice() == nullptr) {
             _logger.warning("No device is found, compatibility check is not available");
             return false;
         }

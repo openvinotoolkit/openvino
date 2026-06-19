@@ -270,7 +270,6 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
       _supportedProperties(std::move(state.supportedProperties)) {}
 
 void PluginPropertyManager::registerProperties() const {
-    _properties.clear();
     _supportedProperties.clear();
 
     registerPluginProperties();
@@ -287,6 +286,8 @@ void PluginPropertyManager::registerProperties() const {
 }
 
 void PluginPropertyManager::registerPluginProperties() const {
+    _properties.clear();
+
     // clang-format off
     try_register_simple_property<PERF_COUNT>(_config, _properties, ov::enable_profiling);
     try_register_simple_property<PERFORMANCE_HINT>(_config, _properties, ov::hint::performance_mode);
