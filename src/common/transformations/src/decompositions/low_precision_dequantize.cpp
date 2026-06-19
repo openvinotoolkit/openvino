@@ -48,7 +48,8 @@ ov::Output<ov::Node> low_precision_dequantize(ov::pass::NodeRegistry& reg,
     //   Multiply(Subtract(Convert(x), zp), scale) [-> Reshape]
     // or, when zero_point is empty:
     //   Multiply(Convert(x), scale) [-> Reshape]
-    const auto& dst_type = scale.get_element_type();
+    const bool is_mxfp = scale.get_element_type() == element::f8e8m0;
+    const auto& dst_type = is_mxfp ? element::f16 : scale.get_element_type();
     ov::Output<ov::Node> result = reg.make<ov::op::v0::Convert>(x, dst_type);
 
     if (zero_point.get_node_shared_ptr()) {
@@ -59,7 +60,11 @@ ov::Output<ov::Node> low_precision_dequantize(ov::pass::NodeRegistry& reg,
         result = reg.make<ov::op::v1::Subtract>(result, zp);
     }
 
-    result = reg.make<ov::op::v1::Multiply>(result, scale);
+    ov::Output<ov::Node> mutable_scale = scale;
+    if (is_mxfp) {
+        mutable_scale = reg.make<ov::op::v0::Convert>(scale, dst_type);
+    }
+    result = reg.make<ov::op::v1::Multiply>(result, mutable_scale);
 
     if (output_shape.get_node_shared_ptr() && !reshape_is_noop(result, output_shape)) {
         result = reg.make<ov::op::v1::Reshape>(result, output_shape, /*special_zero=*/false);
