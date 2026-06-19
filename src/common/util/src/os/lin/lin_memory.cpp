@@ -24,8 +24,8 @@ namespace ov::util {
 namespace {
 
 void madvise_hint(void* ptr, size_t size) noexcept {
-    ::madvise(ptr, size, MADV_SEQUENTIAL);
-    ::madvise(ptr, size, MADV_WILLNEED);
+    madvise(ptr, size, MADV_SEQUENTIAL);
+    madvise(ptr, size, MADV_WILLNEED);
 }
 
 struct PageToucher {
