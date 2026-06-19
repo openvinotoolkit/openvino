@@ -762,6 +762,8 @@ void Snapshot::earlyRegroup() {
                 HNDL(VariadicSplit);
                 HNDL_MOE(GPTOSSExpert);
                 HNDL_MOE(GPTOSSRouter);
+                HNDL_MOE(Qwen3Expert);
+                HNDL_MOE(Qwen3Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
