@@ -21,12 +21,12 @@ bool hasInt8MMSupport();
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 
 // ARM ISA an executor's kernels require, declared in its supports() predicate.
-// ASIMD is the ARMv8-A baseline; an executor needing only NEON declares nothing.
+// ASIMD is the ARM baseline; an executor needing only NEON declares nothing.
 // An executor whose kernels use a higher ISA (e.g. SVE) requires it so that a core
 // without it declines and the framework falls back to a baseline implementation.
 enum class ArmISA : uint8_t { ASIMD, SVE, DOTPROD, I8MM };
 
-// Whether the current core supports `isa`. Permissive on 32-bit ARM (NEON baseline).
+// Whether the current core supports `isa`.
 bool hasArmISASupport(ArmISA isa);
 
 #endif  // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64

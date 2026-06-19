@@ -7,9 +7,6 @@
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
-#if defined(OPENVINO_ARCH_ARM64)
-#    include "cpu/aarch64/cpu_isa_traits.hpp"
-#endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -65,35 +62,19 @@ bool hasInt8MMSupport() {
     return with_cpu_arm_i8mm();
 }
 
-// aarch64::mayiuse exists only on AArch64, so the ISA queries live in the ARM64 branch;
-// 32-bit ARM has no SVE and NEON as its baseline, so its gate is permissive.
-#if defined(OPENVINO_ARCH_ARM64)
-static bool hasArmASIMDSupport() {
-    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
-}
-
-// sve_128 is the lowest SVE level in oneDNN's ISA hierarchy, so mayiuse(sve_128) tests
-// for SVE presence; with_cpu_sve() is the OpenVINO-side HWCAP check. Both are required
-// because executor kernels are dispatched through oneDNN.
-static bool hasArmBaselineSVESupport() {
-    return with_cpu_sve() && dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128);
-}
-
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 bool hasArmISASupport(ArmISA isa) {
     switch (isa) {
     case ArmISA::ASIMD:
-        return hasArmASIMDSupport();
+        // NEON/ASIMD is the ARM baseline, present on every supported ARM core.
+        return true;
     case ArmISA::SVE:
-        return hasArmBaselineSVESupport();
+        return with_cpu_sve();
     case ArmISA::DOTPROD:
-        return hasIntDotProductSupport();
+        return with_cpu_arm_dotprod();
     case ArmISA::I8MM:
-        return hasInt8MMSupport();
+        return with_cpu_arm_i8mm();
     }
-    return true;
-}
-#elif defined(OPENVINO_ARCH_ARM)
-bool hasArmISASupport(ArmISA /*isa*/) {
     return true;
 }
 #endif
