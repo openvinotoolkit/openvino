@@ -34,9 +34,9 @@ public:
 
     /// @brief Create ze_resource from Level Zero handle. Assumes passed handle is valid.
     /// @param ze_handle Valid Level Zero object handle.
-    /// @param is_shared if false, takes ownership of the handle.
-    explicit ze_resource(ze_handle_t ze_handle, bool is_shared = false)
-        : _holder(std::make_shared<ze_ocl_owner_t>(ze_handle, is_shared)) {}
+    /// @param is_borrowed if false, takes ownership of the handle.
+    explicit ze_resource(ze_handle_t ze_handle, bool is_borrowed = false)
+        : _holder(std::make_shared<ze_ocl_owner_t>(ze_handle, is_borrowed)) {}
 
     /// @brief Get Level Zero handle or throw if resource is empty.
     ze_handle_t get_ze_handle() const {
@@ -55,9 +55,9 @@ public:
     ///
     /// This function won't release passed handle in case exception is thrown.
     template <ocl_resource_type ocl_resource_type>
-    void attach_ocl_handle(typename ocl_resource_info<ocl_resource_type>::handle_t handle, bool is_shared = false) {
+    void attach_ocl_handle(typename ocl_resource_info<ocl_resource_type>::handle_t handle, bool is_borrowed = false) {
         OPENVINO_ASSERT(_holder != nullptr, "[GPU] Attempted to attach OpenCL handle to empty resource");
-        return _holder->template attach_ocl_handle<ocl_resource_type>(handle, is_shared);
+        return _holder->template attach_ocl_handle<ocl_resource_type>(handle, is_borrowed);
     }
 
     /// @brief Attach OpenCL handle to the resource or throw if resource is empty. Assumes passed handle is valid.

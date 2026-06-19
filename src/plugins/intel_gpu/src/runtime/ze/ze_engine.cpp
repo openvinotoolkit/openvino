@@ -136,8 +136,8 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
         // USM memory does not need to be converted
         const auto &ctx = get_context();
         ov_ze_usm_handle usm_handle{ctx.get_ze_handle(), params.mem};
-        bool is_shared = true;
-        ze_usm_resource usm_res(usm_handle, is_shared);
+        const bool is_borrowed = true;
+        ze_usm_resource usm_res(usm_handle, is_borrowed);
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_res, nullptr);
     }  else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
         const auto &ctx = get_context();
@@ -165,8 +165,8 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     auto ptr = new_buf.buffer_ptr();
     auto ctx = get_context();
     ov_ze_usm_handle usm_handle{ctx.get_ze_handle(), reinterpret_cast<uint8_t*>(ptr) + byte_offset};
-    bool is_shared = true;
-    ze_usm_resource usm_res(usm_handle, is_shared);
+    const bool is_borrowed = true;
+    ze_usm_resource usm_res(usm_handle, is_borrowed);
     return std::make_shared<ze::gpu_usm>(this,
                              new_layout,
                              usm_res,

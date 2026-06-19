@@ -186,25 +186,21 @@ public:
     using ptr = std::shared_ptr<resource_owner>;
     using handle_t = typename _resource_info_t::handle_t;
     using deleter_t = typename _resource_info_t::deleter_t;
-    template <typename T, typename = void>
-    struct has_validator : public std::false_type {};
-    template <typename T>
-    struct has_validator<T, std::void_t<typename T::validator_t>> : public std::true_type {};
 
-    explicit resource_owner(handle_t handle, bool is_shared = false) : _handle(handle), _is_shared(is_shared) {}
+    explicit resource_owner(handle_t handle, bool is_borrowed = false) : _handle(handle), _is_borrowed(is_borrowed) {}
     resource_owner(const resource_owner& other) = delete;
     resource_owner& operator=(const resource_owner& other) = delete;
     resource_owner(resource_owner&& other) {
         _handle = other._handle;
-        _is_shared = other._is_shared;
-        other._is_shared = true; // Mark as shared to prevent double free
+        _is_borrowed = other._is_borrowed;
+        other._is_borrowed = true; // Mark as borrowed to prevent double free
     }
     resource_owner& operator=(resource_owner&& other) {
         if (this != &other) {
             release();
             _handle = other._handle;
-            _is_shared = other._is_shared;
-            other._is_shared = true; // Mark as shared to prevent double free
+            _is_borrowed = other._is_borrowed;
+            other._is_borrowed = true; // Mark as borrowed to prevent double free
         }
         return *this;
     }
@@ -217,13 +213,13 @@ public:
     }
 private:
     void release() {
-        if (!_is_shared) {
+        if (!_is_borrowed) {
             deleter_t{}(_handle);
         }
     }
 
     handle_t _handle;
-    bool _is_shared;
+    bool _is_borrowed;
 };
 
 
