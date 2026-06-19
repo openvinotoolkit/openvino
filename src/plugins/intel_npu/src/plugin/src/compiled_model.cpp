@@ -38,10 +38,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    if (!_graph->get_compatibility_descriptor().has_value() || _device == nullptr) {
-        _logger.debug("Disabling RUNTIME_REQUIREMENTS: descriptor=%s, device=%s.",
-                      _graph->get_compatibility_descriptor().has_value() ? "present" : "absent",
-                      _device ? "present" : "absent");
+    if (!_graph->get_compatibility_descriptor().has_value()) {
+        _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
         localConfig.enable(ov::runtime_requirements.name(), false);
     }
 
