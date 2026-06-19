@@ -47,18 +47,18 @@ using ov::op::internal::GatherMatmul;
 ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::NodeVector& new_nodes) {
     auto i32 = ov::element::i32;
 
+    // Scalar i32 0, reused as the Gather axis, the G index, and the Range start.
+    auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
+
     auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [3]: [G, M, K]
-    auto axis0 = v0::Constant::create(i32, ov::Shape{}, {0});
 
     // Single Gather produces the Broadcast target shape [M, G] directly: this
     // fuses the former separate per-dim Gathers (G and M) and removes the Concat.
     auto mg_idx = v0::Constant::create(i32, ov::Shape{2}, {1, 0});
-    auto target_shape = std::make_shared<v8::Gather>(shape_a, mg_idx, axis0);  // [2]: [M, G]
+    auto target_shape = std::make_shared<v8::Gather>(shape_a, mg_idx, zero);  // [2]: [M, G]
 
-    // Scalar G for Range stop.
-    auto g_idx = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto g_scalar = std::make_shared<v8::Gather>(shape_a, g_idx, axis0);  // scalar G
-    auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
+    // Scalar G for Range stop (index 0 along axis 0).
+    auto g_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar G
     auto one = v0::Constant::create(i32, ov::Shape{}, {1});
     auto range = std::make_shared<v4::Range>(zero, g_scalar, one, i32);  // [G]
 
@@ -66,7 +66,7 @@ ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::
     auto indices = std::make_shared<v3::Broadcast>(range, target_shape);
 
     new_nodes.insert(new_nodes.end(),
-                     {shape_a, axis0, mg_idx, target_shape, g_idx, g_scalar, zero, one, range, indices});
+                     {zero, shape_a, mg_idx, target_shape, g_scalar, one, range, indices});
     return indices;
 }
 
@@ -82,13 +82,13 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
                                          ov::NodeVector& new_nodes) {
     auto i32 = ov::element::i32;
 
+    // Scalar i32 0, reused as the Gather axis, the T index, and the Range start.
+    auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
+
     auto offsets_i32 = std::make_shared<v0::Convert>(offsets, i32);
 
     auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [2]: [T, K]
-    auto axis0 = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto t_idx = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto t_scalar = std::make_shared<v8::Gather>(shape_a, t_idx, axis0);  // scalar T
-    auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
+    auto t_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar T
     auto one = v0::Constant::create(i32, ov::Shape{}, {1});
     auto positions = std::make_shared<v4::Range>(zero, t_scalar, one, i32);  // [T]
 
@@ -99,7 +99,7 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
 
     new_nodes.insert(
         new_nodes.end(),
-        {offsets_i32, shape_a, axis0, t_idx, t_scalar, zero, one, positions, idx_1d, unsqueeze_axis, indices});
+        {zero, offsets_i32, shape_a, t_scalar, one, positions, idx_1d, unsqueeze_axis, indices});
     return indices;
 }
 
