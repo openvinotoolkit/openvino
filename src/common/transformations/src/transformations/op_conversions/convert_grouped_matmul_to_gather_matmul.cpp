@@ -46,16 +46,12 @@ using ov::op::internal::GatherMatmul;
 // The G and M dimensions are taken dynamically from ShapeOf(mat_a).
 ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::NodeVector& new_nodes) {
     auto i32 = ov::element::i32;
-
-    // Scalar i32 0, reused as the Gather axis, the G index, and the Range start.
     auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
+    auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [G, M, K]
 
-    auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [3]: [G, M, K]
-
-    // Single Gather produces the Broadcast target shape [M, G] directly: this
-    // fuses the former separate per-dim Gathers (G and M) and removes the Concat.
+    // Single Gather produces the Broadcast target shape [M, G] directly
     auto mg_idx = v0::Constant::create(i32, ov::Shape{2}, {1, 0});
-    auto target_shape = std::make_shared<v8::Gather>(shape_a, mg_idx, zero);  // [2]: [M, G]
+    auto target_shape = std::make_shared<v8::Gather>(shape_a, mg_idx, zero);  // [M, G]
 
     // Scalar G for Range stop (index 0 along axis 0).
     auto g_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar G
@@ -87,7 +83,7 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
 
     auto offsets_i32 = std::make_shared<v0::Convert>(offsets, i32);
 
-    auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [2]: [T, K]
+    auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [T, K]
     auto t_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar T
     auto one = v0::Constant::create(i32, ov::Shape{}, {1});
     auto positions = std::make_shared<v4::Range>(zero, t_scalar, one, i32);  // [T]
@@ -116,19 +112,15 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             return false;
         }
 
-        const auto& a_pshape = gmm->get_input_partial_shape(0);
-        const auto& b_pshape = gmm->get_input_partial_shape(1);
-        const size_t a_rank = a_pshape.size();
-        const size_t b_rank = b_pshape.size();
+        const size_t a_rank = gmm->get_input_partial_shape(0).size();
+        const size_t b_rank = gmm->get_input_partial_shape(1).size();
         const size_t input_size = gmm->get_input_size();
 
         const auto mat_a = gmm->input_value(0);
         const auto mat_b = gmm->input_value(1);
 
         // GatherMatmul requires the weights tensor (input B) to be a Constant
-        // (or reachable through a constant-foldable chain). If it isn't, we cannot
-        // lower to the internal op — leave the public op in place so the reference
-        // GroupedMatMul::evaluate is used instead.
+        // (or reachable through a constant-foldable chain).
         if (!ov::op::util::is_on_path<v0::Constant>(mat_b)) {
             return false;
         }
@@ -164,8 +156,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             new_nodes.push_back(out);
             replacement = out;
         } else {
-            // Unexpected shape combinations are not handled by GatherMatmul — leave
-            // the graph untouched so the default decomposition / reference path can take over.
+            // Case not handled by GroupedMatMul - leave the graph untouched
             return false;
         }
 
