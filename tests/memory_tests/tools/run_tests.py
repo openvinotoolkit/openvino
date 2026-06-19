@@ -214,18 +214,22 @@ def modelid_assume_info(modelid):
 @dataclass
 class TestCase:
     model_id: str
-    model_path: str
+    model_path: Path
     device: str
 
     # metadata
-    original_model_path: str
+    description: dict[str, str]
     weights_size: int
+
+    @property
+    def original_model(self) -> str | None:
+        return self.description.get("src_model_path")
 
 
 class TestSession:
-    def __init__(self, executable, ir_cache_dirs, devices, api=None, report_reference=False):
+    def __init__(self, executable: Path, ir_cache_dirs: list[Path], devices: list[str], api=None, report_reference=False):
         self.executable = executable
-        self.test_name = executable.replace("\\", "/").rsplit("/", 1)[-1].removesuffix(".exe").removeprefix("test_")
+        self.test_name = executable.stem.removeprefix("test_")
         self.ir_cache_dirs = ir_cache_dirs
         self.devices = devices
         self.report_api = api
@@ -237,7 +241,7 @@ class TestSession:
             self.detect_report_metadata()
 
     def get_test_info(self):
-        result = run_test_executable_extract_result([self.executable, "--info"])
+        result = run_test_executable_extract_result([str(self.executable), "--info"])
         if "error" in result:
             raise Exception(f"Test executable does not behave correctly: {result}")
         if "samples" not in result:
@@ -281,7 +285,7 @@ class TestSession:
                 "metrics": sample.as_dict(),
                 "cpu_family": CPU_FAMILY,
                 "model_size": test.weights_size,
-                "ext": {"originalSource": test.original_model_path}
+                "ext": {"originalSource": test.original_model}
             })
             test_report.append(sample_report)
         response = attempt(self.api, "v2/memory/push-2-db-facade", {"data": test_report})
@@ -327,7 +331,10 @@ class TestSession:
                 return
             found_models.update(new_files)
             new_files = sorted(new_files)
-            yield from ((path.removeprefix(cache_dir).replace("\\", "/"), path) for path in new_files)
+            yield from (
+                (path.removeprefix(cache_dir).replace("\\", "/"), Path(path))
+                for path in new_files
+            )
 
     def get_description(self, model_path: Path) -> dict[str, str] | None:
         description_path = model_path.parent / "description.txt"
@@ -351,27 +358,24 @@ class TestSession:
     def generate_test_cases(self):
         for ir_cache_dir in self.ir_cache_dirs:
             for (model_id, model_path) in self.scan_directory(ir_cache_dir):
-                model_path = Path(model_path)
                 weights_path = model_path.with_suffix(".bin")
                 if not weights_path.is_file():
                     print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
                     continue
                 weights_size = weights_path.stat().st_size
-                model_description = self.get_description(model_path) or {}
-                original_model_path = model_description.get("src_model_path", "")
                 for device in self.devices:
                     yield TestCase(
                         model_id=model_id,
-                        model_path=str(model_path),
+                        model_path=model_path,
                         device=device,
-                        original_model_path=original_model_path,
+                        description=self.get_description(model_path) or {},
                         weights_size=weights_size,
                     )
 
     def run_test_case(self, test_case: TestCase):
         try:
             return run_test_executable_extract_result([
-                self.executable, test_case.model_path, test_case.device])
+                str(self.executable), test_case.model_path, test_case.device])
         except Exception as ex:
             print(f"  When running test an unexpected error happened: {ex}")
             return {"error": "unexpected error", "exception": ex}
@@ -418,7 +422,7 @@ class TestSession:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("test_executable")
+    parser.add_argument("test_executable", type=Path)
     parser.add_argument("--ir-cache", "--ir_cache", type=Path, nargs='*', required=True,
                         help='Path to directory with *.xml model files; '
                         'can be a wildcard expression, among all directories '
