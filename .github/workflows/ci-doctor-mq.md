@@ -21,9 +21,8 @@ on:
     types:
       - completed
 
-rate-limit:
-  max: 5 # Maximum runs per window
-  window: 60 # Time window in minutes
+concurrency:
+  group: gh-aw-${{ github.workflow }}
 
 # Only trigger for merge-queue failures, or manual workflow_dispatch for testing
 if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group') }}
@@ -65,14 +64,17 @@ safe-outputs:
           description: "Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise."
           required: false
           type: string
+          default: "not_found"
         pr_url:
           description: "Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise."
           required: false
           type: string
+          default: "not_found"
         author:
           description: "GitHub login of the PR author or commit author, if known. Omit otherwise."
           required: false
           type: string
+          default: "not_found"
         db_entries:
           description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
           required: true
@@ -312,8 +314,9 @@ tools:
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
   repo-memory:
     branch-name: memory/ci-doctor-mq
-    allowed-extensions: [".json"]
-    max-file-size: 102400
+    allowed-extensions: [".md", ".json", ".jsonl"]
+    max-file-size: 1048576 # 1MB max
+    max-patch-size: 1048576 # 1MB max
     max-file-count: 500
 
 post-steps:
@@ -456,8 +459,8 @@ You are the CI Failure Doctor for the Merge Queue, an expert investigative agent
    - Write the investigation report to `/tmp/gh-aw/repo-memory/default/mq/investigations/<timestamp>-<run-id>.json`
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
-   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/`
-   - Maintain an index file of all investigations for fast searching
+   - Store error patterns in `/tmp/gh-aw/repo-memory/default/mq/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`)
+   - Maintain an index of all investigations as a `.json` file (e.g., `/tmp/gh-aw/repo-memory/default/mq/investigations/index.json`) for fast searching
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -603,6 +606,55 @@ ELSE:
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
+### Phase 7: Output Format Validation (MANDATORY before any safe-output call)
+
+You MUST validate and normalise the payload
+before calling `notify_teams` or `notify_teams_recurring`.
+
+**Every numeric-looking field in these tools is declared as `type: string` and
+MUST be passed as a JSON string, not a JSON number.** Wrap the value in quotes.
+
+1. **Build the payload object first**, then run the checklist below against it.
+   Do not call the safe-output tool until every check passes.
+
+2. **String-encoding checklist** — for each field, confirm the value is a string
+   (quoted), never a bare number, boolean, null, or object:
+
+   For `notify_teams`:
+   - `title` — non-empty string
+   - `failed_workflow` — non-empty string
+   - `pipeline_url` — non-empty string (a valid URL)
+   - `description` — non-empty string
+   - `db_entries` — string-encoded non-negative integer, e.g. `"42"` (NOT `42`)
+   - `occurrence_count` — string-encoded positive integer, e.g. `"4"` (NOT `4`)
+   - `statistics` — non-empty string
+   - `statistics_json` — string (a JSON document serialized into a string; the
+     value itself must be a string, even though its contents are JSON)
+   - `pr_number` — when provided, string-encoded integer, e.g. `"27618"`
+     (NOT `27618`). This is the field most commonly rejected — double-check it.
+   - `pr_url` — when provided, string
+   - `author` — when provided, string
+
+   For `notify_teams_recurring`:
+   - `title`, `failed_workflow`, `pipeline_url`, `description`,
+     `affected_prs`, `recent_run_urls` — non-empty strings
+   - `recent_count` — string-encoded positive integer, e.g. `"3"` (NOT `3`)
+
+3. **Normalization rule**: if you computed any of the numeric fields as an
+   integer (e.g., `count` read from a pattern file, a file count, or a PR number
+   parsed from the API), explicitly convert it to its string form before placing
+   it in the payload. For example, treat `pr_number` derived as `27618` as
+   `"27618"`.
+
+4. **Optional-field rule**: for optional fields (`pr_number`, `pr_url`,
+   `author`), either provide a correctly-typed string value OR an explicit string "not_found". Never pass `null`, an empty object, or a bare number.
+
+5. **Final self-check**: re-read the assembled payload one last time and verify
+   that no value that should be a string is an unquoted number. Only after this
+   check passes may you call the safe-output tool. If you are unsure whether a
+   field is correctly typed, coerce it to a string — string is always the safe
+   choice for these tools.
+
 ## Output Requirements
 
 Report the investigation as a Microsoft Teams notification by calling the `notify_teams` safe-output tool exactly once.
@@ -739,6 +791,10 @@ This notification is **only** sent when the same failure has occurred 3 or more 
 
 ## Mandatory Output Requirement
 
+**Before calling any safe output tool, run the Phase 7 Output Format Validation
+checklist.** All numeric-looking fields (`pr_number`, `db_entries`,
+`occurrence_count`, `recent_count`) MUST be passed as JSON strings, not numbers.
+
 You **MUST** always call at least one safe output tool before finishing:
 
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
@@ -766,4 +822,5 @@ Example noop call: `{"noop": {"message": "No action needed: [brief explanation]"
 - **Filename Requirements**: Use filesystem-safe characters only (no colons, quotes, or special characters)
   - ✅ Good: `2026-02-12-11-20-45-458-12345.json`
   - ❌ Bad: `2026-02-12T11:20:45.458Z-12345.json` (contains colons)
+- **Allowed file extensions**: Only save artifacts as `.json`, `.md`, or `.jsonl` files. These are the only extensions tracked by `tools.repo-memory`. Files with any other extension (e.g., `.txt`, `.log`, `.yaml`) will **not** be persisted to the `memory/ci-doctor-mq` branch and will be lost when the runner is torn down. If there are any files with not-allowed extensions present in the `/tmp/gh-aw/repo-memory/default/mq` folder, remove them safely before finishing.
 - **Isolated branch**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` as its own subdirectory within the dedicated `memory/ci-doctor-mq` branch. This keeps merge-queue failure patterns isolated from any other workflows, ensuring threshold-crossing logic only counts merge-queue occurrences.

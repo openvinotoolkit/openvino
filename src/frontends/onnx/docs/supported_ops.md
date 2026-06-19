@@ -164,7 +164,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Scan                                                    |9, 8                    |21, 19, 16, 11, 9, 8            |                                |
 |                        |Scatter                                                 |9                       |11, 9                           |                                |
 |                        |ScatterElements                                         |11                      |18, 16, 13, 11                  |                                |
-|                        |ScatterND                                               |11                      |18, 16, 13, 11                  |                                |
+|                        |ScatterND                                               |16, 11                  |18, 16, 13, 11                  |                                |
 |                        |Selu                                                    |1                       |22, 6, 1                        |                                |
 |                        |SequenceAt                                              |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceConstruct                                       |11                      |11                              |Supported only in certain patterns|
@@ -263,7 +263,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |MaxpoolWithMask                                         |                        |1                               |                                |
 |com.microsoft           |MoE                                                     |                        |1                               |                                |
 |com.microsoft           |MulInteger                                              |                        |1                               |                                |
-|com.microsoft           |MultiHeadAttention                                      |                        |1                               |                                |
+|com.microsoft           |MultiHeadAttention                                      |1                       |1                               |                                |
 |com.microsoft           |MurmurHash3                                             |                        |1                               |                                |
 |com.microsoft           |NGramRepeatBlock                                        |                        |1                               |                                |
 |com.microsoft           |NhwcConv                                                |                        |1                               |                                |
