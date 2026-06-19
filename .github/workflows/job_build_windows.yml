@@ -26,6 +26,11 @@ on:
         type: boolean
         required: false
         default: false
+      build-variant:
+        description: 'Build variant including toolchain, e.g., "vs2022" or "vs2022_levelzero"'
+        type: string
+        required: false
+        default: 'vs2022'
 
 permissions: read-all
 
@@ -45,7 +50,7 @@ jobs:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
       CCACHE_SLOPPINESS: pch_defines,time_macros
@@ -60,7 +65,7 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
-      PRODUCT_TYPE: 'public_windows_vs2022_${{ inputs.build-type }}'
+      PRODUCT_TYPE: "public_windows_${{ inputs.build-variant }}_${{ inputs.build-type }}"
     steps:
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries

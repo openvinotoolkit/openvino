@@ -2,8 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
+
 #include <malloc.h>
+#include <windows.h>
+
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+#include <tuple>
 
 #include "openvino/util/memory.hpp"
 
@@ -18,6 +27,34 @@ void* aligned_alloc(size_t size, size_t alignment) noexcept {
 
 void aligned_free(void* ptr) noexcept {
     _aligned_free(ptr);
+}
+
+void* vm_reserve(size_t size, std::error_code& ec) noexcept {
+    const auto p = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+    if (p == NULL) {
+        ec = std::error_code(GetLastError(), std::system_category());
+        return nullptr;
+    }
+    ec = {};
+    return p;
+}
+
+void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
+    if (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
+        ec = std::error_code(GetLastError(), std::system_category());
+    } else {
+        ec = {};
+    }
+}
+
+void vm_decommit(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
+    std::ignore = VirtualFree(ptr, size, MEM_DECOMMIT);
+}
+
+void vm_release(void* ptr, size_t) noexcept {
+    assert(ptr != nullptr);
+    std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
 }  // namespace ov::util

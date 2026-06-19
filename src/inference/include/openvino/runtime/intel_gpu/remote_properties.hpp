@@ -17,6 +17,12 @@ namespace intel_gpu {
 
 using gpu_handle_param = void*;
 
+#ifdef __linux__
+using os_handle_param = int;
+#else
+using os_handle_param = void*;
+#endif
+
 /**
  * @brief Enum to define the type of the shared context
  * @ingroup ov_runtime_ocl_gpu_cpp_api
@@ -103,13 +109,23 @@ static constexpr Property<gpu_handle_param> va_device{"VA_DEVICE"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class SharedMemType {
-    OCL_BUFFER = 0,         //!< Shared OpenCL buffer blob
-    OCL_IMAGE2D = 1,        //!< Shared OpenCL 2D image blob
-    USM_USER_BUFFER = 2,    //!< Shared USM pointer allocated by user
-    USM_HOST_BUFFER = 3,    //!< Shared USM pointer type with host allocation type allocated by plugin
-    USM_DEVICE_BUFFER = 4,  //!< Shared USM pointer type with device allocation type allocated by plugin
-    VA_SURFACE = 5,         //!< Shared video decoder surface or D3D 2D texture blob
-    DX_BUFFER = 6           //!< Shared D3D buffer blob
+    OCL_BUFFER = 0,          //!< Shared OpenCL buffer blob
+    OCL_IMAGE2D = 1,         //!< Shared OpenCL 2D image blob
+    USM_USER_BUFFER = 2,     //!< Shared USM pointer allocated by user
+    USM_HOST_BUFFER = 3,     //!< Shared USM pointer type with host allocation type allocated by plugin
+    USM_DEVICE_BUFFER = 4,   //!< Shared USM pointer type with device allocation type allocated by plugin
+    VA_SURFACE = 5,          //!< Shared video decoder surface or D3D 2D texture blob
+    DX_BUFFER = 6,           //!< Shared D3D buffer blob
+    BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
+                             //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
+};
+
+/**
+ * @brief Enum to define memory type for pointer-based tensor sharing API.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+enum class MemType {
+    SHARED_BUF = 0,  //!< Shared OpenCL buffer handle passed as void* or int
 };
 
 /** @cond INTERNAL */
@@ -129,6 +145,8 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
         return os << "VA_SURFACE";
     case SharedMemType::DX_BUFFER:
         return os << "DX_BUFFER";
+    case SharedMemType::BUFFER_FROM_HANDLE:
+        return os << "BUFFER_FROM_HANDLE";
     default:
         OPENVINO_THROW("Unsupported memory type");
     }
@@ -151,6 +169,8 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
         share_mem_type = SharedMemType::VA_SURFACE;
     } else if (str == "DX_BUFFER") {
         share_mem_type = SharedMemType::DX_BUFFER;
+    } else if (str == "BUFFER_FROM_HANDLE") {
+        share_mem_type = SharedMemType::BUFFER_FROM_HANDLE;
     } else {
         OPENVINO_THROW("Unsupported memory type: ", str);
     }
@@ -171,6 +191,12 @@ static constexpr Property<SharedMemType> shared_mem_type{"SHARED_MEM_TYPE"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
+
+/**
+ * @brief This key identifies system memory handle (fd on Linux, NT handle on Windows)
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
 
 /**
  * @brief This key identifies video decoder surface handle

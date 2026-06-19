@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -85,9 +87,11 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     if (needs_type_casting)
         normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
 
+    // Use int32 max as the slice stop value; int64 max is not supported by all plugins (WA).
+    constexpr auto slice_stop = std::numeric_limits<std::int32_t>::max();
     auto sub_shape = std::make_shared<v8::Slice>(std::make_shared<v0::ShapeOf>(normalized),
                                                  Constant::create(element::i64, {1}, {axis}),
-                                                 Constant::create(element::i64, {1}, {INT_MAX}),
+                                                 Constant::create(element::i64, {1}, {slice_stop}),
                                                  Constant::create(element::i64, {1}, {1}));
     const auto normalized_rank = normalized.get_partial_shape().rank();
     const auto reshape_to_sub_shape = [&](ov::Output<ov::Node> param) -> ov::Output<ov::Node> {
@@ -124,9 +128,10 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
 
     // Only build the reference decomposition when Mean and/or InvStdDev are actually requested, so inference-only
     // models that keep the extra outputs but leave them empty don't get redundant ReduceMean nodes.
+    constexpr auto keep_dims = true;
     std::shared_ptr<ov::Node> mean;
     if (wanted(1) || wanted(2)) {
-        mean = std::make_shared<v1::ReduceMean>(data, axes, /*keep_dims=*/true);
+        mean = std::make_shared<v1::ReduceMean>(data, axes, keep_dims);
     }
     if (num_outputs >= 2) {
         results.push_back(wanted(1) ? mean->output(0) : null_output());
@@ -134,9 +139,8 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     if (num_outputs >= 3) {
         if (wanted(2)) {
             auto deviation = std::make_shared<v1::Subtract>(data, mean);
-            auto variance = std::make_shared<v1::ReduceMean>(std::make_shared<Multiply>(deviation, deviation),
-                                                             axes,
-                                                             /*keep_dims=*/true);
+            auto variance =
+                std::make_shared<v1::ReduceMean>(std::make_shared<Multiply>(deviation, deviation), axes, keep_dims);
             auto std_dev = std::make_shared<v0::Sqrt>(
                 std::make_shared<v1::Add>(variance, Constant::create(stash_type, {}, {epsilon})));
             results.push_back(std::make_shared<v1::Divide>(Constant::create(stash_type, {}, {1}), std_dev)->output(0));

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <numeric>
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -105,6 +106,55 @@ public:
     }
 };
 
+struct TransposeFQTransposeFuseParams {
+    Shape ranges_shape;
+    Shape expected_ranges_shape;
+};
+
+class TransposeSinkingFQTransposeFuse : public ov::test::TestsCommon,
+                                        public testing::WithParamInterface<std::tuple<TransposeFQTransposeFuseParams>> {
+public:
+    std::shared_ptr<Model> f, f_ref;
+
+    void SetUp() override {
+        const auto& test_case = std::get<0>(GetParam());
+        std::vector<float> fq_values(shape_size(test_case.ranges_shape));
+        std::iota(fq_values.begin(), fq_values.end(), 0.f);
+
+        {
+            auto input = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 3, 4, 5});
+
+            auto first_order =
+                std::make_shared<opset6::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+            auto first_transpose = std::make_shared<opset6::Transpose>(input, first_order);
+
+            auto i_low = std::make_shared<opset6::Constant>(element::f32, test_case.ranges_shape, fq_values);
+            auto i_high = std::make_shared<opset6::Constant>(element::f32, test_case.ranges_shape, fq_values);
+            auto o_low = std::make_shared<opset6::Constant>(element::f32, test_case.ranges_shape, fq_values);
+            auto o_high = std::make_shared<opset6::Constant>(element::f32, test_case.ranges_shape, fq_values);
+            auto fq = std::make_shared<opset6::FakeQuantize>(first_transpose, i_low, i_high, o_low, o_high, 256);
+
+            auto second_order =
+                std::make_shared<opset6::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+            auto second_transpose = std::make_shared<opset6::Transpose>(fq, second_order);
+
+            f = std::make_shared<ov::Model>(OutputVector{second_transpose}, ParameterVector{input});
+        }
+
+        {
+            auto input = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 3, 4, 5});
+
+            auto i_low = std::make_shared<opset6::Constant>(element::f32, test_case.expected_ranges_shape, fq_values);
+            auto i_high = std::make_shared<opset6::Constant>(element::f32, test_case.expected_ranges_shape, fq_values);
+            auto o_low = std::make_shared<opset6::Constant>(element::f32, test_case.expected_ranges_shape, fq_values);
+            auto o_high = std::make_shared<opset6::Constant>(element::f32, test_case.expected_ranges_shape, fq_values);
+            auto fq = std::make_shared<opset6::FakeQuantize>(input, i_low, i_high, o_low, o_high, 256);
+
+            f_ref = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{input});
+        }
+    }
+};
+
 TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     pass::Manager manager;
@@ -154,6 +204,34 @@ INSTANTIATE_TEST_SUITE_P(TransformationTest,
                                                                  {1, 3, 1, 1},
                                                                  {2, 3},
                                                                  {0, 1}}));
+
+TEST_P(TransposeSinkingFQTransposeFuse, TransposeFQTransposeFuse) {
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
+    pass::Manager manager;
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
+    manager.run_passes(f);
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+
+    auto fc = FunctionsComparator::no_default()
+                  .enable(FunctionsComparator::NODES)
+                  .enable(FunctionsComparator::PRECISIONS)
+                  .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommon,
+                         TransposeSinkingFQTransposeFuse,
+                         testing::Values(TransposeFQTransposeFuseParams{{}, {}},
+                                         TransposeFQTransposeFuseParams{{1}, {1}},
+                                         TransposeFQTransposeFuseParams{{1, 1, 1, 1}, {1, 1, 1, 1}},
+                                         TransposeFQTransposeFuseParams{{3}, {1, 3, 1, 1}},
+                                         TransposeFQTransposeFuseParams{{1, 3}, {1, 3, 1, 1}},
+                                         TransposeFQTransposeFuseParams{{1, 1, 3}, {1, 3, 1, 1}},
+                                         TransposeFQTransposeFuseParams{{1, 1, 1, 3}, {1, 3, 1, 1}}));
 
 struct TransposeReduceParams {
     // given params
