@@ -104,7 +104,6 @@ static long long bench(const std::function<void()>& fn,
     for (int i = 0; i < warmup_runs; ++i) {
         evict_cache(path, file_size);
         fn();
-        evict_cache(path, file_size);
     }
     long long total = 0;
     for (int i = 0; i < measured_runs; ++i) {
