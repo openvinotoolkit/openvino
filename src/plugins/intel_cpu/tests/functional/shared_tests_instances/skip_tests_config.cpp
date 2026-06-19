@@ -668,7 +668,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
         }
         if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {

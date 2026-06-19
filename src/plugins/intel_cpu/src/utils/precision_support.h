@@ -13,8 +13,6 @@ namespace ov::intel_cpu {
 
 bool hasHardwareSupport(const ov::element::Type& precision);
 ov::element::Type defaultFloatPrecision();
-bool hasIntDotProductSupport();
-bool hasInt8MMSupport();
 
 // Declared for ARM only: the gate is referenced solely by the ARM executors
 // (ACL / KleidiAI), which are compiled only on ARM.

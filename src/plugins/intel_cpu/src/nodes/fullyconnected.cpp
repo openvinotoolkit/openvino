@@ -189,7 +189,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         if (!isSupportedOperation(op, errorMessage)) {
             return false;
         }
-        if (!hasIntDotProductSupport()) {
+        if (!hasArmISASupport(ArmISA::DOTPROD)) {
             return false;
         }
         if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {

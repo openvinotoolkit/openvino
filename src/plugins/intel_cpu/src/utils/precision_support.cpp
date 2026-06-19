@@ -54,14 +54,6 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
-bool hasIntDotProductSupport() {
-    return with_cpu_arm_dotprod();
-}
-
-bool hasInt8MMSupport() {
-    return with_cpu_arm_i8mm();
-}
-
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 bool hasArmISASupport(ArmISA isa) {
     switch (isa) {
