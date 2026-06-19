@@ -74,6 +74,24 @@ TEST_P(OfflineCompilationUnitTests, ReadSupportedPropertiesMaxTilesNotPresent) {
                           ov::intel_npu::max_tiles.name()) == supportedProperties.end());
 }
 
+TEST_P(OfflineCompilationUnitTests, ReadSupportedPropertiesRuntimeRequirementsNotPresent) {
+    core.set_property(DEVICE_NPU, config);
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties = core.get_property(DEVICE_NPU, ov::supported_properties));
+    ASSERT_TRUE(std::find(supportedProperties.begin(),
+                          supportedProperties.end(),
+                          ov::runtime_requirements.name()) == supportedProperties.end());
+}
+
+TEST_P(OfflineCompilationUnitTests, ReadRuntimeRequirementsOfflineExpectThrow) {
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, DEVICE_NPU, config));
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiledModel.get_property(ov::runtime_requirements),
+                                  ov::Exception,
+                                  "Unsupported configuration key: RUNTIME_REQUIREMENTS");
+}
+
 INSTANTIATE_TEST_SUITE_P(
     OfflineCompilationPlatforms,
     OfflineCompilationUnitTests,

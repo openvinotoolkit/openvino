@@ -1309,6 +1309,8 @@ bool Properties::disable_compatibility_check_if_needed() {
         // No need to check the CIP support anymore in this case
         _logger.debug("Driver is not present! Disabling the compatibility check property.");
         _config.enable(ov::compatibility_check.name(), false);
+        // Runtime requirements cannot be validated without an active device
+        _config.enable(ov::runtime_requirements.name(), false);
         return true;  // config was updated
     }
 
