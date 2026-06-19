@@ -22,6 +22,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -47,25 +48,22 @@ using ov::op::internal::GatherMatmul;
 // Build the identity-per-group `indices` for 3Dx3D:
 //     indices = Broadcast(Range(0, G), [M, G])
 // The G and M dimensions are taken dynamically from ShapeOf(mat_a).
-ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::NodeVector& new_nodes) {
+ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, NodeRegistry& rg) {
     auto i32 = ov::element::i32;
-    auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [G, M, K]
+    auto zero = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
+    auto shape_a = rg.make<v3::ShapeOf>(mat_a, i32);  // [G, M, K]
 
     // Single Gather produces the Broadcast target shape [M, G] directly
-    auto mg_idx = v0::Constant::create(i32, ov::Shape{2}, {1, 0});
-    auto target_shape = std::make_shared<v8::Gather>(shape_a, mg_idx, zero);  // [M, G]
+    auto mg_idx = rg.make<v0::Constant>(i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+    auto target_shape = rg.make<v8::Gather>(shape_a, mg_idx, zero);  // [M, G]
 
     // Scalar G for Range stop (index 0 along axis 0).
-    auto g_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar G
-    auto one = v0::Constant::create(i32, ov::Shape{}, {1});
-    auto range = std::make_shared<v4::Range>(zero, g_scalar, one, i32);  // [G]
+    auto g_scalar = rg.make<v8::Gather>(shape_a, zero, zero);  // scalar G
+    auto one = rg.make<v0::Constant>(i32, ov::Shape{}, 1);
+    auto range = rg.make<v4::Range>(zero, g_scalar, one, i32);  // [G]
 
     // Broadcast right-aligns [G] against the target [M, G]
-    auto indices = std::make_shared<v3::Broadcast>(range, target_shape);
-
-    new_nodes.insert(new_nodes.end(),
-                     {zero, shape_a, mg_idx, target_shape, g_scalar, one, range, indices});
+    auto indices = rg.make<v3::Broadcast>(range, target_shape);
     return indices;
 }
 
@@ -77,34 +75,28 @@ ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::
 // `offsets` may be i32 or i64; we Convert to i32 only when needed and use i32
 ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
                                          const ov::Output<ov::Node>& offsets,
-                                         ov::NodeVector& new_nodes) {
+                                         NodeRegistry& rg) {
     auto i32 = ov::element::i32;
 
     // Scalar i32 0, reused as the Gather axis, the T index, and the Range start.
-    auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
+    auto zero = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
 
     // SearchSorted requires the sorted sequence and probe values to share an element
     // type; convert `offsets` to i32 only when it isn't already i32.
     ov::Output<ov::Node> offsets_i32 = offsets;
     if (offsets.get_element_type() != i32) {
-        auto offsets_convert = std::make_shared<v0::Convert>(offsets, i32);
-        offsets_i32 = offsets_convert;
-        new_nodes.push_back(offsets_convert);
+        offsets_i32 = rg.make<v0::Convert>(offsets, i32);
     }
 
-    auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [T, K]
-    auto t_scalar = std::make_shared<v8::Gather>(shape_a, zero, zero);  // scalar T
-    auto one = v0::Constant::create(i32, ov::Shape{}, {1});
-    auto positions = std::make_shared<v4::Range>(zero, t_scalar, one, i32);  // [T]
+    auto shape_a = rg.make<v3::ShapeOf>(mat_a, i32);  // [T, K]
+    auto t_scalar = rg.make<v8::Gather>(shape_a, zero, zero);  // scalar T
+    auto one = rg.make<v0::Constant>(i32, ov::Shape{}, 1);
+    auto positions = rg.make<v4::Range>(zero, t_scalar, one, i32);  // [T]
 
-    auto idx_1d = std::make_shared<v15::SearchSorted>(offsets_i32, positions, /*right_mode=*/true, i32);
+    auto idx_1d = rg.make<v15::SearchSorted>(offsets_i32, positions, /*right_mode=*/true, i32);
 
-    auto unsqueeze_axis = v0::Constant::create(i32, ov::Shape{1}, {-1});
-    auto indices = std::make_shared<v0::Unsqueeze>(idx_1d, unsqueeze_axis);
-
-    new_nodes.insert(
-        new_nodes.end(),
-        {zero, shape_a, t_scalar, one, positions, idx_1d, unsqueeze_axis, indices});
+    auto unsqueeze_axis = rg.make<v0::Constant>(i32, ov::Shape{1}, -1);
+    auto indices = rg.make<v0::Unsqueeze>(idx_1d, unsqueeze_axis);
     return indices;
 }
 
@@ -145,41 +137,32 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             return false;
         }
 
-        ov::NodeVector new_nodes;
+        NodeRegistry rg;
         std::shared_ptr<ov::Node> replacement;
 
         // The matcher guarantees only the 3Dx3D (2 inputs) and 2Dx3D (3 inputs) cases reach here.
         if (gmm->get_input_size() == 2) {
             // ---- 3Dx3D: no offsets ----
             // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
-            auto indices = build_3dx3d_indices(mat_a, new_nodes);
-            auto gm = std::make_shared<GatherMatmul>(mat_a, mat_b, indices);
-            new_nodes.push_back(gm);
-            replacement = gm;
+            auto indices = build_3dx3d_indices(mat_a, rg);
+            replacement = rg.make<GatherMatmul>(mat_a, mat_b, indices);
         } else {
             // ---- 2Dx3D: with offsets ----
             // A:[T,K] B:[G,N,K] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), B, idx[T,1]), 0) -> [T,N]
             const auto offsets = gmm->input_value(2);
 
-            auto a_unsq_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
-            auto a_3d = std::make_shared<v0::Unsqueeze>(mat_a, a_unsq_axis);
-            new_nodes.push_back(a_unsq_axis);
-            new_nodes.push_back(a_3d);
+            auto a_unsq_axis = rg.make<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
+            auto a_3d = rg.make<v0::Unsqueeze>(mat_a, a_unsq_axis);
 
-            auto indices = build_2dx3d_indices(mat_a, offsets, new_nodes);
+            auto indices = build_2dx3d_indices(mat_a, offsets, rg);
 
-            auto gm = std::make_shared<GatherMatmul>(a_3d, mat_b, indices);  // [1, T, N]
-            auto squeeze_axis = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
-            auto out = std::make_shared<v0::Squeeze>(gm, squeeze_axis);  // [T, N]
-
-            new_nodes.push_back(gm);
-            new_nodes.push_back(squeeze_axis);
-            new_nodes.push_back(out);
-            replacement = out;
+            auto gm = rg.make<GatherMatmul>(a_3d, mat_b, indices);  // [1, T, N]
+            auto squeeze_axis = rg.make<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
+            replacement = rg.make<v0::Squeeze>(gm, squeeze_axis);  // [T, N]
         }
 
         replacement->set_friendly_name(gmm->get_friendly_name());
-        ov::copy_runtime_info(gmm, new_nodes);
+        ov::copy_runtime_info(gmm, rg.get());
         ov::replace_node(gmm, replacement);
         return true;
     };
