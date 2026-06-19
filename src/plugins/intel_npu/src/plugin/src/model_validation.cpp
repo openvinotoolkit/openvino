@@ -31,7 +31,7 @@ namespace {
                    "Please reshape the model to use static shapes before compiling for the NPU device:\n",
                    "    model.reshape({<static_shape>})\n",
                    "See: https://docs.openvino.ai/2026/openvino-workflow/"
-                   "running-inference/changing-input-shape.html");
+                   "model-preparation/setting-input-shapes.html");
 }
 
 void check_partial_shape(const ov::PartialShape& shape, const std::string& node_role, const std::string& node_name) {
