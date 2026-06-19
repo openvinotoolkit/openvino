@@ -647,8 +647,8 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
 
     // --- Step 1: Create writer PAM and run writer PA (write_kv_cache=true) to fill cache ---
     PagedAttentionManager pam(rg,
-                              get_test_engine(),
-                              get_test_stream(),
+                              tests::get_test_engine(),
+                              tests::get_test_stream(),
                               p.subsequences,
                               p.num_heads,
                               p.num_kv_heads,
@@ -716,23 +716,23 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
     { auto ps = value_cache_layout.get_partial_shape(); ps[0] = -1; value_cache_layout.set_partial_shape(ps); }
 
     auto build_pa_network = [&](bool write_kv_cache) {
-        std::vector<input_info> pa_inputs = {
-            input_info("query"), input_info("key"), input_info("value"),
-            input_info("key_cache"), input_info("value_cache"),
-            input_info("past_lens"), input_info("subsequence_begins"),
-            input_info("block_indices"), input_info("block_indices_begins"),
-            input_info("scale"), input_info("sliding_window"), input_info("alibi"),
-            input_info("max_context_len"), input_info("score_aggregation_window"),
-            input_info("rotated_block_indices"), input_info("rotation_deltas"),
-            input_info("rotation_trig_lut_modified"),
-            input_info("xattention_threshold"), input_info("xattention_block_size"),
-            input_info("xattention_stride"), input_info("sinks"),
-            input_info("adaptive_rkv_start_size"), input_info("adaptive_rkv_evictable_sizes"),
-            input_info("adaptive_rkv_diversity_block_set_indices"), input_info("adaptive_rkv_diversity_block_set_indices_begins"),
-            input_info("token_type_ids"), input_info("qq_bias"), input_info("qq_bias_begins")
+        std::vector<cldnn::input_info> pa_inputs = {
+            cldnn::input_info("query"), cldnn::input_info("key"), cldnn::input_info("value"),
+            cldnn::input_info("key_cache"), cldnn::input_info("value_cache"),
+            cldnn::input_info("past_lens"), cldnn::input_info("subsequence_begins"),
+            cldnn::input_info("block_indices"), cldnn::input_info("block_indices_begins"),
+            cldnn::input_info("scale"), cldnn::input_info("sliding_window"), cldnn::input_info("alibi"),
+            cldnn::input_info("max_context_len"), cldnn::input_info("score_aggregation_window"),
+            cldnn::input_info("rotated_block_indices"), cldnn::input_info("rotation_deltas"),
+            cldnn::input_info("rotation_trig_lut_modified"),
+            cldnn::input_info("xattention_threshold"), cldnn::input_info("xattention_block_size"),
+            cldnn::input_info("xattention_stride"), cldnn::input_info("sinks"),
+            cldnn::input_info("adaptive_rkv_start_size"), cldnn::input_info("adaptive_rkv_evictable_sizes"),
+            cldnn::input_info("adaptive_rkv_diversity_block_set_indices"), cldnn::input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+            cldnn::input_info("token_type_ids"), cldnn::input_info("qq_bias"), cldnn::input_info("qq_bias_begins")
         };
 
-        auto pa_prim = paged_attention("paged_attention", pa_inputs);
+        auto pa_prim = cldnn::paged_attention("paged_attention", pa_inputs);
         pa_prim.k_head_size = p.k_head_size;
         pa_prim.v_head_size = p.v_head_size;
         pa_prim.kv_heads_num = p.num_kv_heads;
@@ -745,49 +745,49 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
         pa_prim.has_xattention = p.has_xattention;
         pa_prim.write_kv_cache = write_kv_cache;
 
-        topology topo;
+        cldnn::topology topo;
         topo.add(
-            input_layout("query", query_layout),
-            input_layout("key", key_layout),
-            input_layout("value", value_layout),
-            input_layout("key_cache", key_cache_layout),
-            input_layout("value_cache", value_cache_layout),
-            input_layout("past_lens", past_lens_mem->get_layout()),
-            input_layout("subsequence_begins", subsequence_begins_mem->get_layout()),
-            input_layout("block_indices", block_indices_mem->get_layout()),
-            input_layout("block_indices_begins", block_indices_begins_mem->get_layout()),
-            input_layout("scale", scale_mem->get_layout()),
-            input_layout("sliding_window", sliding_window_mem->get_layout()),
-            input_layout("alibi", alibi_mem->get_layout()),
-            input_layout("max_context_len", max_context_len_mem->get_layout()),
-            input_layout("score_aggregation_window", score_aggregation_mem->get_layout()),
+            cldnn::input_layout("query", query_layout),
+            cldnn::input_layout("key", key_layout),
+            cldnn::input_layout("value", value_layout),
+            cldnn::input_layout("key_cache", key_cache_layout),
+            cldnn::input_layout("value_cache", value_cache_layout),
+            cldnn::input_layout("past_lens", past_lens_mem->get_layout()),
+            cldnn::input_layout("subsequence_begins", subsequence_begins_mem->get_layout()),
+            cldnn::input_layout("block_indices", block_indices_mem->get_layout()),
+            cldnn::input_layout("block_indices_begins", block_indices_begins_mem->get_layout()),
+            cldnn::input_layout("scale", scale_mem->get_layout()),
+            cldnn::input_layout("sliding_window", sliding_window_mem->get_layout()),
+            cldnn::input_layout("alibi", alibi_mem->get_layout()),
+            cldnn::input_layout("max_context_len", max_context_len_mem->get_layout()),
+            cldnn::input_layout("score_aggregation_window", score_aggregation_mem->get_layout()),
             pa_prim,
-            reorder("output", input_info("paged_attention", 0), format::bfyx, data_types::f16)
+            cldnn::reorder("output", cldnn::input_info("paged_attention", 0), cldnn::format::bfyx, cldnn::data_types::f16)
         );
-        topo.add(input_layout("rotated_block_indices", rotated_block_indices_mem->get_layout()));
-        topo.add(input_layout("rotation_deltas", rotation_deltas_mem->get_layout()));
-        topo.add(input_layout("rotation_trig_lut", rotation_trig_lut_mem->get_layout()));
-        topo.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
-        topo.add(input_layout("xattention_threshold", xattention_threshold_mem->get_layout()));
-        topo.add(input_layout("xattention_block_size", xattention_block_size_mem->get_layout()));
-        topo.add(input_layout("xattention_stride", xattention_stride_mem->get_layout()));
-        topo.add(input_layout("sinks", sinks_mem->get_layout()));
-        topo.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_mem->get_layout()));
-        topo.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem->get_layout()));
-        topo.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem->get_layout()));
-        topo.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout()));
-        topo.add(input_layout("token_type_ids", token_type_ids_mem->get_layout()));
-        topo.add(input_layout("qq_bias", qq_bias_mem->get_layout()));
-        topo.add(input_layout("qq_bias_begins", qq_bias_begins_mem->get_layout()));
+        topo.add(cldnn::input_layout("rotated_block_indices", rotated_block_indices_mem->get_layout()));
+        topo.add(cldnn::input_layout("rotation_deltas", rotation_deltas_mem->get_layout()));
+        topo.add(cldnn::input_layout("rotation_trig_lut", rotation_trig_lut_mem->get_layout()));
+        topo.add(cldnn::activation("rotation_trig_lut_modified", cldnn::input_info("rotation_trig_lut"), cldnn::activation_func::none));
+        topo.add(cldnn::input_layout("xattention_threshold", xattention_threshold_mem->get_layout()));
+        topo.add(cldnn::input_layout("xattention_block_size", xattention_block_size_mem->get_layout()));
+        topo.add(cldnn::input_layout("xattention_stride", xattention_stride_mem->get_layout()));
+        topo.add(cldnn::input_layout("sinks", sinks_mem->get_layout()));
+        topo.add(cldnn::input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_mem->get_layout()));
+        topo.add(cldnn::input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem->get_layout()));
+        topo.add(cldnn::input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem->get_layout()));
+        topo.add(cldnn::input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout()));
+        topo.add(cldnn::input_layout("token_type_ids", token_type_ids_mem->get_layout()));
+        topo.add(cldnn::input_layout("qq_bias", qq_bias_mem->get_layout()));
+        topo.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_mem->get_layout()));
 
-        ExecutionConfig config = get_test_default_config(get_test_engine());
+        ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
-        return get_network(get_test_engine(), topo, config, get_test_stream_ptr(), false);
+        return tests::get_network(tests::get_test_engine(), topo, config, tests::get_test_stream_ptr(), false);
     };
 
-    auto set_network_inputs = [&](network::ptr& net, memory::ptr query_mem_input) {
+    auto set_network_inputs = [&](cldnn::network::ptr& net, cldnn::memory::ptr query_mem_input) {
         net->set_input_data("query", query_mem_input);
         net->set_input_data("key", key_mem);
         net->set_input_data("value", value_mem);
@@ -825,11 +825,11 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
 
     // --- Step 2: Fill K,V with garbage to verify write_kv_cache=false skips cache write ---
     {
-        mem_lock<ov::float16> key_lock(key_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> key_lock(key_mem, tests::get_test_stream());
         std::fill(key_lock.begin(), key_lock.end(), ov::float16(0.0f));
     }
     {
-        mem_lock<ov::float16> value_lock(value_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> value_lock(value_mem, tests::get_test_stream());
         std::fill(value_lock.begin(), value_lock.end(), ov::float16(0.0f));
     }
 
@@ -844,10 +844,10 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
     for (const auto& sd : p.subsequences)
         total_tokens += sd.num_tokens;
 
-    auto reader_query_layout = layout{ ov::PartialShape{ total_tokens, p.num_heads * p.k_head_size }, data_types::f16, format::bfyx };
-    auto reader_query_mem = get_test_engine().allocate_memory(reader_query_layout);
+    auto reader_query_layout = cldnn::layout{ ov::PartialShape{ total_tokens, p.num_heads * p.k_head_size }, cldnn::data_types::f16, cldnn::format::bfyx };
+    auto reader_query_mem = tests::get_test_engine().allocate_memory(reader_query_layout);
     {
-        mem_lock<ov::float16> lock(reader_query_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> lock(reader_query_mem, tests::get_test_stream());
         size_t offset = 0;
         for (size_t seq_idx = 0; seq_idx < p.subsequences.size(); seq_idx++) {
             size_t num_tokens = p.subsequences[seq_idx].num_tokens;
@@ -875,7 +875,7 @@ TEST_P(shared_kv_cache_test, reader_output_matches_reference) {
 
     // --- Step 5: Compare reader output against reference ---
     ASSERT_EQ(reader_output_mem->count(), ref_output.size());
-    mem_lock<ov::float16, mem_lock_type::read> output_lock(reader_output_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> output_lock(reader_output_mem, tests::get_test_stream());
     for (size_t i = 0; i < ref_output.size(); i++) {
         ASSERT_NEAR(static_cast<float>(output_lock[i]), static_cast<float>(ref_output[i]), 7e-3f)
             << " at index=" << i;
