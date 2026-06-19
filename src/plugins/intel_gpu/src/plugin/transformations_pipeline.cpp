@@ -121,6 +121,7 @@
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
+#include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
@@ -1440,6 +1441,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        // Keep cos/sin table subgraphs in FP32 when f16 compression runs (FLUX.2 RoPE accuracy).
+        manager.register_pass<ov::pass::MarkRopeInputsToKeepInMixedPrecision>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
