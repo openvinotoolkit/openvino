@@ -24,6 +24,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+
 #include "openvino/util/log.hpp"
 #include "openvino/util/common_util.hpp"
 #include "perf_log.hpp"
