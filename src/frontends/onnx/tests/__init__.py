@@ -151,7 +151,7 @@ xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to to
 # ONNX 1.15
 xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
 xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
-skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support cubic and linear modes, and 4D tensor") # Need to enable after bumping to 1.15
+skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support volumetric (5D) inputs")
 skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
 skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
