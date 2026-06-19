@@ -265,9 +265,9 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
       _compatibilityCheckSupported(state.compatibilityCheckSupported),
       _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
       _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
-      _compatibilityCheckFiltered(state.compatibilityCheckFiltered),
-      _properties(std::move(state.properties)),
-      _supportedProperties(std::move(state.supportedProperties)) {}
+      _compatibilityCheckFiltered(state.compatibilityCheckFiltered) {
+    registerProperties();
+}
 
 void PluginPropertyManager::registerProperties() const {
     _supportedProperties.clear();
@@ -785,17 +785,9 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     }
 
     if (isRegistered) {
-        // Registered and not a config option: always supported. Or it is a special both property which is always
-        // supported.
-        if (!isConfigOption || isSpecialBothProperty(name)) {
-            return true;
-        }
-
-        // Registered as a config option: runtime mode is always supported.
-        auto opt = _config.getOpt(name);
-        if (opt.mode() == OptionMode::RunTime) {
-            return true;
-        }
+        const auto it = _properties.find(name);
+        OPENVINO_ASSERT(it != _properties.end(), "Property was expected to be registered");
+        return it->second.isPublic;
     }
 
     // Property is compiler config, need to check compiler support
@@ -837,7 +829,8 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
         _currentlyUsedPlatform = std::move(compilationPlatform);
     }
 
-    return isPropertyRegistered(name);
+    const auto it = _properties.find(name);
+    return it != _properties.end() && it->second.isPublic;
 }
 
 FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const {

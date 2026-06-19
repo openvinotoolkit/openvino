@@ -292,7 +292,7 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
                                                 const std::optional<std::string>& optValue) const {
-    auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+    auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     return isOptionSupported.value_or(false);
 }
 

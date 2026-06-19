@@ -380,7 +380,7 @@ Instead of using try_register_simple_property helper function, you can choose fr
 
 #### try_register_varpub_property<OPT_TYPE>(config, properties, property, is_public)
 This can be used when callback is standard, but visibility (public/private) is custom.
-Instead of using automaticly the value from optionsBase, one can define a custom function to determine
+Instead of using automatically the value from optionsBase, one can define a custom function to determine
 whether the property will be public (included in supported_properties) or private and provide as PROP_VISIBILITY parameter.
 #### try_register_customfunc_property(config, properties, property, getter)
 This helper function can be used whenever a custom callback function is required for this property,

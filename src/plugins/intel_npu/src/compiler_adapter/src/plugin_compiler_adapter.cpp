@@ -305,7 +305,22 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                          vcl_desc.deviceID,
                          vcl_desc.tileCount);
 
-            return _compiler->is_option_supported(&vcl_desc, optname, optValue);
+            const bool hasValue = optValue.has_value();
+            const std::string value = hasValue ? optValue.value() : "";
+            if (_compiler->is_option_supported(&vcl_desc, optname, optValue)) {
+                _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
+                              optname.c_str(),
+                              hasValue ? value.c_str() : "null");
+                return true;
+            } else {
+                _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
+                              optname.c_str(),
+                              hasValue ? value.c_str() : "null");
+                return false;
+            }
+        } else {
+            _logger.warning("Can not get device properties, compatibility check is not available");
+            return false;
         }
     }
 

@@ -4,8 +4,6 @@
 
 #include "zero_device.hpp"
 
-#include <ze_api.h>
-
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
