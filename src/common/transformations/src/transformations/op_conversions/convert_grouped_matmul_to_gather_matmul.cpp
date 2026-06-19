@@ -13,7 +13,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -43,51 +42,31 @@ namespace v17 = ov::op::v17;
 using ov::op::internal::GatherMatmul;
 
 // Build the identity-per-group `indices` for 3Dx3D:
-//     indices = Broadcast(Unsqueeze(Range(0, G), 0), [M, G])
+//     indices = Broadcast(Range(0, G), [M, G])
 // The G and M dimensions are taken dynamically from ShapeOf(mat_a).
 ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, ov::NodeVector& new_nodes) {
     auto i32 = ov::element::i32;
 
     auto shape_a = std::make_shared<v3::ShapeOf>(mat_a, i32);  // [3]: [G, M, K]
     auto axis0 = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto idx_g = v0::Constant::create(i32, ov::Shape{1}, {0});
-    auto idx_m = v0::Constant::create(i32, ov::Shape{1}, {1});
-    auto g_dim = std::make_shared<v8::Gather>(shape_a, idx_g, axis0);  // [1]
-    auto m_dim = std::make_shared<v8::Gather>(shape_a, idx_m, axis0);  // [1]
 
-    // Build target shape [M, G] for broadcasting.
-    auto target_shape = std::make_shared<v0::Concat>(ov::OutputVector{m_dim, g_dim}, 0);
+    // Single Gather produces the Broadcast target shape [M, G] directly: this
+    // fuses the former separate per-dim Gathers (G and M) and removes the Concat.
+    auto mg_idx = v0::Constant::create(i32, ov::Shape{2}, {1, 0});
+    auto target_shape = std::make_shared<v8::Gather>(shape_a, mg_idx, axis0);  // [2]: [M, G]
 
-    // Range(0, G, 1) -> [G].  Range needs scalar inputs of matching type.
-    auto g_scalar_idx = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto g_scalar = std::make_shared<v8::Gather>(shape_a, g_scalar_idx, axis0);  // scalar
+    // Scalar G for Range stop.
+    auto g_idx = v0::Constant::create(i32, ov::Shape{}, {0});
+    auto g_scalar = std::make_shared<v8::Gather>(shape_a, g_idx, axis0);  // scalar G
     auto zero = v0::Constant::create(i32, ov::Shape{}, {0});
     auto one = v0::Constant::create(i32, ov::Shape{}, {1});
     auto range = std::make_shared<v4::Range>(zero, g_scalar, one, i32);  // [G]
 
-    // [G] -> [1, G]
-    auto unsqueeze_axis = v0::Constant::create(i32, ov::Shape{1}, {0});
-    auto range_2d = std::make_shared<v0::Unsqueeze>(range, unsqueeze_axis);
-
-    // Broadcast to [M, G].  Each row is identity 0..G-1, so indices[m, g] = g.
-    auto indices = std::make_shared<v3::Broadcast>(range_2d, target_shape);
+    // Broadcast right-aligns [G] against the target [M, G]
+    auto indices = std::make_shared<v3::Broadcast>(range, target_shape);
 
     new_nodes.insert(new_nodes.end(),
-                     {shape_a,
-                      axis0,
-                      idx_g,
-                      idx_m,
-                      g_dim,
-                      m_dim,
-                      target_shape,
-                      g_scalar_idx,
-                      g_scalar,
-                      zero,
-                      one,
-                      range,
-                      unsqueeze_axis,
-                      range_2d,
-                      indices});
+                     {shape_a, axis0, mg_idx, target_shape, g_idx, g_scalar, zero, one, range, indices});
     return indices;
 }
 
