@@ -12,6 +12,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -1428,4 +1429,81 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_unsqueeze) {
     PartialShape outer_shape = PartialShape::dynamic();
     EXPECT_EQ(outer_model->get_output_size(), 1);
     EXPECT_EQ(outer_result->get_output_partial_shape(0), outer_shape);
+}
+
+// A merged (back-edged) input is seeded with a statically-empty dimension
+// ([0, 4]) while the body grows that axis on every iteration by concatenating
+// the carried tensor with a [1, 4] value. The grown tensor is loop-carried
+// STATE only - it feeds the back-edge but is not exposed as a Loop output (only
+// a reduction of it is). The shape-merge driven by the output descriptions never
+// visits this back-edge, so the merged body Parameter's static-0 dimension - which
+// describes only the outer initial value, not the loop-carried shape - must be
+// relaxed to dynamic by the dedicated merged-input pass. Without it the Parameter
+// stays clamped at 0, freezing the Concat at an empty tensor.
+TEST(type_prop, loop_merged_state_only_input_zero_dim_widened_by_growing_body) {
+    // Body: grown = concat(carried, [1, 4]); the loop output is a per-row reduction of grown.
+    auto body_carried = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{0, 4});
+    auto step = ov::op::v0::Constant::create(element::f32, Shape{1, 4}, std::vector<float>(4, 1.f));
+    auto grown = make_shared<ov::op::v0::Concat>(OutputVector{body_carried, step}, 0);
+    auto reduce_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto reduced = make_shared<ov::op::v1::ReduceSum>(grown, reduce_axis);  // [?, 4] -> [?]
+    auto body_condition = ov::op::v0::Constant::create(element::boolean, Shape{1}, {true});
+    auto body = make_shared<Model>(OutputVector{body_condition, grown, reduced}, ParameterVector{body_carried});
+
+    auto init = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{0, 4});
+    auto trip_count = ov::op::v0::Constant::create(element::i64, Shape{1}, {5});
+    auto exec_condition = ov::op::v0::Constant::create(element::boolean, Shape{1}, {true});
+
+    auto loop = make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+    // grown is the back-edge (state); only `reduced` is exposed as a Loop output.
+    loop->set_merged_input(body_carried, init, grown);
+    auto out = loop->get_iter_value(reduced, -1);
+    auto result = make_shared<ov::op::v0::Result>(out);
+    auto f = make_shared<Model>(ResultVector{result}, ParameterVector{init});
+
+    // The state-only merged input's static-0 axis is relaxed to dynamic (not clamped at 0),
+    // so the body Concat and its reduction are typed over a growable, non-empty tensor.
+    EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{Dimension::dynamic(), 4}));
+    EXPECT_EQ(loop->get_output_partial_shape(0), PartialShape{Dimension(1, -1)});
+}
+
+// Same pattern as loop_merged_state_only_input_zero_dim_widened_by_growing_body
+// but the per-iteration growth tensor has a *dynamically*-known row count ([?, 4]
+// instead of [1, 4]).  The body Concat therefore also produces [?, 4], so the
+// back-edge reconciliation finds it *compatible* with the frozen [0, 4] parameter
+// (Dimension::dynamic().compatible(Dimension(0)) == true) and never widens it on
+// its own.  Only the up-front zero-dim widening pass prevents body_carried from
+// being clamped at 0 for the entire shape inference.
+TEST(type_prop, loop_merged_state_only_input_zero_dim_widened_dynamic_step) {
+    // Body: grown = concat(carried, step); step row-count is unknown at compile time.
+    auto body_carried = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{0, 4});
+    auto body_step = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
+    auto grown = make_shared<ov::op::v0::Concat>(OutputVector{body_carried, body_step}, 0);
+    auto reduce_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto reduced = make_shared<ov::op::v1::ReduceSum>(grown, reduce_axis);
+    auto body_condition = ov::op::v0::Constant::create(element::boolean, Shape{1}, {true});
+    auto body =
+        make_shared<Model>(OutputVector{body_condition, grown, reduced}, ParameterVector{body_carried, body_step});
+
+    auto init = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{0, 4});
+    auto outer_step = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4});
+    auto trip_count = ov::op::v0::Constant::create(element::i64, Shape{1}, {5});
+    auto exec_condition = ov::op::v0::Constant::create(element::boolean, Shape{1}, {true});
+
+    auto loop = make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_merged_input(body_carried, init, grown);
+    loop->set_invariant_input(body_step, outer_step);
+    auto out = loop->get_iter_value(reduced, -1);
+    auto result = make_shared<ov::op::v0::Result>(out);
+    auto f = make_shared<Model>(ResultVector{result}, ParameterVector{init, outer_step});
+
+    // Concat({0,4}, {?,4}) yields {?,4}; dynamic.compatible(0) is true, so the
+    // back-edge reconciliation loop alone cannot widen body_carried away from 0.
+    // The zero-dim widening pass must relax it to dynamic before reconciliation runs.
+    EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{Dimension::dynamic(), 4}));
+    EXPECT_EQ(loop->get_output_partial_shape(0), PartialShape{Dimension::dynamic()});
 }
