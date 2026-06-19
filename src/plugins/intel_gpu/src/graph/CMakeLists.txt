@@ -109,6 +109,9 @@ add_test(NAME TestOCLCodePreprocessing
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+        continue()
+    endif()
     add_subdirectory(impls/${IMPL_TYPE})
     if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
         list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)
