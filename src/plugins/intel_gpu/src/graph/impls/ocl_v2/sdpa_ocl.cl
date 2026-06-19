@@ -30,6 +30,18 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
 #define sg_per_wg (KQ_SG_PER_WG_KEYS * KQ_SG_PER_WG_QUERIES)
 
+// Mask-kind predicates. When the host proved the mask shape at compile time
+// (MASK_KIND in {0,1,2}) these fold to compile-time constants so IGC drops the
+// dead mask branches; MASK_KIND == -1 keeps the original runtime MSK_D2/MSK_D3
+// checks. 2 = full 2D [q>1,k>1], 1 = per-key [q==1,k>1], 0 = scalar/broadcast.
+#if MASK_KIND == -1
+#  define MASK_IS_PER_KEY  (MSK_D2 == 1 && MSK_D3 > 1)
+#  define MASK_IS_FULL_2D  (MSK_D2 > 1 && MSK_D3 > 1)
+#else
+#  define MASK_IS_PER_KEY  (MASK_KIND == 1)
+#  define MASK_IS_FULL_2D  (MASK_KIND == 2)
+#endif
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, sg_per_wg, 1)))
 KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
@@ -128,7 +140,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         for (int ii = 0; ii < KQ_SG_TILE_KEYS / SUBGROUP_SIZE; ++ii) {
             const int key = key_base + ii * SUBGROUP_SIZE + lane;
             #if WITH_ATTN_MASK
-                if (MSK_D2 == 1 && MSK_D3 > 1)
+                if (MASK_IS_PER_KEY)
                     mask_tile[ii] = (key < k) ? msk[MSK_OFF(0, 0, 0, key)] : (half)0.0f;
                 else
                     mask_tile[ii] = (half)0.0f;
@@ -148,7 +160,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // load time and keep it as float so the softmax max-loop below only does a
             // branchless add (mirrors micro's tile_elementwise(unscale)+tile_binary add).
             float16 mask_full[KQ_QB][KQ_SG_TILE_KEYS / SUBGROUP_SIZE];
-            if (MSK_D2 > 1 && MSK_D3 > 1) {
+            if (MASK_IS_FULL_2D) {
                 #pragma unroll
                 for (int qb = 0; qb < KQ_QB; ++qb) {
                     const int mask_query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane;
@@ -233,9 +245,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int key = key_base + key_rel;
                     float s = S_tile[mb][qb][mm] + sub_group_broadcast(k_mask[mask_idx], mask_lane);
                     #if WITH_ATTN_MASK
-                        if (MSK_D2 == 1 && MSK_D3 > 1) {
+                        if (MASK_IS_PER_KEY) {
                             s += sub_group_broadcast(mask_tile_float[mask_idx], mask_lane);
-                        } else if (MSK_D2 > 1 && MSK_D3 > 1) {
+                        } else if (MASK_IS_FULL_2D) {
                             s += mask_full[qb][mask_idx][mask_lane];
                         } else if (query < q && key < k) {
                             const int mask_query = (MSK_D2 == 1) ? 0 : query;
