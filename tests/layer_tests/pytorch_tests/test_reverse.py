@@ -23,7 +23,6 @@ class TestReverse(PytorchLayerTest):
         data = np.arange(size, dtype=dtype)
         np.random.shuffle(data)
         data = data.reshape(shape)
-        print(f"\n[INPUT] shape={shape}, dtype={dtype}\n{data}")
         return (data,)
 
     @pytest.mark.parametrize("shape, dims", [
@@ -44,12 +43,6 @@ class TestReverse(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("dtype", [np.float32, np.int32])
     def test_reverse(self, shape, dims, dtype, ie_device, precision, ir_version):
-        print(f"\n[TEST] shape={shape}, dims={dims}, dtype={dtype}")
-
-        input_data = self._prepare_input(shape, dtype)[0]
-        expected_output = torch.flip(torch.from_numpy(input_data), dims).numpy()
-        print(f"[EXPECTED OUTPUT]\n{expected_output}")
-
         self._test(
             aten_reverse(dims),
             None,
