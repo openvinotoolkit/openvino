@@ -541,7 +541,7 @@ def prepareBenchmarkMetricCommand(appCmd, reportDir):
     tokens = stripCliOptionWithValue(tokens, {"-report_folder", "--report_folder"})
     tokens = stripCliBoolOption(tokens, {"-json_stats", "--json_stats"})
     tokens.extend(["-report_type", "no_counters", "-report_folder", reportDir])
-    return shlex.join(tokens) if posix else subprocess.list2cmdline(tokens)
+    return " ".join(shlex.quote(t) for t in tokens) if posix else subprocess.list2cmdline(tokens)
 
 
 def getBenchmarkMetricReportPath(cfg, commit):
