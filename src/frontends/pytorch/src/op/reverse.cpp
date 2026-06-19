@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "openvino/op/reverse.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
