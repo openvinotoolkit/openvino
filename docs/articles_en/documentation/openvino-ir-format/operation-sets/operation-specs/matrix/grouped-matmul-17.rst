@@ -40,7 +40,7 @@ Used when all groups have the same number of tokens:
 
 * ``mat_a``: Shape ``[G, M, K]`` - per-group inputs
 * ``mat_b``: Shape ``[G, N, K]`` - per-group weights (stored transposed)
-* ``offsets``: Not used (must not be provided)
+* ``offsets``: Not used (ignored if provided)
 
 For each group ``i``, computes: ``output[i] = mat_a[i] @ mat_b[i].T``
 
@@ -74,15 +74,15 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
 * **3**: ``offsets`` - 1D tensor of type *T_IDX* with group boundaries. Optional.
   
   * Shape: ``[G]`` containing cumulative offsets
-  * Required for Case 1 (2D×3D)
-  * Must not be provided for Case 2 (3D×3D)
+  * Required for case (2D×3D)
+  * Ignored if provided for case (3D×3D)
 
 **Outputs**
 
 * **1**: Tensor of type *T* with matrix multiplication results.
   
-  * Case 1 (2D×3D): Shape ``[total_tokens, N]``
-  * Case 2 (3D×3D): Shape ``[G, M, N]``
+  * Case (2D×3D): Shape ``[total_tokens, N]``
+  * Case (3D×3D): Shape ``[G, M, N]``
 
 **Types**
 
@@ -91,7 +91,7 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
 
 **Example**
 
-*MoE Forward Pass (Case 1: 2D × 3D)*
+*MoE Forward Pass (Case: 2D × 3D)*
 
 .. code-block:: xml
    :force:
@@ -119,7 +119,7 @@ For example, with tokens per group ``[3, 5, 2]``, offsets would be ``[3, 8, 10]`
        </output>
    </layer>
 
-*Batched Uniform (Case 2: 3D × 3D)*
+*Batched Uniform (Case: 3D × 3D)*
 
 .. code-block:: xml
    :force:

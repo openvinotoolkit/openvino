@@ -31,8 +31,6 @@ std::vector<TRShape> shape_infer(const GroupedMatMul* op,
 
     // Case: 3D × 3D (batched, uniform group sizes) - no offsets needed
     if (mat_a_rank == 3 && mat_b_rank == 3) {
-        NODE_VALIDATION_CHECK(op, num_inputs == 2, "GroupedMatMul 3D×3D case does not accept offsets input.");
-
         const auto g_a = mat_a_shape[0];
         const auto m = mat_a_shape[1];
         const auto k_a = mat_a_shape[2];
