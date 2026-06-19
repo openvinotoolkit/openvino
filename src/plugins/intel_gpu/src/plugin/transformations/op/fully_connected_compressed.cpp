@@ -79,5 +79,6 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           m_output_type,
                                                           m_transpose_b);
     else
-        OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());}
+        OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());
+}
 }  // namespace ov::intel_gpu::op

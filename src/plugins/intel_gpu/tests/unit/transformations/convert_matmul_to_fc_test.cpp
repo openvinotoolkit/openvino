@@ -23,7 +23,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
