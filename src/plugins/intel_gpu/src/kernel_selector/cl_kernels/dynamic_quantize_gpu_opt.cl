@@ -17,7 +17,7 @@
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
-    #define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
+    #define TO_TYPE_N_(type, n, x) convert_##type##n(x)
     #define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
 #else
     #define SCALE_TYPE half
@@ -94,7 +94,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if IS_MXFP
-    SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_value)))));
+    SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / convert_float(max_value)))));
 #else
     SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
