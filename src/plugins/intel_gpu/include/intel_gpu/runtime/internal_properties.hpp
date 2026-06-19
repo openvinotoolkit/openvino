@@ -168,6 +168,10 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fu
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_moe_opt{"GPU_DISABLE_MOE_OPT"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_micro_gemm_prefill{"GPU_MOE_USE_MICRO_GEMM_PREFILL"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_gpu_mask_gen_prefill{"GPU_MOE_USE_GPU_MASK_GEN_PREFILL"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_grouped_gemm_prefill{"GPU_MOE_USE_GROUPED_GEMM_PREFILL"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> moe_batched_gemv_threshold{"GPU_MOE_BATCHED_GEMV_THRESHOLD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> dynamic_quantization_threshold{"GPU_DYNAMIC_QUANTIZATION_THRESHOLD"};

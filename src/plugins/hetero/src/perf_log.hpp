@@ -48,6 +48,9 @@ inline bool perf_log_enabled() {
 }
 
 inline bool perf_log_enabled(PerfLogLevel level) {
+    if (level == PerfLogLevel::Disabled) {
+        return false;
+    }
     return static_cast<int>(perf_log_level()) >= static_cast<int>(level);
 }
 
