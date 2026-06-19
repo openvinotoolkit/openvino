@@ -132,7 +132,7 @@ jobs:
           PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
             -v -ra \
             -o log_cli=true --log-cli-level=INFO \
-            --timeout=300 \
+            --timeout=180 \
             --junitxml=$INSTALL_TEST_DIR/TEST-samples_smoke_tests.xml
 
       - name: Upload Test Results
