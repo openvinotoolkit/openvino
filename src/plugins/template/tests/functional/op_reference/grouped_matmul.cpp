@@ -16,7 +16,7 @@ using namespace ov;
 namespace {
 
 struct GroupedMatMulParams {
-    // Case 1: 2D × 3D with offsets
+    // Case: 2D × 3D with offsets
     template <class T, class TIdx>
     GroupedMatMulParams(const Shape& mat_a_shape,
                         const Shape& mat_b_shape,
@@ -43,7 +43,7 @@ struct GroupedMatMulParams {
         m_expected_tensor = CreateTensor(expected_shape, data_type, expected_values);
     }
 
-    // Case 2: 3D × 3D without offsets
+    // Case: 3D × 3D without offsets
     template <class T>
     GroupedMatMulParams(const Shape& mat_a_shape,
                         const Shape& mat_b_shape,
@@ -124,7 +124,7 @@ std::vector<GroupedMatMulParams> generateParams() {
     std::vector<GroupedMatMulParams> params;
     const std::string type_suffix = "_" + element::Type(ET).get_type_name();
 
-    // Case 2: 3D × 3D batched - simple 2 groups, 2×2 matmul each
+    // Case: 3D × 3D batched - simple 2 groups, 2×2 matmul each
     // Group 0: [[1,2],[3,4]] @ [[1,2],[3,4]] = [[7,10],[15,22]]
     // Group 1: [[5,6],[7,8]] @ [[5,6],[7,8]] = [[67,78],[91,106]]
     // mat_b stored as [G, N, K]: group 0 = [[1,3],[2,4]], group 1 = [[5,7],[6,8]]
@@ -137,7 +137,7 @@ std::vector<GroupedMatMulParams> generateParams() {
                                          std::vector<T>{7, 10, 15, 22, 67, 78, 91, 106},  // expected
                                          "3D_3D_2groups_2x2" + type_suffix));
 
-    // Case 2: 3D × 3D - single group
+    // Case: 3D × 3D - single group
     // [[1,2,3],[4,5,6]] @ [[1,2],[3,4],[5,6]] = [[22,28],[49,64]]
     // mat_b stored as [G, N, K]: group 0 = [[1,3,5],[2,4,6]]
     params.push_back(GroupedMatMulParams(Shape{1, 2, 3},  // mat_a: (G=1, M=2, K=3)
@@ -149,7 +149,7 @@ std::vector<GroupedMatMulParams> generateParams() {
                                          std::vector<T>{22, 28, 49, 64},    // expected
                                          "3D_3D_1group_2x3_3x2" + type_suffix));
 
-    // Case 1: 2D × 3D with offsets - 2 experts, [2,1] tokens per expert
+    // Case: 2D × 3D with offsets - 2 experts, [2,1] tokens per expert
     // Expert 0 gets rows [0:2], Expert 1 gets rows [2:3]
     // mat_a[:2] @ mat_b[0] = [[1,2],[3,4]] @ [[1,2],[3,4]] = [[7,10],[15,22]]
     // mat_a[2:3] @ mat_b[1] = [[5,6]] @ [[5,6],[7,8]] = [[67,78]]
@@ -166,7 +166,7 @@ std::vector<GroupedMatMulParams> generateParams() {
                                          std::vector<T>{7, 10, 15, 22, 67, 78},   // expected
                                          "2D_3D_2experts_offsets" + type_suffix));
 
-    // Case 1: 2D × 3D - 3 experts with varying tokens [1, 2, 1]
+    // Case: 2D × 3D - 3 experts with varying tokens [1, 2, 1]
     params.push_back(GroupedMatMulParams(
         Shape{4, 2},     // mat_a: (total_tokens=4, K=2)
         Shape{3, 2, 2},  // mat_b: (G=3, K=2, N=2)
