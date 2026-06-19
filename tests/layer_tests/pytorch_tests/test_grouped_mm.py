@@ -46,6 +46,8 @@ class TestGroupedMMConstWeights(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_grouped_mm_const_b(self, a_shape, b_shape, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
+            if self.use_torch_export():
+                pytest.skip("skip GPU BF16 torch export (FX) grouped_mm with no offsets")
             caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
             if "GPU_HW_MATMUL" not in caps:
                 pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
@@ -142,6 +144,8 @@ class TestFunctionalGroupedMMConstWeights(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_functional_grouped_mm_const_b(self, a_shape, b_shape, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
+            if self.use_torch_export():
+                pytest.skip("skip GPU BF16 torch export (FX) grouped_mm with no offsets")
             caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
             if "GPU_HW_MATMUL" not in caps:
                 pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
