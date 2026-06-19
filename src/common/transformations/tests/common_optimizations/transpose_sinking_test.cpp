@@ -241,9 +241,9 @@ TEST(TransposeFQNoSinkingTest, TransposeFQNotAppliedWhenFQConsumerIsNotTranspose
     auto order = std::make_shared<opset6::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
     auto transpose = std::make_shared<opset6::Transpose>(input, order);
 
-    auto i_low  = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{0.f});
+    auto i_low = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{0.f});
     auto i_high = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{1.f});
-    auto o_low  = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{0.f});
+    auto o_low = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{0.f});
     auto o_high = std::make_shared<opset6::Constant>(element::f32, Shape{}, std::vector<float>{255.f});
     auto fq = std::make_shared<opset6::FakeQuantize>(transpose, i_low, i_high, o_low, o_high, 256);
 
@@ -257,9 +257,8 @@ TEST(TransposeFQNoSinkingTest, TransposeFQNotAppliedWhenFQConsumerIsNotTranspose
     manager.register_pass<ov::pass::TransposeFQ>();
     manager.run_passes(model);
 
-    auto fc = FunctionsComparator::no_default()
-                  .enable(FunctionsComparator::NODES)
-                  .enable(FunctionsComparator::PRECISIONS);
+    auto fc =
+        FunctionsComparator::no_default().enable(FunctionsComparator::NODES).enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
