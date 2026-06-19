@@ -483,7 +483,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             case ov::element::f16: return device_info.supports_fp16;
             case ov::element::f32: return true; // assume that all GPUs support f32 data type
             case ov::element::f64: return device_info.supports_fp64;
-            case ov::element::bf16: return false;
+            // TODO: Remove get_use_onednn() guard once OCL kernels support bf16
+            case ov::element::bf16: return device_info.supports_immad && config.get_use_onednn();
             default: return false;
         }
         return false;

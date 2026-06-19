@@ -64,7 +64,7 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
         case ngen::HW::XeLP: return gpu_arch::xe_lp;
         case ngen::HW::XeHP: return gpu_arch::xe_hp;
         case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
-        case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
+        case ngen::HW::XeHPC: OPENVINO_THROW("[GPU] XeHPC is not supported");
         case ngen::HW::Xe2: return gpu_arch::xe2;
         case ngen::HW::Xe3: return gpu_arch::xe3;
         case ngen::HW::Xe3p: return gpu_arch::xe3p;
@@ -224,8 +224,6 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
                         device.has(::sycl::aspect::usm_shared_allocations) ||
                         device.has(::sycl::aspect::usm_device_allocations);
 
-    info.supports_usm = false;  // currently USM is disabled for SYCL backend
-
     info.supports_queue_families = false; // no corresponding aspect in SYCL
 
     if (info.supports_intel_required_subgroup_size) {
@@ -341,7 +339,6 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 , _info(init_device_info(dev, ctx))
 , _mem_caps(init_memory_caps(dev, _info))
 , _is_initialized(true){
-// , _usm_helper(new cl::UsmHelper(_context, _device, use_unified_shared_memory()))
 }
 
 bool sycl_device::is_same(const device::ptr other) {
