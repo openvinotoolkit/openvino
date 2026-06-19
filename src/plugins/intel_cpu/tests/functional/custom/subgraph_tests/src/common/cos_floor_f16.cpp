@@ -15,8 +15,7 @@
 #include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 //   ┌──────────┐
 //   │ Param f16│
@@ -89,5 +88,4 @@ TEST_F(CosFloorF16Test, CompareWithRefs) {
         << "Floor(Cos(6.27734375)) in f16 should be 1.0, not " << static_cast<float>(actual_data[0]);
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

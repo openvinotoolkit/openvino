@@ -578,8 +578,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return false;
         }
 
-        const auto& original_type = it->first;
-        const auto& target_type = it->second;
+        const auto& [original_type, target_type] = *it;
 
         // Convert inputs back to the original f16 type so the node keeps f16 I/O
         for (size_t i = 0; i < node->get_input_size(); i++) {
