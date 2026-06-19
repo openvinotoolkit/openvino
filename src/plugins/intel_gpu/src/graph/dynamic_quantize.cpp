@@ -3,12 +3,13 @@
 //
 
 #include "ov_ops/dynamic_quantize.hpp"
+
+#include <string>
+
 #include "dynamic_quantize_inst.h"
 #include "fully_connected_inst.h"
-
-#include "primitive_type_base.h"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
@@ -17,18 +18,18 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
 static bool should_skip_execution(const dynamic_quantize_node& node, const layout& act_layout, const dynamic_quantize::Attributes& attrs) {
     if (cldnn::data_type_traits::is_floating_point(attrs.quantization_dt)) {
-        return false; // Execute unconditionally for floating point types.
+        return false;  // Execute unconditionally for floating point types.
     }
 
-    if (!node.is_runtime_skippable()
-        || !act_layout.is_static())
+    if (!node.is_runtime_skippable() || !act_layout.is_static())
         return false;
 
-    // Do not skip dynamic quantization if any user node is not fully connected.(such as SDPA)
-    for (auto& user : node.get_users()) {
-        if (!user->is_type<fully_connected>())
-            return false;
-    }
+    // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
+    OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(),
+                    "Dynamic quantization is supposed to have only one user-node with duplicated connection: ",
+                    node.id());
+    if (!(*node.get_users().begin())->is_type<fully_connected>())
+        return false;
 
     // If batch size is 1, dynamic_quantize is disabled for performance reason
     size_t input_batch = act_layout.batch();
@@ -46,7 +47,7 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
     return false;
 }
 
-layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& /*node*/, kernel_impl_params const& impl_param) {
+layout dynamic_quantize_inst::calc_output_layout(const dynamic_quantize_node& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     const auto& input_layout = impl_param.get_input_layout();
     auto output_type = desc->attrs.quantization_dt;
@@ -55,9 +56,9 @@ layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& /*
     return layout(output_type, output_format, input_layout.get_tensor());
 }
 
-template<typename ShapeType>
-std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_quantize_node &node,
-                                                                 const layout &act_layout,
+template <typename ShapeType>
+std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_quantize_node& node,
+                                                                 const layout& act_layout,
                                                                  const dynamic_quantize::Attributes& attrs) {
     ov::op::internal::DynamicQuantize op;
     op.set_attrs(attrs);
@@ -70,8 +71,8 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
 
     auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&op, input_shapes);
 
-    std::vector<layout> output_layouts = {  layout(output_shapes[0], attrs.quantization_dt, output_format),
-                                            layout(output_shapes[1], attrs.scale_dt, output_format) };
+    std::vector<layout> output_layouts = {layout(output_shapes[0], attrs.quantization_dt, output_format),
+                                          layout(output_shapes[1], attrs.scale_dt, output_format)};
 
     auto flag_skip_execution = should_skip_execution(node, act_layout, attrs);
 
@@ -83,7 +84,8 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     }
     if (attrs.precomputed_reduction) {
         OPENVINO_ASSERT(output_layouts.size() == 2,
-                        "Dynamic quantization is supposed to have 2 outputs in front of precomputed reduction, but got: ", output_layouts.size());
+                        "Dynamic quantization is supposed to have 2 outputs in front of precomputed reduction, but got: ",
+                        output_layouts.size());
         output_layouts.emplace_back(layout(output_shapes[2], attrs.precomputed_reduction_dt, output_format));
     }
 
@@ -101,22 +103,22 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     return output_layouts;
 }
 
-template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(const dynamic_quantize_node &node,
-                                                                                            const layout &act_layout,
+template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(const dynamic_quantize_node& node,
+                                                                                            const layout& act_layout,
                                                                                             const dynamic_quantize::Attributes& config);
 
-template<typename ShapeType>
-std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_node const& node, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> dynamic_quantize_inst::calc_output_layouts(const dynamic_quantize_node& node, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     const auto& input_layout = impl_param.get_input_layout();
 
     return __calc_output_layouts<ov::PartialShape>(node, input_layout, desc->attrs);
 }
 
-template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(const dynamic_quantize_node &node,
+template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(const dynamic_quantize_node& node,
                                                                                           const kernel_impl_params& impl_param);
 
-std::string dynamic_quantize_inst::to_string(dynamic_quantize_node const& node) {
+std::string dynamic_quantize_inst::to_string(const dynamic_quantize_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
 
@@ -137,7 +139,7 @@ std::string dynamic_quantize_inst::to_string(dynamic_quantize_node const& node) 
     return primitive_description.str();
 }
 
-dynamic_quantize_inst::typed_primitive_inst(network& network, dynamic_quantize_node const& node) : parent(network, node) {}
+dynamic_quantize_inst::typed_primitive_inst(network& network, const dynamic_quantize_node& node) : parent(network, node) {}
 
 void dynamic_quantize_inst::on_execute() {
     update_output_memory();
@@ -153,17 +155,15 @@ void dynamic_quantize_inst::update_output_memory() {
     if (input_memory_ptr() == nullptr)
         return;
 
-    if (static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
-        && output_memory().get_layout().identical(get_output_layout()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
+        output_memory().get_layout().identical(get_output_layout()))
         return;
 
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
-    if (static_cast<bool>(_outputs[0]) &&
-        get_node().get_program().get_config().get_enable_memory_pool()) {
+    if (static_cast<bool>(_outputs[0]) && get_node().get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
     }
 
