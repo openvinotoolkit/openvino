@@ -19,6 +19,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
+#include "model_validation.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
@@ -610,61 +611,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    // Early rejection of models with unbounded dynamic shapes.
-    // NPU does not support models with dimensions whose upper bound is
-    // INT64_MAX (i.e., fully unbounded). Attempting to compile such models
-    // produces confusing internal errors in the VPUX compiler (signed
-    // overflow in broadcast analysis, "to_shape was called on a dynamic
-    // shape", etc.). Detect this early and provide an actionable message.
-    //
-    // Bounded dynamic shapes (finite upper bound) are allowed through —
-    // they may work with DYNAMIC_SHAPE_TO_STATIC or future compiler support.
-    {
-        const auto& modelToCheck = successfullyDebatched ? batchedModel : model;
-        if (modelToCheck->is_dynamic()) {
-            for (const auto& param : modelToCheck->get_parameters()) {
-                const auto& pshape = param->get_partial_shape();
-                if (pshape.is_dynamic()) {
-                    for (size_t i = 0; i < pshape.size(); ++i) {
-                        const auto& dim = pshape[i];
-                        if (dim.is_dynamic() && !dim.get_interval().has_upper_bound()) {
-                            OPENVINO_THROW(
-                                "NPU does not support models with unbounded dynamic dimensions. ",
-                                "Parameter '", param->get_friendly_name(),
-                                "' has dimension [", i, "] with no finite upper bound ",
-                                "(upper bound is INT64_MAX). ",
-                                "Please reshape the model to use static shapes before compiling ",
-                                "for the NPU device:\n",
-                                "    model.reshape({<static_shape>})\n",
-                                "See: https://docs.openvino.ai/2025/openvino-workflow/"
-                                "running-inference/changing-input-shape.html");
-                        }
-                    }
-                }
-            }
-            // Also check result shapes (outputs may be independently dynamic)
-            for (const auto& result : modelToCheck->get_results()) {
-                const auto& pshape = result->get_input_partial_shape(0);
-                if (pshape.is_dynamic()) {
-                    for (size_t i = 0; i < pshape.size(); ++i) {
-                        const auto& dim = pshape[i];
-                        if (dim.is_dynamic() && !dim.get_interval().has_upper_bound()) {
-                            OPENVINO_THROW(
-                                "NPU does not support models with unbounded dynamic dimensions. ",
-                                "Result '", result->get_friendly_name(),
-                                "' has output dimension [", i, "] with no finite upper bound ",
-                                "(upper bound is INT64_MAX). ",
-                                "Please reshape the model to use static shapes before compiling ",
-                                "for the NPU device:\n",
-                                "    model.reshape({<static_shape>})\n",
-                                "See: https://docs.openvino.ai/2025/openvino-workflow/"
-                                "running-inference/changing-input-shape.html");
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Reject models with unbounded dynamic dimensions (upper bound == INT64_MAX) before they reach the compiler,
+    // where they would otherwise surface as opaque errors. The check runs on the debatched model when batch handling
+    // rewrote it, since debatching may resolve a dynamic batch axis. Bounded dynamic shapes are allowed through.
+    // See model_validation.hpp for details.
+    validate_no_unbounded_dynamic_dimensions(successfullyDebatched ? batchedModel : model);
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
