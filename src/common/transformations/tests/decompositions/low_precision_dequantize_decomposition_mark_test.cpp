@@ -30,7 +30,14 @@ using namespace ov;
 
 namespace {
 
-const element::TypeVector kLowPrecisionTypes{element::u8, element::i8, element::u4, element::i4, element::f8e4m3, element::f8e5m2, element::f4e2m1, element::f8e8m0};
+const element::TypeVector kLowPrecisionTypes{element::u8,
+                                             element::i8,
+                                             element::u4,
+                                             element::i4,
+                                             element::f8e4m3,
+                                             element::f8e5m2,
+                                             element::f4e2m1,
+                                             element::f8e8m0};
 
 }  // namespace
 
