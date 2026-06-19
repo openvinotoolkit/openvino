@@ -178,17 +178,17 @@ struct DynamicQuantizeLSTMInputMap {
         auto prepared_r = prepare_quantized_weights(node, ng_inputs.at(2), "R");
 
         // Validate hidden_size attribute against R's actual shape.
-        // After prepare_quantized_weights, R has layout [num_dir, 4*hidden_size, K].
-        // The original R input had layout [num_dir, K, hidden_size], so K=hidden is dim 1 of prepared_r.
-        // Use the original R input (ng_inputs.at(2)) dim 2 which is hidden_size before transposition.
+        // R input has layout [num_dir, hidden_size, 4*hidden_size] (same [num_dir, K, 4*hidden_size]
+        // convention used by prepare_quantized_weights, where K == hidden_size for R).
+        // So dim 1 of the original R input equals hidden_size.
         const auto& r_pshape = ng_inputs.at(2).get_partial_shape();
-        if (r_pshape.rank().is_static() && r_pshape[2].is_static()) {
+        if (r_pshape.rank().is_static() && r_pshape[1].is_static()) {
             CHECK_VALID_NODE(node,
-                             r_pshape[2].get_length() == hidden_size,
+                             r_pshape[1].get_length() == hidden_size,
                              "DynamicQuantizeLSTM: 'hidden_size' attribute (",
                              hidden_size,
-                             ") does not match R input shape dim 2 (",
-                             r_pshape[2].get_length(),
+                             ") does not match R input shape dim 1 (",
+                             r_pshape[1].get_length(),
                              ").");
         }
 
