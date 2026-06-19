@@ -155,6 +155,16 @@ TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_inner_dim_mismatch) {
                     HasSubstr("inner dimension mismatch"));
 }
 
+TEST_F(TypePropGroupedMatMulTest, case2_3d_3d_with_offsets_rejected) {
+    const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{3, 128, 64});
+    const auto offsets = std::make_shared<Parameter>(element::i32, PartialShape{3});
+
+    OV_EXPECT_THROW(std::ignore = make_op(mat_a, mat_b, offsets),
+                    ov::NodeValidationFailure,
+                    HasSubstr("does not accept offsets input"));
+}
+
 TEST_F(TypePropGroupedMatMulTest, unsupported_ndim_combination) {
     const auto mat_a = std::make_shared<Parameter>(element::f32, PartialShape{3, 4, 64});
     const auto mat_b = std::make_shared<Parameter>(element::f32, PartialShape{64, 128});
