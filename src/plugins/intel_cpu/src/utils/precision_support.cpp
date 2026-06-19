@@ -57,22 +57,6 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
-bool hasArmASIMDSupport() {
-#if defined(OPENVINO_ARCH_ARM64)
-    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
-#else
-    return false;
-#endif
-}
-
-bool hasArmSVESupport() {
-#if defined(OPENVINO_ARCH_ARM64)
-    return with_cpu_sve() && dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128);
-#else
-    return false;
-#endif
-}
-
 bool hasIntDotProductSupport() {
     return with_cpu_arm_dotprod();
 }
@@ -81,22 +65,41 @@ bool hasInt8MMSupport() {
     return with_cpu_arm_i8mm();
 }
 
-bool hasArmISASupport(ArmISA isa) {
 #if defined(OPENVINO_ARCH_ARM64)
+static bool hasArmASIMDSupport() {
+    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+}
+
+// "Baseline" SVE = the lowest SVE tier (sve_128). oneDNN models SVE vector width as
+// distinct ISA levels (sve_128/sve_256/sve_512); sve_128 is the minimum, so
+// mayiuse(sve_128) answers "does this core have SVE at all". We additionally require
+// with_cpu_sve() because the two detect SVE through different paths (OpenVINO's HWCAP
+// view vs. oneDNN's), and an executor's kernels are dispatched through oneDNN.
+static bool hasArmBaselineSVESupport() {
+    return with_cpu_sve() && dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128);
+}
+#endif
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+bool hasArmISASupport(ArmISA isa) {
+#    if defined(OPENVINO_ARCH_ARM64)
     switch (isa) {
     case ArmISA::ASIMD:
         return hasArmASIMDSupport();
     case ArmISA::SVE:
-        return hasArmSVESupport();
+        return hasArmBaselineSVESupport();
     case ArmISA::DOTPROD:
         return hasIntDotProductSupport();
     case ArmISA::I8MM:
         return hasInt8MMSupport();
     }
     return true;
-#else
+#    else
+    // 32-bit ARM: NEON is the baseline and there is no SVE; keep the gate permissive
+    // so the ARM executors that only require ASIMD are never declined.
     (void)isa;
     return true;
-#endif
+#    endif
 }
+#endif
 }  // namespace ov::intel_cpu
