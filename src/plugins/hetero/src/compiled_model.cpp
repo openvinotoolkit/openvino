@@ -110,7 +110,7 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
                                   "] device=",
                                   device,
                                   " ops=",
-                                  sub_model ? sub_model->get_ordered_ops().size() : 0,
+                                  sub_model ? sub_model->get_ops().size() : 0,
                                   " total=",
                                   to_ms(t_submodel_end - t_submodel_start),
                                   " ms, core_compile=",
