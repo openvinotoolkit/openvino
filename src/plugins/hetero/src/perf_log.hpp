@@ -60,10 +60,10 @@ inline void perf_log_impl(const char* file, int line, Args&&... args) {
 
 }  // namespace ov::hetero
 
-#define HETERO_PERF_LOG_LEVEL(level, ...)                                        \
-    do {                                                                         \
-        if (::ov::hetero::perf_log_enabled(level)) {                             \
-            ::ov::hetero::perf_log_impl(__FILE__, __LINE__, __VA_ARGS__);        \
-        }                                                                        \
+#define HETERO_PERF_LOG_LEVEL(level, ...)                                 \
+    do {                                                                  \
+        if (::ov::hetero::perf_log_enabled(level)) {                      \
+            ::ov::hetero::perf_log_impl(__FILE__, __LINE__, __VA_ARGS__); \
+        }                                                                 \
     } while (0)
 #define HETERO_PERF_LOG(...) HETERO_PERF_LOG_LEVEL(::ov::hetero::PerfLogLevel::Basic, __VA_ARGS__)
