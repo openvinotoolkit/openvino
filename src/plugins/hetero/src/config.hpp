@@ -6,10 +6,9 @@
 
 #include <map>
 #include <string>
-
-#include "perf_log.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "properties.hpp"
+#include "perf_log.hpp"
 
 namespace ov {
 namespace hetero {

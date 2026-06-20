@@ -46,7 +46,7 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
     const auto to_ms = [](clock::duration d) {
         return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
     };
-    const bool perf_logging_enabled = perf_log_enabled(m_cfg.perf_log_level());
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::Basic);
     clock::time_point t0{};
     clock::duration compile_submodels_time{};
     if (perf_logging_enabled) {

@@ -24,11 +24,11 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/util/log.hpp"
 #include "openvino/util/common_util.hpp"
 #include "perf_log.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
+#include "openvino/util/log.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -111,7 +111,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     };
 
     auto config = Configuration{properties, m_cfg};
-    const bool perf_logging_enabled = perf_log_enabled(config.perf_log_level());
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::Basic);
     clock::time_point t0{};
     clock::time_point t_clone_start{};
     clock::time_point t_clone_end{};
