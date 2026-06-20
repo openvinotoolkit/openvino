@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+
 #include "openvino/runtime/properties.hpp"
 #include "properties.hpp"
 
