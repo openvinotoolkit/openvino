@@ -716,15 +716,13 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     // only after the SCC step actually modifies _subgraph_inputs.
     bool ids_valid = true;
     clock::time_point t_scc_start{};
+    clock::time_point t_scc_end{};
     if (perf_logging_enabled) {
         t_scc_start = clock::now();
     }
     for (size_t scc_step = 0;; ++scc_step) {
         OPENVINO_ASSERT(scc_step < total_node_inputs + 1,
                         "Subgraph SCC fallback did not converge: exceeded node-input edge budget");
-        if (perf_logging_enabled) {
-            ++scc_iterations;
-        }
         if (!ids_valid) {
             clock::time_point t_collect_start{};
             if (perf_logging_enabled) {
@@ -748,6 +746,9 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
         if (scc_members.empty()) {
             break;  // subgraph DAG is acyclic, fix-point reached.
         }
+        if (perf_logging_enabled) {
+            ++scc_iterations;
+        }
 
         // Isolate one Union-Find node from any SCC member by promoting ALL its same-sg input
         // edges. See isolate_one_scc_node for why a single-edge cut diverges, why entry/exit
@@ -766,6 +767,9 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
         OPENVINO_ASSERT(_subgraph_inputs.size() > inputs_before_step,
                         "Subgraph SCC fallback promoted edges but _subgraph_inputs did not grow");
         ids_valid = false;  // _subgraph_inputs grew; next iteration must rebuild ids.
+    }
+    if (perf_logging_enabled) {
+        t_scc_end = clock::now();
     }
 
     // Edge case: if init() produced no _subgraph_inputs at all, the per-node loop never ran and
@@ -794,7 +798,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                               ", collect_subgraphs_ids=",
                               to_ms(collect_ids_time),
                               " ms, scc_fallback=",
-                              to_ms(t_end - t_scc_start),
+                              to_ms(t_scc_end - t_scc_start),
                               " ms, scc_iterations=",
                               scc_iterations,
                               ", scc_promoted_edges=",
