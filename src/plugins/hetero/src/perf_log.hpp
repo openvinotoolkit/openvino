@@ -27,7 +27,7 @@ inline PerfLogLevel perf_log_level() {
         char* end = nullptr;
         const long parsed = std::strtol(value, &end, 10);
         if (end == value || (end != nullptr && *end != '\0')) {
-            return PerfLogLevel::Basic;
+            return PerfLogLevel::Disabled;
         }
 
         if (parsed <= 0) {
