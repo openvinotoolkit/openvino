@@ -8,7 +8,6 @@
 #include <string>
 #include "openvino/runtime/properties.hpp"
 #include "properties.hpp"
-#include "perf_log.hpp"
 
 namespace ov {
 namespace hetero {
@@ -33,10 +32,6 @@ struct Configuration {
     ov::AnyMap get_device_properties() const;
 
     bool dump_dot_files() const;
-
-    bool dump_perf_logs() const;
-
-    PerfLogLevel perf_log_level() const;
 
     std::string device_priorities;
 

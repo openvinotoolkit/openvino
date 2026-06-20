@@ -70,11 +70,3 @@ ov::AnyMap Configuration::get_device_properties() const {
 bool Configuration::dump_dot_files() const {
     return std::getenv("OPENVINO_HETERO_VISUALIZE") != NULL;
 }
-
-bool Configuration::dump_perf_logs() const {
-    return perf_log_enabled();
-}
-
-PerfLogLevel Configuration::perf_log_level() const {
-    return ov::hetero::perf_log_level();
-}
