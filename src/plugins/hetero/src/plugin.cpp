@@ -110,7 +110,6 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
         return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
     };
 
-    auto config = Configuration{properties, m_cfg};
     const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::Basic);
     clock::time_point t0{};
     clock::time_point t_clone_start{};
@@ -123,7 +122,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     clock::time_point t_compiled_model_end{};
     if (perf_logging_enabled) {
         t0 = clock::now();
-        t_clone_start = t0;
+    }
+
+    auto config = Configuration{properties, m_cfg};
+
+    if (perf_logging_enabled) {
+        t_clone_start = clock::now();
     }
     auto cloned_model = model->clone();
     if (perf_logging_enabled) {
