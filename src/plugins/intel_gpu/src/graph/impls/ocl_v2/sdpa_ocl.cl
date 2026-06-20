@@ -98,11 +98,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     for (int qi = sg_ij * SUBGROUP_SIZE + lane; qi < KQ_WG_TILE_QUERIES; qi += sg_per_wg * SUBGROUP_SIZE)
         S_max_slm[qi] = -INFINITY;
 
-    if (sg_ij < KQ_WG_TILE_QUERIES / SUBGROUP_SIZE) {
-        const int q_block = sg_ij;
-        const int query = wg_j0 + q_block * SUBGROUP_SIZE + lane;
-        #pragma unroll
-        for (int db = 0; db < DKS; ++db) {
+    // Cooperative Q->SLM staging: the Q tile is Q_BLOCKS(=2) query-blocks x DKS(=8)
+    // head-dim chunks = 16 independent (q_block, db) tiles. Distribute them 1:1 across
+    // the 16 subgroups so all subgroups load Q (instead of only the first Q_BLOCKS),
+    // shrinking the prologue Q-load latency.
+    {
+        const int q_block = sg_ij / DKS;   // 0..Q_BLOCKS-1
+        const int db      = sg_ij % DKS;   // 0..DKS-1
+        if (q_block < Q_BLOCKS) {
+            const int query = wg_j0 + q_block * SUBGROUP_SIZE + lane;
             ushort16 qv = (ushort16)0;
             if (query < q)
                 qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + db * KSTEP));
@@ -133,6 +137,51 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int key_base = k0 + sg_i0_kq;
         const bool first = (k0 == 0);
         const bool last = (k0 + KQ_WG_TILE_KEYS >= k);
+
+        float8 S_tile[KQ_MB][KQ_QB];
+        #pragma unroll
+        for (int mb = 0; mb < KQ_MB; ++mb)
+            #pragma unroll
+            for (int qb = 0; qb < KQ_QB; ++qb)
+                S_tile[mb][qb] = (float8)0.0f;
+
+        #pragma unroll
+        for (int db = 0; db < DKS; ++db) {
+            int8 qB[KQ_QB];
+            #pragma unroll
+            for (int qb = 0; qb < KQ_QB; ++qb) {
+                const int q_block = sg_j0_kq / SUBGROUP_SIZE + qb;
+                qB[qb] = as_int8(intel_sub_group_block_read8(
+                    (local void *)&Q_slm[((db * Q_BLOCKS + q_block) * Q_DWORDS) * SUBGROUP_SIZE]));
+            }
+
+            ushort8 k_raw[KQ_MB];
+            intel_sub_group_2d_block_read_16b_16r16x1c(
+                (global void *)K, KD_w, KD_h, KD_p,
+                (int2)(db * KSTEP, key_base), (private ushort *)&k_raw[0]);
+
+            #pragma unroll
+            for (int mb = 0; mb < KQ_MB; ++mb) {
+                #pragma unroll
+                for (int qb = 0; qb < KQ_QB; ++qb)
+                    S_tile[mb][qb] = intel_sub_group_f16_f16_matrix_mad_k16(as_short8(k_raw[mb]), qB[qb], S_tile[mb][qb]);
+            }
+        }
+
+#if 0
+        // V prefetch: disabled. Ablation showed it costs ~11us net (it prefetches the
+        // same V tiles consumed by the transform-load in this same iteration, with no
+        // intervening compute to hide latency, so it is pure overhead here).
+        #pragma unroll
+        for (int cp = 0; cp < VS_KB; ++cp) {
+            #pragma unroll
+            for (int cd = 0; cd < VS_DB; ++cd) {
+                intel_sub_group_2d_block_prefetch_16b_16r16x1c(
+                    (const global void *)V, VD_w, VD_h, VD_p,
+                    (int2)(sg_i0_vs + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
+            }
+        }
+#endif
 
         half2 mask_tile;
         float2 k_mask;
@@ -184,51 +233,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 }
             }
         #endif
-
-        float8 S_tile[KQ_MB][KQ_QB];
-        #pragma unroll
-        for (int mb = 0; mb < KQ_MB; ++mb)
-            #pragma unroll
-            for (int qb = 0; qb < KQ_QB; ++qb)
-                S_tile[mb][qb] = (float8)0.0f;
-
-        #pragma unroll
-        for (int db = 0; db < DKS; ++db) {
-            int8 qB[KQ_QB];
-            #pragma unroll
-            for (int qb = 0; qb < KQ_QB; ++qb) {
-                const int q_block = sg_j0_kq / SUBGROUP_SIZE + qb;
-                qB[qb] = as_int8(intel_sub_group_block_read8(
-                    (local void *)&Q_slm[((db * Q_BLOCKS + q_block) * Q_DWORDS) * SUBGROUP_SIZE]));
-            }
-
-            ushort8 k_raw[KQ_MB];
-            intel_sub_group_2d_block_read_16b_16r16x1c(
-                (global void *)K, KD_w, KD_h, KD_p,
-                (int2)(db * KSTEP, key_base), (private ushort *)&k_raw[0]);
-
-            #pragma unroll
-            for (int mb = 0; mb < KQ_MB; ++mb) {
-                #pragma unroll
-                for (int qb = 0; qb < KQ_QB; ++qb)
-                    S_tile[mb][qb] = intel_sub_group_f16_f16_matrix_mad_k16(as_short8(k_raw[mb]), qB[qb], S_tile[mb][qb]);
-            }
-        }
-
-#if 0
-        // V prefetch: disabled. Ablation showed it costs ~11us net (it prefetches the
-        // same V tiles consumed by the transform-load in this same iteration, with no
-        // intervening compute to hide latency, so it is pure overhead here).
-        #pragma unroll
-        for (int cp = 0; cp < VS_KB; ++cp) {
-            #pragma unroll
-            for (int cd = 0; cd < VS_DB; ++cd) {
-                intel_sub_group_2d_block_prefetch_16b_16r16x1c(
-                    (const global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sg_i0_vs + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
-            }
-        }
-#endif
 
         float alpha[KQ_QB];
         #pragma unroll
@@ -349,8 +353,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
         }
     }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
 
     #pragma unroll
     for (int r = 0; r < VS_QB; ++r) {
