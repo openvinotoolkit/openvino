@@ -18,26 +18,30 @@ enum class PerfLogLevel {
 };
 
 inline PerfLogLevel perf_log_level() {
-    const char* value = std::getenv("OPENVINO_HETERO_PERF");
-    if (value == nullptr || *value == '\0') {
-        return PerfLogLevel::Disabled;
-    }
+    static const PerfLogLevel cached = [] {
+        const char* value = std::getenv("OPENVINO_HETERO_PERF");
+        if (value == nullptr || *value == '\0') {
+            return PerfLogLevel::Disabled;
+        }
 
-    char* end = nullptr;
-    const long parsed = std::strtol(value, &end, 10);
-    if (end == value || (end != nullptr && *end != '\0')) {
-        return PerfLogLevel::Disabled;
-    }
+        char* end = nullptr;
+        const long parsed = std::strtol(value, &end, 10);
+        if (end == value || (end != nullptr && *end != '\0')) {
+            return PerfLogLevel::Disabled;
+        }
 
-    if (parsed <= 0) {
-        return PerfLogLevel::Disabled;
-    }
+        if (parsed <= 0) {
+            return PerfLogLevel::Disabled;
+        }
 
-    if (parsed >= static_cast<long>(PerfLogLevel::SplitDetails)) {
-        return PerfLogLevel::SplitDetails;
-    }
+        if (parsed >= static_cast<long>(PerfLogLevel::SplitDetails)) {
+            return PerfLogLevel::SplitDetails;
+        }
 
-    return PerfLogLevel::Basic;
+        return PerfLogLevel::Basic;
+    }();
+
+    return cached;
 }
 
 inline bool perf_log_enabled() {
