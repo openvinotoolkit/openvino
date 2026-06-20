@@ -1409,18 +1409,19 @@ public:
         return wg_tile_k;
     }
 
-    static size_t get_rounded_key_buffer_bytes(const kernel_impl_params& params, size_t tile_tokens) {
+    // The micro KQ gemm block-loads a full wg_tile_m (tile_tokens) rows for every key tile, so the
+    // last tile of a subsequence can read up to tile_tokens-1 rows past the subsequence end. For the
+    // final subsequence that runs past the raw key tensor, so the copy buffer appends exactly one
+    // guard tile beyond the key tokens to keep those loads in bounds for any subsequence layout.
+    static size_t get_tail_padded_key_buffer_bytes(const kernel_impl_params& params, size_t tile_tokens) {
         const auto& key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
         const auto key_pitches = key_layout.get_pitches();
         OPENVINO_ASSERT(!key_pitches.empty(), "[GPU] Invalid key layout pitches for Paged Attention micro prefill");
 
-        const auto total_tokens = static_cast<size_t>(key_layout.get_partial_shape()[0].get_length());
-        const auto rounded_tokens = ceil_div(total_tokens, tile_tokens) * tile_tokens;
-        const auto padded_tokens = rounded_tokens + tile_tokens;
         const auto key_row_pitch = static_cast<size_t>(key_pitches[0]);
         const auto key_bitwidth = ov::element::Type(key_layout.data_type).bitwidth();
         const auto key_row_bytes = (key_row_pitch * key_bitwidth + 7) / 8;
-        return key_layout.bytes_count() + (padded_tokens - total_tokens) * key_row_bytes;
+        return key_layout.bytes_count() + tile_tokens * key_row_bytes;
     }
 
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
@@ -1650,8 +1651,8 @@ public:
          *              gws index to subsequence idx. Values stored in pairs like:
          *              [block_idx0, subsequence_idx0, block_idx1, subsequence_idx0, ..., block_idx0, subsequence_idx1].
          *              Filled in paged_attention_inst::on_execute() call for sdpa-micro kernel only.
-         * 4          - Padded copy of the raw key input for the sdpa-micro prefill kernel. It rounds the
-         *              allocation up to KQ wg_tile_m rows and appends one guard tile so block K loads stay in bounds.
+         * 4          - Padded copy of the raw key input for the sdpa-micro prefill kernel. It appends one
+         *              guard tile (KQ wg_tile_m rows) beyond the key tokens so block K loads stay in bounds.
          */
 
         std::vector<BufferDescriptor> internal_buffers;
@@ -1774,10 +1775,10 @@ public:
             if (stage == PagedAttentionStage::PREFILL &&
                 requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
                 const auto key_tile_tokens = get_micro_tile_ksize(pa_sdpa_micro->kd);
-                const auto rounded_key_bytes = get_rounded_key_buffer_bytes(params, key_tile_tokens);
+                const auto tail_padded_key_bytes = get_tail_padded_key_buffer_bytes(params, key_tile_tokens);
                 OPENVINO_ASSERT(internal_buffers.size() == paged_attention_micro_sdpa_prefill_key_buffer_idx,
                                 "[GPU] Unexpected Paged Attention micro-SDPA prefill key buffer index");
-                internal_buffers.emplace_back(rounded_key_bytes, indexes_dt);
+                internal_buffers.emplace_back(tail_padded_key_bytes, indexes_dt);
             }
         }
 #endif
