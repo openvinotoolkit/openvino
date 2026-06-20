@@ -28,7 +28,6 @@
 #include "perf_log.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
-#include "openvino/util/log.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");

@@ -30,7 +30,6 @@
 #include "openvino/util/common_util.hpp"
 #include "perf_log.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/util/log.hpp"
 
 namespace {
 
