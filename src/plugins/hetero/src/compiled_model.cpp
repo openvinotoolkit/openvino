@@ -133,7 +133,7 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
                               to_ms(t_set_io_end - t0),
                               " ms, submodels=",
                               submodels.size(),
-                              ", compile_submodels=",
+                              ", submodels_total=",
                               to_ms(compile_submodels_time),
                               " ms, set_inputs_and_outputs=",
                               to_ms(t_set_io_end - t_set_io_start),
