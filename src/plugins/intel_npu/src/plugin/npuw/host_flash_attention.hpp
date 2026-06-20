@@ -17,21 +17,6 @@
 namespace ov {
 namespace npuw {
 
-// SDPA (Scaled Dot-Product Attention) input tensor identifiers
-// Represents the standardized input layout for SDPA operations
-// Defined at namespace level for use in both function and compiled namespaces
-enum class SDPAInputId : uint8_t {
-    PAST_KEY = 0,        // Historical key cache tensor
-    PAST_VALUE = 1,      // Historical value cache tensor
-    QUERY = 2,           // Query tensor for current iteration
-    PRESENT_KEY = 3,     // Current key tensor (new tokens)
-    ATTENTION_MASK = 4,  // Attention mask tensor
-    PRESENT_VALUE = 5,   // Current value tensor (new tokens)
-
-    // Sentinel value for enum range
-    COUNT
-};
-
 // HFA Tile Model input tensor identifiers
 // Represents the input layout for Host Flash Attention tile models
 // Input names: [past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
@@ -61,25 +46,6 @@ enum class HFATileOutputId : uint8_t {
 };
 
 // Helper functions to convert enum values to string representations for logging/debugging
-inline const char* sdpa_input_id_to_string(SDPAInputId id) {
-    switch (id) {
-    case SDPAInputId::PAST_KEY:
-        return "PAST_KEY";
-    case SDPAInputId::PAST_VALUE:
-        return "PAST_VALUE";
-    case SDPAInputId::QUERY:
-        return "QUERY";
-    case SDPAInputId::PRESENT_KEY:
-        return "PRESENT_KEY";
-    case SDPAInputId::ATTENTION_MASK:
-        return "ATTENTION_MASK";
-    case SDPAInputId::PRESENT_VALUE:
-        return "PRESENT_VALUE";
-    default:
-        return "UNKNOWN";
-    }
-}
-
 inline const char* hfa_tile_input_id_to_string(HFATileInputId id) {
     switch (id) {
     case HFATileInputId::PAST_ACC:
@@ -141,10 +107,11 @@ struct HostFlashAttention {
     std::size_t _k_seq_dim = 0;
     std::size_t _v_seq_dim = 0;
 
-    // SDPA model parameter index mapping
-    // Maps semantic SDPA parameter IDs (QUERY, PAST_KEY, etc.) to actual parameter indices
-    // This is created during pattern analysis in from() method
-    std::map<SDPAInputId, std::size_t> _sdpa_param_index_map;
+    // Direct SDPA parameter indices (extracted during pattern analysis in from())
+    std::size_t _query_param_idx = 0u;
+    std::size_t _present_key_param_idx = 0u;
+    std::size_t _present_value_param_idx = 0u;
+    std::size_t _attention_mask_param_idx = 0u;
 
     // KV cache block parameter indices (for split KV cache support)
     // After SplitKVCacheIntoBlocks transformation, KV cache is split into multiple block parameters
