@@ -15,7 +15,7 @@ using namespace ov::frontend::tensorflow::op;
     [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {    \
         auto decoder = node.get_decoder();                                          \
         auto inputs = node.get_inputs();                                            \
-        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                   \
+        ov::frontend::tensorflow_lite::dequantize_inputs(inputs, decoder);          \
         auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs); \
         return func(context);                                                       \
     }
@@ -24,7 +24,7 @@ using namespace ov::frontend::tensorflow::op;
     [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector { \
         auto decoder = node.get_decoder();                                       \
         auto inputs = node.get_inputs();                                         \
-        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                \
+        ov::frontend::tensorflow_lite::dequantize_inputs(inputs, decoder);       \
         auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);  \
         return get_indexed_outputs(func(context));                               \
     }
