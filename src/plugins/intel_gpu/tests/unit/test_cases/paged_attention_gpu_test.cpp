@@ -2980,9 +2980,50 @@ static paged_attention_test_params make_pa_micro_prefill_oob_param(int num_token
         false};
 }
 
+static paged_attention_test_params make_pa_micro_prefill_oob_param_multi(const std::vector<SubsequenceDescriptor>& subsequences,
+                                                                         int num_heads, int num_kv_heads, int head_size) {
+    return paged_attention_test_params{
+        subsequences,
+        num_heads,
+        num_kv_heads,
+        head_size,
+        head_size,
+        16,
+        0,
+        DISABLE_CACHE_COMPRESSION,
+        ov::internal::CacheQuantMode::BY_TOKEN,
+        STATIC_INPUT_PAD,
+        DISABLE_SCORES,
+        DISABLE_ROTATION,
+        DISABLE_FA_V2,
+        false,
+        0,
+        {},
+        false};
+}
+
 TEST_F(paged_attention_micro_sdpa_prefill_oob_sequence_test, partial_kv_tile_unpadded_key_input) {
     auto warmup = make_pa_micro_prefill_oob_param(135, 16, 16, 256);
     auto repro = make_pa_micro_prefill_oob_param(129, 16, 16, 256);
+
+    for (int iteration = 0; iteration < 16; iteration++) {
+        SCOPED_TRACE("warmup_iteration=" + std::to_string(iteration));
+        execute(warmup, warmup.run_reference);
+    }
+
+    for (int iteration = 0; iteration < 16; iteration++) {
+        SCOPED_TRACE("repro_iteration=" + std::to_string(iteration));
+        execute(repro, repro.run_reference);
+    }
+}
+
+TEST_F(paged_attention_micro_sdpa_prefill_oob_sequence_test, partial_kv_tile_unpadded_key_input_multi_subsequence) {
+    // Multi-subsequence worst case for the prefill key tail padding. repro total=256 is an exact
+    // wg_tile_m(128) multiple, and the trailing 1-token subsequence sits at base 255: its KQ tile
+    // block-loads [255, 255+128) = [255, 383), i.e. up to wg_tile_m-1 rows past the key tokens. The
+    // tail guard tile (total + wg_tile_m) must cover that read for any subsequence layout.
+    auto warmup = make_pa_micro_prefill_oob_param_multi({{256, 0}, {1, 0}}, 16, 16, 256);
+    auto repro  = make_pa_micro_prefill_oob_param_multi({{255, 0}, {1, 0}}, 16, 16, 256);
 
     for (int iteration = 0; iteration < 16; iteration++) {
         SCOPED_TRACE("warmup_iteration=" + std::to_string(iteration));
