@@ -23,6 +23,7 @@ public:
     backend_types backend_type() const override { return backend_types::ze; };
 
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
+    memory_ptr import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) override;
     memory_ptr create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
