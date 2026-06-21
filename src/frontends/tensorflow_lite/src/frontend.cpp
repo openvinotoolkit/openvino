@@ -279,7 +279,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     // TSGeneral runs ConstantFolding; mark dequantization before it.
     manager.register_pass<ov::pass::MarkDequantization>(
-        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2});
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);

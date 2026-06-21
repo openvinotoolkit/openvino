@@ -429,7 +429,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     // TSGeneral runs ConstantFolding; mark dequantization before it.
     manager.register_pass<ov::pass::MarkDequantization>(
-        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+        ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2});
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
