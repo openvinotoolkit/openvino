@@ -48,6 +48,14 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             errorMessage = "Not supported CPU instructions set.";
             return false;
         }
+        // The optimized JIT kernel only implements 4D (N, C, H, W) sampling. 5D (volumetric) input is
+        // delegated to the reference implementation via the generic Reference fallback node.
+        const auto& data_rank = op->get_input_partial_shape(0).rank();
+        if (data_rank.is_static() && data_rank.get_length() != 4) {
+            errorMessage = "CPU plug-in optimized GridSample kernel supports only 4D input; other ranks are executed "
+                           "by the reference implementation.";
+            return false;
+        }
 #else
         return false;
 #endif  // OPENVINO_ARCH_X86_64
