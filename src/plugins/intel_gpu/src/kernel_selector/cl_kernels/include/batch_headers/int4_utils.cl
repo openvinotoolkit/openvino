@@ -163,19 +163,7 @@ inline float4 unpack_to_float(uint4x4_t v) __attribute__((overloadable)) {
     return (float4)(f0.s0, f0.s1, f1.s0, f1.s1);
 }
 
-inline float4 unpack_to_float_osv32_isv2(uint4x4_t v) __attribute__((overloadable)) {
-    float2 f0 = unpack_to_float(v.s0);
-    float2 f1 = unpack_to_float(v.s1);
-    return (float4)(f0.s0, f0.s1, f1.s0, f1.s1);
-}
-
 inline float4 unpack_to_float(int4x4_t v) __attribute__((overloadable)) {
-    float2 f0 = unpack_to_float(v.s0);
-    float2 f1 = unpack_to_float(v.s1);
-    return (float4)(f0.s0, f0.s1, f1.s0, f1.s1);
-}
-
-inline float4 unpack_to_float_osv32_isv2(int4x4_t v) __attribute__((overloadable)) {
     float2 f0 = unpack_to_float(v.s0);
     float2 f1 = unpack_to_float(v.s1);
     return (float4)(f0.s0, f0.s1, f1.s0, f1.s1);
@@ -189,26 +177,10 @@ inline float8 unpack_to_float(uint4x8_t v) __attribute__((overloadable)) {
     return (float8)(f0.s0, f0.s1, f1.s0, f1.s1, f2.s0, f2.s1, f3.s0, f3.s1);
 }
 
-inline float8 unpack_to_float_osv32_isv2(uint4x8_t v) __attribute__((overloadable)) {
-    float2 f0 = unpack_to_float(v.s0);
-    float2 f1 = unpack_to_float(v.s2);
-    float2 f2 = unpack_to_float(v.s1);
-    float2 f3 = unpack_to_float(v.s3);
-    return (float8)(f0.s0, f0.s1, f1.s0, f1.s1, f2.s0, f2.s1, f3.s0, f3.s1);
-}
-
 inline float8 unpack_to_float(int4x8_t v) __attribute__((overloadable)) {
     float2 f0 = unpack_to_float(v.s0);
     float2 f1 = unpack_to_float(v.s1);
     float2 f2 = unpack_to_float(v.s2);
-    float2 f3 = unpack_to_float(v.s3);
-    return (float8)(f0.s0, f0.s1, f1.s0, f1.s1, f2.s0, f2.s1, f3.s0, f3.s1);
-}
-
-inline float8 unpack_to_float_osv32_isv2(int4x8_t v) __attribute__((overloadable)) {
-    float2 f0 = unpack_to_float(v.s0);
-    float2 f1 = unpack_to_float(v.s2);
-    float2 f2 = unpack_to_float(v.s1);
     float2 f3 = unpack_to_float(v.s3);
     return (float8)(f0.s0, f0.s1, f1.s0, f1.s1, f2.s0, f2.s1, f3.s0, f3.s1);
 }
