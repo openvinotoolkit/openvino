@@ -219,6 +219,12 @@ bool cleanup_dead_if_sequence_output(const std::shared_ptr<v8::If>& if_node) {
     return changed;
 }
 
+}  // namespace
+
+// The MatcherPass classes below use OPENVINO_MATCHER_PASS_RTTI, which marks the type with a
+// visibility attribute; that requires external linkage, so they must live in a named namespace
+// (an anonymous-namespace type has internal linkage and GCC errors with -Werror=attributes).
+
 // MatcherPass (pattern 1): resolve a reader consuming a statically-known
 // sequence. The sequence input may be an Identity-wrapped Mark/Insert chain.
 //
@@ -274,8 +280,6 @@ public:
         register_matcher(std::make_shared<ov::pass::pattern::Matcher>(if_pattern, get_type_info().name), callback);
     }
 };
-
-}  // namespace
 
 bool SequenceIfReplacer::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // The two phases must alternate to a fixpoint: resolving a helper can expose a

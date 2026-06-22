@@ -459,12 +459,8 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                             placeholder_shape.push_back(
                                 tmpl_ps[k].is_static() ? static_cast<size_t>(tmpl_ps[k].get_length()) : size_t{1});
                         }
-                        size_t total = 1;
-                        for (auto s : placeholder_shape) {
-                            total *= s;
-                        }
-                        std::vector<float> zeros(total, 0.0f);
-                        replacement = v0::Constant::create(tmpl_et, placeholder_shape, zeros)->output(0);
+                        // Single-value literal broadcasts to fill the shape, avoiding an O(N) allocation.
+                        replacement = v0::Constant::create(tmpl_et, placeholder_shape, {0.0f})->output(0);
                     } else {
                         replacement = make_zero_dummy(template_src);
                     }

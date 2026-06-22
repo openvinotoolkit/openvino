@@ -102,7 +102,8 @@ ov::Output<ov::Node> make_zero_dummy(const ov::Output<ov::Node>& tmpl) {
         }
     }
     ov::Shape shape(dims.begin(), dims.end());
-    return std::make_shared<v0::Constant>(et, shape, std::vector<std::string>(ov::shape_size(shape), "0"));
+    // Single-value literal broadcasts to fill the shape, avoiding an O(N) string allocation.
+    return std::make_shared<v0::Constant>(et, shape, std::vector<std::string>{"0"});
 }
 
 // Seed constant with static dims preserved, last dynamic axis set to 0
@@ -133,8 +134,8 @@ ov::Output<ov::Node> make_growable_seed(const ov::PartialShape& ps, ov::element:
             seed_shape.push_back(1);
         }
     }
-    return std::make_shared<v0::Constant>(et, seed_shape, std::vector<std::string>(ov::shape_size(seed_shape), "0"))
-        ->output(0);
+    // Single-value literal broadcasts to fill the shape, avoiding an O(N) string allocation.
+    return std::make_shared<v0::Constant>(et, seed_shape, std::vector<std::string>{"0"})->output(0);
 }
 
 namespace {
