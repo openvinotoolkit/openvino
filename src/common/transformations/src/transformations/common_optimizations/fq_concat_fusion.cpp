@@ -24,7 +24,8 @@ namespace {
 
 bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs,
                                     const std::shared_ptr<v0::FakeQuantize>& rhs) {
-    if (!lhs || !rhs || lhs->get_levels() != rhs->get_levels()) {
+    if (!lhs || !rhs || lhs->get_levels() != rhs->get_levels() ||
+        lhs->get_auto_broadcast() != rhs->get_auto_broadcast()) {
         return false;
     }
 
