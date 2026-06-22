@@ -288,6 +288,18 @@ TEST_P(CompatibilityCheckTests, CompatibilityCheckUsesPluginCompilerAdapterOnlyW
     ASSERT_TRUE(isSupported);
 }
 
+TEST_P(CompatibilityCheckTests, ExpectSetCompatibilityCheckThrowsReadOnlyError) {
+    // Verify that attempting to set ov::compatibility_check property throws a READ-ONLY error
+    // because compatibility_check is a read-only metric property that cannot be modified.
+
+    ov::AnyMap compatibilityCheckProperty = {{ov::compatibility_check.name(), ov::Any(ov::AnyMap{})}};
+
+    // Attempting to set a read-only property should throw an exception
+    OV_EXPECT_THROW_HAS_SUBSTRING(propertiesManager->setProperty(compatibilityCheckProperty),
+                                  ov::Exception,
+                                  "READ-ONLY");
+}
+
 TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSupported) {
     std::string logs;
     std::mutex logs_mutex;

@@ -272,9 +272,9 @@ It ensures that it is enabled or disabled based in the current system/environmen
 ## Step 4. Link the new property to the new option
 Fourth step is to create and register the Property (which is basicly the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
 ### For plugin
-npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerPluginProperties()
+npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 ```cpp
-try_register_simple_property<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property);
+try_register_simple_property<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
 ```
 **Explanation:**
 this helper function will register (if all conditions are met) a property with the name ov::intel_npu::example_property.name()
@@ -283,7 +283,7 @@ and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
 ### For compiled-model (if required)
 npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
-try_register_compiled_model_property_ifset<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property);
+try_register_compiled_model_property_ifset<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
 ```
 **Explanation:**
 this helper function registers the compiled-model property with the name ov::intel_npu::example_property.name()
@@ -331,11 +331,12 @@ You need to register the new property and define a callback function in the owne
 For plugin: npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerPluginProperties()
 For compiled-model: npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
-    register_simple_metric(_properties, ov::intel_npu::example_property, true, _metrics->GetDriverVersion());
+    register_simple_metric(_properties, ov::intel_npu::example_property.name(), true, _metrics->GetDriverVersion());
 ```
 **Explanation**
 this helper function will register a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which will be public and included in supported_properties (second parameter)  
-which will execute _metrics->GetDriverVersion() function as it's get_property callback
+which will execute `_metrics->GetDriverVersion()` as its get_property callback.
+Note: the first argument is the property name string (`property.name()`), not the property object itself.
 
 ## Step 3. Python bindings
 In order for the property to be property exposed in python API, add python wrapper for the new property in pyOpenvino  
@@ -362,13 +363,13 @@ By internal convention, what needs to be included in compiled-model properties g
 This is to ensure that we only expose settings we are sure were taken into account by compiler.
 
 To facilitate registering properties in compiled-model **ONLY** if they have been explicitly set prior to model compilation, property_registration.hpp provides a helper function:
-#### try_register_compiled_model_property_ifset<OPT_TYPE>(config, properties, property)
+#### try_register_compiled_model_property_ifset<OPT_TYPE>(config, properties, propertyName)
 This helper function registers the provided property to the provided option type only if a value for it exists in the config. (default values do not live in config, but are directly read from OptionsDesc)
 Example:
 ```cpp
     try_register_compiled_model_property_ifset<COMPILATION_MODE>(_config,
                                                                  _properties,
-                                                                 ov::intel_npu::compilation_mode);
+                                                                 ov::intel_npu::compilation_mode.name());
 ```
 
 <br><br>
@@ -378,34 +379,65 @@ Example:
 If the new property requires a custom callback function, only Step 4. changes.
 Instead of using try_register_simple_property helper function, you can choose from the following helper functions:
 
-#### try_register_varpub_property<OPT_TYPE>(config, properties, property, is_public)
+#### try_register_explicit_visibility_property<OPT_TYPE>(config, properties, propertyName, is_public)
 This can be used when callback is standard, but visibility (public/private) is custom.
-Instead of using automatically the value from optionsBase, one can define a custom function to determine
-whether the property will be public (included in supported_properties) or private and provide as PROP_VISIBILITY parameter.
-#### try_register_customfunc_property(config, properties, property, getter)
+Instead of using automatically the value from the option descriptor, one can pass a runtime bool to determine
+whether the property will be public (included in supported_properties) or private.
+Example:
+```cpp
+    try_register_explicit_visibility_property<RUN_INFERENCES_SEQUENTIALLY>(
+        _config,
+        _properties,
+        ov::intel_npu::run_inferences_sequentially.name(),
+        [&] { return _backend && _backend->getInitStructs(); }());
+```
+
+#### try_register_custom_property(config, properties, propertyName, getter)
 This helper function can be used whenever a custom callback function is required for this property,
-provided as a lambda function as PROP_RETFUNC parameter.
+provided as a lambda function. The getter receives the Config object and must return an ov::Any value.
 (Standard callback function just returns the value of the config)
-#### try_register_custom_property(config, properties, property, is_public, mutability, getter)
-This helper function bypasses all automatic descriptor fetching, availability checks, and compatibility verifications
-and gives you the possibility to register a completely custom property with custom visibility and custom callback function.
+Example:
+```cpp
+    try_register_custom_property(_config, _properties, ov::intel_npu::stepping.name(),
+        [&](const Config& config) {
+            if (!config.has<STEPPING>()) {
+                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+            }
+            return config.get<STEPPING>();
+        });
+```
 
 ## SC.2 Adding a new (metric-backed) property which requires customization
-As oppposed to option-backed properties, for metric-backed ones we only have 1 extra helper function,
-apart from register_simple_metric (which lets you define name, visibility and return value as a single function call):
+Apart from `register_simple_metric`, two additional helper functions are available for metric-backed properties:
 
-#### register_custom_metric(properties, property, is_public, getter)
-This helper function offers the possibility to define a full custom callback function, as a lambda function propided as parameter PROP_RETFUNC,
-instead of just a single value function call as register_simple_metric.
+#### register_custom_metric(properties, propertyName, shouldRegister, isPublic, getter)
+Conditionally registers a metric property. The property is only added when `shouldRegister` is true.
+Use this when the availability of a metric depends on a runtime condition (e.g. backend capability check).
 Example:
 ```cpp
     register_custom_metric(_properties,
-                           ov::device::full_name,
+                           ov::device::full_name.name(),
                            !_metrics->GetAvailableDevicesNames().empty(),
+                           true,
                            [&](const Config& config) {
                                const auto specifiedDeviceName = get_specified_device_name(config);
                                return _metrics->GetFullDeviceName(specifiedDeviceName);
                            });
+```
+
+#### register_custom_metric_with_args(properties, propertyName, shouldRegister, isPublic, getter)
+Same as `register_custom_metric`, but for properties whose getter also receives an `ov::AnyMap` of additional
+arguments at get_property call time. Use this for properties such as `ov::compatibility_check` that accept
+extra input arguments.
+Example:
+```cpp
+    register_custom_metric_with_args(_properties,
+                                     ov::compatibility_check.name(),
+                                     _compatibilityCheckSupported,
+                                     true,
+                                     [this](const Config&, const ov::AnyMap& arguments) {
+                                         return validateCompatibilityDescriptor(_backend, arguments);
+                                     });
 ```
 
 ## SC.3 Filtering out options at registration phase

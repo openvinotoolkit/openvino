@@ -63,7 +63,6 @@ private:
     explicit PluginPropertyManager(CopyState&& state);
 
     void registerProperties() const;
-    void registerPluginProperties() const;
     void initializeCompatibilityCheckSupportIfNeeded() const;
     bool isPropertyRegistered(const std::string& propertyName) const;
 
