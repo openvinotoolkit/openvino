@@ -54,7 +54,6 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 bool hasArmISASupport(ArmISA isa) {
     switch (isa) {
     case ArmISA::ASIMD:
@@ -69,5 +68,4 @@ bool hasArmISASupport(ArmISA isa) {
     }
     return true;
 }
-#endif
 }  // namespace ov::intel_cpu
