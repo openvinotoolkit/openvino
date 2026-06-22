@@ -126,7 +126,7 @@ public:
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0 ? -1 : 1;
 
-        iter_count = static_cast<int32_t>(full_dims[axis] / abs_stride);
+        iter_count = static_cast<int>(full_dims[axis] / abs_stride);
 
         full_dims[axis] = abs_stride;
         OPENVINO_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");

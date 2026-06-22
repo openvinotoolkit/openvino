@@ -555,15 +555,15 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
         idx = (idx < max) ? idx : (max - 1);
     };
 
-    auto correcting = [](int32_t& dim, const size_t shift) {
-        dim = dim >= 0 ? dim : static_cast<int32_t>(shift) + dim;
+    auto correcting = [](int& dim, const size_t shift) {
+        dim = dim >= 0 ? dim : static_cast<int>(shift) + dim;
     };
 
     VectorDims newSrcDims;
     VectorDims newDstDims;
-    std::vector<int32_t> beginTemp;
-    std::vector<int32_t> endTemp;
-    std::vector<int32_t> strideTemp;
+    std::vector<int> beginTemp;
+    std::vector<int> endTemp;
+    std::vector<int> strideTemp;
     size_t srcIdx = 0;
     for (size_t axis = 0; axis < params.attrs.begin.size(); ++axis) {
         if (params.attrs.ellipsisMask[axis] == 1) {
@@ -588,7 +588,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                 newSrcDims.push_back(params.srcBlockedDims[srcIdx]);
                 newDstDims.push_back(params.srcBlockedDims[srcIdx]);
                 beginTemp.push_back(0);
-                endTemp.push_back(static_cast<int32_t>(params.srcBlockedDims[srcIdx]) - 1);
+                endTemp.push_back(static_cast<int>(params.srcBlockedDims[srcIdx]) - 1);
                 strideTemp.push_back(1);
 
                 srcIdx++;
@@ -601,9 +601,9 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                 newSrcDims.push_back(1);
                 newDstDims.push_back(1);
             } else if (params.attrs.shrinkAxisMask[axis] == 1) {
-                int32_t b = params.attrs.beginMask[axis] == 1 ? params.attrs.begin[axis] : 0;
+                auto b = params.attrs.beginMask[axis] == 1 ? params.attrs.begin[axis] : 0;
                 correcting(b, params.srcBlockedDims[srcIdx]);
-                clipping(b, 0, static_cast<int32_t>(params.srcBlockedDims[srcIdx]));
+                clipping(b, 0, static_cast<int>(params.srcBlockedDims[srcIdx]));
                 beginTemp.push_back(b);
                 endTemp.push_back(b);
                 strideTemp.push_back(1);
@@ -612,7 +612,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
 
                 srcIdx++;
             } else {
-                int32_t b = [&]() {
+                int b = [&]() {
                     if (params.attrs.beginMask[axis] == 1) {
                         return params.attrs.begin[axis];
                     }
@@ -622,7 +622,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                     return -1;
                 }();
                 correcting(b, params.srcBlockedDims[srcIdx]);
-                clipping(b, 0, static_cast<int32_t>(params.srcBlockedDims[srcIdx]));
+                clipping(b, 0, static_cast<int>(params.srcBlockedDims[srcIdx]));
 
                 int e = [&]() {
                     if (params.attrs.endMask[axis] == 1) {
@@ -637,7 +637,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                     return 0;
                 }();
                 correcting(e, params.srcBlockedDims[srcIdx]);
-                clipping(e, 0, static_cast<int32_t>(params.srcBlockedDims[srcIdx]));
+                clipping(e, 0, static_cast<int>(params.srcBlockedDims[srcIdx]));
 
                 beginTemp.push_back(b);
                 endTemp.push_back(e);
@@ -748,7 +748,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
         params.srcStrides.insert(params.srcStrides.begin() + 1, params.srcStrides[0] / realSrcDim);
 
         for (size_t idx = secondDim.first + 1; idx < secondDim.second; idx++) {
-            params.attrs.begin[1] /= static_cast<int32_t>(dstBlockedDimsBefore[idx]);
+            params.attrs.begin[1] /= static_cast<int>(dstBlockedDimsBefore[idx]);
         }
 
         if (params.dstBlockedDims[0] < m_threads_num) {
@@ -811,7 +811,7 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculation() {
         return srcIdx * params.attrs.dataSize;
     };
 
-    parallel_nt(static_cast<int32_t>(nThreads), [&](const int32_t ithr, const int32_t nthr) {
+    parallel_nt(static_cast<int>(nThreads), [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
         VectorDims coords(params.nDimsForWork, 0);
@@ -867,7 +867,7 @@ void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vecto
     const auto* srcData = srcMemory[0]->getDataAs<const uint8_t>();
     auto* dstData = dstMemory[0]->getDataAs<uint8_t>();
     const uint8_t* srcShiftedData = srcData + srcShift;
-    parallel_nt(static_cast<int32_t>(nThreads), [&](const int32_t ithr, const int32_t nthr) {
+    parallel_nt(static_cast<int>(nThreads), [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
         splitter(workAmount, nthr, ithr, start, end);
@@ -889,7 +889,7 @@ void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vecto
         return;
     }
     uint8_t* dstShiftedData = dstData + srcShift;
-    parallel_nt(static_cast<int32_t>(nThreads), [&](const int32_t ithr, const int32_t nthr) {
+    parallel_nt(static_cast<int>(nThreads), [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
         splitter(workAmount, nthr, ithr, start, end);

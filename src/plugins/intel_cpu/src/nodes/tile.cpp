@@ -221,9 +221,9 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         m_outer_dim /= 16;
     }
 
-    m_inner_dim *= static_cast<int32_t>(srcMemory.getDesc().getPrecision().size());
-    for (int32_t i = 0; i < m_outer_dim; ++i) {
-        for (int32_t t = 0; t < tiles; ++t) {
+    m_inner_dim *= static_cast<int>(srcMemory.getDesc().getPrecision().size());
+    for (int i = 0; i < m_outer_dim; ++i) {
+        for (int t = 0; t < tiles; ++t) {
             cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);
             dst_ptr += m_inner_dim;
         }

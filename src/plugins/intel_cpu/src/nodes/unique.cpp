@@ -214,7 +214,7 @@ void Unique::flattenTensorExec() {
             for (T* it = first; it < last; it++) {
                 for (size_t i = 0; i < inputLen; i++) {
                     if (srcDataPtr[i] == *it) {
-                        *firstTmpPtr++ = static_cast<int32_t>(i);
+                        *firstTmpPtr++ = static_cast<int>(i);
                         first++;
                         break;
                     }
@@ -229,7 +229,7 @@ void Unique::flattenTensorExec() {
                 }
                 for (size_t j = 0; j < uniqueLen; j++) {
                     if (srcDataPtr[i] == uniDataTmpPtr[j]) {
-                        inToOutTmpPtr[i] = static_cast<int32_t>(j);
+                        inToOutTmpPtr[i] = static_cast<int>(j);
                         break;
                     }
                 }
@@ -254,12 +254,12 @@ void Unique::flattenTensorExec() {
         }
 
         for (size_t i = 0, j = 0; i < inputLen; ++i) {
-            auto it = uniq.emplace(srcDataPtr[i], static_cast<int32_t>(j));
+            auto it = uniq.emplace(srcDataPtr[i], static_cast<int>(j));
             if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
                 inToOutTmpPtr[i] = it.first->second;
                 if (it.second) {
                     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                        firstTmpPtr[j] = static_cast<int32_t>(i);
+                        firstTmpPtr[j] = static_cast<int>(i);
                     }
                     ++j;
                 } else {
@@ -366,7 +366,7 @@ void Unique::slicedTensorExec() {
         }
         if (!equal) {
             if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                firstTmpPtr[uniqueLen] = static_cast<int32_t>(a);
+                firstTmpPtr[uniqueLen] = static_cast<int>(a);
             }
 
             uniqIdx[uniqueLen++] = a;
@@ -376,7 +376,7 @@ void Unique::slicedTensorExec() {
             }
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            inToOutTmpPtr[a] = static_cast<int32_t>(uIdx);
+            inToOutTmpPtr[a] = static_cast<int>(uIdx);
         }
     }
 
@@ -469,7 +469,7 @@ void Unique::slicedTensorExec() {
                         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
                             for (size_t ax = 0; ax < axisDim; ax++) {
                                 if (inToOut2[ax] == colToSort[u].idx) {
-                                    inToOut1[ax] = static_cast<int32_t>(u);
+                                    inToOut1[ax] = static_cast<int>(u);
                                 }
                             }
                         }

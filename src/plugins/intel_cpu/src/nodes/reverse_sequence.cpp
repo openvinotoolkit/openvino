@@ -62,12 +62,12 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
 
     CPU_NODE_ASSERT(dataRank == getOutputShapeAtPort(0).getRank(), "has input/output rank mismatch");
 
-    seq_axis = static_cast<int32_t>(revSeq->get_sequence_axis());
+    seq_axis = static_cast<int>(revSeq->get_sequence_axis());
 
-    CPU_NODE_ASSERT(seq_axis >= 0 && seq_axis < static_cast<int32_t>(dataRank),
+    CPU_NODE_ASSERT(seq_axis >= 0 && seq_axis < static_cast<int>(dataRank),
                     "has incorrect 'seq_axis' parameters dimensions and axis number!");
 
-    batch_axis = static_cast<int32_t>(revSeq->get_batch_axis());
+    batch_axis = static_cast<int>(revSeq->get_batch_axis());
 
     CPU_NODE_ASSERT(batch_axis >= 0 && batch_axis < static_cast<int>(dataRank),
                     "has incorrect 'batch_axis' parameters dimensions and axis number!");

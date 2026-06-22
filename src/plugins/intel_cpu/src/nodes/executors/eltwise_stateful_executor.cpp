@@ -232,7 +232,7 @@ void EltwiseStatefulExecutor::updateExecutionParams(const std::vector<VectorDims
     // offsets recalculation
     auto offset_out_calc = [](VectorDims& offset, const VectorDims& dims) {
         size_t k = 1;
-        for (int32_t i = static_cast<int32_t>(offset.size()) - 1; i >= 0; i--) {
+        for (auto i = static_cast<int32_t>(offset.size()) - 1; i >= 0; i--) {
             offset[i] = k;
             k *= dims[i];
         }
@@ -240,7 +240,7 @@ void EltwiseStatefulExecutor::updateExecutionParams(const std::vector<VectorDims
 
     auto offset_in_calc = [](VectorDims& offset, const VectorDims& inDims, const VectorDims& dims_out) {
         size_t k = 1;
-        for (int32_t i = static_cast<int32_t>(offset.size()) - 1; i >= 0; i--) {
+        for (auto i = static_cast<int32_t>(offset.size()) - 1; i >= 0; i--) {
             offset[i] = (inDims[i] == dims_out[i]) ? k : 0;
             k *= inDims[i];
         }

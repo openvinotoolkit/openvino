@@ -56,8 +56,8 @@ private:
     static std::deque<MemoryPtr> getToMemories(const Node* node, int32_t port);
 
     struct PortMap {
-        int32_t from; /**< Index of external/internal out data */
-        int32_t to;   /**< Index of external/internal in data */
+        int from; /**< Index of external/internal out data */
+        int to;   /**< Index of external/internal in data */
     };
 
     class PortMapHelper {

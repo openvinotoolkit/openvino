@@ -348,7 +348,7 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
     auto shapeRank = static_cast<int32_t>(shape.size());
     std::vector<size_t> blockND(shapeRank + 1, 1);
-    for (int32_t i = shapeRank - 1; i >= 0; i--) {
+    for (auto i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
     }
     return blockND;
@@ -376,7 +376,7 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
     auto shapeRank = static_cast<int32_t>(shape.size());
-    for (int32_t i = shapeRank - 1; i >= 0; i--) {
+    for (auto i = shapeRank - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
     }

@@ -517,8 +517,8 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
-            int32_t cur_numBoxes = shared ? static_cast<int32_t>(m_numBoxes) : roisnum[batch_idx];
-            for (int32_t box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
+            int cur_numBoxes = shared ? static_cast<int>(m_numBoxes) : roisnum[batch_idx];
+            for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // algin with ref
                     sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
                 }
