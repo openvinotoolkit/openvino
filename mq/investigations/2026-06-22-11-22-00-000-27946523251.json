@@ -1,0 +1,42 @@
+{
+  "run_id": 27946523251,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27946523251",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "job_id": 82693828631,
+  "job_name": "Build / Build",
+  "failed_step": "Build additional Python wheels",
+  "category": "Network",
+  "signature": "9c711e842f6485da",
+  "timestamp_utc": "2026-06-22T11:22:00Z",
+  "summary": "Build / Build job failed at 'Build additional Python wheels' step (Python 3.12) because pip received Content-Type: Unknown from PyPI for the 'wheel' package index page, leading to ResolutionImpossible and missing 'packaging' module for CMake wheel configure.",
+  "root_cause": {
+    "classification": "Network",
+    "explanation": "pip 26.0.1 on the Windows AKS runner received an unexpected Content-Type from https://pypi.org/simple/wheel/ and skipped the page. With no valid index for the 'wheel' package, pip could not satisfy the requirement 'wheel>=0.38.1' from requirements-dev.txt for Python 3.12 wheel building. Consequently, the 'packaging' module was never installed in the Python 3.12 venv. When CMake subsequently tried to detect the Python Tag via 'packaging.tags', it hit ModuleNotFoundError and aborted configure, causing the entire Python 3.12 wheel build to fail.",
+    "evidence": [
+      "WARNING: Skipping page https://pypi.org/simple/wheel/ because the GET request got Content-Type: Unknown. The only supported Content-Types are application/vnd.pypi.simple.v1+json, application/vnd.pypi.simple.v1+html, and text/html",
+      "ERROR: Cannot install wheel because these package versions have conflicting dependencies.",
+      "Additionally, some packages in these conflicts have no matching distributions available for your environment: wheel",
+      "ERROR: ResolutionImpossible",
+      "ModuleNotFoundError: No module named 'packaging'",
+      "CMake Error at wheel/CMakeLists.txt:12 (message): Failed to detect Python Tag via packaging.tags. Please, check 'packaging' dependency version update",
+      "Failed to build Python wheels for Python 3.12",
+      "##[error]Process completed with exit code 1."
+    ],
+    "failed_job": "Build / Build",
+    "failed_step": "Build additional Python wheels",
+    "confidence": "High"
+  },
+  "reproduction": "On a Windows Python 3.12 environment, run `python -m pip install wheel>=0.38.1 setuptools` when PyPI simple API returns Content-Type: Unknown for the wheel package page.",
+  "recommended_actions": [
+    "Retry the workflow (already done: attempt 2 is in progress).",
+    "If failure repeats, inspect runner connectivity/proxy behavior for https://pypi.org/simple/wheel/.",
+    "Pin the 'wheel' package to a specific cached version or use a local mirror on Windows AKS runners.",
+    "Consider adding 'packaging' as a direct explicit dependency in requirements-dev.txt to avoid cascading CMake failure."
+  ],
+  "prevention": "Ensure 'packaging' and 'wheel' are either pre-installed in the runner image or pinned with a local cache to avoid transient PyPI Content-Type issues. The CMake wheel build should explicitly check for 'packaging' availability before starting.",
+  "pr": {
+    "number": 36479,
+    "url": "https://github.com/openvinotoolkit/openvino/pull/36479",
+    "author": "akashchi"
+  }
+}

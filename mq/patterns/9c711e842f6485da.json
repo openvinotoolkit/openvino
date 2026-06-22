@@ -1,0 +1,17 @@
+{
+  "signature": "Skipping page pypi simple wheel Content-Type Unknown Cannot install wheel no matching distributions available|Build / Build|Network",
+  "title": "Python wheel build fails - PyPI returns Content-Type Unknown for 'wheel' package",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-06-22T11:22:00Z",
+  "last_seen": "2026-06-22T11:22:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/27946523251"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36479"
+  ],
+  "recent_timestamps": [
+    "2026-06-22T11:22:00Z"
+  ]
+}
