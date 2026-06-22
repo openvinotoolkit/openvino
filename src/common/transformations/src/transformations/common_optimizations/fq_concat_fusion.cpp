@@ -71,6 +71,7 @@ FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
             old_nodes.push_back(input_fq);
         }
         auto new_concat = std::make_shared<v0::Concat>(new_concat_inputs, concat->get_axis());
+        new_concat->set_friendly_name(concat->get_friendly_name());
 
         register_new_node(new_concat);
         output_fq->input(0).replace_source_output(new_concat->output(0));
