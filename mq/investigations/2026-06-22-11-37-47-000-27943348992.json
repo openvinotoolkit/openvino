@@ -1,0 +1,19 @@
+{
+  "run_id": 27943348992,
+  "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+  "head_sha": "1ff09aba6162a65c9104077e388424ffd09de321",
+  "pr_number": 33769,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/33769",
+  "author": "p-durandin",
+  "timestamp": "2026-06-22T11:37:47Z",
+  "trigger": "merge_group",
+  "conclusion": "failure",
+  "failed_jobs": ["Samples / Samples"],
+  "signature": "98773c88c1ccab15",
+  "category": "Flaky Test",
+  "primary_error": "Failed: Timeout (>180.0s) from pytest-timeout",
+  "failed_test": "install/tests/smoke_tests/test_classification_sample_async.py::TestClassification::test_classification_sample_async_fp16[param3]",
+  "failed_command": "python3 classification_sample_async.py -i dog-224x224.bmp -m bvlcalexnet-12.onnx -d CPU",
+  "test_summary": "1 failed, 201 passed in 394.24s",
+  "notes": "Python classification_sample_async timed out after 180s on CPU. PR is a GPU eltwise quantized behavior change - unrelated to this failure. Same pattern as run 27941353934."
+}
