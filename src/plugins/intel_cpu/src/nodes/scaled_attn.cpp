@@ -1847,14 +1847,74 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& cpuConfig = context->getConfig();
-    const auto& keyCachePrecision = cpuConfig.keyCachePrecision;
-    const auto& valueCachePrecision = cpuConfig.valueCachePrecision;
+
+    // Per-layer KV cache overrides (experimental). When AssignKVCachePerLayerConfig
+    // attached an rt_info entry, copy the relevant scalars into local variables and
+    // override them from the supplied AnyMap. Missing keys inherit from the global
+    // cpuConfig values.
+    auto keyCachePrecision = cpuConfig.keyCachePrecision;
+    auto valueCachePrecision = cpuConfig.valueCachePrecision;
+    auto keyCacheGroupSize = cpuConfig.keyCacheGroupSize;
+    auto valueCacheGroupSize = cpuConfig.valueCacheGroupSize;
+    auto keyCacheQuantAlg = cpuConfig.keyCacheQuantAlg;
+    auto valueCacheQuantAlg = cpuConfig.valueCacheQuantAlg;
+    auto keyCacheQuantMode = cpuConfig.keyCacheQuantMode;
+    auto valueCacheQuantMode = cpuConfig.valueCacheQuantMode;
+
+    {
+        const auto& rt = op->get_rt_info();
+        auto it = rt.find("kv_cache_layer_config");
+        if (it != rt.end()) {
+            const auto& sub = it->second.as<ov::AnyMap>();
+            auto get_prec = [&](const std::string& k, ov::element::Type& dst) {
+                auto sit = sub.find(k);
+                if (sit != sub.end()) {
+                    dst = sit->second.as<ov::element::Type>();
+                }
+            };
+            auto get_size = [&](const std::string& k, size_t& dst) {
+                auto sit = sub.find(k);
+                if (sit != sub.end()) {
+                    dst = sit->second.as<uint64_t>();
+                }
+            };
+            auto get_alg = [&](const std::string& k, ov::internal::CacheQuantAlgorithm& dst) {
+                auto sit = sub.find(k);
+                if (sit != sub.end()) {
+                    dst = sit->second.as<ov::internal::CacheQuantAlgorithm>();
+                }
+            };
+            auto get_mode = [&](const std::string& k, ov::intel_cpu::Config::CacheQuantMode& dst) {
+                auto sit = sub.find(k);
+                if (sit == sub.end()) {
+                    return;
+                }
+                const auto m = sit->second.as<ov::internal::CacheQuantMode>();
+                if (m == ov::internal::CacheQuantMode::AUTO) {
+                    dst = ov::intel_cpu::Config::CacheQuantMode::AUTO;
+                } else if (m == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                    dst = ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL;
+                } else {
+                    dst = ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN;
+                }
+            };
+            get_prec(ov::key_cache_precision.name(), keyCachePrecision);
+            get_prec(ov::value_cache_precision.name(), valueCachePrecision);
+            get_size(ov::key_cache_group_size.name(), keyCacheGroupSize);
+            get_size(ov::value_cache_group_size.name(), valueCacheGroupSize);
+            get_alg(ov::internal::key_cache_quant_alg.name(), keyCacheQuantAlg);
+            get_alg(ov::internal::value_cache_quant_alg.name(), valueCacheQuantAlg);
+            get_mode(ov::internal::key_cache_quant_mode.name(), keyCacheQuantMode);
+            get_mode(ov::internal::value_cache_quant_mode.name(), valueCacheQuantMode);
+        }
+    }
+
     const auto keyDims = getInputShapeAtPort(1).getDims();
     const auto valueDims = getInputShapeAtPort(2).getDims();
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
-    const bool is_turbo_key = cpuConfig.keyCacheQuantAlg == ov::internal::CacheQuantAlgorithm::TURBO;
-    const bool is_turbo_value = cpuConfig.valueCacheQuantAlg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const bool is_turbo_key = keyCacheQuantAlg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const bool is_turbo_value = valueCacheQuantAlg == ov::internal::CacheQuantAlgorithm::TURBO;
     if (is_turbo_key || is_turbo_value) {
         if (is_turbo_key) {
             CPU_NODE_ASSERT(any_of(keyCachePrecision, ov::element::u3, ov::element::u4),
@@ -1888,13 +1948,11 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
                             prec);
         }
     }
-    m_key_spec.group_size = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
-                                ? keyS
-                                : cpuConfig.keyCacheGroupSize;
+    m_key_spec.group_size =
+        (keyCacheGroupSize == 0 || keyS % keyCacheGroupSize != 0) ? keyS : keyCacheGroupSize;
     m_key_spec.precision = keyCachePrecision;
-    m_value_spec.group_size = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
-                                  ? valueS
-                                  : cpuConfig.valueCacheGroupSize;
+    m_value_spec.group_size =
+        (valueCacheGroupSize == 0 || valueS % valueCacheGroupSize != 0) ? valueS : valueCacheGroupSize;
     m_value_spec.precision = valueCachePrecision;
 
     if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
@@ -1905,9 +1963,16 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
         m_config.config = node->get_config();
     }
 
-    m_key_spec.alg = cpuConfig.keyCacheQuantAlg;
-    m_value_spec.alg = cpuConfig.valueCacheQuantAlg;
-    m_key_spec.by_channel = cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL;
+    m_key_spec.alg = keyCacheQuantAlg;
+    m_value_spec.alg = valueCacheQuantAlg;
+    m_key_spec.by_channel = keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL;
+    m_value_spec.by_channel = valueCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL;
+
+    // Stash the resolved per-layer values for createPrimitive().
+    m_resolved_key_cache_group_size = keyCacheGroupSize;
+    m_resolved_value_cache_group_size = valueCacheGroupSize;
+    m_resolved_key_cache_quant_mode = keyCacheQuantMode;
+    m_resolved_value_cache_quant_mode = valueCacheQuantMode;
 }
 
 void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
@@ -2005,18 +2070,22 @@ void ScaledDotProductAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
     const auto keyDims = getInputShapeAtPort(1).getDims();
     const auto valueDims = getInputShapeAtPort(2).getDims();
-    const auto& cpuConfig = context->getConfig();
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
 
-    m_key_spec.group_size = cpuConfig.keyCacheGroupSize ? cpuConfig.keyCacheGroupSize : keyS;
+    m_key_spec.group_size = m_resolved_key_cache_group_size ? m_resolved_key_cache_group_size : keyS;
     m_key_spec.by_channel = false;
-    if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
+    if (m_resolved_key_cache_quant_mode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
         m_key_spec.by_channel = true;
-    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN) {
+    } else if (m_resolved_key_cache_quant_mode == ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN) {
         m_key_spec.by_channel = false;
     }
-    m_value_spec.group_size = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
+    m_value_spec.group_size = m_resolved_value_cache_group_size ? m_resolved_value_cache_group_size : valueS;
+    if (m_resolved_value_cache_quant_mode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
+        m_value_spec.by_channel = true;
+    } else if (m_resolved_value_cache_quant_mode == ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN) {
+        m_value_spec.by_channel = false;
+    }
     OPENVINO_ASSERT(keyS % m_key_spec.group_size == 0,
                     "ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +
                         " cannot be divided by group size " + std::to_string(m_key_spec.group_size));

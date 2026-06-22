@@ -495,6 +495,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
             }
+        } else if (key == ov::intel_cpu::kv_cache_per_layer_config.name()) {
+            try {
+                kvCachePerLayerConfig = val.as<std::vector<ov::AnyMap>>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::intel_cpu::kv_cache_per_layer_config.name(),
+                               " (expected std::vector<ov::AnyMap>)");
+            }
         } else if (key == ov::enable_weightless.name()) {
             try {
                 enableWeightless = val.as<bool>();

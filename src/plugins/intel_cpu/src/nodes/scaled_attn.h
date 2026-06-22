@@ -129,6 +129,13 @@ private:
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
     ov::Extensions::Cpu::CacheSpec m_key_spec;
     ov::Extensions::Cpu::CacheSpec m_value_spec;
+    // Per-layer resolved values (override or global). Used by createPrimitive() to avoid
+    // re-resolving rt_info, since the node Config inner-class shadows ov::intel_cpu::Config.
+    size_t m_resolved_key_cache_group_size = 0;
+    size_t m_resolved_value_cache_group_size = 0;
+    ov::intel_cpu::Config::CacheQuantMode m_resolved_key_cache_quant_mode = ov::intel_cpu::Config::CacheQuantMode::AUTO;
+    ov::intel_cpu::Config::CacheQuantMode m_resolved_value_cache_quant_mode =
+        ov::intel_cpu::Config::CacheQuantMode::AUTO;
     MemoryPtr m_per_thread_head_scratch;
     // Per-token TBQ norm. Populated only when a side has alg=TURBO; empty otherwise.
     PlainTensor m_k_quant_meta_data;
