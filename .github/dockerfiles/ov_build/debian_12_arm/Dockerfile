@@ -108,15 +108,15 @@ RUN cd Python-3.10.16 && make distclean && \
     make -j $(nproc) && make altinstall
 
 # Upgrade openssl to 3.3.1 for Python3.11 - 3.13 ssl module
-RUN wget https://www.openssl.org/source/openssl-3.3.1.tar.gz && \
-    tar -zxf openssl-3.3.1.tar.gz && \
-    cd openssl-3.3.1 && \
-    ./config && \
-    make install && \
-    ln -sf /usr/local/bin/openssl /usr/bin/openssl && \
-    echo /usr/local/lib64 | tee /etc/ld.so.conf.d/custom.conf && \
-    ldconfig && \
-    openssl version
+# RUN wget https://www.openssl.org/source/openssl-3.3.1.tar.gz && \
+#     tar -zxf openssl-3.3.1.tar.gz && \
+#     cd openssl-3.3.1 && \
+#     ./config && \
+#     make install && \
+#     ln -sf /usr/local/bin/openssl /usr/bin/openssl && \
+#     echo /usr/local/lib64 | tee /etc/ld.so.conf.d/custom.conf && \
+#     ldconfig && \
+#     openssl version
 
 # Python 3.11
 # To cross-compile Python 3.11 we need to first compile it for the host
@@ -124,7 +124,7 @@ RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
 RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
-    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    LDFLAGS="-L/usr/local/lib64" ./configure && \
     make -j $(nproc) && \
     make altinstall
 
@@ -147,7 +147,7 @@ RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
 
 RUN tar -xf Python-3.12.9.tar.xz && \
     cd Python-3.12.9 && \
-    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    LDFLAGS="-L/usr/local/lib64" ./configure && \
     make -j $(nproc) && \
     make altinstall
 
