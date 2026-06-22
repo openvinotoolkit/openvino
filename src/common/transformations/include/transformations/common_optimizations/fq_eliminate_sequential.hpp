@@ -17,29 +17,23 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief FakeQuantizeEliminateSequential optimizes sequential FakeQuantize operations by eliminating or merging them
- * when: Elimination (FQ2 is removed):
- *  - Case 1: all parameters and levels match exactly.
- *  - Case 2-5: when FQ2 is identity on its range and grids align:
- *    * Case 2: second FakeQuantize is identity on its own range (input range equals output range).
- *    * Case 3: the first output range is a subrange of the second output range.
- *    * Case 4: the second FakeQuantize has a degenerate grid (zero step) and ranges match exactly.
- *    * Case 5: the first output grid is aligned to the second output grid (integer multiple offset and step).
+ * @brief FakeQuantizeEliminateSequential folds two sequential FakeQuantize operations (FQ1 -> FQ2)
+ * into a single one. The notation below is FQ(in_low, in_high, out_low, out_high, levels).
  *
- *  Merging (both FQ1 and FQ2 are replaced by a single merged FQ):
- *  - Case 6: when grids align, FQ2 is not identity on its range, and both have the same level count.
- *    Creates a merged FQ with FQ1's input range and FQ2's output range.
+ * The transformation applies only when:
+ *  - all four range bounds of both ops are finite constants;
+ *  - FQ1 output range lies within FQ2 input range, otherwise FQ2 clamps FQ1 output;
+ *  - both ops have more than one level;
+ *  - FQ1 output grid aligns with FQ2 output grid: the offset between the grids and the FQ1 step are
+ *    integer multiples of the FQ2 step, so re-quantization preserves every FQ1 level.
  *
- * Examples:
- *  - Case 1 (exact match):
- *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-1, 1] -> [-1, 1], levels=256) => FQ1
- *  - Case 2 (identity on own range):
- *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-2, 2] -> [-2, 2], levels=511) => FQ1
- *  - Case 5 (aligned grids):
- *    FQ1(x, [-1, 1] -> [-1, 1], levels=256) -> FQ2(x, [-2, 2] -> [-2, 2], levels=511) => FQ1
- *  - Case 6 (merge with non-identity FQ2):
- *    FQ1(x, [-2, 2] -> [-1, 1], levels=256) -> FQ2(x, [-1, 1] -> [-0.5, 0.5], levels=256) =>
- *    Merged FQ(x, [-2, 2] -> [-0.5, 0.5], levels=256)
+ * When these conditions hold:
+ *  - Elimination: if FQ2 is identity on its range (input range equals output range), it only
+ *    re-quantizes onto an aligned super-grid and is removed, keeping FQ1. For example:
+ *      FQ1(-1, 1, -1, 1, 256) -> FQ2(-2, 2, -2, 2, 1021)  =>  FQ1(-1, 1, -1, 1, 256)
+ *  - Merge: otherwise, if FQ1 and FQ2 have the same level count, they are replaced by a single
+ *    FakeQuantize with FQ1's input range and FQ2's output range. For example:
+ *      FQ1(-2, 2, -1, 1, 256) -> FQ2(-1, 1, -1, 0, 256)   =>  FQ(-2, 2, -1, 0, 256)
  */
 class ov::pass::FakeQuantizeEliminateSequential : public ov::pass::MatcherPass {
 public:
