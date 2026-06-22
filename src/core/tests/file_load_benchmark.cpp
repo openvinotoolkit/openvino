@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -30,6 +31,8 @@
 #include "common_test_utils/file_utils.hpp"
 
 namespace ov::test {
+
+static const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
 
 static std::filesystem::path generate_test_file(size_t size_bytes) {
     auto path = std::filesystem::path("test_file" + std::to_string(size_bytes / (1024 * 1024)) + "mb.bin");
@@ -122,21 +125,28 @@ static double throughput_mbs(size_t size_mb, long long ms) {
 
 namespace strategy {
 
-static void mmap_prefetch_mlock(const std::filesystem::path& path, size_t file_size) {
-    auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();
-    ::mlock(mapped->data(), mapped->size());
+// mlock forces every page resident before returning; munlock releases the pin without evicting.
+// Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
+static void mlock_munlock(const std::shared_ptr<ov::MappedMemory>& mapped) {
+    ASSERT_EQ(::mlock(mapped->data(), mapped->size()), 0)
+        << "mlock failed (errno=" << errno << "); check RLIMIT_MEMLOCK";
     ::munlock(mapped->data(), mapped->size());
 }
 
-static void mmap_mlock(const std::filesystem::path& path, size_t file_size) {
+// Note: the mmap destructor (munmap + close) runs inside the timed window;
+static void mmap_prefetch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
+    auto mapped = load_mmap_object(path);
+    mapped->hint_prefetch(); // synchronous for regions > 4 MiB (parallel touch + join)
+    mlock_munlock(mapped); // should be near no-op and just lock/unlock resident pages
+}
+
+static void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     volatile uint8_t sink = 0;
-    for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += 1024) {
+    for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += page_size) {
         sink += *first;
     }
-    ::mlock(mapped->data(), mapped->size());
-    ::munlock(mapped->data(), mapped->size());
+    mlock_munlock(mapped); // should be near no-op and just lock/unlock resident pages
 }
 
 static void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
@@ -297,7 +307,7 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
         files.push_back(tf);
     }
 
-    // Collect results: [file_idx] -> {mmap_prefetch_mlock, mmap_mlock}
+    // Collect results: [file_idx] -> {mmap_prefetch_mlock, mmap_touch_mlock}
     struct Row {
         size_t mb;
         long long t_prefetch_mlock;
@@ -310,7 +320,7 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
         r.mb = tf.size_mb;
         r.t_mlock = bench(
             [&]() {
-                strategy::mmap_mlock(tf.path, tf.size_bytes);
+                strategy::mmap_touch_mlock(tf.path, tf.size_bytes);
             },
             tf.path,
             tf.size_bytes,
