@@ -372,7 +372,6 @@ bool Loop::evaluate(TensorVector& outputs,
                         evaluation_context);
         return true;
     } else {
-        // Loop body has node with no evaluate, return false instead throw.
         return false;
     }
 }
