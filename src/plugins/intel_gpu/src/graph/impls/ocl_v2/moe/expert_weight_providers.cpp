@@ -16,8 +16,7 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
-std::vector<uint32_t> ResidentExpertWeightProvider::acquire(const std::vector<uint32_t>& experts,
-                                                            cldnn::stream& /*stream*/) {
+std::vector<uint32_t> ResidentExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Fully resident: the expert id is already the addressable slot.
     return experts;
 }
@@ -39,8 +38,7 @@ void OffloadExpertWeightProvider::bind_resident_buffers(cldnn::moe_weights& resi
     _cache->m_initialized = true;
 }
 
-std::vector<uint32_t> OffloadExpertWeightProvider::acquire(const std::vector<uint32_t>& experts,
-                                                           cldnn::stream& stream) {
+std::vector<uint32_t> OffloadExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
     std::vector<uint32_t> slots(experts.size());
 
     // Deduplicate while preserving first-seen order so the LRU eviction order is

@@ -6,10 +6,7 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
-LRUCache::LRUCache(size_t max_total_experts)
-    : m_max_total_experts(max_total_experts),
-      m_total_experts(0),
-      m_to_filled_lru_expert_no(0) {
+LRUCache::LRUCache(size_t max_total_experts) : m_max_total_experts(max_total_experts), m_total_experts(0), m_to_filled_lru_expert_no(0) {
     m_filled_list.resize(max_total_experts, false);
 }
 

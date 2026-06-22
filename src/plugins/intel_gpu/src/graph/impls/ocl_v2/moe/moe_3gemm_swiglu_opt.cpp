@@ -753,8 +753,8 @@ public:
         }
         if (is_otd() && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, resident_slots=" << resident_slot_count()
-                                   << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, resident_slots="
+                                   << resident_slot_count() << std::endl;
         }
         // grouped_gemm is now supported in OTD mode — expert IDs are remapped to LRU slots
         // and the grouped matmul uses resident_slot_count() as the group dimension.
@@ -1369,8 +1369,7 @@ public:
 
         const size_t topk_bytes = topk_count * sizeof(uint32_t);
         if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
-            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)},
-                                        ov::element::i8, cldnn::format::bfyx);
+            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
         scratch._expert_index_buffer->copy_from(stream, slots.data(), 0, 0, topk_bytes, true);
@@ -1378,18 +1377,17 @@ public:
     }
 
     // Points scratch.moe_fusion_wei_addr at the OTD LRU weight buffers.
-    void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                 scratch_buffers& scratch) {
+    void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
         const auto& w = instance._weights;
         scratch.moe_fusion_wei_addr.weight[0] = w.gate_w;
-        scratch.moe_fusion_wei_addr.scale[0]  = w.gate_s;
-        scratch.moe_fusion_wei_addr.zp[0]     = w.gate_z;
+        scratch.moe_fusion_wei_addr.scale[0] = w.gate_s;
+        scratch.moe_fusion_wei_addr.zp[0] = w.gate_z;
         scratch.moe_fusion_wei_addr.weight[1] = w.up_w;
-        scratch.moe_fusion_wei_addr.scale[1]  = w.up_s;
-        scratch.moe_fusion_wei_addr.zp[1]     = w.up_z;
+        scratch.moe_fusion_wei_addr.scale[1] = w.up_s;
+        scratch.moe_fusion_wei_addr.zp[1] = w.up_z;
         scratch.moe_fusion_wei_addr.weight[2] = w.down_w;
-        scratch.moe_fusion_wei_addr.scale[2]  = w.down_s;
-        scratch.moe_fusion_wei_addr.zp[2]     = w.down_z;
+        scratch.moe_fusion_wei_addr.scale[2] = w.down_s;
+        scratch.moe_fusion_wei_addr.zp[2] = w.down_z;
     }
 
     // Batched GEMV path: handles token_num >= 1 with optimized GEMV kernels.

@@ -18,9 +18,9 @@
 #include <string_view>
 #include <vector>
 
-#include "lru_cache.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "lru_cache.hpp"
 #include "openvino/util/parallel_io.hpp"
 
 namespace ov::intel_gpu::ocl::moe_otd {
