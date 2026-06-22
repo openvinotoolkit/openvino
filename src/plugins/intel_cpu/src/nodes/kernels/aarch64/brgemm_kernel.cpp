@@ -35,13 +35,10 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 
 namespace ov::intel_cpu {
 
-// Highest SVE ISA the current core supports, not below `min_isa`. Returns isa_undef
-// when no supported SVE level reaches `min_isa`, so callers decline instead of
-// emitting SVE instructions that would be illegal on a core without (enough) SVE.
-// The main brgemm kernel has sve_512/sve_256/sve_128 implementations, so it uses the
-// default sve_128 floor; the copy_a/copy_b kernels only have sve_512/sve_256 in oneDNN
-// (create_brgemm_matmul_copy_* asserts the isa is a superset of sve_256), so they
-// pass sve_256.
+// Highest supported SVE ISA at or above `min_isa`, or isa_undef if none (caller then
+// declines instead of emitting illegal SVE). Default floor sve_128 fits the main brgemm
+// kernel; copy_a/copy_b pass sve_256 since oneDNN only provides sve_256/sve_512 for them
+// (create_brgemm_matmul_copy_* asserts the isa is a superset of sve_256).
 static cpu_isa_t getSupportedSveIsa(cpu_isa_t min_isa = cpu_isa_t::sve_128) {
     if (mayiuse(sve_512)) {
         return cpu_isa_t::sve_512;

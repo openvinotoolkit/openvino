@@ -2927,11 +2927,9 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
-    // The ARM PagedAttention path is built into the SVE runtime clone; its kernels (and the
-    // generic helpers GCC may auto-vectorize with SVE) require SVE at runtime. On a core
-    // without SVE, decline here so the executor is never constructed and no SVE instruction
-    // is reached. This is a runtime check (no extra build-time define): hasArmISASupport
-    // queries the same SVE detector the dispatcher uses.
+    // Decline before constructing the executor on a core without SVE: this code is in the SVE
+    // clone and AttentionExecutor::init has SVE-autovectorized helpers that would run (and trap)
+    // before any kernel-level check. Runtime SVE query, no extra build-time define.
     if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
         OPENVINO_THROW("make_pa_executor: ARM implementation requires SVE support");
     }

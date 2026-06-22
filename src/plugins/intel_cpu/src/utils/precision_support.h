@@ -14,18 +14,13 @@ namespace ov::intel_cpu {
 bool hasHardwareSupport(const ov::element::Type& precision);
 ov::element::Type defaultFloatPrecision();
 
-// The ARM ISA gate below is referenced only by the ARM executors (ACL / KleidiAI),
-// which are compiled exclusively on ARM, so it is declared for ARM targets only and
-// does not exist on x86_64 / RISC-V builds.
+// ARM-only: referenced solely by the ARM executors (ACL / KleidiAI). Not defined on x86_64 / RISC-V.
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 
-// ARM ISA an executor's kernels require, declared in its supports() predicate.
-// ASIMD is the ARM baseline; an executor needing only NEON declares nothing.
-// An executor whose kernels use a higher ISA (e.g. SVE) requires it so that a core
-// without it declines and the framework falls back to a baseline implementation.
+// ISA an ARM executor requires in its supports() predicate. ASIMD is the baseline (declare
+// nothing); requiring a higher ISA (e.g. SVE) makes the executor decline on incapable cores.
 enum class ArmISA : uint8_t { ASIMD, SVE, DOTPROD, I8MM };
 
-// Whether the current core supports `isa`.
 bool hasArmISASupport(ArmISA isa);
 
 #endif  // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64

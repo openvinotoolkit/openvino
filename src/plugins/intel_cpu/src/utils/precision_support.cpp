@@ -60,10 +60,9 @@ ov::element::Type defaultFloatPrecision() {
 bool hasArmISASupport(ArmISA isa) {
     switch (isa) {
     case ArmISA::ASIMD:
-        // NEON/ASIMD is the ARM baseline, present on every supported ARM core.
-        return true;
+        return true;  // ARMv8-A baseline, always present
     case ArmISA::SVE:
-        return with_cpu_sve();
+        return with_cpu_sve();  // any SVE vector length
     case ArmISA::DOTPROD:
         return with_cpu_arm_dotprod();
     case ArmISA::I8MM:
