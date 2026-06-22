@@ -1,0 +1,19 @@
+{
+  "run_id": 27941353934,
+  "timestamp": "2026-06-22T10:42:57Z",
+  "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+  "conclusion": "failure",
+  "trigger": "merge_group",
+  "head_sha": "c06be36b89770a65ebbd2cb563b36240a1a111ec",
+  "pr_number": 36430,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36430",
+  "pr_author": "CuriousPanCake",
+  "failed_jobs": ["Samples / Samples"],
+  "signature": "98773c88c1ccab15",
+  "category": "Flaky Test",
+  "title": "test_classification_sample_async_fp16 times out in Samples smoke tests",
+  "primary_error": "FAILED install/tests/smoke_tests/test_classification_sample_async.py::TestClassification::test_classification_sample_async_fp16[param3] - Failed: Timeout (>180.0s) from pytest-timeout.",
+  "failed_test": "TestClassification::test_classification_sample_async_fp16[param3]",
+  "root_cause": "The classification_sample_async Python sample hung waiting for I/O (PollSelector.poll with no timeout), taking >180s for model inference on CPU. This is unrelated to the TFLite FE changes in the PR.",
+  "confidence": "High"
+}

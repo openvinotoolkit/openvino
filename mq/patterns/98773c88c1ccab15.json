@@ -1,0 +1,17 @@
+{
+  "signature": "Failed: Timeout (>Xs) from pytest-timeout|Samples / Samples|Flaky Test",
+  "title": "test_classification_sample_async_fp16 times out in Samples smoke tests",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-06-22T10:42:57Z",
+  "last_seen": "2026-06-22T10:42:57Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/27941353934"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36430"
+  ],
+  "recent_timestamps": [
+    "2026-06-22T10:42:57Z"
+  ]
+}

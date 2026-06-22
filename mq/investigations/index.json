@@ -23,6 +23,14 @@
       "timestamp": "2026-06-22T08:43:45Z",
       "workflow": "Windows (VS 2022, Python 3.11, Release)",
       "category": "Code Issue"
+    },
+    {
+      "file": "2026-06-22-10-42-57-000-27941353934.json",
+      "run_id": 27941353934,
+      "signature": "98773c88c1ccab15",
+      "timestamp": "2026-06-22T10:42:57Z",
+      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+      "category": "Flaky Test"
     }
   ]
 }
