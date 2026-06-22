@@ -32,7 +32,7 @@ namespace element {
  * @return True if element type is bit type otherwise false.
  */
 constexpr bool is_bit_type(Type_t et) {
-    return et == u1 || et == u2;
+    return et == u1 || et == u2 || et == i2;
 }
 
 /**
@@ -94,6 +94,11 @@ constexpr size_t bit_width<Type_t::u1>() {
 
 template <>
 constexpr size_t bit_width<Type_t::u2>() {
+    return 2;
+}
+
+template <>
+constexpr size_t bit_width<Type_t::i2>() {
     return 2;
 }
 
@@ -207,7 +212,7 @@ public:
      *
      * @return Value of BitProxy.
      */
-    template <Type_t ETT = ET, std::enable_if_t<ETT != i4 && ETT != f4e2m1>* = nullptr>
+    template <Type_t ETT = ET, std::enable_if_t<ETT != i2 && ETT != i4 && ETT != f4e2m1>* = nullptr>
     operator value_type() const {
         return static_cast<value_type>(get_bit_value());
     }
@@ -245,7 +250,7 @@ public:
      *
      * @return Value of BitProxy.
      */
-    template <Type_t ETT = ET, std::enable_if_t<ETT == i4>* = nullptr>
+    template <Type_t ETT = ET, std::enable_if_t<ETT == i2 || ETT == i4>* = nullptr>
     operator value_type() const {
         constexpr auto value_mask = util::make_n_bit_mask(m_bits);
         constexpr auto value_msb_mask = (1U << (m_bits - 1U));

@@ -38,6 +38,8 @@ bool evaluate_by_input_type(ov::TensorVector& outputs, const ov::TensorVector& i
         return evaluate<ov::element::u32, OUT_ET>(outputs, inputs);
     case ov::element::u64:
         return evaluate<ov::element::u64, OUT_ET>(outputs, inputs);
+    case ov::element::i2:
+        return evaluate<ov::element::i2, OUT_ET>(outputs, inputs);
     case ov::element::i4:
         return evaluate<ov::element::i4, OUT_ET>(outputs, inputs);
     case ov::element::i8:
@@ -82,6 +84,8 @@ bool evaluate_by_output_type(const ov::element::Type& output_et,
         return evaluate_by_input_type<ov::element::u32>(outputs, inputs);
     case ov::element::u64:
         return evaluate_by_input_type<ov::element::u64>(outputs, inputs);
+    case ov::element::i2:
+        return evaluate_by_input_type<ov::element::i2>(outputs, inputs);
     case ov::element::i4:
         return evaluate_by_input_type<ov::element::i4>(outputs, inputs);
     case ov::element::i8:

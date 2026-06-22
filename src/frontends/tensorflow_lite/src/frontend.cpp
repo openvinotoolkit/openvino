@@ -21,6 +21,8 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "openvino/core/graph_util.hpp"
+#include <cstdlib>
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
