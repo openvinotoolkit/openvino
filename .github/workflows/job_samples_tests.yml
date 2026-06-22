@@ -123,8 +123,22 @@ jobs:
 
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
+          # Install pytest-timeout to abort hanging samples and dump tracebacks
+          python3 -m pip install pytest-timeout==2.4.0
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
+            -v -ra \
+            -o log_cli=true --log-cli-level=INFO \
+            --timeout=180 \
+            --junitxml=$INSTALL_TEST_DIR/TEST-samples_smoke_tests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() }}
+        with:
+          name: test-results-samples
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
+          if-no-files-found: 'warn'

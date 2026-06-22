@@ -20,6 +20,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/gqa_compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
@@ -164,7 +165,9 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
             stream.clear();
             stream.seekg(stream_start_pos);
 
-            if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+            if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+                return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
                 // Properties are required for ov::weights_path
                 return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
@@ -230,7 +233,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(PERFORMANCE_HINT);
     REGISTER_OPTION(EXECUTION_MODE_HINT);
     REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     REGISTER_OPTION(ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
     REGISTER_OPTION(MODEL_PRIORITY);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
