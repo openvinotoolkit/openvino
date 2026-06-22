@@ -57,9 +57,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
     libavcodec-dev:armhf \
     libavformat-dev:armhf \
     libswscale-dev:armhf \
-    libpython-dev:armhf \
     zlib1g-dev:armhf \
-    nlohmann-json-dev \
     libgflags-dev:armhf \
     libtbb-dev:armhf \
     libffi-dev:armhf \
