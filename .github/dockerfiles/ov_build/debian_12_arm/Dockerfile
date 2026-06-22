@@ -26,6 +26,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
     pigz \
     # Python
     python3 \
+    python3-full \
     python3-pip \
     python3-dev \
     python3-venv \
@@ -230,8 +231,7 @@ RUN cd Python-3.14t && make distclean && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+RUN python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
