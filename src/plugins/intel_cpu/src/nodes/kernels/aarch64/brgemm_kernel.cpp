@@ -35,32 +35,22 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 
 namespace ov::intel_cpu {
 
-// Highest SVE ISA the current core supports, for the main brgemm kernel which has
-// sve_512/sve_256/sve_128 implementations. Returns isa_undef on a core without SVE
-// so callers can decline instead of emitting SVE instructions that would be illegal.
-static cpu_isa_t getSupportedSveIsa() {
+// Highest SVE ISA the current core supports, not below `min_isa`. Returns isa_undef
+// when no supported SVE level reaches `min_isa`, so callers decline instead of
+// emitting SVE instructions that would be illegal on a core without (enough) SVE.
+// The main brgemm kernel has sve_512/sve_256/sve_128 implementations, so it uses the
+// default sve_128 floor; the copy_a/copy_b kernels only have sve_512/sve_256 in oneDNN
+// (create_brgemm_matmul_copy_* asserts the isa is a superset of sve_256), so they
+// pass sve_256.
+static cpu_isa_t getSupportedSveIsa(cpu_isa_t min_isa = cpu_isa_t::sve_128) {
     if (mayiuse(sve_512)) {
         return cpu_isa_t::sve_512;
     }
     if (mayiuse(sve_256)) {
         return cpu_isa_t::sve_256;
     }
-    if (mayiuse(sve_128)) {
+    if (min_isa == cpu_isa_t::sve_128 && mayiuse(sve_128)) {
         return cpu_isa_t::sve_128;
-    }
-    return cpu_isa_t::isa_undef;
-}
-
-// Same, but for the brgemm copy_a/copy_b kernels: oneDNN only provides sve_512 and
-// sve_256 implementations for them (create_brgemm_matmul_copy_* asserts the isa is a
-// superset of sve_256), so sve_128 is not a valid choice here. Returns isa_undef
-// below sve_256 so callers decline rather than passing an unsupported isa.
-static cpu_isa_t getSupportedSve256Isa() {
-    if (mayiuse(sve_512)) {
-        return cpu_isa_t::sve_512;
-    }
-    if (mayiuse(sve_256)) {
-        return cpu_isa_t::sve_256;
     }
     return cpu_isa_t::isa_undef;
 }
@@ -245,7 +235,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     // copied A has the same precision of original
     brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
-    brgCopyKernelConf.isa = getSupportedSve256Isa();
+    brgCopyKernelConf.isa = getSupportedSveIsa(cpu_isa_t::sve_256);
     if (brgCopyKernelConf.isa == cpu_isa_t::isa_undef) {
         THROW_ERROR("copy A kernel requires ARM SVE256 support");
     }
@@ -285,7 +275,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.tr_b_dt_sz =
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
-    brgCopyKernelConf.isa = getSupportedSve256Isa();
+    brgCopyKernelConf.isa = getSupportedSveIsa(cpu_isa_t::sve_256);
     if (brgCopyKernelConf.isa == cpu_isa_t::isa_undef) {
         THROW_ERROR("copy B kernel requires ARM SVE256 support");
     }
