@@ -20,17 +20,20 @@ endif()
 
 find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 
-set(SRC identity.cpp ov_extension.cpp)
+# template extension is not supported on WebAssembly (no shared libraries)
+if(TARGET_SUPPORTS_SHARED_LIBS)
+    set(SRC identity.cpp ov_extension.cpp)
 
-add_library(${TARGET_NAME} MODULE ${SRC})
+    add_library(${TARGET_NAME} MODULE ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
-ov_build_target_faster(${TARGET_NAME} PCH)
+    ov_build_target_faster(${TARGET_NAME} PCH)
 
-# [cmake:extension]
-install(TARGETS ${TARGET_NAME}
-    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    # [cmake:extension]
+    install(TARGETS ${TARGET_NAME}
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
 
 # Enable code style check
 file(GLOB_RECURSE template_extension_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
