@@ -151,6 +151,23 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             return false;
         }
 
+        // If two transpose nodes are present, confirm they match each other
+        if (has_input_transpose && consumer_transpose != nullptr) {
+            auto a_order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(a_order_m).get_node_shared_ptr());
+            const auto a_order_value = a_order->cast_vector<int64_t>();
+            auto c_order = ov::as_type_ptr<ov::op::v0::Constant>(consumer_transpose->get_input_node_shared_ptr(1));
+            if (c_order == nullptr) {
+                return false;
+            }
+            const auto c_order_value = c_order->cast_vector<int64_t>();
+            OPENVINO_ASSERT(a_order_value.size() == c_order_value.size());
+            for (size_t i = 0; i < a_order_value.size(); ++i) {
+                if (c_order_value[a_order_value[i]] != static_cast<int64_t>(i)) {
+                    return false;
+                }
+            }
+        }
+
         auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
