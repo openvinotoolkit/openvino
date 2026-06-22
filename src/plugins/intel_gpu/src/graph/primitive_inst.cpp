@@ -2728,7 +2728,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
         if (node.can_be_optimized() || is_reorder_weights) {
             GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
-            // Use usm_device memory for weights reordering
+            // Use usm_device memory for weights reordering when available.
             if (is_internal && is_reorder_weights &&
                 _engine.supports_allocation(allocation_type::usm_device))
                 alloc_type = allocation_type::usm_device;

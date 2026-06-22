@@ -142,6 +142,7 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
         case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
         case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }

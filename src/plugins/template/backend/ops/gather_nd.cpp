@@ -5,7 +5,9 @@
 #include "openvino/reference/gather_nd.hpp"
 
 #include "evaluate_node.hpp"
+#include "gather_nd_shape_inference.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/gather_nd.hpp"
 
 template <ov::element::Type_t ET>
@@ -13,7 +15,9 @@ bool evaluate(const std::shared_ptr<ov::op::v5::GatherND>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    if (op->get_input_element_type(1) == ov::element::i64) {
+    const auto output_shapes = ov::op::v5::shape_infer(op.get(), ov::util::get_tensors_partial_shapes(inputs));
+    outputs[0].set_shape(output_shapes[0].get_shape());
+    if (const auto& ind_type = op->get_input_element_type(1); ind_type == ov::element::i64) {
         ov::reference::gather_nd<T, int64_t>(inputs[0].data<T>(),
                                              inputs[1].data<int64_t>(),
                                              outputs[0].data<T>(),
@@ -21,7 +25,7 @@ bool evaluate(const std::shared_ptr<ov::op::v5::GatherND>& op,
                                              inputs[1].get_shape(),
                                              outputs[0].get_shape(),
                                              static_cast<int>(op->get_batch_dims()));
-    } else if (op->get_input_element_type(1) == ov::element::i32) {
+    } else if (ind_type == ov::element::i32) {
         ov::reference::gather_nd<T, int32_t>(inputs[0].data<T>(),
                                              inputs[1].data<int32_t>(),
                                              outputs[0].data<T>(),
@@ -30,7 +34,7 @@ bool evaluate(const std::shared_ptr<ov::op::v5::GatherND>& op,
                                              outputs[0].get_shape(),
                                              static_cast<int>(op->get_batch_dims()));
     } else {
-        OPENVINO_THROW("Unexpected indices type for GatherND operation");
+        OPENVINO_THROW("Unexpected indices type for GatherND operation: ", ind_type);
     }
     return true;
 }
@@ -40,7 +44,9 @@ bool evaluate(const std::shared_ptr<ov::op::v8::GatherND>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    if (op->get_input_element_type(1) == ov::element::i64) {
+    const auto output_shapes = ov::op::v8::shape_infer(op.get(), ov::util::get_tensors_partial_shapes(inputs));
+    outputs[0].set_shape(output_shapes[0].get_shape());
+    if (const auto& ind_type = op->get_input_element_type(1); ind_type == ov::element::i64) {
         ov::reference::gather_nd<T, int64_t>(inputs[0].data<T>(),
                                              inputs[1].data<int64_t>(),
                                              outputs[0].data<T>(),
@@ -48,7 +54,7 @@ bool evaluate(const std::shared_ptr<ov::op::v8::GatherND>& op,
                                              inputs[1].get_shape(),
                                              outputs[0].get_shape(),
                                              static_cast<int>(op->get_batch_dims()));
-    } else if (op->get_input_element_type(1) == ov::element::i32) {
+    } else if (ind_type == ov::element::i32) {
         ov::reference::gather_nd<T, int32_t>(inputs[0].data<T>(),
                                              inputs[1].data<int32_t>(),
                                              outputs[0].data<T>(),
@@ -57,7 +63,7 @@ bool evaluate(const std::shared_ptr<ov::op::v8::GatherND>& op,
                                              outputs[0].get_shape(),
                                              static_cast<int>(op->get_batch_dims()));
     } else {
-        OPENVINO_THROW("Unexpected indices type for GatherND operation");
+        OPENVINO_THROW("Unexpected indices type for GatherND operation: ", ind_type);
     }
     return true;
 }

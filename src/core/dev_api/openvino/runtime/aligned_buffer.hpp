@@ -22,10 +22,7 @@ public:
     virtual ~IBufferDescriptor();
 };
 
-/// \brief Allocates a block of memory on the specified alignment. The actual size of the
-/// allocated memory is larger than the requested size by the alignment, so allocating 1
-/// byte
-/// on 64 byte alignment will allocate 65 bytes.
+/// \brief Allocates a block of memory which starts at an aligned address determined by \p alignment.
 class OPENVINO_API AlignedBuffer {
 public:
     // Allocator objects and the allocation interfaces are owned by the
@@ -43,20 +40,25 @@ public:
         return m_byte_size;
     }
     void* get_ptr(size_t offset) const {
+        hint_prefetch();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
+        hint_prefetch();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
+        hint_prefetch();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
+        hint_prefetch();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
+        hint_prefetch();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 
@@ -72,9 +74,14 @@ public:
 
     virtual void hint_evict() noexcept;
 
+    /// \brief Ensures the buffer is available and populated with actual data.
+    virtual void hint_prefetch() const;
+
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
+
+    static void invoke_hint_prefetch(const AlignedBuffer& buffer);
 
     char* m_allocated_buffer;
     char* m_aligned_buffer;
@@ -87,6 +94,6 @@ class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>
 public:
     AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value);
     ~AttributeAdapter() override;
-    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>");
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>");
 };
 }  // namespace ov
