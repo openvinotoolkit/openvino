@@ -58,7 +58,7 @@ ov::Output<ov::Node> build_indices_for_3dx3d(const ov::Output<ov::Node>& mat_a, 
     auto target_shape = rg.make<v8::Gather>(shape_a, mg_idx, zero);  // [M, G]
 
     // Scalar G for Range stop (index 0 along axis 0).
-    auto g_scalar = rg.make<v8::Gather>(shape_a, zero, zero);  // scalar G
+    auto g_scalar = rg.make<v8::Gather>(shape_a, zero, zero);
     auto one = rg.make<v0::Constant>(i32, ov::Shape{}, 1);
     auto range = rg.make<v4::Range>(zero, g_scalar, one, i32);  // [G]
 
@@ -77,8 +77,6 @@ ov::Output<ov::Node> build_indices_for_2dx3d(const ov::Output<ov::Node>& mat_a,
                                              const ov::Output<ov::Node>& offsets,
                                              NodeRegistry& rg) {
     auto i32 = ov::element::i32;
-
-    // Scalar i32 0, reused as the Gather axis, the T index, and the Range start.
     auto zero = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
 
     // SearchSorted requires the sorted sequence and probe values to share an element
@@ -92,9 +90,7 @@ ov::Output<ov::Node> build_indices_for_2dx3d(const ov::Output<ov::Node>& mat_a,
     auto t_scalar = rg.make<v8::Gather>(shape_a, zero, zero);  // scalar T
     auto one = rg.make<v0::Constant>(i32, ov::Shape{}, 1);
     auto positions = rg.make<v4::Range>(zero, t_scalar, one, i32);  // [T]
-
     auto idx_1d = rg.make<v15::SearchSorted>(offsets_i32, positions, /*right_mode=*/true, i32);
-
     auto unsqueeze_axis = rg.make<v0::Constant>(i32, ov::Shape{1}, -1);
     auto indices = rg.make<v0::Unsqueeze>(idx_1d, unsqueeze_axis);
     return indices;
