@@ -20,7 +20,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -137,20 +136,15 @@ TEST_F(TransformationTestsF, FQTransposeNegativeMultipleConsumers) {
     });
 }
 
-TEST_F(TransformationTestsF, FQTransposeNegativeMismatchedPrecision) {
-    using TypeVector = ov::element::TypeVector;
-
+TEST_F(TransformationTestsF, FQTransposeNegativeParameterInput) {
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 3, 1});
-    auto sigmoid = std::make_shared<v0::Sigmoid>(data);
     auto input_low = v0::Constant::create(element::f32, Shape{1}, {2});
     auto input_high = v0::Constant::create(element::f32, Shape{1}, {3});
     auto output_low = v0::Constant::create(element::f32, Shape{1}, {2});
     auto output_high = v0::Constant::create(element::f32, Shape{1}, {3});
     auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
 
-    auto fq_base = v0::FakeQuantize(sigmoid, input_low, input_high, output_low, output_high, 1);
-    auto fq = std::make_shared<ov::op::TypeRelaxed<v0::FakeQuantize>>(fq_base, TypeVector{}, TypeVector{element::f16});
-    ASSERT_NE(fq->get_input_element_type(0), fq->get_output_element_type(0));
+    auto fq = std::make_shared<v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
 
     auto transpose = std::make_shared<v1::Transpose>(fq, transpose_order);
 
@@ -163,3 +157,4 @@ TEST_F(TransformationTestsF, FQTransposeNegativeMismatchedPrecision) {
         check_rt_info(f);
     });
 }
+

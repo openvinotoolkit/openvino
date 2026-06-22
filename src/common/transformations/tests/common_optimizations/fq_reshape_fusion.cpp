@@ -17,6 +17,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -293,7 +294,7 @@ TEST_F(TransformationTestsF, FQOptimizations) {
     }
 }
 
-TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataSamePrecision) {
+TEST_F(TransformationTestsF, FQReshapeFusionParameterInputNotApplied) {
     {
         const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
         const auto& il = op::v0::Constant::create(element::f32, Shape{2, 1}, {0});
@@ -306,16 +307,36 @@ TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataSamePrecision) {
             std::make_shared<opset4::Reshape>(fq, op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}), true);
 
         model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
+    }
 
-        manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
+    model_ref = model->clone();
+    manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
+}
+
+TEST_F(TransformationTestsF, FQReshapeFusionAfterLayerApplied) {
+    {
+        const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
+        const auto& sigmoid = std::make_shared<opset4::Sigmoid>(data);
+
+        const auto& il = op::v0::Constant::create(element::f32, Shape{2, 1}, {0});
+        const auto& ih = op::v0::Constant::create(element::f32, Shape{1}, {254});
+        const auto& ol = op::v0::Constant::create(element::f32, Shape{1}, {-14.22});
+        const auto& oh = op::v0::Constant::create(element::f32, Shape{1}, {14.22});
+
+        const auto& fq = std::make_shared<opset4::FakeQuantize>(sigmoid, il, ih, ol, oh, 255);
+        const auto& reshape =
+            std::make_shared<opset4::Reshape>(fq, op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}), true);
+
+        model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
     }
 
     {
         const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
-        const auto& reshaped_data =
-            std::make_shared<opset4::Reshape>(data,
-                                              op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
-                                              true);
+        const auto& sigmoid = std::make_shared<opset4::Sigmoid>(data);
+        const auto& reshaped_data = std::make_shared<opset4::Reshape>(
+            sigmoid,
+            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
+            true);
 
         const auto& il = op::v0::Constant::create(element::f32, Shape{1, 2, 1, 1}, {0});
         const auto& ih = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {254});
@@ -325,6 +346,8 @@ TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataSamePrecision) {
         const auto& fq = std::make_shared<opset4::FakeQuantize>(reshaped_data, il, ih, ol, oh, 255);
         model_ref = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{data});
     }
+
+    manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
 }
 
 TEST_F(TransformationTestsF, FQReshapeFusionNonConstDataMismatchedPrecision) {
