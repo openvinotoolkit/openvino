@@ -71,6 +71,16 @@ public:
     std::optional<Slots> slots_of(const ov::Output<ov::Node>& value_in);
     std::optional<int64_t> length_of(const ov::Output<ov::Node>& value_in);
 
+    // True when `value` resolves to the per-element slots of a Loop merged
+    // input that was seeded from an empty sequence (SequenceEmpty). Such a
+    // sequence is loop-carried: its element count is a runtime property (0
+    // before the cache is first populated, N afterwards), not the compile-time
+    // slot count. SequenceLength over such a sequence must therefore lower to a
+    // runtime ShapeOf, not a static Constant — a static count freezes a
+    // `SequenceLength(cache) > 0` populated-ness gate to always-true and leaks
+    // the empty seed into the first iteration. See lower_sequence_length.
+    bool is_loop_carried_empty_seed(const ov::Output<ov::Node>& value);
+
     // Resolve outer-seed and back-edge slots for every pre-allocated Loop
     // merged-input entry and call set_merged_input. Must be invoked after
     // all helper replacements have been performed (so the chains are stable)
@@ -87,6 +97,14 @@ private:
         std::vector<std::shared_ptr<ov::op::v0::Parameter>> new_params;
         Slots outer_seed_slots;  // pre-resolved seed slots when known
         bool outer_seed_resolved{false};
+        // True when the outer seed is a synthesized empty-sequence seed (built
+        // from a SequenceEmpty source). Such seeds are created from the slot
+        // templates available at pre-allocation time, which for an
+        // empty-initialized cache are shape-less (scalar). The seed shape
+        // directly fixes the back-edge body Parameter shape (a back-edge-only
+        // merged input is never reconciled against its loop-carried value), so
+        // it must be rebuilt from the resolved back-edge slot in finalize.
+        bool synthetic_seed{false};
     };
 
     void build_maps(const std::shared_ptr<ov::Model>& m);
@@ -103,6 +121,10 @@ private:
     std::vector<PendingMerged> pending_merged_;
     std::map<ov::Output<ov::Node>, Slots> cache_;
     std::set<ov::Output<ov::Node>> in_progress_;
+    // Body Parameters that carry the per-element slots of an empty-seeded Loop
+    // merged input (populated in preallocate_loop_merged_params). Used by
+    // is_loop_carried_empty_seed to detect runtime-length sequences.
+    std::set<ov::op::v0::Parameter*> empty_seed_slot_params_;
     std::map<ov::op::v0::Parameter*, std::shared_ptr<ov::Model>> param_to_model_;
     std::map<ov::Model*, std::pair<std::shared_ptr<ov::op::util::MultiSubGraphOp>, int>> body_owner_;
     bool changed_ = false;

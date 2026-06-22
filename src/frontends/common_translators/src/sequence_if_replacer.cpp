@@ -21,6 +21,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "slot_resolver.hpp"
 
 using namespace ov::op;
 
@@ -30,13 +31,7 @@ namespace pass {
 namespace {
 
 // Strip v16::Identity wrappers to expose the underlying node.
-ov::Output<ov::Node> unwrap_identity(const ov::Output<ov::Node>& value) {
-    ov::Output<ov::Node> cur = value;
-    while (auto identity = ov::as_type_ptr<v16::Identity>(cur.get_node_shared_ptr())) {
-        cur = identity->input_value(0);
-    }
-    return cur;
-}
+using sal_detail::unwrap_identity;
 
 // Try to extract the concrete sequence elements behind an Output.
 // Handles SequenceMark, SequenceMark->SequenceInsert chains, and Identity wrappers.

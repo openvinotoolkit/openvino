@@ -40,6 +40,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ov::op;
 
@@ -162,6 +163,12 @@ bool depends_on_node(const ov::Output<ov::Node>& value, ov::Node* target, std::s
 //   anything else  -> a single opaque template (the value itself)
 void expand_chain_templates(const ov::Output<ov::Node>& value, std::vector<ov::Output<ov::Node>>& out, int depth = 0) {
     if (depth > 256) {
+        // Recursion guard against pathological chains. Collapsing to one opaque
+        // slot here undercounts a genuinely long Insert/Erase chain, so surface
+        // it: a >256-deep sequence chain points at an unhandled pattern rather
+        // than a real stack-depth risk.
+        OPENVINO_DEBUG("SequenceArrayLowering: sequence chain exceeds depth 256 during template "
+                       "expansion; slot count may be undercounted.");
         out.push_back(value);
         return;
     }
@@ -396,6 +403,7 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
             std::vector<ov::Output<ov::Node>> slot_templates;
             Slots outer_seed_slots;
             bool outer_seed_resolved = false;
+            bool synthetic_seed = false;
 
             if (outer_mark && outer_mark->get_input_size() > 0) {
                 for (size_t k = 0; k < outer_mark->get_input_size(); ++k) {
@@ -426,6 +434,7 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
                         outer_seed_slots.push_back(make_growable_seed(t.get_partial_shape(), t.get_element_type()));
                     }
                     outer_seed_resolved = true;
+                    synthetic_seed = true;
                 }
             }
 
@@ -462,6 +471,12 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
                 auto np = std::make_shared<v0::Parameter>(et, pshape);
                 body->add_parameters({np});
                 param_to_model_[np.get()] = body;
+                if (synthetic_seed) {
+                    // Empty-sequence seeded slot: its element count is a runtime
+                    // property; record it so SequenceLength lowers to a runtime
+                    // ShapeOf rather than a frozen static count.
+                    empty_seed_slot_params_.insert(np.get());
+                }
                 new_params.push_back(np);
                 param_outputs.push_back(np->output(0));
             }
@@ -476,6 +491,7 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
             pm.new_params = std::move(new_params);
             pm.outer_seed_slots = std::move(outer_seed_slots);
             pm.outer_seed_resolved = outer_seed_resolved;
+            pm.synthetic_seed = synthetic_seed;
             pending_merged_.push_back(std::move(pm));
         }
     }
@@ -501,6 +517,32 @@ void SlotResolver::finalize_pending_wiring() {
         auto back_slots = slots_of(back_value);
         if (!back_slots || back_slots->size() != N) {
             continue;
+        }
+        // A synthesized empty-sequence seed was built from the slot templates
+        // visible at pre-allocation time, before lowering resolved the real
+        // per-slot shapes; for an empty-initialized cache those templates are
+        // shape-less, yielding scalar seeds. The seed's shape directly fixes
+        // the back-edge body Parameter shape (loop.cpp sets the merged
+        // Parameter from the input source, and a back-edge-only merged input —
+        // one not exposed as a Loop output — is never reconciled against its
+        // loop-carried value), so a scalar seed would clamp the KV slot to a
+        // scalar. Rebuild the synthetic seed from the now-resolved back-edge
+        // slot shape so the carried tensor keeps its true rank.
+        if (pm.synthetic_seed) {
+            for (size_t k = 0; k < N; ++k) {
+                const auto& resolved = (*back_slots)[k];
+                // The back-edge slot's def-chain may not be validated yet, so
+                // its partial shape can read as dynamic-rank here even though
+                // its true rank is fixed. Validate the producing node so the
+                // seed is built from the resolved (full-rank) shape rather than
+                // collapsing to a scalar.
+                if (resolved.get_partial_shape().rank().is_dynamic()) {
+                    if (auto producer = resolved.get_node_shared_ptr()) {
+                        producer->validate_and_infer_types();
+                    }
+                }
+                pm.outer_seed_slots[k] = make_growable_seed(resolved.get_partial_shape(), resolved.get_element_type());
+            }
         }
         for (size_t k = 0; k < N; ++k) {
             ov::Output<ov::Node> back_value = (*back_slots)[k];
@@ -766,6 +808,27 @@ std::optional<int64_t> SlotResolver::length_of(const ov::Output<ov::Node>& value
         return std::nullopt;
     }
     return static_cast<int64_t>(s->size());
+}
+
+bool SlotResolver::is_loop_carried_empty_seed(const ov::Output<ov::Node>& value) {
+    if (empty_seed_slot_params_.empty()) {
+        return false;
+    }
+    auto s = slots_of(value);
+    if (!s) {
+        return false;
+    }
+    // A sequence read straight off an empty-seeded Loop merged input resolves to
+    // exactly the recorded slot Parameters. (A sequence rebuilt this iteration —
+    // e.g. SequenceConstruct of fresh tensors — resolves to non-Parameter slots
+    // and is correctly treated as static.)
+    for (const auto& slot : *s) {
+        auto p = ov::as_type_ptr<v0::Parameter>(slot.get_node_shared_ptr());
+        if (p && empty_seed_slot_params_.count(p.get())) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::optional<Slots> SlotResolver::slots_of_param(const std::shared_ptr<v0::Parameter>& p) {

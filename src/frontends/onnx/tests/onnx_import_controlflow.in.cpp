@@ -1044,3 +1044,33 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_if_rank_mismatch_repair) {
     test_case.add_expected_output<int64_t>(Shape{}, {2});        // len
     test_case.run();
 }
+
+/// @brief SAL SequenceLength over a loop-carried (empty-seeded) cache must lower
+/// to a RUNTIME length, not the static slot count.
+///
+/// An outer Loop carries a sequence cache seeded from SequenceEmpty. Each body
+/// iteration gates on `SequenceLength(cache) > 0`: iteration 0 (empty cache,
+/// length 0) builds a fresh 2-element sequence [v0, v1]; later iterations
+/// (length 2) forward the carried cache. The body reads slot 0 and accumulates.
+///
+/// SAL lowers the cache to a fixed 2 slots. If SequenceLength were lowered to
+/// the static slot count (2), `Greater(2, 0)` would fold to always-true, the
+/// build branch would become dead, and the empty seed would leak into iteration
+/// 0 — yielding a wrong result (and, on real KV-cache models, a runtime shape
+/// mismatch). The correct lowering reports 0 on the empty iteration and 2 once
+/// the cache is populated, so the gate behaves as in ONNX Runtime.
+///
+/// With trip_count=3, v0=10, v1=20, acc_init=0: build [10, 20] on iter 0, then
+/// forward; slot 0 (=10) is accumulated on all 3 iterations -> 30.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_sal_sequence_length_runtime_gate) {
+    const auto model = convert_model("controlflow/sal_sequence_length_runtime_gate.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>({3});   // trip_count
+    test_case.add_input<bool>({true});   // cond_init
+    test_case.add_input<float>({10.f});  // v0
+    test_case.add_input<float>({20.f});  // v1
+    test_case.add_input<float>({0.f});   // acc_init
+    test_case.add_expected_output<float>(Shape{1}, {30.f});
+    test_case.run();
+}

@@ -32,6 +32,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/select.hpp"
@@ -40,6 +41,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/util/log.hpp"
 #include "slot_resolver.hpp"
 
 using namespace ov::op;
@@ -532,6 +534,32 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
     if (!slots) {
         return false;
     }
+    // Loop-carried sequence seeded from SequenceEmpty: SAL represents it as a
+    // FIXED number (N) of per-element slots, but the source model's element
+    // count is a runtime property — 0 before the cache is first populated, N
+    // afterwards. Emitting the static N here freezes a `SequenceLength(cache) >
+    // 0` populated-ness gate to always-true, which makes the build-fresh branch
+    // dead and leaks the empty seed (a zero-length slot tensor) into the first
+    // iteration's attention (see word_fluency_v2 cross-attention crash). The
+    // slot Parameters have not been widened yet at this point (dynamic rank), so
+    // the accumulation axis cannot be pinned; instead derive the count purely
+    // from emptiness: a slot tensor with any zero-sized dim carries no elements.
+    //   count = (ReduceProd(ShapeOf(s0)) == 0) ? 0 : N
+    // This is 0 on the empty-seed iteration and N once the slot is populated,
+    // faithfully reproducing the original element count for the gate.
+    if (resolver.is_loop_carried_empty_seed(len->input_value(0)) && !slots->empty()) {
+        const auto& s0 = (*slots)[0];
+        const auto n = static_cast<int64_t>(slots->size());
+        auto shape_of = std::make_shared<v3::ShapeOf>(s0, ov::element::i64);
+        auto all_axes = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto num_elems = std::make_shared<ov::op::v1::ReduceProd>(shape_of, all_axes, /*keep_dims=*/false);
+        auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto is_empty = std::make_shared<v1::Equal>(num_elems, zero);
+        auto n_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {n});
+        auto count = std::make_shared<v1::Select>(is_empty, zero, n_const)->output(0);
+        len->output(0).replace(count);
+        return true;
+    }
     ov::Output<ov::Node> length_value;
     // True when multiple growable axes exist and none is unique;
     // only then must the SequenceLength be left unresolved.
@@ -629,6 +657,7 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
 
     bool overall_changed = false;
     constexpr int max_iterations = 32;
+    bool converged = false;
     for (int iter = 0; iter < max_iterations; ++iter) {
         std::vector<std::shared_ptr<ov::Node>> helpers;
         sal_detail::collect_helpers_recursive(model, helpers);
@@ -646,8 +675,19 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
         }
         overall_changed |= iter_changed;
         if (!iter_changed) {
+            converged = true;
             break;
         }
+    }
+    // Non-convergence within the iteration cap leaves a partially-lowered graph.
+    // SAL is conservative by design (unresolved readers are flagged by the
+    // unconverted-ops report rather than failing the import), so this is not a
+    // hard error, but it is a diagnostic worth surfacing: a sequence chain that
+    // still mutates after max_iterations rounds points at an unhandled pattern.
+    if (!converged) {
+        OPENVINO_DEBUG("SequenceArrayLowering did not converge within ",
+                       max_iterations,
+                       " iterations; some SequenceAt/SequenceLength readers may be left unlowered.");
     }
 
     resolver.finalize_pending_wiring();
