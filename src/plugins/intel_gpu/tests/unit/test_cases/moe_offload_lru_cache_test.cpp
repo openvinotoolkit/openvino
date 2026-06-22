@@ -455,3 +455,52 @@ TEST(moe_offload_primitive_test, equality_with_offload_fields) {
         16);
     ASSERT_FALSE(prim1 == prim5);
 }
+
+// ──────────────────────────────────────────────────
+// IExpertWeightProvider implementations
+// ──────────────────────────────────────────────────
+
+#include "ocl_v2/moe/expert_weight_providers.hpp"
+
+using ov::intel_gpu::ocl::moe::OffloadExpertWeightProvider;
+using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
+
+TEST(moe_expert_weight_provider, resident_is_identity) {
+    ResidentExpertWeightProvider provider;
+    ASSERT_FALSE(provider.is_offloaded());
+    ASSERT_EQ(provider.resident_capacity(), 0U);
+
+    // Fully resident: acquire returns the expert ids unchanged, including duplicates
+    // (no remap, no dedup) — the expert id is already the addressable slot.
+    std::vector<uint32_t> experts = {3, 1, 4, 1, 5, 9, 2, 6};
+    auto slots = provider.acquire(experts, get_test_stream());
+    ASSERT_EQ(slots, experts);
+}
+
+TEST(moe_expert_weight_provider, offload_construction_state) {
+    MOECompressed::Config config{};
+    std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
+    OffloadExpertWeightProvider provider(/*capacity=*/16, config, offsets, "/path/to/weights.bin", /*layer_index=*/3);
+
+    ASSERT_TRUE(provider.is_offloaded());
+    ASSERT_EQ(provider.resident_capacity(), 16U);
+    // Resident buffers are bound lazily at first execute, not at construction.
+    ASSERT_FALSE(provider.is_bound());
+    ASSERT_FALSE(provider.cache().m_initialized);
+}
+
+TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
+    MOECompressed::Config config{};
+    OffloadExpertWeightProvider provider(/*capacity=*/8, config, {}, "/path/to/weights.bin", /*layer_index=*/0);
+    ASSERT_FALSE(provider.is_bound());
+
+    cldnn::moe_weights resident;  // null device pointers are fine; only the binding flag matters here
+    provider.bind_resident_buffers(resident);
+    ASSERT_TRUE(provider.is_bound());
+    ASSERT_TRUE(provider.cache().m_initialized);
+
+    // Idempotent: a second bind keeps the provider bound.
+    provider.bind_resident_buffers(resident);
+    ASSERT_TRUE(provider.is_bound());
+}
+
