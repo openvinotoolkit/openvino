@@ -1534,13 +1534,15 @@ public:
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
         std::vector<event::ptr> res_event = events;
-        if (has_rotated_blocks) {
-            const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
-            if (rotated_block_indices_input.get_partial_shape()[0].get_length() > 0) {
-                res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
+        if (desc->write_kv_cache) {
+            if (has_rotated_blocks) {
+                const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
+                if (rotated_block_indices_input.get_partial_shape()[0].get_length() > 0) {
+                    res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
+                }
             }
+            res_event = {execute_stage(res_event, instance, kv_cache_update)};
         }
-        res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
