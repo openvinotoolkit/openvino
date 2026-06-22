@@ -2,4 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Example function for demonstration purposes.
+ */
 void Function();
