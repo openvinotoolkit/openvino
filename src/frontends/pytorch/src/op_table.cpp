@@ -66,6 +66,7 @@ OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_celu);
 OP_CONVERTER(translate_channel_shuffle);
+OP_CONVERTER(translate_chunk);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
@@ -275,6 +276,7 @@ OP_CONVERTER(translate_type_as);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
+OP_CONVERTER(translate_unbind);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_upsample_bicubic2d);
@@ -469,7 +471,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::celu", op::translate_celu},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
-        // aten::chunk - Supported in limited set of patterns
+        {"aten::chunk", op::translate_chunk},
+        {"aten::unsafe_chunk", op::translate_chunk},
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
@@ -774,10 +777,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
         {"aten::type_as", op::translate_type_as},
-        // aten::unbind - Supported in limited set of patterns
+        {"aten::unbind", op::translate_unbind},
+        {"aten::unbind.int", op::translate_unbind},
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
-        // aten::unsafe_chunk - Supported in limited set of patterns
         {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::unsqueeze_copy", common_translators::translate_unsqueeze},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
