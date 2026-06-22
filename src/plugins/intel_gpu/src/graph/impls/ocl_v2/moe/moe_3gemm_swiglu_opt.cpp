@@ -732,13 +732,13 @@ public:
 
         // OTD relies on runtime weight streaming in oneDNN path.
         auto otd_desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        _lru_expert_num = otd_desc->_lru_expert_num;
+        _lru_expert_num = otd_desc->_otd.lru_expert_num;
         if (_lru_expert_num > 0) {
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(_lru_expert_num,
                                                                              otd_desc->_config,
-                                                                             otd_desc->_weight_bin_offsets,
-                                                                             otd_desc->_weights_path,
-                                                                             otd_desc->_layer_index);
+                                                                             otd_desc->_otd.weight_bin_offsets,
+                                                                             otd_desc->_otd.weights_path,
+                                                                             otd_desc->_otd.layer_index);
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }

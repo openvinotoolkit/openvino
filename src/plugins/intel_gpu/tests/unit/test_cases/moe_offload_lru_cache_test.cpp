@@ -375,10 +375,10 @@ TEST(moe_offload_property_test, set_back_to_zero_disables) {
 
 TEST(moe_offload_primitive_test, default_offload_fields) {
     cldnn::moe_3gemm_fused_compressed prim;
-    ASSERT_TRUE(prim._weight_bin_offsets.empty());
-    ASSERT_TRUE(prim._weights_path.empty());
-    ASSERT_EQ(prim._lru_expert_num, 0U);
-    ASSERT_EQ(prim._layer_index, 0U);
+    ASSERT_TRUE(prim._otd.weight_bin_offsets.empty());
+    ASSERT_TRUE(prim._otd.weights_path.empty());
+    ASSERT_EQ(prim._otd.lru_expert_num, 0U);
+    ASSERT_EQ(prim._otd.layer_index, 0U);
 }
 
 TEST(moe_offload_primitive_test, construct_with_offload_params) {
@@ -395,11 +395,11 @@ TEST(moe_offload_primitive_test, construct_with_offload_params) {
         path,
         lru_num);
 
-    ASSERT_EQ(prim._weight_bin_offsets.size(), 9U);
-    ASSERT_EQ(prim._weight_bin_offsets[0], 0U);
-    ASSERT_EQ(prim._weight_bin_offsets[8], 800U);
-    ASSERT_EQ(prim._weights_path, path);
-    ASSERT_EQ(prim._lru_expert_num, lru_num);
+    ASSERT_EQ(prim._otd.weight_bin_offsets.size(), 9U);
+    ASSERT_EQ(prim._otd.weight_bin_offsets[0], 0U);
+    ASSERT_EQ(prim._otd.weight_bin_offsets[8], 800U);
+    ASSERT_EQ(prim._otd.weights_path, path);
+    ASSERT_EQ(prim._otd.lru_expert_num, lru_num);
 }
 
 TEST(moe_offload_primitive_test, equality_with_offload_fields) {

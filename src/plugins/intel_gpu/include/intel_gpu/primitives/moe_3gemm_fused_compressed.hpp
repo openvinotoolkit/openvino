@@ -26,6 +26,37 @@ struct moe_weights {
     cldnn::memory::ptr down_z = nullptr;
 };
 
+/// @brief Lightweight, serializable descriptor for the offload-to-disk (OTD) weight strategy.
+/// @details Consolidates the OTD plumbing so the primitive carries a single cohesive field
+/// instead of loose members. Empty/zero values mean OTD is disabled (fully resident). This is
+/// the only OTD state that participates in blob-cache serialization; the runtime
+/// IExpertWeightProvider is rebuilt from it on the impl side.
+struct moe_otd_descriptor {
+    std::vector<size_t> weight_bin_offsets;
+    std::string weights_path;
+    size_t lru_expert_num = 0;
+    size_t layer_index = 0;
+
+    bool operator==(const moe_otd_descriptor& rhs) const {
+        return weight_bin_offsets == rhs.weight_bin_offsets && weights_path == rhs.weights_path &&
+               lru_expert_num == rhs.lru_expert_num && layer_index == rhs.layer_index;
+    }
+
+    void save(BinaryOutputBuffer& ob) const {
+        ob << weight_bin_offsets;
+        ob << weights_path;
+        ob << lru_expert_num;
+        ob << layer_index;
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        ib >> weight_bin_offsets;
+        ib >> weights_path;
+        ib >> lru_expert_num;
+        ib >> layer_index;
+    }
+};
+
 /// @brief moe compressed primitive
 /// @details Performs moe compressed
 struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compressed> {
@@ -109,16 +140,10 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
                                size_t layer_index = 0)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
                     _config(config),
-                    _weight_bin_offsets(weight_bin_offsets),
-                    _weights_path(weights_path),
-                    _lru_expert_num(lru_expert_num),
-                    _layer_index(layer_index) {}
+                    _otd{weight_bin_offsets, weights_path, lru_expert_num, layer_index} {}
 
     MOECompressed::Config _config;
-        std::vector<size_t> _weight_bin_offsets;
-        std::string _weights_path;
-        size_t _lru_expert_num = 0;
-        size_t _layer_index = 0;
+        moe_otd_descriptor _otd;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
@@ -126,29 +151,19 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
 
         auto rhs_casted = downcast<const moe_3gemm_fused_compressed>(rhs);
 
-         return std::memcmp(&_config, &rhs_casted._config, sizeof(_config)) == 0 &&
-             _weight_bin_offsets == rhs_casted._weight_bin_offsets &&
-             _weights_path == rhs_casted._weights_path &&
-             _lru_expert_num == rhs_casted._lru_expert_num &&
-             _layer_index == rhs_casted._layer_index;
+         return std::memcmp(&_config, &rhs_casted._config, sizeof(_config)) == 0 && _otd == rhs_casted._otd;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_3gemm_fused_compressed>::save(ob);
         ob << make_data(&_config, sizeof(_config));
-        ob << _weight_bin_offsets;
-        ob << _weights_path;
-        ob << _lru_expert_num;
-        ob << _layer_index;
+        _otd.save(ob);
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_3gemm_fused_compressed>::load(ib);
         ib >> make_data(&_config, sizeof(_config));
-        ib >> _weight_bin_offsets;
-        ib >> _weights_path;
-        ib >> _lru_expert_num;
-        ib >> _layer_index;
+        _otd.load(ib);
     }
 };
 

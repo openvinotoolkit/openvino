@@ -637,7 +637,7 @@ static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, prog
 static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
     using ov::intel_gpu::ocl::MOE3GemmInputIndex;
     auto prim = node.get_primitive();
-    if (prim->_lru_expert_num > 0) {
+    if (prim->_otd.lru_expert_num > 0) {
         // OTD routed weights are backed by resident-size allocations; reorders would materialize full logical tensors.
         return;
     }
