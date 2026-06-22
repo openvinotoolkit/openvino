@@ -8,6 +8,10 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
+if (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-microsoft-include")
+endif()
+
 if(NOT BUILD_SHARED_LIBS)
     # Symbols are located in both src and include folders
     file(GLOB_RECURSE onednn_files
