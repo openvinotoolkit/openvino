@@ -28,6 +28,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -78,6 +79,7 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
     VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);
