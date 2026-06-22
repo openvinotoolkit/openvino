@@ -73,7 +73,7 @@ FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
 
         register_new_node(new_concat);
         output_fq->input(0).replace_source_output(new_concat->output(0));
-        ov::copy_runtime_info(old_nodes, ov::NodeVector{new_concat});
+        ov::copy_runtime_info(old_nodes, new_concat);
         return true;
     };
 

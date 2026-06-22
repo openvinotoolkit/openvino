@@ -135,3 +135,19 @@ TEST_F(TransformationTestsF, FakeQuantizeConcatFusion_cascaded_fusion) {
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input0, input1, input2, input3});
     }
 }
+
+TEST_F(TransformationTestsF, FakeQuantizeConcatFusion_not_applied_when_mixed_fq_and_non_fq_inputs) {
+    {
+        // One input is FQ, the other is not
+        auto input0 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto input1 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto fq0 = make_fake_quantize(input0, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{fq0, input1}, 1);
+        auto output_fq = make_fake_quantize(concat, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto abs = std::make_shared<v0::Abs>(output_fq);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input0, input1});
+        manager.register_pass<ov::pass::FakeQuantizeConcatFusion>();
+    }
+
+    model_ref = model->clone();
+}
