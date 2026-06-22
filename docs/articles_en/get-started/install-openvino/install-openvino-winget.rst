@@ -14,7 +14,7 @@ Install OpenVINO™ Runtime with WinGet
 
    * provides OpenVINO Runtime for Windows x64;
    * is delivered as an MSIX package from the WinGet Community Repository;
-   * uses versioned WinGet package identifiers, for example ``Intel.OpenVINOToolkit.2026.2.0``;
+   * uses versioned WinGet package identifiers, for example ``Intel.OpenVINOToolkit.2026.2.1``;
    * allows different OpenVINO releases to be installed side by side;
    * does not automatically move an existing project to a newer OpenVINO release line.
 
@@ -47,7 +47,7 @@ Installing OpenVINO Runtime with WinGet
 
    .. code-block:: bat
 
-      winget search --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
+      winget search --id Intel.OpenVINOToolkit.2026.2.1 -e --source winget
 
    For details, see the `Microsoft documentation for the WinGet search command <https://learn.microsoft.com/en-us/windows/package-manager/winget/search>`__.
 
@@ -55,13 +55,13 @@ Installing OpenVINO Runtime with WinGet
 
    .. code-block:: bat
 
-      winget install --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
+      winget install --id Intel.OpenVINOToolkit.2026.2.1 -e --source winget
 
    To install an exact WinGet package version, add the ``--version`` option:
 
    .. code-block:: bat
 
-      winget install --id Intel.OpenVINOToolkit.2026.2.0 --version 2026.2.0.0 -e --source winget
+      winget install --id Intel.OpenVINOToolkit.2026.2.1 --version 2026.2.1.0 -e --source winget
 
    For details, see the `Microsoft documentation for the WinGet install command <https://learn.microsoft.com/en-us/windows/package-manager/winget/install>`__.
 
@@ -82,19 +82,19 @@ For example, after the corresponding packages are published in WinGet, you can i
 
 .. code-block:: bat
 
-   winget install --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
+   winget install --id Intel.OpenVINOToolkit.2026.2.1 -e --source winget
    winget install --id Intel.OpenVINOToolkit.2026.1.0 -e --source winget
    winget install --id Intel.OpenVINOToolkit.2026.0.0 -e --source winget
 
-The WinGet package version may include an additional revision number, for example ``2026.2.0.0``. Use ``--version`` if you need to select the exact WinGet package version.
+The WinGet package version may include an additional revision number, for example ``2026.2.1.0``. Use ``--version`` if you need to select the exact WinGet package version.
 
 Understanding WinGet package identifier and MSIX package name
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 OpenVINO uses two different package names in the WinGet distribution flow:
 
-* ``Intel.OpenVINOToolkit.2026.2.0`` is the WinGet package identifier. Use this identifier with WinGet commands such as ``winget install``, ``winget list``, ``winget show``, and ``winget uninstall``.
-* ``IntelCorporation.OpenVINOToolkit.2026.2.0`` is the MSIX package name used by Windows after installation. Use this name with PowerShell commands such as ``Get-AppxPackage``.
+* ``Intel.OpenVINOToolkit.2026.2.1`` is the WinGet package identifier. Use this identifier with WinGet commands such as ``winget install``, ``winget list``, ``winget show``, and ``winget uninstall``.
+* ``IntelCorporation.OpenVINOToolkit.2026.2.1`` is the MSIX package name used by Windows after installation. Use this name with PowerShell commands such as ``Get-AppxPackage``.
 
 This difference is expected. WinGet resolves the package by the WinGet package identifier and installs the MSIX package registered in the manifest. After installation, Windows manages the package as an MSIX package under its MSIX package name.
 
@@ -105,7 +105,7 @@ To check that the package is installed, use the WinGet package identifier:
 
 .. code-block:: bat
 
-   winget list --id Intel.OpenVINOToolkit.2026.2.0 -e
+   winget list --id Intel.OpenVINOToolkit.2026.2.1 -e
 
 For details, see the `Microsoft documentation for the WinGet list command <https://learn.microsoft.com/en-us/windows/package-manager/winget/list>`__.
 
@@ -113,7 +113,7 @@ To show package metadata available from WinGet, use the WinGet package identifie
 
 .. code-block:: bat
 
-   winget show --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
+   winget show --id Intel.OpenVINOToolkit.2026.2.1 -e --source winget
 
 For details, see the `Microsoft documentation for the WinGet show command <https://learn.microsoft.com/en-us/windows/package-manager/winget/show>`__.
 
@@ -124,7 +124,7 @@ The WinGet package is installed as an MSIX package, so Windows manages the insta
 
 .. code-block:: powershell
 
-   (Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.0").InstallLocation
+   (Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.1").InstallLocation
 
 For details, see the `Microsoft documentation for Get-AppxPackage <https://learn.microsoft.com/en-us/powershell/module/appx/get-appxpackage>`__.
 
@@ -134,7 +134,7 @@ For CMake-based C++ applications, you may set ``OpenVINO_DIR`` to the OpenVINO C
 
 .. code-block:: powershell
 
-   $openvinoPackage = Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.0"
+   $openvinoPackage = Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.1"
    $env:OpenVINO_DIR = Join-Path $openvinoPackage.InstallLocation "runtime\cmake"
 
 Then configure your application with CMake as usual.
@@ -153,7 +153,7 @@ Once OpenVINO Runtime is installed via WinGet, you can remove it using the WinGe
 
 .. code-block:: bat
 
-   winget uninstall --id Intel.OpenVINOToolkit.2026.2.0 -e --source winget
+   winget uninstall --id Intel.OpenVINOToolkit.2026.2.1 -e --source winget
 
 For details, see the `Microsoft documentation for the WinGet uninstall command <https://learn.microsoft.com/en-us/windows/package-manager/winget/uninstall>`__.
 
