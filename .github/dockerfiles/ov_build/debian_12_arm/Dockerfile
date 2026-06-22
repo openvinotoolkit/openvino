@@ -109,17 +109,6 @@ RUN cd Python-3.10.16 && make distclean && \
     ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
 
-# Upgrade openssl to 3.3.1 for Python3.11 - 3.13 ssl module
-# RUN wget https://www.openssl.org/source/openssl-3.3.1.tar.gz && \
-#     tar -zxf openssl-3.3.1.tar.gz && \
-#     cd openssl-3.3.1 && \
-#     ./config && \
-#     make install && \
-#     ln -sf /usr/local/bin/openssl /usr/bin/openssl && \
-#     echo /usr/local/lib64 | tee /etc/ld.so.conf.d/custom.conf && \
-#     ldconfig && \
-#     openssl version
-
 # Python 3.11
 # To cross-compile Python 3.11 we need to first compile it for the host
 RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
