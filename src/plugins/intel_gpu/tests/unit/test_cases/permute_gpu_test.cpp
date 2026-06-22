@@ -1895,6 +1895,12 @@ void TiledPermuteTest::compare_value(ov::float16 a, ov::float16 b) const {
     ASSERT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
 }
 
+// bf16 format
+template<>
+void TiledPermuteTest::compare_value(ov::bfloat16 a, ov::bfloat16 b) const {
+    ASSERT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
+}
+
 template<>
 void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) const {
     // tests::set_random_values<int8_t>() is not supported
@@ -1903,6 +1909,17 @@ void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) c
     cldnn::mem_lock<int8_t> ptr(mem, get_test_stream());
     for (auto it = ptr.begin(); it != ptr.end(); ++it) {
         *it = static_cast<int8_t>(uid(gen));
+    }
+}
+
+template<>
+void TiledPermuteTest::set_random_values<ov::bfloat16>(const cldnn::memory::ptr mem) const {
+    // tests::set_random_values<ov::bfloat16>() is not supported
+    std::mt19937 gen;
+    static std::uniform_int_distribution<int32_t> uid(std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+    cldnn::mem_lock<ov::bfloat16> ptr(mem, get_test_stream());
+    for (auto it = ptr.begin(); it != ptr.end(); ++it) {
+        *it = static_cast<ov::bfloat16>(static_cast<float>(uid(gen)));
     }
 }
 
@@ -2025,6 +2042,11 @@ TEST_P(permute_tile_fsv_4d, f16) {
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv);
 }
 
+TEST_P(permute_tile_fsv_4d, bf16) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv);
+}
+
 TEST_P(permute_tile_fsv_4d, f32) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv);
@@ -2083,6 +2105,11 @@ INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_5d,
 TEST_P(permute_tile_fsv_5d, f16) {
     auto p = GetParam();
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_5d, bf16) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv);
 }
 
 TEST_P(permute_tile_fsv_5d, f32) {
@@ -2277,6 +2304,11 @@ TEST_P(permute_tile_fsv_4d, f16_cached) {
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
+TEST_P(permute_tile_fsv_4d, bf16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
 TEST_P(permute_tile_fsv_4d, f32_cached) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
@@ -2300,6 +2332,11 @@ TEST_P(permute_tile_fsv_4d, i64_cached) {
 TEST_P(permute_tile_fsv_5d, f16_cached) {
     auto p = GetParam();
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, bf16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
 TEST_P(permute_tile_fsv_5d, f32_cached) {
@@ -2368,6 +2405,7 @@ TEST_P(permute_f_y_axes_tile, combined) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
