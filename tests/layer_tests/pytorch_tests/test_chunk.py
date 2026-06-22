@@ -187,3 +187,40 @@ class TestChunkLoopGetitem(PytorchLayerTest):
         self._test(aten_chunk_loop_getitem(chunks, unsafe),
                    [chunk_op, "prim::Loop", "aten::__getitem__"],
                    ie_device, precision, ir_version)
+
+
+class aten_chunk_neg_dim_3(torch.nn.Module):
+    """Model for testing chunk with a negative dim argument (as used in SAM3 qkv.chunk(3, dim=-1))."""
+
+    def __init__(self, dim) -> None:
+        torch.nn.Module.__init__(self)
+        self.dim = dim
+
+    def forward(self, x):
+        a, b, c = torch.chunk(x, chunks=3, dim=self.dim)
+        return a, b, c
+
+
+class TestChunkNegativeDim(PytorchLayerTest):
+    """Tests that aten::chunk works correctly with negative dimension indices."""
+
+    def _prepare_input(self):
+        return (self.random.rand(*self.input_shape),)
+
+    @pytest.mark.parametrize("input_shape,dim", [
+        # 3D tensor; last dim has size 12 so chunks of 4
+        ((4, 6, 12), -1),
+        ((4, 6, 12), -3),
+        # 4D tensor; various negative dims
+        ((2, 4, 6, 9), -1),
+        ((2, 4, 6, 9), -2),
+        ((2, 4, 6, 9), -4),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_chunk_negative_dim(self, input_shape, dim, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        self._test(aten_chunk_neg_dim_3(dim),
+                   "aten::chunk",
+                   ie_device, precision, ir_version,
+                   dynamic_shapes=False, freeze_model=True, trace_model=True)

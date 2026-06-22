@@ -6,7 +6,17 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "utils.hpp"
@@ -17,6 +27,83 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
+
+OutputVector translate_chunk(const NodeContext& context) {
+    // aten::chunk(Tensor self, int chunks, int dim=0) -> Tensor[]
+    num_inputs_check(context, 2, 3, true);
+    auto input = context.get_input(0);
+    auto chunks = get_input_as_i32(context, 1);
+
+    Output<Node> dim;
+    if (context.input_is_none(2)) {
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    } else {
+        dim = get_input_as_i32(context, 2);
+    }
+
+    // Determine the number of output tensors from the decoder (static list size).
+    const size_t num_outputs = context.get_decoder()->output_list_size();
+    PYTORCH_OP_CONVERSION_CHECK(num_outputs > 0,
+                                "aten::chunk: cannot determine the number of output chunks from the decoder.");
+
+    if (num_outputs == 1) {
+        return {context.mark_node(make_list_construct({input}))};
+    }
+
+    // Build a VariadicSplit: the first (num_outputs - 1) chunks have equal size
+    // (= ceil(dim_size / num_chunks)) and the last chunk receives the remainder.
+    auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+    auto neg1_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    auto zero_sc = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+    // Gather the size of the split dimension.
+    auto dim_size = context.mark_node(std::make_shared<v8::Gather>(input_shape, dim, zero_sc));
+
+    // chunk_size = ceil(dim_size / num_chunks)
+    auto init_chunk_size = context.mark_node(std::make_shared<v1::Divide>(dim_size, chunks, true));
+    auto last_chunk_mod = context.mark_node(std::make_shared<v1::Mod>(dim_size, chunks));
+    auto is_nonzero = context.mark_node(std::make_shared<v1::Greater>(last_chunk_mod, zero_1d));
+    auto is_nonzero_int = context.mark_node(std::make_shared<v0::Convert>(is_nonzero, element::i32));
+    auto chunk_size = context.mark_node(std::make_shared<v1::Add>(init_chunk_size, is_nonzero_int));
+
+    auto split_even_count = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {num_outputs - 1}));
+    auto split_lengths_even = context.mark_node(std::make_shared<v3::Broadcast>(chunk_size, split_even_count));
+    auto split_lengths = context.mark_node(std::make_shared<v0::Concat>(OutputVector{split_lengths_even, neg1_1d}, 0));
+
+    auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(input, dim, split_lengths));
+    return {context.mark_node(make_list_construct(split->outputs()))};
+}
+
+OutputVector translate_unbind(const NodeContext& context) {
+    // aten::unbind.int(Tensor self, int dim=0) -> Tensor[]
+    num_inputs_check(context, 1, 2, true);
+    auto input = context.get_input(0);
+
+    Output<Node> dim;
+    if (context.input_is_none(1)) {
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    } else {
+        dim = get_input_as_i32(context, 1);
+    }
+
+    // Normalise negative dim values.
+    auto rank = std::get<1>(get_shape_rank(context, input, true));
+    dim = normalize_axis(context, dim, rank);
+
+    // Determine the number of output tensors from the decoder.
+    const size_t num_outputs = context.get_decoder()->output_list_size();
+    PYTORCH_OP_CONVERSION_CHECK(num_outputs > 0,
+                                "aten::unbind: cannot determine the number of outputs from the decoder.");
+
+    auto split = context.mark_node(std::make_shared<v1::Split>(input, dim, num_outputs));
+
+    ov::OutputVector outputs;
+    for (size_t i = 0; i < num_outputs; ++i) {
+        outputs.push_back(context.mark_node(std::make_shared<v0::Squeeze>(split->output(i), dim)));
+    }
+    return {context.mark_node(make_list_construct(outputs))};
+}
 
 OutputVector translate_chunk_fx(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
