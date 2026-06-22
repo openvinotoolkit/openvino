@@ -333,10 +333,10 @@ TEST_F(TransformationTestsF, FQReshapeFusionAfterLayerApplied) {
     {
         const auto& data = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 3});
         const auto& sigmoid = std::make_shared<opset4::Sigmoid>(data);
-        const auto& reshaped_data = std::make_shared<opset4::Reshape>(
-            sigmoid,
-            op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
-            true);
+        const auto& reshaped_data =
+            std::make_shared<opset4::Reshape>(sigmoid,
+                                              op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 1, 3}),
+                                              true);
 
         const auto& il = op::v0::Constant::create(element::f32, Shape{1, 2, 1, 1}, {0});
         const auto& ih = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {254});

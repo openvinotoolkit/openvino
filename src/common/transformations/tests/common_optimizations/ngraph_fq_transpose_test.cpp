@@ -157,4 +157,3 @@ TEST_F(TransformationTestsF, FQTransposeNegativeParameterInput) {
         check_rt_info(f);
     });
 }
-
