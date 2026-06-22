@@ -8,9 +8,12 @@
 #include "moe_3gemm_swiglu_opt.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "lru_cache.hpp"
+#include "expert_weight_providers.hpp"
 // clang-format on
 
-using ov::intel_gpu::ocl::moe::LRUCache;
+using ov::intel_gpu::ocl::moe::IExpertWeightProvider;
+using ov::intel_gpu::ocl::moe::OffloadExpertWeightProvider;
+using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #define DEBUG_MOE_LOG 0
 
@@ -644,7 +647,7 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
     size_t _lru_expert_num = 0;
-    std::shared_ptr<LRUCache> _lru_cache;
+    std::shared_ptr<IExpertWeightProvider> _weight_provider;
     ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
     bool _has_shared_expert = false;
@@ -728,9 +731,16 @@ public:
         }
 
         // OTD relies on runtime weight streaming in oneDNN path.
-        _lru_expert_num = params.typed_desc<moe_3gemm_fused_compressed>()->_lru_expert_num;
+        auto otd_desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        _lru_expert_num = otd_desc->_lru_expert_num;
         if (_lru_expert_num > 0) {
-            _lru_cache = std::make_shared<LRUCache>(_lru_expert_num);
+            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(_lru_expert_num,
+                                                                             otd_desc->_config,
+                                                                             otd_desc->_weight_bin_offsets,
+                                                                             otd_desc->_weights_path,
+                                                                             otd_desc->_layer_index);
+        } else {
+            _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
         if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
@@ -1048,7 +1058,7 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_lru_expert_num = _lru_expert_num;
-        cur_moe->_lru_cache = _lru_cache;  // shared across clones within the same network
+        cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
         cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
         cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
         cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
@@ -1326,47 +1336,28 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    // Remaps expert IDs to LRU slots in-place. Deduplicates so each unique expert
-    // is loaded via get_lru_expert_no at most once. Returns the expert→slot map.
-    std::unordered_map<uint32_t, uint32_t> remap_expert_ids_to_lru_slots(
-            typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-            LRUCache& cache,
-            uint32_t* expert_ids,
-            size_t count) {
-        auto num_total_experts = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.num_expert;
-
-        std::unordered_map<uint32_t, uint32_t> expert_to_lru;
-        expert_to_lru.reserve(count);
-        for (size_t i = 0; i < count; i++) {
-            auto expert_no = expert_ids[i];
-            OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts),
-                            "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
-            auto it = expert_to_lru.find(expert_no);
-            if (it == expert_to_lru.end()) {
-                auto lru_slot = moe_otd::get_lru_expert_no(instance, expert_no, cache);
-                it = expert_to_lru.emplace(expert_no, lru_slot).first;
-            }
-            expert_ids[i] = it->second;
-        }
-        return expert_to_lru;
+    // Remaps expert IDs to device slots in-place via the weight provider, which
+    // deduplicates and streams weights on demand for the offloaded strategy.
+    void remap_expert_ids_to_lru_slots(cldnn::stream& stream, uint32_t* expert_ids, size_t count) {
+        std::vector<uint32_t> ids(expert_ids, expert_ids + count);
+        auto slots = _weight_provider->acquire(ids, stream);
+        std::copy(slots.begin(), slots.end(), expert_ids);
     }
 
-    // High-level helper: reads expert IDs from GPU, remaps to LRU slots,
-    // uploads remapped IDs to scratch._expert_index_buffer, updates batch_mem_ptr.
-    // Returns the expert→slot map for callers that need per-slot metadata.
-    std::unordered_map<uint32_t, uint32_t> resolve_experts_to_lru_slots(
-            cldnn::stream& stream,
-            typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-            scratch_buffers& scratch,
-            LRUCache& cache,
-            memory::ptr& batch_mem_ptr,
-            size_t topk_count) {
+    // High-level helper: reads expert IDs from GPU, resolves them to device slots
+    // via the weight provider, uploads the resolved slots to
+    // scratch._expert_index_buffer, and updates batch_mem_ptr.
+    void resolve_experts_to_lru_slots(cldnn::stream& stream,
+                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                      scratch_buffers& scratch,
+                                      memory::ptr& batch_mem_ptr,
+                                      size_t topk_count) {
         auto& engine = instance.get_network().get_engine();
 
         std::vector<uint32_t> expert_ids(topk_count);
         batch_mem_ptr->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
 
-        auto expert_to_lru = remap_expert_ids_to_lru_slots(instance, cache, expert_ids.data(), topk_count);
+        auto slots = _weight_provider->acquire(expert_ids, stream);
 
         const size_t topk_bytes = topk_count * sizeof(uint32_t);
         if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
@@ -1374,10 +1365,8 @@ public:
                                         ov::element::i8, cldnn::format::bfyx);
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
-        scratch._expert_index_buffer->copy_from(stream, expert_ids.data(), 0, 0, topk_bytes, true);
+        scratch._expert_index_buffer->copy_from(stream, slots.data(), 0, 0, topk_bytes, true);
         batch_mem_ptr = scratch._expert_index_buffer;
-
-        return expert_to_lru;
     }
 
     // Points scratch.moe_fusion_wei_addr at the OTD LRU weight buffers.
@@ -1401,7 +1390,6 @@ public:
     cldnn::event::ptr exec_batched_gemv(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch,
-                                        LRUCache& cache,
                                         size_t token_num) {
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
@@ -1426,7 +1414,7 @@ public:
 
         if (_lru_expert_num) {
             const size_t topk_count = token_num * static_cast<size_t>(max_topk);
-            resolve_experts_to_lru_slots(stream, instance, scratch, cache, batch_mem_ptr, topk_count);
+            resolve_experts_to_lru_slots(stream, instance, scratch, batch_mem_ptr, topk_count);
             set_otd_weight_pointers(instance, scratch);
         }
 
@@ -1522,7 +1510,6 @@ public:
     cldnn::event::ptr exec_prefill_micro_gemm(const std::vector<cldnn::event::ptr>& events,
                                               typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                               scratch_buffers& scratch,
-                                              LRUCache& cache,
                                               const bool use_gpu_mask_gen) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
@@ -1550,7 +1537,7 @@ public:
 
         if (_lru_expert_num) {
             auto topk_count = token_num * static_cast<size_t>(max_topk);
-            resolve_experts_to_lru_slots(stream, instance, scratch, cache, batch_mem_ptr, topk_count);
+            resolve_experts_to_lru_slots(stream, instance, scratch, batch_mem_ptr, topk_count);
         }
 
         // step 1: generate 4 mask data for following kernel execution
@@ -2019,8 +2006,7 @@ public:
     cldnn::event::ptr exec_prefill_onednn(const std::vector<cldnn::event::ptr>& events,
                                           cldnn::stream& stream,
                                           typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                          scratch_buffers& scratch,
-                                          LRUCache& cache) {
+                                          scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
@@ -2061,11 +2047,11 @@ public:
 
             if (_lru_expert_num) {
                 // Ensure previous oneDNN work is completed before any potential
-                // LRU slot overwrite in get_lru_expert_no/fill_weights_memory.
+                // device slot overwrite during weight provider acquire/streaming.
                 dnn_stream.wait();
 
                 auto& dnnl_weights = _dnnl_weights[expert_no];
-                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
+                auto lru_expert_no = _weight_provider->acquire({static_cast<uint32_t>(expert_no)}, stream)[0];
                 auto& params = instance._weights;
 
 #    define CONVERT_DNNL(name, i)                                                                                                                      \
@@ -2159,8 +2145,7 @@ public:
     cldnn::event::ptr exec_prefill_grouped_gemm(const std::vector<cldnn::event::ptr>& events,
                                                 cldnn::stream& stream,
                                                 typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                scratch_buffers& scratch,
-                                                LRUCache& cache) {
+                                                scratch_buffers& scratch) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_prefill_grouped_gemm"));
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -2213,11 +2198,11 @@ public:
             if (unique_experts_set.size() > _lru_expert_num) {
                 GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts=" << unique_experts_set.size()
                                        << " > lru_expert_num=" << _lru_expert_num << ", falling back to per-expert onednn loop" << std::endl;
-                return exec_prefill_onednn(events, stream, instance, scratch, cache);
+                return exec_prefill_onednn(events, stream, instance, scratch);
             }
 
             // Remap expert IDs to LRU slots in-place
-            remap_expert_ids_to_lru_slots(instance, cache, raw_topk_ids.data(), topk_count);
+            remap_expert_ids_to_lru_slots(stream, raw_topk_ids.data(), topk_count);
 
             // Build per-slot token lists sorted by LRU slot index
             std::vector<std::vector<int32_t>> slot_tokens(num_grouped_experts);
@@ -2471,12 +2456,7 @@ public:
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
 
-        OPENVINO_ASSERT(!_lru_expert_num || _lru_cache, "LRU cache not initialized for OTD mode");
-        // When OTD is disabled (_lru_expert_num == 0) the cache reference is
-        // never dereferenced — every use site is guarded by `if (_lru_expert_num)`.
-        // Provide a stack-local dummy so that the reference is always valid.
-        LRUCache dummy_cache(0);
-        auto& cache = _lru_cache ? *_lru_cache : dummy_cache;
+        OPENVINO_ASSERT(_weight_provider, "expert weight provider not initialized");
 
         cldnn::event::ptr ret_env = nullptr;
         _has_shared_expert = (config.num_shared_expert > 0);
@@ -2495,7 +2475,8 @@ public:
         size_t token_num = get_seq_len(hidden_states_layout);
 
         if (_lru_expert_num) {
-            if (!cache.m_initialized) {
+            auto* offload = static_cast<OffloadExpertWeightProvider*>(_weight_provider.get());
+            if (!offload->is_bound()) {
                 instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
                 instance._weights.gate_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
                 instance._weights.gate_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
@@ -2507,7 +2488,7 @@ public:
                 instance._weights.down_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
                 instance._weights.down_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
                 instance._weights.down_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
-                cache.m_initialized = true;
+                offload->bind_resident_buffers(instance._weights);
             }
         }
 
@@ -2518,7 +2499,7 @@ public:
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         if (token_num <= batched_gemv_threshold) {
-            return exec_batched_gemv(events, instance, scratch, cache, token_num);
+            return exec_batched_gemv(events, instance, scratch, token_num);
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
@@ -2548,9 +2529,9 @@ public:
                                << std::endl;
         update_rt_params(instance);
         if (use_micro_gemm_prefill) {
-            ret_env = exec_prefill_micro_gemm(events, instance, scratch, cache, use_gpu_mask_gen);
+            ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (use_grouped_gemm_prefill) {
-            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch, cache);
+            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch);
             // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
             // grouped matmul on the same in-order queue. The framework's event-based
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
@@ -2560,7 +2541,7 @@ public:
                 stream.finish();
             }
         } else {
-            ret_env = exec_prefill_onednn(events, stream, instance, scratch, cache);
+            ret_env = exec_prefill_onednn(events, stream, instance, scratch);
         }
 
         if (_has_shared_expert) {

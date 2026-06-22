@@ -21,7 +21,7 @@ namespace ov::intel_gpu::ocl::moe {
 // behaviour of the non-offloaded (ratio=0) path.
 class ResidentExpertWeightProvider : public IExpertWeightProvider {
 public:
-    std::vector<uint32_t> acquire(size_t layer, const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return 0;
     }
@@ -44,7 +44,8 @@ public:
     OffloadExpertWeightProvider(size_t capacity,
                                 const cldnn::MOECompressed::Config& config,
                                 std::vector<size_t> weight_bin_offsets,
-                                std::string weights_path);
+                                std::string weights_path,
+                                size_t layer_index);
 
     // Binds the device-resident slot buffers used to hold streamed expert weights.
     // Must be called before the first acquire(). Idempotent.
@@ -55,7 +56,7 @@ public:
         return _cache && _cache->m_initialized;
     }
 
-    std::vector<uint32_t> acquire(size_t layer, const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return _capacity;
     }
@@ -72,6 +73,7 @@ private:
     cldnn::MOECompressed::Config _config{};
     std::vector<size_t> _weight_bin_offsets;
     std::string _weights_path;
+    size_t _layer_index = 0;
     std::shared_ptr<LRUCache> _cache;
     cldnn::moe_weights* _resident = nullptr;
 };

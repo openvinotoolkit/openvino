@@ -39,9 +39,7 @@ public:
     // ids map to the same slot. For the resident strategy this is the identity
     // mapping (slot == expert id). For the offloaded strategy the caller must not
     // request more unique experts than resident_capacity() in one acquire().
-    virtual std::vector<uint32_t> acquire(size_t layer,
-                                          const std::vector<uint32_t>& experts,
-                                          cldnn::stream& stream) = 0;
+    virtual std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
 
     // Releases any pinning established by the most recent acquire(). Resident
     // providers have nothing to release.

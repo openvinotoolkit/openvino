@@ -20,10 +20,7 @@
 
 #include "lru_cache.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
-
-using ov::intel_gpu::ocl::moe::LRUCache;
 #include "intel_gpu/runtime/stream.hpp"
-#include "moe_3gemm_fused_inst.h"
 #include "openvino/util/parallel_io.hpp"
 
 namespace ov::intel_gpu::ocl::moe_otd {
@@ -299,38 +296,6 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 
         index++;
     }
-}
-
-inline uint32_t get_lru_expert_no(cldnn::typed_primitive_inst<cldnn::moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
-    auto cur_moe = instance.get_typed_desc<cldnn::moe_3gemm_fused_compressed>();
-    auto& stream = instance.get_network().get_stream();
-    size_t layer = cur_moe->_layer_index;
-    auto item = cache.get_lru_item(layer, expert);
-    OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()), "LRU slot index overflow: ", item.first);
-    const auto lru_slot = static_cast<uint32_t>(item.first);
-
-    auto* perf = get_perf_counters();
-    if (item.second) {
-        if (perf)
-            perf->gpu_hits.fetch_add(1, std::memory_order_relaxed);
-    } else {
-        if (perf)
-            perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
-        std::vector<uint32_t> experts_list_single;
-        experts_list_single.push_back(expert);
-        std::vector<uint32_t> lru_experts_list_single;
-        lru_experts_list_single.push_back(lru_slot);
-        fill_weights_memory(stream,
-                            cur_moe->_config,
-                            cur_moe->_weight_bin_offsets,
-                            cur_moe->_weights_path,
-                            instance._weights,
-                            experts_list_single,
-                            lru_experts_list_single,
-                            layer);
-        cache.set_filled(lru_slot);
-    }
-    return lru_slot;
 }
 
 }  // namespace ov::intel_gpu::ocl::moe_otd
