@@ -30,6 +30,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
     python3-dev \
     python3-venv \
     python3-distutils \
+    python3-full \
     libhdf5-dev \
     # For building Python from source
     build-essential \
@@ -124,7 +125,7 @@ RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
 RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
-    LDFLAGS="-L/usr/local/lib64" ./configure && \
+    ./configure && \
     make -j $(nproc) && \
     make altinstall
 
@@ -147,7 +148,7 @@ RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
 
 RUN tar -xf Python-3.12.9.tar.xz && \
     cd Python-3.12.9 && \
-    LDFLAGS="-L/usr/local/lib64" ./configure && \
+    ./configure && \
     make -j $(nproc) && \
     make altinstall
 
@@ -170,7 +171,7 @@ RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
 
 RUN tar -xf Python-3.13.2.tar.xz && \
     cd Python-3.13.2 && \
-    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    ./configure && \
     make -j $(nproc) && \
     make altinstall
 
@@ -191,7 +192,7 @@ RUN cd Python-3.13.2 && make distclean && \
 RUN curl -O https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
     tar -xf Python-3.14.0.tgz && \
     cd Python-3.14.0 && \
-    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    ./configure && \
     make -j $(nproc) && make altinstall
 
 # Cross-compile Python3.14 for ARM
@@ -210,7 +211,7 @@ RUN cd Python-3.14.0 && make distclean && \
 # Cross-compile Python3.14t for ARM (with --disable-gil)
 RUN cp -r Python-3.14.0 Python-3.14t && \
     cd Python-3.14t && make distclean && \
-    LDFLAGS="-L/usr/local/lib64" ./configure --disable-gil --with-openssl=/usr/local  --with-openssl-rpath=auto --prefix=/usr/local/bin/python3.14t && \
+    ./configure --disable-gil --prefix=/usr/local/bin/python3.14t && \
     make -j4 && make altinstall && \
     ln -s /usr/local/bin/python3.14t/bin/python3.14 /usr/bin/python3.14t
 
@@ -229,13 +230,13 @@ RUN cd Python-3.14t && make distclean && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN python3 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
-    python3.10 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
-    python3.11 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
-    python3.12 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
-    python3.13 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
-    python3.14 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
-    python3.14t -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages
+RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14t -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
