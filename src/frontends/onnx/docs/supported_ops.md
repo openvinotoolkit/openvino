@@ -78,7 +78,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |GlobalMaxPool                                           |1                       |22, 1                           |                                |
 |                        |Greater                                                 |1                       |13, 9, 7, 1                     |                                |
 |                        |GreaterOrEqual                                          |16, 12                  |16, 12                          |                                |
-|                        |GridSample                                              |16                      |22, 20, 16                      |                                |
+|                        |GridSample                                              |20, 16                  |22, 20, 16                      |                                |
 |                        |GroupNormalization                                      |21, 18                  |21, 18                          |                                |
 |                        |HammingWindow                                           |17                      |17                              |                                |
 |                        |HannWindow                                              |17                      |17                              |                                |
@@ -231,7 +231,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |DequantizeBFP                                           |                        |1                               |                                |
 |com.microsoft           |DequantizeLinear                                        |1                       |1                               |                                |
 |com.microsoft           |DequantizeWithOrder                                     |                        |1                               |                                |
-|com.microsoft           |DynamicQuantizeLSTM                                     |                        |1                               |                                |
+|com.microsoft           |DynamicQuantizeLSTM                                     |1                       |1                               |Peephole input P not supported  |
 |com.microsoft           |DynamicQuantizeMatMul                                   |1                       |1                               |                                |
 |com.microsoft           |DynamicTimeWarping                                      |                        |1                               |                                |
 |com.microsoft           |EPContext                                               |                        |1                               |                                |

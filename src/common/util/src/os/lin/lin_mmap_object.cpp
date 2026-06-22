@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -11,8 +10,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
-#include <iostream>
-#include <sstream>
 #include <thread>
 #include <tuple>
 
@@ -60,53 +57,6 @@ inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_
     }
 }
 }  // namespace util
-
-namespace {
-/**
- * @brief Touches memory pages in parallel to trigger page faults and populate the page cache.
- *
- * Spawns worker threads that each read one byte per page in their assigned range.
- * * No-op if the region length is below the prefault threshold. Below that threshold the overhead
- * of spawning threads exceeds the benefit.
- *
- * @param region              Page-aligned memory region to prefault.
- * @param prefault_threshold  Minimum region length in bytes to trigger parallel prefaulting (default 4 MiB).
- */
-void populate_pages(const util::AlignedRegion& region, size_t prefault_threshold = 4 * 1024 * 1024) {
-    if (region.m_length < prefault_threshold)
-        return;
-
-    const auto page = static_cast<size_t>(util::get_system_page_size());
-    const size_t pages = (region.m_length + page - 1) / page;
-
-    const size_t hw_threads = std::thread::hardware_concurrency();
-    constexpr size_t min_chunk_size = 1 * 1024 * 1024;  // 1 MiB per thread minimum
-    constexpr size_t max_prefault_threads = 10;
-    const size_t num_threads =
-        std::min({hw_threads, pages, max_prefault_threads, std::max<size_t>(1, region.m_length / min_chunk_size)});
-
-    std::vector<std::thread> threads;
-    const auto base = reinterpret_cast<const uint8_t*>(region.m_address);
-
-    for (size_t tid = 0; tid < num_threads; ++tid) {
-        threads.emplace_back([&, tid] {
-            const size_t begin_page = pages * tid / num_threads;
-            const size_t end_page = pages * (tid + 1) / num_threads;
-            volatile uint8_t local = 0;  // prevents compiler from optimizing the loop away as a no-op
-
-            for (size_t p = begin_page; p < end_page; ++p) {
-                const size_t off = p * page;
-                if (off < region.m_length) {
-                    local += base[off];
-                }
-            }
-        });
-    }
-    for (auto& t : threads) {
-        t.join();
-    }
-}
-}  // namespace
 
 class HandleHolder {
     int m_handle = -1;
@@ -222,14 +172,12 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        if (m_data == nullptr || offset >= m_size) {
-            return;
-        }
-
-        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
-            std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_SEQUENTIAL);
-            std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_WILLNEED);
-            ov::populate_pages(region);
+        constexpr size_t one_mb = 1024 * 1024;
+        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
+            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
         }
     }
 };
