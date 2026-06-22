@@ -48,7 +48,7 @@ using ov::op::internal::GatherMatmul;
 // Build the identity-per-group `indices` for 3Dx3D:
 //     indices = Broadcast(Range(0, G), [M, G])
 // The G and M dimensions are taken dynamically from ShapeOf(mat_a).
-ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, NodeRegistry& rg) {
+ov::Output<ov::Node> build_indices_for_3dx3d(const ov::Output<ov::Node>& mat_a, NodeRegistry& rg) {
     auto i32 = ov::element::i32;
     auto zero = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
     auto shape_a = rg.make<v3::ShapeOf>(mat_a, i32);  // [G, M, K]
@@ -73,9 +73,9 @@ ov::Output<ov::Node> build_3dx3d_indices(const ov::Output<ov::Node>& mat_a, Node
 //     indices    = Unsqueeze(idx_1d, -1)                           [T, 1]
 //
 // `offsets` may be i32 or i64; we Convert to i32 only when needed and use i32
-ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
-                                         const ov::Output<ov::Node>& offsets,
-                                         NodeRegistry& rg) {
+ov::Output<ov::Node> build_indices_for_2dx3d(const ov::Output<ov::Node>& mat_a,
+                                             const ov::Output<ov::Node>& offsets,
+                                             NodeRegistry& rg) {
     auto i32 = ov::element::i32;
 
     // Scalar i32 0, reused as the Gather axis, the T index, and the Range start.
@@ -142,7 +142,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
         if (pattern_map.count(gmm_3d_3d)) {
             // ---- 3Dx3D: no offsets ----
             // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
-            auto indices = build_3dx3d_indices(mat_a, rg);
+            auto indices = build_indices_for_3dx3d(mat_a, rg);
             replacement = rg.make<GatherMatmul>(mat_a, mat_b, indices);
         } else if (pattern_map.count(gmm_2d_3d)) {
             // ---- 2Dx3D: with offsets ----
@@ -150,7 +150,7 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
             const auto offsets = gmm->input_value(2);
             auto a_unsq_axis = rg.make<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
             auto a_3d = rg.make<v0::Unsqueeze>(mat_a, a_unsq_axis);
-            auto indices = build_2dx3d_indices(mat_a, offsets, rg);
+            auto indices = build_indices_for_2dx3d(mat_a, offsets, rg);
             auto gm = rg.make<GatherMatmul>(a_3d, mat_b, indices);  // [1, T, N]
             auto squeeze_axis = rg.make<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
             replacement = rg.make<v0::Squeeze>(gm, squeeze_axis);  // [T, N]
