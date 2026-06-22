@@ -17,6 +17,11 @@ const Params paramsStreams[] = {
 INSTANTIATE_TEST_SUITE_P(CPU, CoreThreadingTest, testing::ValuesIn(params), CoreThreadingTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(CPU,
+                         CoreThreadingCpuMultiAppThreadSyncTest,
+                         testing::ValuesIn(params),
+                         CoreThreadingCpuMultiAppThreadSyncTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(CPU,
                          CoreThreadingTestsWithIter,
                          testing::Combine(testing::ValuesIn(params), testing::Values(4), testing::Values(50)),
                          CoreThreadingTestsWithIter::getTestCaseName);

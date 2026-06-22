@@ -5,10 +5,7 @@
 #include "openvino/runtime/properties.hpp"
 
 #include <algorithm>
-#include <condition_variable>
 #include <gtest/gtest.h>
-#include <mutex>
-#include <thread>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
@@ -639,124 +636,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncResultsMatchD
     const float* d1 = outSync.data<float>();
     for (size_t i = 0; i < outDefault.get_size(); ++i) {
         ASSERT_FLOAT_EQ(d0[i], d1[i]) << "Mismatch at element " << i;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// B11: Customer scenario — 4 application threads synchronously infer through
-//      one compiled model configured with 4 streams. Both modes must execute
-//      concurrently without crash and produce identical per-thread outputs.
-// ---------------------------------------------------------------------------
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncWithStreams) {
-    ov::Core core;
-
-    constexpr size_t numThreads = 4;
-
-    struct ThreadRunResult {
-        int32_t actualStreams = 0;
-        std::vector<ov::Tensor> outputs;
-        std::vector<std::string> errors;
-    };
-
-    auto runInferWithStreams = [&](bool syncExec) -> ThreadRunResult {
-        ThreadRunResult result;
-        result.outputs.resize(numThreads);
-        result.errors.resize(numThreads);
-
-        ov::CompiledModel compiledModel = core.compile_model(
-            model, deviceName,
-            {{ov::intel_cpu::multi_app_thread_sync_execution.name(), syncExec},
-             {ov::num_streams.name(), static_cast<int32_t>(numThreads)}});
-        result.actualStreams = compiledModel.get_property(ov::num_streams);
-
-        std::vector<ov::InferRequest> requests;
-        requests.reserve(numThreads);
-        std::vector<ov::Tensor> inputTensors;
-        inputTensors.reserve(numThreads);
-
-        for (size_t i = 0; i < numThreads; ++i) {
-            requests.push_back(compiledModel.create_infer_request());
-            inputTensors.emplace_back(ov::element::f32, ov::Shape{1, 1, 32, 32});
-            std::fill_n(inputTensors.back().data<float>(),
-                        inputTensors.back().get_size(),
-                        0.5f + static_cast<float>(i));
-            requests.back().set_input_tensor(inputTensors.back());
-        }
-
-        std::mutex startMutex;
-        std::condition_variable readyCv;
-        std::condition_variable startCv;
-        size_t readyThreads = 0;
-        bool start = false;
-
-        std::vector<std::thread> workers;
-        workers.reserve(numThreads);
-        for (size_t i = 0; i < numThreads; ++i) {
-            workers.emplace_back([&, i] {
-                {
-                    std::unique_lock<std::mutex> lock(startMutex);
-                    ++readyThreads;
-                    readyCv.notify_one();
-                    startCv.wait(lock, [&] {
-                        return start;
-                    });
-                }
-
-                try {
-                    requests[i].infer();
-                    const auto output = requests[i].get_output_tensor(0);
-                    result.outputs[i] = ov::Tensor(output.get_element_type(), output.get_shape());
-                    std::copy_n(output.data<const float>(), output.get_size(), result.outputs[i].data<float>());
-                } catch (const std::exception& ex) {
-                    result.errors[i] = ex.what();
-                } catch (...) {
-                    result.errors[i] = "Unknown exception";
-                }
-            });
-        }
-
-        {
-            std::unique_lock<std::mutex> lock(startMutex);
-            readyCv.wait(lock, [&] {
-                return readyThreads == numThreads;
-            });
-            start = true;
-        }
-        startCv.notify_all();
-
-        for (auto& worker : workers) {
-            if (worker.joinable()) {
-                worker.join();
-            }
-        }
-
-        return result;
-    };
-
-    const auto outFalse = runInferWithStreams(false);
-    const auto outTrue = runInferWithStreams(true);
-
-    ASSERT_EQ(static_cast<int32_t>(numThreads), outFalse.actualStreams);
-    ASSERT_EQ(static_cast<int32_t>(numThreads), outTrue.actualStreams);
-    ASSERT_EQ(outFalse.outputs.size(), outTrue.outputs.size());
-
-    for (size_t threadIndex = 0; threadIndex < numThreads; ++threadIndex) {
-        ASSERT_TRUE(outFalse.errors[threadIndex].empty()) << "sync=false thread " << threadIndex
-                                                          << " failed: " << outFalse.errors[threadIndex];
-        ASSERT_TRUE(outTrue.errors[threadIndex].empty()) << "sync=true thread " << threadIndex
-                                                         << " failed: " << outTrue.errors[threadIndex];
-        ASSERT_GT(outFalse.outputs[threadIndex].get_size(), 0u);
-        ASSERT_GT(outTrue.outputs[threadIndex].get_size(), 0u);
-        ASSERT_EQ(outFalse.outputs[threadIndex].get_shape(), outTrue.outputs[threadIndex].get_shape());
-        ASSERT_EQ(outFalse.outputs[threadIndex].get_element_type(), outTrue.outputs[threadIndex].get_element_type());
-
-        const float* df = outFalse.outputs[threadIndex].data<const float>();
-        const float* dt = outTrue.outputs[threadIndex].data<const float>();
-        for (size_t elementIndex = 0; elementIndex < outFalse.outputs[threadIndex].get_size(); ++elementIndex) {
-            ASSERT_FLOAT_EQ(df[elementIndex], dt[elementIndex])
-                << "Output mismatch at thread " << threadIndex << ", element " << elementIndex
-                << " (false=" << df[elementIndex] << ", true=" << dt[elementIndex] << ")";
-        }
     }
 }
 
