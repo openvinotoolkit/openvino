@@ -74,6 +74,33 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_dequantize_uint8) {
     test_case.run_with_tolerance_as_fp(0.001f);
 }
 
+OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_dequantize_fp16) {
+    // Tests that a fully fp16 model dequantizes int8 weights to float16 (not float32),
+    // avoiding operand type mismatches in ops like FULLY_CONNECTED with fp16 activations.
+    auto model = convert_model("dequantize_fp16.tflite");
+
+    // Verify output type is float16
+    ASSERT_EQ(model->get_output_element_type(0), ov::element::f16);
+
+    auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);
+    test_case.add_input<int8_t>({-128, -100, -1, 0, 1, 2, 3, 4, 5, 16, 100, 127});
+    // Expected: (val - zero_point) * scale = (val - 16) * 0.25
+    test_case.add_expected_output<ov::float16>(Shape{12},
+                                               {ov::float16(-36.f),
+                                                ov::float16(-29.f),
+                                                ov::float16(-4.25f),
+                                                ov::float16(-4.f),
+                                                ov::float16(-3.75f),
+                                                ov::float16(-3.5f),
+                                                ov::float16(-3.25f),
+                                                ov::float16(-3.f),
+                                                ov::float16(-2.75f),
+                                                ov::float16(0.f),
+                                                ov::float16(21.f),
+                                                ov::float16(27.75f)});
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_quantize_dequantize_int8) {
     auto model = convert_model("qdq_int8.tflite");
 
