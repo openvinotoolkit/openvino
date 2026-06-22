@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/debian:11
+FROM ${REGISTRY}/library/debian:12
 
 USER root
 
@@ -49,7 +49,6 @@ RUN dpkg --add-architecture armhf && apt-get update && \
     libxmlsec1-dev \
     liblzma-dev \
     wget \
-    libavcodec58:armhf \
     libusb-1.0-0-dev:armhf \
     libboost-regex-dev:armhf \
     crossbuild-essential-armhf \
@@ -243,7 +242,7 @@ RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
-# Install newer ninja (apt ships older version on debian 10 lacking --quiet)
+# Install newer ninja (apt ships older version on debian 12 lacking --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
