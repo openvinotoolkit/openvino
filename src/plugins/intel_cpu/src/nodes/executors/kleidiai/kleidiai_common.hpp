@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2026 FUJITSU LIMITED
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
