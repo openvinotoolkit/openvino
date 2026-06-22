@@ -90,3 +90,48 @@ TEST_F(TransformationTestsF, FakeQuantizeConcatFusion_not_applied_when_output_fq
 
     model_ref = model->clone();
 }
+
+TEST_F(TransformationTestsF, FakeQuantizeConcatFusion_cascaded_fusion) {
+    {
+        // First pattern: FQ0, FQ1 -> Concat1 -> FQ2
+        auto input0 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto input1 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto fq0 = make_fake_quantize(input0, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto fq1 = make_fake_quantize(input1, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto concat1 = std::make_shared<v0::Concat>(OutputVector{fq0, fq1}, 1);
+        auto fq2 = make_fake_quantize(concat1, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+
+        // Second pattern: FQ3, FQ4 -> Concat2 -> FQ5
+        auto input2 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto input3 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto fq3 = make_fake_quantize(input2, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto fq4 = make_fake_quantize(input3, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto concat2 = std::make_shared<v0::Concat>(OutputVector{fq3, fq4}, 1);
+        auto fq5 = make_fake_quantize(concat2, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+
+        // Third level: Concat (FQ2, FQ5) -> FQ6
+        auto concat3 = std::make_shared<v0::Concat>(OutputVector{fq2, fq5}, 1);
+        auto fq6 = make_fake_quantize(concat3, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto abs = std::make_shared<v0::Abs>(fq6);
+
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input0, input1, input2, input3});
+        manager.register_pass<ov::pass::FakeQuantizeConcatFusion>();
+    }
+    {
+        // After cascaded fusion, all three FQ->Concat->FQ patterns are fused
+        auto input0 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto input1 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto concat1 = std::make_shared<v0::Concat>(OutputVector{input0, input1}, 1);
+
+        auto input2 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto input3 = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto concat2 = std::make_shared<v0::Concat>(OutputVector{input2, input3}, 1);
+
+        // Third level: concat1 and concat2 are directly concatenated and FQed
+        auto concat3 = std::make_shared<v0::Concat>(OutputVector{concat1, concat2}, 1);
+        auto fq6 = make_fake_quantize(concat3, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto abs = std::make_shared<v0::Abs>(fq6);
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input0, input1, input2, input3});
+    }
+}

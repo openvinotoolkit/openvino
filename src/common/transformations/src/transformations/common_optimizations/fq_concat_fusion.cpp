@@ -22,20 +22,6 @@ namespace ov::pass {
 
 namespace {
 
-bool inputs_equal_or_same_constant(const Output<Node>& lhs, const Output<Node>& rhs) {
-    if (lhs == rhs) {
-        return true;
-    }
-
-    const auto lhs_const = ov::as_type_ptr<v0::Constant>(lhs.get_node_shared_ptr());
-    const auto rhs_const = ov::as_type_ptr<v0::Constant>(rhs.get_node_shared_ptr());
-    if (!lhs_const || !rhs_const) {
-        return false;
-    }
-
-    return ov::compare_constants(lhs_const, rhs_const);
-}
-
 bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs,
                                     const std::shared_ptr<v0::FakeQuantize>& rhs) {
     if (!lhs || !rhs || lhs->get_levels() != rhs->get_levels()) {
@@ -43,7 +29,8 @@ bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs
     }
 
     for (size_t index = 1; index < lhs->get_input_size(); ++index) {
-        if (!inputs_equal_or_same_constant(lhs->input_value(index), rhs->input_value(index))) {
+        if (!ov::compare_constants(lhs->input_value(index).get_node_shared_ptr(),
+                                   rhs->input_value(index).get_node_shared_ptr())) {
             return false;
         }
     }
@@ -71,7 +58,7 @@ FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
         }
 
         OutputVector new_concat_inputs;
-        ov::NodeVector old_nodes{concat, output_fq};
+        ov::NodeVector old_nodes{concat};
 
         for (const auto& concat_input : concat->input_values()) {
             const auto input_fq = ov::as_type_ptr<v0::FakeQuantize>(concat_input.get_node_shared_ptr());
@@ -82,22 +69,11 @@ FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
             new_concat_inputs.push_back(input_fq->input_value(0));
             old_nodes.push_back(input_fq);
         }
-
         auto new_concat = std::make_shared<v0::Concat>(new_concat_inputs, concat->get_axis());
-        auto new_output_fq = output_fq->clone_with_new_inputs({new_concat,
-                                                               output_fq->input_value(1),
-                                                               output_fq->input_value(2),
-                                                               output_fq->input_value(3),
-                                                               output_fq->input_value(4)});
-        if (transformation_callback(new_output_fq)) {
-            return false;
-        }
 
         register_new_node(new_concat);
-        register_new_node(new_output_fq);
-        new_output_fq->set_friendly_name(output_fq->get_friendly_name());
-        ov::copy_runtime_info(old_nodes, {new_concat, new_output_fq});
-        ov::replace_node(output_fq, new_output_fq);
+        output_fq->input(0).replace_source_output(new_concat->output(0));
+        ov::copy_runtime_info(old_nodes, ov::NodeVector{new_concat});
         return true;
     };
 
