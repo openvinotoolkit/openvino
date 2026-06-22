@@ -109,7 +109,7 @@ inline parallel_weight_reader& get_thread_local_weight_reader(const std::string&
     return *reader;
 }
 
-inline void maybe_transpose_scale_zp(const cldnn::moe_3gemm_fused_compressed& desc,
+inline void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
                                      const char* tensor_name,
                                      const cldnn::layout& layout,
                                      std::vector<uint8_t>& payload,
@@ -129,14 +129,14 @@ inline void maybe_transpose_scale_zp(const cldnn::moe_3gemm_fused_compressed& de
     size_t oc = 0;
     size_t ic = 0;
     if (name.rfind("down_", 0) == 0) {
-        oc = static_cast<size_t>(desc._config.hidden_size);
-        ic = static_cast<size_t>(desc._config.inter_size);
+        oc = static_cast<size_t>(config.hidden_size);
+        ic = static_cast<size_t>(config.inter_size);
     } else {
-        oc = static_cast<size_t>(desc._config.inter_size);
-        ic = static_cast<size_t>(desc._config.hidden_size);
+        oc = static_cast<size_t>(config.inter_size);
+        ic = static_cast<size_t>(config.hidden_size);
     }
 
-    const size_t group_size = static_cast<size_t>(desc._config.group_size);
+    const size_t group_size = static_cast<size_t>(config.group_size);
     size_t group_count = 1;
     if (group_size != 0 && group_size != std::numeric_limits<size_t>::max()) {
         OPENVINO_ASSERT(ic % group_size == 0, "Invalid group_size for OTD transpose: tensor=", tensor_name, ", ic=", ic, ", group_size=", group_size);
@@ -147,7 +147,7 @@ inline void maybe_transpose_scale_zp(const cldnn::moe_3gemm_fused_compressed& de
 
     const size_t elem_count = oc * group_count;
     if (is_scale) {
-        const size_t elem_size = static_cast<size_t>(data_type_traits::size_of(layout.data_type));
+        const size_t elem_size = static_cast<size_t>(cldnn::data_type_traits::size_of(layout.data_type));
         OPENVINO_ASSERT(elem_size > 0, "Invalid scale element size for tensor=", tensor_name);
         OPENVINO_ASSERT(elem_count * elem_size == per_expert_size,
                         "Unexpected scale payload size for tensor=",
@@ -202,7 +202,9 @@ inline void maybe_transpose_scale_zp(const cldnn::moe_3gemm_fused_compressed& de
 }
 
 inline void fill_weights_memory(cldnn::stream& exec_stream,
-                                const cldnn::moe_3gemm_fused_compressed& desc,
+                                const cldnn::MOECompressed::Config& config,
+                                const std::vector<size_t>& weight_bin_offsets,
+                                const std::string& weights_path,
                                 cldnn::moe_weights& wei_mem,
                                 const std::vector<uint32_t>& experts_list,
                                 const std::vector<uint32_t>& lru_experts,
@@ -213,9 +215,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
         size_t dst_offset = 0;
     };
 
-    const auto num_expert = static_cast<size_t>(desc._config.num_expert);
-    const auto& weight_bin_offsets = desc._weight_bin_offsets;
-    const auto& weights_path = desc._weights_path;
+    const auto num_expert = static_cast<size_t>(config.num_expert);
 
     OPENVINO_ASSERT(!weights_path.empty(), "weights path is empty for OTD weight loading");
     OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, "Unexpected number of MOE weight offsets");
@@ -281,7 +281,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
             if (mem && plan.per_expert_size != 0) {
                 if (perf) {
                     auto t0 = std::chrono::steady_clock::now();
-                    maybe_transpose_scale_zp(desc, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
+                    maybe_transpose_scale_zp(config, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
                     auto t1 = std::chrono::steady_clock::now();
                     mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
                     auto t2 = std::chrono::steady_clock::now();
@@ -291,7 +291,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
                                                 std::memory_order_relaxed);
                     perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
                 } else {
-                    maybe_transpose_scale_zp(desc, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
+                    maybe_transpose_scale_zp(config, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
                     mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
                 }
             }
@@ -301,7 +301,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
     }
 }
 
-inline uint32_t get_lru_expert_no(typed_primitive_inst<cldnn::moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
+inline uint32_t get_lru_expert_no(cldnn::typed_primitive_inst<cldnn::moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
     auto cur_moe = instance.get_typed_desc<cldnn::moe_3gemm_fused_compressed>();
     auto& stream = instance.get_network().get_stream();
     size_t layer = cur_moe->_layer_index;
@@ -320,7 +320,14 @@ inline uint32_t get_lru_expert_no(typed_primitive_inst<cldnn::moe_3gemm_fused_co
         experts_list_single.push_back(expert);
         std::vector<uint32_t> lru_experts_list_single;
         lru_experts_list_single.push_back(lru_slot);
-        fill_weights_memory(stream, *cur_moe, instance._weights, experts_list_single, lru_experts_list_single, layer);
+        fill_weights_memory(stream,
+                            cur_moe->_config,
+                            cur_moe->_weight_bin_offsets,
+                            cur_moe->_weights_path,
+                            instance._weights,
+                            experts_list_single,
+                            lru_experts_list_single,
+                            layer);
         cache.set_filled(lru_slot);
     }
     return lru_slot;
