@@ -1447,6 +1447,7 @@ void Partitioner::saveScaleFactors(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI2>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI3>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::AsymmZP::CWAI>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::RMSNorm::CWAI>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {

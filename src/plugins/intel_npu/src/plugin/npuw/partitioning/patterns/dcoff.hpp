@@ -202,6 +202,18 @@ public:
 
 }  // namespace AsymmZP
 
+namespace RMSNorm {
+class CWAI : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::RMSNorm::CWAI");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    explicit CWAI(Results to_keep);
+};
+}  // namespace RMSNorm
+
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov
