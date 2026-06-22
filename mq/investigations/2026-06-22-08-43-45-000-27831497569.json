@@ -1,0 +1,28 @@
+{
+  "run_id": 27831497569,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27831497569",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "job_id": 82375566448,
+  "job_name": "CPU functional tests",
+  "category": "Code Issue",
+  "signature": "6ba5e846ed808087",
+  "timestamp_utc": "2026-06-22T08:43:45Z",
+  "summary": "Second CI Doctor MQ invocation for same run. CPU functional tests failed because the PR intentionally introduced test failures in matmul.cpp to observe the new run_parallel.py behavior that prints the first 10 failed tests in CI output.",
+  "root_cause": {
+    "classification": "Code Issue",
+    "explanation": "PR #36469 deliberately injects GTEST_FAIL() calls in src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/matmul.cpp at line 196 with message 'intentional failure to observe new run_parallel.py output'. This causes 645 MatMulLayerCPUTest tests to fail. The purpose is to validate that run_parallel.py now correctly prints the first 10 failed test logs directly in the GHA workflow output.",
+    "evidence": [
+      "INFO:test_parallel_runner:failed test counter is: 645",
+      "ERROR:test_parallel_runner:Printing [10/645] failed tests",
+      "matmul.cpp(196): error: Failed - intentional failure to observe new run_parallel.py output",
+      "ERROR:test_parallel_runner:Run is not successful"
+    ],
+    "failed_job": "CPU functional tests",
+    "confidence": "High"
+  },
+  "pr": {
+    "number": 36469,
+    "url": "https://github.com/openvinotoolkit/openvino/pull/36469",
+    "author": "EgorDuplensky"
+  }
+}

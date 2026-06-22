@@ -2,9 +2,9 @@
   "signature": "matmul.cpp error Failed intentional failure to observe new run_parallel.py output|CPU functional tests|Code Issue",
   "title": "CPU functional tests fail with intentional matmul.cpp failures to test run_parallel.py output",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-06-22T08:32:35Z",
-  "last_seen": "2026-06-22T08:32:35Z",
+  "last_seen": "2026-06-22T08:43:45Z",
   "recent_run_urls": [
     "https://github.com/openvinotoolkit/openvino/actions/runs/27831497569"
   ],
@@ -12,6 +12,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/36469"
   ],
   "recent_timestamps": [
+    "2026-06-22T08:43:45Z",
     "2026-06-22T08:32:35Z"
   ]
 }
