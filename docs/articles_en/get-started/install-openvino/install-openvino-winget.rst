@@ -61,7 +61,7 @@ Installing OpenVINO Runtime with WinGet
 
    .. code-block:: bat
 
-      winget install --id Intel.OpenVINOToolkit.2026.2.0 --version 2026.2.1.0 -e --source winget
+      winget install --id Intel.OpenVINOToolkit.2026.2.0 --version 2026.2.0.0 -e --source winget
 
    For details, see the `Microsoft documentation for the WinGet install command <https://learn.microsoft.com/en-us/windows/package-manager/winget/install>`__.
 
@@ -86,7 +86,7 @@ For example, after the corresponding packages are published in WinGet, you can i
    winget install --id Intel.OpenVINOToolkit.2026.1.0 -e --source winget
    winget install --id Intel.OpenVINOToolkit.2026.0.0 -e --source winget
 
-The WinGet package version may include an additional revision number, for example ``2026.2.1.0``. Use ``--version`` if you need to select the exact WinGet package version.
+The WinGet package version may include an additional revision number, for example ``2026.2.0.0``. Use ``--version`` if you need to select the exact WinGet package version.
 
 Understanding WinGet package identifier and MSIX package name
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -94,7 +94,7 @@ Understanding WinGet package identifier and MSIX package name
 OpenVINO uses two different package names in the WinGet distribution flow:
 
 * ``Intel.OpenVINOToolkit.2026.2.0`` is the WinGet package identifier. Use this identifier with WinGet commands such as ``winget install``, ``winget list``, ``winget show``, and ``winget uninstall``.
-* ``IntelCorporation.OpenVINOToolkit.2026.2.1`` is the MSIX package name used by Windows after installation. Use this name with PowerShell commands such as ``Get-AppxPackage``.
+* ``IntelCorporation.OpenVINOToolkit.2026.2.0`` is the MSIX package name used by Windows after installation. Use this name with PowerShell commands such as ``Get-AppxPackage``.
 
 This difference is expected. WinGet resolves the package by the WinGet package identifier and installs the MSIX package registered in the manifest. After installation, Windows manages the package as an MSIX package under its MSIX package name.
 
@@ -124,7 +124,7 @@ The WinGet package is installed as an MSIX package, so Windows manages the insta
 
 .. code-block:: powershell
 
-   (Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.1").InstallLocation
+   (Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.0").InstallLocation
 
 For details, see the `Microsoft documentation for Get-AppxPackage <https://learn.microsoft.com/en-us/powershell/module/appx/get-appxpackage>`__.
 
@@ -134,7 +134,7 @@ For CMake-based C++ applications, you may set ``OpenVINO_DIR`` to the OpenVINO C
 
 .. code-block:: powershell
 
-   $openvinoPackage = Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.1"
+   $openvinoPackage = Get-AppxPackage -Name "IntelCorporation.OpenVINOToolkit.2026.2.0"
    $env:OpenVINO_DIR = Join-Path $openvinoPackage.InstallLocation "runtime\cmake"
 
 Then configure your application with CMake as usual.
