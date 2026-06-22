@@ -70,7 +70,8 @@ if (ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE OpenCL::OpenCL openvino::runtime::dev)
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -89,6 +90,12 @@ else()
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+if(GPU_RT_TYPE STREQUAL "SYCL")
+  # Some sources include oneDNN headers that require SYCL backend support.
+  # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
+  add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
+endif()
 
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD

@@ -8,7 +8,7 @@ from openvino.tools.ovc.logger import restore_logger_state
 import openvino._ov_api
 import pathlib as pathlib
 __all__: list[str] = ['Model', 'convert_model', 'get_all_cli_parser', 'get_logger_state', 'pathlib', 'restore_logger_state']
-def convert_model(input_model: [str, pathlib.Path, typing.Any, list], input: [list, dict, str] = None, output: [str, list] = None, example_input: typing.Any = None, extension: [str, pathlib.Path, list, typing.Any] = None, verbose: bool = False, share_weights: bool = True) -> openvino._ov_api.Model:
+def convert_model(input_model: [str, pathlib.Path, typing.Any, list], input: [list, dict, str] = None, output: [str, list] = None, example_input: typing.Any = None, extension: [str, pathlib.Path, list, typing.Any] = None, verbose: bool = False, share_weights: bool = True, dynamo: bool = False) -> openvino._ov_api.Model:
     """
     
         Converts the model from original framework to OpenVino Model.
@@ -83,6 +83,15 @@ def convert_model(input_model: [str, pathlib.Path, typing.Any, list], input: [li
                 then mmap is used to allocate weights directly from file. If input model is
                 runtime object, then original memory regions allocated in the original model
                 are reused for weights in the converted model.
+            :param dynamo:
+                Export a PyTorch torch.nn.Module using torch.export instead of
+                torch.jit.trace. Requires example_input and PyTorch >= 2.6.
+                Default is False.
+                The resulting model uses static shapes derived from example_input by default.
+                To enable dynamic dimensions, combine with the input parameter:
+                dimensions set to -1 or Dimension(-1) become fully dynamic
+                (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
+                are exported with explicit min/max constraints.
     
         Returns:
             openvino.Model

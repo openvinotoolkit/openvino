@@ -18,6 +18,7 @@
 #include "layout_optimizer.h"
 
 #include <cstddef>
+#include <algorithm>
 #include <vector>
 
 using namespace cldnn;
@@ -156,7 +157,7 @@ public:
         }
         auto outputs = network->execute();
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), out_data.size());
         const auto abs_error = type == data_types::f16 ? 0.1 : 0.0001;
@@ -301,7 +302,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -355,7 +356,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -758,7 +759,7 @@ public:
             ASSERT_TRUE(impl->is_dynamic());
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)3);
             for (uint32_t i = 0; i < out_data1.size(); ++i) {
@@ -775,7 +776,7 @@ public:
             ASSERT_EQ(outputs.begin()->first, "gemm");
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)3);
             for (uint32_t i = 0; i < out_data2.size(); ++i) {
@@ -847,7 +848,7 @@ public:
             ASSERT_TRUE(impl->is_dynamic());
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)3);
             for (uint32_t i = 0; i < out_data1.size(); ++i) {
@@ -864,7 +865,7 @@ public:
             ASSERT_EQ(outputs.begin()->first, "gemm");
 
             auto output_prim_mem = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             ASSERT_EQ(output_ptr.size(), (uint32_t)4);
             for (uint32_t i = 0; i < out_data2.size(); ++i) {
@@ -950,7 +951,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape = { BATCH_SIZE, 1, M_SIZE, K_SIZE };
         ov::Shape ref_input1_shape = { BATCH_SIZE, 1, K_SIZE, N_SIZE };
@@ -1091,7 +1092,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape;
         ov::Shape ref_input1_unsqueezed_shape;
@@ -1263,7 +1264,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape;
         ov::Shape ref_input1_shape;
@@ -1399,7 +1400,7 @@ public:
 
         auto outputs = network->execute();
         auto output_mem = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         // Compute CPU reference with double precision
         std::vector<double> ref_output(batch_size * m_size * n_size, 0.0);
@@ -1537,7 +1538,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         std::vector<float> ref_out_data;
         ref_out_data.resize(ov::shape_size(output_shape_default));
@@ -1586,6 +1587,74 @@ public:
         const auto abs_error = 0.0001;
         for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
             ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
+        }
+    }
+
+    void test_transpose_matmul_1d_weight(bool is_input_dynamic, size_t M) {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        auto& engine = get_test_engine();
+
+        const size_t K = 33;
+        ov::Shape in0_shape = {M, K};
+        ov::Shape in1_shape = {K};
+
+        auto in0_layout = is_input_dynamic
+            ? layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfyx}
+            : layout{ov::PartialShape(in0_shape), data_types::f32, format::bfyx};
+        auto in1_layout = is_input_dynamic
+            ? layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx}
+            : layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
+        auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(in0_shape), data_types::f32, format::bfyx});
+        auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+
+        auto input0_data = rg.generate_random_1d<float>(ov::shape_size(in0_shape), -2, 2);
+        auto input1_data = rg.generate_random_1d<float>(ov::shape_size(in1_shape), -2, 2);
+        set_values(input0_mem, input0_data);
+        set_values(input1_mem, input1_data);
+
+        topology topology;
+        topology.add(input_layout("input0", in0_layout),
+                     input_layout("input1", in1_layout),
+                     gemm("gemm", { input_info("input0"), input_info("input1") },
+                          data_types::f32, false, true, 1.0f, 0.0f, 2, 1)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
+
+        if (is_input_dynamic) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
+
+        auto outputs = network->execute();
+        auto output_mem = outputs.at("gemm").get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+
+        ov::Shape out_shape = {M};
+        std::vector<float> ref_out(M, 0.f);
+        ov::reference::matmul<float>(input0_data.data(),
+                                     input1_data.data(),
+                                     ref_out.data(),
+                                     in0_shape,
+                                     in1_shape,
+                                     out_shape,
+                                     false,
+                                     true);
+
+        ASSERT_EQ(output_ptr.size(), ref_out.size());
+        for (size_t i = 0; i < ref_out.size(); ++i) {
+            ASSERT_NEAR(output_ptr[i], ref_out[i], 0.001f) << "at " << i;
         }
     }
 
@@ -1653,7 +1722,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         std::vector<ov::float16> ref_out_data;
         ref_out_data.resize(ov::shape_size(output_shape_default));
@@ -1740,7 +1809,7 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
         std::vector<ov::float16> ref_out_data;
         ref_out_data.resize(ov::shape_size(output_shape));
@@ -1811,6 +1880,16 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f16) {
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f32) {
     this->test_transpose_matmul_f32(1, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_1d_weight_static) {
+    // 1D weight with transpose_input1=true
+    this->test_transpose_matmul_1d_weight(false, 1200);
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_1d_weight_dynamic) {
+    // Dynamic shape variant of 1D weight transpose test
+    this->test_transpose_matmul_1d_weight(true, 1200);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_2d_f16) {
@@ -2547,6 +2626,11 @@ struct gemm_base_test_params {
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_4 64, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
 1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
+// Reduced shape from real model MatMul_147904 (M=128, K=1025, N=199, f_num=32)
+// Key OOB conditions preserved: N%16=7, K%16=1; M and batch reduced to keep CPU ref cost low
+#define CASE_GEMM_FP32_TILED_NN_UNALIGNED_1 32, 199, 17, 1, 4, 1, 4, 1, 1, 1, 4, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
+
 #define CASE_GEMM_FP16_TILED_NN_1 64, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
 1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_2 128, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
@@ -2712,6 +2796,13 @@ public:
         topology.add(reorder("reorder_bfyx", input_info("gemm_bfyx"), format::bfyx, data_types::f32));
 
         ov::intel_gpu::ImplementationDesc gemm_impl = getImplementationDesc(p);
+
+        // gemm_mmad_int8_slm requires SIMD8 with no wider-SIMD fallback
+        const auto& supported_simd = engine.get_device_info().supported_simd_sizes;
+        if (p.kernel_name == "gemm_mmad_int8_slm" &&
+            std::none_of(supported_simd.begin(), supported_simd.end(), [](size_t s) { return s == 8; })) {
+            GTEST_SKIP() << p.kernel_name << " requires SIMD8 which is not supported on this platform";
+        }
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
@@ -3280,7 +3371,7 @@ public:
 
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
             ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }),
                                  ov::intel_gpu::optimize_data(true),
                                  ov::intel_gpu::allow_new_shape_infer(true) };
 
@@ -3662,6 +3753,13 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_broadcast_tests, ::testing
     gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
 
+class gemm_fp32_tiled_nn_unaligned_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+TEST_P(gemm_fp32_tiled_nn_unaligned_tests, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_unaligned_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_UNALIGNED_1, "gemm_tiled_opt" },
+}));
+
 class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
@@ -3749,6 +3847,7 @@ TEST_P(gemm_fp32_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p,
 TEST_P(gemm_fp32_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nn_unaligned_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }

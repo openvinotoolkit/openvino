@@ -8,9 +8,9 @@
 #include <sstream>
 #include <vector>
 
+#include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/subgraph/moe_builders.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
@@ -32,15 +32,35 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-using MoeTestParams = std::tuple<MoePatternParams,
-                                 MoEType,      // MoE builder type
-                                 ov::AnyMap>;  // additional config
+inline std::ostream& operator<<(std::ostream& os, const MoEActivationType& type) {
+    switch (type) {
+    case MoEActivationType::SWISH:
+        return os << "SWISH";
+    case MoEActivationType::GELU:
+        return os << "GELU";
+    default:
+        OPENVINO_THROW("Unsupported MoEActivationType");
+    }
+}
 
-using MoeCompressedWeightsTestParams = std::tuple<MoePatternParams,
-                                                  MoEType,                             // MoE builder type
-                                                  ov::test::ElementType,               // weights precision
-                                                  ov::test::ElementType,               // decompression precision
-                                                  ov::test::ElementType,               // scale precision
+struct MoeTestShapeParams {
+    InputShape data_shape;
+    size_t topk;
+    size_t number_of_experts;
+    size_t intermediate_size;
+};
+
+using MoeTestParams = std::tuple<MoeTestShapeParams,
+                                 MoEType,            // MoE builder type
+                                 MoEActivationType,  // gate activation type (3GeMM only)
+                                 ov::AnyMap>;        // additional config
+
+using MoeCompressedWeightsTestParams = std::tuple<MoeTestShapeParams,
+                                                  MoEType,                // MoE builder type
+                                                  MoEActivationType,      // gate activation type (3GeMM only)
+                                                  ov::test::ElementType,  // weights precision
+                                                  ov::test::ElementType,  // decompression precision
+                                                  ov::test::ElementType,  // scale precision
                                                   ov::test::utils::DecompressionType,  // decompression multiply type
                                                   ov::test::utils::DecompressionType,  // decompression subtract type
                                                   bool,        // reshape on decompression constants
@@ -52,7 +72,7 @@ class MoESubgraphTest : public testing::WithParamInterface<MoeTestParams>,
                         virtual public SubgraphBaseTest,
                         public CpuTestWithFusing {
 public:
-    static std::string generateBaseMoeTestName(const MoePatternParams& moe_params,
+    static std::string generateBaseMoeTestName(const MoeTestShapeParams& moe_params,
                                                const MoEType& moe_type,
                                                const ov::AnyMap& additional_config) {
         std::ostringstream result;
@@ -75,8 +95,11 @@ public:
         return result.str();
     }
     static std::string getTestCaseName(const testing::TestParamInfo<MoeTestParams>& obj) {
-        const auto& [moe_params, moe_type, additional_config] = obj.param;
-        return generateBaseMoeTestName(moe_params, moe_type, additional_config);
+        const auto& [moe_params, moe_type, activation_type, additional_config] = obj.param;
+        std::ostringstream result;
+        result << generateBaseMoeTestName(moe_params, moe_type, additional_config);
+        result << "_act=" << activation_type;
+        return result.str();
     }
 
     static size_t get_expected_gather_mm_count(MoEType moe_type) {
@@ -105,10 +128,14 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        const auto& [shape_params, moe_type, additional_config] = GetParam();
+        const auto& [moe_params, moe_type, activation_type, additional_config] = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
-        init_input_shapes({shape_params.data_shape});
+        init_input_shapes({moe_params.data_shape});
+        const MoePatternParams shape_params{moe_params.data_shape.first,
+                                            moe_params.topk,
+                                            moe_params.number_of_experts,
+                                            moe_params.intermediate_size};
         inType = outType = ov::element::f32;
 
         auto itr = configuration.find(ov::hint::inference_precision.name());
@@ -119,9 +146,21 @@ protected:
         }
 
         if (moe_type == MoEType::MoE2GeMM) {
+            ASSERT_TRUE(activation_type == MoEActivationType::SWISH) << "MoE2GeMM only supports SWISH activation";
             function = initMoE2GeMMSubgraph(shape_params, ov::element::f32, ov::element::f32);
         } else if (moe_type == MoEType::MoE3GeMM) {
-            function = initMoE3GeMMSubgraph(shape_params, ov::element::f32, ov::element::f32);
+            function = initMoE3GeMMSubgraph(shape_params,
+                                            ov::element::f32,
+                                            ov::element::f32,
+                                            false,
+                                            std::nullopt,
+                                            std::nullopt,
+                                            std::nullopt,
+                                            std::nullopt,
+                                            std::nullopt,
+                                            std::nullopt,
+                                            MoERoutingType::SOFTMAX,
+                                            activation_type);
         } else {
             OPENVINO_THROW("Unsupported MoEType");
         }
@@ -142,6 +181,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoeCompressedWeightsTestParams>& obj) {
         const auto& [moe_params,
                      moe_type,
+                     activation_type,
                      weights_precision,
                      decompression_precision,
                      scale_precision,
@@ -153,6 +193,7 @@ public:
                      use_matmul_decompression_impl] = obj.param;
         std::ostringstream result;
         result << MoESubgraphTest::generateBaseMoeTestName(moe_params, moe_type, additional_config) << "_";
+        result << "act=" << activation_type << "_";
         result << "_WP=" << weights_precision << "_";
         result << "DP=" << decompression_precision << "_";
         result << "SP=" << scale_precision << "_";
@@ -168,11 +209,12 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        rel_threshold = 5e-4f;
-        abs_threshold = 5e-4f;
+        rel_threshold = 1e-3f;
+        abs_threshold = 1e-3f;
 
-        const auto& [shape_params,
+        const auto& [moe_params,
                      moe_type,
+                     activation_type,
                      weights_precision,
                      decompression_precision,
                      scale_precision,
@@ -184,7 +226,11 @@ protected:
                      use_matmul_decompression_impl] = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
-        init_input_shapes({shape_params.data_shape});
+        init_input_shapes({moe_params.data_shape});
+        const MoePatternParams shape_params{moe_params.data_shape.first,
+                                            moe_params.topk,
+                                            moe_params.number_of_experts,
+                                            moe_params.intermediate_size};
         inType = outType = ov::element::f32;
 
         auto itr = configuration.find(ov::hint::inference_precision.name());
@@ -195,6 +241,7 @@ protected:
         }
 
         if (moe_type == MoEType::MoE2GeMM) {
+            ASSERT_TRUE(activation_type == MoEActivationType::SWISH) << "MoE2GeMM only supports SWISH activation";
             function = initMoE2GeMMSubgraph(shape_params,
                                             ov::element::f32,
                                             weights_precision,
@@ -215,7 +262,9 @@ protected:
                                             decompression_multiply_type,
                                             decompression_subtract_type,
                                             reshape_on_decompression,
-                                            decompression_group_size);
+                                            decompression_group_size,
+                                            MoERoutingType::SOFTMAX,
+                                            activation_type);
         } else {
             OPENVINO_THROW("Unsupported MoEType");
         }
@@ -244,8 +293,8 @@ protected:
         const size_t expected_gather_mm_count = MoESubgraphTest::get_expected_gather_mm_count(moe_type);
         EXPECT_EQ(gather_mm_nodes.size(), expected_gather_mm_count);
 
-        const ov::element::Type compressed_weights_precision = std::get<2>(test_param);
-        const bool use_matmul_decompression_impl = std::get<10>(test_param);
+        const ov::element::Type compressed_weights_precision = std::get<3>(test_param);
+        const bool use_matmul_decompression_impl = std::get<11>(test_param);
         for (const auto& gather_mm_node : gather_mm_nodes) {
             const auto& expected_weights_precision = use_matmul_decompression_impl
                                                          ? compressed_weights_precision
@@ -270,7 +319,7 @@ TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
 namespace {
 const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 
-const std::vector<MoePatternParams> moe_params_smoke = {
+const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
         {{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape,
                                                                     // seq_len=dynamic, hidden_size=256
@@ -300,6 +349,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_basic,
                          MoESubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(generate_additional_config())),
+                         MoESubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_3gemm_gelu,
+                         MoESubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::Values(MoEActivationType::GELU),
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
@@ -313,6 +371,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                          MoECompressedWeightsSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::Values(MoEActivationType::GELU),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f32),

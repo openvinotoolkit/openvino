@@ -33,6 +33,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -172,16 +173,11 @@ inline std::string value2str(const T& value) {
 
 template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 std::string vector2str(const std::vector<T>& values) {
-    std::ostringstream str;
-    bool first = true;
-    for (auto& v : values) {
-        if (!first) {
-            str << ",";
-        }
-        str << value2str(v);
-        first = false;
-    }
-    return str.str();
+    std::vector<std::string> string_values(values.size());
+    std::transform(values.cbegin(), values.cend(), string_values.begin(), [](const auto& v) {
+        return value2str(v);
+    });
+    return ov::util::join(string_values, ",");
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);

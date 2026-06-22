@@ -8,7 +8,11 @@
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -21,7 +25,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -83,13 +87,13 @@ class Command {
     }
 }
 function escapeData(s) {
-    return utils_1.toCommandValue(s)
+    return (0, utils_1.toCommandValue)(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A');
 }
 function escapeProperty(s) {
-    return utils_1.toCommandValue(s)
+    return (0, utils_1.toCommandValue)(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A')
@@ -107,7 +111,11 @@ function escapeProperty(s) {
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -120,7 +128,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -134,7 +142,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getIDToken = exports.getState = exports.saveState = exports.group = exports.endGroup = exports.startGroup = exports.info = exports.notice = exports.warning = exports.error = exports.debug = exports.isDebug = exports.setFailed = exports.setCommandEcho = exports.setOutput = exports.getBooleanInput = exports.getMultilineInput = exports.getInput = exports.addPath = exports.setSecret = exports.exportVariable = exports.ExitCode = void 0;
+exports.platform = exports.toPlatformPath = exports.toWin32Path = exports.toPosixPath = exports.markdownSummary = exports.summary = exports.getIDToken = exports.getState = exports.saveState = exports.group = exports.endGroup = exports.startGroup = exports.info = exports.notice = exports.warning = exports.error = exports.debug = exports.isDebug = exports.setFailed = exports.setCommandEcho = exports.setOutput = exports.getBooleanInput = exports.getMultilineInput = exports.getInput = exports.addPath = exports.setSecret = exports.exportVariable = exports.ExitCode = void 0;
 const command_1 = __nccwpck_require__(4914);
 const file_command_1 = __nccwpck_require__(4753);
 const utils_1 = __nccwpck_require__(302);
@@ -154,7 +162,7 @@ var ExitCode;
      * A code indicating that the action was a failure
      */
     ExitCode[ExitCode["Failure"] = 1] = "Failure";
-})(ExitCode = exports.ExitCode || (exports.ExitCode = {}));
+})(ExitCode || (exports.ExitCode = ExitCode = {}));
 //-----------------------------------------------------------------------
 // Variables
 //-----------------------------------------------------------------------
@@ -165,13 +173,13 @@ var ExitCode;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function exportVariable(name, val) {
-    const convertedVal = utils_1.toCommandValue(val);
+    const convertedVal = (0, utils_1.toCommandValue)(val);
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        return file_command_1.issueFileCommand('ENV', file_command_1.prepareKeyValueMessage(name, val));
+        return (0, file_command_1.issueFileCommand)('ENV', (0, file_command_1.prepareKeyValueMessage)(name, val));
     }
-    command_1.issueCommand('set-env', { name }, convertedVal);
+    (0, command_1.issueCommand)('set-env', { name }, convertedVal);
 }
 exports.exportVariable = exportVariable;
 /**
@@ -179,7 +187,7 @@ exports.exportVariable = exportVariable;
  * @param secret value of the secret
  */
 function setSecret(secret) {
-    command_1.issueCommand('add-mask', {}, secret);
+    (0, command_1.issueCommand)('add-mask', {}, secret);
 }
 exports.setSecret = setSecret;
 /**
@@ -189,10 +197,10 @@ exports.setSecret = setSecret;
 function addPath(inputPath) {
     const filePath = process.env['GITHUB_PATH'] || '';
     if (filePath) {
-        file_command_1.issueFileCommand('PATH', inputPath);
+        (0, file_command_1.issueFileCommand)('PATH', inputPath);
     }
     else {
-        command_1.issueCommand('add-path', {}, inputPath);
+        (0, command_1.issueCommand)('add-path', {}, inputPath);
     }
     process.env['PATH'] = `${inputPath}${path.delimiter}${process.env['PATH']}`;
 }
@@ -267,10 +275,10 @@ exports.getBooleanInput = getBooleanInput;
 function setOutput(name, value) {
     const filePath = process.env['GITHUB_OUTPUT'] || '';
     if (filePath) {
-        return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
+        return (0, file_command_1.issueFileCommand)('OUTPUT', (0, file_command_1.prepareKeyValueMessage)(name, value));
     }
     process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
+    (0, command_1.issueCommand)('set-output', { name }, (0, utils_1.toCommandValue)(value));
 }
 exports.setOutput = setOutput;
 /**
@@ -279,7 +287,7 @@ exports.setOutput = setOutput;
  *
  */
 function setCommandEcho(enabled) {
-    command_1.issue('echo', enabled ? 'on' : 'off');
+    (0, command_1.issue)('echo', enabled ? 'on' : 'off');
 }
 exports.setCommandEcho = setCommandEcho;
 //-----------------------------------------------------------------------
@@ -310,7 +318,7 @@ exports.isDebug = isDebug;
  * @param message debug message
  */
 function debug(message) {
-    command_1.issueCommand('debug', {}, message);
+    (0, command_1.issueCommand)('debug', {}, message);
 }
 exports.debug = debug;
 /**
@@ -319,7 +327,7 @@ exports.debug = debug;
  * @param properties optional properties to add to the annotation.
  */
 function error(message, properties = {}) {
-    command_1.issueCommand('error', utils_1.toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    (0, command_1.issueCommand)('error', (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
 }
 exports.error = error;
 /**
@@ -328,7 +336,7 @@ exports.error = error;
  * @param properties optional properties to add to the annotation.
  */
 function warning(message, properties = {}) {
-    command_1.issueCommand('warning', utils_1.toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    (0, command_1.issueCommand)('warning', (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
 }
 exports.warning = warning;
 /**
@@ -337,7 +345,7 @@ exports.warning = warning;
  * @param properties optional properties to add to the annotation.
  */
 function notice(message, properties = {}) {
-    command_1.issueCommand('notice', utils_1.toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    (0, command_1.issueCommand)('notice', (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
 }
 exports.notice = notice;
 /**
@@ -356,14 +364,14 @@ exports.info = info;
  * @param name The name of the output group
  */
 function startGroup(name) {
-    command_1.issue('group', name);
+    (0, command_1.issue)('group', name);
 }
 exports.startGroup = startGroup;
 /**
  * End an output group.
  */
 function endGroup() {
-    command_1.issue('endgroup');
+    (0, command_1.issue)('endgroup');
 }
 exports.endGroup = endGroup;
 /**
@@ -401,9 +409,9 @@ exports.group = group;
 function saveState(name, value) {
     const filePath = process.env['GITHUB_STATE'] || '';
     if (filePath) {
-        return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
+        return (0, file_command_1.issueFileCommand)('STATE', (0, file_command_1.prepareKeyValueMessage)(name, value));
     }
-    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
+    (0, command_1.issueCommand)('save-state', { name }, (0, utils_1.toCommandValue)(value));
 }
 exports.saveState = saveState;
 /**
@@ -439,6 +447,10 @@ var path_utils_1 = __nccwpck_require__(1976);
 Object.defineProperty(exports, "toPosixPath", ({ enumerable: true, get: function () { return path_utils_1.toPosixPath; } }));
 Object.defineProperty(exports, "toWin32Path", ({ enumerable: true, get: function () { return path_utils_1.toWin32Path; } }));
 Object.defineProperty(exports, "toPlatformPath", ({ enumerable: true, get: function () { return path_utils_1.toPlatformPath; } }));
+/**
+ * Platform utilities exports
+ */
+exports.platform = __importStar(__nccwpck_require__(8968));
 //# sourceMappingURL=core.js.map
 
 /***/ }),
@@ -451,7 +463,11 @@ Object.defineProperty(exports, "toPlatformPath", ({ enumerable: true, get: funct
 // For internal use, subject to change.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -464,7 +480,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -472,9 +488,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
+const crypto = __importStar(__nccwpck_require__(6982));
 const fs = __importStar(__nccwpck_require__(9896));
 const os = __importStar(__nccwpck_require__(857));
-const uuid_1 = __nccwpck_require__(2048);
 const utils_1 = __nccwpck_require__(302);
 function issueFileCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
@@ -484,14 +500,14 @@ function issueFileCommand(command, message) {
     if (!fs.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
     }
-    fs.appendFileSync(filePath, `${utils_1.toCommandValue(message)}${os.EOL}`, {
+    fs.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: 'utf8'
     });
 }
 exports.issueFileCommand = issueFileCommand;
 function prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${uuid_1.v4()}`;
-    const convertedValue = utils_1.toCommandValue(value);
+    const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
+    const convertedValue = (0, utils_1.toCommandValue)(value);
     // These should realistically never happen, but just in case someone finds a
     // way to exploit uuid generation let's not allow keys or values that contain
     // the delimiter.
@@ -576,9 +592,9 @@ class OidcClient {
                     const encodedAudience = encodeURIComponent(audience);
                     id_token_url = `${id_token_url}&audience=${encodedAudience}`;
                 }
-                core_1.debug(`ID token url is ${id_token_url}`);
+                (0, core_1.debug)(`ID token url is ${id_token_url}`);
                 const id_token = yield OidcClient.getCall(id_token_url);
-                core_1.setSecret(id_token);
+                (0, core_1.setSecret)(id_token);
                 return id_token;
             }
             catch (error) {
@@ -599,7 +615,11 @@ exports.OidcClient = OidcClient;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -612,7 +632,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -654,6 +674,107 @@ function toPlatformPath(pth) {
 }
 exports.toPlatformPath = toPlatformPath;
 //# sourceMappingURL=path-utils.js.map
+
+/***/ }),
+
+/***/ 8968:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getDetails = exports.isLinux = exports.isMacOS = exports.isWindows = exports.arch = exports.platform = void 0;
+const os_1 = __importDefault(__nccwpck_require__(857));
+const exec = __importStar(__nccwpck_require__(5236));
+const getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
+    const { stdout: version } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', undefined, {
+        silent: true
+    });
+    const { stdout: name } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', undefined, {
+        silent: true
+    });
+    return {
+        name: name.trim(),
+        version: version.trim()
+    };
+});
+const getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d;
+    const { stdout } = yield exec.getExecOutput('sw_vers', undefined, {
+        silent: true
+    });
+    const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : '';
+    const name = (_d = (_c = stdout.match(/ProductName:\s*(.+)/)) === null || _c === void 0 ? void 0 : _c[1]) !== null && _d !== void 0 ? _d : '';
+    return {
+        name,
+        version
+    };
+});
+const getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
+    const { stdout } = yield exec.getExecOutput('lsb_release', ['-i', '-r', '-s'], {
+        silent: true
+    });
+    const [name, version] = stdout.trim().split('\n');
+    return {
+        name,
+        version
+    };
+});
+exports.platform = os_1.default.platform();
+exports.arch = os_1.default.arch();
+exports.isWindows = exports.platform === 'win32';
+exports.isMacOS = exports.platform === 'darwin';
+exports.isLinux = exports.platform === 'linux';
+function getDetails() {
+    return __awaiter(this, void 0, void 0, function* () {
+        return Object.assign(Object.assign({}, (yield (exports.isWindows
+            ? getWindowsInfo()
+            : exports.isMacOS
+                ? getMacOsInfo()
+                : getLinuxInfo()))), { platform: exports.platform,
+            arch: exports.arch,
+            isWindows: exports.isWindows,
+            isMacOS: exports.isMacOS,
+            isLinux: exports.isLinux });
+    });
+}
+exports.getDetails = getDetails;
+//# sourceMappingURL=platform.js.map
 
 /***/ }),
 
@@ -991,6 +1112,741 @@ function toCommandProperties(annotationProperties) {
 }
 exports.toCommandProperties = toCommandProperties;
 //# sourceMappingURL=utils.js.map
+
+/***/ }),
+
+/***/ 5236:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getExecOutput = exports.exec = void 0;
+const string_decoder_1 = __nccwpck_require__(3193);
+const tr = __importStar(__nccwpck_require__(6665));
+/**
+ * Exec a command.
+ * Output will be streamed to the live console.
+ * Returns promise with return code
+ *
+ * @param     commandLine        command to execute (can include additional args). Must be correctly escaped.
+ * @param     args               optional arguments for tool. Escaping is handled by the lib.
+ * @param     options            optional exec options.  See ExecOptions
+ * @returns   Promise<number>    exit code
+ */
+function exec(commandLine, args, options) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const commandArgs = tr.argStringToArray(commandLine);
+        if (commandArgs.length === 0) {
+            throw new Error(`Parameter 'commandLine' cannot be null or empty.`);
+        }
+        // Path to tool to execute should be first arg
+        const toolPath = commandArgs[0];
+        args = commandArgs.slice(1).concat(args || []);
+        const runner = new tr.ToolRunner(toolPath, args, options);
+        return runner.exec();
+    });
+}
+exports.exec = exec;
+/**
+ * Exec a command and get the output.
+ * Output will be streamed to the live console.
+ * Returns promise with the exit code and collected stdout and stderr
+ *
+ * @param     commandLine           command to execute (can include additional args). Must be correctly escaped.
+ * @param     args                  optional arguments for tool. Escaping is handled by the lib.
+ * @param     options               optional exec options.  See ExecOptions
+ * @returns   Promise<ExecOutput>   exit code, stdout, and stderr
+ */
+function getExecOutput(commandLine, args, options) {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function* () {
+        let stdout = '';
+        let stderr = '';
+        //Using string decoder covers the case where a mult-byte character is split
+        const stdoutDecoder = new string_decoder_1.StringDecoder('utf8');
+        const stderrDecoder = new string_decoder_1.StringDecoder('utf8');
+        const originalStdoutListener = (_a = options === null || options === void 0 ? void 0 : options.listeners) === null || _a === void 0 ? void 0 : _a.stdout;
+        const originalStdErrListener = (_b = options === null || options === void 0 ? void 0 : options.listeners) === null || _b === void 0 ? void 0 : _b.stderr;
+        const stdErrListener = (data) => {
+            stderr += stderrDecoder.write(data);
+            if (originalStdErrListener) {
+                originalStdErrListener(data);
+            }
+        };
+        const stdOutListener = (data) => {
+            stdout += stdoutDecoder.write(data);
+            if (originalStdoutListener) {
+                originalStdoutListener(data);
+            }
+        };
+        const listeners = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.listeners), { stdout: stdOutListener, stderr: stdErrListener });
+        const exitCode = yield exec(commandLine, args, Object.assign(Object.assign({}, options), { listeners }));
+        //flush any remaining characters
+        stdout += stdoutDecoder.end();
+        stderr += stderrDecoder.end();
+        return {
+            exitCode,
+            stdout,
+            stderr
+        };
+    });
+}
+exports.getExecOutput = getExecOutput;
+//# sourceMappingURL=exec.js.map
+
+/***/ }),
+
+/***/ 6665:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.argStringToArray = exports.ToolRunner = void 0;
+const os = __importStar(__nccwpck_require__(857));
+const events = __importStar(__nccwpck_require__(4434));
+const child = __importStar(__nccwpck_require__(5317));
+const path = __importStar(__nccwpck_require__(6928));
+const io = __importStar(__nccwpck_require__(4994));
+const ioUtil = __importStar(__nccwpck_require__(5207));
+const timers_1 = __nccwpck_require__(3557);
+/* eslint-disable @typescript-eslint/unbound-method */
+const IS_WINDOWS = process.platform === 'win32';
+/*
+ * Class for running command line tools. Handles quoting and arg parsing in a platform agnostic way.
+ */
+class ToolRunner extends events.EventEmitter {
+    constructor(toolPath, args, options) {
+        super();
+        if (!toolPath) {
+            throw new Error("Parameter 'toolPath' cannot be null or empty.");
+        }
+        this.toolPath = toolPath;
+        this.args = args || [];
+        this.options = options || {};
+    }
+    _debug(message) {
+        if (this.options.listeners && this.options.listeners.debug) {
+            this.options.listeners.debug(message);
+        }
+    }
+    _getCommandString(options, noPrefix) {
+        const toolPath = this._getSpawnFileName();
+        const args = this._getSpawnArgs(options);
+        let cmd = noPrefix ? '' : '[command]'; // omit prefix when piped to a second tool
+        if (IS_WINDOWS) {
+            // Windows + cmd file
+            if (this._isCmdFile()) {
+                cmd += toolPath;
+                for (const a of args) {
+                    cmd += ` ${a}`;
+                }
+            }
+            // Windows + verbatim
+            else if (options.windowsVerbatimArguments) {
+                cmd += `"${toolPath}"`;
+                for (const a of args) {
+                    cmd += ` ${a}`;
+                }
+            }
+            // Windows (regular)
+            else {
+                cmd += this._windowsQuoteCmdArg(toolPath);
+                for (const a of args) {
+                    cmd += ` ${this._windowsQuoteCmdArg(a)}`;
+                }
+            }
+        }
+        else {
+            // OSX/Linux - this can likely be improved with some form of quoting.
+            // creating processes on Unix is fundamentally different than Windows.
+            // on Unix, execvp() takes an arg array.
+            cmd += toolPath;
+            for (const a of args) {
+                cmd += ` ${a}`;
+            }
+        }
+        return cmd;
+    }
+    _processLineBuffer(data, strBuffer, onLine) {
+        try {
+            let s = strBuffer + data.toString();
+            let n = s.indexOf(os.EOL);
+            while (n > -1) {
+                const line = s.substring(0, n);
+                onLine(line);
+                // the rest of the string ...
+                s = s.substring(n + os.EOL.length);
+                n = s.indexOf(os.EOL);
+            }
+            return s;
+        }
+        catch (err) {
+            // streaming lines to console is best effort.  Don't fail a build.
+            this._debug(`error processing line. Failed with error ${err}`);
+            return '';
+        }
+    }
+    _getSpawnFileName() {
+        if (IS_WINDOWS) {
+            if (this._isCmdFile()) {
+                return process.env['COMSPEC'] || 'cmd.exe';
+            }
+        }
+        return this.toolPath;
+    }
+    _getSpawnArgs(options) {
+        if (IS_WINDOWS) {
+            if (this._isCmdFile()) {
+                let argline = `/D /S /C "${this._windowsQuoteCmdArg(this.toolPath)}`;
+                for (const a of this.args) {
+                    argline += ' ';
+                    argline += options.windowsVerbatimArguments
+                        ? a
+                        : this._windowsQuoteCmdArg(a);
+                }
+                argline += '"';
+                return [argline];
+            }
+        }
+        return this.args;
+    }
+    _endsWith(str, end) {
+        return str.endsWith(end);
+    }
+    _isCmdFile() {
+        const upperToolPath = this.toolPath.toUpperCase();
+        return (this._endsWith(upperToolPath, '.CMD') ||
+            this._endsWith(upperToolPath, '.BAT'));
+    }
+    _windowsQuoteCmdArg(arg) {
+        // for .exe, apply the normal quoting rules that libuv applies
+        if (!this._isCmdFile()) {
+            return this._uvQuoteCmdArg(arg);
+        }
+        // otherwise apply quoting rules specific to the cmd.exe command line parser.
+        // the libuv rules are generic and are not designed specifically for cmd.exe
+        // command line parser.
+        //
+        // for a detailed description of the cmd.exe command line parser, refer to
+        // http://stackoverflow.com/questions/4094699/how-does-the-windows-command-interpreter-cmd-exe-parse-scripts/7970912#7970912
+        // need quotes for empty arg
+        if (!arg) {
+            return '""';
+        }
+        // determine whether the arg needs to be quoted
+        const cmdSpecialChars = [
+            ' ',
+            '\t',
+            '&',
+            '(',
+            ')',
+            '[',
+            ']',
+            '{',
+            '}',
+            '^',
+            '=',
+            ';',
+            '!',
+            "'",
+            '+',
+            ',',
+            '`',
+            '~',
+            '|',
+            '<',
+            '>',
+            '"'
+        ];
+        let needsQuotes = false;
+        for (const char of arg) {
+            if (cmdSpecialChars.some(x => x === char)) {
+                needsQuotes = true;
+                break;
+            }
+        }
+        // short-circuit if quotes not needed
+        if (!needsQuotes) {
+            return arg;
+        }
+        // the following quoting rules are very similar to the rules that by libuv applies.
+        //
+        // 1) wrap the string in quotes
+        //
+        // 2) double-up quotes - i.e. " => ""
+        //
+        //    this is different from the libuv quoting rules. libuv replaces " with \", which unfortunately
+        //    doesn't work well with a cmd.exe command line.
+        //
+        //    note, replacing " with "" also works well if the arg is passed to a downstream .NET console app.
+        //    for example, the command line:
+        //          foo.exe "myarg:""my val"""
+        //    is parsed by a .NET console app into an arg array:
+        //          [ "myarg:\"my val\"" ]
+        //    which is the same end result when applying libuv quoting rules. although the actual
+        //    command line from libuv quoting rules would look like:
+        //          foo.exe "myarg:\"my val\""
+        //
+        // 3) double-up slashes that precede a quote,
+        //    e.g.  hello \world    => "hello \world"
+        //          hello\"world    => "hello\\""world"
+        //          hello\\"world   => "hello\\\\""world"
+        //          hello world\    => "hello world\\"
+        //
+        //    technically this is not required for a cmd.exe command line, or the batch argument parser.
+        //    the reasons for including this as a .cmd quoting rule are:
+        //
+        //    a) this is optimized for the scenario where the argument is passed from the .cmd file to an
+        //       external program. many programs (e.g. .NET console apps) rely on the slash-doubling rule.
+        //
+        //    b) it's what we've been doing previously (by deferring to node default behavior) and we
+        //       haven't heard any complaints about that aspect.
+        //
+        // note, a weakness of the quoting rules chosen here, is that % is not escaped. in fact, % cannot be
+        // escaped when used on the command line directly - even though within a .cmd file % can be escaped
+        // by using %%.
+        //
+        // the saving grace is, on the command line, %var% is left as-is if var is not defined. this contrasts
+        // the line parsing rules within a .cmd file, where if var is not defined it is replaced with nothing.
+        //
+        // one option that was explored was replacing % with ^% - i.e. %var% => ^%var^%. this hack would
+        // often work, since it is unlikely that var^ would exist, and the ^ character is removed when the
+        // variable is used. the problem, however, is that ^ is not removed when %* is used to pass the args
+        // to an external program.
+        //
+        // an unexplored potential solution for the % escaping problem, is to create a wrapper .cmd file.
+        // % can be escaped within a .cmd file.
+        let reverse = '"';
+        let quoteHit = true;
+        for (let i = arg.length; i > 0; i--) {
+            // walk the string in reverse
+            reverse += arg[i - 1];
+            if (quoteHit && arg[i - 1] === '\\') {
+                reverse += '\\'; // double the slash
+            }
+            else if (arg[i - 1] === '"') {
+                quoteHit = true;
+                reverse += '"'; // double the quote
+            }
+            else {
+                quoteHit = false;
+            }
+        }
+        reverse += '"';
+        return reverse
+            .split('')
+            .reverse()
+            .join('');
+    }
+    _uvQuoteCmdArg(arg) {
+        // Tool runner wraps child_process.spawn() and needs to apply the same quoting as
+        // Node in certain cases where the undocumented spawn option windowsVerbatimArguments
+        // is used.
+        //
+        // Since this function is a port of quote_cmd_arg from Node 4.x (technically, lib UV,
+        // see https://github.com/nodejs/node/blob/v4.x/deps/uv/src/win/process.c for details),
+        // pasting copyright notice from Node within this function:
+        //
+        //      Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+        //
+        //      Permission is hereby granted, free of charge, to any person obtaining a copy
+        //      of this software and associated documentation files (the "Software"), to
+        //      deal in the Software without restriction, including without limitation the
+        //      rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+        //      sell copies of the Software, and to permit persons to whom the Software is
+        //      furnished to do so, subject to the following conditions:
+        //
+        //      The above copyright notice and this permission notice shall be included in
+        //      all copies or substantial portions of the Software.
+        //
+        //      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        //      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        //      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        //      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        //      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+        //      FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+        //      IN THE SOFTWARE.
+        if (!arg) {
+            // Need double quotation for empty argument
+            return '""';
+        }
+        if (!arg.includes(' ') && !arg.includes('\t') && !arg.includes('"')) {
+            // No quotation needed
+            return arg;
+        }
+        if (!arg.includes('"') && !arg.includes('\\')) {
+            // No embedded double quotes or backslashes, so I can just wrap
+            // quote marks around the whole thing.
+            return `"${arg}"`;
+        }
+        // Expected input/output:
+        //   input : hello"world
+        //   output: "hello\"world"
+        //   input : hello""world
+        //   output: "hello\"\"world"
+        //   input : hello\world
+        //   output: hello\world
+        //   input : hello\\world
+        //   output: hello\\world
+        //   input : hello\"world
+        //   output: "hello\\\"world"
+        //   input : hello\\"world
+        //   output: "hello\\\\\"world"
+        //   input : hello world\
+        //   output: "hello world\\" - note the comment in libuv actually reads "hello world\"
+        //                             but it appears the comment is wrong, it should be "hello world\\"
+        let reverse = '"';
+        let quoteHit = true;
+        for (let i = arg.length; i > 0; i--) {
+            // walk the string in reverse
+            reverse += arg[i - 1];
+            if (quoteHit && arg[i - 1] === '\\') {
+                reverse += '\\';
+            }
+            else if (arg[i - 1] === '"') {
+                quoteHit = true;
+                reverse += '\\';
+            }
+            else {
+                quoteHit = false;
+            }
+        }
+        reverse += '"';
+        return reverse
+            .split('')
+            .reverse()
+            .join('');
+    }
+    _cloneExecOptions(options) {
+        options = options || {};
+        const result = {
+            cwd: options.cwd || process.cwd(),
+            env: options.env || process.env,
+            silent: options.silent || false,
+            windowsVerbatimArguments: options.windowsVerbatimArguments || false,
+            failOnStdErr: options.failOnStdErr || false,
+            ignoreReturnCode: options.ignoreReturnCode || false,
+            delay: options.delay || 10000
+        };
+        result.outStream = options.outStream || process.stdout;
+        result.errStream = options.errStream || process.stderr;
+        return result;
+    }
+    _getSpawnOptions(options, toolPath) {
+        options = options || {};
+        const result = {};
+        result.cwd = options.cwd;
+        result.env = options.env;
+        result['windowsVerbatimArguments'] =
+            options.windowsVerbatimArguments || this._isCmdFile();
+        if (options.windowsVerbatimArguments) {
+            result.argv0 = `"${toolPath}"`;
+        }
+        return result;
+    }
+    /**
+     * Exec a tool.
+     * Output will be streamed to the live console.
+     * Returns promise with return code
+     *
+     * @param     tool     path to tool to exec
+     * @param     options  optional exec options.  See ExecOptions
+     * @returns   number
+     */
+    exec() {
+        return __awaiter(this, void 0, void 0, function* () {
+            // root the tool path if it is unrooted and contains relative pathing
+            if (!ioUtil.isRooted(this.toolPath) &&
+                (this.toolPath.includes('/') ||
+                    (IS_WINDOWS && this.toolPath.includes('\\')))) {
+                // prefer options.cwd if it is specified, however options.cwd may also need to be rooted
+                this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            }
+            // if the tool is only a file name, then resolve it from the PATH
+            // otherwise verify it exists (add extension on Windows if necessary)
+            this.toolPath = yield io.which(this.toolPath, true);
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                this._debug(`exec tool: ${this.toolPath}`);
+                this._debug('arguments:');
+                for (const arg of this.args) {
+                    this._debug(`   ${arg}`);
+                }
+                const optionsNonNull = this._cloneExecOptions(this.options);
+                if (!optionsNonNull.silent && optionsNonNull.outStream) {
+                    optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os.EOL);
+                }
+                const state = new ExecState(optionsNonNull, this.toolPath);
+                state.on('debug', (message) => {
+                    this._debug(message);
+                });
+                if (this.options.cwd && !(yield ioUtil.exists(this.options.cwd))) {
+                    return reject(new Error(`The cwd: ${this.options.cwd} does not exist!`));
+                }
+                const fileName = this._getSpawnFileName();
+                const cp = child.spawn(fileName, this._getSpawnArgs(optionsNonNull), this._getSpawnOptions(this.options, fileName));
+                let stdbuffer = '';
+                if (cp.stdout) {
+                    cp.stdout.on('data', (data) => {
+                        if (this.options.listeners && this.options.listeners.stdout) {
+                            this.options.listeners.stdout(data);
+                        }
+                        if (!optionsNonNull.silent && optionsNonNull.outStream) {
+                            optionsNonNull.outStream.write(data);
+                        }
+                        stdbuffer = this._processLineBuffer(data, stdbuffer, (line) => {
+                            if (this.options.listeners && this.options.listeners.stdline) {
+                                this.options.listeners.stdline(line);
+                            }
+                        });
+                    });
+                }
+                let errbuffer = '';
+                if (cp.stderr) {
+                    cp.stderr.on('data', (data) => {
+                        state.processStderr = true;
+                        if (this.options.listeners && this.options.listeners.stderr) {
+                            this.options.listeners.stderr(data);
+                        }
+                        if (!optionsNonNull.silent &&
+                            optionsNonNull.errStream &&
+                            optionsNonNull.outStream) {
+                            const s = optionsNonNull.failOnStdErr
+                                ? optionsNonNull.errStream
+                                : optionsNonNull.outStream;
+                            s.write(data);
+                        }
+                        errbuffer = this._processLineBuffer(data, errbuffer, (line) => {
+                            if (this.options.listeners && this.options.listeners.errline) {
+                                this.options.listeners.errline(line);
+                            }
+                        });
+                    });
+                }
+                cp.on('error', (err) => {
+                    state.processError = err.message;
+                    state.processExited = true;
+                    state.processClosed = true;
+                    state.CheckComplete();
+                });
+                cp.on('exit', (code) => {
+                    state.processExitCode = code;
+                    state.processExited = true;
+                    this._debug(`Exit code ${code} received from tool '${this.toolPath}'`);
+                    state.CheckComplete();
+                });
+                cp.on('close', (code) => {
+                    state.processExitCode = code;
+                    state.processExited = true;
+                    state.processClosed = true;
+                    this._debug(`STDIO streams have closed for tool '${this.toolPath}'`);
+                    state.CheckComplete();
+                });
+                state.on('done', (error, exitCode) => {
+                    if (stdbuffer.length > 0) {
+                        this.emit('stdline', stdbuffer);
+                    }
+                    if (errbuffer.length > 0) {
+                        this.emit('errline', errbuffer);
+                    }
+                    cp.removeAllListeners();
+                    if (error) {
+                        reject(error);
+                    }
+                    else {
+                        resolve(exitCode);
+                    }
+                });
+                if (this.options.input) {
+                    if (!cp.stdin) {
+                        throw new Error('child process missing stdin');
+                    }
+                    cp.stdin.end(this.options.input);
+                }
+            }));
+        });
+    }
+}
+exports.ToolRunner = ToolRunner;
+/**
+ * Convert an arg string to an array of args. Handles escaping
+ *
+ * @param    argString   string of arguments
+ * @returns  string[]    array of arguments
+ */
+function argStringToArray(argString) {
+    const args = [];
+    let inQuotes = false;
+    let escaped = false;
+    let arg = '';
+    function append(c) {
+        // we only escape double quotes.
+        if (escaped && c !== '"') {
+            arg += '\\';
+        }
+        arg += c;
+        escaped = false;
+    }
+    for (let i = 0; i < argString.length; i++) {
+        const c = argString.charAt(i);
+        if (c === '"') {
+            if (!escaped) {
+                inQuotes = !inQuotes;
+            }
+            else {
+                append(c);
+            }
+            continue;
+        }
+        if (c === '\\' && escaped) {
+            append(c);
+            continue;
+        }
+        if (c === '\\' && inQuotes) {
+            escaped = true;
+            continue;
+        }
+        if (c === ' ' && !inQuotes) {
+            if (arg.length > 0) {
+                args.push(arg);
+                arg = '';
+            }
+            continue;
+        }
+        append(c);
+    }
+    if (arg.length > 0) {
+        args.push(arg.trim());
+    }
+    return args;
+}
+exports.argStringToArray = argStringToArray;
+class ExecState extends events.EventEmitter {
+    constructor(options, toolPath) {
+        super();
+        this.processClosed = false; // tracks whether the process has exited and stdio is closed
+        this.processError = '';
+        this.processExitCode = 0;
+        this.processExited = false; // tracks whether the process has exited
+        this.processStderr = false; // tracks whether stderr was written to
+        this.delay = 10000; // 10 seconds
+        this.done = false;
+        this.timeout = null;
+        if (!toolPath) {
+            throw new Error('toolPath must not be empty');
+        }
+        this.options = options;
+        this.toolPath = toolPath;
+        if (options.delay) {
+            this.delay = options.delay;
+        }
+    }
+    CheckComplete() {
+        if (this.done) {
+            return;
+        }
+        if (this.processClosed) {
+            this._setResult();
+        }
+        else if (this.processExited) {
+            this.timeout = timers_1.setTimeout(ExecState.HandleTimeout, this.delay, this);
+        }
+    }
+    _debug(message) {
+        this.emit('debug', message);
+    }
+    _setResult() {
+        // determine whether there is an error
+        let error;
+        if (this.processExited) {
+            if (this.processError) {
+                error = new Error(`There was an error when attempting to execute the process '${this.toolPath}'. This may indicate the process failed to start. Error: ${this.processError}`);
+            }
+            else if (this.processExitCode !== 0 && !this.options.ignoreReturnCode) {
+                error = new Error(`The process '${this.toolPath}' failed with exit code ${this.processExitCode}`);
+            }
+            else if (this.processStderr && this.options.failOnStdErr) {
+                error = new Error(`The process '${this.toolPath}' failed because one or more lines were written to the STDERR stream`);
+            }
+        }
+        // clear the timeout
+        if (this.timeout) {
+            clearTimeout(this.timeout);
+            this.timeout = null;
+        }
+        this.done = true;
+        this.emit('done', error, this.processExitCode);
+    }
+    static HandleTimeout(state) {
+        if (state.done) {
+            return;
+        }
+        if (!state.processClosed && state.processExited) {
+            const message = `The STDIO streams did not close within ${state.delay /
+                1000} seconds of the exit event from process '${state.toolPath}'. This may indicate a child process inherited the STDIO streams and has not yet exited.`;
+            state._debug(message);
+        }
+        state._setResult();
+    }
+}
+//# sourceMappingURL=toolrunner.js.map
 
 /***/ }),
 
@@ -1843,8430 +2699,499 @@ class DecodedURL extends URL {
 
 /***/ }),
 
-/***/ 5384:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 5207:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
-const fs = __nccwpck_require__(9896)
-const path = __nccwpck_require__(6928)
-
-/* istanbul ignore next */
-const LCHOWN = fs.lchown ? 'lchown' : 'chown'
-/* istanbul ignore next */
-const LCHOWNSYNC = fs.lchownSync ? 'lchownSync' : 'chownSync'
-
-/* istanbul ignore next */
-const needEISDIRHandled = fs.lchown &&
-  !process.version.match(/v1[1-9]+\./) &&
-  !process.version.match(/v10\.[6-9]/)
-
-const lchownSync = (path, uid, gid) => {
-  try {
-    return fs[LCHOWNSYNC](path, uid, gid)
-  } catch (er) {
-    if (er.code !== 'ENOENT')
-      throw er
-  }
-}
-
-/* istanbul ignore next */
-const chownSync = (path, uid, gid) => {
-  try {
-    return fs.chownSync(path, uid, gid)
-  } catch (er) {
-    if (er.code !== 'ENOENT')
-      throw er
-  }
-}
-
-/* istanbul ignore next */
-const handleEISDIR =
-  needEISDIRHandled ? (path, uid, gid, cb) => er => {
-    // Node prior to v10 had a very questionable implementation of
-    // fs.lchown, which would always try to call fs.open on a directory
-    // Fall back to fs.chown in those cases.
-    if (!er || er.code !== 'EISDIR')
-      cb(er)
-    else
-      fs.chown(path, uid, gid, cb)
-  }
-  : (_, __, ___, cb) => cb
-
-/* istanbul ignore next */
-const handleEISDirSync =
-  needEISDIRHandled ? (path, uid, gid) => {
-    try {
-      return lchownSync(path, uid, gid)
-    } catch (er) {
-      if (er.code !== 'EISDIR')
-        throw er
-      chownSync(path, uid, gid)
-    }
-  }
-  : (path, uid, gid) => lchownSync(path, uid, gid)
-
-// fs.readdir could only accept an options object as of node v6
-const nodeVersion = process.version
-let readdir = (path, options, cb) => fs.readdir(path, options, cb)
-let readdirSync = (path, options) => fs.readdirSync(path, options)
-/* istanbul ignore next */
-if (/^v4\./.test(nodeVersion))
-  readdir = (path, options, cb) => fs.readdir(path, cb)
-
-const chown = (cpath, uid, gid, cb) => {
-  fs[LCHOWN](cpath, uid, gid, handleEISDIR(cpath, uid, gid, er => {
-    // Skip ENOENT error
-    cb(er && er.code !== 'ENOENT' ? er : null)
-  }))
-}
-
-const chownrKid = (p, child, uid, gid, cb) => {
-  if (typeof child === 'string')
-    return fs.lstat(path.resolve(p, child), (er, stats) => {
-      // Skip ENOENT error
-      if (er)
-        return cb(er.code !== 'ENOENT' ? er : null)
-      stats.name = child
-      chownrKid(p, stats, uid, gid, cb)
-    })
-
-  if (child.isDirectory()) {
-    chownr(path.resolve(p, child.name), uid, gid, er => {
-      if (er)
-        return cb(er)
-      const cpath = path.resolve(p, child.name)
-      chown(cpath, uid, gid, cb)
-    })
-  } else {
-    const cpath = path.resolve(p, child.name)
-    chown(cpath, uid, gid, cb)
-  }
-}
-
-
-const chownr = (p, uid, gid, cb) => {
-  readdir(p, { withFileTypes: true }, (er, children) => {
-    // any error other than ENOTDIR or ENOTSUP means it's not readable,
-    // or doesn't exist.  give up.
-    if (er) {
-      if (er.code === 'ENOENT')
-        return cb()
-      else if (er.code !== 'ENOTDIR' && er.code !== 'ENOTSUP')
-        return cb(er)
-    }
-    if (er || !children.length)
-      return chown(p, uid, gid, cb)
-
-    let len = children.length
-    let errState = null
-    const then = er => {
-      if (errState)
-        return
-      if (er)
-        return cb(errState = er)
-      if (-- len === 0)
-        return chown(p, uid, gid, cb)
-    }
-
-    children.forEach(child => chownrKid(p, child, uid, gid, then))
-  })
-}
-
-const chownrKidSync = (p, child, uid, gid) => {
-  if (typeof child === 'string') {
-    try {
-      const stats = fs.lstatSync(path.resolve(p, child))
-      stats.name = child
-      child = stats
-    } catch (er) {
-      if (er.code === 'ENOENT')
-        return
-      else
-        throw er
-    }
-  }
-
-  if (child.isDirectory())
-    chownrSync(path.resolve(p, child.name), uid, gid)
-
-  handleEISDirSync(path.resolve(p, child.name), uid, gid)
-}
-
-const chownrSync = (p, uid, gid) => {
-  let children
-  try {
-    children = readdirSync(p, { withFileTypes: true })
-  } catch (er) {
-    if (er.code === 'ENOENT')
-      return
-    else if (er.code === 'ENOTDIR' || er.code === 'ENOTSUP')
-      return handleEISDirSync(p, uid, gid)
-    else
-      throw er
-  }
-
-  if (children && children.length)
-    children.forEach(child => chownrKidSync(p, child, uid, gid))
-
-  return handleEISDirSync(p, uid, gid)
-}
-
-module.exports = chownr
-chownr.sync = chownrSync
-
-
-/***/ }),
-
-/***/ 7532:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-const MiniPass = __nccwpck_require__(6742)
-const EE = (__nccwpck_require__(4434).EventEmitter)
-const fs = __nccwpck_require__(9896)
-
-let writev = fs.writev
-/* istanbul ignore next */
-if (!writev) {
-  // This entire block can be removed if support for earlier than Node.js
-  // 12.9.0 is not needed.
-  const binding = process.binding('fs')
-  const FSReqWrap = binding.FSReqWrap || binding.FSReqCallback
-
-  writev = (fd, iovec, pos, cb) => {
-    const done = (er, bw) => cb(er, bw, iovec)
-    const req = new FSReqWrap()
-    req.oncomplete = done
-    binding.writeBuffers(fd, iovec, pos, req)
-  }
-}
-
-const _autoClose = Symbol('_autoClose')
-const _close = Symbol('_close')
-const _ended = Symbol('_ended')
-const _fd = Symbol('_fd')
-const _finished = Symbol('_finished')
-const _flags = Symbol('_flags')
-const _flush = Symbol('_flush')
-const _handleChunk = Symbol('_handleChunk')
-const _makeBuf = Symbol('_makeBuf')
-const _mode = Symbol('_mode')
-const _needDrain = Symbol('_needDrain')
-const _onerror = Symbol('_onerror')
-const _onopen = Symbol('_onopen')
-const _onread = Symbol('_onread')
-const _onwrite = Symbol('_onwrite')
-const _open = Symbol('_open')
-const _path = Symbol('_path')
-const _pos = Symbol('_pos')
-const _queue = Symbol('_queue')
-const _read = Symbol('_read')
-const _readSize = Symbol('_readSize')
-const _reading = Symbol('_reading')
-const _remain = Symbol('_remain')
-const _size = Symbol('_size')
-const _write = Symbol('_write')
-const _writing = Symbol('_writing')
-const _defaultFlag = Symbol('_defaultFlag')
-const _errored = Symbol('_errored')
-
-class ReadStream extends MiniPass {
-  constructor (path, opt) {
-    opt = opt || {}
-    super(opt)
-
-    this.readable = true
-    this.writable = false
-
-    if (typeof path !== 'string')
-      throw new TypeError('path must be a string')
-
-    this[_errored] = false
-    this[_fd] = typeof opt.fd === 'number' ? opt.fd : null
-    this[_path] = path
-    this[_readSize] = opt.readSize || 16*1024*1024
-    this[_reading] = false
-    this[_size] = typeof opt.size === 'number' ? opt.size : Infinity
-    this[_remain] = this[_size]
-    this[_autoClose] = typeof opt.autoClose === 'boolean' ?
-      opt.autoClose : true
-
-    if (typeof this[_fd] === 'number')
-      this[_read]()
-    else
-      this[_open]()
-  }
-
-  get fd () { return this[_fd] }
-  get path () { return this[_path] }
-
-  write () {
-    throw new TypeError('this is a readable stream')
-  }
-
-  end () {
-    throw new TypeError('this is a readable stream')
-  }
-
-  [_open] () {
-    fs.open(this[_path], 'r', (er, fd) => this[_onopen](er, fd))
-  }
-
-  [_onopen] (er, fd) {
-    if (er)
-      this[_onerror](er)
-    else {
-      this[_fd] = fd
-      this.emit('open', fd)
-      this[_read]()
-    }
-  }
-
-  [_makeBuf] () {
-    return Buffer.allocUnsafe(Math.min(this[_readSize], this[_remain]))
-  }
-
-  [_read] () {
-    if (!this[_reading]) {
-      this[_reading] = true
-      const buf = this[_makeBuf]()
-      /* istanbul ignore if */
-      if (buf.length === 0)
-        return process.nextTick(() => this[_onread](null, 0, buf))
-      fs.read(this[_fd], buf, 0, buf.length, null, (er, br, buf) =>
-        this[_onread](er, br, buf))
-    }
-  }
-
-  [_onread] (er, br, buf) {
-    this[_reading] = false
-    if (er)
-      this[_onerror](er)
-    else if (this[_handleChunk](br, buf))
-      this[_read]()
-  }
-
-  [_close] () {
-    if (this[_autoClose] && typeof this[_fd] === 'number') {
-      const fd = this[_fd]
-      this[_fd] = null
-      fs.close(fd, er => er ? this.emit('error', er) : this.emit('close'))
-    }
-  }
-
-  [_onerror] (er) {
-    this[_reading] = true
-    this[_close]()
-    this.emit('error', er)
-  }
-
-  [_handleChunk] (br, buf) {
-    let ret = false
-    // no effect if infinite
-    this[_remain] -= br
-    if (br > 0)
-      ret = super.write(br < buf.length ? buf.slice(0, br) : buf)
-
-    if (br === 0 || this[_remain] <= 0) {
-      ret = false
-      this[_close]()
-      super.end()
-    }
-
-    return ret
-  }
-
-  emit (ev, data) {
-    switch (ev) {
-      case 'prefinish':
-      case 'finish':
-        break
-
-      case 'drain':
-        if (typeof this[_fd] === 'number')
-          this[_read]()
-        break
-
-      case 'error':
-        if (this[_errored])
-          return
-        this[_errored] = true
-        return super.emit(ev, data)
-
-      default:
-        return super.emit(ev, data)
-    }
-  }
-}
-
-class ReadStreamSync extends ReadStream {
-  [_open] () {
-    let threw = true
-    try {
-      this[_onopen](null, fs.openSync(this[_path], 'r'))
-      threw = false
-    } finally {
-      if (threw)
-        this[_close]()
-    }
-  }
-
-  [_read] () {
-    let threw = true
-    try {
-      if (!this[_reading]) {
-        this[_reading] = true
-        do {
-          const buf = this[_makeBuf]()
-          /* istanbul ignore next */
-          const br = buf.length === 0 ? 0
-            : fs.readSync(this[_fd], buf, 0, buf.length, null)
-          if (!this[_handleChunk](br, buf))
-            break
-        } while (true)
-        this[_reading] = false
-      }
-      threw = false
-    } finally {
-      if (threw)
-        this[_close]()
-    }
-  }
-
-  [_close] () {
-    if (this[_autoClose] && typeof this[_fd] === 'number') {
-      const fd = this[_fd]
-      this[_fd] = null
-      fs.closeSync(fd)
-      this.emit('close')
-    }
-  }
-}
-
-class WriteStream extends EE {
-  constructor (path, opt) {
-    opt = opt || {}
-    super(opt)
-    this.readable = false
-    this.writable = true
-    this[_errored] = false
-    this[_writing] = false
-    this[_ended] = false
-    this[_needDrain] = false
-    this[_queue] = []
-    this[_path] = path
-    this[_fd] = typeof opt.fd === 'number' ? opt.fd : null
-    this[_mode] = opt.mode === undefined ? 0o666 : opt.mode
-    this[_pos] = typeof opt.start === 'number' ? opt.start : null
-    this[_autoClose] = typeof opt.autoClose === 'boolean' ?
-      opt.autoClose : true
-
-    // truncating makes no sense when writing into the middle
-    const defaultFlag = this[_pos] !== null ? 'r+' : 'w'
-    this[_defaultFlag] = opt.flags === undefined
-    this[_flags] = this[_defaultFlag] ? defaultFlag : opt.flags
-
-    if (this[_fd] === null)
-      this[_open]()
-  }
-
-  emit (ev, data) {
-    if (ev === 'error') {
-      if (this[_errored])
-        return
-      this[_errored] = true
-    }
-    return super.emit(ev, data)
-  }
-
-
-  get fd () { return this[_fd] }
-  get path () { return this[_path] }
-
-  [_onerror] (er) {
-    this[_close]()
-    this[_writing] = true
-    this.emit('error', er)
-  }
-
-  [_open] () {
-    fs.open(this[_path], this[_flags], this[_mode],
-      (er, fd) => this[_onopen](er, fd))
-  }
-
-  [_onopen] (er, fd) {
-    if (this[_defaultFlag] &&
-        this[_flags] === 'r+' &&
-        er && er.code === 'ENOENT') {
-      this[_flags] = 'w'
-      this[_open]()
-    } else if (er)
-      this[_onerror](er)
-    else {
-      this[_fd] = fd
-      this.emit('open', fd)
-      this[_flush]()
-    }
-  }
-
-  end (buf, enc) {
-    if (buf)
-      this.write(buf, enc)
-
-    this[_ended] = true
-
-    // synthetic after-write logic, where drain/finish live
-    if (!this[_writing] && !this[_queue].length &&
-        typeof this[_fd] === 'number')
-      this[_onwrite](null, 0)
-    return this
-  }
-
-  write (buf, enc) {
-    if (typeof buf === 'string')
-      buf = Buffer.from(buf, enc)
-
-    if (this[_ended]) {
-      this.emit('error', new Error('write() after end()'))
-      return false
-    }
-
-    if (this[_fd] === null || this[_writing] || this[_queue].length) {
-      this[_queue].push(buf)
-      this[_needDrain] = true
-      return false
-    }
-
-    this[_writing] = true
-    this[_write](buf)
-    return true
-  }
-
-  [_write] (buf) {
-    fs.write(this[_fd], buf, 0, buf.length, this[_pos], (er, bw) =>
-      this[_onwrite](er, bw))
-  }
-
-  [_onwrite] (er, bw) {
-    if (er)
-      this[_onerror](er)
-    else {
-      if (this[_pos] !== null)
-        this[_pos] += bw
-      if (this[_queue].length)
-        this[_flush]()
-      else {
-        this[_writing] = false
-
-        if (this[_ended] && !this[_finished]) {
-          this[_finished] = true
-          this[_close]()
-          this.emit('finish')
-        } else if (this[_needDrain]) {
-          this[_needDrain] = false
-          this.emit('drain')
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getCmdPath = exports.tryGetExecutablePath = exports.isRooted = exports.isDirectory = exports.exists = exports.READONLY = exports.UV_FS_O_EXLOCK = exports.IS_WINDOWS = exports.unlink = exports.symlink = exports.stat = exports.rmdir = exports.rm = exports.rename = exports.readlink = exports.readdir = exports.open = exports.mkdir = exports.lstat = exports.copyFile = exports.chmod = void 0;
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+_a = fs.promises
+// export const {open} = 'fs'
+, exports.chmod = _a.chmod, exports.copyFile = _a.copyFile, exports.lstat = _a.lstat, exports.mkdir = _a.mkdir, exports.open = _a.open, exports.readdir = _a.readdir, exports.readlink = _a.readlink, exports.rename = _a.rename, exports.rm = _a.rm, exports.rmdir = _a.rmdir, exports.stat = _a.stat, exports.symlink = _a.symlink, exports.unlink = _a.unlink;
+// export const {open} = 'fs'
+exports.IS_WINDOWS = process.platform === 'win32';
+// See https://github.com/nodejs/node/blob/d0153aee367422d0858105abec186da4dff0a0c5/deps/uv/include/uv/win.h#L691
+exports.UV_FS_O_EXLOCK = 0x10000000;
+exports.READONLY = fs.constants.O_RDONLY;
+function exists(fsPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield exports.stat(fsPath);
         }
-      }
-    }
-  }
-
-  [_flush] () {
-    if (this[_queue].length === 0) {
-      if (this[_ended])
-        this[_onwrite](null, 0)
-    } else if (this[_queue].length === 1)
-      this[_write](this[_queue].pop())
-    else {
-      const iovec = this[_queue]
-      this[_queue] = []
-      writev(this[_fd], iovec, this[_pos],
-        (er, bw) => this[_onwrite](er, bw))
-    }
-  }
-
-  [_close] () {
-    if (this[_autoClose] && typeof this[_fd] === 'number') {
-      const fd = this[_fd]
-      this[_fd] = null
-      fs.close(fd, er => er ? this.emit('error', er) : this.emit('close'))
-    }
-  }
-}
-
-class WriteStreamSync extends WriteStream {
-  [_open] () {
-    let fd
-    // only wrap in a try{} block if we know we'll retry, to avoid
-    // the rethrow obscuring the error's source frame in most cases.
-    if (this[_defaultFlag] && this[_flags] === 'r+') {
-      try {
-        fd = fs.openSync(this[_path], this[_flags], this[_mode])
-      } catch (er) {
-        if (er.code === 'ENOENT') {
-          this[_flags] = 'w'
-          return this[_open]()
-        } else
-          throw er
-      }
-    } else
-      fd = fs.openSync(this[_path], this[_flags], this[_mode])
-
-    this[_onopen](null, fd)
-  }
-
-  [_close] () {
-    if (this[_autoClose] && typeof this[_fd] === 'number') {
-      const fd = this[_fd]
-      this[_fd] = null
-      fs.closeSync(fd)
-      this.emit('close')
-    }
-  }
-
-  [_write] (buf) {
-    // throw the original, but try to close if it fails
-    let threw = true
-    try {
-      this[_onwrite](null,
-        fs.writeSync(this[_fd], buf, 0, buf.length, this[_pos]))
-      threw = false
-    } finally {
-      if (threw)
-        try { this[_close]() } catch (_) {}
-    }
-  }
-}
-
-exports.ReadStream = ReadStream
-exports.ReadStreamSync = ReadStreamSync
-
-exports.WriteStream = WriteStream
-exports.WriteStreamSync = WriteStreamSync
-
-
-/***/ }),
-
-/***/ 6742:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-const proc = typeof process === 'object' && process ? process : {
-  stdout: null,
-  stderr: null,
-}
-const EE = __nccwpck_require__(4434)
-const Stream = __nccwpck_require__(2203)
-const SD = (__nccwpck_require__(3193).StringDecoder)
-
-const EOF = Symbol('EOF')
-const MAYBE_EMIT_END = Symbol('maybeEmitEnd')
-const EMITTED_END = Symbol('emittedEnd')
-const EMITTING_END = Symbol('emittingEnd')
-const EMITTED_ERROR = Symbol('emittedError')
-const CLOSED = Symbol('closed')
-const READ = Symbol('read')
-const FLUSH = Symbol('flush')
-const FLUSHCHUNK = Symbol('flushChunk')
-const ENCODING = Symbol('encoding')
-const DECODER = Symbol('decoder')
-const FLOWING = Symbol('flowing')
-const PAUSED = Symbol('paused')
-const RESUME = Symbol('resume')
-const BUFFERLENGTH = Symbol('bufferLength')
-const BUFFERPUSH = Symbol('bufferPush')
-const BUFFERSHIFT = Symbol('bufferShift')
-const OBJECTMODE = Symbol('objectMode')
-const DESTROYED = Symbol('destroyed')
-const EMITDATA = Symbol('emitData')
-const EMITEND = Symbol('emitEnd')
-const EMITEND2 = Symbol('emitEnd2')
-const ASYNC = Symbol('async')
-
-const defer = fn => Promise.resolve().then(fn)
-
-// TODO remove when Node v8 support drops
-const doIter = global._MP_NO_ITERATOR_SYMBOLS_  !== '1'
-const ASYNCITERATOR = doIter && Symbol.asyncIterator
-  || Symbol('asyncIterator not implemented')
-const ITERATOR = doIter && Symbol.iterator
-  || Symbol('iterator not implemented')
-
-// events that mean 'the stream is over'
-// these are treated specially, and re-emitted
-// if they are listened for after emitting.
-const isEndish = ev =>
-  ev === 'end' ||
-  ev === 'finish' ||
-  ev === 'prefinish'
-
-const isArrayBuffer = b => b instanceof ArrayBuffer ||
-  typeof b === 'object' &&
-  b.constructor &&
-  b.constructor.name === 'ArrayBuffer' &&
-  b.byteLength >= 0
-
-const isArrayBufferView = b => !Buffer.isBuffer(b) && ArrayBuffer.isView(b)
-
-class Pipe {
-  constructor (src, dest, opts) {
-    this.src = src
-    this.dest = dest
-    this.opts = opts
-    this.ondrain = () => src[RESUME]()
-    dest.on('drain', this.ondrain)
-  }
-  unpipe () {
-    this.dest.removeListener('drain', this.ondrain)
-  }
-  // istanbul ignore next - only here for the prototype
-  proxyErrors () {}
-  end () {
-    this.unpipe()
-    if (this.opts.end)
-      this.dest.end()
-  }
-}
-
-class PipeProxyErrors extends Pipe {
-  unpipe () {
-    this.src.removeListener('error', this.proxyErrors)
-    super.unpipe()
-  }
-  constructor (src, dest, opts) {
-    super(src, dest, opts)
-    this.proxyErrors = er => dest.emit('error', er)
-    src.on('error', this.proxyErrors)
-  }
-}
-
-module.exports = class Minipass extends Stream {
-  constructor (options) {
-    super()
-    this[FLOWING] = false
-    // whether we're explicitly paused
-    this[PAUSED] = false
-    this.pipes = []
-    this.buffer = []
-    this[OBJECTMODE] = options && options.objectMode || false
-    if (this[OBJECTMODE])
-      this[ENCODING] = null
-    else
-      this[ENCODING] = options && options.encoding || null
-    if (this[ENCODING] === 'buffer')
-      this[ENCODING] = null
-    this[ASYNC] = options && !!options.async || false
-    this[DECODER] = this[ENCODING] ? new SD(this[ENCODING]) : null
-    this[EOF] = false
-    this[EMITTED_END] = false
-    this[EMITTING_END] = false
-    this[CLOSED] = false
-    this[EMITTED_ERROR] = null
-    this.writable = true
-    this.readable = true
-    this[BUFFERLENGTH] = 0
-    this[DESTROYED] = false
-  }
-
-  get bufferLength () { return this[BUFFERLENGTH] }
-
-  get encoding () { return this[ENCODING] }
-  set encoding (enc) {
-    if (this[OBJECTMODE])
-      throw new Error('cannot set encoding in objectMode')
-
-    if (this[ENCODING] && enc !== this[ENCODING] &&
-        (this[DECODER] && this[DECODER].lastNeed || this[BUFFERLENGTH]))
-      throw new Error('cannot change encoding')
-
-    if (this[ENCODING] !== enc) {
-      this[DECODER] = enc ? new SD(enc) : null
-      if (this.buffer.length)
-        this.buffer = this.buffer.map(chunk => this[DECODER].write(chunk))
-    }
-
-    this[ENCODING] = enc
-  }
-
-  setEncoding (enc) {
-    this.encoding = enc
-  }
-
-  get objectMode () { return this[OBJECTMODE] }
-  set objectMode (om) { this[OBJECTMODE] = this[OBJECTMODE] || !!om }
-
-  get ['async'] () { return this[ASYNC] }
-  set ['async'] (a) { this[ASYNC] = this[ASYNC] || !!a }
-
-  write (chunk, encoding, cb) {
-    if (this[EOF])
-      throw new Error('write after end')
-
-    if (this[DESTROYED]) {
-      this.emit('error', Object.assign(
-        new Error('Cannot call write after a stream was destroyed'),
-        { code: 'ERR_STREAM_DESTROYED' }
-      ))
-      return true
-    }
-
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-
-    if (!encoding)
-      encoding = 'utf8'
-
-    const fn = this[ASYNC] ? defer : f => f()
-
-    // convert array buffers and typed array views into buffers
-    // at some point in the future, we may want to do the opposite!
-    // leave strings and buffers as-is
-    // anything else switches us into object mode
-    if (!this[OBJECTMODE] && !Buffer.isBuffer(chunk)) {
-      if (isArrayBufferView(chunk))
-        chunk = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-      else if (isArrayBuffer(chunk))
-        chunk = Buffer.from(chunk)
-      else if (typeof chunk !== 'string')
-        // use the setter so we throw if we have encoding set
-        this.objectMode = true
-    }
-
-    // handle object mode up front, since it's simpler
-    // this yields better performance, fewer checks later.
-    if (this[OBJECTMODE]) {
-      /* istanbul ignore if - maybe impossible? */
-      if (this.flowing && this[BUFFERLENGTH] !== 0)
-        this[FLUSH](true)
-
-      if (this.flowing)
-        this.emit('data', chunk)
-      else
-        this[BUFFERPUSH](chunk)
-
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-
-      if (cb)
-        fn(cb)
-
-      return this.flowing
-    }
-
-    // at this point the chunk is a buffer or string
-    // don't buffer it up or send it to the decoder
-    if (!chunk.length) {
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-      if (cb)
-        fn(cb)
-      return this.flowing
-    }
-
-    // fast-path writing strings of same encoding to a stream with
-    // an empty buffer, skipping the buffer/decoder dance
-    if (typeof chunk === 'string' &&
-        // unless it is a string already ready for us to use
-        !(encoding === this[ENCODING] && !this[DECODER].lastNeed)) {
-      chunk = Buffer.from(chunk, encoding)
-    }
-
-    if (Buffer.isBuffer(chunk) && this[ENCODING])
-      chunk = this[DECODER].write(chunk)
-
-    // Note: flushing CAN potentially switch us into not-flowing mode
-    if (this.flowing && this[BUFFERLENGTH] !== 0)
-      this[FLUSH](true)
-
-    if (this.flowing)
-      this.emit('data', chunk)
-    else
-      this[BUFFERPUSH](chunk)
-
-    if (this[BUFFERLENGTH] !== 0)
-      this.emit('readable')
-
-    if (cb)
-      fn(cb)
-
-    return this.flowing
-  }
-
-  read (n) {
-    if (this[DESTROYED])
-      return null
-
-    if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH]) {
-      this[MAYBE_EMIT_END]()
-      return null
-    }
-
-    if (this[OBJECTMODE])
-      n = null
-
-    if (this.buffer.length > 1 && !this[OBJECTMODE]) {
-      if (this.encoding)
-        this.buffer = [this.buffer.join('')]
-      else
-        this.buffer = [Buffer.concat(this.buffer, this[BUFFERLENGTH])]
-    }
-
-    const ret = this[READ](n || null, this.buffer[0])
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [READ] (n, chunk) {
-    if (n === chunk.length || n === null)
-      this[BUFFERSHIFT]()
-    else {
-      this.buffer[0] = chunk.slice(n)
-      chunk = chunk.slice(0, n)
-      this[BUFFERLENGTH] -= n
-    }
-
-    this.emit('data', chunk)
-
-    if (!this.buffer.length && !this[EOF])
-      this.emit('drain')
-
-    return chunk
-  }
-
-  end (chunk, encoding, cb) {
-    if (typeof chunk === 'function')
-      cb = chunk, chunk = null
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-    if (chunk)
-      this.write(chunk, encoding)
-    if (cb)
-      this.once('end', cb)
-    this[EOF] = true
-    this.writable = false
-
-    // if we haven't written anything, then go ahead and emit,
-    // even if we're not reading.
-    // we'll re-emit if a new 'end' listener is added anyway.
-    // This makes MP more suitable to write-only use cases.
-    if (this.flowing || !this[PAUSED])
-      this[MAYBE_EMIT_END]()
-    return this
-  }
-
-  // don't let the internal resume be overwritten
-  [RESUME] () {
-    if (this[DESTROYED])
-      return
-
-    this[PAUSED] = false
-    this[FLOWING] = true
-    this.emit('resume')
-    if (this.buffer.length)
-      this[FLUSH]()
-    else if (this[EOF])
-      this[MAYBE_EMIT_END]()
-    else
-      this.emit('drain')
-  }
-
-  resume () {
-    return this[RESUME]()
-  }
-
-  pause () {
-    this[FLOWING] = false
-    this[PAUSED] = true
-  }
-
-  get destroyed () {
-    return this[DESTROYED]
-  }
-
-  get flowing () {
-    return this[FLOWING]
-  }
-
-  get paused () {
-    return this[PAUSED]
-  }
-
-  [BUFFERPUSH] (chunk) {
-    if (this[OBJECTMODE])
-      this[BUFFERLENGTH] += 1
-    else
-      this[BUFFERLENGTH] += chunk.length
-    this.buffer.push(chunk)
-  }
-
-  [BUFFERSHIFT] () {
-    if (this.buffer.length) {
-      if (this[OBJECTMODE])
-        this[BUFFERLENGTH] -= 1
-      else
-        this[BUFFERLENGTH] -= this.buffer[0].length
-    }
-    return this.buffer.shift()
-  }
-
-  [FLUSH] (noDrain) {
-    do {} while (this[FLUSHCHUNK](this[BUFFERSHIFT]()))
-
-    if (!noDrain && !this.buffer.length && !this[EOF])
-      this.emit('drain')
-  }
-
-  [FLUSHCHUNK] (chunk) {
-    return chunk ? (this.emit('data', chunk), this.flowing) : false
-  }
-
-  pipe (dest, opts) {
-    if (this[DESTROYED])
-      return
-
-    const ended = this[EMITTED_END]
-    opts = opts || {}
-    if (dest === proc.stdout || dest === proc.stderr)
-      opts.end = false
-    else
-      opts.end = opts.end !== false
-    opts.proxyErrors = !!opts.proxyErrors
-
-    // piping an ended stream ends immediately
-    if (ended) {
-      if (opts.end)
-        dest.end()
-    } else {
-      this.pipes.push(!opts.proxyErrors ? new Pipe(this, dest, opts)
-        : new PipeProxyErrors(this, dest, opts))
-      if (this[ASYNC])
-        defer(() => this[RESUME]())
-      else
-        this[RESUME]()
-    }
-
-    return dest
-  }
-
-  unpipe (dest) {
-    const p = this.pipes.find(p => p.dest === dest)
-    if (p) {
-      this.pipes.splice(this.pipes.indexOf(p), 1)
-      p.unpipe()
-    }
-  }
-
-  addListener (ev, fn) {
-    return this.on(ev, fn)
-  }
-
-  on (ev, fn) {
-    const ret = super.on(ev, fn)
-    if (ev === 'data' && !this.pipes.length && !this.flowing)
-      this[RESUME]()
-    else if (ev === 'readable' && this[BUFFERLENGTH] !== 0)
-      super.emit('readable')
-    else if (isEndish(ev) && this[EMITTED_END]) {
-      super.emit(ev)
-      this.removeAllListeners(ev)
-    } else if (ev === 'error' && this[EMITTED_ERROR]) {
-      if (this[ASYNC])
-        defer(() => fn.call(this, this[EMITTED_ERROR]))
-      else
-        fn.call(this, this[EMITTED_ERROR])
-    }
-    return ret
-  }
-
-  get emittedEnd () {
-    return this[EMITTED_END]
-  }
-
-  [MAYBE_EMIT_END] () {
-    if (!this[EMITTING_END] &&
-        !this[EMITTED_END] &&
-        !this[DESTROYED] &&
-        this.buffer.length === 0 &&
-        this[EOF]) {
-      this[EMITTING_END] = true
-      this.emit('end')
-      this.emit('prefinish')
-      this.emit('finish')
-      if (this[CLOSED])
-        this.emit('close')
-      this[EMITTING_END] = false
-    }
-  }
-
-  emit (ev, data, ...extra) {
-    // error and close are only events allowed after calling destroy()
-    if (ev !== 'error' && ev !== 'close' && ev !== DESTROYED && this[DESTROYED])
-      return
-    else if (ev === 'data') {
-      return !data ? false
-        : this[ASYNC] ? defer(() => this[EMITDATA](data))
-        : this[EMITDATA](data)
-    } else if (ev === 'end') {
-      return this[EMITEND]()
-    } else if (ev === 'close') {
-      this[CLOSED] = true
-      // don't emit close before 'end' and 'finish'
-      if (!this[EMITTED_END] && !this[DESTROYED])
-        return
-      const ret = super.emit('close')
-      this.removeAllListeners('close')
-      return ret
-    } else if (ev === 'error') {
-      this[EMITTED_ERROR] = data
-      const ret = super.emit('error', data)
-      this[MAYBE_EMIT_END]()
-      return ret
-    } else if (ev === 'resume') {
-      const ret = super.emit('resume')
-      this[MAYBE_EMIT_END]()
-      return ret
-    } else if (ev === 'finish' || ev === 'prefinish') {
-      const ret = super.emit(ev)
-      this.removeAllListeners(ev)
-      return ret
-    }
-
-    // Some other unknown event
-    const ret = super.emit(ev, data, ...extra)
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [EMITDATA] (data) {
-    for (const p of this.pipes) {
-      if (p.dest.write(data) === false)
-        this.pause()
-    }
-    const ret = super.emit('data', data)
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [EMITEND] () {
-    if (this[EMITTED_END])
-      return
-
-    this[EMITTED_END] = true
-    this.readable = false
-    if (this[ASYNC])
-      defer(() => this[EMITEND2]())
-    else
-      this[EMITEND2]()
-  }
-
-  [EMITEND2] () {
-    if (this[DECODER]) {
-      const data = this[DECODER].end()
-      if (data) {
-        for (const p of this.pipes) {
-          p.dest.write(data)
+        catch (err) {
+            if (err.code === 'ENOENT') {
+                return false;
+            }
+            throw err;
         }
-        super.emit('data', data)
-      }
-    }
-
-    for (const p of this.pipes) {
-      p.end()
-    }
-    const ret = super.emit('end')
-    this.removeAllListeners('end')
-    return ret
-  }
-
-  // const all = await stream.collect()
-  collect () {
-    const buf = []
-    if (!this[OBJECTMODE])
-      buf.dataLength = 0
-    // set the promise first, in case an error is raised
-    // by triggering the flow here.
-    const p = this.promise()
-    this.on('data', c => {
-      buf.push(c)
-      if (!this[OBJECTMODE])
-        buf.dataLength += c.length
-    })
-    return p.then(() => buf)
-  }
-
-  // const data = await stream.concat()
-  concat () {
-    return this[OBJECTMODE]
-      ? Promise.reject(new Error('cannot concat in objectMode'))
-      : this.collect().then(buf =>
-          this[OBJECTMODE]
-            ? Promise.reject(new Error('cannot concat in objectMode'))
-            : this[ENCODING] ? buf.join('') : Buffer.concat(buf, buf.dataLength))
-  }
-
-  // stream.promise().then(() => done, er => emitted error)
-  promise () {
-    return new Promise((resolve, reject) => {
-      this.on(DESTROYED, () => reject(new Error('stream destroyed')))
-      this.on('error', er => reject(er))
-      this.on('end', () => resolve())
-    })
-  }
-
-  // for await (let chunk of stream)
-  [ASYNCITERATOR] () {
-    const next = () => {
-      const res = this.read()
-      if (res !== null)
-        return Promise.resolve({ done: false, value: res })
-
-      if (this[EOF])
-        return Promise.resolve({ done: true })
-
-      let resolve = null
-      let reject = null
-      const onerr = er => {
-        this.removeListener('data', ondata)
-        this.removeListener('end', onend)
-        reject(er)
-      }
-      const ondata = value => {
-        this.removeListener('error', onerr)
-        this.removeListener('end', onend)
-        this.pause()
-        resolve({ value: value, done: !!this[EOF] })
-      }
-      const onend = () => {
-        this.removeListener('error', onerr)
-        this.removeListener('data', ondata)
-        resolve({ done: true })
-      }
-      const ondestroy = () => onerr(new Error('stream destroyed'))
-      return new Promise((res, rej) => {
-        reject = rej
-        resolve = res
-        this.once(DESTROYED, ondestroy)
-        this.once('error', onerr)
-        this.once('end', onend)
-        this.once('data', ondata)
-      })
-    }
-
-    return { next }
-  }
-
-  // for (let chunk of stream)
-  [ITERATOR] () {
-    const next = () => {
-      const value = this.read()
-      const done = value === null
-      return { value, done }
-    }
-    return { next }
-  }
-
-  destroy (er) {
-    if (this[DESTROYED]) {
-      if (er)
-        this.emit('error', er)
-      else
-        this.emit(DESTROYED)
-      return this
-    }
-
-    this[DESTROYED] = true
-
-    // throw away all buffered data, it's never coming out
-    this.buffer.length = 0
-    this[BUFFERLENGTH] = 0
-
-    if (typeof this.close === 'function' && !this[CLOSED])
-      this.close()
-
-    if (er)
-      this.emit('error', er)
-    else // if no error to emit, still reject pending promises
-      this.emit(DESTROYED)
-
-    return this
-  }
-
-  static isStream (s) {
-    return !!s && (s instanceof Minipass || s instanceof Stream ||
-      s instanceof EE && (
-        typeof s.pipe === 'function' || // readable
-        (typeof s.write === 'function' && typeof s.end === 'function') // writable
-      ))
-  }
+        return true;
+    });
 }
-
-
-/***/ }),
-
-/***/ 6058:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-const proc =
-  typeof process === 'object' && process
-    ? process
-    : {
-        stdout: null,
-        stderr: null,
-      }
-const EE = __nccwpck_require__(4434)
-const Stream = __nccwpck_require__(2203)
-const stringdecoder = __nccwpck_require__(3193)
-const SD = stringdecoder.StringDecoder
-
-const EOF = Symbol('EOF')
-const MAYBE_EMIT_END = Symbol('maybeEmitEnd')
-const EMITTED_END = Symbol('emittedEnd')
-const EMITTING_END = Symbol('emittingEnd')
-const EMITTED_ERROR = Symbol('emittedError')
-const CLOSED = Symbol('closed')
-const READ = Symbol('read')
-const FLUSH = Symbol('flush')
-const FLUSHCHUNK = Symbol('flushChunk')
-const ENCODING = Symbol('encoding')
-const DECODER = Symbol('decoder')
-const FLOWING = Symbol('flowing')
-const PAUSED = Symbol('paused')
-const RESUME = Symbol('resume')
-const BUFFER = Symbol('buffer')
-const PIPES = Symbol('pipes')
-const BUFFERLENGTH = Symbol('bufferLength')
-const BUFFERPUSH = Symbol('bufferPush')
-const BUFFERSHIFT = Symbol('bufferShift')
-const OBJECTMODE = Symbol('objectMode')
-// internal event when stream is destroyed
-const DESTROYED = Symbol('destroyed')
-// internal event when stream has an error
-const ERROR = Symbol('error')
-const EMITDATA = Symbol('emitData')
-const EMITEND = Symbol('emitEnd')
-const EMITEND2 = Symbol('emitEnd2')
-const ASYNC = Symbol('async')
-const ABORT = Symbol('abort')
-const ABORTED = Symbol('aborted')
-const SIGNAL = Symbol('signal')
-
-const defer = fn => Promise.resolve().then(fn)
-
-// TODO remove when Node v8 support drops
-const doIter = global._MP_NO_ITERATOR_SYMBOLS_ !== '1'
-const ASYNCITERATOR =
-  (doIter && Symbol.asyncIterator) || Symbol('asyncIterator not implemented')
-const ITERATOR =
-  (doIter && Symbol.iterator) || Symbol('iterator not implemented')
-
-// events that mean 'the stream is over'
-// these are treated specially, and re-emitted
-// if they are listened for after emitting.
-const isEndish = ev => ev === 'end' || ev === 'finish' || ev === 'prefinish'
-
-const isArrayBuffer = b =>
-  b instanceof ArrayBuffer ||
-  (typeof b === 'object' &&
-    b.constructor &&
-    b.constructor.name === 'ArrayBuffer' &&
-    b.byteLength >= 0)
-
-const isArrayBufferView = b => !Buffer.isBuffer(b) && ArrayBuffer.isView(b)
-
-class Pipe {
-  constructor(src, dest, opts) {
-    this.src = src
-    this.dest = dest
-    this.opts = opts
-    this.ondrain = () => src[RESUME]()
-    dest.on('drain', this.ondrain)
-  }
-  unpipe() {
-    this.dest.removeListener('drain', this.ondrain)
-  }
-  // istanbul ignore next - only here for the prototype
-  proxyErrors() {}
-  end() {
-    this.unpipe()
-    if (this.opts.end) this.dest.end()
-  }
+exports.exists = exists;
+function isDirectory(fsPath, useStat = false) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const stats = useStat ? yield exports.stat(fsPath) : yield exports.lstat(fsPath);
+        return stats.isDirectory();
+    });
 }
-
-class PipeProxyErrors extends Pipe {
-  unpipe() {
-    this.src.removeListener('error', this.proxyErrors)
-    super.unpipe()
-  }
-  constructor(src, dest, opts) {
-    super(src, dest, opts)
-    this.proxyErrors = er => dest.emit('error', er)
-    src.on('error', this.proxyErrors)
-  }
+exports.isDirectory = isDirectory;
+/**
+ * On OSX/Linux, true if path starts with '/'. On Windows, true for paths like:
+ * \, \hello, \\hello\share, C:, and C:\hello (and corresponding alternate separator cases).
+ */
+function isRooted(p) {
+    p = normalizeSeparators(p);
+    if (!p) {
+        throw new Error('isRooted() parameter "p" cannot be empty');
+    }
+    if (exports.IS_WINDOWS) {
+        return (p.startsWith('\\') || /^[A-Z]:/i.test(p) // e.g. \ or \hello or \\hello
+        ); // e.g. C: or C:\hello
+    }
+    return p.startsWith('/');
 }
-
-class Minipass extends Stream {
-  constructor(options) {
-    super()
-    this[FLOWING] = false
-    // whether we're explicitly paused
-    this[PAUSED] = false
-    this[PIPES] = []
-    this[BUFFER] = []
-    this[OBJECTMODE] = (options && options.objectMode) || false
-    if (this[OBJECTMODE]) this[ENCODING] = null
-    else this[ENCODING] = (options && options.encoding) || null
-    if (this[ENCODING] === 'buffer') this[ENCODING] = null
-    this[ASYNC] = (options && !!options.async) || false
-    this[DECODER] = this[ENCODING] ? new SD(this[ENCODING]) : null
-    this[EOF] = false
-    this[EMITTED_END] = false
-    this[EMITTING_END] = false
-    this[CLOSED] = false
-    this[EMITTED_ERROR] = null
-    this.writable = true
-    this.readable = true
-    this[BUFFERLENGTH] = 0
-    this[DESTROYED] = false
-    if (options && options.debugExposeBuffer === true) {
-      Object.defineProperty(this, 'buffer', { get: () => this[BUFFER] })
-    }
-    if (options && options.debugExposePipes === true) {
-      Object.defineProperty(this, 'pipes', { get: () => this[PIPES] })
-    }
-    this[SIGNAL] = options && options.signal
-    this[ABORTED] = false
-    if (this[SIGNAL]) {
-      this[SIGNAL].addEventListener('abort', () => this[ABORT]())
-      if (this[SIGNAL].aborted) {
-        this[ABORT]()
-      }
-    }
-  }
-
-  get bufferLength() {
-    return this[BUFFERLENGTH]
-  }
-
-  get encoding() {
-    return this[ENCODING]
-  }
-  set encoding(enc) {
-    if (this[OBJECTMODE]) throw new Error('cannot set encoding in objectMode')
-
-    if (
-      this[ENCODING] &&
-      enc !== this[ENCODING] &&
-      ((this[DECODER] && this[DECODER].lastNeed) || this[BUFFERLENGTH])
-    )
-      throw new Error('cannot change encoding')
-
-    if (this[ENCODING] !== enc) {
-      this[DECODER] = enc ? new SD(enc) : null
-      if (this[BUFFER].length)
-        this[BUFFER] = this[BUFFER].map(chunk => this[DECODER].write(chunk))
-    }
-
-    this[ENCODING] = enc
-  }
-
-  setEncoding(enc) {
-    this.encoding = enc
-  }
-
-  get objectMode() {
-    return this[OBJECTMODE]
-  }
-  set objectMode(om) {
-    this[OBJECTMODE] = this[OBJECTMODE] || !!om
-  }
-
-  get ['async']() {
-    return this[ASYNC]
-  }
-  set ['async'](a) {
-    this[ASYNC] = this[ASYNC] || !!a
-  }
-
-  // drop everything and get out of the flow completely
-  [ABORT]() {
-    this[ABORTED] = true
-    this.emit('abort', this[SIGNAL].reason)
-    this.destroy(this[SIGNAL].reason)
-  }
-
-  get aborted() {
-    return this[ABORTED]
-  }
-  set aborted(_) {}
-
-  write(chunk, encoding, cb) {
-    if (this[ABORTED]) return false
-    if (this[EOF]) throw new Error('write after end')
-
-    if (this[DESTROYED]) {
-      this.emit(
-        'error',
-        Object.assign(
-          new Error('Cannot call write after a stream was destroyed'),
-          { code: 'ERR_STREAM_DESTROYED' }
-        )
-      )
-      return true
-    }
-
-    if (typeof encoding === 'function') (cb = encoding), (encoding = 'utf8')
-
-    if (!encoding) encoding = 'utf8'
-
-    const fn = this[ASYNC] ? defer : f => f()
-
-    // convert array buffers and typed array views into buffers
-    // at some point in the future, we may want to do the opposite!
-    // leave strings and buffers as-is
-    // anything else switches us into object mode
-    if (!this[OBJECTMODE] && !Buffer.isBuffer(chunk)) {
-      if (isArrayBufferView(chunk))
-        chunk = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-      else if (isArrayBuffer(chunk)) chunk = Buffer.from(chunk)
-      else if (typeof chunk !== 'string')
-        // use the setter so we throw if we have encoding set
-        this.objectMode = true
-    }
-
-    // handle object mode up front, since it's simpler
-    // this yields better performance, fewer checks later.
-    if (this[OBJECTMODE]) {
-      /* istanbul ignore if - maybe impossible? */
-      if (this.flowing && this[BUFFERLENGTH] !== 0) this[FLUSH](true)
-
-      if (this.flowing) this.emit('data', chunk)
-      else this[BUFFERPUSH](chunk)
-
-      if (this[BUFFERLENGTH] !== 0) this.emit('readable')
-
-      if (cb) fn(cb)
-
-      return this.flowing
-    }
-
-    // at this point the chunk is a buffer or string
-    // don't buffer it up or send it to the decoder
-    if (!chunk.length) {
-      if (this[BUFFERLENGTH] !== 0) this.emit('readable')
-      if (cb) fn(cb)
-      return this.flowing
-    }
-
-    // fast-path writing strings of same encoding to a stream with
-    // an empty buffer, skipping the buffer/decoder dance
-    if (
-      typeof chunk === 'string' &&
-      // unless it is a string already ready for us to use
-      !(encoding === this[ENCODING] && !this[DECODER].lastNeed)
-    ) {
-      chunk = Buffer.from(chunk, encoding)
-    }
-
-    if (Buffer.isBuffer(chunk) && this[ENCODING])
-      chunk = this[DECODER].write(chunk)
-
-    // Note: flushing CAN potentially switch us into not-flowing mode
-    if (this.flowing && this[BUFFERLENGTH] !== 0) this[FLUSH](true)
-
-    if (this.flowing) this.emit('data', chunk)
-    else this[BUFFERPUSH](chunk)
-
-    if (this[BUFFERLENGTH] !== 0) this.emit('readable')
-
-    if (cb) fn(cb)
-
-    return this.flowing
-  }
-
-  read(n) {
-    if (this[DESTROYED]) return null
-
-    if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH]) {
-      this[MAYBE_EMIT_END]()
-      return null
-    }
-
-    if (this[OBJECTMODE]) n = null
-
-    if (this[BUFFER].length > 1 && !this[OBJECTMODE]) {
-      if (this.encoding) this[BUFFER] = [this[BUFFER].join('')]
-      else this[BUFFER] = [Buffer.concat(this[BUFFER], this[BUFFERLENGTH])]
-    }
-
-    const ret = this[READ](n || null, this[BUFFER][0])
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [READ](n, chunk) {
-    if (n === chunk.length || n === null) this[BUFFERSHIFT]()
-    else {
-      this[BUFFER][0] = chunk.slice(n)
-      chunk = chunk.slice(0, n)
-      this[BUFFERLENGTH] -= n
-    }
-
-    this.emit('data', chunk)
-
-    if (!this[BUFFER].length && !this[EOF]) this.emit('drain')
-
-    return chunk
-  }
-
-  end(chunk, encoding, cb) {
-    if (typeof chunk === 'function') (cb = chunk), (chunk = null)
-    if (typeof encoding === 'function') (cb = encoding), (encoding = 'utf8')
-    if (chunk) this.write(chunk, encoding)
-    if (cb) this.once('end', cb)
-    this[EOF] = true
-    this.writable = false
-
-    // if we haven't written anything, then go ahead and emit,
-    // even if we're not reading.
-    // we'll re-emit if a new 'end' listener is added anyway.
-    // This makes MP more suitable to write-only use cases.
-    if (this.flowing || !this[PAUSED]) this[MAYBE_EMIT_END]()
-    return this
-  }
-
-  // don't let the internal resume be overwritten
-  [RESUME]() {
-    if (this[DESTROYED]) return
-
-    this[PAUSED] = false
-    this[FLOWING] = true
-    this.emit('resume')
-    if (this[BUFFER].length) this[FLUSH]()
-    else if (this[EOF]) this[MAYBE_EMIT_END]()
-    else this.emit('drain')
-  }
-
-  resume() {
-    return this[RESUME]()
-  }
-
-  pause() {
-    this[FLOWING] = false
-    this[PAUSED] = true
-  }
-
-  get destroyed() {
-    return this[DESTROYED]
-  }
-
-  get flowing() {
-    return this[FLOWING]
-  }
-
-  get paused() {
-    return this[PAUSED]
-  }
-
-  [BUFFERPUSH](chunk) {
-    if (this[OBJECTMODE]) this[BUFFERLENGTH] += 1
-    else this[BUFFERLENGTH] += chunk.length
-    this[BUFFER].push(chunk)
-  }
-
-  [BUFFERSHIFT]() {
-    if (this[OBJECTMODE]) this[BUFFERLENGTH] -= 1
-    else this[BUFFERLENGTH] -= this[BUFFER][0].length
-    return this[BUFFER].shift()
-  }
-
-  [FLUSH](noDrain) {
-    do {} while (this[FLUSHCHUNK](this[BUFFERSHIFT]()) && this[BUFFER].length)
-
-    if (!noDrain && !this[BUFFER].length && !this[EOF]) this.emit('drain')
-  }
-
-  [FLUSHCHUNK](chunk) {
-    this.emit('data', chunk)
-    return this.flowing
-  }
-
-  pipe(dest, opts) {
-    if (this[DESTROYED]) return
-
-    const ended = this[EMITTED_END]
-    opts = opts || {}
-    if (dest === proc.stdout || dest === proc.stderr) opts.end = false
-    else opts.end = opts.end !== false
-    opts.proxyErrors = !!opts.proxyErrors
-
-    // piping an ended stream ends immediately
-    if (ended) {
-      if (opts.end) dest.end()
-    } else {
-      this[PIPES].push(
-        !opts.proxyErrors
-          ? new Pipe(this, dest, opts)
-          : new PipeProxyErrors(this, dest, opts)
-      )
-      if (this[ASYNC]) defer(() => this[RESUME]())
-      else this[RESUME]()
-    }
-
-    return dest
-  }
-
-  unpipe(dest) {
-    const p = this[PIPES].find(p => p.dest === dest)
-    if (p) {
-      this[PIPES].splice(this[PIPES].indexOf(p), 1)
-      p.unpipe()
-    }
-  }
-
-  addListener(ev, fn) {
-    return this.on(ev, fn)
-  }
-
-  on(ev, fn) {
-    const ret = super.on(ev, fn)
-    if (ev === 'data' && !this[PIPES].length && !this.flowing) this[RESUME]()
-    else if (ev === 'readable' && this[BUFFERLENGTH] !== 0)
-      super.emit('readable')
-    else if (isEndish(ev) && this[EMITTED_END]) {
-      super.emit(ev)
-      this.removeAllListeners(ev)
-    } else if (ev === 'error' && this[EMITTED_ERROR]) {
-      if (this[ASYNC]) defer(() => fn.call(this, this[EMITTED_ERROR]))
-      else fn.call(this, this[EMITTED_ERROR])
-    }
-    return ret
-  }
-
-  get emittedEnd() {
-    return this[EMITTED_END]
-  }
-
-  [MAYBE_EMIT_END]() {
-    if (
-      !this[EMITTING_END] &&
-      !this[EMITTED_END] &&
-      !this[DESTROYED] &&
-      this[BUFFER].length === 0 &&
-      this[EOF]
-    ) {
-      this[EMITTING_END] = true
-      this.emit('end')
-      this.emit('prefinish')
-      this.emit('finish')
-      if (this[CLOSED]) this.emit('close')
-      this[EMITTING_END] = false
-    }
-  }
-
-  emit(ev, data, ...extra) {
-    // error and close are only events allowed after calling destroy()
-    if (ev !== 'error' && ev !== 'close' && ev !== DESTROYED && this[DESTROYED])
-      return
-    else if (ev === 'data') {
-      return !this[OBJECTMODE] && !data
-        ? false
-        : this[ASYNC]
-        ? defer(() => this[EMITDATA](data))
-        : this[EMITDATA](data)
-    } else if (ev === 'end') {
-      return this[EMITEND]()
-    } else if (ev === 'close') {
-      this[CLOSED] = true
-      // don't emit close before 'end' and 'finish'
-      if (!this[EMITTED_END] && !this[DESTROYED]) return
-      const ret = super.emit('close')
-      this.removeAllListeners('close')
-      return ret
-    } else if (ev === 'error') {
-      this[EMITTED_ERROR] = data
-      super.emit(ERROR, data)
-      const ret =
-        !this[SIGNAL] || this.listeners('error').length
-          ? super.emit('error', data)
-          : false
-      this[MAYBE_EMIT_END]()
-      return ret
-    } else if (ev === 'resume') {
-      const ret = super.emit('resume')
-      this[MAYBE_EMIT_END]()
-      return ret
-    } else if (ev === 'finish' || ev === 'prefinish') {
-      const ret = super.emit(ev)
-      this.removeAllListeners(ev)
-      return ret
-    }
-
-    // Some other unknown event
-    const ret = super.emit(ev, data, ...extra)
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [EMITDATA](data) {
-    for (const p of this[PIPES]) {
-      if (p.dest.write(data) === false) this.pause()
-    }
-    const ret = super.emit('data', data)
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [EMITEND]() {
-    if (this[EMITTED_END]) return
-
-    this[EMITTED_END] = true
-    this.readable = false
-    if (this[ASYNC]) defer(() => this[EMITEND2]())
-    else this[EMITEND2]()
-  }
-
-  [EMITEND2]() {
-    if (this[DECODER]) {
-      const data = this[DECODER].end()
-      if (data) {
-        for (const p of this[PIPES]) {
-          p.dest.write(data)
+exports.isRooted = isRooted;
+/**
+ * Best effort attempt to determine whether a file exists and is executable.
+ * @param filePath    file path to check
+ * @param extensions  additional file extensions to try
+ * @return if file exists and is executable, returns the file path. otherwise empty string.
+ */
+function tryGetExecutablePath(filePath, extensions) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let stats = undefined;
+        try {
+            // test file exists
+            stats = yield exports.stat(filePath);
         }
-        super.emit('data', data)
-      }
-    }
-
-    for (const p of this[PIPES]) {
-      p.end()
-    }
-    const ret = super.emit('end')
-    this.removeAllListeners('end')
-    return ret
-  }
-
-  // const all = await stream.collect()
-  collect() {
-    const buf = []
-    if (!this[OBJECTMODE]) buf.dataLength = 0
-    // set the promise first, in case an error is raised
-    // by triggering the flow here.
-    const p = this.promise()
-    this.on('data', c => {
-      buf.push(c)
-      if (!this[OBJECTMODE]) buf.dataLength += c.length
-    })
-    return p.then(() => buf)
-  }
-
-  // const data = await stream.concat()
-  concat() {
-    return this[OBJECTMODE]
-      ? Promise.reject(new Error('cannot concat in objectMode'))
-      : this.collect().then(buf =>
-          this[OBJECTMODE]
-            ? Promise.reject(new Error('cannot concat in objectMode'))
-            : this[ENCODING]
-            ? buf.join('')
-            : Buffer.concat(buf, buf.dataLength)
-        )
-  }
-
-  // stream.promise().then(() => done, er => emitted error)
-  promise() {
-    return new Promise((resolve, reject) => {
-      this.on(DESTROYED, () => reject(new Error('stream destroyed')))
-      this.on('error', er => reject(er))
-      this.on('end', () => resolve())
-    })
-  }
-
-  // for await (let chunk of stream)
-  [ASYNCITERATOR]() {
-    let stopped = false
-    const stop = () => {
-      this.pause()
-      stopped = true
-      return Promise.resolve({ done: true })
-    }
-    const next = () => {
-      if (stopped) return stop()
-      const res = this.read()
-      if (res !== null) return Promise.resolve({ done: false, value: res })
-
-      if (this[EOF]) return stop()
-
-      let resolve = null
-      let reject = null
-      const onerr = er => {
-        this.removeListener('data', ondata)
-        this.removeListener('end', onend)
-        this.removeListener(DESTROYED, ondestroy)
-        stop()
-        reject(er)
-      }
-      const ondata = value => {
-        this.removeListener('error', onerr)
-        this.removeListener('end', onend)
-        this.removeListener(DESTROYED, ondestroy)
-        this.pause()
-        resolve({ value: value, done: !!this[EOF] })
-      }
-      const onend = () => {
-        this.removeListener('error', onerr)
-        this.removeListener('data', ondata)
-        this.removeListener(DESTROYED, ondestroy)
-        stop()
-        resolve({ done: true })
-      }
-      const ondestroy = () => onerr(new Error('stream destroyed'))
-      return new Promise((res, rej) => {
-        reject = rej
-        resolve = res
-        this.once(DESTROYED, ondestroy)
-        this.once('error', onerr)
-        this.once('end', onend)
-        this.once('data', ondata)
-      })
-    }
-
-    return {
-      next,
-      throw: stop,
-      return: stop,
-      [ASYNCITERATOR]() {
-        return this
-      },
-    }
-  }
-
-  // for (let chunk of stream)
-  [ITERATOR]() {
-    let stopped = false
-    const stop = () => {
-      this.pause()
-      this.removeListener(ERROR, stop)
-      this.removeListener(DESTROYED, stop)
-      this.removeListener('end', stop)
-      stopped = true
-      return { done: true }
-    }
-
-    const next = () => {
-      if (stopped) return stop()
-      const value = this.read()
-      return value === null ? stop() : { value }
-    }
-    this.once('end', stop)
-    this.once(ERROR, stop)
-    this.once(DESTROYED, stop)
-
-    return {
-      next,
-      throw: stop,
-      return: stop,
-      [ITERATOR]() {
-        return this
-      },
-    }
-  }
-
-  destroy(er) {
-    if (this[DESTROYED]) {
-      if (er) this.emit('error', er)
-      else this.emit(DESTROYED)
-      return this
-    }
-
-    this[DESTROYED] = true
-
-    // throw away all buffered data, it's never coming out
-    this[BUFFER].length = 0
-    this[BUFFERLENGTH] = 0
-
-    if (typeof this.close === 'function' && !this[CLOSED]) this.close()
-
-    if (er) this.emit('error', er)
-    // if no error to emit, still reject pending promises
-    else this.emit(DESTROYED)
-
-    return this
-  }
-
-  static isStream(s) {
-    return (
-      !!s &&
-      (s instanceof Minipass ||
-        s instanceof Stream ||
-        (s instanceof EE &&
-          // readable
-          (typeof s.pipe === 'function' ||
-            // writable
-            (typeof s.write === 'function' && typeof s.end === 'function'))))
-    )
-  }
-}
-
-exports.Minipass = Minipass
-
-
-/***/ }),
-
-/***/ 695:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-// Update with any zlib constants that are added or changed in the future.
-// Node v6 didn't export this, so we just hard code the version and rely
-// on all the other hard-coded values from zlib v4736.  When node v6
-// support drops, we can just export the realZlibConstants object.
-const realZlibConstants = (__nccwpck_require__(3106).constants) ||
-  /* istanbul ignore next */ { ZLIB_VERNUM: 4736 }
-
-module.exports = Object.freeze(Object.assign(Object.create(null), {
-  Z_NO_FLUSH: 0,
-  Z_PARTIAL_FLUSH: 1,
-  Z_SYNC_FLUSH: 2,
-  Z_FULL_FLUSH: 3,
-  Z_FINISH: 4,
-  Z_BLOCK: 5,
-  Z_OK: 0,
-  Z_STREAM_END: 1,
-  Z_NEED_DICT: 2,
-  Z_ERRNO: -1,
-  Z_STREAM_ERROR: -2,
-  Z_DATA_ERROR: -3,
-  Z_MEM_ERROR: -4,
-  Z_BUF_ERROR: -5,
-  Z_VERSION_ERROR: -6,
-  Z_NO_COMPRESSION: 0,
-  Z_BEST_SPEED: 1,
-  Z_BEST_COMPRESSION: 9,
-  Z_DEFAULT_COMPRESSION: -1,
-  Z_FILTERED: 1,
-  Z_HUFFMAN_ONLY: 2,
-  Z_RLE: 3,
-  Z_FIXED: 4,
-  Z_DEFAULT_STRATEGY: 0,
-  DEFLATE: 1,
-  INFLATE: 2,
-  GZIP: 3,
-  GUNZIP: 4,
-  DEFLATERAW: 5,
-  INFLATERAW: 6,
-  UNZIP: 7,
-  BROTLI_DECODE: 8,
-  BROTLI_ENCODE: 9,
-  Z_MIN_WINDOWBITS: 8,
-  Z_MAX_WINDOWBITS: 15,
-  Z_DEFAULT_WINDOWBITS: 15,
-  Z_MIN_CHUNK: 64,
-  Z_MAX_CHUNK: Infinity,
-  Z_DEFAULT_CHUNK: 16384,
-  Z_MIN_MEMLEVEL: 1,
-  Z_MAX_MEMLEVEL: 9,
-  Z_DEFAULT_MEMLEVEL: 8,
-  Z_MIN_LEVEL: -1,
-  Z_MAX_LEVEL: 9,
-  Z_DEFAULT_LEVEL: -1,
-  BROTLI_OPERATION_PROCESS: 0,
-  BROTLI_OPERATION_FLUSH: 1,
-  BROTLI_OPERATION_FINISH: 2,
-  BROTLI_OPERATION_EMIT_METADATA: 3,
-  BROTLI_MODE_GENERIC: 0,
-  BROTLI_MODE_TEXT: 1,
-  BROTLI_MODE_FONT: 2,
-  BROTLI_DEFAULT_MODE: 0,
-  BROTLI_MIN_QUALITY: 0,
-  BROTLI_MAX_QUALITY: 11,
-  BROTLI_DEFAULT_QUALITY: 11,
-  BROTLI_MIN_WINDOW_BITS: 10,
-  BROTLI_MAX_WINDOW_BITS: 24,
-  BROTLI_LARGE_MAX_WINDOW_BITS: 30,
-  BROTLI_DEFAULT_WINDOW: 22,
-  BROTLI_MIN_INPUT_BLOCK_BITS: 16,
-  BROTLI_MAX_INPUT_BLOCK_BITS: 24,
-  BROTLI_PARAM_MODE: 0,
-  BROTLI_PARAM_QUALITY: 1,
-  BROTLI_PARAM_LGWIN: 2,
-  BROTLI_PARAM_LGBLOCK: 3,
-  BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING: 4,
-  BROTLI_PARAM_SIZE_HINT: 5,
-  BROTLI_PARAM_LARGE_WINDOW: 6,
-  BROTLI_PARAM_NPOSTFIX: 7,
-  BROTLI_PARAM_NDIRECT: 8,
-  BROTLI_DECODER_RESULT_ERROR: 0,
-  BROTLI_DECODER_RESULT_SUCCESS: 1,
-  BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT: 2,
-  BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT: 3,
-  BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION: 0,
-  BROTLI_DECODER_PARAM_LARGE_WINDOW: 1,
-  BROTLI_DECODER_NO_ERROR: 0,
-  BROTLI_DECODER_SUCCESS: 1,
-  BROTLI_DECODER_NEEDS_MORE_INPUT: 2,
-  BROTLI_DECODER_NEEDS_MORE_OUTPUT: 3,
-  BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_NIBBLE: -1,
-  BROTLI_DECODER_ERROR_FORMAT_RESERVED: -2,
-  BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_META_NIBBLE: -3,
-  BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_ALPHABET: -4,
-  BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_SAME: -5,
-  BROTLI_DECODER_ERROR_FORMAT_CL_SPACE: -6,
-  BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE: -7,
-  BROTLI_DECODER_ERROR_FORMAT_CONTEXT_MAP_REPEAT: -8,
-  BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1: -9,
-  BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_2: -10,
-  BROTLI_DECODER_ERROR_FORMAT_TRANSFORM: -11,
-  BROTLI_DECODER_ERROR_FORMAT_DICTIONARY: -12,
-  BROTLI_DECODER_ERROR_FORMAT_WINDOW_BITS: -13,
-  BROTLI_DECODER_ERROR_FORMAT_PADDING_1: -14,
-  BROTLI_DECODER_ERROR_FORMAT_PADDING_2: -15,
-  BROTLI_DECODER_ERROR_FORMAT_DISTANCE: -16,
-  BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET: -19,
-  BROTLI_DECODER_ERROR_INVALID_ARGUMENTS: -20,
-  BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MODES: -21,
-  BROTLI_DECODER_ERROR_ALLOC_TREE_GROUPS: -22,
-  BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MAP: -25,
-  BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_1: -26,
-  BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_2: -27,
-  BROTLI_DECODER_ERROR_ALLOC_BLOCK_TYPE_TREES: -30,
-  BROTLI_DECODER_ERROR_UNREACHABLE: -31,
-}, realZlibConstants))
-
-
-/***/ }),
-
-/***/ 1238:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-const assert = __nccwpck_require__(2613)
-const Buffer = (__nccwpck_require__(181).Buffer)
-const realZlib = __nccwpck_require__(3106)
-
-const constants = exports.constants = __nccwpck_require__(695)
-const Minipass = __nccwpck_require__(1112)
-
-const OriginalBufferConcat = Buffer.concat
-
-const _superWrite = Symbol('_superWrite')
-class ZlibError extends Error {
-  constructor (err) {
-    super('zlib: ' + err.message)
-    this.code = err.code
-    this.errno = err.errno
-    /* istanbul ignore if */
-    if (!this.code)
-      this.code = 'ZLIB_ERROR'
-
-    this.message = 'zlib: ' + err.message
-    Error.captureStackTrace(this, this.constructor)
-  }
-
-  get name () {
-    return 'ZlibError'
-  }
-}
-
-// the Zlib class they all inherit from
-// This thing manages the queue of requests, and returns
-// true or false if there is anything in the queue when
-// you call the .write() method.
-const _opts = Symbol('opts')
-const _flushFlag = Symbol('flushFlag')
-const _finishFlushFlag = Symbol('finishFlushFlag')
-const _fullFlushFlag = Symbol('fullFlushFlag')
-const _handle = Symbol('handle')
-const _onError = Symbol('onError')
-const _sawError = Symbol('sawError')
-const _level = Symbol('level')
-const _strategy = Symbol('strategy')
-const _ended = Symbol('ended')
-const _defaultFullFlush = Symbol('_defaultFullFlush')
-
-class ZlibBase extends Minipass {
-  constructor (opts, mode) {
-    if (!opts || typeof opts !== 'object')
-      throw new TypeError('invalid options for ZlibBase constructor')
-
-    super(opts)
-    this[_sawError] = false
-    this[_ended] = false
-    this[_opts] = opts
-
-    this[_flushFlag] = opts.flush
-    this[_finishFlushFlag] = opts.finishFlush
-    // this will throw if any options are invalid for the class selected
-    try {
-      this[_handle] = new realZlib[mode](opts)
-    } catch (er) {
-      // make sure that all errors get decorated properly
-      throw new ZlibError(er)
-    }
-
-    this[_onError] = (err) => {
-      // no sense raising multiple errors, since we abort on the first one.
-      if (this[_sawError])
-        return
-
-      this[_sawError] = true
-
-      // there is no way to cleanly recover.
-      // continuing only obscures problems.
-      this.close()
-      this.emit('error', err)
-    }
-
-    this[_handle].on('error', er => this[_onError](new ZlibError(er)))
-    this.once('end', () => this.close)
-  }
-
-  close () {
-    if (this[_handle]) {
-      this[_handle].close()
-      this[_handle] = null
-      this.emit('close')
-    }
-  }
-
-  reset () {
-    if (!this[_sawError]) {
-      assert(this[_handle], 'zlib binding closed')
-      return this[_handle].reset()
-    }
-  }
-
-  flush (flushFlag) {
-    if (this.ended)
-      return
-
-    if (typeof flushFlag !== 'number')
-      flushFlag = this[_fullFlushFlag]
-    this.write(Object.assign(Buffer.alloc(0), { [_flushFlag]: flushFlag }))
-  }
-
-  end (chunk, encoding, cb) {
-    if (chunk)
-      this.write(chunk, encoding)
-    this.flush(this[_finishFlushFlag])
-    this[_ended] = true
-    return super.end(null, null, cb)
-  }
-
-  get ended () {
-    return this[_ended]
-  }
-
-  write (chunk, encoding, cb) {
-    // process the chunk using the sync process
-    // then super.write() all the outputted chunks
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-
-    if (typeof chunk === 'string')
-      chunk = Buffer.from(chunk, encoding)
-
-    if (this[_sawError])
-      return
-    assert(this[_handle], 'zlib binding closed')
-
-    // _processChunk tries to .close() the native handle after it's done, so we
-    // intercept that by temporarily making it a no-op.
-    const nativeHandle = this[_handle]._handle
-    const originalNativeClose = nativeHandle.close
-    nativeHandle.close = () => {}
-    const originalClose = this[_handle].close
-    this[_handle].close = () => {}
-    // It also calls `Buffer.concat()` at the end, which may be convenient
-    // for some, but which we are not interested in as it slows us down.
-    Buffer.concat = (args) => args
-    let result
-    try {
-      const flushFlag = typeof chunk[_flushFlag] === 'number'
-        ? chunk[_flushFlag] : this[_flushFlag]
-      result = this[_handle]._processChunk(chunk, flushFlag)
-      // if we don't throw, reset it back how it was
-      Buffer.concat = OriginalBufferConcat
-    } catch (err) {
-      // or if we do, put Buffer.concat() back before we emit error
-      // Error events call into user code, which may call Buffer.concat()
-      Buffer.concat = OriginalBufferConcat
-      this[_onError](new ZlibError(err))
-    } finally {
-      if (this[_handle]) {
-        // Core zlib resets `_handle` to null after attempting to close the
-        // native handle. Our no-op handler prevented actual closure, but we
-        // need to restore the `._handle` property.
-        this[_handle]._handle = nativeHandle
-        nativeHandle.close = originalNativeClose
-        this[_handle].close = originalClose
-        // `_processChunk()` adds an 'error' listener. If we don't remove it
-        // after each call, these handlers start piling up.
-        this[_handle].removeAllListeners('error')
-        // make sure OUR error listener is still attached tho
-      }
-    }
-
-    if (this[_handle])
-      this[_handle].on('error', er => this[_onError](new ZlibError(er)))
-
-    let writeReturn
-    if (result) {
-      if (Array.isArray(result) && result.length > 0) {
-        // The first buffer is always `handle._outBuffer`, which would be
-        // re-used for later invocations; so, we always have to copy that one.
-        writeReturn = this[_superWrite](Buffer.from(result[0]))
-        for (let i = 1; i < result.length; i++) {
-          writeReturn = this[_superWrite](result[i])
+        catch (err) {
+            if (err.code !== 'ENOENT') {
+                // eslint-disable-next-line no-console
+                console.log(`Unexpected error attempting to determine if executable file exists '${filePath}': ${err}`);
+            }
         }
-      } else {
-        writeReturn = this[_superWrite](Buffer.from(result))
-      }
-    }
-
-    if (cb)
-      cb()
-    return writeReturn
-  }
-
-  [_superWrite] (data) {
-    return super.write(data)
-  }
-}
-
-class Zlib extends ZlibBase {
-  constructor (opts, mode) {
-    opts = opts || {}
-
-    opts.flush = opts.flush || constants.Z_NO_FLUSH
-    opts.finishFlush = opts.finishFlush || constants.Z_FINISH
-    super(opts, mode)
-
-    this[_fullFlushFlag] = constants.Z_FULL_FLUSH
-    this[_level] = opts.level
-    this[_strategy] = opts.strategy
-  }
-
-  params (level, strategy) {
-    if (this[_sawError])
-      return
-
-    if (!this[_handle])
-      throw new Error('cannot switch params when binding is closed')
-
-    // no way to test this without also not supporting params at all
-    /* istanbul ignore if */
-    if (!this[_handle].params)
-      throw new Error('not supported in this implementation')
-
-    if (this[_level] !== level || this[_strategy] !== strategy) {
-      this.flush(constants.Z_SYNC_FLUSH)
-      assert(this[_handle], 'zlib binding closed')
-      // .params() calls .flush(), but the latter is always async in the
-      // core zlib. We override .flush() temporarily to intercept that and
-      // flush synchronously.
-      const origFlush = this[_handle].flush
-      this[_handle].flush = (flushFlag, cb) => {
-        this.flush(flushFlag)
-        cb()
-      }
-      try {
-        this[_handle].params(level, strategy)
-      } finally {
-        this[_handle].flush = origFlush
-      }
-      /* istanbul ignore else */
-      if (this[_handle]) {
-        this[_level] = level
-        this[_strategy] = strategy
-      }
-    }
-  }
-}
-
-// minimal 2-byte header
-class Deflate extends Zlib {
-  constructor (opts) {
-    super(opts, 'Deflate')
-  }
-}
-
-class Inflate extends Zlib {
-  constructor (opts) {
-    super(opts, 'Inflate')
-  }
-}
-
-// gzip - bigger header, same deflate compression
-const _portable = Symbol('_portable')
-class Gzip extends Zlib {
-  constructor (opts) {
-    super(opts, 'Gzip')
-    this[_portable] = opts && !!opts.portable
-  }
-
-  [_superWrite] (data) {
-    if (!this[_portable])
-      return super[_superWrite](data)
-
-    // we'll always get the header emitted in one first chunk
-    // overwrite the OS indicator byte with 0xFF
-    this[_portable] = false
-    data[9] = 255
-    return super[_superWrite](data)
-  }
-}
-
-class Gunzip extends Zlib {
-  constructor (opts) {
-    super(opts, 'Gunzip')
-  }
-}
-
-// raw - no header
-class DeflateRaw extends Zlib {
-  constructor (opts) {
-    super(opts, 'DeflateRaw')
-  }
-}
-
-class InflateRaw extends Zlib {
-  constructor (opts) {
-    super(opts, 'InflateRaw')
-  }
-}
-
-// auto-detect header.
-class Unzip extends Zlib {
-  constructor (opts) {
-    super(opts, 'Unzip')
-  }
-}
-
-class Brotli extends ZlibBase {
-  constructor (opts, mode) {
-    opts = opts || {}
-
-    opts.flush = opts.flush || constants.BROTLI_OPERATION_PROCESS
-    opts.finishFlush = opts.finishFlush || constants.BROTLI_OPERATION_FINISH
-
-    super(opts, mode)
-
-    this[_fullFlushFlag] = constants.BROTLI_OPERATION_FLUSH
-  }
-}
-
-class BrotliCompress extends Brotli {
-  constructor (opts) {
-    super(opts, 'BrotliCompress')
-  }
-}
-
-class BrotliDecompress extends Brotli {
-  constructor (opts) {
-    super(opts, 'BrotliDecompress')
-  }
-}
-
-exports.Deflate = Deflate
-exports.Inflate = Inflate
-exports.Gzip = Gzip
-exports.Gunzip = Gunzip
-exports.DeflateRaw = DeflateRaw
-exports.InflateRaw = InflateRaw
-exports.Unzip = Unzip
-/* istanbul ignore else */
-if (typeof realZlib.BrotliCompress === 'function') {
-  exports.BrotliCompress = BrotliCompress
-  exports.BrotliDecompress = BrotliDecompress
-} else {
-  exports.BrotliCompress = exports.BrotliDecompress = class {
-    constructor () {
-      throw new Error('Brotli is not supported in this version of Node.js')
-    }
-  }
-}
-
-
-/***/ }),
-
-/***/ 1112:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-const proc = typeof process === 'object' && process ? process : {
-  stdout: null,
-  stderr: null,
-}
-const EE = __nccwpck_require__(4434)
-const Stream = __nccwpck_require__(2203)
-const SD = (__nccwpck_require__(3193).StringDecoder)
-
-const EOF = Symbol('EOF')
-const MAYBE_EMIT_END = Symbol('maybeEmitEnd')
-const EMITTED_END = Symbol('emittedEnd')
-const EMITTING_END = Symbol('emittingEnd')
-const EMITTED_ERROR = Symbol('emittedError')
-const CLOSED = Symbol('closed')
-const READ = Symbol('read')
-const FLUSH = Symbol('flush')
-const FLUSHCHUNK = Symbol('flushChunk')
-const ENCODING = Symbol('encoding')
-const DECODER = Symbol('decoder')
-const FLOWING = Symbol('flowing')
-const PAUSED = Symbol('paused')
-const RESUME = Symbol('resume')
-const BUFFERLENGTH = Symbol('bufferLength')
-const BUFFERPUSH = Symbol('bufferPush')
-const BUFFERSHIFT = Symbol('bufferShift')
-const OBJECTMODE = Symbol('objectMode')
-const DESTROYED = Symbol('destroyed')
-const EMITDATA = Symbol('emitData')
-const EMITEND = Symbol('emitEnd')
-const EMITEND2 = Symbol('emitEnd2')
-const ASYNC = Symbol('async')
-
-const defer = fn => Promise.resolve().then(fn)
-
-// TODO remove when Node v8 support drops
-const doIter = global._MP_NO_ITERATOR_SYMBOLS_  !== '1'
-const ASYNCITERATOR = doIter && Symbol.asyncIterator
-  || Symbol('asyncIterator not implemented')
-const ITERATOR = doIter && Symbol.iterator
-  || Symbol('iterator not implemented')
-
-// events that mean 'the stream is over'
-// these are treated specially, and re-emitted
-// if they are listened for after emitting.
-const isEndish = ev =>
-  ev === 'end' ||
-  ev === 'finish' ||
-  ev === 'prefinish'
-
-const isArrayBuffer = b => b instanceof ArrayBuffer ||
-  typeof b === 'object' &&
-  b.constructor &&
-  b.constructor.name === 'ArrayBuffer' &&
-  b.byteLength >= 0
-
-const isArrayBufferView = b => !Buffer.isBuffer(b) && ArrayBuffer.isView(b)
-
-class Pipe {
-  constructor (src, dest, opts) {
-    this.src = src
-    this.dest = dest
-    this.opts = opts
-    this.ondrain = () => src[RESUME]()
-    dest.on('drain', this.ondrain)
-  }
-  unpipe () {
-    this.dest.removeListener('drain', this.ondrain)
-  }
-  // istanbul ignore next - only here for the prototype
-  proxyErrors () {}
-  end () {
-    this.unpipe()
-    if (this.opts.end)
-      this.dest.end()
-  }
-}
-
-class PipeProxyErrors extends Pipe {
-  unpipe () {
-    this.src.removeListener('error', this.proxyErrors)
-    super.unpipe()
-  }
-  constructor (src, dest, opts) {
-    super(src, dest, opts)
-    this.proxyErrors = er => dest.emit('error', er)
-    src.on('error', this.proxyErrors)
-  }
-}
-
-module.exports = class Minipass extends Stream {
-  constructor (options) {
-    super()
-    this[FLOWING] = false
-    // whether we're explicitly paused
-    this[PAUSED] = false
-    this.pipes = []
-    this.buffer = []
-    this[OBJECTMODE] = options && options.objectMode || false
-    if (this[OBJECTMODE])
-      this[ENCODING] = null
-    else
-      this[ENCODING] = options && options.encoding || null
-    if (this[ENCODING] === 'buffer')
-      this[ENCODING] = null
-    this[ASYNC] = options && !!options.async || false
-    this[DECODER] = this[ENCODING] ? new SD(this[ENCODING]) : null
-    this[EOF] = false
-    this[EMITTED_END] = false
-    this[EMITTING_END] = false
-    this[CLOSED] = false
-    this[EMITTED_ERROR] = null
-    this.writable = true
-    this.readable = true
-    this[BUFFERLENGTH] = 0
-    this[DESTROYED] = false
-  }
-
-  get bufferLength () { return this[BUFFERLENGTH] }
-
-  get encoding () { return this[ENCODING] }
-  set encoding (enc) {
-    if (this[OBJECTMODE])
-      throw new Error('cannot set encoding in objectMode')
-
-    if (this[ENCODING] && enc !== this[ENCODING] &&
-        (this[DECODER] && this[DECODER].lastNeed || this[BUFFERLENGTH]))
-      throw new Error('cannot change encoding')
-
-    if (this[ENCODING] !== enc) {
-      this[DECODER] = enc ? new SD(enc) : null
-      if (this.buffer.length)
-        this.buffer = this.buffer.map(chunk => this[DECODER].write(chunk))
-    }
-
-    this[ENCODING] = enc
-  }
-
-  setEncoding (enc) {
-    this.encoding = enc
-  }
-
-  get objectMode () { return this[OBJECTMODE] }
-  set objectMode (om) { this[OBJECTMODE] = this[OBJECTMODE] || !!om }
-
-  get ['async'] () { return this[ASYNC] }
-  set ['async'] (a) { this[ASYNC] = this[ASYNC] || !!a }
-
-  write (chunk, encoding, cb) {
-    if (this[EOF])
-      throw new Error('write after end')
-
-    if (this[DESTROYED]) {
-      this.emit('error', Object.assign(
-        new Error('Cannot call write after a stream was destroyed'),
-        { code: 'ERR_STREAM_DESTROYED' }
-      ))
-      return true
-    }
-
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-
-    if (!encoding)
-      encoding = 'utf8'
-
-    const fn = this[ASYNC] ? defer : f => f()
-
-    // convert array buffers and typed array views into buffers
-    // at some point in the future, we may want to do the opposite!
-    // leave strings and buffers as-is
-    // anything else switches us into object mode
-    if (!this[OBJECTMODE] && !Buffer.isBuffer(chunk)) {
-      if (isArrayBufferView(chunk))
-        chunk = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-      else if (isArrayBuffer(chunk))
-        chunk = Buffer.from(chunk)
-      else if (typeof chunk !== 'string')
-        // use the setter so we throw if we have encoding set
-        this.objectMode = true
-    }
-
-    // handle object mode up front, since it's simpler
-    // this yields better performance, fewer checks later.
-    if (this[OBJECTMODE]) {
-      /* istanbul ignore if - maybe impossible? */
-      if (this.flowing && this[BUFFERLENGTH] !== 0)
-        this[FLUSH](true)
-
-      if (this.flowing)
-        this.emit('data', chunk)
-      else
-        this[BUFFERPUSH](chunk)
-
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-
-      if (cb)
-        fn(cb)
-
-      return this.flowing
-    }
-
-    // at this point the chunk is a buffer or string
-    // don't buffer it up or send it to the decoder
-    if (!chunk.length) {
-      if (this[BUFFERLENGTH] !== 0)
-        this.emit('readable')
-      if (cb)
-        fn(cb)
-      return this.flowing
-    }
-
-    // fast-path writing strings of same encoding to a stream with
-    // an empty buffer, skipping the buffer/decoder dance
-    if (typeof chunk === 'string' &&
-        // unless it is a string already ready for us to use
-        !(encoding === this[ENCODING] && !this[DECODER].lastNeed)) {
-      chunk = Buffer.from(chunk, encoding)
-    }
-
-    if (Buffer.isBuffer(chunk) && this[ENCODING])
-      chunk = this[DECODER].write(chunk)
-
-    // Note: flushing CAN potentially switch us into not-flowing mode
-    if (this.flowing && this[BUFFERLENGTH] !== 0)
-      this[FLUSH](true)
-
-    if (this.flowing)
-      this.emit('data', chunk)
-    else
-      this[BUFFERPUSH](chunk)
-
-    if (this[BUFFERLENGTH] !== 0)
-      this.emit('readable')
-
-    if (cb)
-      fn(cb)
-
-    return this.flowing
-  }
-
-  read (n) {
-    if (this[DESTROYED])
-      return null
-
-    if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH]) {
-      this[MAYBE_EMIT_END]()
-      return null
-    }
-
-    if (this[OBJECTMODE])
-      n = null
-
-    if (this.buffer.length > 1 && !this[OBJECTMODE]) {
-      if (this.encoding)
-        this.buffer = [this.buffer.join('')]
-      else
-        this.buffer = [Buffer.concat(this.buffer, this[BUFFERLENGTH])]
-    }
-
-    const ret = this[READ](n || null, this.buffer[0])
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [READ] (n, chunk) {
-    if (n === chunk.length || n === null)
-      this[BUFFERSHIFT]()
-    else {
-      this.buffer[0] = chunk.slice(n)
-      chunk = chunk.slice(0, n)
-      this[BUFFERLENGTH] -= n
-    }
-
-    this.emit('data', chunk)
-
-    if (!this.buffer.length && !this[EOF])
-      this.emit('drain')
-
-    return chunk
-  }
-
-  end (chunk, encoding, cb) {
-    if (typeof chunk === 'function')
-      cb = chunk, chunk = null
-    if (typeof encoding === 'function')
-      cb = encoding, encoding = 'utf8'
-    if (chunk)
-      this.write(chunk, encoding)
-    if (cb)
-      this.once('end', cb)
-    this[EOF] = true
-    this.writable = false
-
-    // if we haven't written anything, then go ahead and emit,
-    // even if we're not reading.
-    // we'll re-emit if a new 'end' listener is added anyway.
-    // This makes MP more suitable to write-only use cases.
-    if (this.flowing || !this[PAUSED])
-      this[MAYBE_EMIT_END]()
-    return this
-  }
-
-  // don't let the internal resume be overwritten
-  [RESUME] () {
-    if (this[DESTROYED])
-      return
-
-    this[PAUSED] = false
-    this[FLOWING] = true
-    this.emit('resume')
-    if (this.buffer.length)
-      this[FLUSH]()
-    else if (this[EOF])
-      this[MAYBE_EMIT_END]()
-    else
-      this.emit('drain')
-  }
-
-  resume () {
-    return this[RESUME]()
-  }
-
-  pause () {
-    this[FLOWING] = false
-    this[PAUSED] = true
-  }
-
-  get destroyed () {
-    return this[DESTROYED]
-  }
-
-  get flowing () {
-    return this[FLOWING]
-  }
-
-  get paused () {
-    return this[PAUSED]
-  }
-
-  [BUFFERPUSH] (chunk) {
-    if (this[OBJECTMODE])
-      this[BUFFERLENGTH] += 1
-    else
-      this[BUFFERLENGTH] += chunk.length
-    this.buffer.push(chunk)
-  }
-
-  [BUFFERSHIFT] () {
-    if (this.buffer.length) {
-      if (this[OBJECTMODE])
-        this[BUFFERLENGTH] -= 1
-      else
-        this[BUFFERLENGTH] -= this.buffer[0].length
-    }
-    return this.buffer.shift()
-  }
-
-  [FLUSH] (noDrain) {
-    do {} while (this[FLUSHCHUNK](this[BUFFERSHIFT]()))
-
-    if (!noDrain && !this.buffer.length && !this[EOF])
-      this.emit('drain')
-  }
-
-  [FLUSHCHUNK] (chunk) {
-    return chunk ? (this.emit('data', chunk), this.flowing) : false
-  }
-
-  pipe (dest, opts) {
-    if (this[DESTROYED])
-      return
-
-    const ended = this[EMITTED_END]
-    opts = opts || {}
-    if (dest === proc.stdout || dest === proc.stderr)
-      opts.end = false
-    else
-      opts.end = opts.end !== false
-    opts.proxyErrors = !!opts.proxyErrors
-
-    // piping an ended stream ends immediately
-    if (ended) {
-      if (opts.end)
-        dest.end()
-    } else {
-      this.pipes.push(!opts.proxyErrors ? new Pipe(this, dest, opts)
-        : new PipeProxyErrors(this, dest, opts))
-      if (this[ASYNC])
-        defer(() => this[RESUME]())
-      else
-        this[RESUME]()
-    }
-
-    return dest
-  }
-
-  unpipe (dest) {
-    const p = this.pipes.find(p => p.dest === dest)
-    if (p) {
-      this.pipes.splice(this.pipes.indexOf(p), 1)
-      p.unpipe()
-    }
-  }
-
-  addListener (ev, fn) {
-    return this.on(ev, fn)
-  }
-
-  on (ev, fn) {
-    const ret = super.on(ev, fn)
-    if (ev === 'data' && !this.pipes.length && !this.flowing)
-      this[RESUME]()
-    else if (ev === 'readable' && this[BUFFERLENGTH] !== 0)
-      super.emit('readable')
-    else if (isEndish(ev) && this[EMITTED_END]) {
-      super.emit(ev)
-      this.removeAllListeners(ev)
-    } else if (ev === 'error' && this[EMITTED_ERROR]) {
-      if (this[ASYNC])
-        defer(() => fn.call(this, this[EMITTED_ERROR]))
-      else
-        fn.call(this, this[EMITTED_ERROR])
-    }
-    return ret
-  }
-
-  get emittedEnd () {
-    return this[EMITTED_END]
-  }
-
-  [MAYBE_EMIT_END] () {
-    if (!this[EMITTING_END] &&
-        !this[EMITTED_END] &&
-        !this[DESTROYED] &&
-        this.buffer.length === 0 &&
-        this[EOF]) {
-      this[EMITTING_END] = true
-      this.emit('end')
-      this.emit('prefinish')
-      this.emit('finish')
-      if (this[CLOSED])
-        this.emit('close')
-      this[EMITTING_END] = false
-    }
-  }
-
-  emit (ev, data, ...extra) {
-    // error and close are only events allowed after calling destroy()
-    if (ev !== 'error' && ev !== 'close' && ev !== DESTROYED && this[DESTROYED])
-      return
-    else if (ev === 'data') {
-      return !data ? false
-        : this[ASYNC] ? defer(() => this[EMITDATA](data))
-        : this[EMITDATA](data)
-    } else if (ev === 'end') {
-      return this[EMITEND]()
-    } else if (ev === 'close') {
-      this[CLOSED] = true
-      // don't emit close before 'end' and 'finish'
-      if (!this[EMITTED_END] && !this[DESTROYED])
-        return
-      const ret = super.emit('close')
-      this.removeAllListeners('close')
-      return ret
-    } else if (ev === 'error') {
-      this[EMITTED_ERROR] = data
-      const ret = super.emit('error', data)
-      this[MAYBE_EMIT_END]()
-      return ret
-    } else if (ev === 'resume') {
-      const ret = super.emit('resume')
-      this[MAYBE_EMIT_END]()
-      return ret
-    } else if (ev === 'finish' || ev === 'prefinish') {
-      const ret = super.emit(ev)
-      this.removeAllListeners(ev)
-      return ret
-    }
-
-    // Some other unknown event
-    const ret = super.emit(ev, data, ...extra)
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [EMITDATA] (data) {
-    for (const p of this.pipes) {
-      if (p.dest.write(data) === false)
-        this.pause()
-    }
-    const ret = super.emit('data', data)
-    this[MAYBE_EMIT_END]()
-    return ret
-  }
-
-  [EMITEND] () {
-    if (this[EMITTED_END])
-      return
-
-    this[EMITTED_END] = true
-    this.readable = false
-    if (this[ASYNC])
-      defer(() => this[EMITEND2]())
-    else
-      this[EMITEND2]()
-  }
-
-  [EMITEND2] () {
-    if (this[DECODER]) {
-      const data = this[DECODER].end()
-      if (data) {
-        for (const p of this.pipes) {
-          p.dest.write(data)
-        }
-        super.emit('data', data)
-      }
-    }
-
-    for (const p of this.pipes) {
-      p.end()
-    }
-    const ret = super.emit('end')
-    this.removeAllListeners('end')
-    return ret
-  }
-
-  // const all = await stream.collect()
-  collect () {
-    const buf = []
-    if (!this[OBJECTMODE])
-      buf.dataLength = 0
-    // set the promise first, in case an error is raised
-    // by triggering the flow here.
-    const p = this.promise()
-    this.on('data', c => {
-      buf.push(c)
-      if (!this[OBJECTMODE])
-        buf.dataLength += c.length
-    })
-    return p.then(() => buf)
-  }
-
-  // const data = await stream.concat()
-  concat () {
-    return this[OBJECTMODE]
-      ? Promise.reject(new Error('cannot concat in objectMode'))
-      : this.collect().then(buf =>
-          this[OBJECTMODE]
-            ? Promise.reject(new Error('cannot concat in objectMode'))
-            : this[ENCODING] ? buf.join('') : Buffer.concat(buf, buf.dataLength))
-  }
-
-  // stream.promise().then(() => done, er => emitted error)
-  promise () {
-    return new Promise((resolve, reject) => {
-      this.on(DESTROYED, () => reject(new Error('stream destroyed')))
-      this.on('error', er => reject(er))
-      this.on('end', () => resolve())
-    })
-  }
-
-  // for await (let chunk of stream)
-  [ASYNCITERATOR] () {
-    const next = () => {
-      const res = this.read()
-      if (res !== null)
-        return Promise.resolve({ done: false, value: res })
-
-      if (this[EOF])
-        return Promise.resolve({ done: true })
-
-      let resolve = null
-      let reject = null
-      const onerr = er => {
-        this.removeListener('data', ondata)
-        this.removeListener('end', onend)
-        reject(er)
-      }
-      const ondata = value => {
-        this.removeListener('error', onerr)
-        this.removeListener('end', onend)
-        this.pause()
-        resolve({ value: value, done: !!this[EOF] })
-      }
-      const onend = () => {
-        this.removeListener('error', onerr)
-        this.removeListener('data', ondata)
-        resolve({ done: true })
-      }
-      const ondestroy = () => onerr(new Error('stream destroyed'))
-      return new Promise((res, rej) => {
-        reject = rej
-        resolve = res
-        this.once(DESTROYED, ondestroy)
-        this.once('error', onerr)
-        this.once('end', onend)
-        this.once('data', ondata)
-      })
-    }
-
-    return { next }
-  }
-
-  // for (let chunk of stream)
-  [ITERATOR] () {
-    const next = () => {
-      const value = this.read()
-      const done = value === null
-      return { value, done }
-    }
-    return { next }
-  }
-
-  destroy (er) {
-    if (this[DESTROYED]) {
-      if (er)
-        this.emit('error', er)
-      else
-        this.emit(DESTROYED)
-      return this
-    }
-
-    this[DESTROYED] = true
-
-    // throw away all buffered data, it's never coming out
-    this.buffer.length = 0
-    this[BUFFERLENGTH] = 0
-
-    if (typeof this.close === 'function' && !this[CLOSED])
-      this.close()
-
-    if (er)
-      this.emit('error', er)
-    else // if no error to emit, still reject pending promises
-      this.emit(DESTROYED)
-
-    return this
-  }
-
-  static isStream (s) {
-    return !!s && (s instanceof Minipass || s instanceof Stream ||
-      s instanceof EE && (
-        typeof s.pipe === 'function' || // readable
-        (typeof s.write === 'function' && typeof s.end === 'function') // writable
-      ))
-  }
-}
-
-
-/***/ }),
-
-/***/ 4469:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const optsArg = __nccwpck_require__(1938)
-const pathArg = __nccwpck_require__(8187)
-
-const {mkdirpNative, mkdirpNativeSync} = __nccwpck_require__(122)
-const {mkdirpManual, mkdirpManualSync} = __nccwpck_require__(999)
-const {useNative, useNativeSync} = __nccwpck_require__(3508)
-
-
-const mkdirp = (path, opts) => {
-  path = pathArg(path)
-  opts = optsArg(opts)
-  return useNative(opts)
-    ? mkdirpNative(path, opts)
-    : mkdirpManual(path, opts)
-}
-
-const mkdirpSync = (path, opts) => {
-  path = pathArg(path)
-  opts = optsArg(opts)
-  return useNativeSync(opts)
-    ? mkdirpNativeSync(path, opts)
-    : mkdirpManualSync(path, opts)
-}
-
-mkdirp.sync = mkdirpSync
-mkdirp.native = (path, opts) => mkdirpNative(pathArg(path), optsArg(opts))
-mkdirp.manual = (path, opts) => mkdirpManual(pathArg(path), optsArg(opts))
-mkdirp.nativeSync = (path, opts) => mkdirpNativeSync(pathArg(path), optsArg(opts))
-mkdirp.manualSync = (path, opts) => mkdirpManualSync(pathArg(path), optsArg(opts))
-
-module.exports = mkdirp
-
-
-/***/ }),
-
-/***/ 2922:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const {dirname} = __nccwpck_require__(6928)
-
-const findMade = (opts, parent, path = undefined) => {
-  // we never want the 'made' return value to be a root directory
-  if (path === parent)
-    return Promise.resolve()
-
-  return opts.statAsync(parent).then(
-    st => st.isDirectory() ? path : undefined, // will fail later
-    er => er.code === 'ENOENT'
-      ? findMade(opts, dirname(parent), parent)
-      : undefined
-  )
-}
-
-const findMadeSync = (opts, parent, path = undefined) => {
-  if (path === parent)
-    return undefined
-
-  try {
-    return opts.statSync(parent).isDirectory() ? path : undefined
-  } catch (er) {
-    return er.code === 'ENOENT'
-      ? findMadeSync(opts, dirname(parent), parent)
-      : undefined
-  }
-}
-
-module.exports = {findMade, findMadeSync}
-
-
-/***/ }),
-
-/***/ 999:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const {dirname} = __nccwpck_require__(6928)
-
-const mkdirpManual = (path, opts, made) => {
-  opts.recursive = false
-  const parent = dirname(path)
-  if (parent === path) {
-    return opts.mkdirAsync(path, opts).catch(er => {
-      // swallowed by recursive implementation on posix systems
-      // any other error is a failure
-      if (er.code !== 'EISDIR')
-        throw er
-    })
-  }
-
-  return opts.mkdirAsync(path, opts).then(() => made || path, er => {
-    if (er.code === 'ENOENT')
-      return mkdirpManual(parent, opts)
-        .then(made => mkdirpManual(path, opts, made))
-    if (er.code !== 'EEXIST' && er.code !== 'EROFS')
-      throw er
-    return opts.statAsync(path).then(st => {
-      if (st.isDirectory())
-        return made
-      else
-        throw er
-    }, () => { throw er })
-  })
-}
-
-const mkdirpManualSync = (path, opts, made) => {
-  const parent = dirname(path)
-  opts.recursive = false
-
-  if (parent === path) {
-    try {
-      return opts.mkdirSync(path, opts)
-    } catch (er) {
-      // swallowed by recursive implementation on posix systems
-      // any other error is a failure
-      if (er.code !== 'EISDIR')
-        throw er
-      else
-        return
-    }
-  }
-
-  try {
-    opts.mkdirSync(path, opts)
-    return made || path
-  } catch (er) {
-    if (er.code === 'ENOENT')
-      return mkdirpManualSync(path, opts, mkdirpManualSync(parent, opts, made))
-    if (er.code !== 'EEXIST' && er.code !== 'EROFS')
-      throw er
-    try {
-      if (!opts.statSync(path).isDirectory())
-        throw er
-    } catch (_) {
-      throw er
-    }
-  }
-}
-
-module.exports = {mkdirpManual, mkdirpManualSync}
-
-
-/***/ }),
-
-/***/ 122:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const {dirname} = __nccwpck_require__(6928)
-const {findMade, findMadeSync} = __nccwpck_require__(2922)
-const {mkdirpManual, mkdirpManualSync} = __nccwpck_require__(999)
-
-const mkdirpNative = (path, opts) => {
-  opts.recursive = true
-  const parent = dirname(path)
-  if (parent === path)
-    return opts.mkdirAsync(path, opts)
-
-  return findMade(opts, path).then(made =>
-    opts.mkdirAsync(path, opts).then(() => made)
-    .catch(er => {
-      if (er.code === 'ENOENT')
-        return mkdirpManual(path, opts)
-      else
-        throw er
-    }))
-}
-
-const mkdirpNativeSync = (path, opts) => {
-  opts.recursive = true
-  const parent = dirname(path)
-  if (parent === path)
-    return opts.mkdirSync(path, opts)
-
-  const made = findMadeSync(opts, path)
-  try {
-    opts.mkdirSync(path, opts)
-    return made
-  } catch (er) {
-    if (er.code === 'ENOENT')
-      return mkdirpManualSync(path, opts)
-    else
-      throw er
-  }
-}
-
-module.exports = {mkdirpNative, mkdirpNativeSync}
-
-
-/***/ }),
-
-/***/ 1938:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const { promisify } = __nccwpck_require__(9023)
-const fs = __nccwpck_require__(9896)
-const optsArg = opts => {
-  if (!opts)
-    opts = { mode: 0o777, fs }
-  else if (typeof opts === 'object')
-    opts = { mode: 0o777, fs, ...opts }
-  else if (typeof opts === 'number')
-    opts = { mode: opts, fs }
-  else if (typeof opts === 'string')
-    opts = { mode: parseInt(opts, 8), fs }
-  else
-    throw new TypeError('invalid options argument')
-
-  opts.mkdir = opts.mkdir || opts.fs.mkdir || fs.mkdir
-  opts.mkdirAsync = promisify(opts.mkdir)
-  opts.stat = opts.stat || opts.fs.stat || fs.stat
-  opts.statAsync = promisify(opts.stat)
-  opts.statSync = opts.statSync || opts.fs.statSync || fs.statSync
-  opts.mkdirSync = opts.mkdirSync || opts.fs.mkdirSync || fs.mkdirSync
-  return opts
-}
-module.exports = optsArg
-
-
-/***/ }),
-
-/***/ 8187:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const platform = process.env.__TESTING_MKDIRP_PLATFORM__ || process.platform
-const { resolve, parse } = __nccwpck_require__(6928)
-const pathArg = path => {
-  if (/\0/.test(path)) {
-    // simulate same failure that node raises
-    throw Object.assign(
-      new TypeError('path must be a string without null bytes'),
-      {
-        path,
-        code: 'ERR_INVALID_ARG_VALUE',
-      }
-    )
-  }
-
-  path = resolve(path)
-  if (platform === 'win32') {
-    const badWinChars = /[*|"<>?:]/
-    const {root} = parse(path)
-    if (badWinChars.test(path.substr(root.length))) {
-      throw Object.assign(new Error('Illegal characters in path.'), {
-        path,
-        code: 'EINVAL',
-      })
-    }
-  }
-
-  return path
-}
-module.exports = pathArg
-
-
-/***/ }),
-
-/***/ 3508:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const fs = __nccwpck_require__(9896)
-
-const version = process.env.__TESTING_MKDIRP_NODE_VERSION__ || process.version
-const versArr = version.replace(/^v/, '').split('.')
-const hasNative = +versArr[0] > 10 || +versArr[0] === 10 && +versArr[1] >= 12
-
-const useNative = !hasNative ? () => false : opts => opts.mkdir === fs.mkdir
-const useNativeSync = !hasNative ? () => false : opts => opts.mkdirSync === fs.mkdirSync
-
-module.exports = {useNative, useNativeSync}
-
-
-/***/ }),
-
-/***/ 8815:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// high-level commands
-exports.c = exports.create = __nccwpck_require__(9111)
-exports.r = exports.replace = __nccwpck_require__(5299)
-exports.t = exports.list = __nccwpck_require__(9667)
-exports.u = exports.update = __nccwpck_require__(7814)
-exports.x = exports.extract = __nccwpck_require__(9990)
-
-// classes
-exports.Pack = __nccwpck_require__(9766)
-exports.Unpack = __nccwpck_require__(6581)
-exports.Parse = __nccwpck_require__(120)
-exports.ReadEntry = __nccwpck_require__(6770)
-exports.WriteEntry = __nccwpck_require__(3781)
-exports.Header = __nccwpck_require__(5634)
-exports.Pax = __nccwpck_require__(3542)
-exports.types = __nccwpck_require__(662)
-
-
-/***/ }),
-
-/***/ 9111:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// tar -c
-const hlo = __nccwpck_require__(4252)
-
-const Pack = __nccwpck_require__(9766)
-const fsm = __nccwpck_require__(7532)
-const t = __nccwpck_require__(9667)
-const path = __nccwpck_require__(6928)
-
-module.exports = (opt_, files, cb) => {
-  if (typeof files === 'function') {
-    cb = files
-  }
-
-  if (Array.isArray(opt_)) {
-    files = opt_, opt_ = {}
-  }
-
-  if (!files || !Array.isArray(files) || !files.length) {
-    throw new TypeError('no files or directories specified')
-  }
-
-  files = Array.from(files)
-
-  const opt = hlo(opt_)
-
-  if (opt.sync && typeof cb === 'function') {
-    throw new TypeError('callback not supported for sync tar functions')
-  }
-
-  if (!opt.file && typeof cb === 'function') {
-    throw new TypeError('callback only supported with file option')
-  }
-
-  return opt.file && opt.sync ? createFileSync(opt, files)
-    : opt.file ? createFile(opt, files, cb)
-    : opt.sync ? createSync(opt, files)
-    : create(opt, files)
-}
-
-const createFileSync = (opt, files) => {
-  const p = new Pack.Sync(opt)
-  const stream = new fsm.WriteStreamSync(opt.file, {
-    mode: opt.mode || 0o666,
-  })
-  p.pipe(stream)
-  addFilesSync(p, files)
-}
-
-const createFile = (opt, files, cb) => {
-  const p = new Pack(opt)
-  const stream = new fsm.WriteStream(opt.file, {
-    mode: opt.mode || 0o666,
-  })
-  p.pipe(stream)
-
-  const promise = new Promise((res, rej) => {
-    stream.on('error', rej)
-    stream.on('close', res)
-    p.on('error', rej)
-  })
-
-  addFilesAsync(p, files)
-
-  return cb ? promise.then(cb, cb) : promise
-}
-
-const addFilesSync = (p, files) => {
-  files.forEach(file => {
-    if (file.charAt(0) === '@') {
-      t({
-        file: path.resolve(p.cwd, file.slice(1)),
-        sync: true,
-        noResume: true,
-        onentry: entry => p.add(entry),
-      })
-    } else {
-      p.add(file)
-    }
-  })
-  p.end()
-}
-
-const addFilesAsync = (p, files) => {
-  while (files.length) {
-    const file = files.shift()
-    if (file.charAt(0) === '@') {
-      return t({
-        file: path.resolve(p.cwd, file.slice(1)),
-        noResume: true,
-        onentry: entry => p.add(entry),
-      }).then(_ => addFilesAsync(p, files))
-    } else {
-      p.add(file)
-    }
-  }
-  p.end()
-}
-
-const createSync = (opt, files) => {
-  const p = new Pack.Sync(opt)
-  addFilesSync(p, files)
-  return p
-}
-
-const create = (opt, files) => {
-  const p = new Pack(opt)
-  addFilesAsync(p, files)
-  return p
-}
-
-
-/***/ }),
-
-/***/ 9990:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// tar -x
-const hlo = __nccwpck_require__(4252)
-const Unpack = __nccwpck_require__(6581)
-const fs = __nccwpck_require__(9896)
-const fsm = __nccwpck_require__(7532)
-const path = __nccwpck_require__(6928)
-const stripSlash = __nccwpck_require__(5126)
-
-module.exports = (opt_, files, cb) => {
-  if (typeof opt_ === 'function') {
-    cb = opt_, files = null, opt_ = {}
-  } else if (Array.isArray(opt_)) {
-    files = opt_, opt_ = {}
-  }
-
-  if (typeof files === 'function') {
-    cb = files, files = null
-  }
-
-  if (!files) {
-    files = []
-  } else {
-    files = Array.from(files)
-  }
-
-  const opt = hlo(opt_)
-
-  if (opt.sync && typeof cb === 'function') {
-    throw new TypeError('callback not supported for sync tar functions')
-  }
-
-  if (!opt.file && typeof cb === 'function') {
-    throw new TypeError('callback only supported with file option')
-  }
-
-  if (files.length) {
-    filesFilter(opt, files)
-  }
-
-  return opt.file && opt.sync ? extractFileSync(opt)
-    : opt.file ? extractFile(opt, cb)
-    : opt.sync ? extractSync(opt)
-    : extract(opt)
-}
-
-// construct a filter that limits the file entries listed
-// include child entries if a dir is included
-const filesFilter = (opt, files) => {
-  const map = new Map(files.map(f => [stripSlash(f), true]))
-  const filter = opt.filter
-
-  const mapHas = (file, r) => {
-    const root = r || path.parse(file).root || '.'
-    const ret = file === root ? false
-      : map.has(file) ? map.get(file)
-      : mapHas(path.dirname(file), root)
-
-    map.set(file, ret)
-    return ret
-  }
-
-  opt.filter = filter
-    ? (file, entry) => filter(file, entry) && mapHas(stripSlash(file))
-    : file => mapHas(stripSlash(file))
-}
-
-const extractFileSync = opt => {
-  const u = new Unpack.Sync(opt)
-
-  const file = opt.file
-  const stat = fs.statSync(file)
-  // This trades a zero-byte read() syscall for a stat
-  // However, it will usually result in less memory allocation
-  const readSize = opt.maxReadSize || 16 * 1024 * 1024
-  const stream = new fsm.ReadStreamSync(file, {
-    readSize: readSize,
-    size: stat.size,
-  })
-  stream.pipe(u)
-}
-
-const extractFile = (opt, cb) => {
-  const u = new Unpack(opt)
-  const readSize = opt.maxReadSize || 16 * 1024 * 1024
-
-  const file = opt.file
-  const p = new Promise((resolve, reject) => {
-    u.on('error', reject)
-    u.on('close', resolve)
-
-    // This trades a zero-byte read() syscall for a stat
-    // However, it will usually result in less memory allocation
-    fs.stat(file, (er, stat) => {
-      if (er) {
-        reject(er)
-      } else {
-        const stream = new fsm.ReadStream(file, {
-          readSize: readSize,
-          size: stat.size,
-        })
-        stream.on('error', reject)
-        stream.pipe(u)
-      }
-    })
-  })
-  return cb ? p.then(cb, cb) : p
-}
-
-const extractSync = opt => new Unpack.Sync(opt)
-
-const extract = opt => new Unpack(opt)
-
-
-/***/ }),
-
-/***/ 700:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-// Get the appropriate flag to use for creating files
-// We use fmap on Windows platforms for files less than
-// 512kb.  This is a fairly low limit, but avoids making
-// things slower in some cases.  Since most of what this
-// library is used for is extracting tarballs of many
-// relatively small files in npm packages and the like,
-// it can be a big boost on Windows platforms.
-// Only supported in Node v12.9.0 and above.
-const platform = process.env.__FAKE_PLATFORM__ || process.platform
-const isWindows = platform === 'win32'
-const fs = global.__FAKE_TESTING_FS__ || __nccwpck_require__(9896)
-
-/* istanbul ignore next */
-const { O_CREAT, O_TRUNC, O_WRONLY, UV_FS_O_FILEMAP = 0 } = fs.constants
-
-const fMapEnabled = isWindows && !!UV_FS_O_FILEMAP
-const fMapLimit = 512 * 1024
-const fMapFlag = UV_FS_O_FILEMAP | O_TRUNC | O_CREAT | O_WRONLY
-module.exports = !fMapEnabled ? () => 'w'
-  : size => size < fMapLimit ? fMapFlag : 'w'
-
-
-/***/ }),
-
-/***/ 5634:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-// parse a 512-byte header block to a data object, or vice-versa
-// encode returns `true` if a pax extended header is needed, because
-// the data could not be faithfully encoded in a simple header.
-// (Also, check header.needPax to see if it needs a pax header.)
-
-const types = __nccwpck_require__(662)
-const pathModule = (__nccwpck_require__(6928).posix)
-const large = __nccwpck_require__(8539)
-
-const SLURP = Symbol('slurp')
-const TYPE = Symbol('type')
-
-class Header {
-  constructor (data, off, ex, gex) {
-    this.cksumValid = false
-    this.needPax = false
-    this.nullBlock = false
-
-    this.block = null
-    this.path = null
-    this.mode = null
-    this.uid = null
-    this.gid = null
-    this.size = null
-    this.mtime = null
-    this.cksum = null
-    this[TYPE] = '0'
-    this.linkpath = null
-    this.uname = null
-    this.gname = null
-    this.devmaj = 0
-    this.devmin = 0
-    this.atime = null
-    this.ctime = null
-
-    if (Buffer.isBuffer(data)) {
-      this.decode(data, off || 0, ex, gex)
-    } else if (data) {
-      this.set(data)
-    }
-  }
-
-  decode (buf, off, ex, gex) {
-    if (!off) {
-      off = 0
-    }
-
-    if (!buf || !(buf.length >= off + 512)) {
-      throw new Error('need 512 bytes for header')
-    }
-
-    this.path = decString(buf, off, 100)
-    this.mode = decNumber(buf, off + 100, 8)
-    this.uid = decNumber(buf, off + 108, 8)
-    this.gid = decNumber(buf, off + 116, 8)
-    this.size = decNumber(buf, off + 124, 12)
-    this.mtime = decDate(buf, off + 136, 12)
-    this.cksum = decNumber(buf, off + 148, 12)
-
-    // if we have extended or global extended headers, apply them now
-    // See https://github.com/npm/node-tar/pull/187
-    this[SLURP](ex)
-    this[SLURP](gex, true)
-
-    // old tar versions marked dirs as a file with a trailing /
-    this[TYPE] = decString(buf, off + 156, 1)
-    if (this[TYPE] === '') {
-      this[TYPE] = '0'
-    }
-    if (this[TYPE] === '0' && this.path.slice(-1) === '/') {
-      this[TYPE] = '5'
-    }
-
-    // tar implementations sometimes incorrectly put the stat(dir).size
-    // as the size in the tarball, even though Directory entries are
-    // not able to have any body at all.  In the very rare chance that
-    // it actually DOES have a body, we weren't going to do anything with
-    // it anyway, and it'll just be a warning about an invalid header.
-    if (this[TYPE] === '5') {
-      this.size = 0
-    }
-
-    this.linkpath = decString(buf, off + 157, 100)
-    if (buf.slice(off + 257, off + 265).toString() === 'ustar\u000000') {
-      this.uname = decString(buf, off + 265, 32)
-      this.gname = decString(buf, off + 297, 32)
-      this.devmaj = decNumber(buf, off + 329, 8)
-      this.devmin = decNumber(buf, off + 337, 8)
-      if (buf[off + 475] !== 0) {
-        // definitely a prefix, definitely >130 chars.
-        const prefix = decString(buf, off + 345, 155)
-        this.path = prefix + '/' + this.path
-      } else {
-        const prefix = decString(buf, off + 345, 130)
-        if (prefix) {
-          this.path = prefix + '/' + this.path
-        }
-        this.atime = decDate(buf, off + 476, 12)
-        this.ctime = decDate(buf, off + 488, 12)
-      }
-    }
-
-    let sum = 8 * 0x20
-    for (let i = off; i < off + 148; i++) {
-      sum += buf[i]
-    }
-
-    for (let i = off + 156; i < off + 512; i++) {
-      sum += buf[i]
-    }
-
-    this.cksumValid = sum === this.cksum
-    if (this.cksum === null && sum === 8 * 0x20) {
-      this.nullBlock = true
-    }
-  }
-
-  [SLURP] (ex, global) {
-    for (const k in ex) {
-      // we slurp in everything except for the path attribute in
-      // a global extended header, because that's weird.
-      if (ex[k] !== null && ex[k] !== undefined &&
-          !(global && k === 'path')) {
-        this[k] = ex[k]
-      }
-    }
-  }
-
-  encode (buf, off) {
-    if (!buf) {
-      buf = this.block = Buffer.alloc(512)
-      off = 0
-    }
-
-    if (!off) {
-      off = 0
-    }
-
-    if (!(buf.length >= off + 512)) {
-      throw new Error('need 512 bytes for header')
-    }
-
-    const prefixSize = this.ctime || this.atime ? 130 : 155
-    const split = splitPrefix(this.path || '', prefixSize)
-    const path = split[0]
-    const prefix = split[1]
-    this.needPax = split[2]
-
-    this.needPax = encString(buf, off, 100, path) || this.needPax
-    this.needPax = encNumber(buf, off + 100, 8, this.mode) || this.needPax
-    this.needPax = encNumber(buf, off + 108, 8, this.uid) || this.needPax
-    this.needPax = encNumber(buf, off + 116, 8, this.gid) || this.needPax
-    this.needPax = encNumber(buf, off + 124, 12, this.size) || this.needPax
-    this.needPax = encDate(buf, off + 136, 12, this.mtime) || this.needPax
-    buf[off + 156] = this[TYPE].charCodeAt(0)
-    this.needPax = encString(buf, off + 157, 100, this.linkpath) || this.needPax
-    buf.write('ustar\u000000', off + 257, 8)
-    this.needPax = encString(buf, off + 265, 32, this.uname) || this.needPax
-    this.needPax = encString(buf, off + 297, 32, this.gname) || this.needPax
-    this.needPax = encNumber(buf, off + 329, 8, this.devmaj) || this.needPax
-    this.needPax = encNumber(buf, off + 337, 8, this.devmin) || this.needPax
-    this.needPax = encString(buf, off + 345, prefixSize, prefix) || this.needPax
-    if (buf[off + 475] !== 0) {
-      this.needPax = encString(buf, off + 345, 155, prefix) || this.needPax
-    } else {
-      this.needPax = encString(buf, off + 345, 130, prefix) || this.needPax
-      this.needPax = encDate(buf, off + 476, 12, this.atime) || this.needPax
-      this.needPax = encDate(buf, off + 488, 12, this.ctime) || this.needPax
-    }
-
-    let sum = 8 * 0x20
-    for (let i = off; i < off + 148; i++) {
-      sum += buf[i]
-    }
-
-    for (let i = off + 156; i < off + 512; i++) {
-      sum += buf[i]
-    }
-
-    this.cksum = sum
-    encNumber(buf, off + 148, 8, this.cksum)
-    this.cksumValid = true
-
-    return this.needPax
-  }
-
-  set (data) {
-    for (const i in data) {
-      if (data[i] !== null && data[i] !== undefined) {
-        this[i] = data[i]
-      }
-    }
-  }
-
-  get type () {
-    return types.name.get(this[TYPE]) || this[TYPE]
-  }
-
-  get typeKey () {
-    return this[TYPE]
-  }
-
-  set type (type) {
-    if (types.code.has(type)) {
-      this[TYPE] = types.code.get(type)
-    } else {
-      this[TYPE] = type
-    }
-  }
-}
-
-const splitPrefix = (p, prefixSize) => {
-  const pathSize = 100
-  let pp = p
-  let prefix = ''
-  let ret
-  const root = pathModule.parse(p).root || '.'
-
-  if (Buffer.byteLength(pp) < pathSize) {
-    ret = [pp, prefix, false]
-  } else {
-    // first set prefix to the dir, and path to the base
-    prefix = pathModule.dirname(pp)
-    pp = pathModule.basename(pp)
-
-    do {
-      if (Buffer.byteLength(pp) <= pathSize &&
-          Buffer.byteLength(prefix) <= prefixSize) {
-        // both fit!
-        ret = [pp, prefix, false]
-      } else if (Buffer.byteLength(pp) > pathSize &&
-          Buffer.byteLength(prefix) <= prefixSize) {
-        // prefix fits in prefix, but path doesn't fit in path
-        ret = [pp.slice(0, pathSize - 1), prefix, true]
-      } else {
-        // make path take a bit from prefix
-        pp = pathModule.join(pathModule.basename(prefix), pp)
-        prefix = pathModule.dirname(prefix)
-      }
-    } while (prefix !== root && !ret)
-
-    // at this point, found no resolution, just truncate
-    if (!ret) {
-      ret = [p.slice(0, pathSize - 1), '', true]
-    }
-  }
-  return ret
-}
-
-const decString = (buf, off, size) =>
-  buf.slice(off, off + size).toString('utf8').replace(/\0.*/, '')
-
-const decDate = (buf, off, size) =>
-  numToDate(decNumber(buf, off, size))
-
-const numToDate = num => num === null ? null : new Date(num * 1000)
-
-const decNumber = (buf, off, size) =>
-  buf[off] & 0x80 ? large.parse(buf.slice(off, off + size))
-  : decSmallNumber(buf, off, size)
-
-const nanNull = value => isNaN(value) ? null : value
-
-const decSmallNumber = (buf, off, size) =>
-  nanNull(parseInt(
-    buf.slice(off, off + size)
-      .toString('utf8').replace(/\0.*$/, '').trim(), 8))
-
-// the maximum encodable as a null-terminated octal, by field size
-const MAXNUM = {
-  12: 0o77777777777,
-  8: 0o7777777,
-}
-
-const encNumber = (buf, off, size, number) =>
-  number === null ? false :
-  number > MAXNUM[size] || number < 0
-    ? (large.encode(number, buf.slice(off, off + size)), true)
-    : (encSmallNumber(buf, off, size, number), false)
-
-const encSmallNumber = (buf, off, size, number) =>
-  buf.write(octalString(number, size), off, size, 'ascii')
-
-const octalString = (number, size) =>
-  padOctal(Math.floor(number).toString(8), size)
-
-const padOctal = (string, size) =>
-  (string.length === size - 1 ? string
-  : new Array(size - string.length - 1).join('0') + string + ' ') + '\0'
-
-const encDate = (buf, off, size, date) =>
-  date === null ? false :
-  encNumber(buf, off, size, date.getTime() / 1000)
-
-// enough to fill the longest string we've got
-const NULLS = new Array(156).join('\0')
-// pad with nulls, return true if it's longer or non-ascii
-const encString = (buf, off, size, string) =>
-  string === null ? false :
-  (buf.write(string + NULLS, off, size, 'utf8'),
-  string.length !== Buffer.byteLength(string) || string.length > size)
-
-module.exports = Header
-
-
-/***/ }),
-
-/***/ 4252:
-/***/ ((module) => {
-
-"use strict";
-
-
-// turn tar(1) style args like `C` into the more verbose things like `cwd`
-
-const argmap = new Map([
-  ['C', 'cwd'],
-  ['f', 'file'],
-  ['z', 'gzip'],
-  ['P', 'preservePaths'],
-  ['U', 'unlink'],
-  ['strip-components', 'strip'],
-  ['stripComponents', 'strip'],
-  ['keep-newer', 'newer'],
-  ['keepNewer', 'newer'],
-  ['keep-newer-files', 'newer'],
-  ['keepNewerFiles', 'newer'],
-  ['k', 'keep'],
-  ['keep-existing', 'keep'],
-  ['keepExisting', 'keep'],
-  ['m', 'noMtime'],
-  ['no-mtime', 'noMtime'],
-  ['p', 'preserveOwner'],
-  ['L', 'follow'],
-  ['h', 'follow'],
-])
-
-module.exports = opt => opt ? Object.keys(opt).map(k => [
-  argmap.has(k) ? argmap.get(k) : k, opt[k],
-]).reduce((set, kv) => (set[kv[0]] = kv[1], set), Object.create(null)) : {}
-
-
-/***/ }),
-
-/***/ 8539:
-/***/ ((module) => {
-
-"use strict";
-
-// Tar can encode large and negative numbers using a leading byte of
-// 0xff for negative, and 0x80 for positive.
-
-const encode = (num, buf) => {
-  if (!Number.isSafeInteger(num)) {
-  // The number is so large that javascript cannot represent it with integer
-  // precision.
-    throw Error('cannot encode number outside of javascript safe integer range')
-  } else if (num < 0) {
-    encodeNegative(num, buf)
-  } else {
-    encodePositive(num, buf)
-  }
-  return buf
-}
-
-const encodePositive = (num, buf) => {
-  buf[0] = 0x80
-
-  for (var i = buf.length; i > 1; i--) {
-    buf[i - 1] = num & 0xff
-    num = Math.floor(num / 0x100)
-  }
-}
-
-const encodeNegative = (num, buf) => {
-  buf[0] = 0xff
-  var flipped = false
-  num = num * -1
-  for (var i = buf.length; i > 1; i--) {
-    var byte = num & 0xff
-    num = Math.floor(num / 0x100)
-    if (flipped) {
-      buf[i - 1] = onesComp(byte)
-    } else if (byte === 0) {
-      buf[i - 1] = 0
-    } else {
-      flipped = true
-      buf[i - 1] = twosComp(byte)
-    }
-  }
-}
-
-const parse = (buf) => {
-  const pre = buf[0]
-  const value = pre === 0x80 ? pos(buf.slice(1, buf.length))
-    : pre === 0xff ? twos(buf)
-    : null
-  if (value === null) {
-    throw Error('invalid base256 encoding')
-  }
-
-  if (!Number.isSafeInteger(value)) {
-  // The number is so large that javascript cannot represent it with integer
-  // precision.
-    throw Error('parsed number outside of javascript safe integer range')
-  }
-
-  return value
-}
-
-const twos = (buf) => {
-  var len = buf.length
-  var sum = 0
-  var flipped = false
-  for (var i = len - 1; i > -1; i--) {
-    var byte = buf[i]
-    var f
-    if (flipped) {
-      f = onesComp(byte)
-    } else if (byte === 0) {
-      f = byte
-    } else {
-      flipped = true
-      f = twosComp(byte)
-    }
-    if (f !== 0) {
-      sum -= f * Math.pow(256, len - i - 1)
-    }
-  }
-  return sum
-}
-
-const pos = (buf) => {
-  var len = buf.length
-  var sum = 0
-  for (var i = len - 1; i > -1; i--) {
-    var byte = buf[i]
-    if (byte !== 0) {
-      sum += byte * Math.pow(256, len - i - 1)
-    }
-  }
-  return sum
-}
-
-const onesComp = byte => (0xff ^ byte) & 0xff
-
-const twosComp = byte => ((0xff ^ byte) + 1) & 0xff
-
-module.exports = {
-  encode,
-  parse,
-}
-
-
-/***/ }),
-
-/***/ 9667:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// XXX: This shares a lot in common with extract.js
-// maybe some DRY opportunity here?
-
-// tar -t
-const hlo = __nccwpck_require__(4252)
-const Parser = __nccwpck_require__(120)
-const fs = __nccwpck_require__(9896)
-const fsm = __nccwpck_require__(7532)
-const path = __nccwpck_require__(6928)
-const stripSlash = __nccwpck_require__(5126)
-
-module.exports = (opt_, files, cb) => {
-  if (typeof opt_ === 'function') {
-    cb = opt_, files = null, opt_ = {}
-  } else if (Array.isArray(opt_)) {
-    files = opt_, opt_ = {}
-  }
-
-  if (typeof files === 'function') {
-    cb = files, files = null
-  }
-
-  if (!files) {
-    files = []
-  } else {
-    files = Array.from(files)
-  }
-
-  const opt = hlo(opt_)
-
-  if (opt.sync && typeof cb === 'function') {
-    throw new TypeError('callback not supported for sync tar functions')
-  }
-
-  if (!opt.file && typeof cb === 'function') {
-    throw new TypeError('callback only supported with file option')
-  }
-
-  if (files.length) {
-    filesFilter(opt, files)
-  }
-
-  if (!opt.noResume) {
-    onentryFunction(opt)
-  }
-
-  return opt.file && opt.sync ? listFileSync(opt)
-    : opt.file ? listFile(opt, cb)
-    : list(opt)
-}
-
-const onentryFunction = opt => {
-  const onentry = opt.onentry
-  opt.onentry = onentry ? e => {
-    onentry(e)
-    e.resume()
-  } : e => e.resume()
-}
-
-// construct a filter that limits the file entries listed
-// include child entries if a dir is included
-const filesFilter = (opt, files) => {
-  const map = new Map(files.map(f => [stripSlash(f), true]))
-  const filter = opt.filter
-
-  const mapHas = (file, r) => {
-    const root = r || path.parse(file).root || '.'
-    const ret = file === root ? false
-      : map.has(file) ? map.get(file)
-      : mapHas(path.dirname(file), root)
-
-    map.set(file, ret)
-    return ret
-  }
-
-  opt.filter = filter
-    ? (file, entry) => filter(file, entry) && mapHas(stripSlash(file))
-    : file => mapHas(stripSlash(file))
-}
-
-const listFileSync = opt => {
-  const p = list(opt)
-  const file = opt.file
-  let threw = true
-  let fd
-  try {
-    const stat = fs.statSync(file)
-    const readSize = opt.maxReadSize || 16 * 1024 * 1024
-    if (stat.size < readSize) {
-      p.end(fs.readFileSync(file))
-    } else {
-      let pos = 0
-      const buf = Buffer.allocUnsafe(readSize)
-      fd = fs.openSync(file, 'r')
-      while (pos < stat.size) {
-        const bytesRead = fs.readSync(fd, buf, 0, readSize, pos)
-        pos += bytesRead
-        p.write(buf.slice(0, bytesRead))
-      }
-      p.end()
-    }
-    threw = false
-  } finally {
-    if (threw && fd) {
-      try {
-        fs.closeSync(fd)
-      } catch (er) {}
-    }
-  }
-}
-
-const listFile = (opt, cb) => {
-  const parse = new Parser(opt)
-  const readSize = opt.maxReadSize || 16 * 1024 * 1024
-
-  const file = opt.file
-  const p = new Promise((resolve, reject) => {
-    parse.on('error', reject)
-    parse.on('end', resolve)
-
-    fs.stat(file, (er, stat) => {
-      if (er) {
-        reject(er)
-      } else {
-        const stream = new fsm.ReadStream(file, {
-          readSize: readSize,
-          size: stat.size,
-        })
-        stream.on('error', reject)
-        stream.pipe(parse)
-      }
-    })
-  })
-  return cb ? p.then(cb, cb) : p
-}
-
-const list = opt => new Parser(opt)
-
-
-/***/ }),
-
-/***/ 1436:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-// wrapper around mkdirp for tar's needs.
-
-// TODO: This should probably be a class, not functionally
-// passing around state in a gazillion args.
-
-const mkdirp = __nccwpck_require__(4469)
-const fs = __nccwpck_require__(9896)
-const path = __nccwpck_require__(6928)
-const chownr = __nccwpck_require__(5384)
-const normPath = __nccwpck_require__(8658)
-
-class SymlinkError extends Error {
-  constructor (symlink, path) {
-    super('Cannot extract through symbolic link')
-    this.path = path
-    this.symlink = symlink
-  }
-
-  get name () {
-    return 'SylinkError'
-  }
-}
-
-class CwdError extends Error {
-  constructor (path, code) {
-    super(code + ': Cannot cd into \'' + path + '\'')
-    this.path = path
-    this.code = code
-  }
-
-  get name () {
-    return 'CwdError'
-  }
-}
-
-const cGet = (cache, key) => cache.get(normPath(key))
-const cSet = (cache, key, val) => cache.set(normPath(key), val)
-
-const checkCwd = (dir, cb) => {
-  fs.stat(dir, (er, st) => {
-    if (er || !st.isDirectory()) {
-      er = new CwdError(dir, er && er.code || 'ENOTDIR')
-    }
-    cb(er)
-  })
-}
-
-module.exports = (dir, opt, cb) => {
-  dir = normPath(dir)
-
-  // if there's any overlap between mask and mode,
-  // then we'll need an explicit chmod
-  const umask = opt.umask
-  const mode = opt.mode | 0o0700
-  const needChmod = (mode & umask) !== 0
-
-  const uid = opt.uid
-  const gid = opt.gid
-  const doChown = typeof uid === 'number' &&
-    typeof gid === 'number' &&
-    (uid !== opt.processUid || gid !== opt.processGid)
-
-  const preserve = opt.preserve
-  const unlink = opt.unlink
-  const cache = opt.cache
-  const cwd = normPath(opt.cwd)
-
-  const done = (er, created) => {
-    if (er) {
-      cb(er)
-    } else {
-      cSet(cache, dir, true)
-      if (created && doChown) {
-        chownr(created, uid, gid, er => done(er))
-      } else if (needChmod) {
-        fs.chmod(dir, mode, cb)
-      } else {
-        cb()
-      }
-    }
-  }
-
-  if (cache && cGet(cache, dir) === true) {
-    return done()
-  }
-
-  if (dir === cwd) {
-    return checkCwd(dir, done)
-  }
-
-  if (preserve) {
-    return mkdirp(dir, { mode }).then(made => done(null, made), done)
-  }
-
-  const sub = normPath(path.relative(cwd, dir))
-  const parts = sub.split('/')
-  mkdir_(cwd, parts, mode, cache, unlink, cwd, null, done)
-}
-
-const mkdir_ = (base, parts, mode, cache, unlink, cwd, created, cb) => {
-  if (!parts.length) {
-    return cb(null, created)
-  }
-  const p = parts.shift()
-  const part = normPath(path.resolve(base + '/' + p))
-  if (cGet(cache, part)) {
-    return mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-  }
-  fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
-}
-
-const onmkdir = (part, parts, mode, cache, unlink, cwd, created, cb) => er => {
-  if (er) {
-    fs.lstat(part, (statEr, st) => {
-      if (statEr) {
-        statEr.path = statEr.path && normPath(statEr.path)
-        cb(statEr)
-      } else if (st.isDirectory()) {
-        mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-      } else if (unlink) {
-        fs.unlink(part, er => {
-          if (er) {
-            return cb(er)
-          }
-          fs.mkdir(part, mode, onmkdir(part, parts, mode, cache, unlink, cwd, created, cb))
-        })
-      } else if (st.isSymbolicLink()) {
-        return cb(new SymlinkError(part, part + '/' + parts.join('/')))
-      } else {
-        cb(er)
-      }
-    })
-  } else {
-    created = created || part
-    mkdir_(part, parts, mode, cache, unlink, cwd, created, cb)
-  }
-}
-
-const checkCwdSync = dir => {
-  let ok = false
-  let code = 'ENOTDIR'
-  try {
-    ok = fs.statSync(dir).isDirectory()
-  } catch (er) {
-    code = er.code
-  } finally {
-    if (!ok) {
-      throw new CwdError(dir, code)
-    }
-  }
-}
-
-module.exports.sync = (dir, opt) => {
-  dir = normPath(dir)
-  // if there's any overlap between mask and mode,
-  // then we'll need an explicit chmod
-  const umask = opt.umask
-  const mode = opt.mode | 0o0700
-  const needChmod = (mode & umask) !== 0
-
-  const uid = opt.uid
-  const gid = opt.gid
-  const doChown = typeof uid === 'number' &&
-    typeof gid === 'number' &&
-    (uid !== opt.processUid || gid !== opt.processGid)
-
-  const preserve = opt.preserve
-  const unlink = opt.unlink
-  const cache = opt.cache
-  const cwd = normPath(opt.cwd)
-
-  const done = (created) => {
-    cSet(cache, dir, true)
-    if (created && doChown) {
-      chownr.sync(created, uid, gid)
-    }
-    if (needChmod) {
-      fs.chmodSync(dir, mode)
-    }
-  }
-
-  if (cache && cGet(cache, dir) === true) {
-    return done()
-  }
-
-  if (dir === cwd) {
-    checkCwdSync(cwd)
-    return done()
-  }
-
-  if (preserve) {
-    return done(mkdirp.sync(dir, mode))
-  }
-
-  const sub = normPath(path.relative(cwd, dir))
-  const parts = sub.split('/')
-  let created = null
-  for (let p = parts.shift(), part = cwd;
-    p && (part += '/' + p);
-    p = parts.shift()) {
-    part = normPath(path.resolve(part))
-    if (cGet(cache, part)) {
-      continue
-    }
-
-    try {
-      fs.mkdirSync(part, mode)
-      created = created || part
-      cSet(cache, part, true)
-    } catch (er) {
-      const st = fs.lstatSync(part)
-      if (st.isDirectory()) {
-        cSet(cache, part, true)
-        continue
-      } else if (unlink) {
-        fs.unlinkSync(part)
-        fs.mkdirSync(part, mode)
-        created = created || part
-        cSet(cache, part, true)
-        continue
-      } else if (st.isSymbolicLink()) {
-        return new SymlinkError(part, part + '/' + parts.join('/'))
-      }
-    }
-  }
-
-  return done(created)
-}
-
-
-/***/ }),
-
-/***/ 3386:
-/***/ ((module) => {
-
-"use strict";
-
-module.exports = (mode, isDir, portable) => {
-  mode &= 0o7777
-
-  // in portable mode, use the minimum reasonable umask
-  // if this system creates files with 0o664 by default
-  // (as some linux distros do), then we'll write the
-  // archive with 0o644 instead.  Also, don't ever create
-  // a file that is not readable/writable by the owner.
-  if (portable) {
-    mode = (mode | 0o600) & ~0o22
-  }
-
-  // if dirs are readable, then they should be listable
-  if (isDir) {
-    if (mode & 0o400) {
-      mode |= 0o100
-    }
-    if (mode & 0o40) {
-      mode |= 0o10
-    }
-    if (mode & 0o4) {
-      mode |= 0o1
-    }
-  }
-  return mode
-}
-
-
-/***/ }),
-
-/***/ 1053:
-/***/ ((module) => {
-
-// warning: extremely hot code path.
-// This has been meticulously optimized for use
-// within npm install on large package trees.
-// Do not edit without careful benchmarking.
-const normalizeCache = Object.create(null)
-const { hasOwnProperty } = Object.prototype
-module.exports = s => {
-  if (!hasOwnProperty.call(normalizeCache, s)) {
-    normalizeCache[s] = s.normalize('NFD')
-  }
-  return normalizeCache[s]
-}
-
-
-/***/ }),
-
-/***/ 8658:
-/***/ ((module) => {
-
-// on windows, either \ or / are valid directory separators.
-// on unix, \ is a valid character in filenames.
-// so, on windows, and only on windows, we replace all \ chars with /,
-// so that we can use / as our one and only directory separator char.
-
-const platform = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform
-module.exports = platform !== 'win32' ? p => p
-  : p => p && p.replace(/\\/g, '/')
-
-
-/***/ }),
-
-/***/ 9766:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// A readable tar stream creator
-// Technically, this is a transform stream that you write paths into,
-// and tar format comes out of.
-// The `add()` method is like `write()` but returns this,
-// and end() return `this` as well, so you can
-// do `new Pack(opt).add('files').add('dir').end().pipe(output)
-// You could also do something like:
-// streamOfPaths().pipe(new Pack()).pipe(new fs.WriteStream('out.tar'))
-
-class PackJob {
-  constructor (path, absolute) {
-    this.path = path || './'
-    this.absolute = absolute
-    this.entry = null
-    this.stat = null
-    this.readdir = null
-    this.pending = false
-    this.ignore = false
-    this.piped = false
-  }
-}
-
-const { Minipass } = __nccwpck_require__(6058)
-const zlib = __nccwpck_require__(1238)
-const ReadEntry = __nccwpck_require__(6770)
-const WriteEntry = __nccwpck_require__(3781)
-const WriteEntrySync = WriteEntry.Sync
-const WriteEntryTar = WriteEntry.Tar
-const Yallist = __nccwpck_require__(2061)
-const EOF = Buffer.alloc(1024)
-const ONSTAT = Symbol('onStat')
-const ENDED = Symbol('ended')
-const QUEUE = Symbol('queue')
-const CURRENT = Symbol('current')
-const PROCESS = Symbol('process')
-const PROCESSING = Symbol('processing')
-const PROCESSJOB = Symbol('processJob')
-const JOBS = Symbol('jobs')
-const JOBDONE = Symbol('jobDone')
-const ADDFSENTRY = Symbol('addFSEntry')
-const ADDTARENTRY = Symbol('addTarEntry')
-const STAT = Symbol('stat')
-const READDIR = Symbol('readdir')
-const ONREADDIR = Symbol('onreaddir')
-const PIPE = Symbol('pipe')
-const ENTRY = Symbol('entry')
-const ENTRYOPT = Symbol('entryOpt')
-const WRITEENTRYCLASS = Symbol('writeEntryClass')
-const WRITE = Symbol('write')
-const ONDRAIN = Symbol('ondrain')
-
-const fs = __nccwpck_require__(9896)
-const path = __nccwpck_require__(6928)
-const warner = __nccwpck_require__(5883)
-const normPath = __nccwpck_require__(8658)
-
-const Pack = warner(class Pack extends Minipass {
-  constructor (opt) {
-    super(opt)
-    opt = opt || Object.create(null)
-    this.opt = opt
-    this.file = opt.file || ''
-    this.cwd = opt.cwd || process.cwd()
-    this.maxReadSize = opt.maxReadSize
-    this.preservePaths = !!opt.preservePaths
-    this.strict = !!opt.strict
-    this.noPax = !!opt.noPax
-    this.prefix = normPath(opt.prefix || '')
-    this.linkCache = opt.linkCache || new Map()
-    this.statCache = opt.statCache || new Map()
-    this.readdirCache = opt.readdirCache || new Map()
-
-    this[WRITEENTRYCLASS] = WriteEntry
-    if (typeof opt.onwarn === 'function') {
-      this.on('warn', opt.onwarn)
-    }
-
-    this.portable = !!opt.portable
-    this.zip = null
-
-    if (opt.gzip || opt.brotli) {
-      if (opt.gzip && opt.brotli) {
-        throw new TypeError('gzip and brotli are mutually exclusive')
-      }
-      if (opt.gzip) {
-        if (typeof opt.gzip !== 'object') {
-          opt.gzip = {}
-        }
-        if (this.portable) {
-          opt.gzip.portable = true
-        }
-        this.zip = new zlib.Gzip(opt.gzip)
-      }
-      if (opt.brotli) {
-        if (typeof opt.brotli !== 'object') {
-          opt.brotli = {}
-        }
-        this.zip = new zlib.BrotliCompress(opt.brotli)
-      }
-      this.zip.on('data', chunk => super.write(chunk))
-      this.zip.on('end', _ => super.end())
-      this.zip.on('drain', _ => this[ONDRAIN]())
-      this.on('resume', _ => this.zip.resume())
-    } else {
-      this.on('drain', this[ONDRAIN])
-    }
-
-    this.noDirRecurse = !!opt.noDirRecurse
-    this.follow = !!opt.follow
-    this.noMtime = !!opt.noMtime
-    this.mtime = opt.mtime || null
-
-    this.filter = typeof opt.filter === 'function' ? opt.filter : _ => true
-
-    this[QUEUE] = new Yallist()
-    this[JOBS] = 0
-    this.jobs = +opt.jobs || 4
-    this[PROCESSING] = false
-    this[ENDED] = false
-  }
-
-  [WRITE] (chunk) {
-    return super.write(chunk)
-  }
-
-  add (path) {
-    this.write(path)
-    return this
-  }
-
-  end (path) {
-    if (path) {
-      this.write(path)
-    }
-    this[ENDED] = true
-    this[PROCESS]()
-    return this
-  }
-
-  write (path) {
-    if (this[ENDED]) {
-      throw new Error('write after end')
-    }
-
-    if (path instanceof ReadEntry) {
-      this[ADDTARENTRY](path)
-    } else {
-      this[ADDFSENTRY](path)
-    }
-    return this.flowing
-  }
-
-  [ADDTARENTRY] (p) {
-    const absolute = normPath(path.resolve(this.cwd, p.path))
-    // in this case, we don't have to wait for the stat
-    if (!this.filter(p.path, p)) {
-      p.resume()
-    } else {
-      const job = new PackJob(p.path, absolute, false)
-      job.entry = new WriteEntryTar(p, this[ENTRYOPT](job))
-      job.entry.on('end', _ => this[JOBDONE](job))
-      this[JOBS] += 1
-      this[QUEUE].push(job)
-    }
-
-    this[PROCESS]()
-  }
-
-  [ADDFSENTRY] (p) {
-    const absolute = normPath(path.resolve(this.cwd, p))
-    this[QUEUE].push(new PackJob(p, absolute))
-    this[PROCESS]()
-  }
-
-  [STAT] (job) {
-    job.pending = true
-    this[JOBS] += 1
-    const stat = this.follow ? 'stat' : 'lstat'
-    fs[stat](job.absolute, (er, stat) => {
-      job.pending = false
-      this[JOBS] -= 1
-      if (er) {
-        this.emit('error', er)
-      } else {
-        this[ONSTAT](job, stat)
-      }
-    })
-  }
-
-  [ONSTAT] (job, stat) {
-    this.statCache.set(job.absolute, stat)
-    job.stat = stat
-
-    // now we have the stat, we can filter it.
-    if (!this.filter(job.path, stat)) {
-      job.ignore = true
-    }
-
-    this[PROCESS]()
-  }
-
-  [READDIR] (job) {
-    job.pending = true
-    this[JOBS] += 1
-    fs.readdir(job.absolute, (er, entries) => {
-      job.pending = false
-      this[JOBS] -= 1
-      if (er) {
-        return this.emit('error', er)
-      }
-      this[ONREADDIR](job, entries)
-    })
-  }
-
-  [ONREADDIR] (job, entries) {
-    this.readdirCache.set(job.absolute, entries)
-    job.readdir = entries
-    this[PROCESS]()
-  }
-
-  [PROCESS] () {
-    if (this[PROCESSING]) {
-      return
-    }
-
-    this[PROCESSING] = true
-    for (let w = this[QUEUE].head;
-      w !== null && this[JOBS] < this.jobs;
-      w = w.next) {
-      this[PROCESSJOB](w.value)
-      if (w.value.ignore) {
-        const p = w.next
-        this[QUEUE].removeNode(w)
-        w.next = p
-      }
-    }
-
-    this[PROCESSING] = false
-
-    if (this[ENDED] && !this[QUEUE].length && this[JOBS] === 0) {
-      if (this.zip) {
-        this.zip.end(EOF)
-      } else {
-        super.write(EOF)
-        super.end()
-      }
-    }
-  }
-
-  get [CURRENT] () {
-    return this[QUEUE] && this[QUEUE].head && this[QUEUE].head.value
-  }
-
-  [JOBDONE] (job) {
-    this[QUEUE].shift()
-    this[JOBS] -= 1
-    this[PROCESS]()
-  }
-
-  [PROCESSJOB] (job) {
-    if (job.pending) {
-      return
-    }
-
-    if (job.entry) {
-      if (job === this[CURRENT] && !job.piped) {
-        this[PIPE](job)
-      }
-      return
-    }
-
-    if (!job.stat) {
-      if (this.statCache.has(job.absolute)) {
-        this[ONSTAT](job, this.statCache.get(job.absolute))
-      } else {
-        this[STAT](job)
-      }
-    }
-    if (!job.stat) {
-      return
-    }
-
-    // filtered out!
-    if (job.ignore) {
-      return
-    }
-
-    if (!this.noDirRecurse && job.stat.isDirectory() && !job.readdir) {
-      if (this.readdirCache.has(job.absolute)) {
-        this[ONREADDIR](job, this.readdirCache.get(job.absolute))
-      } else {
-        this[READDIR](job)
-      }
-      if (!job.readdir) {
-        return
-      }
-    }
-
-    // we know it doesn't have an entry, because that got checked above
-    job.entry = this[ENTRY](job)
-    if (!job.entry) {
-      job.ignore = true
-      return
-    }
-
-    if (job === this[CURRENT] && !job.piped) {
-      this[PIPE](job)
-    }
-  }
-
-  [ENTRYOPT] (job) {
-    return {
-      onwarn: (code, msg, data) => this.warn(code, msg, data),
-      noPax: this.noPax,
-      cwd: this.cwd,
-      absolute: job.absolute,
-      preservePaths: this.preservePaths,
-      maxReadSize: this.maxReadSize,
-      strict: this.strict,
-      portable: this.portable,
-      linkCache: this.linkCache,
-      statCache: this.statCache,
-      noMtime: this.noMtime,
-      mtime: this.mtime,
-      prefix: this.prefix,
-    }
-  }
-
-  [ENTRY] (job) {
-    this[JOBS] += 1
-    try {
-      return new this[WRITEENTRYCLASS](job.path, this[ENTRYOPT](job))
-        .on('end', () => this[JOBDONE](job))
-        .on('error', er => this.emit('error', er))
-    } catch (er) {
-      this.emit('error', er)
-    }
-  }
-
-  [ONDRAIN] () {
-    if (this[CURRENT] && this[CURRENT].entry) {
-      this[CURRENT].entry.resume()
-    }
-  }
-
-  // like .pipe() but using super, because our write() is special
-  [PIPE] (job) {
-    job.piped = true
-
-    if (job.readdir) {
-      job.readdir.forEach(entry => {
-        const p = job.path
-        const base = p === './' ? '' : p.replace(/\/*$/, '/')
-        this[ADDFSENTRY](base + entry)
-      })
-    }
-
-    const source = job.entry
-    const zip = this.zip
-
-    if (zip) {
-      source.on('data', chunk => {
-        if (!zip.write(chunk)) {
-          source.pause()
-        }
-      })
-    } else {
-      source.on('data', chunk => {
-        if (!super.write(chunk)) {
-          source.pause()
-        }
-      })
-    }
-  }
-
-  pause () {
-    if (this.zip) {
-      this.zip.pause()
-    }
-    return super.pause()
-  }
-})
-
-class PackSync extends Pack {
-  constructor (opt) {
-    super(opt)
-    this[WRITEENTRYCLASS] = WriteEntrySync
-  }
-
-  // pause/resume are no-ops in sync streams.
-  pause () {}
-  resume () {}
-
-  [STAT] (job) {
-    const stat = this.follow ? 'statSync' : 'lstatSync'
-    this[ONSTAT](job, fs[stat](job.absolute))
-  }
-
-  [READDIR] (job, stat) {
-    this[ONREADDIR](job, fs.readdirSync(job.absolute))
-  }
-
-  // gotta get it all in this tick
-  [PIPE] (job) {
-    const source = job.entry
-    const zip = this.zip
-
-    if (job.readdir) {
-      job.readdir.forEach(entry => {
-        const p = job.path
-        const base = p === './' ? '' : p.replace(/\/*$/, '/')
-        this[ADDFSENTRY](base + entry)
-      })
-    }
-
-    if (zip) {
-      source.on('data', chunk => {
-        zip.write(chunk)
-      })
-    } else {
-      source.on('data', chunk => {
-        super[WRITE](chunk)
-      })
-    }
-  }
-}
-
-Pack.Sync = PackSync
-
-module.exports = Pack
-
-
-/***/ }),
-
-/***/ 120:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// this[BUFFER] is the remainder of a chunk if we're waiting for
-// the full 512 bytes of a header to come in.  We will Buffer.concat()
-// it to the next write(), which is a mem copy, but a small one.
-//
-// this[QUEUE] is a Yallist of entries that haven't been emitted
-// yet this can only get filled up if the user keeps write()ing after
-// a write() returns false, or does a write() with more than one entry
-//
-// We don't buffer chunks, we always parse them and either create an
-// entry, or push it into the active entry.  The ReadEntry class knows
-// to throw data away if .ignore=true
-//
-// Shift entry off the buffer when it emits 'end', and emit 'entry' for
-// the next one in the list.
-//
-// At any time, we're pushing body chunks into the entry at WRITEENTRY,
-// and waiting for 'end' on the entry at READENTRY
-//
-// ignored entries get .resume() called on them straight away
-
-const warner = __nccwpck_require__(5883)
-const Header = __nccwpck_require__(5634)
-const EE = __nccwpck_require__(4434)
-const Yallist = __nccwpck_require__(2061)
-const maxMetaEntrySize = 1024 * 1024
-const Entry = __nccwpck_require__(6770)
-const Pax = __nccwpck_require__(3542)
-const zlib = __nccwpck_require__(1238)
-const { nextTick } = __nccwpck_require__(932)
-
-const gzipHeader = Buffer.from([0x1f, 0x8b])
-const STATE = Symbol('state')
-const WRITEENTRY = Symbol('writeEntry')
-const READENTRY = Symbol('readEntry')
-const NEXTENTRY = Symbol('nextEntry')
-const PROCESSENTRY = Symbol('processEntry')
-const EX = Symbol('extendedHeader')
-const GEX = Symbol('globalExtendedHeader')
-const META = Symbol('meta')
-const EMITMETA = Symbol('emitMeta')
-const BUFFER = Symbol('buffer')
-const QUEUE = Symbol('queue')
-const ENDED = Symbol('ended')
-const EMITTEDEND = Symbol('emittedEnd')
-const EMIT = Symbol('emit')
-const UNZIP = Symbol('unzip')
-const CONSUMECHUNK = Symbol('consumeChunk')
-const CONSUMECHUNKSUB = Symbol('consumeChunkSub')
-const CONSUMEBODY = Symbol('consumeBody')
-const CONSUMEMETA = Symbol('consumeMeta')
-const CONSUMEHEADER = Symbol('consumeHeader')
-const CONSUMING = Symbol('consuming')
-const BUFFERCONCAT = Symbol('bufferConcat')
-const MAYBEEND = Symbol('maybeEnd')
-const WRITING = Symbol('writing')
-const ABORTED = Symbol('aborted')
-const DONE = Symbol('onDone')
-const SAW_VALID_ENTRY = Symbol('sawValidEntry')
-const SAW_NULL_BLOCK = Symbol('sawNullBlock')
-const SAW_EOF = Symbol('sawEOF')
-const CLOSESTREAM = Symbol('closeStream')
-
-const noop = _ => true
-
-module.exports = warner(class Parser extends EE {
-  constructor (opt) {
-    opt = opt || {}
-    super(opt)
-
-    this.file = opt.file || ''
-
-    // set to boolean false when an entry starts.  1024 bytes of \0
-    // is technically a valid tarball, albeit a boring one.
-    this[SAW_VALID_ENTRY] = null
-
-    // these BADARCHIVE errors can't be detected early. listen on DONE.
-    this.on(DONE, _ => {
-      if (this[STATE] === 'begin' || this[SAW_VALID_ENTRY] === false) {
-        // either less than 1 block of data, or all entries were invalid.
-        // Either way, probably not even a tarball.
-        this.warn('TAR_BAD_ARCHIVE', 'Unrecognized archive format')
-      }
-    })
-
-    if (opt.ondone) {
-      this.on(DONE, opt.ondone)
-    } else {
-      this.on(DONE, _ => {
-        this.emit('prefinish')
-        this.emit('finish')
-        this.emit('end')
-      })
-    }
-
-    this.strict = !!opt.strict
-    this.maxMetaEntrySize = opt.maxMetaEntrySize || maxMetaEntrySize
-    this.filter = typeof opt.filter === 'function' ? opt.filter : noop
-    // Unlike gzip, brotli doesn't have any magic bytes to identify it
-    // Users need to explicitly tell us they're extracting a brotli file
-    // Or we infer from the file extension
-    const isTBR = (opt.file && (
-        opt.file.endsWith('.tar.br') || opt.file.endsWith('.tbr')))
-    // if it's a tbr file it MIGHT be brotli, but we don't know until
-    // we look at it and verify it's not a valid tar file.
-    this.brotli = !opt.gzip && opt.brotli !== undefined ? opt.brotli
-      : isTBR ? undefined
-      : false
-
-    // have to set this so that streams are ok piping into it
-    this.writable = true
-    this.readable = false
-
-    this[QUEUE] = new Yallist()
-    this[BUFFER] = null
-    this[READENTRY] = null
-    this[WRITEENTRY] = null
-    this[STATE] = 'begin'
-    this[META] = ''
-    this[EX] = null
-    this[GEX] = null
-    this[ENDED] = false
-    this[UNZIP] = null
-    this[ABORTED] = false
-    this[SAW_NULL_BLOCK] = false
-    this[SAW_EOF] = false
-
-    this.on('end', () => this[CLOSESTREAM]())
-
-    if (typeof opt.onwarn === 'function') {
-      this.on('warn', opt.onwarn)
-    }
-    if (typeof opt.onentry === 'function') {
-      this.on('entry', opt.onentry)
-    }
-  }
-
-  [CONSUMEHEADER] (chunk, position) {
-    if (this[SAW_VALID_ENTRY] === null) {
-      this[SAW_VALID_ENTRY] = false
-    }
-    let header
-    try {
-      header = new Header(chunk, position, this[EX], this[GEX])
-    } catch (er) {
-      return this.warn('TAR_ENTRY_INVALID', er)
-    }
-
-    if (header.nullBlock) {
-      if (this[SAW_NULL_BLOCK]) {
-        this[SAW_EOF] = true
-        // ending an archive with no entries.  pointless, but legal.
-        if (this[STATE] === 'begin') {
-          this[STATE] = 'header'
-        }
-        this[EMIT]('eof')
-      } else {
-        this[SAW_NULL_BLOCK] = true
-        this[EMIT]('nullBlock')
-      }
-    } else {
-      this[SAW_NULL_BLOCK] = false
-      if (!header.cksumValid) {
-        this.warn('TAR_ENTRY_INVALID', 'checksum failure', { header })
-      } else if (!header.path) {
-        this.warn('TAR_ENTRY_INVALID', 'path is required', { header })
-      } else {
-        const type = header.type
-        if (/^(Symbolic)?Link$/.test(type) && !header.linkpath) {
-          this.warn('TAR_ENTRY_INVALID', 'linkpath required', { header })
-        } else if (!/^(Symbolic)?Link$/.test(type) && header.linkpath) {
-          this.warn('TAR_ENTRY_INVALID', 'linkpath forbidden', { header })
-        } else {
-          const entry = this[WRITEENTRY] = new Entry(header, this[EX], this[GEX])
-
-          // we do this for meta & ignored entries as well, because they
-          // are still valid tar, or else we wouldn't know to ignore them
-          if (!this[SAW_VALID_ENTRY]) {
-            if (entry.remain) {
-              // this might be the one!
-              const onend = () => {
-                if (!entry.invalid) {
-                  this[SAW_VALID_ENTRY] = true
+        if (stats && stats.isFile()) {
+            if (exports.IS_WINDOWS) {
+                // on Windows, test for valid extension
+                const upperExt = path.extname(filePath).toUpperCase();
+                if (extensions.some(validExt => validExt.toUpperCase() === upperExt)) {
+                    return filePath;
                 }
-              }
-              entry.on('end', onend)
-            } else {
-              this[SAW_VALID_ENTRY] = true
             }
-          }
-
-          if (entry.meta) {
-            if (entry.size > this.maxMetaEntrySize) {
-              entry.ignore = true
-              this[EMIT]('ignoredEntry', entry)
-              this[STATE] = 'ignore'
-              entry.resume()
-            } else if (entry.size > 0) {
-              this[META] = ''
-              entry.on('data', c => this[META] += c)
-              this[STATE] = 'meta'
+            else {
+                if (isUnixExecutable(stats)) {
+                    return filePath;
+                }
             }
-          } else {
-            this[EX] = null
-            entry.ignore = entry.ignore || !this.filter(entry.path, entry)
-
-            if (entry.ignore) {
-              // probably valid, just not something we care about
-              this[EMIT]('ignoredEntry', entry)
-              this[STATE] = entry.remain ? 'ignore' : 'header'
-              entry.resume()
-            } else {
-              if (entry.remain) {
-                this[STATE] = 'body'
-              } else {
-                this[STATE] = 'header'
-                entry.end()
-              }
-
-              if (!this[READENTRY]) {
-                this[QUEUE].push(entry)
-                this[NEXTENTRY]()
-              } else {
-                this[QUEUE].push(entry)
-              }
+        }
+        // try each extension
+        const originalFilePath = filePath;
+        for (const extension of extensions) {
+            filePath = originalFilePath + extension;
+            stats = undefined;
+            try {
+                stats = yield exports.stat(filePath);
             }
-          }
+            catch (err) {
+                if (err.code !== 'ENOENT') {
+                    // eslint-disable-next-line no-console
+                    console.log(`Unexpected error attempting to determine if executable file exists '${filePath}': ${err}`);
+                }
+            }
+            if (stats && stats.isFile()) {
+                if (exports.IS_WINDOWS) {
+                    // preserve the case of the actual file (since an extension was appended)
+                    try {
+                        const directory = path.dirname(filePath);
+                        const upperName = path.basename(filePath).toUpperCase();
+                        for (const actualName of yield exports.readdir(directory)) {
+                            if (upperName === actualName.toUpperCase()) {
+                                filePath = path.join(directory, actualName);
+                                break;
+                            }
+                        }
+                    }
+                    catch (err) {
+                        // eslint-disable-next-line no-console
+                        console.log(`Unexpected error attempting to determine the actual case of the file '${filePath}': ${err}`);
+                    }
+                    return filePath;
+                }
+                else {
+                    if (isUnixExecutable(stats)) {
+                        return filePath;
+                    }
+                }
+            }
         }
-      }
-    }
-  }
-
-  [CLOSESTREAM] () {
-    nextTick(() => this.emit('close'))
-  }
-
-  [PROCESSENTRY] (entry) {
-    let go = true
-
-    if (!entry) {
-      this[READENTRY] = null
-      go = false
-    } else if (Array.isArray(entry)) {
-      this.emit.apply(this, entry)
-    } else {
-      this[READENTRY] = entry
-      this.emit('entry', entry)
-      if (!entry.emittedEnd) {
-        entry.on('end', _ => this[NEXTENTRY]())
-        go = false
-      }
-    }
-
-    return go
-  }
-
-  [NEXTENTRY] () {
-    do {} while (this[PROCESSENTRY](this[QUEUE].shift()))
-
-    if (!this[QUEUE].length) {
-      // At this point, there's nothing in the queue, but we may have an
-      // entry which is being consumed (readEntry).
-      // If we don't, then we definitely can handle more data.
-      // If we do, and either it's flowing, or it has never had any data
-      // written to it, then it needs more.
-      // The only other possibility is that it has returned false from a
-      // write() call, so we wait for the next drain to continue.
-      const re = this[READENTRY]
-      const drainNow = !re || re.flowing || re.size === re.remain
-      if (drainNow) {
-        if (!this[WRITING]) {
-          this.emit('drain')
-        }
-      } else {
-        re.once('drain', _ => this.emit('drain'))
-      }
-    }
-  }
-
-  [CONSUMEBODY] (chunk, position) {
-    // write up to but no  more than writeEntry.blockRemain
-    const entry = this[WRITEENTRY]
-    const br = entry.blockRemain
-    const c = (br >= chunk.length && position === 0) ? chunk
-      : chunk.slice(position, position + br)
-
-    entry.write(c)
-
-    if (!entry.blockRemain) {
-      this[STATE] = 'header'
-      this[WRITEENTRY] = null
-      entry.end()
-    }
-
-    return c.length
-  }
-
-  [CONSUMEMETA] (chunk, position) {
-    const entry = this[WRITEENTRY]
-    const ret = this[CONSUMEBODY](chunk, position)
-
-    // if we finished, then the entry is reset
-    if (!this[WRITEENTRY]) {
-      this[EMITMETA](entry)
-    }
-
-    return ret
-  }
-
-  [EMIT] (ev, data, extra) {
-    if (!this[QUEUE].length && !this[READENTRY]) {
-      this.emit(ev, data, extra)
-    } else {
-      this[QUEUE].push([ev, data, extra])
-    }
-  }
-
-  [EMITMETA] (entry) {
-    this[EMIT]('meta', this[META])
-    switch (entry.type) {
-      case 'ExtendedHeader':
-      case 'OldExtendedHeader':
-        this[EX] = Pax.parse(this[META], this[EX], false)
-        break
-
-      case 'GlobalExtendedHeader':
-        this[GEX] = Pax.parse(this[META], this[GEX], true)
-        break
-
-      case 'NextFileHasLongPath':
-      case 'OldGnuLongPath':
-        this[EX] = this[EX] || Object.create(null)
-        this[EX].path = this[META].replace(/\0.*/, '')
-        break
-
-      case 'NextFileHasLongLinkpath':
-        this[EX] = this[EX] || Object.create(null)
-        this[EX].linkpath = this[META].replace(/\0.*/, '')
-        break
-
-      /* istanbul ignore next */
-      default: throw new Error('unknown meta: ' + entry.type)
-    }
-  }
-
-  abort (error) {
-    this[ABORTED] = true
-    this.emit('abort', error)
-    // always throws, even in non-strict mode
-    this.warn('TAR_ABORT', error, { recoverable: false })
-  }
-
-  write (chunk) {
-    if (this[ABORTED]) {
-      return
-    }
-
-    // first write, might be gzipped
-    const needSniff = this[UNZIP] === null ||
-      this.brotli === undefined && this[UNZIP] === false
-    if (needSniff && chunk) {
-      if (this[BUFFER]) {
-        chunk = Buffer.concat([this[BUFFER], chunk])
-        this[BUFFER] = null
-      }
-      if (chunk.length < gzipHeader.length) {
-        this[BUFFER] = chunk
-        return true
-      }
-
-      // look for gzip header
-      for (let i = 0; this[UNZIP] === null && i < gzipHeader.length; i++) {
-        if (chunk[i] !== gzipHeader[i]) {
-          this[UNZIP] = false
-        }
-      }
-
-      const maybeBrotli = this.brotli === undefined
-      if (this[UNZIP] === false && maybeBrotli) {
-        // read the first header to see if it's a valid tar file. If so,
-        // we can safely assume that it's not actually brotli, despite the
-        // .tbr or .tar.br file extension.
-        // if we ended before getting a full chunk, yes, def brotli
-        if (chunk.length < 512) {
-          if (this[ENDED]) {
-            this.brotli = true
-          } else {
-            this[BUFFER] = chunk
-            return true
-          }
-        } else {
-          // if it's tar, it's pretty reliably not brotli, chances of
-          // that happening are astronomical.
-          try {
-            new Header(chunk.slice(0, 512))
-            this.brotli = false
-          } catch (_) {
-            this.brotli = true
-          }
-        }
-      }
-
-      if (this[UNZIP] === null || (this[UNZIP] === false && this.brotli)) {
-        const ended = this[ENDED]
-        this[ENDED] = false
-        this[UNZIP] = this[UNZIP] === null
-          ? new zlib.Unzip()
-          : new zlib.BrotliDecompress()
-        this[UNZIP].on('data', chunk => this[CONSUMECHUNK](chunk))
-        this[UNZIP].on('error', er => this.abort(er))
-        this[UNZIP].on('end', _ => {
-          this[ENDED] = true
-          this[CONSUMECHUNK]()
-        })
-        this[WRITING] = true
-        const ret = this[UNZIP][ended ? 'end' : 'write'](chunk)
-        this[WRITING] = false
-        return ret
-      }
-    }
-
-    this[WRITING] = true
-    if (this[UNZIP]) {
-      this[UNZIP].write(chunk)
-    } else {
-      this[CONSUMECHUNK](chunk)
-    }
-    this[WRITING] = false
-
-    // return false if there's a queue, or if the current entry isn't flowing
-    const ret =
-      this[QUEUE].length ? false :
-      this[READENTRY] ? this[READENTRY].flowing :
-      true
-
-    // if we have no queue, then that means a clogged READENTRY
-    if (!ret && !this[QUEUE].length) {
-      this[READENTRY].once('drain', _ => this.emit('drain'))
-    }
-
-    return ret
-  }
-
-  [BUFFERCONCAT] (c) {
-    if (c && !this[ABORTED]) {
-      this[BUFFER] = this[BUFFER] ? Buffer.concat([this[BUFFER], c]) : c
-    }
-  }
-
-  [MAYBEEND] () {
-    if (this[ENDED] &&
-        !this[EMITTEDEND] &&
-        !this[ABORTED] &&
-        !this[CONSUMING]) {
-      this[EMITTEDEND] = true
-      const entry = this[WRITEENTRY]
-      if (entry && entry.blockRemain) {
-        // truncated, likely a damaged file
-        const have = this[BUFFER] ? this[BUFFER].length : 0
-        this.warn('TAR_BAD_ARCHIVE', `Truncated input (needed ${
-          entry.blockRemain} more bytes, only ${have} available)`, { entry })
-        if (this[BUFFER]) {
-          entry.write(this[BUFFER])
-        }
-        entry.end()
-      }
-      this[EMIT](DONE)
-    }
-  }
-
-  [CONSUMECHUNK] (chunk) {
-    if (this[CONSUMING]) {
-      this[BUFFERCONCAT](chunk)
-    } else if (!chunk && !this[BUFFER]) {
-      this[MAYBEEND]()
-    } else {
-      this[CONSUMING] = true
-      if (this[BUFFER]) {
-        this[BUFFERCONCAT](chunk)
-        const c = this[BUFFER]
-        this[BUFFER] = null
-        this[CONSUMECHUNKSUB](c)
-      } else {
-        this[CONSUMECHUNKSUB](chunk)
-      }
-
-      while (this[BUFFER] &&
-          this[BUFFER].length >= 512 &&
-          !this[ABORTED] &&
-          !this[SAW_EOF]) {
-        const c = this[BUFFER]
-        this[BUFFER] = null
-        this[CONSUMECHUNKSUB](c)
-      }
-      this[CONSUMING] = false
-    }
-
-    if (!this[BUFFER] || this[ENDED]) {
-      this[MAYBEEND]()
-    }
-  }
-
-  [CONSUMECHUNKSUB] (chunk) {
-    // we know that we are in CONSUMING mode, so anything written goes into
-    // the buffer.  Advance the position and put any remainder in the buffer.
-    let position = 0
-    const length = chunk.length
-    while (position + 512 <= length && !this[ABORTED] && !this[SAW_EOF]) {
-      switch (this[STATE]) {
-        case 'begin':
-        case 'header':
-          this[CONSUMEHEADER](chunk, position)
-          position += 512
-          break
-
-        case 'ignore':
-        case 'body':
-          position += this[CONSUMEBODY](chunk, position)
-          break
-
-        case 'meta':
-          position += this[CONSUMEMETA](chunk, position)
-          break
-
-        /* istanbul ignore next */
-        default:
-          throw new Error('invalid state: ' + this[STATE])
-      }
-    }
-
-    if (position < length) {
-      if (this[BUFFER]) {
-        this[BUFFER] = Buffer.concat([chunk.slice(position), this[BUFFER]])
-      } else {
-        this[BUFFER] = chunk.slice(position)
-      }
-    }
-  }
-
-  end (chunk) {
-    if (!this[ABORTED]) {
-      if (this[UNZIP]) {
-        this[UNZIP].end(chunk)
-      } else {
-        this[ENDED] = true
-        if (this.brotli === undefined) chunk = chunk || Buffer.alloc(0)
-        this.write(chunk)
-      }
-    }
-  }
-})
-
-
-/***/ }),
-
-/***/ 1142:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-// A path exclusive reservation system
-// reserve([list, of, paths], fn)
-// When the fn is first in line for all its paths, it
-// is called with a cb that clears the reservation.
-//
-// Used by async unpack to avoid clobbering paths in use,
-// while still allowing maximal safe parallelization.
-
-const assert = __nccwpck_require__(2613)
-const normalize = __nccwpck_require__(1053)
-const stripSlashes = __nccwpck_require__(5126)
-const { join } = __nccwpck_require__(6928)
-
-const platform = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform
-const isWindows = platform === 'win32'
-
-module.exports = () => {
-  // path => [function or Set]
-  // A Set object means a directory reservation
-  // A fn is a direct reservation on that path
-  const queues = new Map()
-
-  // fn => {paths:[path,...], dirs:[path, ...]}
-  const reservations = new Map()
-
-  // return a set of parent dirs for a given path
-  // '/a/b/c/d' -> ['/', '/a', '/a/b', '/a/b/c', '/a/b/c/d']
-  const getDirs = path => {
-    const dirs = path.split('/').slice(0, -1).reduce((set, path) => {
-      if (set.length) {
-        path = join(set[set.length - 1], path)
-      }
-      set.push(path || '/')
-      return set
-    }, [])
-    return dirs
-  }
-
-  // functions currently running
-  const running = new Set()
-
-  // return the queues for each path the function cares about
-  // fn => {paths, dirs}
-  const getQueues = fn => {
-    const res = reservations.get(fn)
-    /* istanbul ignore if - unpossible */
-    if (!res) {
-      throw new Error('function does not have any path reservations')
-    }
-    return {
-      paths: res.paths.map(path => queues.get(path)),
-      dirs: [...res.dirs].map(path => queues.get(path)),
-    }
-  }
-
-  // check if fn is first in line for all its paths, and is
-  // included in the first set for all its dir queues
-  const check = fn => {
-    const { paths, dirs } = getQueues(fn)
-    return paths.every(q => q[0] === fn) &&
-      dirs.every(q => q[0] instanceof Set && q[0].has(fn))
-  }
-
-  // run the function if it's first in line and not already running
-  const run = fn => {
-    if (running.has(fn) || !check(fn)) {
-      return false
-    }
-    running.add(fn)
-    fn(() => clear(fn))
-    return true
-  }
-
-  const clear = fn => {
-    if (!running.has(fn)) {
-      return false
-    }
-
-    const { paths, dirs } = reservations.get(fn)
-    const next = new Set()
-
-    paths.forEach(path => {
-      const q = queues.get(path)
-      assert.equal(q[0], fn)
-      if (q.length === 1) {
-        queues.delete(path)
-      } else {
-        q.shift()
-        if (typeof q[0] === 'function') {
-          next.add(q[0])
-        } else {
-          q[0].forEach(fn => next.add(fn))
-        }
-      }
-    })
-
-    dirs.forEach(dir => {
-      const q = queues.get(dir)
-      assert(q[0] instanceof Set)
-      if (q[0].size === 1 && q.length === 1) {
-        queues.delete(dir)
-      } else if (q[0].size === 1) {
-        q.shift()
-
-        // must be a function or else the Set would've been reused
-        next.add(q[0])
-      } else {
-        q[0].delete(fn)
-      }
-    })
-    running.delete(fn)
-
-    next.forEach(fn => run(fn))
-    return true
-  }
-
-  const reserve = (paths, fn) => {
-    // collide on matches across case and unicode normalization
-    // On windows, thanks to the magic of 8.3 shortnames, it is fundamentally
-    // impossible to determine whether two paths refer to the same thing on
-    // disk, without asking the kernel for a shortname.
-    // So, we just pretend that every path matches every other path here,
-    // effectively removing all parallelization on windows.
-    paths = isWindows ? ['win32 parallelization disabled'] : paths.map(p => {
-      // don't need normPath, because we skip this entirely for windows
-      return stripSlashes(join(normalize(p))).toLowerCase()
-    })
-
-    const dirs = new Set(
-      paths.map(path => getDirs(path)).reduce((a, b) => a.concat(b))
-    )
-    reservations.set(fn, { dirs, paths })
-    paths.forEach(path => {
-      const q = queues.get(path)
-      if (!q) {
-        queues.set(path, [fn])
-      } else {
-        q.push(fn)
-      }
-    })
-    dirs.forEach(dir => {
-      const q = queues.get(dir)
-      if (!q) {
-        queues.set(dir, [new Set([fn])])
-      } else if (q[q.length - 1] instanceof Set) {
-        q[q.length - 1].add(fn)
-      } else {
-        q.push(new Set([fn]))
-      }
-    })
-
-    return run(fn)
-  }
-
-  return { check, reserve }
+        return '';
+    });
 }
-
+exports.tryGetExecutablePath = tryGetExecutablePath;
+function normalizeSeparators(p) {
+    p = p || '';
+    if (exports.IS_WINDOWS) {
+        // convert slashes on Windows
+        p = p.replace(/\//g, '\\');
+        // remove redundant slashes
+        return p.replace(/\\\\+/g, '\\');
+    }
+    // remove redundant slashes
+    return p.replace(/\/\/+/g, '/');
+}
+// on Mac/Linux, test the execute bit
+//     R   W  X  R  W X R W X
+//   256 128 64 32 16 8 4 2 1
+function isUnixExecutable(stats) {
+    return ((stats.mode & 1) > 0 ||
+        ((stats.mode & 8) > 0 && stats.gid === process.getgid()) ||
+        ((stats.mode & 64) > 0 && stats.uid === process.getuid()));
+}
+// Get the path of cmd.exe in windows
+function getCmdPath() {
+    var _a;
+    return (_a = process.env['COMSPEC']) !== null && _a !== void 0 ? _a : `cmd.exe`;
+}
+exports.getCmdPath = getCmdPath;
+//# sourceMappingURL=io-util.js.map
 
 /***/ }),
 
-/***/ 3542:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 4994:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
-const Header = __nccwpck_require__(5634)
-const path = __nccwpck_require__(6928)
-
-class Pax {
-  constructor (obj, global) {
-    this.atime = obj.atime || null
-    this.charset = obj.charset || null
-    this.comment = obj.comment || null
-    this.ctime = obj.ctime || null
-    this.gid = obj.gid || null
-    this.gname = obj.gname || null
-    this.linkpath = obj.linkpath || null
-    this.mtime = obj.mtime || null
-    this.path = obj.path || null
-    this.size = obj.size || null
-    this.uid = obj.uid || null
-    this.uname = obj.uname || null
-    this.dev = obj.dev || null
-    this.ino = obj.ino || null
-    this.nlink = obj.nlink || null
-    this.global = global || false
-  }
-
-  encode () {
-    const body = this.encodeBody()
-    if (body === '') {
-      return null
-    }
-
-    const bodyLen = Buffer.byteLength(body)
-    // round up to 512 bytes
-    // add 512 for header
-    const bufLen = 512 * Math.ceil(1 + bodyLen / 512)
-    const buf = Buffer.allocUnsafe(bufLen)
-
-    // 0-fill the header section, it might not hit every field
-    for (let i = 0; i < 512; i++) {
-      buf[i] = 0
-    }
-
-    new Header({
-      // XXX split the path
-      // then the path should be PaxHeader + basename, but less than 99,
-      // prepend with the dirname
-      path: ('PaxHeader/' + path.basename(this.path)).slice(0, 99),
-      mode: this.mode || 0o644,
-      uid: this.uid || null,
-      gid: this.gid || null,
-      size: bodyLen,
-      mtime: this.mtime || null,
-      type: this.global ? 'GlobalExtendedHeader' : 'ExtendedHeader',
-      linkpath: '',
-      uname: this.uname || '',
-      gname: this.gname || '',
-      devmaj: 0,
-      devmin: 0,
-      atime: this.atime || null,
-      ctime: this.ctime || null,
-    }).encode(buf)
-
-    buf.write(body, 512, bodyLen, 'utf8')
-
-    // null pad after the body
-    for (let i = bodyLen + 512; i < buf.length; i++) {
-      buf[i] = 0
-    }
-
-    return buf
-  }
-
-  encodeBody () {
-    return (
-      this.encodeField('path') +
-      this.encodeField('ctime') +
-      this.encodeField('atime') +
-      this.encodeField('dev') +
-      this.encodeField('ino') +
-      this.encodeField('nlink') +
-      this.encodeField('charset') +
-      this.encodeField('comment') +
-      this.encodeField('gid') +
-      this.encodeField('gname') +
-      this.encodeField('linkpath') +
-      this.encodeField('mtime') +
-      this.encodeField('size') +
-      this.encodeField('uid') +
-      this.encodeField('uname')
-    )
-  }
-
-  encodeField (field) {
-    if (this[field] === null || this[field] === undefined) {
-      return ''
-    }
-    const v = this[field] instanceof Date ? this[field].getTime() / 1000
-      : this[field]
-    const s = ' ' +
-      (field === 'dev' || field === 'ino' || field === 'nlink'
-        ? 'SCHILY.' : '') +
-      field + '=' + v + '\n'
-    const byteLen = Buffer.byteLength(s)
-    // the digits includes the length of the digits in ascii base-10
-    // so if it's 9 characters, then adding 1 for the 9 makes it 10
-    // which makes it 11 chars.
-    let digits = Math.floor(Math.log(byteLen) / Math.log(10)) + 1
-    if (byteLen + digits >= Math.pow(10, digits)) {
-      digits += 1
-    }
-    const len = digits + byteLen
-    return len + s
-  }
-}
-
-Pax.parse = (string, ex, g) => new Pax(merge(parseKV(string), ex), g)
-
-const merge = (a, b) =>
-  b ? Object.keys(a).reduce((s, k) => (s[k] = a[k], s), b) : a
-
-const parseKV = string =>
-  string
-    .replace(/\n$/, '')
-    .split('\n')
-    .reduce(parseKVLine, Object.create(null))
-
-const parseKVLine = (set, line) => {
-  const n = parseInt(line, 10)
-
-  // XXX Values with \n in them will fail this.
-  // Refactor to not be a naive line-by-line parse.
-  if (n !== Buffer.byteLength(line) + 1) {
-    return set
-  }
-
-  line = line.slice((n + ' ').length)
-  const kv = line.split('=')
-  const k = kv.shift().replace(/^SCHILY\.(dev|ino|nlink)/, '$1')
-  if (!k) {
-    return set
-  }
-
-  const v = kv.join('=')
-  set[k] = /^([A-Z]+\.)?([mac]|birth|creation)time$/.test(k)
-    ? new Date(v * 1000)
-    : /^[0-9]+$/.test(v) ? +v
-    : v
-  return set
-}
-
-module.exports = Pax
-
-
-/***/ }),
-
-/***/ 6770:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-const { Minipass } = __nccwpck_require__(6058)
-const normPath = __nccwpck_require__(8658)
-
-const SLURP = Symbol('slurp')
-module.exports = class ReadEntry extends Minipass {
-  constructor (header, ex, gex) {
-    super()
-    // read entries always start life paused.  this is to avoid the
-    // situation where Minipass's auto-ending empty streams results
-    // in an entry ending before we're ready for it.
-    this.pause()
-    this.extended = ex
-    this.globalExtended = gex
-    this.header = header
-    this.startBlockSize = 512 * Math.ceil(header.size / 512)
-    this.blockRemain = this.startBlockSize
-    this.remain = header.size
-    this.type = header.type
-    this.meta = false
-    this.ignore = false
-    switch (this.type) {
-      case 'File':
-      case 'OldFile':
-      case 'Link':
-      case 'SymbolicLink':
-      case 'CharacterDevice':
-      case 'BlockDevice':
-      case 'Directory':
-      case 'FIFO':
-      case 'ContiguousFile':
-      case 'GNUDumpDir':
-        break
-
-      case 'NextFileHasLongLinkpath':
-      case 'NextFileHasLongPath':
-      case 'OldGnuLongPath':
-      case 'GlobalExtendedHeader':
-      case 'ExtendedHeader':
-      case 'OldExtendedHeader':
-        this.meta = true
-        break
-
-      // NOTE: gnutar and bsdtar treat unrecognized types as 'File'
-      // it may be worth doing the same, but with a warning.
-      default:
-        this.ignore = true
-    }
-
-    this.path = normPath(header.path)
-    this.mode = header.mode
-    if (this.mode) {
-      this.mode = this.mode & 0o7777
-    }
-    this.uid = header.uid
-    this.gid = header.gid
-    this.uname = header.uname
-    this.gname = header.gname
-    this.size = header.size
-    this.mtime = header.mtime
-    this.atime = header.atime
-    this.ctime = header.ctime
-    this.linkpath = normPath(header.linkpath)
-    this.uname = header.uname
-    this.gname = header.gname
-
-    if (ex) {
-      this[SLURP](ex)
-    }
-    if (gex) {
-      this[SLURP](gex, true)
-    }
-  }
-
-  write (data) {
-    const writeLen = data.length
-    if (writeLen > this.blockRemain) {
-      throw new Error('writing more to entry than is appropriate')
-    }
-
-    const r = this.remain
-    const br = this.blockRemain
-    this.remain = Math.max(0, r - writeLen)
-    this.blockRemain = Math.max(0, br - writeLen)
-    if (this.ignore) {
-      return true
-    }
-
-    if (r >= writeLen) {
-      return super.write(data)
-    }
-
-    // r < writeLen
-    return super.write(data.slice(0, r))
-  }
-
-  [SLURP] (ex, global) {
-    for (const k in ex) {
-      // we slurp in everything except for the path attribute in
-      // a global extended header, because that's weird.
-      if (ex[k] !== null && ex[k] !== undefined &&
-          !(global && k === 'path')) {
-        this[k] = k === 'path' || k === 'linkpath' ? normPath(ex[k]) : ex[k]
-      }
-    }
-  }
-}
-
-
-/***/ }),
-
-/***/ 5299:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// tar -r
-const hlo = __nccwpck_require__(4252)
-const Pack = __nccwpck_require__(9766)
-const fs = __nccwpck_require__(9896)
-const fsm = __nccwpck_require__(7532)
-const t = __nccwpck_require__(9667)
-const path = __nccwpck_require__(6928)
-
-// starting at the head of the file, read a Header
-// If the checksum is invalid, that's our position to start writing
-// If it is, jump forward by the specified size (round up to 512)
-// and try again.
-// Write the new Pack stream starting there.
-
-const Header = __nccwpck_require__(5634)
-
-module.exports = (opt_, files, cb) => {
-  const opt = hlo(opt_)
-
-  if (!opt.file) {
-    throw new TypeError('file is required')
-  }
-
-  if (opt.gzip || opt.brotli || opt.file.endsWith('.br') || opt.file.endsWith('.tbr')) {
-    throw new TypeError('cannot append to compressed archives')
-  }
-
-  if (!files || !Array.isArray(files) || !files.length) {
-    throw new TypeError('no files or directories specified')
-  }
-
-  files = Array.from(files)
-
-  return opt.sync ? replaceSync(opt, files)
-    : replace(opt, files, cb)
-}
-
-const replaceSync = (opt, files) => {
-  const p = new Pack.Sync(opt)
-
-  let threw = true
-  let fd
-  let position
-
-  try {
-    try {
-      fd = fs.openSync(opt.file, 'r+')
-    } catch (er) {
-      if (er.code === 'ENOENT') {
-        fd = fs.openSync(opt.file, 'w+')
-      } else {
-        throw er
-      }
-    }
-
-    const st = fs.fstatSync(fd)
-    const headBuf = Buffer.alloc(512)
-
-    POSITION: for (position = 0; position < st.size; position += 512) {
-      for (let bufPos = 0, bytes = 0; bufPos < 512; bufPos += bytes) {
-        bytes = fs.readSync(
-          fd, headBuf, bufPos, headBuf.length - bufPos, position + bufPos
-        )
-
-        if (position === 0 && headBuf[0] === 0x1f && headBuf[1] === 0x8b) {
-          throw new Error('cannot append to compressed archives')
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findInPath = exports.which = exports.mkdirP = exports.rmRF = exports.mv = exports.cp = void 0;
+const assert_1 = __nccwpck_require__(2613);
+const path = __importStar(__nccwpck_require__(6928));
+const ioUtil = __importStar(__nccwpck_require__(5207));
+/**
+ * Copies a file or folder.
+ * Based off of shelljs - https://github.com/shelljs/shelljs/blob/9237f66c52e5daa40458f94f9565e18e8132f5a6/src/cp.js
+ *
+ * @param     source    source path
+ * @param     dest      destination path
+ * @param     options   optional. See CopyOptions.
+ */
+function cp(source, dest, options = {}) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { force, recursive, copySourceDirectory } = readCopyOptions(options);
+        const destStat = (yield ioUtil.exists(dest)) ? yield ioUtil.stat(dest) : null;
+        // Dest is an existing file, but not forcing
+        if (destStat && destStat.isFile() && !force) {
+            return;
         }
-
-        if (!bytes) {
-          break POSITION
+        // If dest is an existing directory, should copy inside.
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory
+            ? path.join(dest, path.basename(source))
+            : dest;
+        if (!(yield ioUtil.exists(source))) {
+            throw new Error(`no such file or directory: ${source}`);
         }
-      }
-
-      const h = new Header(headBuf)
-      if (!h.cksumValid) {
-        break
-      }
-      const entryBlockSize = 512 * Math.ceil(h.size / 512)
-      if (position + entryBlockSize + 512 > st.size) {
-        break
-      }
-      // the 512 for the header we just parsed will be added as well
-      // also jump ahead all the blocks for the body
-      position += entryBlockSize
-      if (opt.mtimeCache) {
-        opt.mtimeCache.set(h.path, h.mtime)
-      }
-    }
-    threw = false
-
-    streamSync(opt, p, position, fd, files)
-  } finally {
-    if (threw) {
-      try {
-        fs.closeSync(fd)
-      } catch (er) {}
-    }
-  }
-}
-
-const streamSync = (opt, p, position, fd, files) => {
-  const stream = new fsm.WriteStreamSync(opt.file, {
-    fd: fd,
-    start: position,
-  })
-  p.pipe(stream)
-  addFilesSync(p, files)
-}
-
-const replace = (opt, files, cb) => {
-  files = Array.from(files)
-  const p = new Pack(opt)
-
-  const getPos = (fd, size, cb_) => {
-    const cb = (er, pos) => {
-      if (er) {
-        fs.close(fd, _ => cb_(er))
-      } else {
-        cb_(null, pos)
-      }
-    }
-
-    let position = 0
-    if (size === 0) {
-      return cb(null, 0)
-    }
-
-    let bufPos = 0
-    const headBuf = Buffer.alloc(512)
-    const onread = (er, bytes) => {
-      if (er) {
-        return cb(er)
-      }
-      bufPos += bytes
-      if (bufPos < 512 && bytes) {
-        return fs.read(
-          fd, headBuf, bufPos, headBuf.length - bufPos,
-          position + bufPos, onread
-        )
-      }
-
-      if (position === 0 && headBuf[0] === 0x1f && headBuf[1] === 0x8b) {
-        return cb(new Error('cannot append to compressed archives'))
-      }
-
-      // truncated header
-      if (bufPos < 512) {
-        return cb(null, position)
-      }
-
-      const h = new Header(headBuf)
-      if (!h.cksumValid) {
-        return cb(null, position)
-      }
-
-      const entryBlockSize = 512 * Math.ceil(h.size / 512)
-      if (position + entryBlockSize + 512 > size) {
-        return cb(null, position)
-      }
-
-      position += entryBlockSize + 512
-      if (position >= size) {
-        return cb(null, position)
-      }
-
-      if (opt.mtimeCache) {
-        opt.mtimeCache.set(h.path, h.mtime)
-      }
-      bufPos = 0
-      fs.read(fd, headBuf, 0, 512, position, onread)
-    }
-    fs.read(fd, headBuf, 0, 512, position, onread)
-  }
-
-  const promise = new Promise((resolve, reject) => {
-    p.on('error', reject)
-    let flag = 'r+'
-    const onopen = (er, fd) => {
-      if (er && er.code === 'ENOENT' && flag === 'r+') {
-        flag = 'w+'
-        return fs.open(opt.file, flag, onopen)
-      }
-
-      if (er) {
-        return reject(er)
-      }
-
-      fs.fstat(fd, (er, st) => {
-        if (er) {
-          return fs.close(fd, () => reject(er))
-        }
-
-        getPos(fd, st.size, (er, position) => {
-          if (er) {
-            return reject(er)
-          }
-          const stream = new fsm.WriteStream(opt.file, {
-            fd: fd,
-            start: position,
-          })
-          p.pipe(stream)
-          stream.on('error', reject)
-          stream.on('close', resolve)
-          addFilesAsync(p, files)
-        })
-      })
-    }
-    fs.open(opt.file, flag, onopen)
-  })
-
-  return cb ? promise.then(cb, cb) : promise
-}
-
-const addFilesSync = (p, files) => {
-  files.forEach(file => {
-    if (file.charAt(0) === '@') {
-      t({
-        file: path.resolve(p.cwd, file.slice(1)),
-        sync: true,
-        noResume: true,
-        onentry: entry => p.add(entry),
-      })
-    } else {
-      p.add(file)
-    }
-  })
-  p.end()
-}
-
-const addFilesAsync = (p, files) => {
-  while (files.length) {
-    const file = files.shift()
-    if (file.charAt(0) === '@') {
-      return t({
-        file: path.resolve(p.cwd, file.slice(1)),
-        noResume: true,
-        onentry: entry => p.add(entry),
-      }).then(_ => addFilesAsync(p, files))
-    } else {
-      p.add(file)
-    }
-  }
-  p.end()
-}
-
-
-/***/ }),
-
-/***/ 2827:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-// unix absolute paths are also absolute on win32, so we use this for both
-const { isAbsolute, parse } = (__nccwpck_require__(6928).win32)
-
-// returns [root, stripped]
-// Note that windows will think that //x/y/z/a has a "root" of //x/y, and in
-// those cases, we want to sanitize it to x/y/z/a, not z/a, so we strip /
-// explicitly if it's the first character.
-// drive-specific relative paths on Windows get their root stripped off even
-// though they are not absolute, so `c:../foo` becomes ['c:', '../foo']
-module.exports = path => {
-  let r = ''
-
-  let parsed = parse(path)
-  while (isAbsolute(path) || parsed.root) {
-    // windows will think that //x/y/z has a "root" of //x/y/
-    // but strip the //?/C:/ off of //?/C:/path
-    const root = path.charAt(0) === '/' && path.slice(0, 4) !== '//?/' ? '/'
-      : parsed.root
-    path = path.slice(root.length)
-    r += root
-    parsed = parse(path)
-  }
-  return [r, path]
-}
-
-
-/***/ }),
-
-/***/ 5126:
-/***/ ((module) => {
-
-// warning: extremely hot code path.
-// This has been meticulously optimized for use
-// within npm install on large package trees.
-// Do not edit without careful benchmarking.
-module.exports = str => {
-  let i = str.length - 1
-  let slashesStart = -1
-  while (i > -1 && str.charAt(i) === '/') {
-    slashesStart = i
-    i--
-  }
-  return slashesStart === -1 ? str : str.slice(0, slashesStart)
-}
-
-
-/***/ }),
-
-/***/ 662:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-// map types from key to human-friendly name
-exports.name = new Map([
-  ['0', 'File'],
-  // same as File
-  ['', 'OldFile'],
-  ['1', 'Link'],
-  ['2', 'SymbolicLink'],
-  // Devices and FIFOs aren't fully supported
-  // they are parsed, but skipped when unpacking
-  ['3', 'CharacterDevice'],
-  ['4', 'BlockDevice'],
-  ['5', 'Directory'],
-  ['6', 'FIFO'],
-  // same as File
-  ['7', 'ContiguousFile'],
-  // pax headers
-  ['g', 'GlobalExtendedHeader'],
-  ['x', 'ExtendedHeader'],
-  // vendor-specific stuff
-  // skip
-  ['A', 'SolarisACL'],
-  // like 5, but with data, which should be skipped
-  ['D', 'GNUDumpDir'],
-  // metadata only, skip
-  ['I', 'Inode'],
-  // data = link path of next file
-  ['K', 'NextFileHasLongLinkpath'],
-  // data = path of next file
-  ['L', 'NextFileHasLongPath'],
-  // skip
-  ['M', 'ContinuationFile'],
-  // like L
-  ['N', 'OldGnuLongPath'],
-  // skip
-  ['S', 'SparseFile'],
-  // skip
-  ['V', 'TapeVolumeHeader'],
-  // like x
-  ['X', 'OldExtendedHeader'],
-])
-
-// map the other direction
-exports.code = new Map(Array.from(exports.name).map(kv => [kv[1], kv[0]]))
-
-
-/***/ }),
-
-/***/ 6581:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// the PEND/UNPEND stuff tracks whether we're ready to emit end/close yet.
-// but the path reservations are required to avoid race conditions where
-// parallelized unpack ops may mess with one another, due to dependencies
-// (like a Link depending on its target) or destructive operations (like
-// clobbering an fs object to create one of a different type.)
-
-const assert = __nccwpck_require__(2613)
-const Parser = __nccwpck_require__(120)
-const fs = __nccwpck_require__(9896)
-const fsm = __nccwpck_require__(7532)
-const path = __nccwpck_require__(6928)
-const mkdir = __nccwpck_require__(1436)
-const wc = __nccwpck_require__(2148)
-const pathReservations = __nccwpck_require__(1142)
-const stripAbsolutePath = __nccwpck_require__(2827)
-const normPath = __nccwpck_require__(8658)
-const stripSlash = __nccwpck_require__(5126)
-const normalize = __nccwpck_require__(1053)
-
-const ONENTRY = Symbol('onEntry')
-const CHECKFS = Symbol('checkFs')
-const CHECKFS2 = Symbol('checkFs2')
-const PRUNECACHE = Symbol('pruneCache')
-const ISREUSABLE = Symbol('isReusable')
-const MAKEFS = Symbol('makeFs')
-const FILE = Symbol('file')
-const DIRECTORY = Symbol('directory')
-const LINK = Symbol('link')
-const SYMLINK = Symbol('symlink')
-const HARDLINK = Symbol('hardlink')
-const UNSUPPORTED = Symbol('unsupported')
-const CHECKPATH = Symbol('checkPath')
-const MKDIR = Symbol('mkdir')
-const ONERROR = Symbol('onError')
-const PENDING = Symbol('pending')
-const PEND = Symbol('pend')
-const UNPEND = Symbol('unpend')
-const ENDED = Symbol('ended')
-const MAYBECLOSE = Symbol('maybeClose')
-const SKIP = Symbol('skip')
-const DOCHOWN = Symbol('doChown')
-const UID = Symbol('uid')
-const GID = Symbol('gid')
-const CHECKED_CWD = Symbol('checkedCwd')
-const crypto = __nccwpck_require__(6982)
-const getFlag = __nccwpck_require__(700)
-const platform = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform
-const isWindows = platform === 'win32'
-const DEFAULT_MAX_DEPTH = 1024
-
-// Unlinks on Windows are not atomic.
-//
-// This means that if you have a file entry, followed by another
-// file entry with an identical name, and you cannot re-use the file
-// (because it's a hardlink, or because unlink:true is set, or it's
-// Windows, which does not have useful nlink values), then the unlink
-// will be committed to the disk AFTER the new file has been written
-// over the old one, deleting the new file.
-//
-// To work around this, on Windows systems, we rename the file and then
-// delete the renamed file.  It's a sloppy kludge, but frankly, I do not
-// know of a better way to do this, given windows' non-atomic unlink
-// semantics.
-//
-// See: https://github.com/npm/node-tar/issues/183
-/* istanbul ignore next */
-const unlinkFile = (path, cb) => {
-  if (!isWindows) {
-    return fs.unlink(path, cb)
-  }
-
-  const name = path + '.DELETE.' + crypto.randomBytes(16).toString('hex')
-  fs.rename(path, name, er => {
-    if (er) {
-      return cb(er)
-    }
-    fs.unlink(name, cb)
-  })
-}
-
-/* istanbul ignore next */
-const unlinkFileSync = path => {
-  if (!isWindows) {
-    return fs.unlinkSync(path)
-  }
-
-  const name = path + '.DELETE.' + crypto.randomBytes(16).toString('hex')
-  fs.renameSync(path, name)
-  fs.unlinkSync(name)
-}
-
-// this.gid, entry.gid, this.processUid
-const uint32 = (a, b, c) =>
-  a === a >>> 0 ? a
-  : b === b >>> 0 ? b
-  : c
-
-// clear the cache if it's a case-insensitive unicode-squashing match.
-// we can't know if the current file system is case-sensitive or supports
-// unicode fully, so we check for similarity on the maximally compatible
-// representation.  Err on the side of pruning, since all it's doing is
-// preventing lstats, and it's not the end of the world if we get a false
-// positive.
-// Note that on windows, we always drop the entire cache whenever a
-// symbolic link is encountered, because 8.3 filenames are impossible
-// to reason about, and collisions are hazards rather than just failures.
-const cacheKeyNormalize = path => stripSlash(normPath(normalize(path)))
-  .toLowerCase()
-
-const pruneCache = (cache, abs) => {
-  abs = cacheKeyNormalize(abs)
-  for (const path of cache.keys()) {
-    const pnorm = cacheKeyNormalize(path)
-    if (pnorm === abs || pnorm.indexOf(abs + '/') === 0) {
-      cache.delete(path)
-    }
-  }
-}
-
-const dropCache = cache => {
-  for (const key of cache.keys()) {
-    cache.delete(key)
-  }
-}
-
-class Unpack extends Parser {
-  constructor (opt) {
-    if (!opt) {
-      opt = {}
-    }
-
-    opt.ondone = _ => {
-      this[ENDED] = true
-      this[MAYBECLOSE]()
-    }
-
-    super(opt)
-
-    this[CHECKED_CWD] = false
-
-    this.reservations = pathReservations()
-
-    this.transform = typeof opt.transform === 'function' ? opt.transform : null
-
-    this.writable = true
-    this.readable = false
-
-    this[PENDING] = 0
-    this[ENDED] = false
-
-    this.dirCache = opt.dirCache || new Map()
-
-    if (typeof opt.uid === 'number' || typeof opt.gid === 'number') {
-      // need both or neither
-      if (typeof opt.uid !== 'number' || typeof opt.gid !== 'number') {
-        throw new TypeError('cannot set owner without number uid and gid')
-      }
-      if (opt.preserveOwner) {
-        throw new TypeError(
-          'cannot preserve owner in archive and also set owner explicitly')
-      }
-      this.uid = opt.uid
-      this.gid = opt.gid
-      this.setOwner = true
-    } else {
-      this.uid = null
-      this.gid = null
-      this.setOwner = false
-    }
-
-    // default true for root
-    if (opt.preserveOwner === undefined && typeof opt.uid !== 'number') {
-      this.preserveOwner = process.getuid && process.getuid() === 0
-    } else {
-      this.preserveOwner = !!opt.preserveOwner
-    }
-
-    this.processUid = (this.preserveOwner || this.setOwner) && process.getuid ?
-      process.getuid() : null
-    this.processGid = (this.preserveOwner || this.setOwner) && process.getgid ?
-      process.getgid() : null
-
-    // prevent excessively deep nesting of subfolders
-    // set to `Infinity` to remove this restriction
-    this.maxDepth = typeof opt.maxDepth === 'number'
-      ? opt.maxDepth
-      : DEFAULT_MAX_DEPTH
-
-    // mostly just for testing, but useful in some cases.
-    // Forcibly trigger a chown on every entry, no matter what
-    this.forceChown = opt.forceChown === true
-
-    // turn ><?| in filenames into 0xf000-higher encoded forms
-    this.win32 = !!opt.win32 || isWindows
-
-    // do not unpack over files that are newer than what's in the archive
-    this.newer = !!opt.newer
-
-    // do not unpack over ANY files
-    this.keep = !!opt.keep
-
-    // do not set mtime/atime of extracted entries
-    this.noMtime = !!opt.noMtime
-
-    // allow .., absolute path entries, and unpacking through symlinks
-    // without this, warn and skip .., relativize absolutes, and error
-    // on symlinks in extraction path
-    this.preservePaths = !!opt.preservePaths
-
-    // unlink files and links before writing. This breaks existing hard
-    // links, and removes symlink directories rather than erroring
-    this.unlink = !!opt.unlink
-
-    this.cwd = normPath(path.resolve(opt.cwd || process.cwd()))
-    this.strip = +opt.strip || 0
-    // if we're not chmodding, then we don't need the process umask
-    this.processUmask = opt.noChmod ? 0 : process.umask()
-    this.umask = typeof opt.umask === 'number' ? opt.umask : this.processUmask
-
-    // default mode for dirs created as parents
-    this.dmode = opt.dmode || (0o0777 & (~this.umask))
-    this.fmode = opt.fmode || (0o0666 & (~this.umask))
-
-    this.on('entry', entry => this[ONENTRY](entry))
-  }
-
-  // a bad or damaged archive is a warning for Parser, but an error
-  // when extracting.  Mark those errors as unrecoverable, because
-  // the Unpack contract cannot be met.
-  warn (code, msg, data = {}) {
-    if (code === 'TAR_BAD_ARCHIVE' || code === 'TAR_ABORT') {
-      data.recoverable = false
-    }
-    return super.warn(code, msg, data)
-  }
-
-  [MAYBECLOSE] () {
-    if (this[ENDED] && this[PENDING] === 0) {
-      this.emit('prefinish')
-      this.emit('finish')
-      this.emit('end')
-    }
-  }
-
-  [CHECKPATH] (entry) {
-    const p = normPath(entry.path)
-    const parts = p.split('/')
-
-    if (this.strip) {
-      if (parts.length < this.strip) {
-        return false
-      }
-      if (entry.type === 'Link') {
-        const linkparts = normPath(entry.linkpath).split('/')
-        if (linkparts.length >= this.strip) {
-          entry.linkpath = linkparts.slice(this.strip).join('/')
-        } else {
-          return false
-        }
-      }
-      parts.splice(0, this.strip)
-      entry.path = parts.join('/')
-    }
-
-    if (isFinite(this.maxDepth) && parts.length > this.maxDepth) {
-      this.warn('TAR_ENTRY_ERROR', 'path excessively deep', {
-        entry,
-        path: p,
-        depth: parts.length,
-        maxDepth: this.maxDepth,
-      })
-      return false
-    }
-
-    if (!this.preservePaths) {
-      if (parts.includes('..') || isWindows && /^[a-z]:\.\.$/i.test(parts[0])) {
-        this.warn('TAR_ENTRY_ERROR', `path contains '..'`, {
-          entry,
-          path: p,
-        })
-        return false
-      }
-
-      // strip off the root
-      const [root, stripped] = stripAbsolutePath(p)
-      if (root) {
-        entry.path = stripped
-        this.warn('TAR_ENTRY_INFO', `stripping ${root} from absolute path`, {
-          entry,
-          path: p,
-        })
-      }
-    }
-
-    if (path.isAbsolute(entry.path)) {
-      entry.absolute = normPath(path.resolve(entry.path))
-    } else {
-      entry.absolute = normPath(path.resolve(this.cwd, entry.path))
-    }
-
-    // if we somehow ended up with a path that escapes the cwd, and we are
-    // not in preservePaths mode, then something is fishy!  This should have
-    // been prevented above, so ignore this for coverage.
-    /* istanbul ignore if - defense in depth */
-    if (!this.preservePaths &&
-        entry.absolute.indexOf(this.cwd + '/') !== 0 &&
-        entry.absolute !== this.cwd) {
-      this.warn('TAR_ENTRY_ERROR', 'path escaped extraction target', {
-        entry,
-        path: normPath(entry.path),
-        resolvedPath: entry.absolute,
-        cwd: this.cwd,
-      })
-      return false
-    }
-
-    // an archive can set properties on the extraction directory, but it
-    // may not replace the cwd with a different kind of thing entirely.
-    if (entry.absolute === this.cwd &&
-        entry.type !== 'Directory' &&
-        entry.type !== 'GNUDumpDir') {
-      return false
-    }
-
-    // only encode : chars that aren't drive letter indicators
-    if (this.win32) {
-      const { root: aRoot } = path.win32.parse(entry.absolute)
-      entry.absolute = aRoot + wc.encode(entry.absolute.slice(aRoot.length))
-      const { root: pRoot } = path.win32.parse(entry.path)
-      entry.path = pRoot + wc.encode(entry.path.slice(pRoot.length))
-    }
-
-    return true
-  }
-
-  [ONENTRY] (entry) {
-    if (!this[CHECKPATH](entry)) {
-      return entry.resume()
-    }
-
-    assert.equal(typeof entry.absolute, 'string')
-
-    switch (entry.type) {
-      case 'Directory':
-      case 'GNUDumpDir':
-        if (entry.mode) {
-          entry.mode = entry.mode | 0o700
-        }
-
-      // eslint-disable-next-line no-fallthrough
-      case 'File':
-      case 'OldFile':
-      case 'ContiguousFile':
-      case 'Link':
-      case 'SymbolicLink':
-        return this[CHECKFS](entry)
-
-      case 'CharacterDevice':
-      case 'BlockDevice':
-      case 'FIFO':
-      default:
-        return this[UNSUPPORTED](entry)
-    }
-  }
-
-  [ONERROR] (er, entry) {
-    // Cwd has to exist, or else nothing works. That's serious.
-    // Other errors are warnings, which raise the error in strict
-    // mode, but otherwise continue on.
-    if (er.name === 'CwdError') {
-      this.emit('error', er)
-    } else {
-      this.warn('TAR_ENTRY_ERROR', er, { entry })
-      this[UNPEND]()
-      entry.resume()
-    }
-  }
-
-  [MKDIR] (dir, mode, cb) {
-    mkdir(normPath(dir), {
-      uid: this.uid,
-      gid: this.gid,
-      processUid: this.processUid,
-      processGid: this.processGid,
-      umask: this.processUmask,
-      preserve: this.preservePaths,
-      unlink: this.unlink,
-      cache: this.dirCache,
-      cwd: this.cwd,
-      mode: mode,
-      noChmod: this.noChmod,
-    }, cb)
-  }
-
-  [DOCHOWN] (entry) {
-    // in preserve owner mode, chown if the entry doesn't match process
-    // in set owner mode, chown if setting doesn't match process
-    return this.forceChown ||
-      this.preserveOwner &&
-      (typeof entry.uid === 'number' && entry.uid !== this.processUid ||
-        typeof entry.gid === 'number' && entry.gid !== this.processGid)
-      ||
-      (typeof this.uid === 'number' && this.uid !== this.processUid ||
-        typeof this.gid === 'number' && this.gid !== this.processGid)
-  }
-
-  [UID] (entry) {
-    return uint32(this.uid, entry.uid, this.processUid)
-  }
-
-  [GID] (entry) {
-    return uint32(this.gid, entry.gid, this.processGid)
-  }
-
-  [FILE] (entry, fullyDone) {
-    const mode = entry.mode & 0o7777 || this.fmode
-    const stream = new fsm.WriteStream(entry.absolute, {
-      flags: getFlag(entry.size),
-      mode: mode,
-      autoClose: false,
-    })
-    stream.on('error', er => {
-      if (stream.fd) {
-        fs.close(stream.fd, () => {})
-      }
-
-      // flush all the data out so that we aren't left hanging
-      // if the error wasn't actually fatal.  otherwise the parse
-      // is blocked, and we never proceed.
-      stream.write = () => true
-      this[ONERROR](er, entry)
-      fullyDone()
-    })
-
-    let actions = 1
-    const done = er => {
-      if (er) {
-        /* istanbul ignore else - we should always have a fd by now */
-        if (stream.fd) {
-          fs.close(stream.fd, () => {})
-        }
-
-        this[ONERROR](er, entry)
-        fullyDone()
-        return
-      }
-
-      if (--actions === 0) {
-        fs.close(stream.fd, er => {
-          if (er) {
-            this[ONERROR](er, entry)
-          } else {
-            this[UNPEND]()
-          }
-          fullyDone()
-        })
-      }
-    }
-
-    stream.on('finish', _ => {
-      // if futimes fails, try utimes
-      // if utimes fails, fail with the original error
-      // same for fchown/chown
-      const abs = entry.absolute
-      const fd = stream.fd
-
-      if (entry.mtime && !this.noMtime) {
-        actions++
-        const atime = entry.atime || new Date()
-        const mtime = entry.mtime
-        fs.futimes(fd, atime, mtime, er =>
-          er ? fs.utimes(abs, atime, mtime, er2 => done(er2 && er))
-          : done())
-      }
-
-      if (this[DOCHOWN](entry)) {
-        actions++
-        const uid = this[UID](entry)
-        const gid = this[GID](entry)
-        fs.fchown(fd, uid, gid, er =>
-          er ? fs.chown(abs, uid, gid, er2 => done(er2 && er))
-          : done())
-      }
-
-      done()
-    })
-
-    const tx = this.transform ? this.transform(entry) || entry : entry
-    if (tx !== entry) {
-      tx.on('error', er => {
-        this[ONERROR](er, entry)
-        fullyDone()
-      })
-      entry.pipe(tx)
-    }
-    tx.pipe(stream)
-  }
-
-  [DIRECTORY] (entry, fullyDone) {
-    const mode = entry.mode & 0o7777 || this.dmode
-    this[MKDIR](entry.absolute, mode, er => {
-      if (er) {
-        this[ONERROR](er, entry)
-        fullyDone()
-        return
-      }
-
-      let actions = 1
-      const done = _ => {
-        if (--actions === 0) {
-          fullyDone()
-          this[UNPEND]()
-          entry.resume()
-        }
-      }
-
-      if (entry.mtime && !this.noMtime) {
-        actions++
-        fs.utimes(entry.absolute, entry.atime || new Date(), entry.mtime, done)
-      }
-
-      if (this[DOCHOWN](entry)) {
-        actions++
-        fs.chown(entry.absolute, this[UID](entry), this[GID](entry), done)
-      }
-
-      done()
-    })
-  }
-
-  [UNSUPPORTED] (entry) {
-    entry.unsupported = true
-    this.warn('TAR_ENTRY_UNSUPPORTED',
-      `unsupported entry type: ${entry.type}`, { entry })
-    entry.resume()
-  }
-
-  [SYMLINK] (entry, done) {
-    this[LINK](entry, entry.linkpath, 'symlink', done)
-  }
-
-  [HARDLINK] (entry, done) {
-    const linkpath = normPath(path.resolve(this.cwd, entry.linkpath))
-    this[LINK](entry, linkpath, 'link', done)
-  }
-
-  [PEND] () {
-    this[PENDING]++
-  }
-
-  [UNPEND] () {
-    this[PENDING]--
-    this[MAYBECLOSE]()
-  }
-
-  [SKIP] (entry) {
-    this[UNPEND]()
-    entry.resume()
-  }
-
-  // Check if we can reuse an existing filesystem entry safely and
-  // overwrite it, rather than unlinking and recreating
-  // Windows doesn't report a useful nlink, so we just never reuse entries
-  [ISREUSABLE] (entry, st) {
-    return entry.type === 'File' &&
-      !this.unlink &&
-      st.isFile() &&
-      st.nlink <= 1 &&
-      !isWindows
-  }
-
-  // check if a thing is there, and if so, try to clobber it
-  [CHECKFS] (entry) {
-    this[PEND]()
-    const paths = [entry.path]
-    if (entry.linkpath) {
-      paths.push(entry.linkpath)
-    }
-    this.reservations.reserve(paths, done => this[CHECKFS2](entry, done))
-  }
-
-  [PRUNECACHE] (entry) {
-    // if we are not creating a directory, and the path is in the dirCache,
-    // then that means we are about to delete the directory we created
-    // previously, and it is no longer going to be a directory, and neither
-    // is any of its children.
-    // If a symbolic link is encountered, all bets are off.  There is no
-    // reasonable way to sanitize the cache in such a way we will be able to
-    // avoid having filesystem collisions.  If this happens with a non-symlink
-    // entry, it'll just fail to unpack, but a symlink to a directory, using an
-    // 8.3 shortname or certain unicode attacks, can evade detection and lead
-    // to arbitrary writes to anywhere on the system.
-    if (entry.type === 'SymbolicLink') {
-      dropCache(this.dirCache)
-    } else if (entry.type !== 'Directory') {
-      pruneCache(this.dirCache, entry.absolute)
-    }
-  }
-
-  [CHECKFS2] (entry, fullyDone) {
-    this[PRUNECACHE](entry)
-
-    const done = er => {
-      this[PRUNECACHE](entry)
-      fullyDone(er)
-    }
-
-    const checkCwd = () => {
-      this[MKDIR](this.cwd, this.dmode, er => {
-        if (er) {
-          this[ONERROR](er, entry)
-          done()
-          return
-        }
-        this[CHECKED_CWD] = true
-        start()
-      })
-    }
-
-    const start = () => {
-      if (entry.absolute !== this.cwd) {
-        const parent = normPath(path.dirname(entry.absolute))
-        if (parent !== this.cwd) {
-          return this[MKDIR](parent, this.dmode, er => {
-            if (er) {
-              this[ONERROR](er, entry)
-              done()
-              return
+        const sourceStat = yield ioUtil.stat(source);
+        if (sourceStat.isDirectory()) {
+            if (!recursive) {
+                throw new Error(`Failed to copy. ${source} is a directory, but tried to copy without recursive flag.`);
             }
-            afterMakeParent()
-          })
-        }
-      }
-      afterMakeParent()
-    }
-
-    const afterMakeParent = () => {
-      fs.lstat(entry.absolute, (lstatEr, st) => {
-        if (st && (this.keep || this.newer && st.mtime > entry.mtime)) {
-          this[SKIP](entry)
-          done()
-          return
-        }
-        if (lstatEr || this[ISREUSABLE](entry, st)) {
-          return this[MAKEFS](null, entry, done)
-        }
-
-        if (st.isDirectory()) {
-          if (entry.type === 'Directory') {
-            const needChmod = !this.noChmod &&
-              entry.mode &&
-              (st.mode & 0o7777) !== entry.mode
-            const afterChmod = er => this[MAKEFS](er, entry, done)
-            if (!needChmod) {
-              return afterChmod()
+            else {
+                yield cpDirRecursive(source, newDest, 0, force);
             }
-            return fs.chmod(entry.absolute, entry.mode, afterChmod)
-          }
-          // Not a dir entry, have to remove it.
-          // NB: the only way to end up with an entry that is the cwd
-          // itself, in such a way that == does not detect, is a
-          // tricky windows absolute path with UNC or 8.3 parts (and
-          // preservePaths:true, or else it will have been stripped).
-          // In that case, the user has opted out of path protections
-          // explicitly, so if they blow away the cwd, c'est la vie.
-          if (entry.absolute !== this.cwd) {
-            return fs.rmdir(entry.absolute, er =>
-              this[MAKEFS](er, entry, done))
-          }
         }
-
-        // not a dir, and not reusable
-        // don't remove if the cwd, we want that error
-        if (entry.absolute === this.cwd) {
-          return this[MAKEFS](null, entry, done)
+        else {
+            if (path.relative(source, newDest) === '') {
+                // a file cannot be copied to itself
+                throw new Error(`'${newDest}' and '${source}' are the same file`);
+            }
+            yield copyFile(source, newDest, force);
         }
-
-        unlinkFile(entry.absolute, er =>
-          this[MAKEFS](er, entry, done))
-      })
-    }
-
-    if (this[CHECKED_CWD]) {
-      start()
-    } else {
-      checkCwd()
-    }
-  }
-
-  [MAKEFS] (er, entry, done) {
-    if (er) {
-      this[ONERROR](er, entry)
-      done()
-      return
-    }
-
-    switch (entry.type) {
-      case 'File':
-      case 'OldFile':
-      case 'ContiguousFile':
-        return this[FILE](entry, done)
-
-      case 'Link':
-        return this[HARDLINK](entry, done)
-
-      case 'SymbolicLink':
-        return this[SYMLINK](entry, done)
-
-      case 'Directory':
-      case 'GNUDumpDir':
-        return this[DIRECTORY](entry, done)
-    }
-  }
-
-  [LINK] (entry, linkpath, link, done) {
-    // XXX: get the type ('symlink' or 'junction') for windows
-    fs[link](linkpath, entry.absolute, er => {
-      if (er) {
-        this[ONERROR](er, entry)
-      } else {
-        this[UNPEND]()
-        entry.resume()
-      }
-      done()
-    })
-  }
+    });
 }
-
-const callSync = fn => {
-  try {
-    return [null, fn()]
-  } catch (er) {
-    return [er, null]
-  }
-}
-class UnpackSync extends Unpack {
-  [MAKEFS] (er, entry) {
-    return super[MAKEFS](er, entry, () => {})
-  }
-
-  [CHECKFS] (entry) {
-    this[PRUNECACHE](entry)
-
-    if (!this[CHECKED_CWD]) {
-      const er = this[MKDIR](this.cwd, this.dmode)
-      if (er) {
-        return this[ONERROR](er, entry)
-      }
-      this[CHECKED_CWD] = true
-    }
-
-    // don't bother to make the parent if the current entry is the cwd,
-    // we've already checked it.
-    if (entry.absolute !== this.cwd) {
-      const parent = normPath(path.dirname(entry.absolute))
-      if (parent !== this.cwd) {
-        const mkParent = this[MKDIR](parent, this.dmode)
-        if (mkParent) {
-          return this[ONERROR](mkParent, entry)
+exports.cp = cp;
+/**
+ * Moves a path.
+ *
+ * @param     source    source path
+ * @param     dest      destination path
+ * @param     options   optional. See MoveOptions.
+ */
+function mv(source, dest, options = {}) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (yield ioUtil.exists(dest)) {
+            let destExists = true;
+            if (yield ioUtil.isDirectory(dest)) {
+                // If dest is directory copy src into dest
+                dest = path.join(dest, path.basename(source));
+                destExists = yield ioUtil.exists(dest);
+            }
+            if (destExists) {
+                if (options.force == null || options.force) {
+                    yield rmRF(dest);
+                }
+                else {
+                    throw new Error('Destination already exists');
+                }
+            }
         }
-      }
-    }
-
-    const [lstatEr, st] = callSync(() => fs.lstatSync(entry.absolute))
-    if (st && (this.keep || this.newer && st.mtime > entry.mtime)) {
-      return this[SKIP](entry)
-    }
-
-    if (lstatEr || this[ISREUSABLE](entry, st)) {
-      return this[MAKEFS](null, entry)
-    }
-
-    if (st.isDirectory()) {
-      if (entry.type === 'Directory') {
-        const needChmod = !this.noChmod &&
-          entry.mode &&
-          (st.mode & 0o7777) !== entry.mode
-        const [er] = needChmod ? callSync(() => {
-          fs.chmodSync(entry.absolute, entry.mode)
-        }) : []
-        return this[MAKEFS](er, entry)
-      }
-      // not a dir entry, have to remove it
-      const [er] = callSync(() => fs.rmdirSync(entry.absolute))
-      this[MAKEFS](er, entry)
-    }
-
-    // not a dir, and not reusable.
-    // don't remove if it's the cwd, since we want that error.
-    const [er] = entry.absolute === this.cwd ? []
-      : callSync(() => unlinkFileSync(entry.absolute))
-    this[MAKEFS](er, entry)
-  }
-
-  [FILE] (entry, done) {
-    const mode = entry.mode & 0o7777 || this.fmode
-
-    const oner = er => {
-      let closeError
-      try {
-        fs.closeSync(fd)
-      } catch (e) {
-        closeError = e
-      }
-      if (er || closeError) {
-        this[ONERROR](er || closeError, entry)
-      }
-      done()
-    }
-
-    let fd
-    try {
-      fd = fs.openSync(entry.absolute, getFlag(entry.size), mode)
-    } catch (er) {
-      return oner(er)
-    }
-    const tx = this.transform ? this.transform(entry) || entry : entry
-    if (tx !== entry) {
-      tx.on('error', er => this[ONERROR](er, entry))
-      entry.pipe(tx)
-    }
-
-    tx.on('data', chunk => {
-      try {
-        fs.writeSync(fd, chunk, 0, chunk.length)
-      } catch (er) {
-        oner(er)
-      }
-    })
-
-    tx.on('end', _ => {
-      let er = null
-      // try both, falling futimes back to utimes
-      // if either fails, handle the first error
-      if (entry.mtime && !this.noMtime) {
-        const atime = entry.atime || new Date()
-        const mtime = entry.mtime
+        yield mkdirP(path.dirname(dest));
+        yield ioUtil.rename(source, dest);
+    });
+}
+exports.mv = mv;
+/**
+ * Remove a path recursively with force
+ *
+ * @param inputPath path to remove
+ */
+function rmRF(inputPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (ioUtil.IS_WINDOWS) {
+            // Check for invalid characters
+            // https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+            if (/[*"<>|]/.test(inputPath)) {
+                throw new Error('File path must not contain `*`, `"`, `<`, `>` or `|` on Windows');
+            }
+        }
         try {
-          fs.futimesSync(fd, atime, mtime)
-        } catch (futimeser) {
-          try {
-            fs.utimesSync(entry.absolute, atime, mtime)
-          } catch (utimeser) {
-            er = futimeser
-          }
+            // note if path does not exist, error is silent
+            yield ioUtil.rm(inputPath, {
+                force: true,
+                maxRetries: 3,
+                recursive: true,
+                retryDelay: 300
+            });
         }
-      }
-
-      if (this[DOCHOWN](entry)) {
-        const uid = this[UID](entry)
-        const gid = this[GID](entry)
-
-        try {
-          fs.fchownSync(fd, uid, gid)
-        } catch (fchowner) {
-          try {
-            fs.chownSync(entry.absolute, uid, gid)
-          } catch (chowner) {
-            er = er || fchowner
-          }
+        catch (err) {
+            throw new Error(`File was unable to be removed ${err}`);
         }
-      }
-
-      oner(er)
-    })
-  }
-
-  [DIRECTORY] (entry, done) {
-    const mode = entry.mode & 0o7777 || this.dmode
-    const er = this[MKDIR](entry.absolute, mode)
-    if (er) {
-      this[ONERROR](er, entry)
-      done()
-      return
-    }
-    if (entry.mtime && !this.noMtime) {
-      try {
-        fs.utimesSync(entry.absolute, entry.atime || new Date(), entry.mtime)
-      } catch (er) {}
-    }
-    if (this[DOCHOWN](entry)) {
-      try {
-        fs.chownSync(entry.absolute, this[UID](entry), this[GID](entry))
-      } catch (er) {}
-    }
-    done()
-    entry.resume()
-  }
-
-  [MKDIR] (dir, mode) {
-    try {
-      return mkdir.sync(normPath(dir), {
-        uid: this.uid,
-        gid: this.gid,
-        processUid: this.processUid,
-        processGid: this.processGid,
-        umask: this.processUmask,
-        preserve: this.preservePaths,
-        unlink: this.unlink,
-        cache: this.dirCache,
-        cwd: this.cwd,
-        mode: mode,
-      })
-    } catch (er) {
-      return er
-    }
-  }
-
-  [LINK] (entry, linkpath, link, done) {
-    try {
-      fs[link + 'Sync'](linkpath, entry.absolute)
-      done()
-      entry.resume()
-    } catch (er) {
-      return this[ONERROR](er, entry)
-    }
-  }
+    });
 }
-
-Unpack.Sync = UnpackSync
-module.exports = Unpack
-
-
-/***/ }),
-
-/***/ 7814:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-// tar -u
-
-const hlo = __nccwpck_require__(4252)
-const r = __nccwpck_require__(5299)
-// just call tar.r with the filter and mtimeCache
-
-module.exports = (opt_, files, cb) => {
-  const opt = hlo(opt_)
-
-  if (!opt.file) {
-    throw new TypeError('file is required')
-  }
-
-  if (opt.gzip || opt.brotli || opt.file.endsWith('.br') || opt.file.endsWith('.tbr')) {
-    throw new TypeError('cannot append to compressed archives')
-  }
-
-  if (!files || !Array.isArray(files) || !files.length) {
-    throw new TypeError('no files or directories specified')
-  }
-
-  files = Array.from(files)
-
-  mtimeFilter(opt)
-  return r(opt, files, cb)
+exports.rmRF = rmRF;
+/**
+ * Make a directory.  Creates the full path with folders in between
+ * Will throw if it fails
+ *
+ * @param   fsPath        path to create
+ * @returns Promise<void>
+ */
+function mkdirP(fsPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        assert_1.ok(fsPath, 'a path argument must be provided');
+        yield ioUtil.mkdir(fsPath, { recursive: true });
+    });
 }
-
-const mtimeFilter = opt => {
-  const filter = opt.filter
-
-  if (!opt.mtimeCache) {
-    opt.mtimeCache = new Map()
-  }
-
-  opt.filter = filter ? (path, stat) =>
-    filter(path, stat) && !(opt.mtimeCache.get(path) > stat.mtime)
-    : (path, stat) => !(opt.mtimeCache.get(path) > stat.mtime)
-}
-
-
-/***/ }),
-
-/***/ 5883:
-/***/ ((module) => {
-
-"use strict";
-
-module.exports = Base => class extends Base {
-  warn (code, message, data = {}) {
-    if (this.file) {
-      data.file = this.file
-    }
-    if (this.cwd) {
-      data.cwd = this.cwd
-    }
-    data.code = message instanceof Error && message.code || code
-    data.tarCode = code
-    if (!this.strict && data.recoverable !== false) {
-      if (message instanceof Error) {
-        data = Object.assign(message, data)
-        message = message.message
-      }
-      this.emit('warn', data.tarCode, message, data)
-    } else if (message instanceof Error) {
-      this.emit('error', Object.assign(message, data))
-    } else {
-      this.emit('error', Object.assign(new Error(`${code}: ${message}`), data))
-    }
-  }
-}
-
-
-/***/ }),
-
-/***/ 2148:
-/***/ ((module) => {
-
-"use strict";
-
-
-// When writing files on Windows, translate the characters to their
-// 0xf000 higher-encoded versions.
-
-const raw = [
-  '|',
-  '<',
-  '>',
-  '?',
-  ':',
-]
-
-const win = raw.map(char =>
-  String.fromCharCode(0xf000 + char.charCodeAt(0)))
-
-const toWin = new Map(raw.map((char, i) => [char, win[i]]))
-const toRaw = new Map(win.map((char, i) => [char, raw[i]]))
-
-module.exports = {
-  encode: s => raw.reduce((s, c) => s.split(c).join(toWin.get(c)), s),
-  decode: s => win.reduce((s, c) => s.split(c).join(toRaw.get(c)), s),
-}
-
-
-/***/ }),
-
-/***/ 3781:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-const { Minipass } = __nccwpck_require__(6058)
-const Pax = __nccwpck_require__(3542)
-const Header = __nccwpck_require__(5634)
-const fs = __nccwpck_require__(9896)
-const path = __nccwpck_require__(6928)
-const normPath = __nccwpck_require__(8658)
-const stripSlash = __nccwpck_require__(5126)
-
-const prefixPath = (path, prefix) => {
-  if (!prefix) {
-    return normPath(path)
-  }
-  path = normPath(path).replace(/^\.(\/|$)/, '')
-  return stripSlash(prefix) + '/' + path
-}
-
-const maxReadSize = 16 * 1024 * 1024
-const PROCESS = Symbol('process')
-const FILE = Symbol('file')
-const DIRECTORY = Symbol('directory')
-const SYMLINK = Symbol('symlink')
-const HARDLINK = Symbol('hardlink')
-const HEADER = Symbol('header')
-const READ = Symbol('read')
-const LSTAT = Symbol('lstat')
-const ONLSTAT = Symbol('onlstat')
-const ONREAD = Symbol('onread')
-const ONREADLINK = Symbol('onreadlink')
-const OPENFILE = Symbol('openfile')
-const ONOPENFILE = Symbol('onopenfile')
-const CLOSE = Symbol('close')
-const MODE = Symbol('mode')
-const AWAITDRAIN = Symbol('awaitDrain')
-const ONDRAIN = Symbol('ondrain')
-const PREFIX = Symbol('prefix')
-const HAD_ERROR = Symbol('hadError')
-const warner = __nccwpck_require__(5883)
-const winchars = __nccwpck_require__(2148)
-const stripAbsolutePath = __nccwpck_require__(2827)
-
-const modeFix = __nccwpck_require__(3386)
-
-const WriteEntry = warner(class WriteEntry extends Minipass {
-  constructor (p, opt) {
-    opt = opt || {}
-    super(opt)
-    if (typeof p !== 'string') {
-      throw new TypeError('path is required')
-    }
-    this.path = normPath(p)
-    // suppress atime, ctime, uid, gid, uname, gname
-    this.portable = !!opt.portable
-    // until node has builtin pwnam functions, this'll have to do
-    this.myuid = process.getuid && process.getuid() || 0
-    this.myuser = process.env.USER || ''
-    this.maxReadSize = opt.maxReadSize || maxReadSize
-    this.linkCache = opt.linkCache || new Map()
-    this.statCache = opt.statCache || new Map()
-    this.preservePaths = !!opt.preservePaths
-    this.cwd = normPath(opt.cwd || process.cwd())
-    this.strict = !!opt.strict
-    this.noPax = !!opt.noPax
-    this.noMtime = !!opt.noMtime
-    this.mtime = opt.mtime || null
-    this.prefix = opt.prefix ? normPath(opt.prefix) : null
-
-    this.fd = null
-    this.blockLen = null
-    this.blockRemain = null
-    this.buf = null
-    this.offset = null
-    this.length = null
-    this.pos = null
-    this.remain = null
-
-    if (typeof opt.onwarn === 'function') {
-      this.on('warn', opt.onwarn)
-    }
-
-    let pathWarn = false
-    if (!this.preservePaths) {
-      const [root, stripped] = stripAbsolutePath(this.path)
-      if (root) {
-        this.path = stripped
-        pathWarn = root
-      }
-    }
-
-    this.win32 = !!opt.win32 || process.platform === 'win32'
-    if (this.win32) {
-      // force the \ to / normalization, since we might not *actually*
-      // be on windows, but want \ to be considered a path separator.
-      this.path = winchars.decode(this.path.replace(/\\/g, '/'))
-      p = p.replace(/\\/g, '/')
-    }
-
-    this.absolute = normPath(opt.absolute || path.resolve(this.cwd, p))
-
-    if (this.path === '') {
-      this.path = './'
-    }
-
-    if (pathWarn) {
-      this.warn('TAR_ENTRY_INFO', `stripping ${pathWarn} from absolute path`, {
-        entry: this,
-        path: pathWarn + this.path,
-      })
-    }
-
-    if (this.statCache.has(this.absolute)) {
-      this[ONLSTAT](this.statCache.get(this.absolute))
-    } else {
-      this[LSTAT]()
-    }
-  }
-
-  emit (ev, ...data) {
-    if (ev === 'error') {
-      this[HAD_ERROR] = true
-    }
-    return super.emit(ev, ...data)
-  }
-
-  [LSTAT] () {
-    fs.lstat(this.absolute, (er, stat) => {
-      if (er) {
-        return this.emit('error', er)
-      }
-      this[ONLSTAT](stat)
-    })
-  }
-
-  [ONLSTAT] (stat) {
-    this.statCache.set(this.absolute, stat)
-    this.stat = stat
-    if (!stat.isFile()) {
-      stat.size = 0
-    }
-    this.type = getType(stat)
-    this.emit('stat', stat)
-    this[PROCESS]()
-  }
-
-  [PROCESS] () {
-    switch (this.type) {
-      case 'File': return this[FILE]()
-      case 'Directory': return this[DIRECTORY]()
-      case 'SymbolicLink': return this[SYMLINK]()
-      // unsupported types are ignored.
-      default: return this.end()
-    }
-  }
-
-  [MODE] (mode) {
-    return modeFix(mode, this.type === 'Directory', this.portable)
-  }
-
-  [PREFIX] (path) {
-    return prefixPath(path, this.prefix)
-  }
-
-  [HEADER] () {
-    if (this.type === 'Directory' && this.portable) {
-      this.noMtime = true
-    }
-
-    this.header = new Header({
-      path: this[PREFIX](this.path),
-      // only apply the prefix to hard links.
-      linkpath: this.type === 'Link' ? this[PREFIX](this.linkpath)
-      : this.linkpath,
-      // only the permissions and setuid/setgid/sticky bitflags
-      // not the higher-order bits that specify file type
-      mode: this[MODE](this.stat.mode),
-      uid: this.portable ? null : this.stat.uid,
-      gid: this.portable ? null : this.stat.gid,
-      size: this.stat.size,
-      mtime: this.noMtime ? null : this.mtime || this.stat.mtime,
-      type: this.type,
-      uname: this.portable ? null :
-      this.stat.uid === this.myuid ? this.myuser : '',
-      atime: this.portable ? null : this.stat.atime,
-      ctime: this.portable ? null : this.stat.ctime,
-    })
-
-    if (this.header.encode() && !this.noPax) {
-      super.write(new Pax({
-        atime: this.portable ? null : this.header.atime,
-        ctime: this.portable ? null : this.header.ctime,
-        gid: this.portable ? null : this.header.gid,
-        mtime: this.noMtime ? null : this.mtime || this.header.mtime,
-        path: this[PREFIX](this.path),
-        linkpath: this.type === 'Link' ? this[PREFIX](this.linkpath)
-        : this.linkpath,
-        size: this.header.size,
-        uid: this.portable ? null : this.header.uid,
-        uname: this.portable ? null : this.header.uname,
-        dev: this.portable ? null : this.stat.dev,
-        ino: this.portable ? null : this.stat.ino,
-        nlink: this.portable ? null : this.stat.nlink,
-      }).encode())
-    }
-    super.write(this.header.block)
-  }
-
-  [DIRECTORY] () {
-    if (this.path.slice(-1) !== '/') {
-      this.path += '/'
-    }
-    this.stat.size = 0
-    this[HEADER]()
-    this.end()
-  }
-
-  [SYMLINK] () {
-    fs.readlink(this.absolute, (er, linkpath) => {
-      if (er) {
-        return this.emit('error', er)
-      }
-      this[ONREADLINK](linkpath)
-    })
-  }
-
-  [ONREADLINK] (linkpath) {
-    this.linkpath = normPath(linkpath)
-    this[HEADER]()
-    this.end()
-  }
-
-  [HARDLINK] (linkpath) {
-    this.type = 'Link'
-    this.linkpath = normPath(path.relative(this.cwd, linkpath))
-    this.stat.size = 0
-    this[HEADER]()
-    this.end()
-  }
-
-  [FILE] () {
-    if (this.stat.nlink > 1) {
-      const linkKey = this.stat.dev + ':' + this.stat.ino
-      if (this.linkCache.has(linkKey)) {
-        const linkpath = this.linkCache.get(linkKey)
-        if (linkpath.indexOf(this.cwd) === 0) {
-          return this[HARDLINK](linkpath)
+exports.mkdirP = mkdirP;
+/**
+ * Returns path of a tool had the tool actually been invoked.  Resolves via paths.
+ * If you check and the tool does not exist, it will throw.
+ *
+ * @param     tool              name of the tool
+ * @param     check             whether to check if tool exists
+ * @returns   Promise<string>   path to tool
+ */
+function which(tool, check) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!tool) {
+            throw new Error("parameter 'tool' is required");
         }
-      }
-      this.linkCache.set(linkKey, this.absolute)
-    }
-
-    this[HEADER]()
-    if (this.stat.size === 0) {
-      return this.end()
-    }
-
-    this[OPENFILE]()
-  }
-
-  [OPENFILE] () {
-    fs.open(this.absolute, 'r', (er, fd) => {
-      if (er) {
-        return this.emit('error', er)
-      }
-      this[ONOPENFILE](fd)
-    })
-  }
-
-  [ONOPENFILE] (fd) {
-    this.fd = fd
-    if (this[HAD_ERROR]) {
-      return this[CLOSE]()
-    }
-
-    this.blockLen = 512 * Math.ceil(this.stat.size / 512)
-    this.blockRemain = this.blockLen
-    const bufLen = Math.min(this.blockLen, this.maxReadSize)
-    this.buf = Buffer.allocUnsafe(bufLen)
-    this.offset = 0
-    this.pos = 0
-    this.remain = this.stat.size
-    this.length = this.buf.length
-    this[READ]()
-  }
-
-  [READ] () {
-    const { fd, buf, offset, length, pos } = this
-    fs.read(fd, buf, offset, length, pos, (er, bytesRead) => {
-      if (er) {
-        // ignoring the error from close(2) is a bad practice, but at
-        // this point we already have an error, don't need another one
-        return this[CLOSE](() => this.emit('error', er))
-      }
-      this[ONREAD](bytesRead)
-    })
-  }
-
-  [CLOSE] (cb) {
-    fs.close(this.fd, cb)
-  }
-
-  [ONREAD] (bytesRead) {
-    if (bytesRead <= 0 && this.remain > 0) {
-      const er = new Error('encountered unexpected EOF')
-      er.path = this.absolute
-      er.syscall = 'read'
-      er.code = 'EOF'
-      return this[CLOSE](() => this.emit('error', er))
-    }
-
-    if (bytesRead > this.remain) {
-      const er = new Error('did not encounter expected EOF')
-      er.path = this.absolute
-      er.syscall = 'read'
-      er.code = 'EOF'
-      return this[CLOSE](() => this.emit('error', er))
-    }
-
-    // null out the rest of the buffer, if we could fit the block padding
-    // at the end of this loop, we've incremented bytesRead and this.remain
-    // to be incremented up to the blockRemain level, as if we had expected
-    // to get a null-padded file, and read it until the end.  then we will
-    // decrement both remain and blockRemain by bytesRead, and know that we
-    // reached the expected EOF, without any null buffer to append.
-    if (bytesRead === this.remain) {
-      for (let i = bytesRead; i < this.length && bytesRead < this.blockRemain; i++) {
-        this.buf[i + this.offset] = 0
-        bytesRead++
-        this.remain++
-      }
-    }
-
-    const writeBuf = this.offset === 0 && bytesRead === this.buf.length ?
-      this.buf : this.buf.slice(this.offset, this.offset + bytesRead)
-
-    const flushed = this.write(writeBuf)
-    if (!flushed) {
-      this[AWAITDRAIN](() => this[ONDRAIN]())
-    } else {
-      this[ONDRAIN]()
-    }
-  }
-
-  [AWAITDRAIN] (cb) {
-    this.once('drain', cb)
-  }
-
-  write (writeBuf) {
-    if (this.blockRemain < writeBuf.length) {
-      const er = new Error('writing more data than expected')
-      er.path = this.absolute
-      return this.emit('error', er)
-    }
-    this.remain -= writeBuf.length
-    this.blockRemain -= writeBuf.length
-    this.pos += writeBuf.length
-    this.offset += writeBuf.length
-    return super.write(writeBuf)
-  }
-
-  [ONDRAIN] () {
-    if (!this.remain) {
-      if (this.blockRemain) {
-        super.write(Buffer.alloc(this.blockRemain))
-      }
-      return this[CLOSE](er => er ? this.emit('error', er) : this.end())
-    }
-
-    if (this.offset >= this.length) {
-      // if we only have a smaller bit left to read, alloc a smaller buffer
-      // otherwise, keep it the same length it was before.
-      this.buf = Buffer.allocUnsafe(Math.min(this.blockRemain, this.buf.length))
-      this.offset = 0
-    }
-    this.length = this.buf.length - this.offset
-    this[READ]()
-  }
-})
-
-class WriteEntrySync extends WriteEntry {
-  [LSTAT] () {
-    this[ONLSTAT](fs.lstatSync(this.absolute))
-  }
-
-  [SYMLINK] () {
-    this[ONREADLINK](fs.readlinkSync(this.absolute))
-  }
-
-  [OPENFILE] () {
-    this[ONOPENFILE](fs.openSync(this.absolute, 'r'))
-  }
-
-  [READ] () {
-    let threw = true
-    try {
-      const { fd, buf, offset, length, pos } = this
-      const bytesRead = fs.readSync(fd, buf, offset, length, pos)
-      this[ONREAD](bytesRead)
-      threw = false
-    } finally {
-      // ignoring the error from close(2) is a bad practice, but at
-      // this point we already have an error, don't need another one
-      if (threw) {
-        try {
-          this[CLOSE](() => {})
-        } catch (er) {}
-      }
-    }
-  }
-
-  [AWAITDRAIN] (cb) {
-    cb()
-  }
-
-  [CLOSE] (cb) {
-    fs.closeSync(this.fd)
-    cb()
-  }
+        // recursive when check=true
+        if (check) {
+            const result = yield which(tool, false);
+            if (!result) {
+                if (ioUtil.IS_WINDOWS) {
+                    throw new Error(`Unable to locate executable file: ${tool}. Please verify either the file path exists or the file can be found within a directory specified by the PATH environment variable. Also verify the file has a valid extension for an executable file.`);
+                }
+                else {
+                    throw new Error(`Unable to locate executable file: ${tool}. Please verify either the file path exists or the file can be found within a directory specified by the PATH environment variable. Also check the file mode to verify the file is executable.`);
+                }
+            }
+            return result;
+        }
+        const matches = yield findInPath(tool);
+        if (matches && matches.length > 0) {
+            return matches[0];
+        }
+        return '';
+    });
 }
-
-const WriteEntryTar = warner(class WriteEntryTar extends Minipass {
-  constructor (readEntry, opt) {
-    opt = opt || {}
-    super(opt)
-    this.preservePaths = !!opt.preservePaths
-    this.portable = !!opt.portable
-    this.strict = !!opt.strict
-    this.noPax = !!opt.noPax
-    this.noMtime = !!opt.noMtime
-
-    this.readEntry = readEntry
-    this.type = readEntry.type
-    if (this.type === 'Directory' && this.portable) {
-      this.noMtime = true
-    }
-
-    this.prefix = opt.prefix || null
-
-    this.path = normPath(readEntry.path)
-    this.mode = this[MODE](readEntry.mode)
-    this.uid = this.portable ? null : readEntry.uid
-    this.gid = this.portable ? null : readEntry.gid
-    this.uname = this.portable ? null : readEntry.uname
-    this.gname = this.portable ? null : readEntry.gname
-    this.size = readEntry.size
-    this.mtime = this.noMtime ? null : opt.mtime || readEntry.mtime
-    this.atime = this.portable ? null : readEntry.atime
-    this.ctime = this.portable ? null : readEntry.ctime
-    this.linkpath = normPath(readEntry.linkpath)
-
-    if (typeof opt.onwarn === 'function') {
-      this.on('warn', opt.onwarn)
-    }
-
-    let pathWarn = false
-    if (!this.preservePaths) {
-      const [root, stripped] = stripAbsolutePath(this.path)
-      if (root) {
-        this.path = stripped
-        pathWarn = root
-      }
-    }
-
-    this.remain = readEntry.size
-    this.blockRemain = readEntry.startBlockSize
-
-    this.header = new Header({
-      path: this[PREFIX](this.path),
-      linkpath: this.type === 'Link' ? this[PREFIX](this.linkpath)
-      : this.linkpath,
-      // only the permissions and setuid/setgid/sticky bitflags
-      // not the higher-order bits that specify file type
-      mode: this.mode,
-      uid: this.portable ? null : this.uid,
-      gid: this.portable ? null : this.gid,
-      size: this.size,
-      mtime: this.noMtime ? null : this.mtime,
-      type: this.type,
-      uname: this.portable ? null : this.uname,
-      atime: this.portable ? null : this.atime,
-      ctime: this.portable ? null : this.ctime,
-    })
-
-    if (pathWarn) {
-      this.warn('TAR_ENTRY_INFO', `stripping ${pathWarn} from absolute path`, {
-        entry: this,
-        path: pathWarn + this.path,
-      })
-    }
-
-    if (this.header.encode() && !this.noPax) {
-      super.write(new Pax({
-        atime: this.portable ? null : this.atime,
-        ctime: this.portable ? null : this.ctime,
-        gid: this.portable ? null : this.gid,
-        mtime: this.noMtime ? null : this.mtime,
-        path: this[PREFIX](this.path),
-        linkpath: this.type === 'Link' ? this[PREFIX](this.linkpath)
-        : this.linkpath,
-        size: this.size,
-        uid: this.portable ? null : this.uid,
-        uname: this.portable ? null : this.uname,
-        dev: this.portable ? null : this.readEntry.dev,
-        ino: this.portable ? null : this.readEntry.ino,
-        nlink: this.portable ? null : this.readEntry.nlink,
-      }).encode())
-    }
-
-    super.write(this.header.block)
-    readEntry.pipe(this)
-  }
-
-  [PREFIX] (path) {
-    return prefixPath(path, this.prefix)
-  }
-
-  [MODE] (mode) {
-    return modeFix(mode, this.type === 'Directory', this.portable)
-  }
-
-  write (data) {
-    const writeLen = data.length
-    if (writeLen > this.blockRemain) {
-      throw new Error('writing more to entry than is appropriate')
-    }
-    this.blockRemain -= writeLen
-    return super.write(data)
-  }
-
-  end () {
-    if (this.blockRemain) {
-      super.write(Buffer.alloc(this.blockRemain))
-    }
-    return super.end()
-  }
-})
-
-WriteEntry.Sync = WriteEntrySync
-WriteEntry.Tar = WriteEntryTar
-
-const getType = stat =>
-  stat.isFile() ? 'File'
-  : stat.isDirectory() ? 'Directory'
-  : stat.isSymbolicLink() ? 'SymbolicLink'
-  : 'Unsupported'
-
-module.exports = WriteEntry
-
-
-/***/ }),
-
-/***/ 3413:
-/***/ ((module) => {
-
-"use strict";
-
-module.exports = function (Yallist) {
-  Yallist.prototype[Symbol.iterator] = function* () {
-    for (let walker = this.head; walker; walker = walker.next) {
-      yield walker.value
-    }
-  }
+exports.which = which;
+/**
+ * Returns a list of all occurrences of the given tool on the system path.
+ *
+ * @returns   Promise<string[]>  the paths of the tool
+ */
+function findInPath(tool) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!tool) {
+            throw new Error("parameter 'tool' is required");
+        }
+        // build the list of extensions to try
+        const extensions = [];
+        if (ioUtil.IS_WINDOWS && process.env['PATHEXT']) {
+            for (const extension of process.env['PATHEXT'].split(path.delimiter)) {
+                if (extension) {
+                    extensions.push(extension);
+                }
+            }
+        }
+        // if it's rooted, return it if exists. otherwise return empty.
+        if (ioUtil.isRooted(tool)) {
+            const filePath = yield ioUtil.tryGetExecutablePath(tool, extensions);
+            if (filePath) {
+                return [filePath];
+            }
+            return [];
+        }
+        // if any path separators, return empty
+        if (tool.includes(path.sep)) {
+            return [];
+        }
+        // build the list of directories
+        //
+        // Note, technically "where" checks the current directory on Windows. From a toolkit perspective,
+        // it feels like we should not do this. Checking the current directory seems like more of a use
+        // case of a shell, and the which() function exposed by the toolkit should strive for consistency
+        // across platforms.
+        const directories = [];
+        if (process.env.PATH) {
+            for (const p of process.env.PATH.split(path.delimiter)) {
+                if (p) {
+                    directories.push(p);
+                }
+            }
+        }
+        // find all matches
+        const matches = [];
+        for (const directory of directories) {
+            const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
+            if (filePath) {
+                matches.push(filePath);
+            }
+        }
+        return matches;
+    });
 }
-
-
-/***/ }),
-
-/***/ 2061:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-"use strict";
-
-module.exports = Yallist
-
-Yallist.Node = Node
-Yallist.create = Yallist
-
-function Yallist (list) {
-  var self = this
-  if (!(self instanceof Yallist)) {
-    self = new Yallist()
-  }
-
-  self.tail = null
-  self.head = null
-  self.length = 0
-
-  if (list && typeof list.forEach === 'function') {
-    list.forEach(function (item) {
-      self.push(item)
-    })
-  } else if (arguments.length > 0) {
-    for (var i = 0, l = arguments.length; i < l; i++) {
-      self.push(arguments[i])
-    }
-  }
-
-  return self
+exports.findInPath = findInPath;
+function readCopyOptions(options) {
+    const force = options.force == null ? true : options.force;
+    const recursive = Boolean(options.recursive);
+    const copySourceDirectory = options.copySourceDirectory == null
+        ? true
+        : Boolean(options.copySourceDirectory);
+    return { force, recursive, copySourceDirectory };
 }
-
-Yallist.prototype.removeNode = function (node) {
-  if (node.list !== this) {
-    throw new Error('removing node which does not belong to this list')
-  }
-
-  var next = node.next
-  var prev = node.prev
-
-  if (next) {
-    next.prev = prev
-  }
-
-  if (prev) {
-    prev.next = next
-  }
-
-  if (node === this.head) {
-    this.head = next
-  }
-  if (node === this.tail) {
-    this.tail = prev
-  }
-
-  node.list.length--
-  node.next = null
-  node.prev = null
-  node.list = null
-
-  return next
+function cpDirRecursive(sourceDir, destDir, currentDepth, force) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Ensure there is not a run away recursive copy
+        if (currentDepth >= 255)
+            return;
+        currentDepth++;
+        yield mkdirP(destDir);
+        const files = yield ioUtil.readdir(sourceDir);
+        for (const fileName of files) {
+            const srcFile = `${sourceDir}/${fileName}`;
+            const destFile = `${destDir}/${fileName}`;
+            const srcFileStat = yield ioUtil.lstat(srcFile);
+            if (srcFileStat.isDirectory()) {
+                // Recurse
+                yield cpDirRecursive(srcFile, destFile, currentDepth, force);
+            }
+            else {
+                yield copyFile(srcFile, destFile, force);
+            }
+        }
+        // Change the mode for the newly created directory
+        yield ioUtil.chmod(destDir, (yield ioUtil.stat(sourceDir)).mode);
+    });
 }
-
-Yallist.prototype.unshiftNode = function (node) {
-  if (node === this.head) {
-    return
-  }
-
-  if (node.list) {
-    node.list.removeNode(node)
-  }
-
-  var head = this.head
-  node.list = this
-  node.next = head
-  if (head) {
-    head.prev = node
-  }
-
-  this.head = node
-  if (!this.tail) {
-    this.tail = node
-  }
-  this.length++
+// Buffered file copy
+function copyFile(srcFile, destFile, force) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if ((yield ioUtil.lstat(srcFile)).isSymbolicLink()) {
+            // unlink/re-link it
+            try {
+                yield ioUtil.lstat(destFile);
+                yield ioUtil.unlink(destFile);
+            }
+            catch (e) {
+                // Try to override file permission
+                if (e.code === 'EPERM') {
+                    yield ioUtil.chmod(destFile, '0666');
+                    yield ioUtil.unlink(destFile);
+                }
+                // other errors = it doesn't exist, no work to do
+            }
+            // Copy over symlink
+            const symlinkFull = yield ioUtil.readlink(srcFile);
+            yield ioUtil.symlink(symlinkFull, destFile, ioUtil.IS_WINDOWS ? 'junction' : null);
+        }
+        else if (!(yield ioUtil.exists(destFile)) || force) {
+            yield ioUtil.copyFile(srcFile, destFile);
+        }
+    });
 }
-
-Yallist.prototype.pushNode = function (node) {
-  if (node === this.tail) {
-    return
-  }
-
-  if (node.list) {
-    node.list.removeNode(node)
-  }
-
-  var tail = this.tail
-  node.list = this
-  node.prev = tail
-  if (tail) {
-    tail.next = node
-  }
-
-  this.tail = node
-  if (!this.head) {
-    this.head = node
-  }
-  this.length++
-}
-
-Yallist.prototype.push = function () {
-  for (var i = 0, l = arguments.length; i < l; i++) {
-    push(this, arguments[i])
-  }
-  return this.length
-}
-
-Yallist.prototype.unshift = function () {
-  for (var i = 0, l = arguments.length; i < l; i++) {
-    unshift(this, arguments[i])
-  }
-  return this.length
-}
-
-Yallist.prototype.pop = function () {
-  if (!this.tail) {
-    return undefined
-  }
-
-  var res = this.tail.value
-  this.tail = this.tail.prev
-  if (this.tail) {
-    this.tail.next = null
-  } else {
-    this.head = null
-  }
-  this.length--
-  return res
-}
-
-Yallist.prototype.shift = function () {
-  if (!this.head) {
-    return undefined
-  }
-
-  var res = this.head.value
-  this.head = this.head.next
-  if (this.head) {
-    this.head.prev = null
-  } else {
-    this.tail = null
-  }
-  this.length--
-  return res
-}
-
-Yallist.prototype.forEach = function (fn, thisp) {
-  thisp = thisp || this
-  for (var walker = this.head, i = 0; walker !== null; i++) {
-    fn.call(thisp, walker.value, i, this)
-    walker = walker.next
-  }
-}
-
-Yallist.prototype.forEachReverse = function (fn, thisp) {
-  thisp = thisp || this
-  for (var walker = this.tail, i = this.length - 1; walker !== null; i--) {
-    fn.call(thisp, walker.value, i, this)
-    walker = walker.prev
-  }
-}
-
-Yallist.prototype.get = function (n) {
-  for (var i = 0, walker = this.head; walker !== null && i < n; i++) {
-    // abort out of the list early if we hit a cycle
-    walker = walker.next
-  }
-  if (i === n && walker !== null) {
-    return walker.value
-  }
-}
-
-Yallist.prototype.getReverse = function (n) {
-  for (var i = 0, walker = this.tail; walker !== null && i < n; i++) {
-    // abort out of the list early if we hit a cycle
-    walker = walker.prev
-  }
-  if (i === n && walker !== null) {
-    return walker.value
-  }
-}
-
-Yallist.prototype.map = function (fn, thisp) {
-  thisp = thisp || this
-  var res = new Yallist()
-  for (var walker = this.head; walker !== null;) {
-    res.push(fn.call(thisp, walker.value, this))
-    walker = walker.next
-  }
-  return res
-}
-
-Yallist.prototype.mapReverse = function (fn, thisp) {
-  thisp = thisp || this
-  var res = new Yallist()
-  for (var walker = this.tail; walker !== null;) {
-    res.push(fn.call(thisp, walker.value, this))
-    walker = walker.prev
-  }
-  return res
-}
-
-Yallist.prototype.reduce = function (fn, initial) {
-  var acc
-  var walker = this.head
-  if (arguments.length > 1) {
-    acc = initial
-  } else if (this.head) {
-    walker = this.head.next
-    acc = this.head.value
-  } else {
-    throw new TypeError('Reduce of empty list with no initial value')
-  }
-
-  for (var i = 0; walker !== null; i++) {
-    acc = fn(acc, walker.value, i)
-    walker = walker.next
-  }
-
-  return acc
-}
-
-Yallist.prototype.reduceReverse = function (fn, initial) {
-  var acc
-  var walker = this.tail
-  if (arguments.length > 1) {
-    acc = initial
-  } else if (this.tail) {
-    walker = this.tail.prev
-    acc = this.tail.value
-  } else {
-    throw new TypeError('Reduce of empty list with no initial value')
-  }
-
-  for (var i = this.length - 1; walker !== null; i--) {
-    acc = fn(acc, walker.value, i)
-    walker = walker.prev
-  }
-
-  return acc
-}
-
-Yallist.prototype.toArray = function () {
-  var arr = new Array(this.length)
-  for (var i = 0, walker = this.head; walker !== null; i++) {
-    arr[i] = walker.value
-    walker = walker.next
-  }
-  return arr
-}
-
-Yallist.prototype.toArrayReverse = function () {
-  var arr = new Array(this.length)
-  for (var i = 0, walker = this.tail; walker !== null; i++) {
-    arr[i] = walker.value
-    walker = walker.prev
-  }
-  return arr
-}
-
-Yallist.prototype.slice = function (from, to) {
-  to = to || this.length
-  if (to < 0) {
-    to += this.length
-  }
-  from = from || 0
-  if (from < 0) {
-    from += this.length
-  }
-  var ret = new Yallist()
-  if (to < from || to < 0) {
-    return ret
-  }
-  if (from < 0) {
-    from = 0
-  }
-  if (to > this.length) {
-    to = this.length
-  }
-  for (var i = 0, walker = this.head; walker !== null && i < from; i++) {
-    walker = walker.next
-  }
-  for (; walker !== null && i < to; i++, walker = walker.next) {
-    ret.push(walker.value)
-  }
-  return ret
-}
-
-Yallist.prototype.sliceReverse = function (from, to) {
-  to = to || this.length
-  if (to < 0) {
-    to += this.length
-  }
-  from = from || 0
-  if (from < 0) {
-    from += this.length
-  }
-  var ret = new Yallist()
-  if (to < from || to < 0) {
-    return ret
-  }
-  if (from < 0) {
-    from = 0
-  }
-  if (to > this.length) {
-    to = this.length
-  }
-  for (var i = this.length, walker = this.tail; walker !== null && i > to; i--) {
-    walker = walker.prev
-  }
-  for (; walker !== null && i > from; i--, walker = walker.prev) {
-    ret.push(walker.value)
-  }
-  return ret
-}
-
-Yallist.prototype.splice = function (start, deleteCount, ...nodes) {
-  if (start > this.length) {
-    start = this.length - 1
-  }
-  if (start < 0) {
-    start = this.length + start;
-  }
-
-  for (var i = 0, walker = this.head; walker !== null && i < start; i++) {
-    walker = walker.next
-  }
-
-  var ret = []
-  for (var i = 0; walker && i < deleteCount; i++) {
-    ret.push(walker.value)
-    walker = this.removeNode(walker)
-  }
-  if (walker === null) {
-    walker = this.tail
-  }
-
-  if (walker !== this.head && walker !== this.tail) {
-    walker = walker.prev
-  }
-
-  for (var i = 0; i < nodes.length; i++) {
-    walker = insert(this, walker, nodes[i])
-  }
-  return ret;
-}
-
-Yallist.prototype.reverse = function () {
-  var head = this.head
-  var tail = this.tail
-  for (var walker = head; walker !== null; walker = walker.prev) {
-    var p = walker.prev
-    walker.prev = walker.next
-    walker.next = p
-  }
-  this.head = tail
-  this.tail = head
-  return this
-}
-
-function insert (self, node, value) {
-  var inserted = node === self.head ?
-    new Node(value, null, node, self) :
-    new Node(value, node, node.next, self)
-
-  if (inserted.next === null) {
-    self.tail = inserted
-  }
-  if (inserted.prev === null) {
-    self.head = inserted
-  }
-
-  self.length++
-
-  return inserted
-}
-
-function push (self, item) {
-  self.tail = new Node(item, self.tail, null, self)
-  if (!self.head) {
-    self.head = self.tail
-  }
-  self.length++
-}
-
-function unshift (self, item) {
-  self.head = new Node(item, null, self.head, self)
-  if (!self.tail) {
-    self.tail = self.head
-  }
-  self.length++
-}
-
-function Node (value, prev, next, list) {
-  if (!(this instanceof Node)) {
-    return new Node(value, prev, next, list)
-  }
-
-  this.list = list
-  this.value = value
-
-  if (prev) {
-    prev.next = this
-    this.prev = prev
-  } else {
-    this.prev = null
-  }
-
-  if (next) {
-    next.prev = this
-    this.next = next
-  } else {
-    this.next = null
-  }
-}
-
-try {
-  // add if support for Symbol.iterator is present
-  __nccwpck_require__(3413)(Yallist)
-} catch (er) {}
-
+//# sourceMappingURL=io.js.map
 
 /***/ }),
 
@@ -15878,7 +8803,7 @@ module.exports = {
 
 
 const { parseSetCookie } = __nccwpck_require__(8915)
-const { stringify, getHeadersList } = __nccwpck_require__(3834)
+const { stringify } = __nccwpck_require__(3834)
 const { webidl } = __nccwpck_require__(4222)
 const { Headers } = __nccwpck_require__(6349)
 
@@ -15954,14 +8879,13 @@ function getSetCookies (headers) {
 
   webidl.brandCheck(headers, Headers, { strict: false })
 
-  const cookies = getHeadersList(headers).cookies
+  const cookies = headers.getSetCookie()
 
   if (!cookies) {
     return []
   }
 
-  // In older versions of undici, cookies is a list of name:value.
-  return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair))
+  return cookies.map((pair) => parseSetCookie(pair))
 }
 
 /**
@@ -16389,14 +9313,15 @@ module.exports = {
 /***/ }),
 
 /***/ 3834:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module) => {
 
 "use strict";
 
 
-const assert = __nccwpck_require__(2613)
-const { kHeadersList } = __nccwpck_require__(6443)
-
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
 function isCTLExcludingHtab (value) {
   if (value.length === 0) {
     return false
@@ -16657,31 +9582,13 @@ function stringify (cookie) {
   return out.join('; ')
 }
 
-let kHeadersListNode
-
-function getHeadersList (headers) {
-  if (headers[kHeadersList]) {
-    return headers[kHeadersList]
-  }
-
-  if (!kHeadersListNode) {
-    kHeadersListNode = Object.getOwnPropertySymbols(headers).find(
-      (symbol) => symbol.description === 'headers list'
-    )
-
-    assert(kHeadersListNode, 'Headers cannot be parsed')
-  }
-
-  const headersList = headers[kHeadersListNode]
-  assert(headersList)
-
-  return headersList
-}
-
 module.exports = {
   isCTLExcludingHtab,
-  stringify,
-  getHeadersList
+  validateCookieName,
+  validateCookiePath,
+  validateCookieValue,
+  toIMFDate,
+  stringify
 }
 
 
@@ -18610,6 +11517,14 @@ const { isUint8Array, isArrayBuffer } = __nccwpck_require__(8253)
 const { File: UndiciFile } = __nccwpck_require__(3041)
 const { parseMIMEType, serializeAMimeType } = __nccwpck_require__(4322)
 
+let random
+try {
+  const crypto = __nccwpck_require__(7598)
+  random = (max) => crypto.randomInt(0, max)
+} catch {
+  random = (max) => Math.floor(Math.random(max))
+}
+
 let ReadableStream = globalThis.ReadableStream
 
 /** @type {globalThis['File']} */
@@ -18695,7 +11610,7 @@ function extractBody (object, keepalive = false) {
     // Set source to a copy of the bytes held by object.
     source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
-    const boundary = `----formdata-undici-0${`${Math.floor(Math.random() * 1e11)}`.padStart(11, '0')}`
+    const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
@@ -20677,6 +13592,7 @@ const {
   isValidHeaderName,
   isValidHeaderValue
 } = __nccwpck_require__(5523)
+const util = __nccwpck_require__(9023)
 const { webidl } = __nccwpck_require__(4222)
 const assert = __nccwpck_require__(2613)
 
@@ -21230,6 +14146,9 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
   }
 })
 
@@ -30406,6 +23325,20 @@ class Pool extends PoolBase {
       ? { ...options.interceptors }
       : undefined
     this[kFactory] = factory
+
+    this.on('connectionError', (origin, targets, error) => {
+      // If a connection error occurs, we remove the client from the pool,
+      // and emit a connectionError event. They will not be re-used.
+      // Fixes https://github.com/nodejs/undici/issues/3895
+      for (const target of targets) {
+        // Do not use kRemoveClient here, as it will close the client,
+        // but the client cannot be closed in this state.
+        const idx = this[kClients].indexOf(target)
+        if (idx !== -1) {
+          this[kClients].splice(idx, 1)
+        }
+      }
+    })
   }
 
   [kGetDispatcher] () {
@@ -32710,652 +25643,6 @@ module.exports = {
 
 /***/ }),
 
-/***/ 2048:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-Object.defineProperty(exports, "v1", ({
-  enumerable: true,
-  get: function () {
-    return _v.default;
-  }
-}));
-Object.defineProperty(exports, "v3", ({
-  enumerable: true,
-  get: function () {
-    return _v2.default;
-  }
-}));
-Object.defineProperty(exports, "v4", ({
-  enumerable: true,
-  get: function () {
-    return _v3.default;
-  }
-}));
-Object.defineProperty(exports, "v5", ({
-  enumerable: true,
-  get: function () {
-    return _v4.default;
-  }
-}));
-Object.defineProperty(exports, "NIL", ({
-  enumerable: true,
-  get: function () {
-    return _nil.default;
-  }
-}));
-Object.defineProperty(exports, "version", ({
-  enumerable: true,
-  get: function () {
-    return _version.default;
-  }
-}));
-Object.defineProperty(exports, "validate", ({
-  enumerable: true,
-  get: function () {
-    return _validate.default;
-  }
-}));
-Object.defineProperty(exports, "stringify", ({
-  enumerable: true,
-  get: function () {
-    return _stringify.default;
-  }
-}));
-Object.defineProperty(exports, "parse", ({
-  enumerable: true,
-  get: function () {
-    return _parse.default;
-  }
-}));
-
-var _v = _interopRequireDefault(__nccwpck_require__(6415));
-
-var _v2 = _interopRequireDefault(__nccwpck_require__(1697));
-
-var _v3 = _interopRequireDefault(__nccwpck_require__(4676));
-
-var _v4 = _interopRequireDefault(__nccwpck_require__(9771));
-
-var _nil = _interopRequireDefault(__nccwpck_require__(7723));
-
-var _version = _interopRequireDefault(__nccwpck_require__(5868));
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6200));
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(7597));
-
-var _parse = _interopRequireDefault(__nccwpck_require__(7267));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/***/ }),
-
-/***/ 216:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _crypto = _interopRequireDefault(__nccwpck_require__(6982));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function md5(bytes) {
-  if (Array.isArray(bytes)) {
-    bytes = Buffer.from(bytes);
-  } else if (typeof bytes === 'string') {
-    bytes = Buffer.from(bytes, 'utf8');
-  }
-
-  return _crypto.default.createHash('md5').update(bytes).digest();
-}
-
-var _default = md5;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 7723:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-var _default = '00000000-0000-0000-0000-000000000000';
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 7267:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6200));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function parse(uuid) {
-  if (!(0, _validate.default)(uuid)) {
-    throw TypeError('Invalid UUID');
-  }
-
-  let v;
-  const arr = new Uint8Array(16); // Parse ########-....-....-....-............
-
-  arr[0] = (v = parseInt(uuid.slice(0, 8), 16)) >>> 24;
-  arr[1] = v >>> 16 & 0xff;
-  arr[2] = v >>> 8 & 0xff;
-  arr[3] = v & 0xff; // Parse ........-####-....-....-............
-
-  arr[4] = (v = parseInt(uuid.slice(9, 13), 16)) >>> 8;
-  arr[5] = v & 0xff; // Parse ........-....-####-....-............
-
-  arr[6] = (v = parseInt(uuid.slice(14, 18), 16)) >>> 8;
-  arr[7] = v & 0xff; // Parse ........-....-....-####-............
-
-  arr[8] = (v = parseInt(uuid.slice(19, 23), 16)) >>> 8;
-  arr[9] = v & 0xff; // Parse ........-....-....-....-############
-  // (Use "/" to avoid 32-bit truncation when bit-shifting high-order bytes)
-
-  arr[10] = (v = parseInt(uuid.slice(24, 36), 16)) / 0x10000000000 & 0xff;
-  arr[11] = v / 0x100000000 & 0xff;
-  arr[12] = v >>> 24 & 0xff;
-  arr[13] = v >>> 16 & 0xff;
-  arr[14] = v >>> 8 & 0xff;
-  arr[15] = v & 0xff;
-  return arr;
-}
-
-var _default = parse;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 7879:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-var _default = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 2973:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = rng;
-
-var _crypto = _interopRequireDefault(__nccwpck_require__(6982));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-const rnds8Pool = new Uint8Array(256); // # of random values to pre-allocate
-
-let poolPtr = rnds8Pool.length;
-
-function rng() {
-  if (poolPtr > rnds8Pool.length - 16) {
-    _crypto.default.randomFillSync(rnds8Pool);
-
-    poolPtr = 0;
-  }
-
-  return rnds8Pool.slice(poolPtr, poolPtr += 16);
-}
-
-/***/ }),
-
-/***/ 507:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _crypto = _interopRequireDefault(__nccwpck_require__(6982));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function sha1(bytes) {
-  if (Array.isArray(bytes)) {
-    bytes = Buffer.from(bytes);
-  } else if (typeof bytes === 'string') {
-    bytes = Buffer.from(bytes, 'utf8');
-  }
-
-  return _crypto.default.createHash('sha1').update(bytes).digest();
-}
-
-var _default = sha1;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 7597:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6200));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * Convert array of 16 byte values to UUID string format of the form:
- * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
- */
-const byteToHex = [];
-
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 0x100).toString(16).substr(1));
-}
-
-function stringify(arr, offset = 0) {
-  // Note: Be careful editing this code!  It's been tuned for performance
-  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
-  const uuid = (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase(); // Consistency check for valid UUID.  If this throws, it's likely due to one
-  // of the following:
-  // - One or more input array values don't map to a hex octet (leading to
-  // "undefined" in the uuid)
-  // - Invalid input values for the RFC `version` or `variant` fields
-
-  if (!(0, _validate.default)(uuid)) {
-    throw TypeError('Stringified UUID is invalid');
-  }
-
-  return uuid;
-}
-
-var _default = stringify;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 6415:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _rng = _interopRequireDefault(__nccwpck_require__(2973));
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(7597));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// **`v1()` - Generate time-based UUID**
-//
-// Inspired by https://github.com/LiosK/UUID.js
-// and http://docs.python.org/library/uuid.html
-let _nodeId;
-
-let _clockseq; // Previous uuid creation time
-
-
-let _lastMSecs = 0;
-let _lastNSecs = 0; // See https://github.com/uuidjs/uuid for API details
-
-function v1(options, buf, offset) {
-  let i = buf && offset || 0;
-  const b = buf || new Array(16);
-  options = options || {};
-  let node = options.node || _nodeId;
-  let clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq; // node and clockseq need to be initialized to random values if they're not
-  // specified.  We do this lazily to minimize issues related to insufficient
-  // system entropy.  See #189
-
-  if (node == null || clockseq == null) {
-    const seedBytes = options.random || (options.rng || _rng.default)();
-
-    if (node == null) {
-      // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
-      node = _nodeId = [seedBytes[0] | 0x01, seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]];
-    }
-
-    if (clockseq == null) {
-      // Per 4.2.2, randomize (14 bit) clockseq
-      clockseq = _clockseq = (seedBytes[6] << 8 | seedBytes[7]) & 0x3fff;
-    }
-  } // UUID timestamps are 100 nano-second units since the Gregorian epoch,
-  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
-  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
-  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
-
-
-  let msecs = options.msecs !== undefined ? options.msecs : Date.now(); // Per 4.2.1.2, use count of uuid's generated during the current clock
-  // cycle to simulate higher resolution clock
-
-  let nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1; // Time since last uuid creation (in msecs)
-
-  const dt = msecs - _lastMSecs + (nsecs - _lastNSecs) / 10000; // Per 4.2.1.2, Bump clockseq on clock regression
-
-  if (dt < 0 && options.clockseq === undefined) {
-    clockseq = clockseq + 1 & 0x3fff;
-  } // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
-  // time interval
-
-
-  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
-    nsecs = 0;
-  } // Per 4.2.1.2 Throw error if too many uuids are requested
-
-
-  if (nsecs >= 10000) {
-    throw new Error("uuid.v1(): Can't create more than 10M uuids/sec");
-  }
-
-  _lastMSecs = msecs;
-  _lastNSecs = nsecs;
-  _clockseq = clockseq; // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
-
-  msecs += 12219292800000; // `time_low`
-
-  const tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
-  b[i++] = tl >>> 24 & 0xff;
-  b[i++] = tl >>> 16 & 0xff;
-  b[i++] = tl >>> 8 & 0xff;
-  b[i++] = tl & 0xff; // `time_mid`
-
-  const tmh = msecs / 0x100000000 * 10000 & 0xfffffff;
-  b[i++] = tmh >>> 8 & 0xff;
-  b[i++] = tmh & 0xff; // `time_high_and_version`
-
-  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
-
-  b[i++] = tmh >>> 16 & 0xff; // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
-
-  b[i++] = clockseq >>> 8 | 0x80; // `clock_seq_low`
-
-  b[i++] = clockseq & 0xff; // `node`
-
-  for (let n = 0; n < 6; ++n) {
-    b[i + n] = node[n];
-  }
-
-  return buf || (0, _stringify.default)(b);
-}
-
-var _default = v1;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 1697:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _v = _interopRequireDefault(__nccwpck_require__(2930));
-
-var _md = _interopRequireDefault(__nccwpck_require__(216));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-const v3 = (0, _v.default)('v3', 0x30, _md.default);
-var _default = v3;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 2930:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = _default;
-exports.URL = exports.DNS = void 0;
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(7597));
-
-var _parse = _interopRequireDefault(__nccwpck_require__(7267));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function stringToBytes(str) {
-  str = unescape(encodeURIComponent(str)); // UTF8 escape
-
-  const bytes = [];
-
-  for (let i = 0; i < str.length; ++i) {
-    bytes.push(str.charCodeAt(i));
-  }
-
-  return bytes;
-}
-
-const DNS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
-exports.DNS = DNS;
-const URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
-exports.URL = URL;
-
-function _default(name, version, hashfunc) {
-  function generateUUID(value, namespace, buf, offset) {
-    if (typeof value === 'string') {
-      value = stringToBytes(value);
-    }
-
-    if (typeof namespace === 'string') {
-      namespace = (0, _parse.default)(namespace);
-    }
-
-    if (namespace.length !== 16) {
-      throw TypeError('Namespace must be array-like (16 iterable integer values, 0-255)');
-    } // Compute hash of namespace and value, Per 4.3
-    // Future: Use spread syntax when supported on all platforms, e.g. `bytes =
-    // hashfunc([...namespace, ... value])`
-
-
-    let bytes = new Uint8Array(16 + value.length);
-    bytes.set(namespace);
-    bytes.set(value, namespace.length);
-    bytes = hashfunc(bytes);
-    bytes[6] = bytes[6] & 0x0f | version;
-    bytes[8] = bytes[8] & 0x3f | 0x80;
-
-    if (buf) {
-      offset = offset || 0;
-
-      for (let i = 0; i < 16; ++i) {
-        buf[offset + i] = bytes[i];
-      }
-
-      return buf;
-    }
-
-    return (0, _stringify.default)(bytes);
-  } // Function#name is not settable on some platforms (#270)
-
-
-  try {
-    generateUUID.name = name; // eslint-disable-next-line no-empty
-  } catch (err) {} // For CommonJS default export support
-
-
-  generateUUID.DNS = DNS;
-  generateUUID.URL = URL;
-  return generateUUID;
-}
-
-/***/ }),
-
-/***/ 4676:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _rng = _interopRequireDefault(__nccwpck_require__(2973));
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(7597));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function v4(options, buf, offset) {
-  options = options || {};
-
-  const rnds = options.random || (options.rng || _rng.default)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
-
-
-  rnds[6] = rnds[6] & 0x0f | 0x40;
-  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
-
-  if (buf) {
-    offset = offset || 0;
-
-    for (let i = 0; i < 16; ++i) {
-      buf[offset + i] = rnds[i];
-    }
-
-    return buf;
-  }
-
-  return (0, _stringify.default)(rnds);
-}
-
-var _default = v4;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 9771:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _v = _interopRequireDefault(__nccwpck_require__(2930));
-
-var _sha = _interopRequireDefault(__nccwpck_require__(507));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-const v5 = (0, _v.default)('v5', 0x50, _sha.default);
-var _default = v5;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 6200:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _regex = _interopRequireDefault(__nccwpck_require__(7879));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function validate(uuid) {
-  return typeof uuid === 'string' && _regex.default.test(uuid);
-}
-
-var _default = validate;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 5868:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6200));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function version(uuid) {
-  if (!(0, _validate.default)(uuid)) {
-    throw TypeError('Invalid UUID');
-  }
-
-  return parseInt(uuid.substr(14, 1), 16);
-}
-
-var _default = version;
-exports["default"] = _default;
-
-/***/ }),
-
 /***/ 7087:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -33399,7 +25686,11 @@ async function cleanUp() {
       keyPattern = keysRestore.join('|');
     }
 
-    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern, recursive);
+    const files = await getSortedCacheFiles(
+      cacheRemotePath,
+      keyPattern,
+      recursive
+    );
     const minCacheSizeInBytes = cacheSize * 1024 * 1024 * 1024;
     const maxCacheSizeInBytes = cacheMaxSize * 1024 * 1024 * 1024;
     let totalSize = await calculateTotalSize(cacheRemotePath, files);
@@ -33454,7 +25745,7 @@ module.exports = {
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const core = __nccwpck_require__(7484);
-const tar = __nccwpck_require__(8815);
+const tar = __nccwpck_require__(5942);
 const fs = __nccwpck_require__(1943);
 const path = __nccwpck_require__(6928);
 const { humanReadableFileSize, checkFileExists } = __nccwpck_require__(5804);
@@ -33543,9 +25834,7 @@ async function getSortedCacheFiles(cachePath, key = '', recursive = false) {
 
   const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const filesSorted = (
-    await fs.promises.readdir(cachePath, { recursive: recursive })
-  )
+  const filesSorted = (await fs.promises.readdir(cachePath, { recursive }))
     .filter(fileName => cachePattern.test(path.basename(fileName)))
     .map(fileName => ({
       name: fileName,
@@ -33633,6 +25922,14 @@ module.exports = require("buffer");
 
 /***/ }),
 
+/***/ 5317:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("child_process");
+
+/***/ }),
+
 /***/ 4236:
 /***/ ((module) => {
 
@@ -33713,6 +26010,22 @@ module.exports = require("net");
 
 /***/ }),
 
+/***/ 4589:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:assert");
+
+/***/ }),
+
+/***/ 7598:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:crypto");
+
+/***/ }),
+
 /***/ 8474:
 /***/ ((module) => {
 
@@ -33721,11 +26034,43 @@ module.exports = require("node:events");
 
 /***/ }),
 
+/***/ 3024:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:fs");
+
+/***/ }),
+
+/***/ 1455:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:fs/promises");
+
+/***/ }),
+
+/***/ 6760:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:path");
+
+/***/ }),
+
 /***/ 7075:
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("node:stream");
+
+/***/ }),
+
+/***/ 6193:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:string_decoder");
 
 /***/ }),
 
@@ -33761,14 +26106,6 @@ module.exports = require("perf_hooks");
 
 /***/ }),
 
-/***/ 932:
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("process");
-
-/***/ }),
-
 /***/ 3480:
 /***/ ((module) => {
 
@@ -33798,6 +26135,14 @@ module.exports = require("stream/web");
 
 "use strict";
 module.exports = require("string_decoder");
+
+/***/ }),
+
+/***/ 3557:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("timers");
 
 /***/ }),
 
@@ -35470,6 +27815,18 @@ function parseParams (str) {
 }
 
 module.exports = parseParams
+
+
+/***/ }),
+
+/***/ 5942:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+var d=(s,e)=>()=>(e||s((e={exports:{}}).exports,e),e.exports);var We=d(F=>{"use strict";var Oo=F&&F.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(F,"__esModule",{value:!0});F.Minipass=F.isWritable=F.isReadable=F.isStream=void 0;var Cr=typeof process=="object"&&process?process:{stdout:null,stderr:null},ts=__nccwpck_require__(8474),jr=Oo(__nccwpck_require__(7075)),Ro=__nccwpck_require__(6193),vo=s=>!!s&&typeof s=="object"&&(s instanceof Ht||s instanceof jr.default||(0,F.isReadable)(s)||(0,F.isWritable)(s));F.isStream=vo;var To=s=>!!s&&typeof s=="object"&&s instanceof ts.EventEmitter&&typeof s.pipe=="function"&&s.pipe!==jr.default.Writable.prototype.pipe;F.isReadable=To;var Do=s=>!!s&&typeof s=="object"&&s instanceof ts.EventEmitter&&typeof s.write=="function"&&typeof s.end=="function";F.isWritable=Do;var le=Symbol("EOF"),ue=Symbol("maybeEmitEnd"),_e=Symbol("emittedEnd"),kt=Symbol("emittingEnd"),ft=Symbol("emittedError"),jt=Symbol("closed"),Br=Symbol("read"),xt=Symbol("flush"),zr=Symbol("flushChunk"),K=Symbol("encoding"),Ue=Symbol("decoder"),O=Symbol("flowing"),dt=Symbol("paused"),qe=Symbol("resume"),R=Symbol("buffer"),I=Symbol("pipes"),v=Symbol("bufferLength"),Vi=Symbol("bufferPush"),Ut=Symbol("bufferShift"),N=Symbol("objectMode"),y=Symbol("destroyed"),$i=Symbol("error"),Xi=Symbol("emitData"),kr=Symbol("emitEnd"),Qi=Symbol("emitEnd2"),J=Symbol("async"),Ji=Symbol("abort"),qt=Symbol("aborted"),mt=Symbol("signal"),Pe=Symbol("dataListeners"),k=Symbol("discarded"),pt=s=>Promise.resolve().then(s),Po=s=>s(),No=s=>s==="end"||s==="finish"||s==="prefinish",Mo=s=>s instanceof ArrayBuffer||!!s&&typeof s=="object"&&s.constructor&&s.constructor.name==="ArrayBuffer"&&s.byteLength>=0,Lo=s=>!Buffer.isBuffer(s)&&ArrayBuffer.isView(s),Wt=class{src;dest;opts;ondrain;constructor(e,t,i){this.src=e,this.dest=t,this.opts=i,this.ondrain=()=>e[qe](),this.dest.on("drain",this.ondrain)}unpipe(){this.dest.removeListener("drain",this.ondrain)}proxyErrors(e){}end(){this.unpipe(),this.opts.end&&this.dest.end()}},es=class extends Wt{unpipe(){this.src.removeListener("error",this.proxyErrors),super.unpipe()}constructor(e,t,i){super(e,t,i),this.proxyErrors=r=>this.dest.emit("error",r),e.on("error",this.proxyErrors)}},Ao=s=>!!s.objectMode,Io=s=>!s.objectMode&&!!s.encoding&&s.encoding!=="buffer",Ht=class extends ts.EventEmitter{[O]=!1;[dt]=!1;[I]=[];[R]=[];[N];[K];[J];[Ue];[le]=!1;[_e]=!1;[kt]=!1;[jt]=!1;[ft]=null;[v]=0;[y]=!1;[mt];[qt]=!1;[Pe]=0;[k]=!1;writable=!0;readable=!0;constructor(...e){let t=e[0]||{};if(super(),t.objectMode&&typeof t.encoding=="string")throw new TypeError("Encoding and objectMode may not be used together");Ao(t)?(this[N]=!0,this[K]=null):Io(t)?(this[K]=t.encoding,this[N]=!1):(this[N]=!1,this[K]=null),this[J]=!!t.async,this[Ue]=this[K]?new Ro.StringDecoder(this[K]):null,t&&t.debugExposeBuffer===!0&&Object.defineProperty(this,"buffer",{get:()=>this[R]}),t&&t.debugExposePipes===!0&&Object.defineProperty(this,"pipes",{get:()=>this[I]});let{signal:i}=t;i&&(this[mt]=i,i.aborted?this[Ji]():i.addEventListener("abort",()=>this[Ji]()))}get bufferLength(){return this[v]}get encoding(){return this[K]}set encoding(e){throw new Error("Encoding must be set at instantiation time")}setEncoding(e){throw new Error("Encoding must be set at instantiation time")}get objectMode(){return this[N]}set objectMode(e){throw new Error("objectMode must be set at instantiation time")}get async(){return this[J]}set async(e){this[J]=this[J]||!!e}[Ji](){this[qt]=!0,this.emit("abort",this[mt]?.reason),this.destroy(this[mt]?.reason)}get aborted(){return this[qt]}set aborted(e){}write(e,t,i){if(this[qt])return!1;if(this[le])throw new Error("write after end");if(this[y])return this.emit("error",Object.assign(new Error("Cannot call write after a stream was destroyed"),{code:"ERR_STREAM_DESTROYED"})),!0;typeof t=="function"&&(i=t,t="utf8"),t||(t="utf8");let r=this[J]?pt:Po;if(!this[N]&&!Buffer.isBuffer(e)){if(Lo(e))e=Buffer.from(e.buffer,e.byteOffset,e.byteLength);else if(Mo(e))e=Buffer.from(e);else if(typeof e!="string")throw new Error("Non-contiguous data written to non-objectMode stream")}return this[N]?(this[O]&&this[v]!==0&&this[xt](!0),this[O]?this.emit("data",e):this[Vi](e),this[v]!==0&&this.emit("readable"),i&&r(i),this[O]):e.length?(typeof e=="string"&&!(t===this[K]&&!this[Ue]?.lastNeed)&&(e=Buffer.from(e,t)),Buffer.isBuffer(e)&&this[K]&&(e=this[Ue].write(e)),this[O]&&this[v]!==0&&this[xt](!0),this[O]?this.emit("data",e):this[Vi](e),this[v]!==0&&this.emit("readable"),i&&r(i),this[O]):(this[v]!==0&&this.emit("readable"),i&&r(i),this[O])}read(e){if(this[y])return null;if(this[k]=!1,this[v]===0||e===0||e&&e>this[v])return this[ue](),null;this[N]&&(e=null),this[R].length>1&&!this[N]&&(this[R]=[this[K]?this[R].join(""):Buffer.concat(this[R],this[v])]);let t=this[Br](e||null,this[R][0]);return this[ue](),t}[Br](e,t){if(this[N])this[Ut]();else{let i=t;e===i.length||e===null?this[Ut]():typeof i=="string"?(this[R][0]=i.slice(e),t=i.slice(0,e),this[v]-=e):(this[R][0]=i.subarray(e),t=i.subarray(0,e),this[v]-=e)}return this.emit("data",t),!this[R].length&&!this[le]&&this.emit("drain"),t}end(e,t,i){return typeof e=="function"&&(i=e,e=void 0),typeof t=="function"&&(i=t,t="utf8"),e!==void 0&&this.write(e,t),i&&this.once("end",i),this[le]=!0,this.writable=!1,(this[O]||!this[dt])&&this[ue](),this}[qe](){this[y]||(!this[Pe]&&!this[I].length&&(this[k]=!0),this[dt]=!1,this[O]=!0,this.emit("resume"),this[R].length?this[xt]():this[le]?this[ue]():this.emit("drain"))}resume(){return this[qe]()}pause(){this[O]=!1,this[dt]=!0,this[k]=!1}get destroyed(){return this[y]}get flowing(){return this[O]}get paused(){return this[dt]}[Vi](e){this[N]?this[v]+=1:this[v]+=e.length,this[R].push(e)}[Ut](){return this[N]?this[v]-=1:this[v]-=this[R][0].length,this[R].shift()}[xt](e=!1){do;while(this[zr](this[Ut]())&&this[R].length);!e&&!this[R].length&&!this[le]&&this.emit("drain")}[zr](e){return this.emit("data",e),this[O]}pipe(e,t){if(this[y])return e;this[k]=!1;let i=this[_e];return t=t||{},e===Cr.stdout||e===Cr.stderr?t.end=!1:t.end=t.end!==!1,t.proxyErrors=!!t.proxyErrors,i?t.end&&e.end():(this[I].push(t.proxyErrors?new es(this,e,t):new Wt(this,e,t)),this[J]?pt(()=>this[qe]()):this[qe]()),e}unpipe(e){let t=this[I].find(i=>i.dest===e);t&&(this[I].length===1?(this[O]&&this[Pe]===0&&(this[O]=!1),this[I]=[]):this[I].splice(this[I].indexOf(t),1),t.unpipe())}addListener(e,t){return this.on(e,t)}on(e,t){let i=super.on(e,t);if(e==="data")this[k]=!1,this[Pe]++,!this[I].length&&!this[O]&&this[qe]();else if(e==="readable"&&this[v]!==0)super.emit("readable");else if(No(e)&&this[_e])super.emit(e),this.removeAllListeners(e);else if(e==="error"&&this[ft]){let r=t;this[J]?pt(()=>r.call(this,this[ft])):r.call(this,this[ft])}return i}removeListener(e,t){return this.off(e,t)}off(e,t){let i=super.off(e,t);return e==="data"&&(this[Pe]=this.listeners("data").length,this[Pe]===0&&!this[k]&&!this[I].length&&(this[O]=!1)),i}removeAllListeners(e){let t=super.removeAllListeners(e);return(e==="data"||e===void 0)&&(this[Pe]=0,!this[k]&&!this[I].length&&(this[O]=!1)),t}get emittedEnd(){return this[_e]}[ue](){!this[kt]&&!this[_e]&&!this[y]&&this[R].length===0&&this[le]&&(this[kt]=!0,this.emit("end"),this.emit("prefinish"),this.emit("finish"),this[jt]&&this.emit("close"),this[kt]=!1)}emit(e,...t){let i=t[0];if(e!=="error"&&e!=="close"&&e!==y&&this[y])return!1;if(e==="data")return!this[N]&&!i?!1:this[J]?(pt(()=>this[Xi](i)),!0):this[Xi](i);if(e==="end")return this[kr]();if(e==="close"){if(this[jt]=!0,!this[_e]&&!this[y])return!1;let n=super.emit("close");return this.removeAllListeners("close"),n}else if(e==="error"){this[ft]=i,super.emit($i,i);let n=!this[mt]||this.listeners("error").length?super.emit("error",i):!1;return this[ue](),n}else if(e==="resume"){let n=super.emit("resume");return this[ue](),n}else if(e==="finish"||e==="prefinish"){let n=super.emit(e);return this.removeAllListeners(e),n}let r=super.emit(e,...t);return this[ue](),r}[Xi](e){for(let i of this[I])i.dest.write(e)===!1&&this.pause();let t=this[k]?!1:super.emit("data",e);return this[ue](),t}[kr](){return this[_e]?!1:(this[_e]=!0,this.readable=!1,this[J]?(pt(()=>this[Qi]()),!0):this[Qi]())}[Qi](){if(this[Ue]){let t=this[Ue].end();if(t){for(let i of this[I])i.dest.write(t);this[k]||super.emit("data",t)}}for(let t of this[I])t.end();let e=super.emit("end");return this.removeAllListeners("end"),e}async collect(){let e=Object.assign([],{dataLength:0});this[N]||(e.dataLength=0);let t=this.promise();return this.on("data",i=>{e.push(i),this[N]||(e.dataLength+=i.length)}),await t,e}async concat(){if(this[N])throw new Error("cannot concat in objectMode");let e=await this.collect();return this[K]?e.join(""):Buffer.concat(e,e.dataLength)}async promise(){return new Promise((e,t)=>{this.on(y,()=>t(new Error("stream destroyed"))),this.on("error",i=>t(i)),this.on("end",()=>e())})}[Symbol.asyncIterator](){this[k]=!1;let e=!1,t=async()=>(this.pause(),e=!0,{value:void 0,done:!0});return{next:()=>{if(e)return t();let r=this.read();if(r!==null)return Promise.resolve({done:!1,value:r});if(this[le])return t();let n,o,a=c=>{this.off("data",h),this.off("end",l),this.off(y,u),t(),o(c)},h=c=>{this.off("error",a),this.off("end",l),this.off(y,u),this.pause(),n({value:c,done:!!this[le]})},l=()=>{this.off("error",a),this.off("data",h),this.off(y,u),t(),n({done:!0,value:void 0})},u=()=>a(new Error("stream destroyed"));return new Promise((c,E)=>{o=E,n=c,this.once(y,u),this.once("error",a),this.once("end",l),this.once("data",h)})},throw:t,return:t,[Symbol.asyncIterator](){return this},[Symbol.asyncDispose]:async()=>{}}}[Symbol.iterator](){this[k]=!1;let e=!1,t=()=>(this.pause(),this.off($i,t),this.off(y,t),this.off("end",t),e=!0,{done:!0,value:void 0}),i=()=>{if(e)return t();let r=this.read();return r===null?t():{done:!1,value:r}};return this.once("end",t),this.once($i,t),this.once(y,t),{next:i,throw:t,return:t,[Symbol.iterator](){return this},[Symbol.dispose]:()=>{}}}destroy(e){if(this[y])return e?this.emit("error",e):this.emit(y),this;this[y]=!0,this[k]=!0,this[R].length=0,this[v]=0;let t=this;return typeof t.close=="function"&&!this[jt]&&t.close(),e?this.emit("error",e):this.emit(y),this}static get isStream(){return F.isStream}};F.Minipass=Ht});var Ke=d(W=>{"use strict";var xr=W&&W.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(W,"__esModule",{value:!0});W.WriteStreamSync=W.WriteStream=W.ReadStreamSync=W.ReadStream=void 0;var Fo=xr(__nccwpck_require__(4434)),B=xr(__nccwpck_require__(9896)),Co=We(),Bo=B.default.writev,ye=Symbol("_autoClose"),$=Symbol("_close"),_t=Symbol("_ended"),p=Symbol("_fd"),is=Symbol("_finished"),fe=Symbol("_flags"),ss=Symbol("_flush"),as=Symbol("_handleChunk"),hs=Symbol("_makeBuf"),yt=Symbol("_mode"),Zt=Symbol("_needDrain"),Ge=Symbol("_onerror"),Ye=Symbol("_onopen"),rs=Symbol("_onread"),He=Symbol("_onwrite"),Ee=Symbol("_open"),V=Symbol("_path"),we=Symbol("_pos"),ee=Symbol("_queue"),Ze=Symbol("_read"),ns=Symbol("_readSize"),ce=Symbol("_reading"),wt=Symbol("_remain"),os=Symbol("_size"),Gt=Symbol("_write"),Ne=Symbol("_writing"),Yt=Symbol("_defaultFlag"),Me=Symbol("_errored"),Kt=class extends Co.Minipass{[Me]=!1;[p];[V];[ns];[ce]=!1;[os];[wt];[ye];constructor(e,t){if(t=t||{},super(t),this.readable=!0,this.writable=!1,typeof e!="string")throw new TypeError("path must be a string");this[Me]=!1,this[p]=typeof t.fd=="number"?t.fd:void 0,this[V]=e,this[ns]=t.readSize||16*1024*1024,this[ce]=!1,this[os]=typeof t.size=="number"?t.size:1/0,this[wt]=this[os],this[ye]=typeof t.autoClose=="boolean"?t.autoClose:!0,typeof this[p]=="number"?this[Ze]():this[Ee]()}get fd(){return this[p]}get path(){return this[V]}write(){throw new TypeError("this is a readable stream")}end(){throw new TypeError("this is a readable stream")}[Ee](){B.default.open(this[V],"r",(e,t)=>this[Ye](e,t))}[Ye](e,t){e?this[Ge](e):(this[p]=t,this.emit("open",t),this[Ze]())}[hs](){return Buffer.allocUnsafe(Math.min(this[ns],this[wt]))}[Ze](){if(!this[ce]){this[ce]=!0;let e=this[hs]();if(e.length===0)return process.nextTick(()=>this[rs](null,0,e));B.default.read(this[p],e,0,e.length,null,(t,i,r)=>this[rs](t,i,r))}}[rs](e,t,i){this[ce]=!1,e?this[Ge](e):this[as](t,i)&&this[Ze]()}[$](){if(this[ye]&&typeof this[p]=="number"){let e=this[p];this[p]=void 0,B.default.close(e,t=>t?this.emit("error",t):this.emit("close"))}}[Ge](e){this[ce]=!0,this[$](),this.emit("error",e)}[as](e,t){let i=!1;return this[wt]-=e,e>0&&(i=super.write(e<t.length?t.subarray(0,e):t)),(e===0||this[wt]<=0)&&(i=!1,this[$](),super.end()),i}emit(e,...t){switch(e){case"prefinish":case"finish":return!1;case"drain":return typeof this[p]=="number"&&this[Ze](),!1;case"error":return this[Me]?!1:(this[Me]=!0,super.emit(e,...t));default:return super.emit(e,...t)}}};W.ReadStream=Kt;var ls=class extends Kt{[Ee](){let e=!0;try{this[Ye](null,B.default.openSync(this[V],"r")),e=!1}finally{e&&this[$]()}}[Ze](){let e=!0;try{if(!this[ce]){this[ce]=!0;do{let t=this[hs](),i=t.length===0?0:B.default.readSync(this[p],t,0,t.length,null);if(!this[as](i,t))break}while(!0);this[ce]=!1}e=!1}finally{e&&this[$]()}}[$](){if(this[ye]&&typeof this[p]=="number"){let e=this[p];this[p]=void 0,B.default.closeSync(e),this.emit("close")}}};W.ReadStreamSync=ls;var Vt=class extends Fo.default{readable=!1;writable=!0;[Me]=!1;[Ne]=!1;[_t]=!1;[ee]=[];[Zt]=!1;[V];[yt];[ye];[p];[Yt];[fe];[is]=!1;[we];constructor(e,t){t=t||{},super(t),this[V]=e,this[p]=typeof t.fd=="number"?t.fd:void 0,this[yt]=t.mode===void 0?438:t.mode,this[we]=typeof t.start=="number"?t.start:void 0,this[ye]=typeof t.autoClose=="boolean"?t.autoClose:!0;let i=this[we]!==void 0?"r+":"w";this[Yt]=t.flags===void 0,this[fe]=t.flags===void 0?i:t.flags,this[p]===void 0&&this[Ee]()}emit(e,...t){if(e==="error"){if(this[Me])return!1;this[Me]=!0}return super.emit(e,...t)}get fd(){return this[p]}get path(){return this[V]}[Ge](e){this[$](),this[Ne]=!0,this.emit("error",e)}[Ee](){B.default.open(this[V],this[fe],this[yt],(e,t)=>this[Ye](e,t))}[Ye](e,t){this[Yt]&&this[fe]==="r+"&&e&&e.code==="ENOENT"?(this[fe]="w",this[Ee]()):e?this[Ge](e):(this[p]=t,this.emit("open",t),this[Ne]||this[ss]())}end(e,t){return e&&this.write(e,t),this[_t]=!0,!this[Ne]&&!this[ee].length&&typeof this[p]=="number"&&this[He](null,0),this}write(e,t){return typeof e=="string"&&(e=Buffer.from(e,t)),this[_t]?(this.emit("error",new Error("write() after end()")),!1):this[p]===void 0||this[Ne]||this[ee].length?(this[ee].push(e),this[Zt]=!0,!1):(this[Ne]=!0,this[Gt](e),!0)}[Gt](e){B.default.write(this[p],e,0,e.length,this[we],(t,i)=>this[He](t,i))}[He](e,t){e?this[Ge](e):(this[we]!==void 0&&typeof t=="number"&&(this[we]+=t),this[ee].length?this[ss]():(this[Ne]=!1,this[_t]&&!this[is]?(this[is]=!0,this[$](),this.emit("finish")):this[Zt]&&(this[Zt]=!1,this.emit("drain"))))}[ss](){if(this[ee].length===0)this[_t]&&this[He](null,0);else if(this[ee].length===1)this[Gt](this[ee].pop());else{let e=this[ee];this[ee]=[],Bo(this[p],e,this[we],(t,i)=>this[He](t,i))}}[$](){if(this[ye]&&typeof this[p]=="number"){let e=this[p];this[p]=void 0,B.default.close(e,t=>t?this.emit("error",t):this.emit("close"))}}};W.WriteStream=Vt;var us=class extends Vt{[Ee](){let e;if(this[Yt]&&this[fe]==="r+")try{e=B.default.openSync(this[V],this[fe],this[yt])}catch(t){if(t?.code==="ENOENT")return this[fe]="w",this[Ee]();throw t}else e=B.default.openSync(this[V],this[fe],this[yt]);this[Ye](null,e)}[$](){if(this[ye]&&typeof this[p]=="number"){let e=this[p];this[p]=void 0,B.default.closeSync(e),this.emit("close")}}[Gt](e){let t=!0;try{this[He](null,B.default.writeSync(this[p],e,0,e.length,this[we])),t=!1}finally{if(t)try{this[$]()}catch{}}}};W.WriteStreamSync=us});var $t=d(b=>{"use strict";Object.defineProperty(b,"__esModule",{value:!0});b.dealias=b.isNoFile=b.isFile=b.isAsync=b.isSync=b.isAsyncNoFile=b.isSyncNoFile=b.isAsyncFile=b.isSyncFile=void 0;var zo=new Map([["C","cwd"],["f","file"],["z","gzip"],["P","preservePaths"],["U","unlink"],["strip-components","strip"],["stripComponents","strip"],["keep-newer","newer"],["keepNewer","newer"],["keep-newer-files","newer"],["keepNewerFiles","newer"],["k","keep"],["keep-existing","keep"],["keepExisting","keep"],["m","noMtime"],["no-mtime","noMtime"],["p","preserveOwner"],["L","follow"],["h","follow"],["onentry","onReadEntry"]]),ko=s=>!!s.sync&&!!s.file;b.isSyncFile=ko;var jo=s=>!s.sync&&!!s.file;b.isAsyncFile=jo;var xo=s=>!!s.sync&&!s.file;b.isSyncNoFile=xo;var Uo=s=>!s.sync&&!s.file;b.isAsyncNoFile=Uo;var qo=s=>!!s.sync;b.isSync=qo;var Wo=s=>!s.sync;b.isAsync=Wo;var Ho=s=>!!s.file;b.isFile=Ho;var Zo=s=>!s.file;b.isNoFile=Zo;var Go=s=>{let e=zo.get(s);return e||s},Yo=(s={})=>{if(!s)return{};let e={};for(let[t,i]of Object.entries(s)){let r=Go(t);e[r]=i}return e.chmod===void 0&&e.noChmod===!1&&(e.chmod=!0),delete e.noChmod,e};b.dealias=Yo});var Ve=d(Xt=>{"use strict";Object.defineProperty(Xt,"__esModule",{value:!0});Xt.makeCommand=void 0;var Et=$t(),Ko=(s,e,t,i,r)=>Object.assign((n=[],o,a)=>{Array.isArray(n)&&(o=n,n={}),typeof o=="function"&&(a=o,o=void 0),o=o?Array.from(o):[];let h=(0,Et.dealias)(n);if(r?.(h,o),(0,Et.isSyncFile)(h)){if(typeof a=="function")throw new TypeError("callback not supported for sync tar functions");return s(h,o)}else if((0,Et.isAsyncFile)(h)){let l=e(h,o);return a?l.then(()=>a(),a):l}else if((0,Et.isSyncNoFile)(h)){if(typeof a=="function")throw new TypeError("callback not supported for sync tar functions");return t(h,o)}else if((0,Et.isAsyncNoFile)(h)){if(typeof a=="function")throw new TypeError("callback only supported with file option");return i(h,o)}throw new Error("impossible options??")},{syncFile:s,asyncFile:e,syncNoFile:t,asyncNoFile:i,validate:r});Xt.makeCommand=Ko});var cs=d($e=>{"use strict";var Vo=$e&&$e.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty($e,"__esModule",{value:!0});$e.constants=void 0;var $o=Vo(__nccwpck_require__(3106)),Xo=$o.default.constants||{ZLIB_VERNUM:4736};$e.constants=Object.freeze(Object.assign(Object.create(null),{Z_NO_FLUSH:0,Z_PARTIAL_FLUSH:1,Z_SYNC_FLUSH:2,Z_FULL_FLUSH:3,Z_FINISH:4,Z_BLOCK:5,Z_OK:0,Z_STREAM_END:1,Z_NEED_DICT:2,Z_ERRNO:-1,Z_STREAM_ERROR:-2,Z_DATA_ERROR:-3,Z_MEM_ERROR:-4,Z_BUF_ERROR:-5,Z_VERSION_ERROR:-6,Z_NO_COMPRESSION:0,Z_BEST_SPEED:1,Z_BEST_COMPRESSION:9,Z_DEFAULT_COMPRESSION:-1,Z_FILTERED:1,Z_HUFFMAN_ONLY:2,Z_RLE:3,Z_FIXED:4,Z_DEFAULT_STRATEGY:0,DEFLATE:1,INFLATE:2,GZIP:3,GUNZIP:4,DEFLATERAW:5,INFLATERAW:6,UNZIP:7,BROTLI_DECODE:8,BROTLI_ENCODE:9,Z_MIN_WINDOWBITS:8,Z_MAX_WINDOWBITS:15,Z_DEFAULT_WINDOWBITS:15,Z_MIN_CHUNK:64,Z_MAX_CHUNK:1/0,Z_DEFAULT_CHUNK:16384,Z_MIN_MEMLEVEL:1,Z_MAX_MEMLEVEL:9,Z_DEFAULT_MEMLEVEL:8,Z_MIN_LEVEL:-1,Z_MAX_LEVEL:9,Z_DEFAULT_LEVEL:-1,BROTLI_OPERATION_PROCESS:0,BROTLI_OPERATION_FLUSH:1,BROTLI_OPERATION_FINISH:2,BROTLI_OPERATION_EMIT_METADATA:3,BROTLI_MODE_GENERIC:0,BROTLI_MODE_TEXT:1,BROTLI_MODE_FONT:2,BROTLI_DEFAULT_MODE:0,BROTLI_MIN_QUALITY:0,BROTLI_MAX_QUALITY:11,BROTLI_DEFAULT_QUALITY:11,BROTLI_MIN_WINDOW_BITS:10,BROTLI_MAX_WINDOW_BITS:24,BROTLI_LARGE_MAX_WINDOW_BITS:30,BROTLI_DEFAULT_WINDOW:22,BROTLI_MIN_INPUT_BLOCK_BITS:16,BROTLI_MAX_INPUT_BLOCK_BITS:24,BROTLI_PARAM_MODE:0,BROTLI_PARAM_QUALITY:1,BROTLI_PARAM_LGWIN:2,BROTLI_PARAM_LGBLOCK:3,BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING:4,BROTLI_PARAM_SIZE_HINT:5,BROTLI_PARAM_LARGE_WINDOW:6,BROTLI_PARAM_NPOSTFIX:7,BROTLI_PARAM_NDIRECT:8,BROTLI_DECODER_RESULT_ERROR:0,BROTLI_DECODER_RESULT_SUCCESS:1,BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT:2,BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT:3,BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION:0,BROTLI_DECODER_PARAM_LARGE_WINDOW:1,BROTLI_DECODER_NO_ERROR:0,BROTLI_DECODER_SUCCESS:1,BROTLI_DECODER_NEEDS_MORE_INPUT:2,BROTLI_DECODER_NEEDS_MORE_OUTPUT:3,BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_NIBBLE:-1,BROTLI_DECODER_ERROR_FORMAT_RESERVED:-2,BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_META_NIBBLE:-3,BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_ALPHABET:-4,BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_SAME:-5,BROTLI_DECODER_ERROR_FORMAT_CL_SPACE:-6,BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE:-7,BROTLI_DECODER_ERROR_FORMAT_CONTEXT_MAP_REPEAT:-8,BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1:-9,BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_2:-10,BROTLI_DECODER_ERROR_FORMAT_TRANSFORM:-11,BROTLI_DECODER_ERROR_FORMAT_DICTIONARY:-12,BROTLI_DECODER_ERROR_FORMAT_WINDOW_BITS:-13,BROTLI_DECODER_ERROR_FORMAT_PADDING_1:-14,BROTLI_DECODER_ERROR_FORMAT_PADDING_2:-15,BROTLI_DECODER_ERROR_FORMAT_DISTANCE:-16,BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET:-19,BROTLI_DECODER_ERROR_INVALID_ARGUMENTS:-20,BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MODES:-21,BROTLI_DECODER_ERROR_ALLOC_TREE_GROUPS:-22,BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MAP:-25,BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_1:-26,BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_2:-27,BROTLI_DECODER_ERROR_ALLOC_BLOCK_TYPE_TREES:-30,BROTLI_DECODER_ERROR_UNREACHABLE:-31},Xo))});var Ts=d(f=>{"use strict";var Qo=f&&f.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),Jo=f&&f.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),ea=f&&f.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&Qo(t,e,i[r]);return Jo(t,e),t}})(),ta=f&&f.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(f,"__esModule",{value:!0});f.ZstdDecompress=f.ZstdCompress=f.BrotliDecompress=f.BrotliCompress=f.Unzip=f.InflateRaw=f.DeflateRaw=f.Gunzip=f.Gzip=f.Inflate=f.Deflate=f.Zlib=f.ZlibError=f.constants=void 0;var ms=ta(__nccwpck_require__(2613)),Le=__nccwpck_require__(181),ia=We(),Ur=ea(__nccwpck_require__(3106)),te=cs(),sa=cs();Object.defineProperty(f,"constants",{enumerable:!0,get:function(){return sa.constants}});var ra=Le.Buffer.concat,qr=Object.getOwnPropertyDescriptor(Le.Buffer,"concat"),na=s=>s,fs=qr?.writable===!0||qr?.set!==void 0?s=>{Le.Buffer.concat=s?na:ra}:s=>{},Ae=Symbol("_superWrite"),Ie=class extends Error{code;errno;constructor(e,t){super("zlib: "+e.message,{cause:e}),this.code=e.code,this.errno=e.errno,this.code||(this.code="ZLIB_ERROR"),this.message="zlib: "+e.message,Error.captureStackTrace(this,t??this.constructor)}get name(){return"ZlibError"}};f.ZlibError=Ie;var ds=Symbol("flushFlag"),bt=class extends ia.Minipass{#e=!1;#i=!1;#s;#n;#r;#t;#o;get sawError(){return this.#e}get handle(){return this.#t}get flushFlag(){return this.#s}constructor(e,t){if(!e||typeof e!="object")throw new TypeError("invalid options for ZlibBase constructor");if(super(e),this.#s=e.flush??0,this.#n=e.finishFlush??0,this.#r=e.fullFlushFlag??0,typeof Ur[t]!="function")throw new TypeError("Compression method not supported: "+t);try{this.#t=new Ur[t](e)}catch(i){throw new Ie(i,this.constructor)}this.#o=i=>{this.#e||(this.#e=!0,this.close(),this.emit("error",i))},this.#t?.on("error",i=>this.#o(new Ie(i))),this.once("end",()=>this.close)}close(){this.#t&&(this.#t.close(),this.#t=void 0,this.emit("close"))}reset(){if(!this.#e)return(0,ms.default)(this.#t,"zlib binding closed"),this.#t.reset?.()}flush(e){this.ended||(typeof e!="number"&&(e=this.#r),this.write(Object.assign(Le.Buffer.alloc(0),{[ds]:e})))}end(e,t,i){return typeof e=="function"&&(i=e,t=void 0,e=void 0),typeof t=="function"&&(i=t,t=void 0),e&&(t?this.write(e,t):this.write(e)),this.flush(this.#n),this.#i=!0,super.end(i)}get ended(){return this.#i}[Ae](e){return super.write(e)}write(e,t,i){if(typeof t=="function"&&(i=t,t="utf8"),typeof e=="string"&&(e=Le.Buffer.from(e,t)),this.#e)return;(0,ms.default)(this.#t,"zlib binding closed");let r=this.#t._handle,n=r.close;r.close=()=>{};let o=this.#t.close;this.#t.close=()=>{},fs(!0);let a;try{let l=typeof e[ds]=="number"?e[ds]:this.#s;a=this.#t._processChunk(e,l),fs(!1)}catch(l){fs(!1),this.#o(new Ie(l,this.write))}finally{this.#t&&(this.#t._handle=r,r.close=n,this.#t.close=o,this.#t.removeAllListeners("error"))}this.#t&&this.#t.on("error",l=>this.#o(new Ie(l,this.write)));let h;if(a)if(Array.isArray(a)&&a.length>0){let l=a[0];h=this[Ae](Le.Buffer.from(l));for(let u=1;u<a.length;u++)h=this[Ae](a[u])}else h=this[Ae](Le.Buffer.from(a));return i&&i(),h}},ie=class extends bt{#e;#i;constructor(e,t){e=e||{},e.flush=e.flush||te.constants.Z_NO_FLUSH,e.finishFlush=e.finishFlush||te.constants.Z_FINISH,e.fullFlushFlag=te.constants.Z_FULL_FLUSH,super(e,t),this.#e=e.level,this.#i=e.strategy}params(e,t){if(!this.sawError){if(!this.handle)throw new Error("cannot switch params when binding is closed");if(!this.handle.params)throw new Error("not supported in this implementation");if(this.#e!==e||this.#i!==t){this.flush(te.constants.Z_SYNC_FLUSH),(0,ms.default)(this.handle,"zlib binding closed");let i=this.handle.flush;this.handle.flush=(r,n)=>{typeof r=="function"&&(n=r,r=this.flushFlag),this.flush(r),n?.()};try{this.handle.params(e,t)}finally{this.handle.flush=i}this.handle&&(this.#e=e,this.#i=t)}}}};f.Zlib=ie;var ps=class extends ie{constructor(e){super(e,"Deflate")}};f.Deflate=ps;var _s=class extends ie{constructor(e){super(e,"Inflate")}};f.Inflate=_s;var ws=class extends ie{#e;constructor(e){super(e,"Gzip"),this.#e=e&&!!e.portable}[Ae](e){return this.#e?(this.#e=!1,e[9]=255,super[Ae](e)):super[Ae](e)}};f.Gzip=ws;var ys=class extends ie{constructor(e){super(e,"Gunzip")}};f.Gunzip=ys;var Es=class extends ie{constructor(e){super(e,"DeflateRaw")}};f.DeflateRaw=Es;var bs=class extends ie{constructor(e){super(e,"InflateRaw")}};f.InflateRaw=bs;var Ss=class extends ie{constructor(e){super(e,"Unzip")}};f.Unzip=Ss;var Qt=class extends bt{constructor(e,t){e=e||{},e.flush=e.flush||te.constants.BROTLI_OPERATION_PROCESS,e.finishFlush=e.finishFlush||te.constants.BROTLI_OPERATION_FINISH,e.fullFlushFlag=te.constants.BROTLI_OPERATION_FLUSH,super(e,t)}},gs=class extends Qt{constructor(e){super(e,"BrotliCompress")}};f.BrotliCompress=gs;var Os=class extends Qt{constructor(e){super(e,"BrotliDecompress")}};f.BrotliDecompress=Os;var Jt=class extends bt{constructor(e,t){e=e||{},e.flush=e.flush||te.constants.ZSTD_e_continue,e.finishFlush=e.finishFlush||te.constants.ZSTD_e_end,e.fullFlushFlag=te.constants.ZSTD_e_flush,super(e,t)}},Rs=class extends Jt{constructor(e){super(e,"ZstdCompress")}};f.ZstdCompress=Rs;var vs=class extends Jt{constructor(e){super(e,"ZstdDecompress")}};f.ZstdDecompress=vs});var Zr=d(Xe=>{"use strict";Object.defineProperty(Xe,"__esModule",{value:!0});Xe.parse=Xe.encode=void 0;var oa=(s,e)=>{if(Number.isSafeInteger(s))s<0?ha(s,e):aa(s,e);else throw Error("cannot encode number outside of javascript safe integer range");return e};Xe.encode=oa;var aa=(s,e)=>{e[0]=128;for(var t=e.length;t>1;t--)e[t-1]=s&255,s=Math.floor(s/256)},ha=(s,e)=>{e[0]=255;var t=!1;s=s*-1;for(var i=e.length;i>1;i--){var r=s&255;s=Math.floor(s/256),t?e[i-1]=Wr(r):r===0?e[i-1]=0:(t=!0,e[i-1]=Hr(r))}},la=s=>{let e=s[0],t=e===128?ca(s.subarray(1,s.length)):e===255?ua(s):null;if(t===null)throw Error("invalid base256 encoding");if(!Number.isSafeInteger(t))throw Error("parsed number outside of javascript safe integer range");return t};Xe.parse=la;var ua=s=>{for(var e=s.length,t=0,i=!1,r=e-1;r>-1;r--){var n=Number(s[r]),o;i?o=Wr(n):n===0?o=n:(i=!0,o=Hr(n)),o!==0&&(t-=o*Math.pow(256,e-r-1))}return t},ca=s=>{for(var e=s.length,t=0,i=e-1;i>-1;i--){var r=Number(s[i]);r!==0&&(t+=r*Math.pow(256,e-i-1))}return t},Wr=s=>(255^s)&255,Hr=s=>(255^s)+1&255});var Ds=d(j=>{"use strict";Object.defineProperty(j,"__esModule",{value:!0});j.code=j.name=j.isName=j.isCode=void 0;var fa=s=>j.name.has(s);j.isCode=fa;var da=s=>j.code.has(s);j.isName=da;j.name=new Map([["0","File"],["","OldFile"],["1","Link"],["2","SymbolicLink"],["3","CharacterDevice"],["4","BlockDevice"],["5","Directory"],["6","FIFO"],["7","ContiguousFile"],["g","GlobalExtendedHeader"],["x","ExtendedHeader"],["A","SolarisACL"],["D","GNUDumpDir"],["I","Inode"],["K","NextFileHasLongLinkpath"],["L","NextFileHasLongPath"],["M","ContinuationFile"],["N","OldGnuLongPath"],["S","SparseFile"],["V","TapeVolumeHeader"],["X","OldExtendedHeader"]]);j.code=new Map(Array.from(j.name).map(s=>[s[1],s[0]]))});var Je=d(se=>{"use strict";var ma=se&&se.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),pa=se&&se.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),Gr=se&&se.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&ma(t,e,i[r]);return pa(t,e),t}})();Object.defineProperty(se,"__esModule",{value:!0});se.Header=void 0;var Qe=__nccwpck_require__(6760),Yr=Gr(Zr()),St=Gr(Ds()),Ms=class{cksumValid=!1;needPax=!1;nullBlock=!1;block;path;mode;uid;gid;size;cksum;#e="Unsupported";linkpath;uname;gname;devmaj=0;devmin=0;atime;ctime;mtime;charset;comment;constructor(e,t=0,i,r){Buffer.isBuffer(e)?this.decode(e,t||0,i,r):e&&this.#i(e)}decode(e,t,i,r){if(t||(t=0),!e||!(e.length>=t+512))throw new Error("need 512 bytes for header");this.path=i?.path??Fe(e,t,100),this.mode=i?.mode??r?.mode??be(e,t+100,8),this.uid=i?.uid??r?.uid??be(e,t+108,8),this.gid=i?.gid??r?.gid??be(e,t+116,8),this.size=i?.size??r?.size??be(e,t+124,12),this.mtime=i?.mtime??r?.mtime??Ps(e,t+136,12),this.cksum=be(e,t+148,12),r&&this.#i(r,!0),i&&this.#i(i);let n=Fe(e,t+156,1);if(St.isCode(n)&&(this.#e=n||"0"),this.#e==="0"&&this.path.slice(-1)==="/"&&(this.#e="5"),this.#e==="5"&&(this.size=0),this.linkpath=Fe(e,t+157,100),e.subarray(t+257,t+265).toString()==="ustar\x0000")if(this.uname=i?.uname??r?.uname??Fe(e,t+265,32),this.gname=i?.gname??r?.gname??Fe(e,t+297,32),this.devmaj=i?.devmaj??r?.devmaj??be(e,t+329,8)??0,this.devmin=i?.devmin??r?.devmin??be(e,t+337,8)??0,e[t+475]!==0){let a=Fe(e,t+345,155);this.path=a+"/"+this.path}else{let a=Fe(e,t+345,130);a&&(this.path=a+"/"+this.path),this.atime=i?.atime??r?.atime??Ps(e,t+476,12),this.ctime=i?.ctime??r?.ctime??Ps(e,t+488,12)}let o=256;for(let a=t;a<t+148;a++)o+=e[a];for(let a=t+156;a<t+512;a++)o+=e[a];this.cksumValid=o===this.cksum,this.cksum===void 0&&o===256&&(this.nullBlock=!0)}#i(e,t=!1){Object.assign(this,Object.fromEntries(Object.entries(e).filter(([i,r])=>!(r==null||i==="path"&&t||i==="linkpath"&&t||i==="global"))))}encode(e,t=0){if(e||(e=this.block=Buffer.alloc(512)),this.#e==="Unsupported"&&(this.#e="0"),!(e.length>=t+512))throw new Error("need 512 bytes for header");let i=this.ctime||this.atime?130:155,r=_a(this.path||"",i),n=r[0],o=r[1];this.needPax=!!r[2],this.needPax=Ce(e,t,100,n)||this.needPax,this.needPax=Se(e,t+100,8,this.mode)||this.needPax,this.needPax=Se(e,t+108,8,this.uid)||this.needPax,this.needPax=Se(e,t+116,8,this.gid)||this.needPax,this.needPax=Se(e,t+124,12,this.size)||this.needPax,this.needPax=Ns(e,t+136,12,this.mtime)||this.needPax,e[t+156]=Number(this.#e.codePointAt(0)),this.needPax=Ce(e,t+157,100,this.linkpath)||this.needPax,e.write("ustar\x0000",t+257,8),this.needPax=Ce(e,t+265,32,this.uname)||this.needPax,this.needPax=Ce(e,t+297,32,this.gname)||this.needPax,this.needPax=Se(e,t+329,8,this.devmaj)||this.needPax,this.needPax=Se(e,t+337,8,this.devmin)||this.needPax,this.needPax=Ce(e,t+345,i,o)||this.needPax,e[t+475]!==0?this.needPax=Ce(e,t+345,155,o)||this.needPax:(this.needPax=Ce(e,t+345,130,o)||this.needPax,this.needPax=Ns(e,t+476,12,this.atime)||this.needPax,this.needPax=Ns(e,t+488,12,this.ctime)||this.needPax);let a=256;for(let h=t;h<t+148;h++)a+=e[h];for(let h=t+156;h<t+512;h++)a+=e[h];return this.cksum=a,Se(e,t+148,8,this.cksum),this.cksumValid=!0,this.needPax}get type(){return this.#e==="Unsupported"?this.#e:St.name.get(this.#e)}get typeKey(){return this.#e}set type(e){let t=String(St.code.get(e));if(St.isCode(t)||t==="Unsupported")this.#e=t;else if(St.isCode(e))this.#e=e;else throw new TypeError("invalid entry type: "+e)}};se.Header=Ms;var _a=(s,e)=>{let i=s,r="",n,o=Qe.posix.parse(s).root||".";if(Buffer.byteLength(i)<100)n=[i,r,!1];else{r=Qe.posix.dirname(i),i=Qe.posix.basename(i);do Buffer.byteLength(i)<=100&&Buffer.byteLength(r)<=e?n=[i,r,!1]:Buffer.byteLength(i)>100&&Buffer.byteLength(r)<=e?n=[i.slice(0,99),r,!0]:(i=Qe.posix.join(Qe.posix.basename(r),i),r=Qe.posix.dirname(r));while(r!==o&&n===void 0);n||(n=[s.slice(0,99),"",!0])}return n},Fe=(s,e,t)=>s.subarray(e,e+t).toString("utf8").replace(/\0.*/,""),Ps=(s,e,t)=>wa(be(s,e,t)),wa=s=>s===void 0?void 0:new Date(s*1e3),be=(s,e,t)=>Number(s[e])&128?Yr.parse(s.subarray(e,e+t)):Ea(s,e,t),ya=s=>isNaN(s)?void 0:s,Ea=(s,e,t)=>ya(parseInt(s.subarray(e,e+t).toString("utf8").replace(/\0.*$/,"").trim(),8)),ba={12:8589934591,8:2097151},Se=(s,e,t,i)=>i===void 0?!1:i>ba[t]||i<0?(Yr.encode(i,s.subarray(e,e+t)),!0):(Sa(s,e,t,i),!1),Sa=(s,e,t,i)=>s.write(ga(i,t),e,t,"ascii"),ga=(s,e)=>Oa(Math.floor(s).toString(8),e),Oa=(s,e)=>(s.length===e-1?s:new Array(e-s.length-1).join("0")+s+" ")+"\0",Ns=(s,e,t,i)=>i===void 0?!1:Se(s,e,t,i.getTime()/1e3),Ra=new Array(156).join("\0"),Ce=(s,e,t,i)=>i===void 0?!1:(s.write(i+Ra,e,t,"utf8"),i.length!==Buffer.byteLength(i)||i.length>t)});var ti=d(ei=>{"use strict";Object.defineProperty(ei,"__esModule",{value:!0});ei.Pax=void 0;var va=__nccwpck_require__(6760),Ta=Je(),Ls=class s{atime;mtime;ctime;charset;comment;gid;uid;gname;uname;linkpath;dev;ino;nlink;path;size;mode;global;constructor(e,t=!1){this.atime=e.atime,this.charset=e.charset,this.comment=e.comment,this.ctime=e.ctime,this.dev=e.dev,this.gid=e.gid,this.global=t,this.gname=e.gname,this.ino=e.ino,this.linkpath=e.linkpath,this.mtime=e.mtime,this.nlink=e.nlink,this.path=e.path,this.size=e.size,this.uid=e.uid,this.uname=e.uname}encode(){let e=this.encodeBody();if(e==="")return Buffer.allocUnsafe(0);let t=Buffer.byteLength(e),i=512*Math.ceil(1+t/512),r=Buffer.allocUnsafe(i);for(let n=0;n<512;n++)r[n]=0;new Ta.Header({path:("PaxHeader/"+(0,va.basename)(this.path??"")).slice(0,99),mode:this.mode||420,uid:this.uid,gid:this.gid,size:t,mtime:this.mtime,type:this.global?"GlobalExtendedHeader":"ExtendedHeader",linkpath:"",uname:this.uname||"",gname:this.gname||"",devmaj:0,devmin:0,atime:this.atime,ctime:this.ctime}).encode(r),r.write(e,512,t,"utf8");for(let n=t+512;n<r.length;n++)r[n]=0;return r}encodeBody(){return this.encodeField("path")+this.encodeField("ctime")+this.encodeField("atime")+this.encodeField("dev")+this.encodeField("ino")+this.encodeField("nlink")+this.encodeField("charset")+this.encodeField("comment")+this.encodeField("gid")+this.encodeField("gname")+this.encodeField("linkpath")+this.encodeField("mtime")+this.encodeField("size")+this.encodeField("uid")+this.encodeField("uname")}encodeField(e){if(this[e]===void 0)return"";let t=this[e],i=t instanceof Date?t.getTime()/1e3:t,r=" "+(e==="dev"||e==="ino"||e==="nlink"?"SCHILY.":"")+e+"="+i+`
+`,n=Buffer.byteLength(r),o=Math.floor(Math.log(n)/Math.log(10))+1;return n+o>=Math.pow(10,o)&&(o+=1),o+n+r}static parse(e,t,i=!1){return new s(Da(Pa(e),t),i)}};ei.Pax=Ls;var Da=(s,e)=>e?Object.assign({},e,s):s,Pa=s=>s.replace(/\n$/,"").split(`
+`).reduce(Na,Object.create(null)),Na=(s,e)=>{let t=parseInt(e,10);if(t!==Buffer.byteLength(e)+1)return s;e=e.slice((t+" ").length);let i=e.split("="),r=i.shift();if(!r)return s;let n=r.replace(/^SCHILY\.(dev|ino|nlink)/,"$1"),o=i.join("=");return s[n]=/^([A-Z]+\.)?([mac]|birth|creation)time$/.test(n)?new Date(Number(o)*1e3):/^[0-9]+$/.test(o)?+o:o,s}});var et=d(ii=>{"use strict";Object.defineProperty(ii,"__esModule",{value:!0});ii.normalizeWindowsPath=void 0;var Ma=process.env.TESTING_TAR_FAKE_PLATFORM||process.platform;ii.normalizeWindowsPath=Ma!=="win32"?s=>s:s=>s&&s.replaceAll(/\\/g,"/")});var ni=d(ri=>{"use strict";Object.defineProperty(ri,"__esModule",{value:!0});ri.ReadEntry=void 0;var La=We(),si=et(),As=class extends La.Minipass{extended;globalExtended;header;startBlockSize;blockRemain;remain;type;meta=!1;ignore=!1;path;mode;uid;gid;uname;gname;size=0;mtime;atime;ctime;linkpath;dev;ino;nlink;invalid=!1;absolute;unsupported=!1;constructor(e,t,i){switch(super({}),this.pause(),this.extended=t,this.globalExtended=i,this.header=e,this.remain=e.size??0,this.startBlockSize=512*Math.ceil(this.remain/512),this.blockRemain=this.startBlockSize,this.type=e.type,this.type){case"File":case"OldFile":case"Link":case"SymbolicLink":case"CharacterDevice":case"BlockDevice":case"Directory":case"FIFO":case"ContiguousFile":case"GNUDumpDir":break;case"NextFileHasLongLinkpath":case"NextFileHasLongPath":case"OldGnuLongPath":case"GlobalExtendedHeader":case"ExtendedHeader":case"OldExtendedHeader":this.meta=!0;break;default:this.ignore=!0}if(!e.path)throw new Error("no path provided for tar.ReadEntry");this.path=(0,si.normalizeWindowsPath)(e.path),this.mode=e.mode,this.mode&&(this.mode=this.mode&4095),this.uid=e.uid,this.gid=e.gid,this.uname=e.uname,this.gname=e.gname,this.size=this.remain,this.mtime=e.mtime,this.atime=e.atime,this.ctime=e.ctime,this.linkpath=e.linkpath?(0,si.normalizeWindowsPath)(e.linkpath):void 0,this.uname=e.uname,this.gname=e.gname,t&&this.#e(t),i&&this.#e(i,!0)}write(e){let t=e.length;if(t>this.blockRemain)throw new Error("writing more to entry than is appropriate");let i=this.remain,r=this.blockRemain;return this.remain=Math.max(0,i-t),this.blockRemain=Math.max(0,r-t),this.ignore?!0:i>=t?super.write(e):super.write(e.subarray(0,i))}#e(e,t=!1){e.path&&(e.path=(0,si.normalizeWindowsPath)(e.path)),e.linkpath&&(e.linkpath=(0,si.normalizeWindowsPath)(e.linkpath)),Object.assign(this,Object.fromEntries(Object.entries(e).filter(([i,r])=>!(r==null||i==="path"&&t))))}};ri.ReadEntry=As});var ai=d(oi=>{"use strict";Object.defineProperty(oi,"__esModule",{value:!0});oi.warnMethod=void 0;var Aa=(s,e,t,i={})=>{s.file&&(i.file=s.file),s.cwd&&(i.cwd=s.cwd),i.code=t instanceof Error&&t.code||e,i.tarCode=e,!s.strict&&i.recoverable!==!1?(t instanceof Error&&(i=Object.assign(t,i),t=t.message),s.emit("warn",e,t,i)):t instanceof Error?s.emit("error",Object.assign(t,i)):s.emit("error",Object.assign(new Error(`${e}: ${t}`),i))};oi.warnMethod=Aa});var pi=d(mi=>{"use strict";Object.defineProperty(mi,"__esModule",{value:!0});mi.Parser=void 0;var Ia=__nccwpck_require__(4434),Is=Ts(),Kr=Je(),Vr=ti(),Fa=ni(),Ca=ai(),Ba=1024*1024,ks=Buffer.from([31,139]),js=Buffer.from([40,181,47,253]),za=Math.max(ks.length,js.length),H=Symbol("state"),Be=Symbol("writeEntry"),de=Symbol("readEntry"),Fs=Symbol("nextEntry"),$r=Symbol("processEntry"),re=Symbol("extendedHeader"),gt=Symbol("globalExtendedHeader"),ge=Symbol("meta"),Xr=Symbol("emitMeta"),_=Symbol("buffer"),me=Symbol("queue"),Oe=Symbol("ended"),Cs=Symbol("emittedEnd"),ze=Symbol("emit"),S=Symbol("unzip"),hi=Symbol("consumeChunk"),li=Symbol("consumeChunkSub"),Bs=Symbol("consumeBody"),Qr=Symbol("consumeMeta"),Jr=Symbol("consumeHeader"),Ot=Symbol("consuming"),zs=Symbol("bufferConcat"),ui=Symbol("maybeEnd"),tt=Symbol("writing"),Re=Symbol("aborted"),ci=Symbol("onDone"),ke=Symbol("sawValidEntry"),fi=Symbol("sawNullBlock"),di=Symbol("sawEOF"),en=Symbol("closeStream"),ka=()=>!0,xs=class extends Ia.EventEmitter{file;strict;maxMetaEntrySize;filter;brotli;zstd;writable=!0;readable=!1;[me]=[];[_];[de];[Be];[H]="begin";[ge]="";[re];[gt];[Oe]=!1;[S];[Re]=!1;[ke];[fi]=!1;[di]=!1;[tt]=!1;[Ot]=!1;[Cs]=!1;constructor(e={}){super(),this.file=e.file||"",this.on(ci,()=>{(this[H]==="begin"||this[ke]===!1)&&this.warn("TAR_BAD_ARCHIVE","Unrecognized archive format")}),e.ondone?this.on(ci,e.ondone):this.on(ci,()=>{this.emit("prefinish"),this.emit("finish"),this.emit("end")}),this.strict=!!e.strict,this.maxMetaEntrySize=e.maxMetaEntrySize||Ba,this.filter=typeof e.filter=="function"?e.filter:ka;let t=e.file&&(e.file.endsWith(".tar.br")||e.file.endsWith(".tbr"));this.brotli=!(e.gzip||e.zstd)&&e.brotli!==void 0?e.brotli:t?void 0:!1;let i=e.file&&(e.file.endsWith(".tar.zst")||e.file.endsWith(".tzst"));this.zstd=!(e.gzip||e.brotli)&&e.zstd!==void 0?e.zstd:i?!0:void 0,this.on("end",()=>this[en]()),typeof e.onwarn=="function"&&this.on("warn",e.onwarn),typeof e.onReadEntry=="function"&&this.on("entry",e.onReadEntry)}warn(e,t,i={}){(0,Ca.warnMethod)(this,e,t,i)}[Jr](e,t){this[ke]===void 0&&(this[ke]=!1);let i;try{i=new Kr.Header(e,t,this[re],this[gt])}catch(r){return this.warn("TAR_ENTRY_INVALID",r)}if(i.nullBlock)this[fi]?(this[di]=!0,this[H]==="begin"&&(this[H]="header"),this[ze]("eof")):(this[fi]=!0,this[ze]("nullBlock"));else if(this[fi]=!1,!i.cksumValid)this.warn("TAR_ENTRY_INVALID","checksum failure",{header:i});else if(!i.path)this.warn("TAR_ENTRY_INVALID","path is required",{header:i});else{let r=i.type;if(/^(Symbolic)?Link$/.test(r)&&!i.linkpath)this.warn("TAR_ENTRY_INVALID","linkpath required",{header:i});else if(!/^(Symbolic)?Link$/.test(r)&&!/^(Global)?ExtendedHeader$/.test(r)&&i.linkpath)this.warn("TAR_ENTRY_INVALID","linkpath forbidden",{header:i});else{let n=this[Be]=new Fa.ReadEntry(i,this[re],this[gt]);if(!this[ke])if(n.remain){let o=()=>{n.invalid||(this[ke]=!0)};n.on("end",o)}else this[ke]=!0;n.meta?n.size>this.maxMetaEntrySize?(n.ignore=!0,this[ze]("ignoredEntry",n),this[H]="ignore",n.resume()):n.size>0&&(this[ge]="",n.on("data",o=>this[ge]+=o),this[H]="meta"):(this[re]=void 0,n.ignore=n.ignore||!this.filter(n.path,n),n.ignore?(this[ze]("ignoredEntry",n),this[H]=n.remain?"ignore":"header",n.resume()):(n.remain?this[H]="body":(this[H]="header",n.end()),this[de]?this[me].push(n):(this[me].push(n),this[Fs]())))}}}[en](){queueMicrotask(()=>this.emit("close"))}[$r](e){let t=!0;if(!e)this[de]=void 0,t=!1;else if(Array.isArray(e)){let[i,...r]=e;this.emit(i,...r)}else this[de]=e,this.emit("entry",e),e.emittedEnd||(e.on("end",()=>this[Fs]()),t=!1);return t}[Fs](){do;while(this[$r](this[me].shift()));if(this[me].length===0){let e=this[de];!e||e.flowing||e.size===e.remain?this[tt]||this.emit("drain"):e.once("drain",()=>this.emit("drain"))}}[Bs](e,t){let i=this[Be];if(!i)throw new Error("attempt to consume body without entry??");let r=i.blockRemain??0,n=r>=e.length&&t===0?e:e.subarray(t,t+r);return i.write(n),i.blockRemain||(this[H]="header",this[Be]=void 0,i.end()),n.length}[Qr](e,t){let i=this[Be],r=this[Bs](e,t);return!this[Be]&&i&&this[Xr](i),r}[ze](e,t,i){this[me].length===0&&!this[de]?this.emit(e,t,i):this[me].push([e,t,i])}[Xr](e){switch(this[ze]("meta",this[ge]),e.type){case"ExtendedHeader":case"OldExtendedHeader":this[re]=Vr.Pax.parse(this[ge],this[re],!1);break;case"GlobalExtendedHeader":this[gt]=Vr.Pax.parse(this[ge],this[gt],!0);break;case"NextFileHasLongPath":case"OldGnuLongPath":{let t=this[re]??Object.create(null);this[re]=t,t.path=this[ge].replace(/\0.*/,"");break}case"NextFileHasLongLinkpath":{let t=this[re]||Object.create(null);this[re]=t,t.linkpath=this[ge].replace(/\0.*/,"");break}default:throw new Error("unknown meta: "+e.type)}}abort(e){this[Re]=!0,this.emit("abort",e),this.warn("TAR_ABORT",e,{recoverable:!1})}write(e,t,i){if(typeof t=="function"&&(i=t,t=void 0),typeof e=="string"&&(e=Buffer.from(e,typeof t=="string"?t:"utf8")),this[Re])return i?.(),!1;if((this[S]===void 0||this.brotli===void 0&&this[S]===!1)&&e){if(this[_]&&(e=Buffer.concat([this[_],e]),this[_]=void 0),e.length<za)return this[_]=e,i?.(),!0;for(let h=0;this[S]===void 0&&h<ks.length;h++)e[h]!==ks[h]&&(this[S]=!1);let o=!1;if(this[S]===!1&&this.zstd!==!1){o=!0;for(let h=0;h<js.length;h++)if(e[h]!==js[h]){o=!1;break}}let a=this.brotli===void 0&&!o;if(this[S]===!1&&a)if(e.length<512)if(this[Oe])this.brotli=!0;else return this[_]=e,i?.(),!0;else try{new Kr.Header(e.subarray(0,512)),this.brotli=!1}catch{this.brotli=!0}if(this[S]===void 0||this[S]===!1&&(this.brotli||o)){let h=this[Oe];this[Oe]=!1,this[S]=this[S]===void 0?new Is.Unzip({}):o?new Is.ZstdDecompress({}):new Is.BrotliDecompress({}),this[S].on("data",u=>this[hi](u)),this[S].on("error",u=>this.abort(u)),this[S].on("end",()=>{this[Oe]=!0,this[hi]()}),this[tt]=!0;let l=!!this[S][h?"end":"write"](e);return this[tt]=!1,i?.(),l}}this[tt]=!0,this[S]?this[S].write(e):this[hi](e),this[tt]=!1;let n=this[me].length>0?!1:this[de]?this[de].flowing:!0;return!n&&this[me].length===0&&this[de]?.once("drain",()=>this.emit("drain")),i?.(),n}[zs](e){e&&!this[Re]&&(this[_]=this[_]?Buffer.concat([this[_],e]):e)}[ui](){if(this[Oe]&&!this[Cs]&&!this[Re]&&!this[Ot]){this[Cs]=!0;let e=this[Be];if(e&&e.blockRemain){let t=this[_]?this[_].length:0;this.warn("TAR_BAD_ARCHIVE",`Truncated input (needed ${e.blockRemain} more bytes, only ${t} available)`,{entry:e}),this[_]&&e.write(this[_]),e.end()}this[ze](ci)}}[hi](e){if(this[Ot]&&e)this[zs](e);else if(!e&&!this[_])this[ui]();else if(e){if(this[Ot]=!0,this[_]){this[zs](e);let t=this[_];this[_]=void 0,this[li](t)}else this[li](e);for(;this[_]&&this[_]?.length>=512&&!this[Re]&&!this[di];){let t=this[_];this[_]=void 0,this[li](t)}this[Ot]=!1}(!this[_]||this[Oe])&&this[ui]()}[li](e){let t=0,i=e.length;for(;t+512<=i&&!this[Re]&&!this[di];)switch(this[H]){case"begin":case"header":this[Jr](e,t),t+=512;break;case"ignore":case"body":t+=this[Bs](e,t);break;case"meta":t+=this[Qr](e,t);break;default:throw new Error("invalid state: "+this[H])}t<i&&(this[_]=this[_]?Buffer.concat([e.subarray(t),this[_]]):e.subarray(t))}end(e,t,i){return typeof e=="function"&&(i=e,t=void 0,e=void 0),typeof t=="function"&&(i=t,t=void 0),typeof e=="string"&&(e=Buffer.from(e,t)),i&&this.once("finish",i),this[Re]||(this[S]?(e&&this[S].write(e),this[S].end()):(this[Oe]=!0,(this.brotli===void 0||this.zstd===void 0)&&(e=e||Buffer.alloc(0)),e&&this.write(e),this[ui]())),this}};mi.Parser=xs});var wi=d(_i=>{"use strict";Object.defineProperty(_i,"__esModule",{value:!0});_i.stripTrailingSlashes=void 0;var ja=s=>{let e=s.length-1,t=-1;for(;e>-1&&s.charAt(e)==="/";)t=e,e--;return t===-1?s:s.slice(0,t)};_i.stripTrailingSlashes=ja});var st=d(C=>{"use strict";var xa=C&&C.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),Ua=C&&C.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),qa=C&&C.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&xa(t,e,i[r]);return Ua(t,e),t}})(),Wa=C&&C.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(C,"__esModule",{value:!0});C.list=C.filesFilter=void 0;var Ha=qa(Ke()),it=Wa(__nccwpck_require__(3024)),tn=__nccwpck_require__(6928),Za=Ve(),yi=pi(),Us=wi(),Ga=s=>{let e=s.onReadEntry;s.onReadEntry=e?t=>{e(t),t.resume()}:t=>t.resume()},Ya=(s,e)=>{let t=new Map(e.map(n=>[(0,Us.stripTrailingSlashes)(n),!0])),i=s.filter,r=(n,o="")=>{let a=o||(0,tn.parse)(n).root||".",h;if(n===a)h=!1;else{let l=t.get(n);h=l!==void 0?l:r((0,tn.dirname)(n),a)}return t.set(n,h),h};s.filter=i?(n,o)=>i(n,o)&&r((0,Us.stripTrailingSlashes)(n)):n=>r((0,Us.stripTrailingSlashes)(n))};C.filesFilter=Ya;var Ka=s=>{let e=new yi.Parser(s),t=s.file,i;try{i=it.default.openSync(t,"r");let r=it.default.fstatSync(i),n=s.maxReadSize||16*1024*1024;if(r.size<n){let o=Buffer.allocUnsafe(r.size),a=it.default.readSync(i,o,0,r.size,0);e.end(a===o.byteLength?o:o.subarray(0,a))}else{let o=0,a=Buffer.allocUnsafe(n);for(;o<r.size;){let h=it.default.readSync(i,a,0,n,o);if(h===0)break;o+=h,e.write(a.subarray(0,h))}e.end()}}finally{if(typeof i=="number")try{it.default.closeSync(i)}catch{}}},Va=(s,e)=>{let t=new yi.Parser(s),i=s.maxReadSize||16*1024*1024,r=s.file;return new Promise((o,a)=>{t.on("error",a),t.on("end",o),it.default.stat(r,(h,l)=>{if(h)a(h);else{let u=new Ha.ReadStream(r,{readSize:i,size:l.size});u.on("error",a),u.pipe(t)}})})};C.list=(0,Za.makeCommand)(Ka,Va,s=>new yi.Parser(s),s=>new yi.Parser(s),(s,e)=>{e?.length&&(0,C.filesFilter)(s,e),s.noResume||Ga(s)})});var sn=d(Ei=>{"use strict";Object.defineProperty(Ei,"__esModule",{value:!0});Ei.modeFix=void 0;var $a=(s,e,t)=>(s&=4095,t&&(s=(s|384)&-19),e&&(s&256&&(s|=64),s&32&&(s|=8),s&4&&(s|=1)),s);Ei.modeFix=$a});var qs=d(bi=>{"use strict";Object.defineProperty(bi,"__esModule",{value:!0});bi.stripAbsolutePath=void 0;var Xa=__nccwpck_require__(6760),{isAbsolute:Qa,parse:rn}=Xa.win32,Ja=s=>{let e="",t=rn(s);for(;Qa(s)||t.root;){let i=s.charAt(0)==="/"&&s.slice(0,4)!=="//?/"?"/":t.root;s=s.slice(i.length),e+=i,t=rn(s)}return[e,s]};bi.stripAbsolutePath=Ja});var Hs=d(rt=>{"use strict";Object.defineProperty(rt,"__esModule",{value:!0});rt.decode=rt.encode=void 0;var Si=["|","<",">","?",":"],Ws=Si.map(s=>String.fromCodePoint(61440+Number(s.codePointAt(0)))),eh=new Map(Si.map((s,e)=>[s,Ws[e]])),th=new Map(Ws.map((s,e)=>[s,Si[e]])),ih=s=>Si.reduce((e,t)=>e.split(t).join(eh.get(t)),s);rt.encode=ih;var sh=s=>Ws.reduce((e,t)=>e.split(t).join(th.get(t)),s);rt.decode=sh});var tr=d(M=>{"use strict";var rh=M&&M.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),nh=M&&M.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),oh=M&&M.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&rh(t,e,i[r]);return nh(t,e),t}})(),un=M&&M.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(M,"__esModule",{value:!0});M.WriteEntryTar=M.WriteEntrySync=M.WriteEntry=void 0;var oe=un(__nccwpck_require__(9896)),cn=We(),nn=un(__nccwpck_require__(6928)),fn=Je(),dn=sn(),ne=et(),mn=$t(),pn=ti(),_n=qs(),ah=wi(),wn=ai(),hh=oh(Hs()),yn=(s,e)=>e?(s=(0,ne.normalizeWindowsPath)(s).replace(/^\.(\/|$)/,""),(0,ah.stripTrailingSlashes)(e)+"/"+s):(0,ne.normalizeWindowsPath)(s),lh=16*1024*1024,on=Symbol("process"),an=Symbol("file"),hn=Symbol("directory"),Gs=Symbol("symlink"),ln=Symbol("hardlink"),Rt=Symbol("header"),gi=Symbol("read"),Ys=Symbol("lstat"),Oi=Symbol("onlstat"),Ks=Symbol("onread"),Vs=Symbol("onreadlink"),$s=Symbol("openfile"),Xs=Symbol("onopenfile"),ve=Symbol("close"),Ri=Symbol("mode"),Qs=Symbol("awaitDrain"),Zs=Symbol("ondrain"),ae=Symbol("prefix"),vi=class extends cn.Minipass{path;portable;myuid=process.getuid&&process.getuid()||0;myuser=process.env.USER||"";maxReadSize;linkCache;statCache;preservePaths;cwd;strict;mtime;noPax;noMtime;prefix;fd;blockLen=0;blockRemain=0;buf;pos=0;remain=0;length=0;offset=0;win32;absolute;header;type;linkpath;stat;onWriteEntry;#e=!1;constructor(e,t={}){let i=(0,mn.dealias)(t);super(),this.path=(0,ne.normalizeWindowsPath)(e),this.portable=!!i.portable,this.maxReadSize=i.maxReadSize||lh,this.linkCache=i.linkCache||new Map,this.statCache=i.statCache||new Map,this.preservePaths=!!i.preservePaths,this.cwd=(0,ne.normalizeWindowsPath)(i.cwd||process.cwd()),this.strict=!!i.strict,this.noPax=!!i.noPax,this.noMtime=!!i.noMtime,this.mtime=i.mtime,this.prefix=i.prefix?(0,ne.normalizeWindowsPath)(i.prefix):void 0,this.onWriteEntry=i.onWriteEntry,typeof i.onwarn=="function"&&this.on("warn",i.onwarn);let r=!1;if(!this.preservePaths){let[o,a]=(0,_n.stripAbsolutePath)(this.path);o&&typeof a=="string"&&(this.path=a,r=o)}this.win32=!!i.win32||process.platform==="win32",this.win32&&(this.path=hh.decode(this.path.replaceAll(/\\/g,"/")),e=e.replaceAll(/\\/g,"/")),this.absolute=(0,ne.normalizeWindowsPath)(i.absolute||nn.default.resolve(this.cwd,e)),this.path===""&&(this.path="./"),r&&this.warn("TAR_ENTRY_INFO",`stripping ${r} from absolute path`,{entry:this,path:r+this.path});let n=this.statCache.get(this.absolute);n?this[Oi](n):this[Ys]()}warn(e,t,i={}){return(0,wn.warnMethod)(this,e,t,i)}emit(e,...t){return e==="error"&&(this.#e=!0),super.emit(e,...t)}[Ys](){oe.default.lstat(this.absolute,(e,t)=>{if(e)return this.emit("error",e);this[Oi](t)})}[Oi](e){this.statCache.set(this.absolute,e),this.stat=e,e.isFile()||(e.size=0),this.type=uh(e),this.emit("stat",e),this[on]()}[on](){switch(this.type){case"File":return this[an]();case"Directory":return this[hn]();case"SymbolicLink":return this[Gs]();default:return this.end()}}[Ri](e){return(0,dn.modeFix)(e,this.type==="Directory",this.portable)}[ae](e){return yn(e,this.prefix)}[Rt](){if(!this.stat)throw new Error("cannot write header before stat");this.type==="Directory"&&this.portable&&(this.noMtime=!0),this.onWriteEntry?.(this),this.header=new fn.Header({path:this[ae](this.path),linkpath:this.type==="Link"&&this.linkpath!==void 0?this[ae](this.linkpath):this.linkpath,mode:this[Ri](this.stat.mode),uid:this.portable?void 0:this.stat.uid,gid:this.portable?void 0:this.stat.gid,size:this.stat.size,mtime:this.noMtime?void 0:this.mtime||this.stat.mtime,type:this.type==="Unsupported"?void 0:this.type,uname:this.portable?void 0:this.stat.uid===this.myuid?this.myuser:"",atime:this.portable?void 0:this.stat.atime,ctime:this.portable?void 0:this.stat.ctime}),this.header.encode()&&!this.noPax&&super.write(new pn.Pax({atime:this.portable?void 0:this.header.atime,ctime:this.portable?void 0:this.header.ctime,gid:this.portable?void 0:this.header.gid,mtime:this.noMtime?void 0:this.mtime||this.header.mtime,path:this[ae](this.path),linkpath:this.type==="Link"&&this.linkpath!==void 0?this[ae](this.linkpath):this.linkpath,size:this.header.size,uid:this.portable?void 0:this.header.uid,uname:this.portable?void 0:this.header.uname,dev:this.portable?void 0:this.stat.dev,ino:this.portable?void 0:this.stat.ino,nlink:this.portable?void 0:this.stat.nlink}).encode());let e=this.header?.block;if(!e)throw new Error("failed to encode header");super.write(e)}[hn](){if(!this.stat)throw new Error("cannot create directory entry without stat");this.path.slice(-1)!=="/"&&(this.path+="/"),this.stat.size=0,this[Rt](),this.end()}[Gs](){oe.default.readlink(this.absolute,(e,t)=>{if(e)return this.emit("error",e);this[Vs](t)})}[Vs](e){this.linkpath=(0,ne.normalizeWindowsPath)(e),this[Rt](),this.end()}[ln](e){if(!this.stat)throw new Error("cannot create link entry without stat");this.type="Link",this.linkpath=(0,ne.normalizeWindowsPath)(nn.default.relative(this.cwd,e)),this.stat.size=0,this[Rt](),this.end()}[an](){if(!this.stat)throw new Error("cannot create file entry without stat");if(this.stat.nlink>1){let e=`${this.stat.dev}:${this.stat.ino}`,t=this.linkCache.get(e);if(t?.indexOf(this.cwd)===0)return this[ln](t);this.linkCache.set(e,this.absolute)}if(this[Rt](),this.stat.size===0)return this.end();this[$s]()}[$s](){oe.default.open(this.absolute,"r",(e,t)=>{if(e)return this.emit("error",e);this[Xs](t)})}[Xs](e){if(this.fd=e,this.#e)return this[ve]();if(!this.stat)throw new Error("should stat before calling onopenfile");this.blockLen=512*Math.ceil(this.stat.size/512),this.blockRemain=this.blockLen;let t=Math.min(this.blockLen,this.maxReadSize);this.buf=Buffer.allocUnsafe(t),this.offset=0,this.pos=0,this.remain=this.stat.size,this.length=this.buf.length,this[gi]()}[gi](){let{fd:e,buf:t,offset:i,length:r,pos:n}=this;if(e===void 0||t===void 0)throw new Error("cannot read file without first opening");oe.default.read(e,t,i,r,n,(o,a)=>{if(o)return this[ve](()=>this.emit("error",o));this[Ks](a)})}[ve](e=()=>{}){this.fd!==void 0&&oe.default.close(this.fd,e)}[Ks](e){if(e<=0&&this.remain>0){let r=Object.assign(new Error("encountered unexpected EOF"),{path:this.absolute,syscall:"read",code:"EOF"});return this[ve](()=>this.emit("error",r))}if(e>this.remain){let r=Object.assign(new Error("did not encounter expected EOF"),{path:this.absolute,syscall:"read",code:"EOF"});return this[ve](()=>this.emit("error",r))}if(!this.buf)throw new Error("should have created buffer prior to reading");if(e===this.remain)for(let r=e;r<this.length&&e<this.blockRemain;r++)this.buf[r+this.offset]=0,e++,this.remain++;let t=this.offset===0&&e===this.buf.length?this.buf:this.buf.subarray(this.offset,this.offset+e);this.write(t)?this[Zs]():this[Qs](()=>this[Zs]())}[Qs](e){this.once("drain",e)}write(e,t,i){if(typeof t=="function"&&(i=t,t=void 0),typeof e=="string"&&(e=Buffer.from(e,typeof t=="string"?t:"utf8")),this.blockRemain<e.length){let r=Object.assign(new Error("writing more data than expected"),{path:this.absolute});return this.emit("error",r)}return this.remain-=e.length,this.blockRemain-=e.length,this.pos+=e.length,this.offset+=e.length,super.write(e,null,i)}[Zs](){if(!this.remain)return this.blockRemain&&super.write(Buffer.alloc(this.blockRemain)),this[ve](e=>e?this.emit("error",e):this.end());if(!this.buf)throw new Error("buffer lost somehow in ONDRAIN");this.offset>=this.length&&(this.buf=Buffer.allocUnsafe(Math.min(this.blockRemain,this.buf.length)),this.offset=0),this.length=this.buf.length-this.offset,this[gi]()}};M.WriteEntry=vi;var Js=class extends vi{sync=!0;[Ys](){this[Oi](oe.default.lstatSync(this.absolute))}[Gs](){this[Vs](oe.default.readlinkSync(this.absolute))}[$s](){this[Xs](oe.default.openSync(this.absolute,"r"))}[gi](){let e=!0;try{let{fd:t,buf:i,offset:r,length:n,pos:o}=this;if(t===void 0||i===void 0)throw new Error("fd and buf must be set in READ method");let a=oe.default.readSync(t,i,r,n,o);this[Ks](a),e=!1}finally{if(e)try{this[ve](()=>{})}catch{}}}[Qs](e){e()}[ve](e=()=>{}){this.fd!==void 0&&oe.default.closeSync(this.fd),e()}};M.WriteEntrySync=Js;var er=class extends cn.Minipass{blockLen=0;blockRemain=0;buf=0;pos=0;remain=0;length=0;preservePaths;portable;strict;noPax;noMtime;readEntry;type;prefix;path;mode;uid;gid;uname;gname;header;mtime;atime;ctime;linkpath;size;onWriteEntry;warn(e,t,i={}){return(0,wn.warnMethod)(this,e,t,i)}constructor(e,t={}){let i=(0,mn.dealias)(t);super(),this.preservePaths=!!i.preservePaths,this.portable=!!i.portable,this.strict=!!i.strict,this.noPax=!!i.noPax,this.noMtime=!!i.noMtime,this.onWriteEntry=i.onWriteEntry,this.readEntry=e;let{type:r}=e;if(r==="Unsupported")throw new Error("writing entry that should be ignored");this.type=r,this.type==="Directory"&&this.portable&&(this.noMtime=!0),this.prefix=i.prefix,this.path=(0,ne.normalizeWindowsPath)(e.path),this.mode=e.mode!==void 0?this[Ri](e.mode):void 0,this.uid=this.portable?void 0:e.uid,this.gid=this.portable?void 0:e.gid,this.uname=this.portable?void 0:e.uname,this.gname=this.portable?void 0:e.gname,this.size=e.size,this.mtime=this.noMtime?void 0:i.mtime||e.mtime,this.atime=this.portable?void 0:e.atime,this.ctime=this.portable?void 0:e.ctime,this.linkpath=e.linkpath!==void 0?(0,ne.normalizeWindowsPath)(e.linkpath):void 0,typeof i.onwarn=="function"&&this.on("warn",i.onwarn);let n=!1;if(!this.preservePaths){let[a,h]=(0,_n.stripAbsolutePath)(this.path);a&&typeof h=="string"&&(this.path=h,n=a)}this.remain=e.size,this.blockRemain=e.startBlockSize,this.onWriteEntry?.(this),this.header=new fn.Header({path:this[ae](this.path),linkpath:this.type==="Link"&&this.linkpath!==void 0?this[ae](this.linkpath):this.linkpath,mode:this.mode,uid:this.portable?void 0:this.uid,gid:this.portable?void 0:this.gid,size:this.size,mtime:this.noMtime?void 0:this.mtime,type:this.type,uname:this.portable?void 0:this.uname,atime:this.portable?void 0:this.atime,ctime:this.portable?void 0:this.ctime}),n&&this.warn("TAR_ENTRY_INFO",`stripping ${n} from absolute path`,{entry:this,path:n+this.path}),this.header.encode()&&!this.noPax&&super.write(new pn.Pax({atime:this.portable?void 0:this.atime,ctime:this.portable?void 0:this.ctime,gid:this.portable?void 0:this.gid,mtime:this.noMtime?void 0:this.mtime,path:this[ae](this.path),linkpath:this.type==="Link"&&this.linkpath!==void 0?this[ae](this.linkpath):this.linkpath,size:this.size,uid:this.portable?void 0:this.uid,uname:this.portable?void 0:this.uname,dev:this.portable?void 0:this.readEntry.dev,ino:this.portable?void 0:this.readEntry.ino,nlink:this.portable?void 0:this.readEntry.nlink}).encode());let o=this.header?.block;if(!o)throw new Error("failed to encode header");super.write(o),e.pipe(this)}[ae](e){return yn(e,this.prefix)}[Ri](e){return(0,dn.modeFix)(e,this.type==="Directory",this.portable)}write(e,t,i){typeof t=="function"&&(i=t,t=void 0),typeof e=="string"&&(e=Buffer.from(e,typeof t=="string"?t:"utf8"));let r=e.length;if(r>this.blockRemain)throw new Error("writing more to entry than is appropriate");return this.blockRemain-=r,super.write(e,i)}end(e,t,i){return this.blockRemain&&super.write(Buffer.alloc(this.blockRemain)),typeof e=="function"&&(i=e,t=void 0,e=void 0),typeof t=="function"&&(i=t,t=void 0),typeof e=="string"&&(e=Buffer.from(e,t??"utf8")),i&&this.once("finish",i),e?super.end(e,i):super.end(i),this}};M.WriteEntryTar=er;var uh=s=>s.isFile()?"File":s.isDirectory()?"Directory":s.isSymbolicLink()?"SymbolicLink":"Unsupported"});var En=d(ot=>{"use strict";Object.defineProperty(ot,"__esModule",{value:!0});ot.Node=ot.Yallist=void 0;var ir=class s{tail;head;length=0;static create(e=[]){return new s(e)}constructor(e=[]){for(let t of e)this.push(t)}*[Symbol.iterator](){for(let e=this.head;e;e=e.next)yield e.value}removeNode(e){if(e.list!==this)throw new Error("removing node which does not belong to this list");let t=e.next,i=e.prev;return t&&(t.prev=i),i&&(i.next=t),e===this.head&&(this.head=t),e===this.tail&&(this.tail=i),this.length--,e.next=void 0,e.prev=void 0,e.list=void 0,t}unshiftNode(e){if(e===this.head)return;e.list&&e.list.removeNode(e);let t=this.head;e.list=this,e.next=t,t&&(t.prev=e),this.head=e,this.tail||(this.tail=e),this.length++}pushNode(e){if(e===this.tail)return;e.list&&e.list.removeNode(e);let t=this.tail;e.list=this,e.prev=t,t&&(t.next=e),this.tail=e,this.head||(this.head=e),this.length++}push(...e){for(let t=0,i=e.length;t<i;t++)fh(this,e[t]);return this.length}unshift(...e){for(var t=0,i=e.length;t<i;t++)dh(this,e[t]);return this.length}pop(){if(!this.tail)return;let e=this.tail.value,t=this.tail;return this.tail=this.tail.prev,this.tail?this.tail.next=void 0:this.head=void 0,t.list=void 0,this.length--,e}shift(){if(!this.head)return;let e=this.head.value,t=this.head;return this.head=this.head.next,this.head?this.head.prev=void 0:this.tail=void 0,t.list=void 0,this.length--,e}forEach(e,t){t=t||this;for(let i=this.head,r=0;i;r++)e.call(t,i.value,r,this),i=i.next}forEachReverse(e,t){t=t||this;for(let i=this.tail,r=this.length-1;i;r--)e.call(t,i.value,r,this),i=i.prev}get(e){let t=0,i=this.head;for(;i&&t<e;t++)i=i.next;if(t===e&&i)return i.value}getReverse(e){let t=0,i=this.tail;for(;i&&t<e;t++)i=i.prev;if(t===e&&i)return i.value}map(e,t){t=t||this;let i=new s;for(let r=this.head;r;)i.push(e.call(t,r.value,this)),r=r.next;return i}mapReverse(e,t){t=t||this;var i=new s;for(let r=this.tail;r;)i.push(e.call(t,r.value,this)),r=r.prev;return i}reduce(e,t){let i,r=this.head;if(arguments.length>1)i=t;else if(this.head)r=this.head.next,i=this.head.value;else throw new TypeError("Reduce of empty list with no initial value");for(var n=0;r;n++)i=e(i,r.value,n),r=r.next;return i}reduceReverse(e,t){let i,r=this.tail;if(arguments.length>1)i=t;else if(this.tail)r=this.tail.prev,i=this.tail.value;else throw new TypeError("Reduce of empty list with no initial value");for(let n=this.length-1;r;n--)i=e(i,r.value,n),r=r.prev;return i}toArray(){let e=new Array(this.length);for(let t=0,i=this.head;i;t++)e[t]=i.value,i=i.next;return e}toArrayReverse(){let e=new Array(this.length);for(let t=0,i=this.tail;i;t++)e[t]=i.value,i=i.prev;return e}slice(e=0,t=this.length){t<0&&(t+=this.length),e<0&&(e+=this.length);let i=new s;if(t<e||t<0)return i;e<0&&(e=0),t>this.length&&(t=this.length);let r=this.head,n=0;for(n=0;r&&n<e;n++)r=r.next;for(;r&&n<t;n++,r=r.next)i.push(r.value);return i}sliceReverse(e=0,t=this.length){t<0&&(t+=this.length),e<0&&(e+=this.length);let i=new s;if(t<e||t<0)return i;e<0&&(e=0),t>this.length&&(t=this.length);let r=this.length,n=this.tail;for(;n&&r>t;r--)n=n.prev;for(;n&&r>e;r--,n=n.prev)i.push(n.value);return i}splice(e,t=0,...i){e>this.length&&(e=this.length-1),e<0&&(e=this.length+e);let r=this.head;for(let o=0;r&&o<e;o++)r=r.next;let n=[];for(let o=0;r&&o<t;o++)n.push(r.value),r=this.removeNode(r);r?r!==this.tail&&(r=r.prev):r=this.tail;for(let o of i)r=ch(this,r,o);return n}reverse(){let e=this.head,t=this.tail;for(let i=e;i;i=i.prev){let r=i.prev;i.prev=i.next,i.next=r}return this.head=t,this.tail=e,this}};ot.Yallist=ir;function ch(s,e,t){let i=e,r=e?e.next:s.head,n=new nt(t,i,r,s);return n.next===void 0&&(s.tail=n),n.prev===void 0&&(s.head=n),s.length++,n}function fh(s,e){s.tail=new nt(e,s.tail,void 0,s),s.head||(s.head=s.tail),s.length++}function dh(s,e){s.head=new nt(e,void 0,s.head,s),s.tail||(s.tail=s.head),s.length++}var nt=class{list;next;prev;value;constructor(e,t,i,r){this.list=r,this.value=e,t?(t.next=this,this.prev=t):this.prev=void 0,i?(i.prev=this,this.next=i):this.next=void 0}};ot.Node=nt});var Ii=d(L=>{"use strict";var mh=L&&L.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),ph=L&&L.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),_h=L&&L.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&mh(t,e,i[r]);return ph(t,e),t}})(),Rn=L&&L.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(L,"__esModule",{value:!0});L.PackSync=L.Pack=L.PackJob=void 0;var Li=Rn(__nccwpck_require__(9896)),lr=tr(),Dt=class{path;absolute;entry;stat;readdir;pending=!1;ignore=!1;piped=!1;constructor(e,t){this.path=e||"./",this.absolute=t}};L.PackJob=Dt;var wh=We(),sr=_h(Ts()),yh=En(),Eh=ni(),bh=ai(),bn=Buffer.alloc(1024),Ti=Symbol("onStat"),vt=Symbol("ended"),X=Symbol("queue"),je=Symbol("current"),xe=Symbol("process"),Tt=Symbol("processing"),rr=Symbol("processJob"),Q=Symbol("jobs"),nr=Symbol("jobDone"),Di=Symbol("addFSEntry"),Sn=Symbol("addTarEntry"),ur=Symbol("stat"),cr=Symbol("readdir"),Pi=Symbol("onreaddir"),Ni=Symbol("pipe"),gn=Symbol("entry"),or=Symbol("entryOpt"),Mi=Symbol("writeEntryClass"),vn=Symbol("write"),ar=Symbol("ondrain"),On=Rn(__nccwpck_require__(6928)),hr=et(),Ai=class extends wh.Minipass{sync=!1;opt;cwd;maxReadSize;preservePaths;strict;noPax;prefix;linkCache;statCache;file;portable;zip;readdirCache;noDirRecurse;follow;noMtime;mtime;filter;jobs;[Mi];onWriteEntry;[X];[Q]=0;[Tt]=!1;[vt]=!1;constructor(e={}){if(super(),this.opt=e,this.file=e.file||"",this.cwd=e.cwd||process.cwd(),this.maxReadSize=e.maxReadSize,this.preservePaths=!!e.preservePaths,this.strict=!!e.strict,this.noPax=!!e.noPax,this.prefix=(0,hr.normalizeWindowsPath)(e.prefix||""),this.linkCache=e.linkCache||new Map,this.statCache=e.statCache||new Map,this.readdirCache=e.readdirCache||new Map,this.onWriteEntry=e.onWriteEntry,this[Mi]=lr.WriteEntry,typeof e.onwarn=="function"&&this.on("warn",e.onwarn),this.portable=!!e.portable,e.gzip||e.brotli||e.zstd){if((e.gzip?1:0)+(e.brotli?1:0)+(e.zstd?1:0)>1)throw new TypeError("gzip, brotli, zstd are mutually exclusive");if(e.gzip&&(typeof e.gzip!="object"&&(e.gzip={}),this.portable&&(e.gzip.portable=!0),this.zip=new sr.Gzip(e.gzip)),e.brotli&&(typeof e.brotli!="object"&&(e.brotli={}),this.zip=new sr.BrotliCompress(e.brotli)),e.zstd&&(typeof e.zstd!="object"&&(e.zstd={}),this.zip=new sr.ZstdCompress(e.zstd)),!this.zip)throw new Error("impossible");let t=this.zip;t.on("data",i=>super.write(i)),t.on("end",()=>super.end()),t.on("drain",()=>this[ar]()),this.on("resume",()=>t.resume())}else this.on("drain",this[ar]);this.noDirRecurse=!!e.noDirRecurse,this.follow=!!e.follow,this.noMtime=!!e.noMtime,e.mtime&&(this.mtime=e.mtime),this.filter=typeof e.filter=="function"?e.filter:()=>!0,this[X]=new yh.Yallist,this[Q]=0,this.jobs=Number(e.jobs)||4,this[Tt]=!1,this[vt]=!1}[vn](e){return super.write(e)}add(e){return this.write(e),this}end(e,t,i){return typeof e=="function"&&(i=e,e=void 0),typeof t=="function"&&(i=t,t=void 0),e&&this.add(e),this[vt]=!0,this[xe](),i&&i(),this}write(e){if(this[vt])throw new Error("write after end");return e instanceof Eh.ReadEntry?this[Sn](e):this[Di](e),this.flowing}[Sn](e){let t=(0,hr.normalizeWindowsPath)(On.default.resolve(this.cwd,e.path));if(!this.filter(e.path,e))e.resume();else{let i=new Dt(e.path,t);i.entry=new lr.WriteEntryTar(e,this[or](i)),i.entry.on("end",()=>this[nr](i)),this[Q]+=1,this[X].push(i)}this[xe]()}[Di](e){let t=(0,hr.normalizeWindowsPath)(On.default.resolve(this.cwd,e));this[X].push(new Dt(e,t)),this[xe]()}[ur](e){e.pending=!0,this[Q]+=1;let t=this.follow?"stat":"lstat";Li.default[t](e.absolute,(i,r)=>{e.pending=!1,this[Q]-=1,i?this.emit("error",i):this[Ti](e,r)})}[Ti](e,t){this.statCache.set(e.absolute,t),e.stat=t,this.filter(e.path,t)?t.isFile()&&t.nlink>1&&e===this[je]&&!this.linkCache.get(`${t.dev}:${t.ino}`)&&!this.sync&&this[rr](e):e.ignore=!0,this[xe]()}[cr](e){e.pending=!0,this[Q]+=1,Li.default.readdir(e.absolute,(t,i)=>{if(e.pending=!1,this[Q]-=1,t)return this.emit("error",t);this[Pi](e,i)})}[Pi](e,t){this.readdirCache.set(e.absolute,t),e.readdir=t,this[xe]()}[xe](){if(!this[Tt]){this[Tt]=!0;for(let e=this[X].head;e&&this[Q]<this.jobs;e=e.next)if(this[rr](e.value),e.value.ignore){let t=e.next;this[X].removeNode(e),e.next=t}this[Tt]=!1,this[vt]&&this[X].length===0&&this[Q]===0&&(this.zip?this.zip.end(bn):(super.write(bn),super.end()))}}get[je](){return this[X]&&this[X].head&&this[X].head.value}[nr](e){this[X].shift(),this[Q]-=1,this[xe]()}[rr](e){if(!e.pending){if(e.entry){e===this[je]&&!e.piped&&this[Ni](e);return}if(!e.stat){let t=this.statCache.get(e.absolute);t?this[Ti](e,t):this[ur](e)}if(e.stat&&!e.ignore){if(!this.noDirRecurse&&e.stat.isDirectory()&&!e.readdir){let t=this.readdirCache.get(e.absolute);if(t?this[Pi](e,t):this[cr](e),!e.readdir)return}if(e.entry=this[gn](e),!e.entry){e.ignore=!0;return}e===this[je]&&!e.piped&&this[Ni](e)}}}[or](e){return{onwarn:(t,i,r)=>this.warn(t,i,r),noPax:this.noPax,cwd:this.cwd,absolute:e.absolute,preservePaths:this.preservePaths,maxReadSize:this.maxReadSize,strict:this.strict,portable:this.portable,linkCache:this.linkCache,statCache:this.statCache,noMtime:this.noMtime,mtime:this.mtime,prefix:this.prefix,onWriteEntry:this.onWriteEntry}}[gn](e){this[Q]+=1;try{return new this[Mi](e.path,this[or](e)).on("end",()=>this[nr](e)).on("error",i=>this.emit("error",i))}catch(t){this.emit("error",t)}}[ar](){this[je]&&this[je].entry&&this[je].entry.resume()}[Ni](e){e.piped=!0,e.readdir&&e.readdir.forEach(r=>{let n=e.path,o=n==="./"?"":n.replace(/\/*$/,"/");this[Di](o+r)});let t=e.entry,i=this.zip;if(!t)throw new Error("cannot pipe without source");i?t.on("data",r=>{i.write(r)||t.pause()}):t.on("data",r=>{super.write(r)||t.pause()})}pause(){return this.zip&&this.zip.pause(),super.pause()}warn(e,t,i={}){(0,bh.warnMethod)(this,e,t,i)}};L.Pack=Ai;var fr=class extends Ai{sync=!0;constructor(e){super(e),this[Mi]=lr.WriteEntrySync}pause(){}resume(){}[ur](e){let t=this.follow?"statSync":"lstatSync";this[Ti](e,Li.default[t](e.absolute))}[cr](e){this[Pi](e,Li.default.readdirSync(e.absolute))}[Ni](e){let t=e.entry,i=this.zip;if(e.readdir&&e.readdir.forEach(r=>{let n=e.path,o=n==="./"?"":n.replace(/\/*$/,"/");this[Di](o+r)}),!t)throw new Error("Cannot pipe without source");i?t.on("data",r=>{i.write(r)}):t.on("data",r=>{super[vn](r)})}};L.PackSync=fr});var dr=d(at=>{"use strict";var Sh=at&&at.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(at,"__esModule",{value:!0});at.create=void 0;var Tn=Ke(),Dn=Sh(__nccwpck_require__(6760)),Pn=st(),gh=Ve(),Fi=Ii(),Oh=(s,e)=>{let t=new Fi.PackSync(s),i=new Tn.WriteStreamSync(s.file,{mode:s.mode||438});t.pipe(i),Nn(t,e)},Rh=(s,e)=>{let t=new Fi.Pack(s),i=new Tn.WriteStream(s.file,{mode:s.mode||438});t.pipe(i);let r=new Promise((n,o)=>{i.on("error",o),i.on("close",n),t.on("error",o)});return Mn(t,e).catch(n=>t.emit("error",n)),r},Nn=(s,e)=>{e.forEach(t=>{t.charAt(0)==="@"?(0,Pn.list)({file:Dn.default.resolve(s.cwd,t.slice(1)),sync:!0,noResume:!0,onReadEntry:i=>s.add(i)}):s.add(t)}),s.end()},Mn=async(s,e)=>{for(let t of e)t.charAt(0)==="@"?await(0,Pn.list)({file:Dn.default.resolve(String(s.cwd),t.slice(1)),noResume:!0,onReadEntry:i=>{s.add(i)}}):s.add(t);s.end()},vh=(s,e)=>{let t=new Fi.PackSync(s);return Nn(t,e),t},Th=(s,e)=>{let t=new Fi.Pack(s);return Mn(t,e).catch(i=>t.emit("error",i)),t};at.create=(0,gh.makeCommand)(Oh,Rh,vh,Th,(s,e)=>{if(!e?.length)throw new TypeError("no paths specified to add to archive")})});var jn=d(ht=>{"use strict";var Dh=ht&&ht.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(ht,"__esModule",{value:!0});ht.getWriteFlag=void 0;var In=Dh(__nccwpck_require__(9896)),Ph=process.env.__FAKE_PLATFORM__||process.platform,Fn=Ph==="win32",{O_CREAT:Cn,O_NOFOLLOW:Ln,O_TRUNC:Bn,O_WRONLY:zn}=In.default.constants,kn=Number(process.env.__FAKE_FS_O_FILENAME__)||In.default.constants.UV_FS_O_FILEMAP||0,Nh=Fn&&!!kn,Mh=512*1024,Lh=kn|Bn|Cn|zn,An=!Fn&&typeof Ln=="number"?Ln|Bn|Cn|zn:null;ht.getWriteFlag=An!==null?()=>An:Nh?s=>s<Mh?Lh:"w":()=>"w"});var Un=d(he=>{"use strict";var xn=he&&he.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(he,"__esModule",{value:!0});he.chownrSync=he.chownr=void 0;var Bi=xn(__nccwpck_require__(3024)),Pt=xn(__nccwpck_require__(6760)),mr=(s,e,t)=>{try{return Bi.default.lchownSync(s,e,t)}catch(i){if(i?.code!=="ENOENT")throw i}},Ci=(s,e,t,i)=>{Bi.default.lchown(s,e,t,r=>{i(r&&r?.code!=="ENOENT"?r:null)})},Ah=(s,e,t,i,r)=>{if(e.isDirectory())(0,he.chownr)(Pt.default.resolve(s,e.name),t,i,n=>{if(n)return r(n);let o=Pt.default.resolve(s,e.name);Ci(o,t,i,r)});else{let n=Pt.default.resolve(s,e.name);Ci(n,t,i,r)}},Ih=(s,e,t,i)=>{Bi.default.readdir(s,{withFileTypes:!0},(r,n)=>{if(r){if(r.code==="ENOENT")return i();if(r.code!=="ENOTDIR"&&r.code!=="ENOTSUP")return i(r)}if(r||!n.length)return Ci(s,e,t,i);let o=n.length,a=null,h=l=>{if(!a){if(l)return i(a=l);if(--o===0)return Ci(s,e,t,i)}};for(let l of n)Ah(s,l,e,t,h)})};he.chownr=Ih;var Fh=(s,e,t,i)=>{e.isDirectory()&&(0,he.chownrSync)(Pt.default.resolve(s,e.name),t,i),mr(Pt.default.resolve(s,e.name),t,i)},Ch=(s,e,t)=>{let i;try{i=Bi.default.readdirSync(s,{withFileTypes:!0})}catch(r){let n=r;if(n?.code==="ENOENT")return;if(n?.code==="ENOTDIR"||n?.code==="ENOTSUP")return mr(s,e,t);throw n}for(let r of i)Fh(s,r,e,t);return mr(s,e,t)};he.chownrSync=Ch});var qn=d(zi=>{"use strict";Object.defineProperty(zi,"__esModule",{value:!0});zi.CwdError=void 0;var pr=class extends Error{path;code;syscall="chdir";constructor(e,t){super(`${t}: Cannot cd into '${e}'`),this.path=e,this.code=t}get name(){return"CwdError"}};zi.CwdError=pr});var wr=d(ki=>{"use strict";Object.defineProperty(ki,"__esModule",{value:!0});ki.SymlinkError=void 0;var _r=class extends Error{path;symlink;syscall="symlink";code="TAR_SYMLINK_ERROR";constructor(e,t){super("TAR_SYMLINK_ERROR: Cannot extract through symbolic link"),this.symlink=e,this.path=t}get name(){return"SymlinkError"}};ki.SymlinkError=_r});var Yn=d(Te=>{"use strict";var Er=Te&&Te.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(Te,"__esModule",{value:!0});Te.mkdirSync=Te.mkdir=void 0;var Wn=Un(),x=Er(__nccwpck_require__(3024)),Bh=Er(__nccwpck_require__(1455)),ji=Er(__nccwpck_require__(6760)),Hn=qn(),pe=et(),Zn=wr(),zh=(s,e)=>{x.default.stat(s,(t,i)=>{(t||!i.isDirectory())&&(t=new Hn.CwdError(s,t?.code||"ENOTDIR")),e(t)})},kh=(s,e,t)=>{s=(0,pe.normalizeWindowsPath)(s);let i=e.umask??18,r=e.mode|448,n=(r&i)!==0,o=e.uid,a=e.gid,h=typeof o=="number"&&typeof a=="number"&&(o!==e.processUid||a!==e.processGid),l=e.preserve,u=e.unlink,c=(0,pe.normalizeWindowsPath)(e.cwd),E=(w,P)=>{w?t(w):P&&h?(0,Wn.chownr)(P,o,a,zt=>E(zt)):n?x.default.chmod(s,r,t):t()};if(s===c)return zh(s,E);if(l)return Bh.default.mkdir(s,{mode:r,recursive:!0}).then(w=>E(null,w??void 0),E);let A=(0,pe.normalizeWindowsPath)(ji.default.relative(c,s)).split("/");yr(c,A,r,u,c,void 0,E)};Te.mkdir=kh;var yr=(s,e,t,i,r,n,o)=>{if(e.length===0)return o(null,n);let a=e.shift(),h=(0,pe.normalizeWindowsPath)(ji.default.resolve(s+"/"+a));x.default.mkdir(h,t,Gn(h,e,t,i,r,n,o))},Gn=(s,e,t,i,r,n,o)=>a=>{a?x.default.lstat(s,(h,l)=>{if(h)h.path=h.path&&(0,pe.normalizeWindowsPath)(h.path),o(h);else if(l.isDirectory())yr(s,e,t,i,r,n,o);else if(i)x.default.unlink(s,u=>{if(u)return o(u);x.default.mkdir(s,t,Gn(s,e,t,i,r,n,o))});else{if(l.isSymbolicLink())return o(new Zn.SymlinkError(s,s+"/"+e.join("/")));o(a)}}):(n=n||s,yr(s,e,t,i,r,n,o))},jh=s=>{let e=!1,t;try{e=x.default.statSync(s).isDirectory()}catch(i){t=i?.code}finally{if(!e)throw new Hn.CwdError(s,t??"ENOTDIR")}},xh=(s,e)=>{s=(0,pe.normalizeWindowsPath)(s);let t=e.umask??18,i=e.mode|448,r=(i&t)!==0,n=e.uid,o=e.gid,a=typeof n=="number"&&typeof o=="number"&&(n!==e.processUid||o!==e.processGid),h=e.preserve,l=e.unlink,u=(0,pe.normalizeWindowsPath)(e.cwd),c=w=>{w&&a&&(0,Wn.chownrSync)(w,n,o),r&&x.default.chmodSync(s,i)};if(s===u)return jh(u),c();if(h)return c(x.default.mkdirSync(s,{mode:i,recursive:!0})??void 0);let D=(0,pe.normalizeWindowsPath)(ji.default.relative(u,s)).split("/"),A;for(let w=D.shift(),P=u;w&&(P+="/"+w);w=D.shift()){P=(0,pe.normalizeWindowsPath)(ji.default.resolve(P));try{x.default.mkdirSync(P,i),A=A||P}catch{let zt=x.default.lstatSync(P);if(zt.isDirectory())continue;if(l){x.default.unlinkSync(P),x.default.mkdirSync(P,i),A=A||P;continue}else if(zt.isSymbolicLink())return new Zn.SymlinkError(P,P+"/"+D.join("/"))}}return c(A)};Te.mkdirSync=xh});var Vn=d(xi=>{"use strict";Object.defineProperty(xi,"__esModule",{value:!0});xi.normalizeUnicode=void 0;var br=Object.create(null),Kn=1e4,lt=new Set,Uh=s=>{lt.has(s)?lt.delete(s):br[s]=s.normalize("NFD").toLocaleLowerCase("en").toLocaleUpperCase("en"),lt.add(s);let e=br[s],t=lt.size-Kn;if(t>Kn/10){for(let i of lt)if(lt.delete(i),delete br[i],--t<=0)break}return e};xi.normalizeUnicode=Uh});var Xn=d(Ui=>{"use strict";Object.defineProperty(Ui,"__esModule",{value:!0});Ui.PathReservations=void 0;var $n=__nccwpck_require__(6760),qh=Vn(),Wh=wi(),Hh=process.env.TESTING_TAR_FAKE_PLATFORM||process.platform,Zh=Hh==="win32",Gh=s=>s.split("/").slice(0,-1).reduce((t,i)=>{let r=t.at(-1);return r!==void 0&&(i=(0,$n.join)(r,i)),t.push(i||"/"),t},[]),Sr=class{#e=new Map;#i=new Map;#s=new Set;reserve(e,t){e=Zh?["win32 parallelization disabled"]:e.map(r=>(0,Wh.stripTrailingSlashes)((0,$n.join)((0,qh.normalizeUnicode)(r))));let i=new Set(e.map(r=>Gh(r)).reduce((r,n)=>r.concat(n)));this.#i.set(t,{dirs:i,paths:e});for(let r of e){let n=this.#e.get(r);n?n.push(t):this.#e.set(r,[t])}for(let r of i){let n=this.#e.get(r);if(!n)this.#e.set(r,[new Set([t])]);else{let o=n.at(-1);o instanceof Set?o.add(t):n.push(new Set([t]))}}return this.#r(t)}#n(e){let t=this.#i.get(e);if(!t)throw new Error("function does not have any path reservations");return{paths:t.paths.map(i=>this.#e.get(i)),dirs:[...t.dirs].map(i=>this.#e.get(i))}}check(e){let{paths:t,dirs:i}=this.#n(e);return t.every(r=>r&&r[0]===e)&&i.every(r=>r&&r[0]instanceof Set&&r[0].has(e))}#r(e){return this.#s.has(e)||!this.check(e)?!1:(this.#s.add(e),e(()=>this.#t(e)),!0)}#t(e){if(!this.#s.has(e))return!1;let t=this.#i.get(e);if(!t)throw new Error("invalid reservation");let{paths:i,dirs:r}=t,n=new Set;for(let o of i){let a=this.#e.get(o);if(!a||a?.[0]!==e)continue;let h=a[1];if(!h){this.#e.delete(o);continue}if(a.shift(),typeof h=="function")n.add(h);else for(let l of h)n.add(l)}for(let o of r){let a=this.#e.get(o),h=a?.[0];if(!(!a||!(h instanceof Set)))if(h.size===1&&a.length===1){this.#e.delete(o);continue}else if(h.size===1){a.shift();let l=a[0];typeof l=="function"&&n.add(l)}else h.delete(e)}return this.#s.delete(e),n.forEach(o=>this.#r(o)),!0}};Ui.PathReservations=Sr});var Qn=d(qi=>{"use strict";Object.defineProperty(qi,"__esModule",{value:!0});qi.umask=void 0;var Yh=()=>process.umask();qi.umask=Yh});var Ar=d(z=>{"use strict";var Kh=z&&z.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),Vh=z&&z.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),ho=z&&z.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&Kh(t,e,i[r]);return Vh(t,e),t}})(),Lr=z&&z.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(z,"__esModule",{value:!0});z.UnpackSync=z.Unpack=void 0;var $h=ho(Ke()),Xh=Lr(__nccwpck_require__(4589)),lo=__nccwpck_require__(7598),m=Lr(__nccwpck_require__(3024)),g=Lr(__nccwpck_require__(6760)),uo=jn(),co=Yn(),U=et(),Qh=pi(),Jh=qs(),Jn=ho(Hs()),el=Xn(),fo=wr(),tl=Qn(),eo=Symbol("onEntry"),vr=Symbol("checkFs"),to=Symbol("checkFs2"),Tr=Symbol("isReusable"),Z=Symbol("makeFs"),Dr=Symbol("file"),Pr=Symbol("directory"),Hi=Symbol("link"),io=Symbol("symlink"),so=Symbol("hardlink"),Mt=Symbol("ensureNoSymlink"),ro=Symbol("unsupported"),no=Symbol("checkPath"),gr=Symbol("stripAbsolutePath"),De=Symbol("mkdir"),T=Symbol("onError"),Wi=Symbol("pending"),oo=Symbol("pend"),ut=Symbol("unpend"),Or=Symbol("ended"),Rr=Symbol("maybeClose"),Nr=Symbol("skip"),Lt=Symbol("doChown"),At=Symbol("uid"),It=Symbol("gid"),Ft=Symbol("checkedCwd"),il=process.env.TESTING_TAR_FAKE_PLATFORM||process.platform,Ct=il==="win32",sl=1024,rl=(s,e)=>{if(!Ct)return m.default.unlink(s,e);let t=s+".DELETE."+(0,lo.randomBytes)(16).toString("hex");m.default.rename(s,t,i=>{if(i)return e(i);m.default.unlink(t,e)})},nl=s=>{if(!Ct)return m.default.unlinkSync(s);let e=s+".DELETE."+(0,lo.randomBytes)(16).toString("hex");m.default.renameSync(s,e),m.default.unlinkSync(e)},ao=(s,e,t)=>s!==void 0&&s===s>>>0?s:e!==void 0&&e===e>>>0?e:t,Zi=class extends Qh.Parser{[Or]=!1;[Ft]=!1;[Wi]=0;reservations=new el.PathReservations;transform;writable=!0;readable=!1;uid;gid;setOwner;preserveOwner;processGid;processUid;maxDepth;forceChown;win32;newer;keep;noMtime;preservePaths;unlink;cwd;strip;processUmask;umask;dmode;fmode;chmod;constructor(e={}){if(e.ondone=()=>{this[Or]=!0,this[Rr]()},super(e),this.transform=e.transform,this.chmod=!!e.chmod,typeof e.uid=="number"||typeof e.gid=="number"){if(typeof e.uid!="number"||typeof e.gid!="number")throw new TypeError("cannot set owner without number uid and gid");if(e.preserveOwner)throw new TypeError("cannot preserve owner in archive and also set owner explicitly");this.uid=e.uid,this.gid=e.gid,this.setOwner=!0}else this.uid=void 0,this.gid=void 0,this.setOwner=!1;this.preserveOwner=e.preserveOwner===void 0&&typeof e.uid!="number"?!!(process.getuid&&process.getuid()===0):!!e.preserveOwner,this.processUid=(this.preserveOwner||this.setOwner)&&process.getuid?process.getuid():void 0,this.processGid=(this.preserveOwner||this.setOwner)&&process.getgid?process.getgid():void 0,this.maxDepth=typeof e.maxDepth=="number"?e.maxDepth:sl,this.forceChown=e.forceChown===!0,this.win32=!!e.win32||Ct,this.newer=!!e.newer,this.keep=!!e.keep,this.noMtime=!!e.noMtime,this.preservePaths=!!e.preservePaths,this.unlink=!!e.unlink,this.cwd=(0,U.normalizeWindowsPath)(g.default.resolve(e.cwd||process.cwd())),this.strip=Number(e.strip)||0,this.processUmask=this.chmod?typeof e.processUmask=="number"?e.processUmask:(0,tl.umask)():0,this.umask=typeof e.umask=="number"?e.umask:this.processUmask,this.dmode=e.dmode||511&~this.umask,this.fmode=e.fmode||438&~this.umask,this.on("entry",t=>this[eo](t))}warn(e,t,i={}){return(e==="TAR_BAD_ARCHIVE"||e==="TAR_ABORT")&&(i.recoverable=!1),super.warn(e,t,i)}[Rr](){this[Or]&&this[Wi]===0&&(this.emit("prefinish"),this.emit("finish"),this.emit("end"))}[gr](e,t){let i=e[t],{type:r}=e;if(!i||this.preservePaths)return!0;let[n,o]=(0,Jh.stripAbsolutePath)(i),a=o.replaceAll(/\\/g,"/").split("/");if(a.includes("..")||Ct&&/^[a-z]:\.\.$/i.test(a[0]??"")){if(t==="path"||r==="Link")return this.warn("TAR_ENTRY_ERROR",`${t} contains '..'`,{entry:e,[t]:i}),!1;let h=g.default.posix.dirname(e.path),l=g.default.posix.normalize(g.default.posix.join(h,a.join("/")));if(l.startsWith("../")||l==="..")return this.warn("TAR_ENTRY_ERROR",`${t} escapes extraction directory`,{entry:e,[t]:i}),!1}return n&&(e[t]=String(o),this.warn("TAR_ENTRY_INFO",`stripping ${n} from absolute ${t}`,{entry:e,[t]:i})),!0}[no](e){let t=(0,U.normalizeWindowsPath)(e.path),i=t.split("/");if(this.strip){if(i.length<this.strip)return!1;if(e.type==="Link"){let r=(0,U.normalizeWindowsPath)(String(e.linkpath)).split("/");if(r.length>=this.strip)e.linkpath=r.slice(this.strip).join("/");else return!1}i.splice(0,this.strip),e.path=i.join("/")}if(isFinite(this.maxDepth)&&i.length>this.maxDepth)return this.warn("TAR_ENTRY_ERROR","path excessively deep",{entry:e,path:t,depth:i.length,maxDepth:this.maxDepth}),!1;if(!this[gr](e,"path")||!this[gr](e,"linkpath"))return!1;if(e.absolute=g.default.isAbsolute(e.path)?(0,U.normalizeWindowsPath)(g.default.resolve(e.path)):(0,U.normalizeWindowsPath)(g.default.resolve(this.cwd,e.path)),!this.preservePaths&&typeof e.absolute=="string"&&e.absolute.indexOf(this.cwd+"/")!==0&&e.absolute!==this.cwd)return this.warn("TAR_ENTRY_ERROR","path escaped extraction target",{entry:e,path:(0,U.normalizeWindowsPath)(e.path),resolvedPath:e.absolute,cwd:this.cwd}),!1;if(e.absolute===this.cwd&&e.type!=="Directory"&&e.type!=="GNUDumpDir")return!1;if(this.win32){let{root:r}=g.default.win32.parse(String(e.absolute));e.absolute=r+Jn.encode(String(e.absolute).slice(r.length));let{root:n}=g.default.win32.parse(e.path);e.path=n+Jn.encode(e.path.slice(n.length))}return!0}[eo](e){if(!this[no](e))return e.resume();switch(Xh.default.equal(typeof e.absolute,"string"),e.type){case"Directory":case"GNUDumpDir":e.mode&&(e.mode=e.mode|448);case"File":case"OldFile":case"ContiguousFile":case"Link":case"SymbolicLink":return this[vr](e);default:return this[ro](e)}}[T](e,t){e.name==="CwdError"?this.emit("error",e):(this.warn("TAR_ENTRY_ERROR",e,{entry:t}),this[ut](),t.resume())}[De](e,t,i){(0,co.mkdir)((0,U.normalizeWindowsPath)(e),{uid:this.uid,gid:this.gid,processUid:this.processUid,processGid:this.processGid,umask:this.processUmask,preserve:this.preservePaths,unlink:this.unlink,cwd:this.cwd,mode:t},i)}[Lt](e){return this.forceChown||this.preserveOwner&&(typeof e.uid=="number"&&e.uid!==this.processUid||typeof e.gid=="number"&&e.gid!==this.processGid)||typeof this.uid=="number"&&this.uid!==this.processUid||typeof this.gid=="number"&&this.gid!==this.processGid}[At](e){return ao(this.uid,e.uid,this.processUid)}[It](e){return ao(this.gid,e.gid,this.processGid)}[Dr](e,t){let i=typeof e.mode=="number"?e.mode&4095:this.fmode,r=new $h.WriteStream(String(e.absolute),{flags:(0,uo.getWriteFlag)(e.size),mode:i,autoClose:!1});r.on("error",h=>{r.fd&&m.default.close(r.fd,()=>{}),r.write=()=>!0,this[T](h,e),t()});let n=1,o=h=>{if(h){r.fd&&m.default.close(r.fd,()=>{}),this[T](h,e),t();return}--n===0&&r.fd!==void 0&&m.default.close(r.fd,l=>{l?this[T](l,e):this[ut](),t()})};r.on("finish",()=>{let h=String(e.absolute),l=r.fd;if(typeof l=="number"&&e.mtime&&!this.noMtime){n++;let u=e.atime||new Date,c=e.mtime;m.default.futimes(l,u,c,E=>E?m.default.utimes(h,u,c,D=>o(D&&E)):o())}if(typeof l=="number"&&this[Lt](e)){n++;let u=this[At](e),c=this[It](e);typeof u=="number"&&typeof c=="number"&&m.default.fchown(l,u,c,E=>E?m.default.chown(h,u,c,D=>o(D&&E)):o())}o()});let a=this.transform&&this.transform(e)||e;a!==e&&(a.on("error",h=>{this[T](h,e),t()}),e.pipe(a)),a.pipe(r)}[Pr](e,t){let i=typeof e.mode=="number"?e.mode&4095:this.dmode;this[De](String(e.absolute),i,r=>{if(r){this[T](r,e),t();return}let n=1,o=()=>{--n===0&&(t(),this[ut](),e.resume())};e.mtime&&!this.noMtime&&(n++,m.default.utimes(String(e.absolute),e.atime||new Date,e.mtime,o)),this[Lt](e)&&(n++,m.default.chown(String(e.absolute),Number(this[At](e)),Number(this[It](e)),o)),o()})}[ro](e){e.unsupported=!0,this.warn("TAR_ENTRY_UNSUPPORTED",`unsupported entry type: ${e.type}`,{entry:e}),e.resume()}[io](e,t){let i=(0,U.normalizeWindowsPath)(g.default.relative(this.cwd,g.default.resolve(g.default.dirname(String(e.absolute)),String(e.linkpath)))).split("/");this[Mt](e,this.cwd,i,()=>this[Hi](e,String(e.linkpath),"symlink",t),r=>{this[T](r,e),t()})}[so](e,t){let i=(0,U.normalizeWindowsPath)(g.default.resolve(this.cwd,String(e.linkpath))),r=(0,U.normalizeWindowsPath)(String(e.linkpath)).split("/");this[Mt](e,this.cwd,r,()=>this[Hi](e,i,"link",t),n=>{this[T](n,e),t()})}[Mt](e,t,i,r,n){let o=i.shift();if(this.preservePaths||o===void 0)return r();let a=g.default.resolve(t,o);m.default.lstat(a,(h,l)=>{if(h)return r();if(l?.isSymbolicLink())return n(new fo.SymlinkError(a,g.default.resolve(a,i.join("/"))));this[Mt](e,a,i,r,n)})}[oo](){this[Wi]++}[ut](){this[Wi]--,this[Rr]()}[Nr](e){this[ut](),e.resume()}[Tr](e,t){return e.type==="File"&&!this.unlink&&t.isFile()&&t.nlink<=1&&!Ct}[vr](e){this[oo]();let t=[e.path];e.linkpath&&t.push(e.linkpath),this.reservations.reserve(t,i=>this[to](e,i))}[to](e,t){let i=a=>{t(a)},r=()=>{this[De](this.cwd,this.dmode,a=>{if(a){this[T](a,e),i();return}this[Ft]=!0,n()})},n=()=>{if(e.absolute!==this.cwd){let a=(0,U.normalizeWindowsPath)(g.default.dirname(String(e.absolute)));if(a!==this.cwd)return this[De](a,this.dmode,h=>{if(h){this[T](h,e),i();return}o()})}o()},o=()=>{m.default.lstat(String(e.absolute),(a,h)=>{if(h&&(this.keep||this.newer&&h.mtime>(e.mtime??h.mtime))){this[Nr](e),i();return}if(a||this[Tr](e,h))return this[Z](null,e,i);if(h.isDirectory()){if(e.type==="Directory"){let l=this.chmod&&e.mode&&(h.mode&4095)!==e.mode,u=c=>this[Z](c??null,e,i);return l?m.default.chmod(String(e.absolute),Number(e.mode),u):u()}if(e.absolute!==this.cwd)return m.default.rmdir(String(e.absolute),l=>this[Z](l??null,e,i))}if(e.absolute===this.cwd)return this[Z](null,e,i);rl(String(e.absolute),l=>this[Z](l??null,e,i))})};this[Ft]?n():r()}[Z](e,t,i){if(e){this[T](e,t),i();return}switch(t.type){case"File":case"OldFile":case"ContiguousFile":return this[Dr](t,i);case"Link":return this[so](t,i);case"SymbolicLink":return this[io](t,i);case"Directory":case"GNUDumpDir":return this[Pr](t,i)}}[Hi](e,t,i,r){m.default[i](t,String(e.absolute),n=>{n?this[T](n,e):(this[ut](),e.resume()),r()})}};z.Unpack=Zi;var Nt=s=>{try{return[null,s()]}catch(e){return[e,null]}},Mr=class extends Zi{sync=!0;[Z](e,t){return super[Z](e,t,()=>{})}[vr](e){if(!this[Ft]){let n=this[De](this.cwd,this.dmode);if(n)return this[T](n,e);this[Ft]=!0}if(e.absolute!==this.cwd){let n=(0,U.normalizeWindowsPath)(g.default.dirname(String(e.absolute)));if(n!==this.cwd){let o=this[De](n,this.dmode);if(o)return this[T](o,e)}}let[t,i]=Nt(()=>m.default.lstatSync(String(e.absolute)));if(i&&(this.keep||this.newer&&i.mtime>(e.mtime??i.mtime)))return this[Nr](e);if(t||this[Tr](e,i))return this[Z](null,e);if(i.isDirectory()){if(e.type==="Directory"){let o=this.chmod&&e.mode&&(i.mode&4095)!==e.mode,[a]=o?Nt(()=>{m.default.chmodSync(String(e.absolute),Number(e.mode))}):[];return this[Z](a,e)}let[n]=Nt(()=>m.default.rmdirSync(String(e.absolute)));this[Z](n,e)}let[r]=e.absolute===this.cwd?[]:Nt(()=>nl(String(e.absolute)));this[Z](r,e)}[Dr](e,t){let i=typeof e.mode=="number"?e.mode&4095:this.fmode,r=a=>{let h;try{m.default.closeSync(n)}catch(l){h=l}(a||h)&&this[T](a||h,e),t()},n;try{n=m.default.openSync(String(e.absolute),(0,uo.getWriteFlag)(e.size),i)}catch(a){return r(a)}let o=this.transform&&this.transform(e)||e;o!==e&&(o.on("error",a=>this[T](a,e)),e.pipe(o)),o.on("data",a=>{try{m.default.writeSync(n,a,0,a.length)}catch(h){r(h)}}),o.on("end",()=>{let a=null;if(e.mtime&&!this.noMtime){let h=e.atime||new Date,l=e.mtime;try{m.default.futimesSync(n,h,l)}catch(u){try{m.default.utimesSync(String(e.absolute),h,l)}catch{a=u}}}if(this[Lt](e)){let h=this[At](e),l=this[It](e);try{m.default.fchownSync(n,Number(h),Number(l))}catch(u){try{m.default.chownSync(String(e.absolute),Number(h),Number(l))}catch{a=a||u}}}r(a)})}[Pr](e,t){let i=typeof e.mode=="number"?e.mode&4095:this.dmode,r=this[De](String(e.absolute),i);if(r){this[T](r,e),t();return}if(e.mtime&&!this.noMtime)try{m.default.utimesSync(String(e.absolute),e.atime||new Date,e.mtime)}catch{}if(this[Lt](e))try{m.default.chownSync(String(e.absolute),Number(this[At](e)),Number(this[It](e)))}catch{}t(),e.resume()}[De](e,t){try{return(0,co.mkdirSync)((0,U.normalizeWindowsPath)(e),{uid:this.uid,gid:this.gid,processUid:this.processUid,processGid:this.processGid,umask:this.processUmask,preserve:this.preservePaths,unlink:this.unlink,cwd:this.cwd,mode:t})}catch(i){return i}}[Mt](e,t,i,r,n){if(this.preservePaths||i.length===0)return r();let o=t;for(let a of i){o=g.default.resolve(o,a);let[h,l]=Nt(()=>m.default.lstatSync(o));if(h)return r();if(l.isSymbolicLink())return n(new fo.SymlinkError(o,g.default.resolve(t,i.join("/"))))}r()}[Hi](e,t,i,r){let n=`${i}Sync`;try{m.default[n](t,String(e.absolute)),r(),e.resume()}catch(o){return this[T](o,e)}}};z.UnpackSync=Mr});var Ir=d(G=>{"use strict";var ol=G&&G.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),al=G&&G.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),hl=G&&G.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&ol(t,e,i[r]);return al(t,e),t}})(),ll=G&&G.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(G,"__esModule",{value:!0});G.extract=void 0;var mo=hl(Ke()),po=ll(__nccwpck_require__(3024)),ul=st(),cl=Ve(),Gi=Ar(),fl=s=>{let e=new Gi.UnpackSync(s),t=s.file,i=po.default.statSync(t),r=s.maxReadSize||16*1024*1024;new mo.ReadStreamSync(t,{readSize:r,size:i.size}).pipe(e)},dl=(s,e)=>{let t=new Gi.Unpack(s),i=s.maxReadSize||16*1024*1024,r=s.file;return new Promise((o,a)=>{t.on("error",a),t.on("close",o),po.default.stat(r,(h,l)=>{if(h)a(h);else{let u=new mo.ReadStream(r,{readSize:i,size:l.size});u.on("error",a),u.pipe(t)}})})};G.extract=(0,cl.makeCommand)(fl,dl,s=>new Gi.UnpackSync(s),s=>new Gi.Unpack(s),(s,e)=>{e?.length&&(0,ul.filesFilter)(s,e)})});var Yi=d(ct=>{"use strict";var _o=ct&&ct.__importDefault||function(s){return s&&s.__esModule?s:{default:s}};Object.defineProperty(ct,"__esModule",{value:!0});ct.replace=void 0;var wo=Ke(),q=_o(__nccwpck_require__(3024)),yo=_o(__nccwpck_require__(6760)),Eo=Je(),bo=st(),ml=Ve(),pl=$t(),So=Ii(),_l=(s,e)=>{let t=new So.PackSync(s),i=!0,r,n;try{try{r=q.default.openSync(s.file,"r+")}catch(h){if(h?.code==="ENOENT")r=q.default.openSync(s.file,"w+");else throw h}let o=q.default.fstatSync(r),a=Buffer.alloc(512);e:for(n=0;n<o.size;n+=512){for(let u=0,c=0;u<512;u+=c){if(c=q.default.readSync(r,a,u,a.length-u,n+u),n===0&&a[0]===31&&a[1]===139)throw new Error("cannot append to compressed archives");if(!c)break e}let h=new Eo.Header(a);if(!h.cksumValid)break;let l=512*Math.ceil((h.size||0)/512);if(n+l+512>o.size)break;n+=l,s.mtimeCache&&h.mtime&&s.mtimeCache.set(String(h.path),h.mtime)}i=!1,wl(s,t,n,r,e)}finally{if(i)try{q.default.closeSync(r)}catch{}}},wl=(s,e,t,i,r)=>{let n=new wo.WriteStreamSync(s.file,{fd:i,start:t});e.pipe(n),El(e,r)},yl=(s,e)=>{e=Array.from(e);let t=new So.Pack(s),i=(n,o,a)=>{let h=(D,A)=>{D?q.default.close(n,w=>a(D)):a(null,A)},l=0;if(o===0)return h(null,0);let u=0,c=Buffer.alloc(512),E=(D,A)=>{if(D||A===void 0)return h(D);if(u+=A,u<512&&A)return q.default.read(n,c,u,c.length-u,l+u,E);if(l===0&&c[0]===31&&c[1]===139)return h(new Error("cannot append to compressed archives"));if(u<512)return h(null,l);let w=new Eo.Header(c);if(!w.cksumValid)return h(null,l);let P=512*Math.ceil((w.size??0)/512);if(l+P+512>o||(l+=P+512,l>=o))return h(null,l);s.mtimeCache&&w.mtime&&s.mtimeCache.set(String(w.path),w.mtime),u=0,q.default.read(n,c,0,512,l,E)};q.default.read(n,c,0,512,l,E)};return new Promise((n,o)=>{t.on("error",o);let a="r+",h=(l,u)=>{if(l&&l.code==="ENOENT"&&a==="r+")return a="w+",q.default.open(s.file,a,h);if(l||!u)return o(l);q.default.fstat(u,(c,E)=>{if(c)return q.default.close(u,()=>o(c));i(u,E.size,(D,A)=>{if(D)return o(D);let w=new wo.WriteStream(s.file,{fd:u,start:A});t.pipe(w),w.on("error",o),w.on("close",n),bl(t,e)})})};q.default.open(s.file,a,h)})},El=(s,e)=>{e.forEach(t=>{t.charAt(0)==="@"?(0,bo.list)({file:yo.default.resolve(s.cwd,t.slice(1)),sync:!0,noResume:!0,onReadEntry:i=>s.add(i)}):s.add(t)}),s.end()},bl=async(s,e)=>{for(let t of e)t.charAt(0)==="@"?await(0,bo.list)({file:yo.default.resolve(String(s.cwd),t.slice(1)),noResume:!0,onReadEntry:i=>s.add(i)}):s.add(t);s.end()};ct.replace=(0,ml.makeCommand)(_l,yl,()=>{throw new TypeError("file is required")},()=>{throw new TypeError("file is required")},(s,e)=>{if(!(0,pl.isFile)(s))throw new TypeError("file is required");if(s.gzip||s.brotli||s.zstd||s.file.endsWith(".br")||s.file.endsWith(".tbr"))throw new TypeError("cannot append to compressed archives");if(!e?.length)throw new TypeError("no paths specified to add/replace")})});var Fr=d(Ki=>{"use strict";Object.defineProperty(Ki,"__esModule",{value:!0});Ki.update=void 0;var Sl=Ve(),Bt=Yi();Ki.update=(0,Sl.makeCommand)(Bt.replace.syncFile,Bt.replace.asyncFile,Bt.replace.syncNoFile,Bt.replace.asyncNoFile,(s,e=[])=>{Bt.replace.validate?.(s,e),gl(s)});var gl=s=>{let e=s.filter;s.mtimeCache||(s.mtimeCache=new Map),s.filter=e?(t,i)=>e(t,i)&&!((s.mtimeCache?.get(t)??i.mtime??0)>(i.mtime??0)):(t,i)=>!((s.mtimeCache?.get(t)??i.mtime??0)>(i.mtime??0))}});var go=exports&&exports.__createBinding||(Object.create?(function(s,e,t,i){i===void 0&&(i=t);var r=Object.getOwnPropertyDescriptor(e,t);(!r||("get"in r?!e.__esModule:r.writable||r.configurable))&&(r={enumerable:!0,get:function(){return e[t]}}),Object.defineProperty(s,i,r)}):(function(s,e,t,i){i===void 0&&(i=t),s[i]=e[t]})),Ol=exports&&exports.__setModuleDefault||(Object.create?(function(s,e){Object.defineProperty(s,"default",{enumerable:!0,value:e})}):function(s,e){s.default=e}),Y=exports&&exports.__exportStar||function(s,e){for(var t in s)t!=="default"&&!Object.prototype.hasOwnProperty.call(e,t)&&go(e,s,t)},Rl=exports&&exports.__importStar||(function(){var s=function(e){return s=Object.getOwnPropertyNames||function(t){var i=[];for(var r in t)Object.prototype.hasOwnProperty.call(t,r)&&(i[i.length]=r);return i},s(e)};return function(e){if(e&&e.__esModule)return e;var t={};if(e!=null)for(var i=s(e),r=0;r<i.length;r++)i[r]!=="default"&&go(t,e,i[r]);return Ol(t,e),t}})();Object.defineProperty(exports, "__esModule", ({value:!0}));exports.u=exports.types=exports.r=exports.t=exports.x=exports.c=void 0;Y(dr(),exports);var vl=dr();Object.defineProperty(exports, "c", ({enumerable:!0,get:function(){return vl.create}}));Y(Ir(),exports);var Tl=Ir();Object.defineProperty(exports, "x", ({enumerable:!0,get:function(){return Tl.extract}}));Y(Je(),exports);Y(st(),exports);var Dl=st();Object.defineProperty(exports, "t", ({enumerable:!0,get:function(){return Dl.list}}));Y(Ii(),exports);Y(pi(),exports);Y(ti(),exports);Y(ni(),exports);Y(Yi(),exports);var Pl=Yi();Object.defineProperty(exports, "r", ({enumerable:!0,get:function(){return Pl.replace}}));exports.types=Rl(Ds());Y(Ar(),exports);Y(Fr(),exports);var Nl=Fr();Object.defineProperty(exports, "u", ({enumerable:!0,get:function(){return Nl.update}}));Y(tr(),exports);
+//# sourceMappingURL=index.min.js.map
 
 
 /***/ })

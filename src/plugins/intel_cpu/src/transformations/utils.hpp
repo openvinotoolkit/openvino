@@ -55,11 +55,18 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
 
 bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node);
 
+bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node);
+
+bool match_acl_int8_pooling_fq_chain(const std::shared_ptr<const ov::Node>& node);
+
+bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& node,
+                                      const std::vector<ov::element::Type>& defaultPrecisions);
+
+bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node>& node);
+
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
                                    const ov::Shape& kernel_shape,
                                    size_t oc_ic_limit);
-
-bool match_conv_mul_add(const std::shared_ptr<const ov::Node>& node);
 
 }  // namespace ov::intel_cpu

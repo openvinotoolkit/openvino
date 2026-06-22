@@ -25,6 +25,9 @@ public:
     size_t size() const;
     bool empty() const;
     ov::Output<ov::Node> get_element(size_t index) const;
+
+    /// \brief Returns all sequence elements by walking backward through any
+    /// SequenceInsert chain wrapping this SequenceMark.
     ov::OutputVector get_sequence() const;
 };
 

@@ -28,7 +28,7 @@ protected:
         xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
         binFileName = filePrefix + "_IrFrontendTestModel.bin";
         ov::serialize(model, xmlFileName);
-        binsize = ov::test::utils::fileSize(binFileName) / 1024;
+        binsize = ov::test::utils::fileSize(binFileName.string()) / 1024;
 
         // In case of enabled `mmap` RAM should not increase more than 50% of .bin size
         // Otherwise RAM should increase on at least 50% of .bin size

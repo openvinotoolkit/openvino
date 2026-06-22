@@ -5,10 +5,8 @@
 #include "snippets/op/reg_spill.hpp"
 
 #include <cassert>
-#include <iterator>
 #include <memory>
 #include <set>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +19,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
@@ -30,15 +29,7 @@ namespace ov::snippets::op {
 RegSpillBase::RegSpillBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
 bool RegSpillBase::visit_attributes(AttributeVisitor& visitor) {
-    std::stringstream ss;
-    const auto& regs_to_spill = get_regs_to_spill();
-    for (auto reg_it = regs_to_spill.begin(); reg_it != regs_to_spill.end(); reg_it++) {
-        ss << *reg_it;
-        if (std::next(reg_it) != regs_to_spill.end()) {
-            ss << ", ";
-        }
-    }
-    std::string spilled = ss.str();
+    auto spilled = ov::util::join(get_regs_to_spill());
     visitor.on_attribute("regs_to_spill", spilled);
     return true;
 }

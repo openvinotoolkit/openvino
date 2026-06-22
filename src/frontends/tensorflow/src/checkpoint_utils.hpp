@@ -96,6 +96,30 @@ bool get_varint64(std::string& input, uint64_t* value);
 std::string encode_tensor_name_slice(const std::string& name,
                                      const std::vector<int64_t>& starts,
                                      const std::vector<int64_t> lengths);
+/// \brief Validates that a BundleEntryProto's offset and size are non-negative
+/// and that offset + size fits within data_size, using overflow-safe arithmetic.
+/// \param offset The entry offset (int64 from protobuf)
+/// \param size The entry size (int64 from protobuf)
+/// \param data_size The total size of the shard data (mmap or file)
+/// \param context_msg Error context prefix for diagnostics
+inline void validate_bundle_entry_bounds(int64_t offset, int64_t size, uint64_t data_size, const char* context_msg) {
+    FRONT_END_GENERAL_CHECK(offset >= 0, context_msg, ": entry offset is negative (", offset, ")");
+    FRONT_END_GENERAL_CHECK(size >= 0, context_msg, ": entry size is negative (", size, ")");
+    auto u_offset = static_cast<uint64_t>(offset);
+    auto u_size = static_cast<uint64_t>(size);
+    // Overflow-safe: instead of checking u_offset + u_size <= data_size (which can overflow),
+    // check u_size <= data_size && u_offset <= data_size - u_size
+    FRONT_END_GENERAL_CHECK(u_size <= data_size && u_offset <= data_size - u_size,
+                            context_msg,
+                            ": entry bounds [offset=",
+                            offset,
+                            ", size=",
+                            size,
+                            "] exceed data size (",
+                            data_size,
+                            " bytes)");
+}
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

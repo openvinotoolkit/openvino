@@ -88,33 +88,6 @@ TEST(file_util, path_join) {
     }
 }
 
-TEST(file_util, sanitize_path) {
-    {
-        string path = "../../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "/../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "..";
-        EXPECT_STREQ("", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "workspace/data/tensor.data";
-        EXPECT_STREQ("workspace/data/tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "..\\..\\tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "C:\\workspace\\tensor.data";
-        EXPECT_STREQ("workspace\\tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-}
-
 using namespace testing;
 
 class TrimFileTest : public Test {
@@ -636,7 +609,34 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 }
 #endif
 
-TEST_P(UnicodePathTest, create_directories) {
+using FileUtilTestP = UnicodePathTest;
+
+INSTANTIATE_TEST_SUITE_P(string_paths,
+                         FileUtilTestP,
+                         testing::Values("test_encoder/test_encoder.encrypted/",
+                                         "test_encoder/test_encoder.encrypted"));
+INSTANTIATE_TEST_SUITE_P(u16_paths,
+                         FileUtilTestP,
+                         testing::Values(u"test_encoder/dot.folder", u"test_encoder/dot.folder/"));
+
+INSTANTIATE_TEST_SUITE_P(u32_paths,
+                         FileUtilTestP,
+                         testing::Values(U"test_encoder/dot.folder", U"test_encoder/dot.folder/"));
+
+INSTANTIATE_TEST_SUITE_P(wstring_paths,
+                         FileUtilTestP,
+                         testing::Values(L"test_encoder/test_encoder.encrypted",
+                                         L"test_encoder/test_encoder.encrypted/"));
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+INSTANTIATE_TEST_SUITE_P(unicode_paths, FileUtilTestP, unicode_paths);
+
+INSTANTIATE_TEST_SUITE_P(unicode_paths_with_slash,
+                         FileUtilTestP,
+                         testing::Values("这是.folder/", L"这是_folder/", u"这是_folder/", U"这是_folder/"));
+#endif
+
+TEST_P(FileUtilTestP, create_directories) {
     const auto test_dir = utils::generateTestFilePrefix();
     const auto path = std::filesystem::path(test_dir) / get_path_param();
     const auto exp_path = std::filesystem::path(test_dir) / utils::to_fs_path(GetParam());
@@ -649,4 +649,48 @@ TEST_P(UnicodePathTest, create_directories) {
 
     std::filesystem::remove_all(test_dir);
 }
+
+class SanitizePathTest : public ::testing::Test {
+protected:
+    std::filesystem::path base{std::filesystem::temp_directory_path() / "ov_sanitize_test_base"};
+};
+
+TEST_F(SanitizePathTest, valid_nested_relative_path) {
+    const auto result = ov::util::sanitize_path(base, "workspace/data/tensor.data");
+    EXPECT_EQ(result, base / "workspace/data/tensor.data");
+}
+
+TEST_F(SanitizePathTest, invalid_single_dotdot) {
+    EXPECT_THROW(ov::util::sanitize_path(base, ".."), std::runtime_error);
+}
+
+TEST_F(SanitizePathTest, invalid_dotdot_prefix) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "../tensors_data/tensor.data"), std::runtime_error);
+}
+
+TEST_F(SanitizePathTest, invalid_absolute_path_outside_base) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "/../tensor.data"), std::runtime_error);
+}
+
+#ifdef _WIN32
+TEST_F(SanitizePathTest, invalid_windows_absolute_path_different_drive) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "C:\\workspace\\tensor.data"), std::runtime_error);
+}
+
+TEST_F(SanitizePathTest, invalid_windows_dotdot_backslash) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "..\\..\\tensor.data"), std::runtime_error);
+}
+#endif
+
+TEST_F(SanitizePathTest, empty_dir_uses_cwd) {
+    const auto result = ov::util::sanitize_path("", "tensors/data.bin");
+    const auto expected = ov::util::get_absolute_file_path(
+        std::filesystem::weakly_canonical(std::filesystem::current_path() / "tensors/data.bin"));
+    EXPECT_EQ(result, expected);
+}
+
+TEST_F(SanitizePathTest, empty_dir_dotdot_still_rejected) {
+    EXPECT_THROW(ov::util::sanitize_path("", ".."), std::runtime_error);
+}
+
 }  // namespace ov::test

@@ -309,7 +309,11 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     compare_out_buffer_with_expected(out_buffer_2, expected_buffer_2, out_size_2);
 
     // Check output is not reallocated
-    ASSERT_EQ(output_ptr_1.data(), output_ptr_2.data());
+    if (output_mem_1->get_allocation_type() == allocation_type::usm_device) {
+        ASSERT_EQ(output_mem_1->buffer_ptr(), output_mem_2->buffer_ptr());
+    } else {
+        ASSERT_EQ(output_ptr_1.data(), output_ptr_2.data());
+    }
     ASSERT_EQ(internal_mems_1.size(), internal_mems_2.size());
     for (size_t i = 0; i < internal_mems_1.size(); ++i) {
         ASSERT_EQ(internal_mems_1[i]->buffer_ptr(), internal_mems_2[i]->buffer_ptr());

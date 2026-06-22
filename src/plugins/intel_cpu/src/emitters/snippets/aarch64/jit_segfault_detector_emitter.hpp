@@ -25,7 +25,7 @@ class jit_uni_segfault_detector_emitter
 public:
     using base_t = ov::intel_cpu::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter>;
 
-    jit_uni_segfault_detector_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_uni_segfault_detector_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                       jit_emitter* target_emitter,
                                       bool is_load,

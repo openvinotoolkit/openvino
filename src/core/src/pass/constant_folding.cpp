@@ -8,6 +8,7 @@
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -161,6 +162,14 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     // Propagate runtime info attributes to replacement
                     copy_runtime_info(original_node, replacement_ptr);
                     ov::copy_weightless_cache_attr(original_node, replacement_ptr);
+                    // Evict data if original node is constant or convert with constant input
+                    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(original_node)) {
+                        ov::wsh::Extension::hint_evict(*constant);
+                    } else if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(original_node)) {
+                        if (auto const_input = ov::as_type<ov::op::v0::Constant>(convert->get_input_node_ptr(0))) {
+                            ov::wsh::Extension::hint_evict(*const_input);
+                        }
+                    }
 
                     rewritten = true;
                 }

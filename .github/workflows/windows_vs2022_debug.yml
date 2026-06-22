@@ -37,7 +37,7 @@ jobs:
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
       - name: checkout action
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -53,7 +53,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
 
       - name: Get target branch
         id: set_target_branch
@@ -76,6 +76,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
 
   CXX_Unit_Tests:

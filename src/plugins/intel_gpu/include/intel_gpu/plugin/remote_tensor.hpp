@@ -8,10 +8,14 @@
 # define NOMINMAX
 #endif
 
+
+// Do not include DirectX / VA wrappers when running with ZE runtime as they depend on OCL
+#ifndef OV_GPU_WITH_ZE_RT
 #ifdef _WIN32
 # include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #else
 # include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#endif
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
 
@@ -36,7 +40,13 @@ public:
                      TensorType mem_type = TensorType::BT_BUF_INTERNAL,
                      cldnn::shared_handle mem = nullptr,
                      cldnn::shared_surface surf = 0,
-                     uint32_t plane = 0);
+                     uint32_t plane = 0,
+#ifdef __linux__
+                     ov::intel_gpu::os_handle_param os_handle = -1
+#else
+                     ov::intel_gpu::os_handle_param os_handle = nullptr
+#endif
+);
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -77,6 +87,7 @@ private:
     TensorType m_mem_type;
 
     cldnn::shared_handle m_mem;
+    ov::intel_gpu::os_handle_param m_os_handle;
     cldnn::shared_surface m_surf;
     uint32_t m_plane;
     size_t m_hash = 0;

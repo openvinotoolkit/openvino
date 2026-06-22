@@ -114,16 +114,11 @@ bool FakeQuantizeDequantization::isPerTensor() const {
         THROW_IE_LPT_EXCEPTION_BASE << "multiply constant can not be empty";
     }
 
-    const std::vector<float>& scales = multiplyConstant->cast_vector<float>();
-    if (scales.size() != 1ull) {
+    if (ov::shape_size(multiplyConstant->get_shape()) != 1ul) {
         return false;
     }
-
-    if (subtractConstant != nullptr) {
-        const std::vector<float>& scales = subtractConstant->cast_vector<float>();
-        if (scales.size() != 1ull) {
-            return false;
-        }
+    if (subtractConstant != nullptr && ov::shape_size(subtractConstant->get_shape()) != 1ul) {
+        return false;
     }
 
     return true;

@@ -9,6 +9,7 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "life_time.hpp"
+#include "openvino/util/codec_xor.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -154,6 +155,21 @@ TEST_P(OVHoldersTestNPU, LoadedRemoteContext) {
         } catch (...) {
         }
     }
+}
+
+TEST_P(OVHoldersTestNPU, CompileModelWithEncryptionWorksAfterConfigDeallocate) {
+    ov::CompiledModel compiled_model;
+    {
+        ov::AnyMap copy_configuration = configuration;
+        copy_configuration.insert(
+            ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
+        ov::Core core = createCoreWithTemplate();
+        compiled_model = core.compile_model(function, target_device, copy_configuration);
+    }
+    std::stringstream str;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(str));
+    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::util::codec_xor}));
+    OV_ASSERT_NO_THROW(ov::Core().import_model(str, target_device, configuration));
 }
 
 class OVHoldersTestOnImportedNetworkNPU : public OVPluginTestBase,

@@ -32,9 +32,16 @@ public:
     /**
      * @brief Updates the configuration with new options if the key is enabled state
      * @param options A map of key-value pairs representing the new configuration options.
-     * @param mode Specifies the mode in which the options should be updated (default is `OptionMode::Both`).
      */
-    void update(const ConfigMap& options, OptionMode mode = OptionMode::Both) override;
+    void update(const ConfigMap& options) override;
+
+    /**
+     * @brief Additional update method for properties that don't have their values convertible to string objects.
+     * @note In the future, code will be refactored to use only this update method to optimize redundant flow
+     * ov::Any-->std::string-->Opt::ValueType
+     * @param options A map of key-value pairs representing the new configuration options.
+     */
+    void updateAny(const ov::AnyMap& options) override;
 
     /**
      * @brief Checks if a specific option exists in the configuration's descriptorDesc.
@@ -120,22 +127,10 @@ public:
      */
     std::string toStringForCompiler() const;
 
-    /**
-     * @brief Marks config as initialized
-     */
-    void markAsInitialized();
-
-    /**
-     * @brief Checks whether config was initialized
-     */
-    bool wasInitialized() const;
-
 private:
     EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
 
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
-
-    bool _initialized = false;  ///< Boolean to check whether config was filtered with compiler supported properties
 };
 
 }  // namespace intel_npu

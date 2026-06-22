@@ -21,7 +21,7 @@ class SparseTensor {
 public:
     SparseTensor() = delete;
     SparseTensor(const SparseTensorProto& sparse_tensor,
-                 const std::string& model_dir,
+                 const std::filesystem::path& model_dir,
                  detail::MappedMemoryHandles mmap_cache)
         : m_values{sparse_tensor.values(), model_dir, mmap_cache},
           m_indices{sparse_tensor.indices(), model_dir, mmap_cache},

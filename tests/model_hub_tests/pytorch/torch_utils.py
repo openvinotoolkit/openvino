@@ -65,26 +65,15 @@ class TestTorchConvertModel(TestConvertModel):
 
     def convert_model_impl(self, model_obj):
         if hasattr(self, "mode") and self.mode == "export":
-            from torch.export import export
-            from packaging import version
-
-            model_obj.eval()
-            graph = None
             export_kwargs = {}
-            if getattr(self, "export_kwargs", None):
-                export_kwargs = self.export_kwargs
-            if isinstance(self.example, dict):
-                pt_res = model_obj(**self.example)
-                graph = export(model_obj, args=tuple(), kwargs=self.example, **export_kwargs)
-            else:
-                pt_res = model_obj(*self.example)
-                graph = export(model_obj, self.example, **export_kwargs)
-            ov_model = convert_model(graph, verbose=True)
-
-            if isinstance(pt_res, dict):
-                for i, k in enumerate(pt_res.keys()):
-                    ov_model.outputs[i].get_tensor().set_names({k})
-            ov_model.validate_nodes_and_infer_types()
+            if getattr(self, "dynamo_input", None):
+                export_kwargs["input"] = self.dynamo_input
+            ov_model = convert_model(model_obj,
+                                     example_input=self.example,
+                                     verbose=True,
+                                     dynamo=True,
+                                     **export_kwargs,
+                                     )
         else:
             ov_model = convert_model(model_obj,
                                      example_input=self.example,

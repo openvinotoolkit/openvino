@@ -5,6 +5,7 @@
 #pragma once
 
 #include <future>
+#include <optional>
 #include <random>
 #include <string>
 
@@ -35,6 +36,31 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
+
+// Matches the three DynamicQuantize decomposition implementations declared in
+// kv_cache_compressed.hpp.
+enum class DynamicQuantDecomposeMode {
+    // V1: handcrafted symmetric-style path, i8 range [-127, 127].
+    HandcraftedSymmetricI8 = 1,
+
+    // V2: ONNX DynamicQuantizeLinear-style path, u8 range [0, 255].
+    OnnxDynamicQuantizeLinear = 2,
+
+    // V3: compiler pattern-style path. i8 requests are materialized as u8
+    // storage for the asymmetric decomposition branch.
+    CompilerPatternI8 = 3,
+};
+
+struct DynamicQuantStorageTypes {
+    ov::element::Type quantized_data_type = ov::element::dynamic;
+    ov::element::Type zero_point_type = ov::element::dynamic;
+    ov::element::Type scale_type = ov::element::f32;
+};
+
+DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(DynamicQuantDecomposeMode decompose_mode,
+                                                             bool is_symmetric,
+                                                             const ov::element::Type& quant_dt,
+                                                             const ov::element::Type& scale_dt = ov::element::f32);
 
 struct UnpackOptions {
     bool bUseOvParallelFor;
@@ -138,6 +164,12 @@ struct Impl {
     const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
         return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
+
+    template <typename K>
+    V at_or(const K& k, const V& default_val) const {
+        const auto iter = m->find(k);
+        return iter != m->end() ? iter->second : default_val;
+    }
 };
 
 template <typename M>
@@ -188,6 +220,41 @@ bool matchLoRAMatMulAString(const std::string& input);
 bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
+
+bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
+
+bool starts_with_past_lincache(const std::string& input_name);
+
+// Structure to hold SDPA pattern nodes
+struct SDPAPatternNodes {
+    std::shared_ptr<ov::Node> matmul1_node = nullptr;
+    std::shared_ptr<ov::Node> matmul2_node = nullptr;
+    std::shared_ptr<ov::Node> softmax_node = nullptr;
+    std::shared_ptr<ov::Node> add_node = nullptr;
+    std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
+    std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
+
+    bool is_valid() const {
+        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_concat_node &&
+               past_value_concat_node;
+    }
+
+    // Log pattern information for debugging
+    void log_pattern(const std::string& prefix) const {
+        LOG_DEBUG("SDPA Pattern " << prefix << " nodes:");
+        LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
+        LOG_DEBUG(
+            "  Value Concat: " << (past_value_concat_node ? past_value_concat_node->get_friendly_name() : "null"));
+    }
+};
+
+// Function to find SDPA pattern nodes in the model
+SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
@@ -243,9 +310,31 @@ private:
     mutable bool done = false;
 };
 
-bool isPastKeyValuesKey(const std::string& str);
+// Matches only the contiguous (non-block-split) past key param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesKeyContiguous(const std::string& str);
+// Matches only the contiguous (non-block-split) past value param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesValueContiguous(const std::string& str);
 
-bool isPastKeyValuesValue(const std::string& str);
+// Backward compatibility: Alias for isPastKeyValuesKeyContiguous
+inline std::optional<int> isPastKeyValuesKey(const std::string& str) {
+    return isPastKeyValuesKeyContiguous(str);
+}
+// Backward compatibility: Alias for isPastKeyValuesValueContiguous
+inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
+    return isPastKeyValuesValueContiguous(str);
+}
+
+std::optional<int> isPresentKeyValuesKey(const std::string& str);
+std::optional<int> isPresentKeyValuesValue(const std::string& str);
+
+// Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
+bool isPastKeyParam(const std::string& str);
+// Matches any past value param: contiguous or block-split.
+bool isPastValueParam(const std::string& str);
+
+// To remove input KV params that got badly matched in StatefulToStateless pass
+// in Whisper model.
+bool isRestoredPastKeyValueParam(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

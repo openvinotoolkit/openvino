@@ -35,6 +35,7 @@
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp"
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
@@ -135,6 +136,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
+    // To avoid extra memory allocations and ensure behavior consistent with plugin
+    // expectations, Transpose on MatMul inputs (optionally via Convert)
+    // must be fused into MatMul rather than constant-folded.
+    // Therefore, TransposeMatMul should run before the first ConstantFolding pass.
+    REGISTER_PASS(manager, TransposeConvert)
+    REGISTER_PASS(manager, TransposeMatMul)
     if (m_low_precision_enabled) {
         // Transformation call example, to check with the real model
         manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
@@ -279,6 +286,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, FuseClampAndFakeQuantize)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");

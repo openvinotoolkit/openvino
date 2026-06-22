@@ -1,0 +1,2 @@
+# Extra dependencies for test_easyocr.py
+easyocr==1.7.2

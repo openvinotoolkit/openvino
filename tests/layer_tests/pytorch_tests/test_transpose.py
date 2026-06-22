@@ -4,7 +4,13 @@
 import numpy as np
 import pytest
 import torch
+from packaging import version
 from pytorch_layer_test_class import PytorchLayerTest
+
+# x.T (numpy_T) on non-2D tensors is deprecated in PyTorch 2.9:
+# - 0-D: "Tensor.T is deprecated on 0-D tensors"
+# - 1-D: "The use of x.T on tensors of dimension other than 2 ... is deprecated"
+_TENSOR_T_NON2D_DEPRECATED = version.parse(torch.__version__) >= version.parse("2.9.0")
 
 
 class TestTranspose(PytorchLayerTest):
@@ -106,6 +112,8 @@ class TestTSmall(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_t_small(self, num_dims, input_dtype, mode, ie_device, precision, ir_version):
+        if mode == "numpy" and num_dims != 2 and _TENSOR_T_NON2D_DEPRECATED:
+            pytest.skip("x.T on non-2D tensors is deprecated in PyTorch 2.9")
         self._test(
             *self.create_model(mode),
             ie_device,

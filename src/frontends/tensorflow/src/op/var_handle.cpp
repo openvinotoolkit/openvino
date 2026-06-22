@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "checkpoint_utils.hpp"
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/unsupported_constant.hpp"
@@ -41,10 +42,10 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
         if (!mapped_memory.get()) {
             TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
         }
-        TENSORFLOW_OP_VALIDATION(
-            node,
-            static_cast<int64_t>(mapped_memory->size()) >= entry.offset() + entry.size(),
-            "[TensorFlow Frontend] Internal error: Variable entry size is out of bounds of mapped memory size.");
+        validate_bundle_entry_bounds(entry.offset(),
+                                     entry.size(),
+                                     mapped_memory->size(),
+                                     "[TensorFlow Frontend] Variable data (mmap)");
         return std::make_shared<v0::Constant>(
             ov_type,
             shape,
@@ -58,6 +59,19 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
         if (!fs.get()) {
             TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
         }
+        fs->seekg(0, std::ios::end);
+        TENSORFLOW_OP_VALIDATION(node,
+                                 fs->good(),
+                                 "[TensorFlow Frontend] Variable data (stream): failed to seek to end of data file");
+        auto pos = fs->tellg();
+        TENSORFLOW_OP_VALIDATION(node,
+                                 pos != static_cast<std::streampos>(-1),
+                                 "[TensorFlow Frontend] Variable data (stream): failed to determine data file size");
+        auto file_size = static_cast<uint64_t>(pos);
+        validate_bundle_entry_bounds(entry.offset(),
+                                     entry.size(),
+                                     file_size,
+                                     "[TensorFlow Frontend] Variable data (stream)");
         fs->seekg(entry.offset(), std::ios::beg);
         fs->read(reinterpret_cast<char*>(var_data.data()), entry.size());
         return std::make_shared<v0::Constant>(ov_type, shape, var_data);

@@ -79,6 +79,10 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
  */
 float cast_eps_to_float(double eps_d);
 
+inline bool is_scalar_or_single_elem_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+    return constant && shape_size(constant->get_shape()) == 1;
+}
+
 template <typename T>
 bool get_constant_value(const std::shared_ptr<ov::Node>& node, T& value) {
     auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -103,8 +107,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
-    if (!is_scalar_or_single_elem) {
+    if (!is_scalar_or_single_elem_constant(constant)) {
         return false;
     }
 
@@ -204,6 +207,19 @@ TRANSFORMATIONS_API void visit_path(ov::Node* node,
                                     std::unordered_set<ov::Node*>& visited,
                                     std::function<void(ov::Node*)> func,
                                     std::function<bool(ov::Node*)> skip_node_predicate);
+
+/**
+ * \brief Traverses path forward (following consumers) starting from `node`, and calls "func" for each ov::Node.
+ *
+ * \param start_node  The node from which forward path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ * \param skip_node_predicate  predicate to skip nodes.
+ */
+TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
+                                            std::unordered_set<ov::Node*>& visited,
+                                            std::function<void(ov::Node*)> func,
+                                            std::function<bool(ov::Node*)> skip_node_predicate);
 
 /**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,

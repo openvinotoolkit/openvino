@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,13 +22,16 @@ public:
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
-        static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
+        static constexpr const char* longrope_input = "npuw_longrope_input";
+        static constexpr const char* per_layer_inputs = "per_layer_inputs";
     };
 
     struct layer_ids {
         static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
         static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
+
+    using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
     explicit LLMInferBaseRequest(const std::shared_ptr<LLMCompiledModel>& compiled_model)
         : ISyncInferRequest(compiled_model),
@@ -43,11 +46,11 @@ public:
     }
 
 protected:
-    void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
-                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
-                            uint32_t num_tokens,
-                            bool v_transposed);
+    virtual void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                    const PortsMap& in_ports,
+                                    const PortsMap& out_ports,
+                                    uint32_t num_tokens,
+                                    bool v_transposed);
     void init_tensor(const ov::Output<const ov::Node>& port);
     void init_ports();
 
