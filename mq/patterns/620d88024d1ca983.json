@@ -1,17 +1,20 @@
 {
   "signature": "worker crashed while running tests/smoke_tests/test_classification_sample_async.py|Samples|Flaky Test",
-  "title": "test_classification_sample_async_fp32 worker crash in Samples smoke tests (Windows)",
+  "title": "test_classification_sample_async worker crash in Samples smoke tests (Windows)",
   "category": "Flaky Test",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-06-22T12:08:00Z",
-  "last_seen": "2026-06-22T12:08:00Z",
+  "last_seen": "2026-06-22T12:21:02Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/27946518375",
     "https://github.com/openvinotoolkit/openvino/actions/runs/27946517601"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/33769",
     "https://github.com/openvinotoolkit/openvino/pull/36430"
   ],
   "recent_timestamps": [
+    "2026-06-22T12:21:02Z",
     "2026-06-22T12:08:00Z"
   ]
 }
