@@ -229,13 +229,13 @@ RUN cd Python-3.14t && make distclean && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.14t -m pip install --upgrade pip==${PIP_VERSION}
+RUN python3 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
+    python3.14 -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages && \
+    python3.14t -m pip install --upgrade pip==${PIP_VERSION} --break-system-packages
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
