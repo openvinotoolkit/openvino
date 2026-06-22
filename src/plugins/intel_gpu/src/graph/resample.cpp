@@ -270,15 +270,7 @@ void resample_inst::update_output_memory() {
         get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
     }
     _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
-
-    const auto& users = get_user_insts();
-    // compile time: instance users are not initialized yet, skip the rebind and do it during runtime (case 1).
-    // runtime:      instance users are already initialized, do the rebind here (case 2).
-    if (!users.empty()) {
-        // runtime:  rebind for case 2.
-        rebind_onednn_reuse_optimized_dst_if_needed(*this);
-    }
-
+    rebind_onednn_reuse_optimized_dst_if_needed(*this);
     _mem_allocated = false;
 }
 }  // namespace cldnn
