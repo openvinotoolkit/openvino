@@ -116,8 +116,8 @@ ov::Output<ov::Node> make_growable_seed(const ov::PartialShape& ps, ov::element:
         return std::make_shared<v0::Constant>(et, ov::Shape{}, std::vector<std::string>{"0"})->output(0);
     }
     const auto rl = ps.rank().get_length();
-    int last_dyn = -1;
-    for (int j = rl - 1; j >= 0; --j) {
+    int64_t last_dyn = -1;
+    for (int64_t j = rl - 1; j >= 0; --j) {
         if (ps[j].is_dynamic()) {
             last_dyn = j;
             break;
@@ -125,7 +125,7 @@ ov::Output<ov::Node> make_growable_seed(const ov::PartialShape& ps, ov::element:
     }
     ov::Shape seed_shape;
     seed_shape.reserve(static_cast<size_t>(rl));
-    for (int j = 0; j < rl; ++j) {
+    for (int64_t j = 0; j < rl; ++j) {
         if (ps[j].is_static()) {
             seed_shape.push_back(static_cast<size_t>(ps[j].get_length()));
         } else if (j == last_dyn) {
