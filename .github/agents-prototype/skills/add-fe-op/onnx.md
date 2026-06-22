@@ -271,7 +271,7 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 - [ ] **`ONNX_OP` registration added** — macro at bottom of the new `.cpp` translator file (not in `ops_bridge.cpp`).
 - [ ] **Test model added** — `.prototxt` covers basic case and edge cases.
 - [ ] **C++ test added** — at least one test in `onnx_import.in.cpp`.
-- [ ] **All ONNX tests pass** — `ctest -R ov_onnx_frontend_tests` green.
+- [ ] **Tests pass** — build `ov_onnx_frontend_tests`, run the full suite, confirm the new test is present and green with no regressions. Do not report success without running it.
 - [ ] **clang-format applied** — no formatting diffs.
 - [ ] **Supported ops doc updated** — `src/frontends/onnx/docs/supported_ops.md` (if maintained).
 
@@ -289,6 +289,10 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 | **Broadcasting edge cases** | ONNX uses Numpy-style broadcasting; verify with scalar and 0-rank tensor inputs. |
 | **Not handling empty attribute list** | Some attributes may have list type with empty default; `get_attribute_value<std::vector<int64_t>>("axis", {})`. |
 | **Mark operations missing** | For complex/quantized/sequence types, the normalize-step won't resolve correctly without the corresponding Mark operation. |
+| **Not checking for a closely related existing translator** | If the new op is a quantized/extended variant of an existing op (e.g., `DynamicQuantizeLSTM` vs `LSTM`), read that translator first. Reuse shared utilities (`recurrent.hpp` for RNN-family, etc.) rather than duplicating helper code. |
+| **Speculative input handling** | Only handle input ranks/layouts defined by the spec. Adding speculative rank-N handling for cases the spec doesn't define creates dead code that may silently produce wrong outputs (wrong rank on outputs, missing bidirectional guard, etc.). When in doubt, `CHECK_VALID_NODE` to reject unsupported input shapes. |
+| **Silently dropping unsupported optional inputs** | If an optional input (e.g., peephole weights) cannot be represented in the OV subgraph, reject it with an explicit `CHECK_VALID_NODE` error rather than ignoring it. Silent drops produce wrong results. |
+| **Hand-rolling dequantization subgraphs** | For ops with quantized inputs (int8/uint8 + scale + zero_point), use `ov::decomposition::low_precision_dequantize` (`#include "openvino/decompositions/low_precision_dequantize.hpp"`) instead of manually building Convert→Subtract→Multiply. The helper produces the canonical pattern recognised by `ov::pass::MarkDequantization` and protects the Convert from constant folding, enabling downstream LPT and weight-decompression optimisations. **Scale axis alignment:** `low_precision_dequantize` uses numpy right-aligned autobroadcast, so the scale/zero_point quantization axes must be the trailing dimensions of the weight tensor. If they are not, align them by appending size-1 dimensions: when the scale is a `Constant` (the normal case in quantized models), create a new `Constant` with the reshaped shape via `Constant(const Constant&, Shape)` — no graph node is inserted and `MarkDequantization` still fires. When the scale is a runtime input (e.g. in tests), fall back to an `Unsqueeze` node — LPT will not fire but correctness is preserved. Add both a runtime-input test and a graph-constant test to cover both code paths. |
 
 ---
 
