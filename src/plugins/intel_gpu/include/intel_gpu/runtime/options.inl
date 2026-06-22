@@ -62,6 +62,10 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precompute
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, pa_mixed_route_mode, std::string("split"), "Mixed route mode for CM paged attention. Supported values: multi, split")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_micro_gemm_prefill, true, "MoE 3GEMM: use micro-kernel GEMM for the prefill path. Requires Xe2+ and 4-bit weights; overridden when grouped GEMM is enabled")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_gpu_mask_gen_prefill, false, "MoE 3GEMM: generate routing masks on GPU instead of CPU for the micro-kernel prefill path")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_grouped_gemm_prefill, true, "MoE 3GEMM: use a single OneDNN grouped matmul per GEMM layer for the prefill path. Takes priority over micro-kernel GEMM")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_batched_gemv_threshold, 32, "MoE 3-GEMM: token count (<=) that selects the batched GEMV decode path instead of the prefill path")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
