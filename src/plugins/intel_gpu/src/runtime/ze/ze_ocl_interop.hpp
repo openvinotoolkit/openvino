@@ -33,10 +33,22 @@ struct ocl_image_args {
     cl_image_desc desc;
 };
 
-/// @brief Provides interoperability between Level Zero and OpenCL.
+/// @brief Provides functions to convert between Level Zero and OpenCL handles.
+///
+/// Converting from OpenCL to Level Zero generally works by extracting internal Level Zero handles from OpenCL objects.
+/// Converting from Level Zero to OpenCL generally works by creating new OpenCL objects and passing to them Level Zero handles.
+/// Both approaches enable user to use the same entity through Level Zero and OpenCL APIs.
+///
+/// Functions named "create_*" work by creating new objects.
+/// Handles returned by these functions must be released by the caller using the appropriate release functions.
+///
+/// Functions named "get_*" work by extracting data from already existing objects.
+/// Handles returned by these functions are borrowed and should not be released.
+///
+/// Functions named "find_*" work by matching already existing objects.
+/// Handles returned by these functions should not be released.
 ///
 /// Conversion functions require both Level Zero and OpenCL to be initialized beforehand.
-/// All resources obtained from "create_*" functions must be released by the caller.
 /// All functions will either succeed and return a valid resource handle or throw an exception.
 class ze_ocl_interop {
 public:

@@ -8,7 +8,7 @@
 #include "ze_engine.hpp"
 #include "ze_stream.hpp"
 #include "ze_event.hpp"
-#include "ze_ocl_exporter.hpp"
+#include "ze_resource_interop.hpp"
 #include "runtime_common.hpp"
 
 #include <stdexcept>
@@ -499,14 +499,12 @@ shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
         return params;
     } else if (rt_type == runtime_types::ocl) {
         auto device_res = zero_engine->get_device();
-        ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device_res});
-        ctx_exporter(ctx_res);
+        ze_export_ocl_context(ctx_res, device_res);
         params.context = ctx_res.get_ocl_handle<ocl_resource_type::context>();
         if (get_allocation_type() == allocation_type::cl_mem) {
             cl_mem_flags flags = 0;
             size_t buffer_size = _bytes_count;
-            ze_ocl_exporter<ze_resource_type::usm_memory, ocl_resource_type::mem_object> exporter({device_res, ctx_res, flags, buffer_size});
-            exporter(_buffer);
+            ze_export_ocl_mem(_buffer, ctx_res, device_res, flags, buffer_size);
             params.mem_type = shared_mem_type::shared_mem_buffer;
             params.mem = _buffer.get_ocl_handle<ocl_resource_type::mem_object>();
         } else {
@@ -747,10 +745,11 @@ shared_mem_params gpu_image2d::get_internal_params(runtime_types rt_type) const 
         cl_mem_flags flags = 0;
         cl_image_format img_fmt =  get_cl_image_format(get_layout());
         cl_image_desc img_desc = get_cl_image_desc(get_layout());
-        ze_ocl_exporter<ze_resource_type::image, ocl_resource_type::mem_object> exporter({device_res, ctx_res, flags, img_fmt, img_desc});
-        exporter(_image_holder);
+        ze_export_ocl_image(_image_holder, ctx_res, device_res, flags, img_fmt, img_desc);
         params.context = ctx_res.get_ocl_handle<ocl_resource_type::context>();
         params.mem = _image_holder.get_ocl_handle<ocl_resource_type::mem_object>();
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported runtime type for gpu_image2d internal params");
     }
     return params;
 }

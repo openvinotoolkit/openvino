@@ -13,8 +13,7 @@
 #include "ze_stream.hpp"
 #include "ze_device.hpp"
 #include "ze_kernel.hpp"
-#include "ze_ocl_exporter.hpp"
-#include "ze_ocl_importer.hpp"
+#include "ze_resource_interop.hpp"
 #include <exception>
 #include <vector>
 #include <memory>
@@ -142,13 +141,11 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
     }  else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
         const auto &ctx = get_context();
         auto ocl_buffer = static_cast<cl_mem>(params.mem);
-        ze_ocl_importer<ocl_resource_type::mem_object, ze_resource_type::usm_memory> buffer_importer({ctx.get_ze_handle()});
-        auto imported_buffer = buffer_importer(ocl_buffer);
+        auto imported_buffer = ze_import_usm(ocl_buffer, ctx);
         return std::make_shared<ze::gpu_usm>(this, new_layout, imported_buffer, allocation_type::cl_mem, nullptr);
     } else if (params.mem_type == shared_mem_type::shared_mem_image) {
         auto ocl_image = static_cast<cl_mem>(params.mem);
-        ze_ocl_importer<ocl_resource_type::mem_object, ze_resource_type::image> image_importer;
-        auto imported_image = image_importer(ocl_image);
+        auto imported_image = ze_import_image(ocl_image);
         return std::make_shared<ze::gpu_image2d>(this, new_layout, imported_image, nullptr);
     } else {
         OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
@@ -211,8 +208,7 @@ void* ze_engine::get_user_context(runtime_types rt_type) const {
         return ctx.get_ze_handle();
     } else if (rt_type == runtime_types::ocl) {
         auto &device = get_device();
-        ze_ocl_exporter<ze_resource_type::context, ocl_resource_type::context> ctx_exporter({device});
-        ctx_exporter(ctx);
+        ze_export_ocl_context(ctx, device);
         return ctx.get_ocl_handle<ocl_resource_type::context>();
     } else {
         OPENVINO_THROW("[GPU] ZE engine cannot provide context for ", rt_type);
@@ -225,8 +221,7 @@ stream::ptr ze_engine::create_stream(const ExecutionConfig& config) const {
 
 stream::ptr ze_engine::create_stream(const ExecutionConfig& config, void* handle) const {
     cl_command_queue ocl_handle = static_cast<cl_command_queue>(handle);
-    ze_ocl_importer<ocl_resource_type::command_queue, ze_resource_type::command_list> cmd_list_importer;
-    auto ze_cmd_list = cmd_list_importer(ocl_handle);
+    auto ze_cmd_list = ze_import_command_list(ocl_handle);
     return std::make_shared<ze_stream>(*this, config, ze_cmd_list);
 }
 

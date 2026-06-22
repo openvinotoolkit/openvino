@@ -5,7 +5,7 @@
 #include "ze_device_detector.hpp"
 #include "ze_device.hpp"
 #include "ze_common.hpp"
-#include "ze_ocl_importer.hpp"
+#include "ze_resource_interop.hpp"
 #include "ocl/ocl_device.hpp"
 
 #include <vector>
@@ -120,16 +120,13 @@ device::ptr create_ze_device_from_ocl_device(device::ptr ocl_device, bool initia
     auto ocl_dev = std::dynamic_pointer_cast<ocl::ocl_device>(ocl_device);
     OPENVINO_ASSERT(ocl_dev != nullptr, "[GPU] Invalid device type for OpenCL to ZE device conversion");
     auto device = ocl_dev->get_device().get();
-    ze_ocl_importer<ocl_resource_type::device, ze_resource_type::driver> driver_importer;
-    auto ze_driver_res = driver_importer(device);
-    ze_ocl_importer<ocl_resource_type::device, ze_resource_type::device> device_importer;
-    auto ze_device_res = device_importer(device);
+    auto ze_driver_res = ze_import_driver(device);
+    auto ze_device_res = ze_import_device(device);
     auto context = ocl_dev->get_context().get();
     if (context == nullptr) {
         return std::make_shared<ze_device>(ze_driver_res, ze_device_res, ze_context_resource{}, initialize);
     }
-    ze_ocl_importer<ocl_resource_type::context, ze_resource_type::context> context_importer;
-    auto ze_context_res = context_importer(context);
+    auto ze_context_res = ze_import_context(context);
     return std::make_shared<ze_device>(ze_driver_res, ze_device_res, ze_context_res, initialize);
 }
 

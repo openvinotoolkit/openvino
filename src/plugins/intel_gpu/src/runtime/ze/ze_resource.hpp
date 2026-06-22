@@ -14,9 +14,7 @@ namespace ze {
 /// Copies of this class objects share the same resources. Resource are released when the last copy is destroyed.
 /// @tparam _resource_type Level Zero resource type managed by this class.
 template <ze_resource_type _resource_type>
-class ze_resource {
-public:
-    using res = ze_resource_type;
+struct ze_resource {
     static constexpr ze_resource_type resource_type = _resource_type;
     using ze_handle_t = typename ze_resource_info<resource_type>::handle_t;
     using ze_ocl_owner_t = ze_ocl_owner<resource_type>;
@@ -96,6 +94,8 @@ public:
 private:
     typename ze_ocl_owner_t::ptr _holder;
 };
+
+// Aliases for convenience
 
 using ze_driver_resource = ze_resource<ze_resource_type::driver>;
 using ze_device_resource = ze_resource<ze_resource_type::device>;
