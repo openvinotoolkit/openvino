@@ -103,6 +103,24 @@ ov::pass::TransposeFQ::TransposeFQ() {
         if (!transpose_order || !fq)
             return false;
 
+        // Skip FQ nodes that represent the Quantize half of a QDQ pair (e.g. QuantizeLinear from ONNX)
+        // Such FQs have input_low == output_low and input_high == output_high
+        // ConvertQuantizeDequantize will fold them with the downstream DequantizeLinear
+        // moving them before a Transpose would break that adjacency.
+        const auto i_low_const = ov::as_type_ptr<v0::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto i_high_const = ov::as_type_ptr<v0::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto o_low_const = ov::as_type_ptr<v0::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto o_high_const = ov::as_type_ptr<v0::Constant>(fq->get_input_node_shared_ptr(4));
+        if (i_low_const && i_high_const && o_low_const && o_high_const) {
+            float i_low_val, i_high_val, o_low_val, o_high_val;
+            if (op_util::get_single_value(i_low_const, i_low_val) &&
+                op_util::get_single_value(i_high_const, i_high_val) &&
+                op_util::get_single_value(o_low_const, o_low_val) &&
+                op_util::get_single_value(o_high_const, o_high_val) &&
+                i_low_val == o_low_val && i_high_val == o_high_val)
+                return false;
+        }
+
         ov::NodeVector new_ops;
 
         const auto& reverse_order_constant = get_reversed_order_constant(transpose_order);
