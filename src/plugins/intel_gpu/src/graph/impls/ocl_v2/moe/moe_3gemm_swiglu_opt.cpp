@@ -646,8 +646,17 @@ public:
     int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
-    size_t _lru_expert_num = 0;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
+
+    // Residency-strategy queries routed through the weight provider, replacing the former raw
+    // LRU-expert-count gating. OTD keeps only resident_slot_count() expert slots in device memory;
+    // resident mode holds all experts. The provider is always set after init()/clone().
+    bool is_otd() const {
+        return _weight_provider && _weight_provider->is_offloaded();
+    }
+    size_t resident_slot_count() const {
+        return _weight_provider->resident_capacity();
+    }
     ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
     bool _has_shared_expert = false;
@@ -732,9 +741,9 @@ public:
 
         // OTD relies on runtime weight streaming in oneDNN path.
         auto otd_desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        _lru_expert_num = otd_desc->_otd.lru_expert_num;
-        if (_lru_expert_num > 0) {
-            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(_lru_expert_num,
+        const size_t lru_expert_num = otd_desc->_otd.lru_expert_num;
+        if (lru_expert_num > 0) {
+            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(lru_expert_num,
                                                                              otd_desc->_config,
                                                                              otd_desc->_otd.weight_bin_offsets,
                                                                              otd_desc->_otd.weights_path,
@@ -742,31 +751,31 @@ public:
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
-        if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
+        if (is_otd() && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
+            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, resident_slots=" << resident_slot_count()
                                    << std::endl;
         }
         // grouped_gemm is now supported in OTD mode — expert IDs are remapped to LRU slots
-        // and the grouped matmul uses _lru_expert_num as the group dimension.
-        if (_lru_expert_num > 0 && use_grouped_gemm_prefill) {
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): grouped_gemm prefill enabled in OTD mode, lru_expert_num=" << _lru_expert_num
+        // and the grouped matmul uses resident_slot_count() as the group dimension.
+        if (is_otd() && use_grouped_gemm_prefill) {
+            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): grouped_gemm prefill enabled in OTD mode, resident_slots=" << resident_slot_count()
                                    << std::endl;
         }
-        // WA: In OTD mode, GPU weight buffer has only _lru_expert_num slots per layer.
+        // WA: In OTD mode, GPU weight buffer has only resident_slot_count() slots per layer.
         // The batched_gemv path collects all expert requests for the batch upfront and remaps
         // expert IDs to LRU slot indices before launching a single fused kernel. When a multi-token
-        // batch references more unique experts than _lru_expert_num (e.g. 8 tokens × top_k=8 can
+        // batch references more unique experts than the resident slot count (e.g. 8 tokens × top_k=8 can
         // yield up to 64 unique experts vs 47 slots), the LRU cache evicts slots that were just
         // assigned earlier in the same batch — the evicted expert's weight data gets overwritten
         // but the kernel still reads from the stale slot index, producing garbage output.
         // Forcing threshold=1 routes multi-token requests to the prefill path (exec_standard),
         // which iterates one expert at a time via oneDNN loop — each expert is loaded, computed,
         // and its slot can be safely reused by the next expert without conflict.
-        // Single-token decode is safe: top_k unique experts (e.g. 8) << _lru_expert_num (e.g. 47).
-        // TODO: Fix by capping batch size to _lru_expert_num / top_k in batched_gemv, or by
+        // Single-token decode is safe: top_k unique experts (e.g. 8) << resident slot count (e.g. 47).
+        // TODO: Fix by capping batch size to resident_slot_count() / top_k in batched_gemv, or by
         // splitting oversized batches into sub-batches that fit within the LRU slot budget.
-        if (_lru_expert_num > 0 && batched_gemv_threshold > 1) {
+        if (is_otd() && batched_gemv_threshold > 1) {
             batched_gemv_threshold = 1;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): limit batched_gemv_threshold=1 in OTD mode to avoid LRU slot overflow" << std::endl;
         }
@@ -849,7 +858,7 @@ public:
             dnnl_weights[2].ic_group_size =
                 moe_fusion_wei_addr.scale[2] ? ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]) : _down_group_size;
             dnnl_weights[2].oc = _hidden_size;
-            if (!_lru_expert_num) {
+            if (!is_otd()) {
                 for (int i = 0; i < 3; i++) {
                     // Cross-check ic/ic_group_size against scale shape (drift caused u8 inf bug).
                     {
@@ -1057,7 +1066,6 @@ public:
         cur_moe->_intermediate_size = _intermediate_size;
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
-        cur_moe->_lru_expert_num = _lru_expert_num;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
         cur_moe->use_micro_gemm_prefill = use_micro_gemm_prefill;
         cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
@@ -1156,7 +1164,7 @@ public:
             }
         }
 
-        if (!_lru_expert_num) {
+        if (!is_otd()) {
             // gate
             scratch.moe_fusion_wei_addr.weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
             scratch.moe_fusion_wei_addr.scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0));
@@ -1393,7 +1401,7 @@ public:
                                         size_t token_num) {
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
-        if (_lru_expert_num) {
+        if (is_otd()) {
             // Full pipeline sync required: the routing kernel writes expert IDs
             // to GPU memory that we read on the CPU below (buffer_ptr()).
             // TODO: replace with event-based wait on the routing kernel only.
@@ -1412,7 +1420,7 @@ public:
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
-        if (_lru_expert_num) {
+        if (is_otd()) {
             const size_t topk_count = token_num * static_cast<size_t>(max_topk);
             resolve_experts_to_lru_slots(stream, instance, scratch, batch_mem_ptr, topk_count);
             set_otd_weight_pointers(instance, scratch);
@@ -1535,7 +1543,7 @@ public:
         auto num_total_experts = static_cast<int>(cur_moe->_config.num_expert);
         int num_actually_used_experts = 0;
 
-        if (_lru_expert_num) {
+        if (is_otd()) {
             auto topk_count = token_num * static_cast<size_t>(max_topk);
             resolve_experts_to_lru_slots(stream, instance, scratch, batch_mem_ptr, topk_count);
         }
@@ -1886,7 +1894,7 @@ public:
                                              dnnl_weights[2].zp);
         // each time dnnl_weights updated need refresh kernel cache in OTD mode, if not, the stream engine context and memory storage engine context will
         // mismatch, dnnl kernel will report invalid_arguments and fail or compute wrong and output wrong tokens. if any perf concerns, need deep dive here.
-        if (_lru_expert_num) {
+        if (is_otd()) {
             _otd_kernel_holder = kernel;
             return *_otd_kernel_holder;
         }
@@ -1909,8 +1917,8 @@ public:
         auto& engine = instance.get_network().get_engine();
         auto& onednn_engine = engine.get_onednn_engine();
 
-        // In OTD mode, weight buffer holds only _lru_expert_num slots, not full num_expert.
-        int num_experts = _lru_expert_num > 0 ? static_cast<int>(_lru_expert_num) : static_cast<int>(config.num_expert);
+        // In OTD mode, weight buffer holds only resident_slot_count() slots, not full num_expert.
+        int num_experts = is_otd() ? static_cast<int>(resident_slot_count()) : static_cast<int>(config.num_expert);
         auto a_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().data_type);
         auto gw_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type);
         auto uw_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
@@ -2045,7 +2053,7 @@ public:
                 continue;
             }
 
-            if (_lru_expert_num) {
+            if (is_otd()) {
                 // Ensure previous oneDNN work is completed before any potential
                 // device slot overwrite during weight provider acquire/streaming.
                 dnn_stream.wait();
@@ -2163,9 +2171,9 @@ public:
         int max_topk = static_cast<int>(config.top_k);
         int num_actually_used_experts = 0;
 
-        // In OTD mode, the grouped descriptor dimension is _lru_expert_num (LRU slots)
+        // In OTD mode, the grouped descriptor dimension is resident_slot_count() (LRU slots)
         // rather than the full num_total_experts.
-        int num_grouped_experts = _lru_expert_num > 0 ? static_cast<int>(_lru_expert_num) : num_total_experts;
+        int num_grouped_experts = is_otd() ? static_cast<int>(resident_slot_count()) : num_total_experts;
 
         // ----------------------------------------------------------------
         // Step 1: CPU mask generation (topk_id already flushed by caller)
@@ -2182,7 +2190,7 @@ public:
         // This is the s32 format expected by dnnl::memory::desc::grouped().
         std::vector<int32_t> grouped_offsets_cpu(num_grouped_experts, 0);
 
-        if (_lru_expert_num) {
+        if (is_otd()) {
             // OTD path: read topk_ids, remap to LRU slots, build mask by slot index
             stream.finish();  // ensure routing kernel has written topk_ids
 
@@ -2195,9 +2203,9 @@ public:
             // fall back to the per-expert onednn loop which loads one expert at a time.
             std::unordered_set<uint32_t> unique_experts_set(raw_topk_ids.begin(), raw_topk_ids.end());
 
-            if (unique_experts_set.size() > _lru_expert_num) {
+            if (unique_experts_set.size() > resident_slot_count()) {
                 GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts=" << unique_experts_set.size()
-                                       << " > lru_expert_num=" << _lru_expert_num << ", falling back to per-expert onednn loop" << std::endl;
+                                       << " > resident_slots=" << resident_slot_count() << ", falling back to per-expert onednn loop" << std::endl;
                 return exec_prefill_onednn(events, stream, instance, scratch);
             }
 
@@ -2319,7 +2327,7 @@ public:
 
         // In OTD mode, ensure gather OCL kernel completes before OneDNN reads scratch.x.
         // Non-OTD relies on the in-order queue's implicit ordering.
-        if (_lru_expert_num) {
+        if (is_otd()) {
             stream.finish();
         }
 
@@ -2417,7 +2425,7 @@ public:
         }
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
-        if (_lru_expert_num) {
+        if (is_otd()) {
             dnn_stream.wait();
         }
 
@@ -2474,7 +2482,7 @@ public:
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         size_t token_num = get_seq_len(hidden_states_layout);
 
-        if (_lru_expert_num) {
+        if (is_otd()) {
             auto* offload = static_cast<OffloadExpertWeightProvider*>(_weight_provider.get());
             if (!offload->is_bound()) {
                 instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
@@ -2509,7 +2517,7 @@ public:
         // and does not require pre-zeroing — except in OTD mode where the
         // fallback to exec_prefill_onednn (when unique_experts > lru slots)
         // also accumulates via index_add.
-        if (!use_micro_gemm_prefill && (!use_grouped_gemm_prefill || _lru_expert_num > 0)) {
+        if (!use_micro_gemm_prefill && (!use_grouped_gemm_prefill || is_otd())) {
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
@@ -2537,7 +2545,7 @@ public:
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
             // completes, causing multi-iteration inference to degrade.
             // Flush the queue only in OTD mode to avoid impacting non-OTD perf.
-            if (_lru_expert_num) {
+            if (is_otd()) {
                 stream.finish();
             }
         } else {
