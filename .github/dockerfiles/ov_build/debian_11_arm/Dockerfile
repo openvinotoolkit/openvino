@@ -2,77 +2,71 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/debian:10.13
+FROM ${REGISTRY}/library/debian:11
 
 USER root
 
 # APT configuration
-# WARNING: Debian 10 "Buster" is no longer officially supported,
-# so repositories were moved to "archive.debian.org"
-# See: https://www.debian.org/releases/
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
-    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf && \
-    sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
-    sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
-    sed -i '/stretch-updates/d' /etc/apt/sources.list
+    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN dpkg --add-architecture armhf && apt-get update && \
     apt-get install \
-        software-properties-common \
-        curl \
-        git \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Python
-        python3 \
-        python3-pip \
-        python3-dev \
-        python3-venv \
-        python3-distutils \
-        libhdf5-dev \
-        # For building Python from source
-        build-essential \
-        libgdbm-dev \
-        libc6-dev \
-        libssl-dev \
-        libffi-dev \
-        zlib1g-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        libncurses5-dev \
-        libncursesw5-dev \
-        xz-utils \
-        tk-dev \
-        libxml2-dev \
-        libxmlsec1-dev \
-        liblzma-dev \
-        wget \
-        libavcodec58:armhf \
-        libusb-1.0-0-dev:armhf \
-        libboost-regex-dev:armhf \
-        crossbuild-essential-armhf \
-        libgtk-3-dev:armhf \
-        libavcodec-dev:armhf \
-        libavformat-dev:armhf \
-        libswscale-dev:armhf \
-        libpython-dev:armhf \
-        zlib1g-dev:armhf \
-        nlohmann-json-dev \
-        libgflags-dev:armhf \
-        libtbb-dev:armhf \
-        libffi-dev:armhf \
-        # Compilers
-        gcc-arm-linux-gnueabihf \
-        g++-arm-linux-gnueabihf \
-        && \
+    software-properties-common \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Python
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    python3-distutils \
+    libhdf5-dev \
+    # For building Python from source
+    build-essential \
+    libgdbm-dev \
+    libc6-dev \
+    libssl-dev \
+    libffi-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    liblzma-dev \
+    wget \
+    libavcodec58:armhf \
+    libusb-1.0-0-dev:armhf \
+    libboost-regex-dev:armhf \
+    crossbuild-essential-armhf \
+    libgtk-3-dev:armhf \
+    libavcodec-dev:armhf \
+    libavformat-dev:armhf \
+    libswscale-dev:armhf \
+    libpython-dev:armhf \
+    zlib1g-dev:armhf \
+    nlohmann-json-dev \
+    libgflags-dev:armhf \
+    libtbb-dev:armhf \
+    libffi-dev:armhf \
+    # Compilers
+    gcc-arm-linux-gnueabihf \
+    g++-arm-linux-gnueabihf \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -107,13 +101,13 @@ RUN tar -xf Python-3.10.16.tar.xz && \
 # Compile Python 3.10 for ARM
 RUN cd Python-3.10.16 && make distclean && \
     ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --prefix=/opt/python3.10_arm \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.10_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
 
 # Upgrade openssl to 3.3.1 for Python3.11 - 3.13 ssl module
@@ -140,14 +134,14 @@ RUN tar -xf Python-3.11.9.tar.xz && \
 # Compile Python 3.11 for ARM
 RUN cd Python-3.11.9 && make distclean && \
     ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --with-build-python \
-        --prefix=/opt/python3.11_arm \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-build-python \
+    --prefix=/opt/python3.11_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
 
 # Python 3.12
@@ -163,14 +157,14 @@ RUN tar -xf Python-3.12.9.tar.xz && \
 # Compile Python 3.12 for ARM
 RUN cd Python-3.12.9 && make distclean && \
     ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --with-build-python \
-        --prefix=/opt/python3.12_arm \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-build-python \
+    --prefix=/opt/python3.12_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
 
 # Python 3.13
@@ -186,14 +180,14 @@ RUN tar -xf Python-3.13.2.tar.xz && \
 # Compile Python 3.13 for ARM
 RUN cd Python-3.13.2 && make distclean && \
     ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --with-build-python \
-        --prefix=/opt/python3.13_arm \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-build-python \
+    --prefix=/opt/python3.13_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
 
 # Cross-compile Python3.14 for ARM
@@ -206,14 +200,14 @@ RUN curl -O https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
 # Cross-compile Python3.14 for ARM
 RUN cd Python-3.14.0 && make distclean && \
     ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --prefix=/opt/python3.14_arm \
-        --with-build-python \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.14_arm \
+    --with-build-python \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j4 && make altinstall
 
 # Cross-compile Python3.14t for ARM (with --disable-gil)
@@ -226,14 +220,14 @@ RUN cp -r Python-3.14.0 Python-3.14t && \
 # Cross-compile Python3.14t for ARM
 RUN cd Python-3.14t && make distclean && \
     ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
-        --disable-ipv6 \
-        --enable-shared \
-        --prefix=/opt/python3.14t_arm \
-        --with-build-python \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.14t_arm \
+    --with-build-python \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j4 && make altinstall
 
 # Setup pip
