@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/debian:11
+FROM ${REGISTRY}/library/debian:12
 
 USER root
 
