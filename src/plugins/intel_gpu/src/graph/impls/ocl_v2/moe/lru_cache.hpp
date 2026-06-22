@@ -3,30 +3,19 @@
 //
 
 #pragma once
-#include <functional>
 #include <list>
-#include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "intel_gpu/runtime/engine.hpp"
+namespace ov::intel_gpu::ocl::moe {
 
 class LRUCache {
 public:
-    using EvictCallback = std::function<void(size_t layer, size_t expert, void* addr, void* params)>;
-
-    enum NodeAction { INSERT, REFRESH };
-
-    LRUCache(size_t max_total_experts, EvictCallback cb = nullptr);
-    NodeAction insert_or_refresh(size_t layer, size_t expert, void* addr, void* params = nullptr);
+    explicit LRUCache(size_t max_total_experts);
 
     std::pair<size_t, bool> get_lru_item(size_t layer, size_t expert);
-    size_t get_total_experts() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_total_experts;
-    }
 
     void evict_one();
 
@@ -34,7 +23,7 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_total_experts;
     }
-    std::pair<size_t, bool> get_item(size_t layer, size_t expert);
+
     void set_filled(size_t lru_expert_no) {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (lru_expert_no >= m_filled_list.size()) {
@@ -67,10 +56,8 @@ private:
     };
 
     size_t m_max_total_experts;
-    size_t m_per_expert_size;
     size_t m_total_experts;
     size_t m_to_filled_lru_expert_no;
-    EvictCallback m_on_evict;
 
     std::list<Node> m_list;
     std::vector<bool> m_filled_list;
@@ -80,3 +67,5 @@ private:
     void move_to_end(std::list<Node>::iterator it);
     void evict_one_unlocked();
 };
+
+}  // namespace ov::intel_gpu::ocl::moe

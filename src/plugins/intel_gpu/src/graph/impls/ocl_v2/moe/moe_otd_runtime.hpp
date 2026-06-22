@@ -18,8 +18,10 @@
 #include <string_view>
 #include <vector>
 
-#include "LRUCache.hpp"
+#include "lru_cache.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
+
+using ov::intel_gpu::ocl::moe::LRUCache;
 #include "intel_gpu/runtime/stream.hpp"
 #include "moe_3gemm_fused_inst.h"
 #include "openvino/util/parallel_io.hpp"
@@ -65,20 +67,6 @@ inline OtdPerfCounters* get_perf_counters() {
     }();
     (void)registered;
     return &counters;
-}
-
-inline size_t get_layer_from_id(const std::string& id) {
-    if (id == "moe:moe_router") {
-        return 0;
-    }
-
-    size_t layer = 0;
-    size_t pos = id.rfind('_');
-    if (pos != std::string::npos && pos + 1 < id.size()) {
-        std::string num_str = id.substr(pos + 1);
-        layer = atoi(num_str.c_str());
-    }
-    return layer;
 }
 
 class parallel_weight_reader {
@@ -316,7 +304,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 inline uint32_t get_lru_expert_no(typed_primitive_inst<cldnn::moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
     auto cur_moe = instance.get_typed_desc<cldnn::moe_3gemm_fused_compressed>();
     auto& stream = instance.get_network().get_stream();
-    size_t layer = get_layer_from_id(cur_moe->id);
+    size_t layer = cur_moe->_layer_index;
     auto item = cache.get_lru_item(layer, expert);
     OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()), "LRU slot index overflow: ", item.first);
     const auto lru_slot = static_cast<uint32_t>(item.first);

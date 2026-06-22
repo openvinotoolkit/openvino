@@ -4,7 +4,7 @@
 
 #include "test_utils/test_utils.h"
 #include "intel_gpu/runtime/internal_properties.hpp"
-#include "ocl_v2/moe/LRUCache.hpp"
+#include "ocl_v2/moe/lru_cache.hpp"
 
 #include <thread>
 #include <vector>
@@ -13,6 +13,7 @@
 
 using namespace cldnn;
 using namespace tests;
+using ov::intel_gpu::ocl::moe::LRUCache;
 
 // ──────────────────────────────────────────────────
 // Basic construction and initial state
@@ -22,7 +23,7 @@ TEST(moe_lru_cache, initial_state) {
     LRUCache cache(4);
 
     ASSERT_EQ(cache.size(), 0U);
-    ASSERT_EQ(cache.get_total_experts(), 0U);
+    ASSERT_EQ(cache.size(), 0U);
     ASSERT_FALSE(cache.m_initialized);
 }
 
@@ -377,6 +378,7 @@ TEST(moe_offload_primitive_test, default_offload_fields) {
     ASSERT_TRUE(prim._weight_bin_offsets.empty());
     ASSERT_TRUE(prim._weights_path.empty());
     ASSERT_EQ(prim._lru_expert_num, 0U);
+    ASSERT_EQ(prim._layer_index, 0U);
 }
 
 TEST(moe_offload_primitive_test, construct_with_offload_params) {

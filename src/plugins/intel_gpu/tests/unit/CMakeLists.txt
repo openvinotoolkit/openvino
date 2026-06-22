@@ -113,6 +113,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              gflags
                                              common_test_utils
                                              openvino::reference
+                                             openvino::pugixml
                                              gmock)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}

@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "LRUCache.hpp"
+#include "lru_cache.hpp"
 
-#include <cstdlib>
+namespace ov::intel_gpu::ocl::moe {
 
-LRUCache::LRUCache(size_t max_total_experts, EvictCallback cb)
+LRUCache::LRUCache(size_t max_total_experts)
     : m_max_total_experts(max_total_experts),
       m_total_experts(0),
-      m_to_filled_lru_expert_no(0),
-      m_on_evict(std::move(cb)) {
+      m_to_filled_lru_expert_no(0) {
     m_filled_list.resize(max_total_experts, false);
 }
 
@@ -63,3 +62,5 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t layer, size_t expert) {
         return {it->second->lru_expert_no, is_hit};
     }
 }
+
+}  // namespace ov::intel_gpu::ocl::moe

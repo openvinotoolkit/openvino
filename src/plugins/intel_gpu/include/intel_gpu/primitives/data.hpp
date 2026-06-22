@@ -364,6 +364,9 @@ struct data : public primitive_base<data> {
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
 
+    /// @brief When true, transfer_memory_to_device skips this node (e.g. OTD partial upload).
+    bool skip_device_transfer = false;
+
     std::shared_ptr<weightless_cache_manager> cache_info;
 
     size_t hash() const override {

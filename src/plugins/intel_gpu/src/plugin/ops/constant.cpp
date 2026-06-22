@@ -170,7 +170,11 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             }
         }
         ov::wsh::Extension::hint_evict(*op);
-        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+        auto data_prim = cldnn::data(initialconstPrimID, mem);
+        if (partial_upload.enabled) {
+            data_prim.skip_device_transfer = true;
+        }
+        p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }

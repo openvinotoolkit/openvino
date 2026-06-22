@@ -105,17 +105,20 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
                                const MOECompressed::Config& config,
                                const std::vector<size_t>& weight_bin_offsets = {},
                                const std::string& weights_path = "",
-                               size_t lru_expert_num = 0)
+                               size_t lru_expert_num = 0,
+                               size_t layer_index = 0)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
                     _config(config),
                     _weight_bin_offsets(weight_bin_offsets),
                     _weights_path(weights_path),
-                    _lru_expert_num(lru_expert_num) {}
+                    _lru_expert_num(lru_expert_num),
+                    _layer_index(layer_index) {}
 
     MOECompressed::Config _config;
         std::vector<size_t> _weight_bin_offsets;
         std::string _weights_path;
         size_t _lru_expert_num = 0;
+        size_t _layer_index = 0;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
@@ -126,7 +129,8 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
          return std::memcmp(&_config, &rhs_casted._config, sizeof(_config)) == 0 &&
              _weight_bin_offsets == rhs_casted._weight_bin_offsets &&
              _weights_path == rhs_casted._weights_path &&
-             _lru_expert_num == rhs_casted._lru_expert_num;
+             _lru_expert_num == rhs_casted._lru_expert_num &&
+             _layer_index == rhs_casted._layer_index;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -135,6 +139,7 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
         ob << _weight_bin_offsets;
         ob << _weights_path;
         ob << _lru_expert_num;
+        ob << _layer_index;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -143,6 +148,7 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
         ib >> _weight_bin_offsets;
         ib >> _weights_path;
         ib >> _lru_expert_num;
+        ib >> _layer_index;
     }
 };
 
