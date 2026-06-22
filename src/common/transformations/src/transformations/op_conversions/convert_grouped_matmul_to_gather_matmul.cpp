@@ -104,15 +104,15 @@ ov::Output<ov::Node> build_2dx3d_indices(const ov::Output<ov::Node>& mat_a,
 
 ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
     MATCHER_SCOPE(ConvertGroupedMatMulToGatherMatmul);
-
     using namespace ov::pass::pattern;
 
+    // Common pattern for second input
     auto matrix_b_3d = any_input(rank_equals(3));
 
     // ---- 3Dx3D: no offsets ----
     // A:[G,M,K] B:[G,N,K]
     auto matrix_a_3d = any_input(rank_equals(3));
-    auto gmm_3d = wrap_type<v17::GroupedMatMul>({matrix_a_3d, matrix_b_3d});
+    auto gmm_3d_3d = wrap_type<v17::GroupedMatMul>({matrix_a_3d, matrix_b_3d});
 
     // ---- 2Dx3D: with offsets ----
     // A:[T,K] B:[G,N,K] offsets:[G]
@@ -120,14 +120,13 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
     auto offsets = any_input(rank_equals(1));
     auto gmm_2d_3d = wrap_type<v17::GroupedMatMul>({matrix_a_2d, matrix_b_3d, offsets});
 
-    auto gmm_pattern = gmm_3d | gmm_2d_3d;
+    auto gmm_pattern = gmm_3d_3d | gmm_2d_3d;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto gmm = ov::as_type_ptr<v17::GroupedMatMul>(m.get_match_root());
         if (!gmm || transformation_callback(gmm)) {
             return false;
         }
-
         const auto mat_a = gmm->input_value(0);
         const auto mat_b = gmm->input_value(1);
 
@@ -139,26 +138,24 @@ ConvertGroupedMatMulToGatherMatmul::ConvertGroupedMatMulToGatherMatmul() {
 
         NodeRegistry rg;
         std::shared_ptr<ov::Node> replacement;
-
-        // The matcher guarantees only the 3Dx3D (2 inputs) and 2Dx3D (3 inputs) cases reach here.
-        if (gmm->get_input_size() == 2) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.count(gmm_3d_3d)) {
             // ---- 3Dx3D: no offsets ----
             // A:[G,M,K] B:[G,N,K] -> GatherMatmul(A, B, indices=[M,G]) -> [G,M,N]
             auto indices = build_3dx3d_indices(mat_a, rg);
             replacement = rg.make<GatherMatmul>(mat_a, mat_b, indices);
-        } else {
+        } else if (pattern_map.count(gmm_2d_3d)) {
             // ---- 2Dx3D: with offsets ----
             // A:[T,K] B:[G,N,K] offs:[G] -> Squeeze(GatherMatmul(Unsqueeze(A,0), B, idx[T,1]), 0) -> [T,N]
             const auto offsets = gmm->input_value(2);
-
             auto a_unsq_axis = rg.make<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
             auto a_3d = rg.make<v0::Unsqueeze>(mat_a, a_unsq_axis);
-
             auto indices = build_2dx3d_indices(mat_a, offsets, rg);
-
             auto gm = rg.make<GatherMatmul>(a_3d, mat_b, indices);  // [1, T, N]
             auto squeeze_axis = rg.make<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
             replacement = rg.make<v0::Squeeze>(gm, squeeze_axis);  // [T, N]
+        } else {
+            return false;
         }
 
         replacement->set_friendly_name(gmm->get_friendly_name());
