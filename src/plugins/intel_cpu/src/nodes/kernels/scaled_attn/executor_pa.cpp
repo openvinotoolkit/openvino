@@ -48,6 +48,7 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #    include "nodes/kernels/aarch64/sve_utils.hpp"
 #    include "nodes/kernels/kai/kleidi_kernel.hpp"
+#    include "utils/precision_support.h"
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -2926,6 +2927,14 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
+    // The ARM PagedAttention path is built into the SVE runtime clone; its kernels (and the
+    // generic helpers GCC may auto-vectorize with SVE) require SVE at runtime. On a core
+    // without SVE, decline here so the executor is never constructed and no SVE instruction
+    // is reached. This is a runtime check (no extra build-time define): hasArmISASupport
+    // queries the same SVE detector the dispatcher uses.
+    if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
+        OPENVINO_THROW("make_pa_executor: ARM implementation requires SVE support");
+    }
     if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor =
