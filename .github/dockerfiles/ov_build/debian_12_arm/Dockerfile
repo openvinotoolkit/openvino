@@ -58,7 +58,7 @@ RUN dpkg --add-architecture armhf && apt-get update && \
     libswscale-dev:armhf \
     zlib1g-dev:armhf \
     libgflags-dev:armhf \
-    libtbb-dev:armhf \
+    libtbb-dev:armhff \
     libffi-dev:armhf \
     # Compilers
     gcc-arm-linux-gnueabihf \
