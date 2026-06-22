@@ -78,7 +78,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |GlobalMaxPool                                           |1                       |22, 1                           |                                |
 |                        |Greater                                                 |1                       |13, 9, 7, 1                     |                                |
 |                        |GreaterOrEqual                                          |16, 12                  |16, 12                          |                                |
-|                        |GridSample                                              |16                      |22, 20, 16                      |                                |
+|                        |GridSample                                              |20, 16                  |22, 20, 16                      |                                |
 |                        |GroupNormalization                                      |21, 18                  |21, 18                          |                                |
 |                        |HammingWindow                                           |17                      |17                              |                                |
 |                        |HannWindow                                              |17                      |17                              |                                |
@@ -164,14 +164,14 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Scan                                                    |9, 8                    |21, 19, 16, 11, 9, 8            |                                |
 |                        |Scatter                                                 |9                       |11, 9                           |                                |
 |                        |ScatterElements                                         |11                      |18, 16, 13, 11                  |                                |
-|                        |ScatterND                                               |11                      |18, 16, 13, 11                  |                                |
+|                        |ScatterND                                               |16, 11                  |18, 16, 13, 11                  |                                |
 |                        |Selu                                                    |1                       |22, 6, 1                        |                                |
 |                        |SequenceAt                                              |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceConstruct                                       |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceEmpty                                           |11                      |11                              |Supported only in certain patterns|
-|                        |SequenceErase                                           |                        |11                              |                                |
+|                        |SequenceErase                                           |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceInsert                                          |11                      |11                              |Supported only in certain patterns|
-|                        |SequenceLength                                          |                        |11                              |                                |
+|                        |SequenceLength                                          |11                      |11                              |Supported only in certain patterns|
 |                        |SequenceMap                                             |                        |17                              |                                |
 |                        |Shape                                                   |15, 1                   |21, 19, 15, 13, 1               |                                |
 |                        |Shrink                                                  |9                       |9                               |                                |
@@ -231,7 +231,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |DequantizeBFP                                           |                        |1                               |                                |
 |com.microsoft           |DequantizeLinear                                        |1                       |1                               |                                |
 |com.microsoft           |DequantizeWithOrder                                     |                        |1                               |                                |
-|com.microsoft           |DynamicQuantizeLSTM                                     |                        |1                               |                                |
+|com.microsoft           |DynamicQuantizeLSTM                                     |1                       |1                               |Peephole input P not supported  |
 |com.microsoft           |DynamicQuantizeMatMul                                   |1                       |1                               |                                |
 |com.microsoft           |DynamicTimeWarping                                      |                        |1                               |                                |
 |com.microsoft           |EPContext                                               |                        |1                               |                                |
@@ -263,7 +263,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |MaxpoolWithMask                                         |                        |1                               |                                |
 |com.microsoft           |MoE                                                     |                        |1                               |                                |
 |com.microsoft           |MulInteger                                              |                        |1                               |                                |
-|com.microsoft           |MultiHeadAttention                                      |                        |1                               |                                |
+|com.microsoft           |MultiHeadAttention                                      |1                       |1                               |                                |
 |com.microsoft           |MurmurHash3                                             |                        |1                               |                                |
 |com.microsoft           |NGramRepeatBlock                                        |                        |1                               |                                |
 |com.microsoft           |NhwcConv                                                |                        |1                               |                                |
