@@ -24,20 +24,6 @@ namespace ov::pass {
 
 namespace {
 
-bool inputs_equal_or_same_constant(const Output<Node>& lhs, const Output<Node>& rhs) {
-    if (lhs == rhs) {
-        return true;
-    }
-
-    auto lhs_const = ov::as_type_ptr<v0::Constant>(lhs.get_node_shared_ptr());
-    auto rhs_const = ov::as_type_ptr<v0::Constant>(rhs.get_node_shared_ptr());
-    if (!lhs_const || !rhs_const) {
-        return false;
-    }
-
-    return ov::compare_constants(lhs_const, rhs_const);
-}
-
 bool is_close(double lhs, double rhs, double eps = 1e-12) {
     return std::fabs(lhs - rhs) <= eps * (1.0 + std::max(std::fabs(lhs), std::fabs(rhs)));
 }
@@ -55,25 +41,22 @@ bool is_integer_multiple(double value, double step, double eps = 1e-9) {
 
 FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
     MATCHER_SCOPE(FakeQuantizeEliminateSequential);
-    auto fq1 = pattern::wrap_type<v0::FakeQuantize>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto fq2 = pattern::wrap_type<v0::FakeQuantize>(
-        {fq1, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto p_fq1 = pattern::wrap_type<v0::FakeQuantize>(
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()}, pattern::consumers_count(1));
+    auto p_fq2 = pattern::wrap_type<v0::FakeQuantize>(
+        {p_fq1, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(m.get_match_root());
-        if (!fq2) {
-            return false;
-        }
-
-        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(fq2->input_value(0).get_node_shared_ptr());
-        if (!fq1) {
+        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(p_fq1->input_value(0).get_node_shared_ptr());
+        auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(p_fq2->input_value(0).get_node_shared_ptr());
+        
+        if (!fq1 || !fq2) {
             return false;
         }
 
         bool all_inputs_equal = true;
         for (size_t i = 1; i < fq1->get_input_size(); ++i) {
-            if (!inputs_equal_or_same_constant(fq1->input_value(i), fq2->input_value(i))) {
+            if (!compare_constants(fq1->input_value(i).get_node_shared_ptr(), fq2->input_value(i).get_node_shared_ptr())) {
                 all_inputs_equal = false;
                 break;
             }
@@ -93,15 +76,17 @@ FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
         double fq2_out_low = 0.0;
         double fq2_out_high = 0.0;
 
+        // Check that all input/output ranges are constant and finite.
         if (!ov::op::util::get_constant_value(fq1->input_value(1).get_node_shared_ptr(), fq1_in_low) ||
             !ov::op::util::get_constant_value(fq1->input_value(2).get_node_shared_ptr(), fq1_in_high) ||
             !std::isfinite(fq1_in_low) || !std::isfinite(fq1_in_high)) {
             return false;
         }
+        // Check that FQ1 input range is valid.
         if (fq1_in_high <= fq1_in_low) {
             return false;
         }
-
+        
         if (!ov::op::util::get_constant_value(fq1->input_value(3).get_node_shared_ptr(), fq1_out_low) ||
             !ov::op::util::get_constant_value(fq1->input_value(4).get_node_shared_ptr(), fq1_out_high) ||
             !ov::op::util::get_constant_value(fq2->input_value(1).get_node_shared_ptr(), fq2_in_low) ||
@@ -182,7 +167,7 @@ FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(fq2, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(p_fq2, matcher_name);
     register_matcher(m, callback);
 }
 
