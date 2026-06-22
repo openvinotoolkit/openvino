@@ -35,6 +35,7 @@
 #include "transforms/prim_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
 #include "transforms/remove_packing_ops.hpp"
+#include "transforms/reshape_batch_dim_resolver.hpp"
 #include "transforms/reverseprop_resolver.hpp"
 #include "transforms/sequence_mark_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
@@ -264,6 +265,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::SequenceMarkReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::ReshapeBatchDimResolver>();
 
     // Check if model is symmetrically quantized
     bool sym = false;
