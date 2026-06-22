@@ -1,0 +1,17 @@
+{
+  "signature": "No files were found with the provided path. No artifacts will be uploaded.|CPU functional tests|Infrastructure",
+  "title": "CPU functional tests fail due to missing openvino_tests artifact (no test output files generated)",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-06-22T10:58:47Z",
+  "last_seen": "2026-06-22T10:58:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/27941353861"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36430"
+  ],
+  "recent_timestamps": [
+    "2026-06-22T10:58:47Z"
+  ]
+}

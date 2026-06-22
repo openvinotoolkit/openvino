@@ -1,0 +1,27 @@
+{
+  "run_id": 27941353861,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27941353861",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "job_name": "CPU functional tests",
+  "category": "Infrastructure",
+  "signature": "4fba7cc92864f508",
+  "timestamp_utc": "2026-06-22T10:58:47Z",
+  "summary": "CPU functional tests job failed in 14 seconds because the openvino_tests artifact download failed (completed in <300ms with no success message), so tests never ran and the upload-artifact step found no files.",
+  "root_cause": {
+    "classification": "Infrastructure",
+    "explanation": "The CPU functional tests job ran for only 14 seconds. The openvino_package artifact downloaded successfully (~6s). The openvino_tests artifact download started at 10:23:15.988Z but the next step began at 10:23:16.275Z (287ms later), with no download-success message. No test execution was logged. The job ended when upload-artifact failed with 'No files were found'. The PR (TFLite FE bounds fix) is unrelated to the Windows CPU test infrastructure.",
+    "evidence": [
+      "openvino_tests download started 10:23:15.988Z; upload-artifact step started 10:23:16.275Z (287ms gap, no success message)",
+      "No test execution output in the 121-line job log",
+      "##[error]No files were found with the provided path ... No artifacts will be uploaded.",
+      "Total job duration: 14 seconds (10:23:05 to 10:23:19Z)"
+    ],
+    "failed_job": "CPU functional tests",
+    "confidence": "Medium"
+  },
+  "pr": {
+    "number": 36430,
+    "url": "https://github.com/openvinotoolkit/openvino/pull/36430",
+    "author": "CuriousPanCake"
+  }
+}

@@ -1,36 +1,44 @@
 {
-  "investigations": [
-    {
-      "file": "2026-06-11-19-02-43-000-27365701077.json",
-      "run_id": 27365701077,
-      "signature": "1d50224c2286c0ac",
-      "timestamp": "2026-06-11T19:02:43Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Network"
-    },
-    {
-      "file": "2026-06-22-08-32-35-804-27831497569.json",
-      "run_id": 27831497569,
-      "signature": "6ba5e846ed808087",
-      "timestamp": "2026-06-22T08:32:35Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Code Issue"
-    },
-    {
-      "file": "2026-06-22-08-43-45-000-27831497569.json",
-      "run_id": 27831497569,
-      "signature": "6ba5e846ed808087",
-      "timestamp": "2026-06-22T08:43:45Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Code Issue"
-    },
-    {
-      "file": "2026-06-22-10-42-57-000-27941353934.json",
-      "run_id": 27941353934,
-      "signature": "98773c88c1ccab15",
-      "timestamp": "2026-06-22T10:42:57Z",
-      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "Flaky Test"
-    }
-  ]
+    "investigations": [
+        {
+            "file": "2026-06-11-19-02-43-000-27365701077.json",
+            "run_id": 27365701077,
+            "signature": "1d50224c2286c0ac",
+            "timestamp": "2026-06-11T19:02:43Z",
+            "workflow": "Windows (VS 2022, Python 3.11, Release)",
+            "category": "Network"
+        },
+        {
+            "file": "2026-06-22-08-32-35-804-27831497569.json",
+            "run_id": 27831497569,
+            "signature": "6ba5e846ed808087",
+            "timestamp": "2026-06-22T08:32:35Z",
+            "workflow": "Windows (VS 2022, Python 3.11, Release)",
+            "category": "Code Issue"
+        },
+        {
+            "file": "2026-06-22-08-43-45-000-27831497569.json",
+            "run_id": 27831497569,
+            "signature": "6ba5e846ed808087",
+            "timestamp": "2026-06-22T08:43:45Z",
+            "workflow": "Windows (VS 2022, Python 3.11, Release)",
+            "category": "Code Issue"
+        },
+        {
+            "file": "2026-06-22-10-42-57-000-27941353934.json",
+            "run_id": 27941353934,
+            "signature": "98773c88c1ccab15",
+            "timestamp": "2026-06-22T10:42:57Z",
+            "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+            "category": "Flaky Test"
+        },
+        {
+            "file": "2026-06-22-10-58-47-000-27941353861.json",
+            "run_id": 27941353861,
+            "signature": "4fba7cc92864f508",
+            "timestamp": "2026-06-22T10:58:47Z",
+            "workflow": "Windows (VS 2022, Python 3.11, Release)",
+            "category": "Infrastructure"
+        }
+    ]
 }
