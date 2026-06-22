@@ -20,7 +20,7 @@ making it suitable for time-series and autoregressive models.
 
 *PagedCausalConv1D* processes a flat batch of tokens that may belong to multiple independent sequences.
 The token sequences are described by ``subsequence_begins``. Paged memory uses a fixed ``BLOCK_SIZE=1``,
-meaning each block in ``conv_state_table`` stores exactly one convolution state snapshot of shape ``[hidden_size, kernel_size]``.
+meaning each physical block in ``conv_state_table`` stores exactly one convolution state snapshot of shape ``[hidden_size, kernel_size]``.
 For each sequence, the operation:
 
 1. Loads the current convolution state (a window of the last `kernel_size` input vectors) from paged memory using the block table.
@@ -39,13 +39,15 @@ Paged memory management allows states to be shared across sequences (prefix cach
 
 **Paged memory management**
 
-The convolutional state table is organized as non-contiguous pages (blocks). Each block stores one
+The convolutional state table is organized as non-contiguous pages (blocks). Each physical block stores one
 complete state snapshot at a particular token position in the sequence.
 
 For sequence ``s``, the assigned physical block indices are
 ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
-These indices address rows in ``conv_state_table``. The first block stores the state after
-``cache_interval[s]`` tokens, the second after ``2 * cache_interval[s]`` tokens, and so on.
+These indices address rows in ``conv_state_table``. Multiple logical entries may address the same physical
+row, for example when the read slot and the write slot update a state in-place. The first logical block slot
+is used for reading the current state, and later slots are used for writing states after ``cache_interval[s]``,
+``2 * cache_interval[s]`` tokens, and so on.
 When ``cache_interval[s] <= 0``, no state caching is performed for that sequence.
 
 The ``num_processed_tokens[s]`` value indicates how many tokens have already been processed for sequence
@@ -153,11 +155,12 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
   Input token embeddings from all sequences in the batch. **Required.**
 
 * **1**: ``conv_state_table``
-  A 3D tensor of type *T* with shape ``[num_blocks, hidden_size, kernel_size]``.
+  A 3D tensor of type *T* with shape ``[num_physical_blocks, hidden_size, kernel_size]``.
   Paged block table holding the convolution cache states. The paged memory block size is fixed at ``BLOCK_SIZE=1``,
   meaning each physical block stores exactly one convolution state of shape ``[hidden_size, kernel_size]``,
   representing the last ``kernel_size`` input vectors seen by the corresponding sequence.
-  ``num_blocks`` equals the total number of blocks allocated across all sequences (i.e. ``la_block_indices_begins[-1]``).
+  ``num_physical_blocks`` equals the total number of physical state rows allocated in the table. It may be
+  smaller than the number of logical entries in ``la_block_indices`` when several entries refer to the same row.
   The table is updated in-place: during prefill by the plugin, during decoding by GenAI. Initially all states are zero tensors.
   **Required.**
 
@@ -180,9 +183,10 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
   The first element is always ``0`` and the last element equals ``batch_size_in_tokens``. **Required.**
 
 * **5**: ``la_block_indices``
-  A 1D tensor of type *T_IND* with shape ``[num_blocks]``.
+  A 1D tensor of type *T_IND* with shape ``[num_logical_blocks]``.
   Physical block indices into ``conv_state_table`` assigned across all sequences,
-  where ``num_blocks = la_block_indices_begins[-1]`` is the total number of blocks allocated.
+  where ``num_logical_blocks = la_block_indices_begins[-1]`` is the total number of logical block slots.
+  Each value must be a valid physical row index in ``conv_state_table``.
   The logical-to-physical mapping for sequence ``s`` is given
   by ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
   For example, ``la_block_indices = [0, 1, 3, 2, 4]`` with ``la_block_indices_begins = [0, 3, 5]`` means
@@ -237,7 +241,7 @@ token's state to be cached.
                <dim>5</dim>
                <dim>16</dim>
            </port>
-           <port id="1">   <!-- conv_state_table: [num_blocks, hidden_size, kernel_size] -->
+           <port id="1">   <!-- conv_state_table: [num_physical_blocks, hidden_size, kernel_size] -->
                <dim>5</dim>
                <dim>16</dim>
                <dim>4</dim>
@@ -253,7 +257,7 @@ token's state to be cached.
            <port id="4">   <!-- subsequence_begins: [batch_size_in_sequences+1] -->
                <dim>3</dim>
            </port>
-           <port id="5">   <!-- la_block_indices: [num_blocks] -->
+           <port id="5">   <!-- la_block_indices: [num_logical_blocks] -->
                <dim>5</dim>
            </port>
            <port id="6">   <!-- la_block_indices_begins: [batch_size_in_sequences+1] -->

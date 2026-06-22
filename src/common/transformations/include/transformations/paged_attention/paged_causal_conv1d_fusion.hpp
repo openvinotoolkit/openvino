@@ -83,7 +83,7 @@ public:
                             std::unordered_set<std::string>& var_ids_to_remove);
 
 private:
-    size_t m_layer_index;
+    size_t m_layer_index = 0;
 };
 
 }  // namespace pass

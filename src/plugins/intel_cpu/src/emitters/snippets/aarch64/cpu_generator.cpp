@@ -110,6 +110,8 @@
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils/general_utils.h"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -136,37 +138,6 @@ static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* 
 }
 
 #endif
-
-#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         const auto& n = expr->get_node();                                                        \
-         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
-         }                                                                                        \
-         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
-             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return e_type_erf::get_supported_precisions(n);                                      \
-         }                                                                                        \
-         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
-             return e_type_tanh::get_supported_precisions(n);                                     \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
-     }}
 
 #define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
@@ -269,7 +240,15 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[snippets::op::LoadReorder::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
         emitter_factory.from_expr<jit_load_broadcast_emitter>();
+    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_memory_emitter>();
+    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_store_memory_emitter>();
+    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_expr<jit_store_memory_emitter>();
 
     // ternary
     jitters[op::v1::Select::get_type_info_static()] = emitter_factory.from_node<jit_select_emitter>();
