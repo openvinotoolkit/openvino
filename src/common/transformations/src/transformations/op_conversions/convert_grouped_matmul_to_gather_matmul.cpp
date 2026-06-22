@@ -86,7 +86,7 @@ ov::Output<ov::Node> build_indices_for_2dx3d(const ov::Output<ov::Node>& mat_a,
         offsets_i32 = rg.make<v0::Convert>(offsets, i32);
     }
 
-    auto shape_a = rg.make<v3::ShapeOf>(mat_a, i32);  // [T, K]
+    auto shape_a = rg.make<v3::ShapeOf>(mat_a, i32);           // [T, K]
     auto t_scalar = rg.make<v8::Gather>(shape_a, zero, zero);  // scalar T
     auto one = rg.make<v0::Constant>(i32, ov::Shape{}, 1);
     auto positions = rg.make<v4::Range>(zero, t_scalar, one, i32);  // [T]
