@@ -293,4 +293,42 @@ const char* trim_file_name(const char* const fname);
 inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset, size_t size) {
     return util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
 }
+
+/**
+ * @brief Flags controlling how a file is opened via @ref open_file.
+ */
+enum class FileMode : unsigned {
+    read = 1u << 0,  //!< Open for reading.
+    // write = 1u << 1, //!< (reserved) Open for writing.
+    direct = 1u << 2,  //!< Bypass the OS page cache.
+};
+
+/// @brief Combine two @ref FileMode values.
+constexpr FileMode operator|(FileMode a, FileMode b) noexcept {
+    return static_cast<FileMode>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
+}
+
+/// @brief Test whether a specific flag is set in @p flags.
+constexpr bool has_flag(FileMode flags, FileMode flag) noexcept {
+    return (static_cast<unsigned>(flags) & static_cast<unsigned>(flag)) != 0;
+}
+
+/**
+ * @brief Open a file with the specified access mode.
+ *
+ * @param path  Path to the file.
+ * @param mode  Access flags. Defaults to @c FileMode::read.
+ * @return A valid @ref FileHandle on success, or @c INVALID_HANDLE_VALUE on failure.
+ */
+FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode::read);
+
+/**
+ * @brief Close a file handle previously opened by @ref open_file.
+ *
+ * Safe to call with @c INVALID_HANDLE_VALUE (no-op).
+ *
+ * @param handle  The handle to close.
+ */
+void close_file(FileHandle handle);
+
 }  // namespace ov::util
