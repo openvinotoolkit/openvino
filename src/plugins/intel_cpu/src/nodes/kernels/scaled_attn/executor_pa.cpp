@@ -48,7 +48,6 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #    include "nodes/kernels/aarch64/sve_utils.hpp"
 #    include "nodes/kernels/kai/kleidi_kernel.hpp"
-#    include "utils/precision_support.h"
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -2927,12 +2926,6 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
-    // Decline before constructing the executor on a core without SVE: this code is in the SVE
-    // clone and AttentionExecutor::init has SVE-autovectorized helpers that would run (and trap)
-    // before any kernel-level check. Runtime SVE query, no extra build-time define.
-    if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::SVE)) {
-        OPENVINO_THROW("make_pa_executor: ARM implementation requires SVE support");
-    }
     if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor =
