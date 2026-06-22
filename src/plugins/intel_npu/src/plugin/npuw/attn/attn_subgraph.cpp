@@ -1145,8 +1145,8 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     registrations.emplace_back(registry.on<ov::npuw::patterns::attn::SDPA>().scoped());
     registrations.emplace_back(registry.on<ov::npuw::patterns::attn::SDPADecomposed>().scoped());
 
-    // Behavior registration: fires for any function tagged "attn" (i.e. from either SDPA
-    // or SDPADecomposed pattern).  The at_partition callback checks whether dynamic
+    // Behavior registration: fires for any function tagged "attn" (i.e. from any SDPA-family
+    // isolation pattern). The at_partition callback checks whether dynamic
     // attention was detected (f._attention set by Partitioner::attention()) and, if so,
     // stashes the compile-time descriptor in the pipeline context for later stages.
     ov::npuw::v1::subgraphs::PatternRegistration attn_behavior;
