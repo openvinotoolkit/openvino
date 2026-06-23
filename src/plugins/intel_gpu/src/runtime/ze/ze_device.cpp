@@ -340,8 +340,8 @@ ze_device::ze_device(ze_driver_resource driver, ze_device_resource device, ze_co
 : _driver(std::move(driver))
 , _device(std::move(device))
 , _context(std::move(context))
-, _info(init_device_info(_driver.get_ze_handle(), _device.get_ze_handle()))
-, _mem_caps(init_memory_caps(_device.get_ze_handle(), _info)) {
+, _info(init_device_info(_driver.handle(), _device.handle()))
+, _mem_caps(init_memory_caps(_device.handle(), _info)) {
     OPENVINO_ASSERT(!_driver.is_empty(), "[GPU] Expected non-empty driver when creating ze_device");
     OPENVINO_ASSERT(!_device.is_empty(), "[GPU] Expected non-empty device when creating ze_device");
     if (initialize_device) {
@@ -355,7 +355,7 @@ void ze_device::initialize() {
 
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ze_context_handle_t ctx = nullptr;
-    OV_ZE_EXPECT(ze::zeContextCreate(_driver.get_ze_handle(), &context_desc, &ctx));
+    OV_ZE_EXPECT(ze::zeContextCreate(_driver.handle(), &context_desc, &ctx));
     _context = ze_context_resource{ctx};
 }
 
@@ -368,8 +368,8 @@ bool ze_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _device.get_ze_handle() == casted->get_device().get_ze_handle()
-        && _driver.get_ze_handle() == casted->get_driver().get_ze_handle();
+    return _device.handle() == casted->get_device().handle()
+        && _driver.handle() == casted->get_driver().handle();
 }
 
 void ze_device::set_mem_caps(const memory_capabilities& memory_capabilities) {

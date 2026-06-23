@@ -51,7 +51,7 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
         auto root_device = std::dynamic_pointer_cast<ze_device>(dptr);
         OPENVINO_ASSERT(root_device != nullptr, "[GPU] Invalid device type created in ocl_device_detector");
 
-        auto sub_devices = get_sub_devices(root_device->get_device().get_ze_handle());
+        auto sub_devices = get_sub_devices(root_device->get_device().handle());
         if (!sub_devices.empty()) {
             uint32_t sub_idx = 0;
             for (auto& sub_device : sub_devices) {

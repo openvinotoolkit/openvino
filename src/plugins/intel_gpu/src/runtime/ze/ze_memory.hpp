@@ -68,7 +68,7 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
     shared_mem_params get_internal_params(runtime_types rt_type) const override;
     ze_image_handle_t get_handle() const {
         OPENVINO_ASSERT(0 == _lock_count, "[GPU] Cannot get image handle when memory is locked");
-        return _image_holder.get_ze_handle();
+        return _image_holder.handle();
     }
     const ze_image_resource& get_resource() const { return _image_holder; }
 

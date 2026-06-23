@@ -102,12 +102,12 @@ struct ze_ocl_owner_impl {
     using ze_handle_t = typename ze_resource_info<_resource_type>::handle_t;
     ze_ocl_owner_impl(ze_handle_t ze_handle, bool is_borrowed = false) : _ze_owner(ze_handle, is_borrowed) {}
 
-    ze_handle_t get_ze_handle() const {
+    ze_handle_t handle() const {
         return _ze_owner.get_handle();
     }
 
     template <ocl_resource_type ocl_resource_type>
-    typename ocl_resource_info<ocl_resource_type>::handle_t get_ocl_handle() const {
+    typename ocl_resource_info<ocl_resource_type>::handle_t ocl_handle() const {
         static_assert((((ocl_resource_type == ocl_resource_types) || ...)), "Specified OCL resource type can not be obtained from this owner");
         auto &owner = std::get<std::optional<ocl_owner<ocl_resource_type>>>(_ocl_owners);
         OPENVINO_ASSERT(owner.has_value(), "[GPU] Attempted to get ocl handle that is not attached to resource owner");

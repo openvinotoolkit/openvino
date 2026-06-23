@@ -41,9 +41,9 @@ void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
     if (!_onednn_engine) {
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ze_interop::make_engine(
-            get_driver().get_ze_handle(),
-            get_device().get_ze_handle(),
-            get_context().get_ze_handle()
+            get_driver().handle(),
+            get_device().handle(),
+            get_context().handle()
         ));
     }
 }
@@ -134,7 +134,7 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
     if (params.mem_type == shared_mem_type::shared_mem_usm) {
         // USM memory does not need to be converted
         const auto &ctx = get_context();
-        ov_ze_usm_handle usm_handle{ctx.get_ze_handle(), params.mem};
+        ov_ze_usm_handle usm_handle{ctx.handle(), params.mem};
         const bool is_borrowed = true;
         ze_usm_resource usm_res(usm_handle, is_borrowed);
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_res, nullptr);
@@ -161,7 +161,7 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     auto& new_buf = reinterpret_cast<const ze::gpu_usm&>(memory);
     auto ptr = new_buf.buffer_ptr();
     auto ctx = get_context();
-    ov_ze_usm_handle usm_handle{ctx.get_ze_handle(), reinterpret_cast<uint8_t*>(ptr) + byte_offset};
+    ov_ze_usm_handle usm_handle{ctx.handle(), reinterpret_cast<uint8_t*>(ptr) + byte_offset};
     const bool is_borrowed = true;
     ze_usm_resource usm_res(usm_handle, is_borrowed);
     return std::make_shared<ze::gpu_usm>(this,
@@ -191,7 +191,7 @@ bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
     } else {
         const auto &img1 = downcast<const ze::gpu_image2d>(mem1);
         const auto &img2 = downcast<const ze::gpu_image2d>(mem2);
-        return img1.get_resource().get_ze_handle() == img2.get_resource().get_ze_handle();
+        return img1.get_resource().handle() == img2.get_resource().handle();
     }
     OPENVINO_THROW("[GPU] Unsupported memory type for buffer comparison");
 }
@@ -205,11 +205,11 @@ std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {
 void* ze_engine::get_user_context(runtime_types rt_type) const {
     auto ctx = get_context();
     if (rt_type == runtime_types::ze) {
-        return ctx.get_ze_handle();
+        return ctx.handle();
     } else if (rt_type == runtime_types::ocl) {
         auto &device = get_device();
         ze_export_ocl_context(ctx, device);
-        return ctx.get_ocl_handle<ocl_resource_type::context>();
+        return ctx.ocl_handle<ocl_resource_type::context>();
     } else {
         OPENVINO_THROW("[GPU] ZE engine cannot provide context for ", rt_type);
     }

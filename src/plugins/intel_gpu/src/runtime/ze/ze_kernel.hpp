@@ -17,7 +17,7 @@ namespace ze {
 class ze_kernel : public kernel {
 public:
     static void create_kernels_from_module(const ze_module_resource &module_holder, const ze_module_build_log_resource &build_log_holder, std::vector<kernel::ptr> &out) {
-        ze_module_handle_t module_handle = module_holder.get_ze_handle();
+        ze_module_handle_t module_handle = module_holder.handle();
         uint32_t kernel_count = 0;
         OV_ZE_EXPECT(ze::zeModuleGetKernelNames(module_handle, &kernel_count, nullptr));
         std::vector<const char*> kernel_names(kernel_count);
@@ -52,8 +52,8 @@ public:
             OPENVINO_ASSERT(!m_module.is_empty(), "[GPU] Attempt to create kernel with empty module resource");
         }
 
-    ze_kernel_handle_t get_kernel_handle() const { return m_kernel.get_ze_handle(); }
-    ze_module_handle_t get_module_handle() const { return m_module.get_ze_handle(); }
+    ze_kernel_handle_t get_kernel_handle() const { return m_kernel.handle(); }
+    ze_module_handle_t get_module_handle() const { return m_module.handle(); }
     std::string get_id() const override { return m_kernel_id; }
 
     std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override {
@@ -96,7 +96,7 @@ public:
         if (m_build_log.is_empty()) {
             return {};
         }
-        ze_module_build_log_handle_t build_log_handle = m_build_log.get_ze_handle();
+        ze_module_build_log_handle_t build_log_handle = m_build_log.handle();
         size_t log_size = 0;
         OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(build_log_handle, &log_size, nullptr));
 

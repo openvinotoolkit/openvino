@@ -39,7 +39,7 @@ bool ze_kernel_builder::check_ze_build_support() const {
     std::lock_guard lock(m);
     const char src[] = R"(__kernel void k(){})";
     auto src_bytes = sizeof(src);
-    auto dev_handle = m_device.get_device().get_ze_handle();
+    auto dev_handle = m_device.get_device().handle();
     if (cache.find(dev_handle) != cache.end()) {
         return cache.at(dev_handle);
     }
@@ -81,8 +81,8 @@ void ze_kernel_builder::build_kernels_ze(const void *src, size_t src_bytes, Kern
     }
     ze_module_handle_t module_handle;
     ze_module_build_log_handle_t log_handle;
-    auto ctx_handle = m_device.get_context().get_ze_handle();
-    auto device_handle = m_device.get_device().get_ze_handle();
+    auto ctx_handle = m_device.get_context().handle();
+    auto device_handle = m_device.get_device().handle();
     ze_result_t build_result = ze::zeModuleCreate(ctx_handle, device_handle, &module_desc, &module_handle, &log_handle);
     ze_module_build_log_resource build_log_holder(log_handle);
     if (build_result != ZE_RESULT_SUCCESS) {

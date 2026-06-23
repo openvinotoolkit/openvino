@@ -116,7 +116,7 @@ TYPED_TEST(ze_resource_all_types_test, can_be_empty) {
 
     ASSERT_TRUE(resource.is_empty());
     ASSERT_EQ(resource.get_holder(), nullptr);
-    ASSERT_ANY_THROW(resource.get_ze_handle());
+    ASSERT_ANY_THROW(resource.handle());
 }
 
 TYPED_TEST(ze_resource_all_types_test, can_hold_ze_handle) {
@@ -128,7 +128,7 @@ TYPED_TEST(ze_resource_all_types_test, can_hold_ze_handle) {
 
     ASSERT_FALSE(resource.is_empty());
     ASSERT_NE(resource.get_holder(), nullptr);
-    assert_ze_handle_eq<resource_type>(ze_handle, resource.get_ze_handle());
+    assert_ze_handle_eq<resource_type>(ze_handle, resource.handle());
 }
 
 TYPED_TEST(ze_resource_all_types_test, can_share_ze_handle) {
@@ -169,7 +169,7 @@ TYPED_TEST(ze_resource_with_ocl_types_test, can_not_attach_ocl_handle_to_empty_r
     resource_t resource;
 
     ASSERT_FALSE(resource.template has_ocl_handle<ocl_type>());
-    ASSERT_ANY_THROW(resource.template get_ocl_handle<ocl_type>());
+    ASSERT_ANY_THROW(resource.template ocl_handle<ocl_type>());
     ASSERT_ANY_THROW(resource.template attach_ocl_handle<ocl_type>(make_ocl_handle<ocl_type>(0x300), true));
 }
 
@@ -187,7 +187,7 @@ TYPED_TEST(ze_resource_with_ocl_types_test, can_attach_and_access_ocl_handle) {
     resource.template attach_ocl_handle<ocl_type>(ocl_handle, true);
 
     ASSERT_TRUE(resource.template has_ocl_handle<ocl_type>());
-    ASSERT_EQ(resource.template get_ocl_handle<ocl_type>(), ocl_handle);
+    ASSERT_EQ(resource.template ocl_handle<ocl_type>(), ocl_handle);
     ASSERT_ANY_THROW(resource.template attach_ocl_handle<ocl_type>(ocl_handle, true));
 }
 
@@ -208,7 +208,7 @@ TYPED_TEST(ze_resource_with_ocl_types_test, can_share_ocl_handle) {
         copied_resource.template attach_ocl_handle<ocl_type>(std::move(owner));
     }
     ASSERT_TRUE(resource.template has_ocl_handle<ocl_type>());
-    ASSERT_EQ(resource.template get_ocl_handle<ocl_type>(), ocl_handle);
+    ASSERT_EQ(resource.template ocl_handle<ocl_type>(), ocl_handle);
     ASSERT_TRUE(copied_resource.template has_ocl_handle<ocl_type>());
-    ASSERT_EQ(copied_resource.template get_ocl_handle<ocl_type>(), ocl_handle);
+    ASSERT_EQ(copied_resource.template ocl_handle<ocl_type>(), ocl_handle);
 }

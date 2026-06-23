@@ -197,7 +197,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
 
 QueueTypes detect_queue_type(ze_command_list_resource& cmd_list) {
     OPENVINO_ASSERT(cmd_list.has_ocl_handle<ocl_resource_type::command_queue>(), "[GPU] Queue type detection requires OpenCL handle");
-    auto queue = cmd_list.get_ocl_handle<ocl_resource_type::command_queue>();
+    auto queue = cmd_list.ocl_handle<ocl_resource_type::command_queue>();
     cl_command_queue_properties properties;
 
     auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
@@ -233,8 +233,8 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         command_queue_desc.pNext = &cp_offload_desc;
     }
 
-    auto ctx_handle = engine.get_context().get_ze_handle();
-    auto device_handle = engine.get_device().get_ze_handle();
+    auto ctx_handle = engine.get_context().handle();
+    auto device_handle = engine.get_device().handle();
     ze_command_list_handle_t cmd_list = nullptr;
     OV_ZE_EXPECT(ze::zeCommandListCreateImmediate(ctx_handle, device_handle, &command_queue_desc, &cmd_list));
     m_cmd_list = ze_command_list_resource(cmd_list);
@@ -319,7 +319,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     auto local = to_group_count(args_desc.workGroups.local);
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
     OV_ZE_EXPECT(ze::zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
-    OV_ZE_EXPECT(ze::zeCommandListAppendLaunchKernel(m_cmd_list.get_ze_handle(),
+    OV_ZE_EXPECT(ze::zeCommandListAppendLaunchKernel(m_cmd_list.handle(),
                                              kern,
                                              &args,
                                              set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
@@ -330,13 +330,13 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
 }
 
 void ze_stream::enqueue_barrier() {
-    OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.get_ze_handle(), nullptr, 0, nullptr));
+    OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), nullptr, 0, nullptr));
 }
 
 event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {
     if (deps.empty()) {
         auto ev = create_base_event();
-        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.get_ze_handle(), std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
         return ev;
     }
 
@@ -352,7 +352,7 @@ event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, boo
             return create_user_event(true);
 
         auto ev = create_base_event();
-        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.get_ze_handle(),
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(),
                                             std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(),
                                             static_cast<uint32_t>(dep_events.size()),
                                             &dep_events.front()));
@@ -396,7 +396,7 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_cmd_list.get_ze_handle(), endless_wait));
+    OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_cmd_list.handle(), endless_wait));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
@@ -431,9 +431,9 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
         if (is_output) {
             m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
             m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.get_ze_handle(), m_last_barrier_ev->get_handle(), 0, nullptr));
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), m_last_barrier_ev->get_handle(), 0, nullptr));
         } else {
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.get_ze_handle(), nullptr, 0, nullptr));
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), nullptr, 0, nullptr));
         }
         m_last_barrier = ++m_queue_counter;
     }
@@ -453,7 +453,7 @@ dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_cmd_list.get_ze_handle(), m_ev_factory->is_profiling_enabled()));
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_cmd_list.handle(), m_ev_factory->is_profiling_enabled()));
     }
 
     return *_onednn_stream;

@@ -29,8 +29,8 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
             flags,
             m_capacity
         };
-        auto ctx_handle = m_engine.get_context().get_ze_handle();
-        auto device_handle = m_engine.get_device().get_ze_handle();
+        auto ctx_handle = m_engine.get_context().handle();
+        auto device_handle = m_engine.get_device().handle();
         auto device = m_engine.get_device();
         ze_event_pool_handle_t event_pool;
         OV_ZE_EXPECT(ze::zeEventPoolCreate(ctx_handle, &event_pool_desc, 1, &device_handle, &event_pool));
@@ -45,7 +45,7 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
         ZE_EVENT_SCOPE_FLAG_HOST,
         0
     };
-    OV_ZE_EXPECT(ze::zeEventCreate(m_current_pool.get_ze_handle(), &event_desc, &event));
+    OV_ZE_EXPECT(ze::zeEventCreate(m_current_pool.handle(), &event_desc, &event));
     auto event_holder = ze_event_resource(event);
 
     return std::make_shared<ze_event>(queue_stamp, *this, event_holder);

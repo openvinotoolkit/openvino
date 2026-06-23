@@ -37,16 +37,16 @@ struct ze_resource {
         : _holder(std::make_shared<ze_ocl_owner_t>(ze_handle, is_borrowed)) {}
 
     /// @brief Get Level Zero handle or throw if resource is empty.
-    ze_handle_t get_ze_handle() const {
+    ze_handle_t handle() const {
         OPENVINO_ASSERT(_holder != nullptr, "[GPU] Attempted to get Level Zero handle from empty resource");
-        return _holder->get_ze_handle();
+        return _holder->handle();
     }
 
     /// @brief Get OpenCL handle or throw if resource is empty.
     template <ocl_resource_type ocl_resource_type>
-    typename ocl_resource_info<ocl_resource_type>::handle_t get_ocl_handle() const {
+    typename ocl_resource_info<ocl_resource_type>::handle_t ocl_handle() const {
         OPENVINO_ASSERT(_holder != nullptr, "[GPU] Attempted to get OpenCL handle from empty resource");
-        return _holder->template get_ocl_handle<ocl_resource_type>();
+        return _holder->template ocl_handle<ocl_resource_type>();
     }
 
     /// @brief Attach OpenCL handle to the resource or throw if resource is empty. Assumes passed handle is valid.
