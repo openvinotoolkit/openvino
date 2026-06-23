@@ -458,11 +458,11 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* src_data = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dst_data = getDstDataAtPortAs<uint8_t>(0);
 
-    cpu_convert(src_data,
-                dst_data,
-                getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
-                getChildEdgeAt(0)->getMemory().getDesc().getPrecision(),
-                output_size);
+    cpu_parallel_convert(src_data,
+                         dst_data,
+                         getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
+                         getChildEdgeAt(0)->getMemory().getDesc().getPrecision(),
+                         output_size);
 
     for (size_t b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {

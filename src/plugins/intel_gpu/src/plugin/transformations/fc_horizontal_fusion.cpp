@@ -128,12 +128,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const size_t k_axis = 1;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(weight_idx);
         auto k_size = fc_nodes[0]->get_input_shape(weight_idx)[k_axis];
+        const bool transpose_b = fc_nodes[0]->get_transpose_b();
         std::vector<int64_t> orig_n_sizes;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
             if (k_size != fc->get_input_shape(weight_idx)[k_axis])
                 return false;
             if (weight_dtype != fc->get_input_element_type(weight_idx))
+                return false;
+            if (transpose_b != fc->get_transpose_b())
                 return false;
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
         }
@@ -278,13 +281,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fused_bias,
                                                                     fused_scale,
                                                                     fused_zps,
-                                                                    fc_nodes[0]->get_output_type());
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b);
         else
             new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
                                                                     fused_weight,
                                                                     fused_bias,
                                                                     fused_scale,
-                                                                    fc_nodes[0]->get_output_type());
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b);
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(fc_nodes.size()) + "FCs";
         new_fc->set_friendly_name(new_fc_name);

@@ -9,8 +9,10 @@
 #include <malloc.h>
 #include <windows.h>
 
+#include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <tuple>
 
 #include "openvino/util/memory.hpp"
 
@@ -27,38 +29,43 @@ void aligned_free(void* ptr) noexcept {
     _aligned_free(ptr);
 }
 
-void* reserve_buffer(size_t size, std::string* error) noexcept {
+void* vm_reserve(size_t size, std::error_code& ec) noexcept {
     const auto p = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
     if (p == NULL) {
-        if (error) {
-            *error = std::string{"VirtualAlloc reserve failed, err: "} + std::to_string(GetLastError());
-        }
+        ec = std::error_code(GetLastError(), std::system_category());
         return nullptr;
     }
+    ec = {};
     return p;
 }
 
-void acquire_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
-    if (VirtualAlloc(reserved_buffer, size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
-        if (error) {
-            *error = std::string{"VirtualAlloc commit failed, err: "} + std::to_string(GetLastError());
-        }
+void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
+    if (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) == NULL) {
+        ec = std::error_code(GetLastError(), std::system_category());
+    } else {
+        ec = {};
     }
 }
 
-void evict_buffer(void* reserved_buffer, size_t size, std::string* error) noexcept {
-    if (VirtualFree(reserved_buffer, size, MEM_DECOMMIT) == 0) {
-        if (error) {
-            *error = std::string{"VirtualFree decommit failed, err: "} + std::to_string(GetLastError());
-        }
-    }
+void vm_decommit(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
+    std::ignore = VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
-void release_buffer(void* reserved_buffer, size_t /* byte_size */, std::string* error) noexcept {
-    if (VirtualFree(reserved_buffer, 0, MEM_RELEASE) == 0) {
-        if (error) {
-            *error = std::string{"VirtualFree release failed, err: "} + std::to_string(GetLastError());
-        }
+void vm_release(void* ptr, size_t) noexcept {
+    assert(ptr != nullptr);
+    std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // CVS-186579
+    // assert if region is not mmap-baked.
+
+    if (num_threads == 0) {
+        // Option 1: OS advisory hints
+    } else {
+        // Option 2: parallel synchronous prefault & touch
     }
 }
 
