@@ -13,6 +13,11 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  merge_group:
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-level-zero-dev
