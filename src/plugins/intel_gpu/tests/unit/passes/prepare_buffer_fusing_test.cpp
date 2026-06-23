@@ -2552,15 +2552,19 @@ TEST(prepare_buffer_fusing, in_place_crop_squeeze_axis_static_one_qkv) {
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
 
-    const int64_t L = 16, D = 4;
+    // TransposeSplitMatcher pattern: packed QKV [B, 3, H, S] with batch B > 1. Cropping the
+    // size-3 axis=1 and squeezing it yields [B, H, S] (rank 3), keeping batch B as the outer
+    // axis through the whole chain so the runtime-propagated dynamic padding lands on the
+    // batch pitch, matching the real model layout.
+    const int64_t B = 2, H = 3, S = 4;
 
-    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, D}, data_types::f16, format::bfyx};
-    auto input_mem      = engine.allocate_memory({{L, 3, D}, data_types::f16, format::bfyx});
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{B, 3, H, S}, data_types::f16, format::bfyx});
     auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
     auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
     auto scale_mem      = engine.allocate_memory({{1, 1, 1}, data_types::f16, format::bfyx});
 
-    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * D, -1.f, 1.f);
+    auto input_data = rg.generate_random_1d<ov::float16>(B * 3 * H * S, -1.f, 1.f);
     set_values(input_mem, input_data);
     set_values<int64_t>(axis_mem, {1});
     set_values<int64_t>(splits_len_mem, {1, 1, 1});
@@ -2568,7 +2572,7 @@ TEST(prepare_buffer_fusing, in_place_crop_squeeze_axis_static_one_qkv) {
 
     const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
     const int64_t axis = 1;
-    auto rs_shape_dyn = ov::PartialShape{-1, D};
+    auto rs_shape_dyn = ov::PartialShape{-1, H, S};
 
     topology topo(
         input_layout("input", in_layout_dyn),
@@ -2613,13 +2617,25 @@ TEST(prepare_buffer_fusing, in_place_crop_squeeze_axis_static_one_qkv) {
     ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
 
     auto outputs = net.execute();
+
+    // In-place must physically fire (not a silent copy): every crop output
+    // aliases the shared QKV input buffer. Mirrors memory_test.cpp in_place_crop.
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop0"), *input_mem));
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop1"), *input_mem));
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop2"), *input_mem));
+
     cldnn::mem_lock<ov::float16> in_ptr(input_mem, get_test_stream());
     for (int64_t k = 0; k < 3; k++) {
         auto out_mem = outputs.at("out" + std::to_string(k)).get_memory();
         cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
-        for (int64_t l = 0; l < L; l++)
-            for (int64_t d = 0; d < D; d++)
-                ASSERT_EQ(out_ptr[l * D + d], in_ptr[l * 3 * D + k * D + d]) << "k=" << k << " l=" << l << " d=" << d;
+        for (int64_t b = 0; b < B; b++)
+            for (int64_t h = 0; h < H; h++)
+                for (int64_t s = 0; s < S; s++)
+                    ASSERT_EQ(out_ptr[(b * H + h) * S + s], in_ptr[((b * 3 + k) * H + h) * S + s])
+                        << "k=" << k << " b=" << b << " h=" << h << " s=" << s;
     }
 }
 
@@ -2640,24 +2656,28 @@ TEST(prepare_buffer_fusing, in_place_crop_basemode_flatten_qkv) {
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
 
-    const int64_t L = 16, H = 4, S = 8;
+    // Faithful rank for the QKVSplitReshapeMatcher pattern: packed QKV [B, Seq, 3, H, S]
+    // with outer dims B*Seq > 1. Cropping the size-3 axis=2 and base-mode flattening the
+    // trailing (1, H, S) yields [B, Seq, H*S] (rank 3), keeping B and Seq as the outer axes
+    // so the runtime-propagated dynamic padding lands on their pitch, as in the real model.
+    const int64_t B = 2, SEQ = 2, H = 2, S = 4;
     const int64_t HS = H * S;
 
-    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
-    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f16, format::bfyx});
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, -1, 3, H, S}, data_types::f16, format::bfzyx};
+    auto input_mem      = engine.allocate_memory({{B, SEQ, 3, H, S}, data_types::f16, format::bfzyx});
     auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
     auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
     auto scale_mem      = engine.allocate_memory({{1, 1, 1}, data_types::f16, format::bfyx});
 
-    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    auto input_data = rg.generate_random_1d<ov::float16>(B * SEQ * 3 * H * S, -1.f, 1.f);
     set_values(input_mem, input_data);
-    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(axis_mem, {2});
     set_values<int64_t>(splits_len_mem, {1, 1, 1});
     set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
 
     const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
-    const int64_t axis = 1;
-    auto rs_shape_dyn = ov::PartialShape{-1, HS};
+    const int64_t axis = 2;
+    auto rs_shape_dyn = ov::PartialShape{-1, -1, HS};
 
     topology topo(
         input_layout("input", in_layout_dyn),
@@ -2666,19 +2686,19 @@ TEST(prepare_buffer_fusing, in_place_crop_basemode_flatten_qkv) {
         data("scale", scale_mem),
         crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
              cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
-        reshape("reshape0", input_info("crop0"), true, std::vector<int64_t>{0, -1}, rs_shape_dyn,
+        reshape("reshape0", input_info("crop0"), true, std::vector<int64_t>{0, 0, -1}, rs_shape_dyn,
                 cldnn::reshape::reshape_mode::base),
         eltwise("eltwise0", {input_info("reshape0"), input_info("scale")}, eltwise_mode::prod),
         reorder("out0", input_info("eltwise0"), format::bfyx, data_types::f16),
         crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
              cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
-        reshape("reshape1", input_info("crop1"), true, std::vector<int64_t>{0, -1}, rs_shape_dyn,
+        reshape("reshape1", input_info("crop1"), true, std::vector<int64_t>{0, 0, -1}, rs_shape_dyn,
                 cldnn::reshape::reshape_mode::base),
         eltwise("eltwise1", {input_info("reshape1"), input_info("scale")}, eltwise_mode::prod),
         reorder("out1", input_info("eltwise1"), format::bfyx, data_types::f16),
         crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
              cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
-        reshape("reshape2", input_info("crop2"), true, std::vector<int64_t>{0, -1}, rs_shape_dyn,
+        reshape("reshape2", input_info("crop2"), true, std::vector<int64_t>{0, 0, -1}, rs_shape_dyn,
                 cldnn::reshape::reshape_mode::base),
         eltwise("eltwise2", {input_info("reshape2"), input_info("scale")}, eltwise_mode::prod),
         reorder("out2", input_info("eltwise2"), format::bfyx, data_types::f16)
@@ -2701,13 +2721,23 @@ TEST(prepare_buffer_fusing, in_place_crop_basemode_flatten_qkv) {
     ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
 
     auto outputs = net.execute();
+
+    // In-place must physically fire (not a silent copy): every crop output
+    // aliases the shared QKV input buffer. Mirrors memory_test.cpp in_place_crop.
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop0"), *input_mem));
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop1"), *input_mem));
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop2"), *input_mem));
+
     cldnn::mem_lock<ov::float16> in_ptr(input_mem, get_test_stream());
     for (int64_t k = 0; k < 3; k++) {
         auto out_mem = outputs.at("out" + std::to_string(k)).get_memory();
         cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
-        for (int64_t l = 0; l < L; l++)
+        for (int64_t r = 0; r < B * SEQ; r++)
             for (int64_t j = 0; j < HS; j++)
-                ASSERT_EQ(out_ptr[l * HS + j], in_ptr[l * 3 * HS + k * HS + j]) << "k=" << k << " l=" << l << " j=" << j;
+                ASSERT_EQ(out_ptr[r * HS + j], in_ptr[(r * 3 + k) * HS + j]) << "k=" << k << " r=" << r << " j=" << j;
     }
 }
 
@@ -2761,6 +2791,14 @@ TEST(prepare_buffer_fusing, in_place_crop_squeeze_axis_static_one_mvn_blocked) {
     network net(engine, topo, config);
     net.set_input_data("input", input_mem);
     ASSERT_FALSE(net.get_primitive("crop0")->can_be_optimized());
+
+    // Negative: the mvn consumer blocks in-place, so the crop must fall back to a
+    // real copy at runtime. Verify the copy physically happened: the crop output
+    // must NOT alias the input buffer, and the network still executes cleanly.
+    std::map<cldnn::primitive_id, cldnn::network_output> outputs;
+    OV_ASSERT_NO_THROW(outputs = net.execute());
+    ASSERT_FALSE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_FALSE(engine.is_the_same_buffer(*net.get_output_memory("crop0"), *input_mem));
 }
 
 // =============================================================================
@@ -2850,6 +2888,7 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_eltwise_consum
     ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized()) << "crop0 should be in-place";
     ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized()) << "crop1 should be in-place";
     ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized()) << "crop2 should be in-place";
+
 }
 
 // =============================================================================
@@ -2948,12 +2987,131 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_vlsdpa_consume
     ASSERT_NE(prog, nullptr);
 
     // All 3 reshapes must report is_runtime_propagatable_padding=true.
-    //   - reshape0/1: downstream is eltwise (RoPE proxy) — previously always true.
-    //   - reshape2:   downstream is vl_sdpa — only true after our guard change.
+    //   - reshape0/1: downstream is eltwise (RoPE proxy).
+    //   - reshape2:   downstream is vl_sdpa (axis=1 / size-1 squeeze pattern).
     ASSERT_TRUE(prog->get_node("reshape0").as<reshape>().is_runtime_propagatable_padding())
         << "reshape0 (Q→RoPE) must be runtime-propagatable";
     ASSERT_TRUE(prog->get_node("reshape1").as<reshape>().is_runtime_propagatable_padding())
         << "reshape1 (K→RoPE) must be runtime-propagatable";
     ASSERT_TRUE(prog->get_node("reshape2").as<reshape>().is_runtime_propagatable_padding())
-        << "reshape2 (V→vl_sdpa) must be runtime-propagatable after guard relaxation";
+        << "reshape2 (V→vl_sdpa) must be runtime-propagatable";
+
+}
+
+// =============================================================================
+// STEP 1 (reproduction): Cecilia's own rank-3 form WITH execute + data check.
+//
+// Byte-for-byte the same blueprint as
+//   in_place_crop_split_axis1_three_crops_eltwise_consumer
+//   Input[-1,3,H,S] -> crop(axis=1, slice=k) -> squeeze(axis=1) -> [-1,H,S]
+// (dynamic topo, marker reorders, build_program no_optimizations=true,
+//  is_runtime_propagatable_padding asserted true, can_be_optimized asserted true)
+// but this test ADDITIONALLY executes the network and compares every output
+// element against the expected crop slice. Her original test stops at the
+// can_be_optimized flag and never executes, so it cannot detect a wrong runtime
+// offset produced by the along_feature in-place crop path.
+//
+// Expected: out_k[l,h,s] == in[l, k, h, s]
+// =============================================================================
+TEST(prepare_buffer_fusing, in_place_crop_split_axis1_rank3_datacheck) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t H = 4, S = 8;
+    const int64_t L = 16;
+
+    auto in_layout      = layout{{L, 3, H, S}, data_types::f16, format::bfyx};
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory(in_layout);
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+    auto scale_mem      = engine.allocate_memory({{1, 1, 1}, data_types::f16, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+    set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+    auto rs_shape_dyn = ov::PartialShape{-1, H, S};
+
+    // Consumer mirrors the real RoPE proxy: reshape -> eltwise(*1.0) -> reorder.
+    // eltwise(*1.0) keeps data identical so the element-wise check still holds,
+    // while matching the eltwise consumer used by the vlsdpa test (so no extra
+    // reorder is inserted between crop and reshape).
+    topology topo_dyn(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        data("scale",      scale_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, std::vector<int64_t>{1}, rs_shape_dyn, cldnn::reshape::reshape_mode::squeeze),
+        eltwise("eltwise0", {input_info("reshape0"), input_info("scale")}, eltwise_mode::prod),
+        reorder("out0", input_info("eltwise0"), format::bfyx, data_types::f16),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, std::vector<int64_t>{1}, rs_shape_dyn, cldnn::reshape::reshape_mode::squeeze),
+        eltwise("eltwise1", {input_info("reshape1"), input_info("scale")}, eltwise_mode::prod),
+        reorder("out1", input_info("eltwise1"), format::bfyx, data_types::f16),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, std::vector<int64_t>{1}, rs_shape_dyn, cldnn::reshape::reshape_mode::squeeze),
+        eltwise("eltwise2", {input_info("reshape2"), input_info("scale")}, eltwise_mode::prod),
+        reorder("out2", input_info("eltwise2"), format::bfyx, data_types::f16)
+    );
+    ExecutionConfig config_dyn = get_test_default_config(engine);
+    config_dyn.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config_dyn.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto prog = program::build_program(engine, topo_dyn, config_dyn, false, true);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->get_node("reshape0").as<reshape>().is_runtime_propagatable_padding());
+    ASSERT_TRUE(prog->get_node("reshape1").as<reshape>().is_runtime_propagatable_padding());
+    ASSERT_TRUE(prog->get_node("reshape2").as<reshape>().is_runtime_propagatable_padding());
+
+    network net(engine, topo_dyn, config_dyn);
+    net.set_input_data("input", input_mem);
+
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
+
+    // Run the network and verify the output data.
+    std::map<cldnn::primitive_id, cldnn::network_output> outputs;
+    OV_ASSERT_NO_THROW(outputs = net.execute());
+
+    // In-place must physically fire (not a silent copy): every crop output
+    // aliases the shared QKV input buffer. Mirrors memory_test.cpp in_place_crop.
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized());
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop0"), *input_mem));
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop1"), *input_mem));
+    ASSERT_TRUE(engine.is_the_same_buffer(*net.get_output_memory("crop2"), *input_mem));
+
+    cldnn::mem_lock<ov::float16> in_ptr(input_mem, get_test_stream());
+    int64_t grand_total_mismatch = 0;
+    for (int64_t k = 0; k < 3; k++) {
+        auto out_mem = outputs.at("out" + std::to_string(k)).get_memory();
+        ASSERT_NE(out_mem, nullptr);
+        cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+        int64_t total_mismatch = 0;
+        for (int64_t l = 0; l < L; l++) {
+            int64_t row_mismatch = 0;
+            for (int64_t h = 0; h < H; h++)
+                for (int64_t s = 0; s < S; s++)
+                    if (out_ptr[(l * H + h) * S + s] != in_ptr[((l * 3 + k) * H + h) * S + s])
+                        row_mismatch++;
+            total_mismatch += row_mismatch;
+        }
+        grand_total_mismatch += total_mismatch;
+    }
+    // In-place crop on axis=1 must reproduce the exact crop slice for every output.
+    // Any mismatch indicates the buggy buffer-fusing path corrupting the data.
+    ASSERT_EQ(grand_total_mismatch, 0)
+        << "in-place crop axis=1 corrupted output: " << grand_total_mismatch
+        << " mismatched elements across all crop slices";
 }

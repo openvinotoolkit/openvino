@@ -1972,6 +1972,17 @@ void primitive_inst::do_runtime_in_place_crop() {
                     }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                     if (user_info.first) {
+                        // along_feature set only the crop feature-axis padding. Propagate it through
+                        // the reshape user (squeeze/flatten sink+scale) so the reshape output view is
+                        // geometrically correct for batch > 1, mirroring the simple_data_format path.
+                        const auto& crop_pad = crop_layout.data_padding;
+                        std::vector<ov::Dimension::value_type> lower_sizes(crop_pad._lower_size.begin(), crop_pad._lower_size.end());
+                        std::vector<ov::Dimension::value_type> upper_sizes(crop_pad._upper_size.begin(), crop_pad._upper_size.end());
+                        if (!crop_in_place_optimization::propagate_in_place_crop_padding_to_reshape(crop_layout, user_info, lower_sizes, upper_sizes, crop_axis)) {
+                            u->set_can_be_optimized(false);
+                            GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                            continue;
+                        }
                         auto reshape_inst = crop_users.front();
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
                         reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);

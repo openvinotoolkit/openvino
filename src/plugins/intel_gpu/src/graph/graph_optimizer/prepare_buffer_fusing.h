@@ -86,6 +86,15 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
                                                                 const tensor offsets,
                                                                 size_t crop_axis,
                                                                 bool is_runtime);
+    // Propagates the in-place crop dynamic padding through a reshape user into the reshape
+    // output layout (user_info.second), applying the squeeze/flatten sink+scale rule. Shared
+    // by the simple_data_format and along_feature paths. Returns false when the crop padding
+    // cannot be evenly mapped into reshape space (in-place must be disabled).
+    static bool propagate_in_place_crop_padding_to_reshape(const layout& crop_layout,
+                                                           std::pair<const program_node*, layout>& user_info,
+                                                           const std::vector<ov::Dimension::value_type>& lower_sizes,
+                                                           const std::vector<ov::Dimension::value_type>& upper_sizes,
+                                                           size_t crop_axis);
 };
 
 } // namespace cldnn
