@@ -55,13 +55,13 @@ int main() {
     size_t shared_buffer_bytes = input_size * in_element_type.size();
     // std::aligned_alloc requires the size to be a multiple of the alignment.
     if (shared_buffer_bytes % alignment == 0) {
-        void* shared_buffer = std::aligned_alloc(alignment, shared_buffer_bytes);
-        if (shared_buffer != nullptr) {
+        void* cpu_pointer = std::aligned_alloc(alignment, shared_buffer_bytes);
+        if (cpu_pointer != nullptr) {
             auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
                                                            in_shape,
-                                                           shared_buffer,
+                                                           cpu_pointer,
                                                            ov::intel_gpu::MemType::CPU_POINTER);
-            std::free(shared_buffer);
+            std::free(cpu_pointer);
         }
     }
     //! [wrap_cpu_pointer]

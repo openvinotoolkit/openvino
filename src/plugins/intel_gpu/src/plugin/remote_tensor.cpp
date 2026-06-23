@@ -369,11 +369,12 @@ void RemoteTensorImpl::allocate() {
     case TensorType::BF_BUF_CPU_MEMORY: {
         OPENVINO_ASSERT(engine.runtime_type() == cldnn::runtime_types::ocl,
                         "[GPU] MMAP shared buffer is supported only for OCL runtime");
+        // definition: repo compute-runtime\opencl\source\mem_obj\buffer.cpp Buffer::checkMemory zero copy conditions
         OPENVINO_ASSERT(is_no_copy_aligned_ptr(m_mem),
                         "[GPU] shared buffer pointer must be ", minimal_alignment_no_copy, "-byte aligned");
         OPENVINO_ASSERT(is_no_copy_aligned_size(m_layout.bytes_count()),
                         "[GPU] shared buffer size must be a multiple of ", minimal_alignment_no_copy, " bytes");
-        // look on compute-runtime\opencl\source\mem_obj\buffer.cpp:639 zero copy conditions
+
                         m_memory_object = engine.create_hostbuffer(m_mem,
                                                         m_layout.bytes_count(),
                                                         cldnn::allocation_type::usm_host,

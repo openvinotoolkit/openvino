@@ -5,6 +5,7 @@
 #ifdef OV_GPU_WITH_OCL_RT
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
