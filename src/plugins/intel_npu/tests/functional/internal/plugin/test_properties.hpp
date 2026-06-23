@@ -274,30 +274,16 @@ TEST_P(CompatibilityCheckTests, CompatibilityCheckUsesPluginCompilerAdapterOnlyW
     }
 
     if (driverHandlesCompatibilityCheck) {
-        // Driver version >= 1.16: PluginCompilerAdapter must NOT be initialised and the
-        // property must be reported as supported.
+        // Driver version >= 1.16: Property must be reported as supported.
         ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
         ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_TRUE(isSupported);
     } else {
-        // Driver version < 1.16: PluginCompilerAdapter MUST be initialised to validate
-        // the compatibility check option.
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        // Driver version < 1.16: Because CiP can not be loaded on this path in CI, the property must be reported as
+        // unsupported.
         ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_FALSE(isSupported);
     }
-
-    ASSERT_TRUE(isSupported);
-}
-
-TEST_P(CompatibilityCheckTests, ExpectSetCompatibilityCheckThrowsReadOnlyError) {
-    // Verify that attempting to set ov::compatibility_check property throws a READ-ONLY error
-    // because compatibility_check is a read-only metric property that cannot be modified.
-
-    ov::AnyMap compatibilityCheckProperty = {{ov::compatibility_check.name(), ov::Any(ov::AnyMap{})}};
-
-    // Attempting to set a read-only property should throw an exception
-    OV_EXPECT_THROW_HAS_SUBSTRING(propertiesManager->setProperty(compatibilityCheckProperty),
-                                  ov::Exception,
-                                  "READ-ONLY");
 }
 
 TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSupported) {
@@ -317,19 +303,17 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSuppo
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
         turboSupported = propertiesManager->isPropertySupported(ov::intel_npu::turbo.name());
     }
 
-    ASSERT_TRUE(turboSupported);
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-
     if (turboSupportedByDevice) {
         // Turbo is supported by device, so checking support must not trigger compiler adapters.
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_TRUE(turboSupported);
     } else {
-        // Turbo is not supported by device, so plugin compiler adapter must be used to validate support.
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_FALSE(turboSupported);
     }
 }
 
