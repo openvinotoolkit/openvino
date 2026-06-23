@@ -214,6 +214,9 @@ std::string generateTestFilePrefix();
 size_t getVmSizeInKB();
 
 size_t getVmRSSInKB();
+
+size_t count_resident_pages(const void* data, size_t size);
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

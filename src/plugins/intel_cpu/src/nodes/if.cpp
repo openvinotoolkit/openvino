@@ -51,11 +51,11 @@ void If::PortMapHelper::execute([[maybe_unused]] const dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_convert(srcMemPtr->getData(),
-                dstMemPtrs.front()->getData(),
-                srcMemPtr->getDesc().getPrecision(),
-                dstMemPtrs.front()->getDesc().getPrecision(),
-                size);
+    cpu_parallel_convert(srcMemPtr->getData(),
+                         dstMemPtrs.front()->getData(),
+                         srcMemPtr->getDesc().getPrecision(),
+                         dstMemPtrs.front()->getDesc().getPrecision(),
+                         size);
 }
 
 void If::PortMapHelper::redefineTo() {

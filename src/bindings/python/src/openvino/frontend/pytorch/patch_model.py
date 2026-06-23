@@ -13,56 +13,63 @@ from openvino.frontend.pytorch import ModuleExtension
 log = logging.getLogger(__name__)
 
 
+def has_been_patched(module, name, orig_forward_name):
+    """Return True if `module` was already patched, logging a warning if so."""
+    if hasattr(module, orig_forward_name):
+        # already patched, skipping. It may happen when patching applied for same module twice
+        log.debug("Unexpectedly found already patched module %s while applying "
+                  "ModuleExtension during PyTorch model conversion. "
+                  "Result of the conversion maybe broken. Depending on the exact issue "
+                  "it may lead to broken original model.", name)
+        return True
+    return False
+
+
+def module_patcher(module, name, orig_forward_name, module_extensions):
+    extension = None
+    if module in module_extensions:
+        extension = module_extensions[module]
+    elif module.__class__ in module_extensions:
+        extension = module_extensions[module.__class__]
+    elif name in module_extensions:
+        extension = module_extensions[name]
+
+    if extension and extension.condition(module):
+        log.debug("Patching module %s", module)
+        # The Trampoline class is instantiated for every module replacement, so we can use
+        # class members individually for each module.
+
+        class Trampoline(torch.autograd.Function):
+            # required to be saved in class
+            target_extension = extension
+
+            @staticmethod
+            @torch.jit.ignore
+            def forward(ctx, *args, **kwargs):
+                # Temporarily restore the original forward function of `module` to avoid
+                # recursion issues in `evaluate`, then revert it back.
+                patched_forward = module.forward
+                # set original forward for the module
+                module.forward = getattr(module, orig_forward_name)
+                # call user code
+                results = extension.evaluate(module, *args, **kwargs)
+                module.forward = patched_forward  # return patched forward back
+                return results
+
+        def new_forward(*args, **kwargs):
+            return extension.convert(module, Trampoline.apply, *args, **kwargs)
+
+        # make signature of new_forward same as of forward
+        new_forward = functools.wraps(module.forward)(new_forward)
+        setattr(module, orig_forward_name, module.forward)
+        module.forward = new_forward
+
+
 def patch_model(model, module_extensions, orig_forward_name):
-    def module_patcher(module, name):
-        extension = None
-        if module in module_extensions:
-            extension = module_extensions[module]
-        elif module.__class__ in module_extensions:
-            extension = module_extensions[module.__class__]
-        elif name in module_extensions:
-            extension = module_extensions[name]
-
-        if extension and extension.condition(module):
-            log.debug("Patching module %s", module)
-            # The Trampoline class is instantiated for every module replacement, so we can use
-            # class members individually for each module.
-
-            class Trampoline(torch.autograd.Function):
-                # required to be saved in class
-                target_extension = extension
-
-                @staticmethod
-                @torch.jit.ignore
-                def forward(ctx, *args, **kwargs):
-                    # Temporarily restore the original forward function of `module` to avoid
-                    # recursion issues in `evaluate`, then revert it back.
-                    patched_forward = module.forward
-                    # set original forward for the module
-                    module.forward = getattr(module, orig_forward_name)
-                    # call user code
-                    results = extension.evaluate(module, *args, **kwargs)
-                    module.forward = patched_forward  # return patched forward back
-                    return results
-
-            def new_forward(*args, **kwargs):
-                return extension.convert(module, Trampoline.apply, *args, **kwargs)
-
-            # make signature of new_forward same as of forward
-            new_forward = functools.wraps(module.forward)(new_forward)
-            setattr(module, orig_forward_name, module.forward)
-            module.forward = new_forward
-
     for name, module in model.named_modules():
-        if hasattr(module, orig_forward_name):
-            # already patched, skipping. It may happen when patching applied for same module twice
-            log.debug("Unexpectedly found already patched module %s while applying "
-                      "ModuleExtension during PyTorch model conversion. "
-                      "Result of the conversion maybe broken. Depending on the exact issue "
-                      "it may lead to broken original model.", name)
+        if has_been_patched(module, name, orig_forward_name):
             continue
-
-        module_patcher(module, name)
+        module_patcher(module, name, orig_forward_name, module_extensions)
 
 
 def unpatch_model(model, orig_forward_name):
@@ -471,10 +478,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
             module.forward = new_forward
 
     for name, module in model.named_modules():
-        if hasattr(module, orig_forward_name):
-            log.debug("Unexpectedly found already patched module %s while applying "
-                      "ModuleExtension for torch.export during PyTorch model conversion. "
-                      "Result of the conversion maybe broken.", name)
+        if has_been_patched(module, name, orig_forward_name):
             continue
         module_patcher(module, name)
 
@@ -539,10 +543,17 @@ def __make_16bit_traceable(model: torch.nn.Module,
     _patch_torch_functions()
 
     extensions, supported = _get_16bit_extensions(patch_condition)
-    patch_model(model, extensions, orig_forward_name)
-    for _, module in model.named_modules():
-        if (module.__class__ not in extensions
-            and (any(p.dtype in supported for p in module.parameters(False))
-                 or any(b.dtype in supported for b in module.buffers(False)))):
-            log.debug("Casting module %s to float32", module)
-            module.float()
+    for name, module in model.named_modules():
+        if has_been_patched(module, name, orig_forward_name):
+            continue
+        if module.__class__ in extensions:
+            module_patcher(module, name, orig_forward_name, extensions)
+        else:
+            for param in module.parameters(recurse=False):
+                if param.dtype in supported:
+                    log.debug("Casting parameter of module %s to float32", name)
+                    param.data = param.data.float()
+            for buf in module.buffers(recurse=False):
+                if buf.dtype in supported:
+                    log.debug("Casting buffer of module %s to float32", name)
+                    buf.data = buf.data.float()
