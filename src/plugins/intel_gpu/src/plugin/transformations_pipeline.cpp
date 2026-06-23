@@ -663,8 +663,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            const auto& original_type = it->first;
-            const auto& target_type = it->second;
+            const auto& [original_type, target_type] = *it;
 
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
