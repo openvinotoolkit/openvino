@@ -139,17 +139,17 @@ TEST(TransformationTests, DisableFP16CompForRMS_Negative) {
     run_test(model, expected_status);
 }
 
-TEST(TransformationTests, DisableFP16CompForRMSNormBlock_KeepsRMSInFP32) {
+TEST(TransformationTests, DisableFP16CompForRMSNormBlock_MatMulProducerToRMS) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 39, 768});
-    auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{768}, {1.0f});
-    auto rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-6);
-    rms->set_friendly_name("rms_target");
-
     auto weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{768, 768}, {0.01f});
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(rms, weight, false, true);
-    matmul->set_friendly_name("matmul_consumer");
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weight, false, true);
+    matmul->set_friendly_name("matmul_producer");
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+    auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{768}, {1.0f});
+    auto rms = std::make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+    rms->set_friendly_name("rms_downstream");
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
 
     ov::pass::Manager manager;
     manager.register_pass<DisableFP16CompForRMSNormBlock>();
@@ -166,21 +166,23 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_KeepsRMSInFP32) {
     bool found_rms = false;
     bool found_matmul = false;
     for (const auto& op : model->get_ops()) {
-        if (op->get_friendly_name() == "rms_target") {
-            found_rms = true;
-            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "RMS node must have FP16 conversion disabled to prevent NaN from overflow";
-            ASSERT_EQ(op->get_output_element_type(0), ov::element::f32)
-                << "RMS must execute in FP32";
-        }
-        if (op->get_friendly_name() == "matmul_consumer") {
+        if (op->get_friendly_name() == "matmul_producer") {
             found_matmul = true;
             ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "MatMul consumer should NOT be marked - only RMS needs FP32 protection";
+                << "MatMul producer should NOT be marked - it should convert to FP16 normally";
             ASSERT_EQ(op->get_output_element_type(0), ov::element::f16)
-                << "MatMul should remain in FP16 for performance";
+                << "MatMul should be converted to FP16";
+        }
+        if (op->get_friendly_name() == "rms_downstream") {
+            found_rms = true;
+            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
+                << "RMS must have FP16 conversion disabled even when its producer is FP16";
+            ASSERT_EQ(op->get_output_element_type(0), ov::element::f32)
+                << "RMS must stay in FP32";
+            ASSERT_EQ(op->get_input_element_type(0), ov::element::f32)
+                << "RMS input must be FP32 (Convert f16->f32 should be inserted by ConvertPrecision)";
         }
     }
-    ASSERT_TRUE(found_rms) << "RMS node 'rms_target' not found after passes";
-    ASSERT_TRUE(found_matmul) << "MatMul node 'matmul_consumer' not found after passes";
+    ASSERT_TRUE(found_matmul) << "MatMul node 'matmul_producer' not found after passes";
+    ASSERT_TRUE(found_rms) << "RMS node 'rms_downstream' not found after passes";
 }
