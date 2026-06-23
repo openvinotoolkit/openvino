@@ -309,7 +309,7 @@ public:
 
         // For dual-nibble V opt, use PACKED_V_HEAD_SIZE for SG_SCALE_FACTOR calculation to match WG dispatch
         const bool dual_nibble_v = can_use_dual_nibble_v(is_kv_compressed, kv_cache_dt, desc->v_head_size);
-        const size_t effective_head_size = dual_nibble_v ? desc->v_head_size / u4_elems_per_byte : desc->k_head_size;
+        const size_t effective_head_size = dual_nibble_v ? desc->v_head_size / u4_elems_per_byte : desc->v_head_size;
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), effective_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
 
         const auto is_key_by_channel = desc->is_key_by_channel;
