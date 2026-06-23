@@ -21,6 +21,8 @@ on:
     types:
       - completed
 
+    branches:
+      - master
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -31,7 +33,7 @@ permissions: read-all
 
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: claude-sonnet-4.6
 
 network: defaults
 
@@ -194,7 +196,7 @@ safe-outputs:
 
         - name: Upload statistics artifact
           if: always()
-          uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
           with:
             name: ci-doctor-mq-statistics
             path: ${{ runner.temp }}/ci-doctor-mq-stats
@@ -322,7 +324,7 @@ tools:
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
     if: always()
-    uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+    uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
     with:
       name: ci-doctor-mq-investigations
       path: |
