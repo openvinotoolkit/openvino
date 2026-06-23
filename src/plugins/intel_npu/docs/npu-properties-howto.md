@@ -1,4 +1,4 @@
-# NPU Properties
+﻿# NPU Properties
 What is a property from NPU Plugin's POV and Step-by-step guide on how to add one  
 Practical manual for NPU plugin properties
 
@@ -41,8 +41,8 @@ Practical manual for NPU plugin properties
 | Option   | a configuration entry in our internal configuration.</br>Consists of an OptionBase template descriptor + a template OptionValue value. | `LOG_LEVEL` |
 | Config   | Our internal database of configuration keys and their values | `_globalConfig` |
 | Metric   | A property which does not map to any configuration key and configuration entry in our internal config.</br>Usually a static value directly read from driver or OS. | `ov::device::pci_info` |
-| Compiler | Npu compiler as viewed from the plugin’s perspective.</br>Can be Compiler-In-Driver or Compiler-In-Plugin | `CID` | 
-| “Anonymous” property</br>OR</br>compiler-private property | A setting from application level which the plugin has no knowledge of</br>(it is not registered, plugin is not aware of its datatype)</br> but which the compiler reports as supported via is_supported() API. | N/A |
+| Compiler | Npu compiler as viewed from the plugin's perspective.</br>Can be Compiler-In-Driver or Compiler-In-Plugin | `CID` |
+| "Anonymous" property</br>OR</br>compiler-private property | A setting from application level which the plugin has no knowledge of</br>(it is not registered, plugin is not aware of its datatype)</br> but which the compiler reports as supported via is_supported() API. | N/A |
 
 <br>
 
@@ -54,11 +54,11 @@ Practical manual for NPU plugin properties
 
 ### Property vs Option vs Metric
 As it can be observed in the above class hierarchy diagram, a Property is a public interface to an internal information, the top layer of abstraction.  
-A property can connect internally to an Option or to a Metric.  
-The main difference between Option and Metric is that while Options are entries in our internal database (Config) which can be modified at any time, Metrics are static read-only pieces of information  
-which do not exist in the internal database. Metrics can not be set or changed externally, their values are not stored in the plugin and they most often just a direct system or driver call.  
+A property can connect internally to an Option or to a Metric.
+The main difference between Option and Metric is that while Options are entries in our internal database (Config) which can be modified at any time, Metrics are static read-only pieces of information
+which do not exist in the internal database. Metrics can not be set or changed externally, their values are not stored in the plugin and they most often just a direct system or driver call.
 Example of Metrics in NPU Plugin are: driver version, compiler version, device architecture, pci information, gops, uuid, luid, etc.
-To summarize:  
+To summarize:
 A property can map internally to **one** of the 2 types:
 - either a Option, if it has an entry in our internal Config, it is a mutable setting used either by compiler or by inference
 - either a Metric, if it is a static immutable piece of information that only needs to be returned on request (system/platform/hardware etc information)
@@ -133,24 +133,24 @@ struct OptionBase {
 
 ### OptionDesc  
 is storage for the registered options This is the base map which stores the available optionBase descriptors.  
-This layer implements the option database manipulation functions: add/remove/has/reset  
+This layer implements the option database manipulation functions: add/remove/has/reset
 ```` Note: This layer is static, intialized once in plugin constructor with all the options the Plugin has knowledge of. ````
 
-### Config 
-is the highlevel configuration “database” which implements the mapping between OptionBase and templatized OptionValue.  
-Maps and stores the user-defined values for each entry in OptionsDesc layer.  
-Implements the top level configuration manipulation functions:  
-get/update/has/getString/toString/fromString and handles typecasts, typeverification, parsing and conversions.  
+### Config
+is the highlevel configuration "database" which implements the mapping between OptionBase and templatized OptionValue.
+Maps and stores the user-defined values for each entry in OptionsDesc layer.
+Implements the top level configuration manipulation functions:
+get/update/has/getString/toString/fromString and handles typecasts, typeverification, parsing and conversions.
 ```` Note: This layer is static, initialized once in plugin constructor with the provided (also static) OptionDesc. ````
 
-### FilteredConfig 
-is a derivative class of Config, used only by NPU Plugin, which implements additional filtering layers atop of the base config,  
-such as enabling/disabling keys based on their availability/support on the current system configuration.  
+### FilteredConfig
+is a derivative class of Config, used only by NPU Plugin, which implements additional filtering layers atop of the base config,
+such as enabling/disabling keys based on their availability/support on the current system configuration.
 ```` Note: This layer dynamically changes based on system configuration and compiler_type ````
 
 ### Properties
-is the top level class and serves as the NPU Plugin’s interface to OpenVino and the application layer.  
-It’s main purpose is to implement get_property and set_property interfaces and the callback functions of each property.  
+is the top level class and serves as the NPU Plugin's interface to OpenVino and the application layer.
+It's main purpose is to implement get_property and set_property interfaces and the callback functions of each property.
 ```` Note: This layer dynamically changes based on system configuration and compiler_type ````
 
 <br><br>
@@ -274,7 +274,7 @@ Fourth step is to create and register the Property (which is basicly the interfa
 ### For plugin
 npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 ```cpp
-try_register_simple_property<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
+try_register_property_based_on_config<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
 ```
 **Explanation:**
 this helper function will register (if all conditions are met) a property with the name ov::intel_npu::example_property.name()
@@ -283,7 +283,7 @@ and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
 ### For compiled-model (if required)
 npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
-try_register_compiled_model_property_ifset<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
+try_register_property_based_on_config_if_set_as_read_only<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
 ```
 **Explanation:**
 this helper function registers the compiled-model property with the name ov::intel_npu::example_property.name()
@@ -331,7 +331,7 @@ You need to register the new property and define a callback function in the owne
 For plugin: npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 For compiled-model: npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
-    register_simple_metric(_properties, ov::intel_npu::example_property.name(), true, _metrics->GetDriverVersion());
+    register_property_with_custom_function(_properties, ov::intel_npu::example_property.name(), true, _metrics->GetDriverVersion());
 ```
 **Explanation**
 this helper function will register a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which will be public and included in supported_properties (second parameter)  
@@ -363,11 +363,11 @@ By internal convention, what needs to be included in compiled-model properties g
 This is to ensure that we only expose settings we are sure were taken into account by compiler.
 
 To facilitate registering properties in compiled-model **ONLY** if they have been explicitly set prior to model compilation, property_registration.hpp provides a helper function:
-#### try_register_compiled_model_property_ifset<OPT_TYPE>(config, properties, propertyName)
+#### try_register_property_based_on_config_if_set_as_read_only<OPT_TYPE>(config, properties, propertyName)
 This helper function registers the provided property to the provided option type only if a value for it exists in the config. (default values do not live in config, but are directly read from OptionsDesc)
 Example:
 ```cpp
-    try_register_compiled_model_property_ifset<COMPILATION_MODE>(_config,
+    try_register_property_based_on_config_if_set_as_read_only<COMPILATION_MODE>(_config,
                                                                  _properties,
                                                                  ov::intel_npu::compilation_mode.name());
 ```
@@ -377,28 +377,28 @@ Example:
 # Special cases
 ## SC.1 Adding a new property which requires custom functions
 If the new property requires a custom callback function, only Step 4. changes.
-Instead of using try_register_simple_property helper function, you can choose from the following helper functions:
+Instead of using try_register_property_based_on_config helper function, you can choose from the following helper functions:
 
-#### try_register_explicit_visibility_property<OPT_TYPE>(config, properties, propertyName, is_public)
+#### try_register_property_based_on_config_with_visibility<OPT_TYPE>(config, properties, propertyName, is_public)
 This can be used when callback is standard, but visibility (public/private) is custom.
 Instead of using automatically the value from the option descriptor, one can pass a runtime bool to determine
 whether the property will be public (included in supported_properties) or private.
 Example:
 ```cpp
-    try_register_explicit_visibility_property<RUN_INFERENCES_SEQUENTIALLY>(
+    try_register_property_based_on_config_with_visibility<RUN_INFERENCES_SEQUENTIALLY>(
         _config,
         _properties,
         ov::intel_npu::run_inferences_sequentially.name(),
         [&] { return _backend && _backend->getInitStructs(); }());
 ```
 
-#### try_register_custom_property(config, properties, propertyName, getter)
-This helper function can be used whenever a custom callback function is required for this property,
+#### try_register_property_based_on_config_with_custom_function(config, properties, propertyName, getter)
+This helper function can be used whenever a custom callback function/implementation is required for this property,
 provided as a lambda function. The getter receives the Config object and must return an ov::Any value.
 (Standard callback function just returns the value of the config)
 Example:
 ```cpp
-    try_register_custom_property(_config, _properties, ov::intel_npu::stepping.name(),
+    try_register_property_based_on_config_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(),
         [&](const Config& config) {
             if (!config.has<STEPPING>()) {
                 return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
@@ -408,14 +408,14 @@ Example:
 ```
 
 ## SC.2 Adding a new (metric-backed) property which requires customization
-Apart from `register_simple_metric`, two additional helper functions are available for metric-backed properties:
+Apart from `register_property_with_custom_function`, two additional helper functions are available for metric-backed properties:
 
-#### try_register_custom_metric(properties, propertyName, shouldRegister, isPublic, getter)
+#### try_register_property_with_custom_function(properties, propertyName, shouldRegister, isPublic, getter)
 Conditionally registers a metric property. The property is only added when `shouldRegister` is true.
 Use this when the availability of a metric depends on a runtime condition (e.g. backend capability check).
 Example:
 ```cpp
-    try_register_custom_metric(_properties,
+    try_register_property_with_custom_function(_properties,
                                ov::device::full_name.name(),
                                !_metrics->GetAvailableDevicesNames().empty(),
                                true,
@@ -425,13 +425,13 @@ Example:
                                });
 ```
 
-#### try_register_custom_metric_with_args(properties, propertyName, shouldRegister, isPublic, getter)
-Same as `try_register_custom_metric`, but for properties whose getter also receives an `ov::AnyMap` of additional
+#### try_register_property_with_custom_function_and_args(properties, propertyName, shouldRegister, isPublic, getter)
+Same as `try_register_property_with_custom_function`, but for properties whose getter also receives an `ov::AnyMap` of additional
 arguments at get_property call time. Use this for properties such as `ov::compatibility_check` that accept
 extra input arguments.
 Example:
 ```cpp
-    try_register_custom_metric_with_args(_properties,
+    try_register_property_with_custom_function_and_args(_properties,
                                          ov::compatibility_check.name(),
                                          _compatibilityCheckSupported,
                                          true,
@@ -460,4 +460,4 @@ Having skipped the option registration (in case command queue extension is not s
 <br><br>
 
 # Removing a public property
-Removing a public property can be done by removing everything added in section “How do add a new public property” step-by-step.
+Removing a public property can be done by removing everything added in section "How do add a new public property" step-by-step.
