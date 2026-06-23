@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 
 #include <gtest/gtest.h>
+
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
