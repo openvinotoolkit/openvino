@@ -32,12 +32,19 @@
 
 namespace ov::test {
 
-static const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
+namespace {
+const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
 
-static std::filesystem::path generate_test_file(size_t size_bytes) {
-    auto path = std::filesystem::path("test_file" + std::to_string(size_bytes / (1024 * 1024)) + "mb.bin");
+struct TestFile {
+    size_t size_mb;
+    size_t size_bytes;
+    std::filesystem::path path;
+};
 
-    if (std::filesystem::exists(path)) {
+std::filesystem::path generate_test_file(const TestFile& tf) {
+    auto path = std::filesystem::path("test_file" + std::to_string(tf.size_mb) + "mb.bin");
+
+    if (std::filesystem::exists(path) && std::filesystem::file_size(path) == tf.size_bytes) {
         std::cout << "Test file already exists: " << path << ", skipping generation." << std::endl;
         return path;
     }
@@ -45,21 +52,21 @@ static std::filesystem::path generate_test_file(size_t size_bytes) {
     for (size_t i = 0; i < chunk.size(); ++i)
         chunk[i] = static_cast<uint8_t>(i % 251);
     std::ofstream f(path, std::ios::binary);
-    for (size_t written = 0; written < size_bytes; written += chunk.size()) {
-        const auto to_write = std::min(chunk.size(), size_bytes - written);
+    for (size_t written = 0; written < tf.size_bytes; written += chunk.size()) {
+        const auto to_write = std::min(chunk.size(), tf.size_bytes - written);
         f.write(reinterpret_cast<const char*>(chunk.data()), static_cast<std::streamsize>(to_write));
     }
     return path;
 }
 
-static long long measure_ms(const std::function<void()>& fn) {
+long long measure_ms(const std::function<void()>& fn) {
     auto start = std::chrono::high_resolution_clock::now();
     fn();
     auto elapsed = std::chrono::high_resolution_clock::now() - start;
     return std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
 }
 
-static void evict_cache(const std::filesystem::path& path, size_t file_size) {
+void evict_cache(const std::filesystem::path& path, size_t file_size) {
     // Prefer /proc/sys/vm/drop_caches (requires root / CAP_SYS_ADMIN, available when the container
     // is started with --privileged).  Writing "3" flushes the host page
     // cache, dentries, and inodes — the only fully reliable way to guarantee a cold-cache run.
@@ -100,11 +107,11 @@ static void evict_cache(const std::filesystem::path& path, size_t file_size) {
     }
 }
 
-static long long bench(const std::function<void()>& fn,
-                       const std::filesystem::path& path,
-                       size_t file_size,
-                       int warmup_runs = 1,
-                       int measured_runs = 5) {
+long long bench(const std::function<void()>& fn,
+                const std::filesystem::path& path,
+                size_t file_size,
+                int warmup_runs = 1,
+                int measured_runs = 5) {
     for (int i = 0; i < warmup_runs; ++i) {
         evict_cache(path, file_size);
         fn();
@@ -117,7 +124,7 @@ static long long bench(const std::function<void()>& fn,
     return total / measured_runs;
 }
 
-static double throughput_mbs(size_t size_mb, long long ms) {
+double throughput_mbs(size_t size_mb, long long ms) {
     if (ms <= 0)
         return 0.0;
     return static_cast<double>(size_mb) * 1000.0 / static_cast<double>(ms);
@@ -127,29 +134,29 @@ namespace strategy {
 
 // mlock forces every page resident before returning; munlock releases the pin without evicting.
 // Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
-static void mlock_munlock(const std::shared_ptr<ov::MappedMemory>& mapped) {
+void mlock_munlock(const std::shared_ptr<ov::MappedMemory>& mapped) {
     ASSERT_EQ(::mlock(mapped->data(), mapped->size()), 0)
         << "mlock failed (errno=" << errno << "); check RLIMIT_MEMLOCK";
     ::munlock(mapped->data(), mapped->size());
 }
 
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
-static void mmap_prefetch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
+void mmap_prefetch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch(); // synchronous for regions > 4 MiB (parallel touch + join)
-    mlock_munlock(mapped); // should be near no-op and just lock/unlock resident pages
+    mapped->hint_prefetch();  // synchronous for regions > 4 MiB (parallel touch + join)
+    mlock_munlock(mapped);    // should be near no-op and just lock/unlock resident pages
 }
 
-static void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
+void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     volatile uint8_t sink = 0;
     for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += page_size) {
         sink += *first;
     }
-    mlock_munlock(mapped); // should be near no-op and just lock/unlock resident pages
+    mlock_munlock(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
-static void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
+void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch();
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
@@ -162,7 +169,7 @@ static void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t 
     }
 }
 
-static void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size) {
+void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MB chunks
     std::vector<char> buffer(std::min(chunk_size, file_size));
@@ -175,7 +182,7 @@ static void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size
 }
 
 // Strategy: ifstream into a single pre-allocated buffer — one kernel→user copy
-static void ifstream_read(const std::filesystem::path& path, size_t file_size) {
+void ifstream_read(const std::filesystem::path& path, size_t file_size) {
     std::vector<char> read_buffer(file_size);
     std::ifstream f(path, std::ios::binary);
     f.read(read_buffer.data(), static_cast<std::streamsize>(file_size));
@@ -183,10 +190,10 @@ static void ifstream_read(const std::filesystem::path& path, size_t file_size) {
     (void)sink;
 }
 
-static void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
-                                              size_t /*file_size*/,
-                                              size_t offset,
-                                              size_t size) {
+void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
+                                       size_t /*file_size*/,
+                                       size_t offset,
+                                       size_t size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch(offset, size);
     const auto total_copy_size = std::min(size, mapped->size() - offset);
@@ -203,6 +210,8 @@ static void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
 
 }  // namespace strategy
 
+}  // namespace
+
 // See developer_benchmarks.md for build/run instructions.
 
 class FileLoadBenchmark : public ::testing::Test {};
@@ -213,17 +222,10 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     constexpr int runs = 3;
 
     // Generate all test files
-    struct TestFile {
-        size_t size_mb;
-        size_t size_bytes;
-        std::filesystem::path path;
-    };
     std::vector<TestFile> files;
     for (size_t mb : sizes_mb) {
-        TestFile tf;
-        tf.size_mb = mb;
-        tf.size_bytes = mb * 1024 * 1024;
-        tf.path = generate_test_file(tf.size_bytes);
+        TestFile tf{mb, mb * 1024 * 1024, {}};
+        tf.path = generate_test_file(tf);
         evict_cache(tf.path, tf.size_bytes);
         files.push_back(tf);
     }
@@ -292,17 +294,10 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
     constexpr int runs = 3;
 
     // Generate all test files
-    struct TestFile {
-        size_t size_mb;
-        size_t size_bytes;
-        std::filesystem::path path;
-    };
     std::vector<TestFile> files;
     for (size_t mb : sizes_mb) {
-        TestFile tf;
-        tf.size_mb = mb;
-        tf.size_bytes = mb * 1024 * 1024;
-        tf.path = generate_test_file(tf.size_bytes);
+        TestFile tf{mb, mb * 1024 * 1024, {}};
+        tf.path = generate_test_file(tf);
         evict_cache(tf.path, tf.size_bytes);
         files.push_back(tf);
     }
@@ -357,12 +352,12 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
 
 TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
     constexpr size_t file_size_mb = 1200;
-    constexpr size_t file_size = file_size_mb * 1024 * 1024;
     constexpr int warmup = 0;
     constexpr int runs = 3;
 
-    auto file_path = generate_test_file(file_size);
-    evict_cache(file_path, file_size);  // Flush dirty pages from file generation
+    TestFile tf{file_size_mb, file_size_mb * 1024 * 1024, {}};
+    tf.path = generate_test_file(tf);
+    evict_cache(tf.path, tf.size_bytes);  // Flush dirty pages from file generation
 
     const std::vector<size_t> offsets_mb = {0, 1, 17, 500, 700, 800};
     const std::vector<size_t> region_sizes_mb = {10, 100, 500};
@@ -373,14 +368,14 @@ TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
         for (size_t oi = 0; oi < offsets_mb.size(); ++oi) {
             const size_t off_bytes = offsets_mb[oi] * 1024 * 1024;
             const size_t sz_bytes = region_sizes_mb[si] * 1024 * 1024;
-            if (off_bytes + sz_bytes > file_size)
+            if (off_bytes + sz_bytes > tf.size_bytes)
                 continue;
             results[si][oi] = bench(
                 [&]() {
-                    strategy::mmap_prefetch_then_memcpy_partial(file_path, file_size, off_bytes, sz_bytes);
+                    strategy::mmap_prefetch_then_memcpy_partial(tf.path, tf.size_bytes, off_bytes, sz_bytes);
                 },
-                file_path,
-                file_size,
+                tf.path,
+                tf.size_bytes,
                 warmup,
                 runs);
         }
