@@ -7,8 +7,6 @@
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #include <openvino/util/memory.hpp>
 
-#include <cstdlib>
-
 #ifdef WIN32
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #elif defined(ENABLE_LIBVA)
