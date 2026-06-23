@@ -93,13 +93,14 @@ class Kernels2CHeaders(object):
         # same name) to avoid adding #undef for them. Without this, the guard
         # is defeated when multiple kernels with the same inlined header are
         # batched into a single compilation unit.
-        ifndef_names = set()
-        for line in content:
-            stripped = line.strip()
-            if stripped.startswith('#ifndef '):
-                ifndef_names.add(stripped.split(" ")[1])
-            elif stripped.startswith('# ifndef '):
-                ifndef_names.add(stripped.split(" ")[2])
+        ifndef_pattern = re.compile(r'#\s*ifndef\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
+        ifndef_pattern2 = re.compile(r'#\s*if\s+!\s*defined\s*\(\s*(\w+)\s*\)\s*\n\s*#\s*define\s+(\w+)\s*\n')
+        ifndef_pattern3 = re.compile(r'#\s*if\s+!\s*defined\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
+        content_str = "".join(content)
+        ifndef_names = set(match.group(1) for match in ifndef_pattern.finditer(content_str) if match.group(1) == match.group(2))
+        ifndef_names.update(match.group(1) for match in ifndef_pattern2.finditer(content_str) if match.group(1) == match.group(2))
+        ifndef_names.update(match.group(1) for match in ifndef_pattern3.finditer(content_str) if match.group(1) == match.group(2))
+
         for line in content:
             if '#define' in line:
                 name = line.strip().split(" ")[1].split("(")[0]

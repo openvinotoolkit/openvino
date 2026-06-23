@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_gpu {
 

@@ -209,9 +209,11 @@ protected:
             params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(weights));
         } else {
             ov::test::utils::InputGenerateData wei_data;
-            wei_data.start_from = -0.05;
-            wei_data.range = 0.1;
-            wei_data.resolution = 30000;
+            if (weights_precision.is_real()) {
+                wei_data.start_from = -0.5;
+                wei_data.range = 1;
+                wei_data.resolution = 30000;
+            } // else for integer types, the default values are used
             auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, wei_data);
             weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
         }
@@ -664,10 +666,12 @@ INSTANTIATE_TEST_SUITE_P(
                       ::testing::Values(false),
                       ::testing::Values(false),
                       ::testing::Values(32),
-                      ::testing::Values(2.0f),
+                      ::testing::Values(2.5f),
                       ::testing::Values(true)),
    MatmulWeightsDecompression::get_test_case_name);
 
+
+const std::vector<uint64_t> group_size_all_modes = {32, 128, std::numeric_limits<uint64_t>::max()};
 INSTANTIATE_TEST_SUITE_P(
    smoke_MatMulCompressedWeights_dyn_quan_fp8e4m3_fp8e4m3,
    MatmulWeightsDecompression,
@@ -680,7 +684,7 @@ INSTANTIATE_TEST_SUITE_P(
                       ::testing::Values(true),
                       ::testing::Values(false),
                       ::testing::Values(false),
-                      ::testing::Values(std::numeric_limits<uint64_t>::max()),
+                      ::testing::ValuesIn(group_size_all_modes),
                       ::testing::Values(0.2f),
                       ::testing::Values(false)),
    MatmulWeightsDecompression::get_test_case_name);
@@ -697,11 +701,10 @@ INSTANTIATE_TEST_SUITE_P(
                       ::testing::Values(true),
                       ::testing::Values(false),
                       ::testing::Values(false),
-                      ::testing::Values(std::numeric_limits<uint64_t>::max()),
+                      ::testing::ValuesIn(group_size_all_modes),
                       ::testing::Values(0.2f),
                       ::testing::Values(false)),
    MatmulWeightsDecompression::get_test_case_name);
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_scalar_wzp,
                          MatmulWeightsDecompressionScalarWeightZp,
