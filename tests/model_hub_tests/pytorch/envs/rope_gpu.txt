@@ -1,0 +1,15 @@
+# GPU-only RoPE test dependencies — installed IN ADDITION to rope.txt by the
+# iGPU RoPE flow (.github/workflows/job_gpu_rope_tests.yml). Kept out of the
+# shared rope.txt on purpose: that file is also installed by the CPU RoPE flow
+# (job_pytorch_models_tests.yml), and diffusers' mere presence breaks
+# optimum-intel's auto-pipeline import on the CPU/ARM64 transformers stack —
+# it failed all 41 CPU RoPE tests (CVS-182458, CI round 2). diffusers is only
+# needed for the Flux test, which is skipped on CPU
+# (test_transformations.py:run_flux_test).
+#
+# Explicit transformers bump: diffusers 0.34 registers the cogview4 pipeline,
+# whose module-level `from transformers import GlmModel` needs transformers>=4.49.
+# optimum-intel==1.27.0 admits >=4.45,<4.58 and the iGPU runner's setup-python
+# venv ships 4.45.1, so pip won't auto-upgrade — pin the window satisfying both.
+diffusers==0.34.0
+transformers>=4.49,<4.58
