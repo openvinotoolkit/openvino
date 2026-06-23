@@ -4,6 +4,7 @@
 
 #include "moe_executor.hpp"
 
+#include <cstring>
 #include <optional>
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
@@ -755,17 +756,23 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
         // Calculate original parameter index in the model
         const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
 
+        auto& batched_closure = desc_closure[closure_idx];
+        const auto& closure_shape = batched_closure.get_shape();
+
         // Check if this parameter has unrolled variants (is in param_mapping)
         auto mapping_it = param_mapping.find(original_param_idx);
         if (mapping_it == param_mapping.end()) {
-            continue;  // Not unrolled
+            // If the closure is batched [num_experts,...] but has no param_mapping entry, the
+            // expert-dimension unrolling (UnrollMoEMatMul) failed to fire for this weight.
+            // This is a transformation bug — assert to surface it early.
+            const bool is_batched_nounroll = !closure_shape.empty() && closure_shape[0] == num_experts;
+            NPUW_ASSERT(!is_batched_nounroll &&
+                        "Batched closure has no param_mapping entry — UnrollMoEMatMul did not fire");
+            continue;  // Non-batched shared param not in mapping is expected — skip silently
         }
 
         const auto& unrolled_indices = mapping_it->second;
         NPUW_ASSERT(unrolled_indices.size() == K);
-
-        auto& batched_closure = desc_closure[closure_idx];
-        const auto& closure_shape = batched_closure.get_shape();
 
         // Verify this is a batched parameter [num_experts, ...]
         const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;

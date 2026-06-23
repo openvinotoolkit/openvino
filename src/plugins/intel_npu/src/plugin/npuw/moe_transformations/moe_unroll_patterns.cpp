@@ -73,6 +73,7 @@ struct ExpertBranchContext {
     ov::Output<ov::Node> scale_param_source;
     ov::Output<ov::Node> weights_param_source;
     std::shared_ptr<ov::opset1::Multiply> multiply_node;
+    std::shared_ptr<ov::opset1::Reshape> reshape_after_multiply;  // group-quant: Multiply→Reshape→Convert
     std::shared_ptr<ov::opset1::Convert> convert_after_multiply;
     std::shared_ptr<ov::opset1::MatMul> matmul;
     ov::Shape scale_new_shape;
@@ -140,15 +141,34 @@ inline ov::Output<ov::Node> create_expert_branch_weights(const ExpertBranchConte
     new_multiply->set_friendly_name(ctx.multiply_node->get_friendly_name() + "/expert_" +
                                     std::to_string(ctx.expert_idx));
 
-    // 6. Convert after Multiply if needed
+    ov::Output<ov::Node> after_multiply = new_multiply->output(0);
+
+    // 5.5. Reshape after Multiply if present (group-quant: Multiply→Reshape→Convert→MatMul).
+    // The original Reshape changes [N, out, num_groups, group_size] → [N, out, num_groups*group_size].
+    // For the per-expert branch, change dim 0 from N to 1.
+    if (ctx.reshape_after_multiply) {
+        auto orig_shape_const = std::dynamic_pointer_cast<ov::opset1::Constant>(
+            ctx.reshape_after_multiply->input_value(1).get_node_shared_ptr());
+        OPENVINO_ASSERT(orig_shape_const, "Reshape shape input must be Constant");
+        auto shape_data = orig_shape_const->cast_vector<int64_t>();
+        shape_data[0] = 1;  // per-expert slice
+        auto new_shape_const =
+            ov::op::v0::Constant::create(ov::element::i64, orig_shape_const->get_shape(), shape_data);
+        auto new_reshape = std::make_shared<ov::opset1::Reshape>(after_multiply, new_shape_const, false);
+        new_reshape->set_friendly_name(ctx.reshape_after_multiply->get_friendly_name() + "/expert_" +
+                                       std::to_string(ctx.expert_idx));
+        after_multiply = new_reshape->output(0);
+    }
+
+    // 6. Convert after Multiply (or Reshape) if needed
     if (ctx.convert_after_multiply) {
         auto new_convert_after_multiply =
-            std::make_shared<ov::opset1::Convert>(new_multiply, ctx.convert_after_multiply->get_destination_type());
+            std::make_shared<ov::opset1::Convert>(after_multiply, ctx.convert_after_multiply->get_destination_type());
         new_convert_after_multiply->set_friendly_name(ctx.convert_after_multiply->get_friendly_name() + "/expert_" +
                                                       std::to_string(ctx.expert_idx));
         return new_convert_after_multiply->output(0);
     }
-    return new_multiply->output(0);
+    return after_multiply;
 }
 
 /**
@@ -267,9 +287,19 @@ UnrollMoEMatMul::UnrollMoEMatMul(std::shared_ptr<ov::Model> model) : model_(mode
         std::shared_ptr<ov::opset1::Convert> convert_after_multiply;
         std::shared_ptr<ov::opset1::Multiply> multiply_node;
 
+        std::shared_ptr<ov::opset1::Reshape> reshape_after_multiply;
         if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(input1_node)) {
             convert_after_multiply = conv;
-            multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(conv->input_value(0).get_node_shared_ptr());
+            auto inner = conv->input_value(0).get_node_shared_ptr();
+            // Group-quant chain: Multiply → Reshape → Convert → MatMul
+            // Peel through the optional Reshape between Multiply and the outer Convert.
+            if (auto reshape = std::dynamic_pointer_cast<ov::opset1::Reshape>(inner)) {
+                reshape_after_multiply = reshape;
+                multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(
+                    reshape->input_value(0).get_node_shared_ptr());
+            } else {
+                multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(inner);
+            }
         } else {
             multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(input1_node);
         }
@@ -374,6 +404,7 @@ UnrollMoEMatMul::UnrollMoEMatMul(std::shared_ptr<ov::Model> model) : model_(mode
                                     scale_param_source,
                                     weights_param_source,
                                     multiply_node,
+                                    reshape_after_multiply,
                                     convert_after_multiply,
                                     matmul,
                                     scale_new_shape,

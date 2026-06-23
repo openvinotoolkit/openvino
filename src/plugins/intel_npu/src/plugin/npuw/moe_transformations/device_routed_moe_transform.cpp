@@ -216,7 +216,6 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
     }
     if (!found) {
         LOG_WARN("collect_from_expert_output: cannot identify expert output in output_multiply");
-        std::cout << "collect_from_expert_output: cannot identify expert output in output_multiply" << std::endl;
         return nodes;
     }
 
@@ -289,7 +288,6 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
     }
 
     if (nodes.num_experts == 0) {
-        std::cout << "collect_from_expert_output: no Tile with repeats[0] > k_value found" << std::endl;
         return nodes;
     }
 
@@ -351,9 +349,6 @@ LayerNodes collect_from_expert_output(const RouterInfo& router) {
             LOG_WARN("collect_from_expert_output: MatMul '" << matmul->get_friendly_name()
                                                             << "' has expert-dim weight through an unrecognized chain; "
                                                                "skipping transformation for this layer");
-            std::cout << "collect_from_expert_output: MatMul '" << matmul->get_friendly_name()
-                      << "' has expert-dim weight through an unrecognized chain; skipping transformation for this layer"
-                      << std::endl;
             nodes.matmuls.clear();
             return nodes;
         }
@@ -637,7 +632,6 @@ bool apply_layer_transformation(const RouterInfo& router, LayerNodes& nodes) {
                          << ", DynReshapes: " << nodes.dynamic_reshapes.size() << ", MatMuls: " << nodes.matmuls.size()
                          << ", Adds: " << nodes.adds.size() << ", Multiplies: " << nodes.multiplies.size()
                          << ", K=" << router.k_value);
-    std::cout << "  Router node: " << router.topk_node->get_friendly_name() << std::endl;
 
     return true;
 }
@@ -663,8 +657,8 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
         // Step 1: Detect router by topology (name-independent, works for GPT-OSS and Qwen3)
         auto router = detect_router_by_topology(node);
         if (!router.has_value()) {
-            std::cout << "DeviceRoutedMoETransform: Scatter node '" << node->get_friendly_name()
-                      << "' does not match expected MoE router topology; skipping" << std::endl;
+            LOG_DEBUG("DeviceRoutedMoETransform: Scatter node '" << node->get_friendly_name()
+                      << "' does not match expected MoE router topology; skipping");
             continue;
         }
 

@@ -948,6 +948,51 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
     auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
 
+    // Step 5.5: Compile-time guard — verify UnrollMoEMatMul fired for every batched parameter.
+    //
+    // In EXPERT_BATCH mode every original parameter with shape[0] == num_experts MUST appear in
+    // param_mapping with exactly K unrolled entries.  A missing entry means the transformation did
+    // not recognise the weight chain (e.g., a new quantisation pattern such as GPTQ introducing an
+    // extra Reshape node) and inference would produce silently wrong results at runtime.
+    //
+    // Failing loudly here — at model-load time — surfaces the bug immediately instead of letting
+    // it silently corrupt outputs.  The symmetric runtime guard in unpack_multiple_experts_closure
+    // serves as a second line of defence (e.g., for models loaded from a serialised cache that
+    // bypasses this code path).
+    if (structure_info->is_expert_batch_mode()) {
+        const auto& orig_params = model->get_parameters();
+        for (size_t pi = 0; pi < orig_params.size(); ++pi) {
+            const auto& pshape = orig_params[pi]->get_partial_shape();
+            if (!pshape.rank().is_static() || !pshape[0].is_static())
+                continue;
+            if (static_cast<size_t>(pshape[0].get_length()) != structure_info->num_experts)
+                continue;
+            // This parameter is batched over the expert dimension and must be unrolled.
+            auto it = param_mapping.find(pi);
+            if (it == param_mapping.end()) {
+                OPENVINO_THROW("MoE EXPERT_BATCH: parameter '",
+                               orig_params[pi]->get_friendly_name(),
+                               "' (index=",
+                               pi,
+                               ", shape=",
+                               pshape,
+                               ") has shape[0]==num_experts but was not unrolled. "
+                               "UnrollMoEMatMul did not recognise its weight chain. "
+                               "Inspect the weight graph topology and add the missing chain variant.");
+            }
+            if (it->second.size() != static_cast<size_t>(k_value)) {
+                OPENVINO_THROW("MoE EXPERT_BATCH: parameter '",
+                               orig_params[pi]->get_friendly_name(),
+                               "' was unrolled into ",
+                               it->second.size(),
+                               " entries but expected K=",
+                               k_value);
+            }
+        }
+        LOG_DEBUG("Compile-time unroll validation passed: all "
+                  << param_mapping.size() << " batched parameters are correctly mapped (K=" << k_value << ")");
+    }
+
     // Step 6: Populate and validate MoEExperts structure
     MoEExperts moe_experts;
     moe_experts._num_experts = structure_info->num_experts;
