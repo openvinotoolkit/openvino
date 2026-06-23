@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 
+#include <cstdint>
 #include <memory>
 
 namespace ov::intel_gpu {
