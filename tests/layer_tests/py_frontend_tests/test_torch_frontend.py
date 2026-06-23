@@ -839,6 +839,41 @@ def test_module_extension_dynamo_custom_callbacks():
         PartialShape([100])
 
 
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
+    """__make_16bit_traceable keeps ModuleExtension (Linear/Embedding) weights
+    in 16-bit while up-casting params/buffers of non-extension modules to fp32.
+    """
+    from openvino.frontend.pytorch import patch_model
+
+    class Block(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scale_shift_table = torch.nn.Parameter(torch.randn(2, 4))
+            self.linear = torch.nn.Linear(4, 4)
+            self.embedding = torch.nn.Embedding(8, 4)
+            self.norm = torch.nn.LayerNorm(4)
+
+    model = Block().to(dtype)
+
+    assert all(p.dtype == dtype for p in model.parameters())
+
+    orig_forward_name = "_openvino_module_extension_patch_orig_forward"
+    try:
+        patch_model.__make_16bit_traceable(model)
+
+        # Linear/Embedding weights are consumed by ModuleExtension and must
+        # stay in 16-bit
+        assert model.linear.weight.dtype == dtype
+        assert model.embedding.weight.dtype == dtype
+
+        # Param and non-extension module weights are up-cast to fp32.
+        assert model.scale_shift_table.dtype == torch.float32
+        assert model.norm.weight.dtype == torch.float32
+    finally:
+        patch_model.unpatch_model(model, orig_forward_name)
+
+
 def verify_model(model, example_input, expected_ops):
     import numpy as np
     import openvino as ov

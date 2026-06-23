@@ -17,23 +17,13 @@
 #include "moe_legacy_xml_offset_resolver.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/op/moe_router_fused.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
-#include "intel_gpu/primitives/moe_router_fused.hpp"
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
-
-namespace ov {
-namespace op {
-namespace internal {
-using MoERouterFused = ov::intel_gpu::op::MoERouterFused;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
 
 namespace ov::intel_gpu {
 using namespace cldnn;
@@ -258,16 +248,6 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     }
 }
 
-static void CreateMoERouterFusedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MoERouterFused>& op) {
-    auto inputs = p.GetInputInfo(op);
-    const auto& config = op->get_config();
-    const size_t expected_inputs = (config.routing_type == ov::intel_gpu::op::MoERouterFused::RoutingType::SIGMOID_BIAS) ? 3 : 1;
-    validate_inputs_count(op, {expected_inputs});
-    const std::string layerName = layer_type_name_ID(op);
-    p.add_primitive(*op, cldnn::moe_router_fused(layerName, inputs, config));
-}
-
 REGISTER_FACTORY_IMPL(internal, MOECompressed);
-REGISTER_FACTORY_IMPL(internal, MoERouterFused);
 
 }  // namespace ov::intel_gpu

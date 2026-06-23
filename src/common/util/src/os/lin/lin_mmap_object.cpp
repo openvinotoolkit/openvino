@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
-#include <iostream>
-#include <sstream>
+#include <thread>
 #include <tuple>
 
 #include "openvino/util/common_util.hpp"
@@ -169,6 +168,16 @@ public:
             if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
+        }
+    }
+
+    void hint_prefetch(size_t offset, size_t size) override {
+        constexpr size_t one_mb = 1024 * 1024;
+        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
+            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
         }
     }
 };
