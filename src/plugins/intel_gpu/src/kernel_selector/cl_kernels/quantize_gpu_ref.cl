@@ -124,7 +124,7 @@ KERNEL(quantize_ref)(
     const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, y, x);
 #endif
 
-    INPUT0_TYPE val = input[input_offset];
+    INPUT0_COMPUTE_TYPE val = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
 #if OUTPUT_LAYOUT_B_FS_YX_FSV16
     if (of >= OUTPUT_FEATURE_NUM)
@@ -134,10 +134,10 @@ KERNEL(quantize_ref)(
         return;
 #endif
 
-    INPUT0_TYPE input_low_val  = input_low[input_low_offset];
-    INPUT0_TYPE input_high_val  = input_high[input_high_offset];
-    INPUT0_TYPE output_low_val  = output_low[output_low_offset];
-    INPUT0_TYPE output_high_val  = output_high[output_high_offset];
+    INPUT1_COMPUTE_TYPE  input_low_val  = DECODE_INPUT1_COMPUTE_TYPE(input_low[input_low_offset]);
+    INPUT2_COMPUTE_TYPE  input_high_val  = DECODE_INPUT2_COMPUTE_TYPE(input_high[input_high_offset]);
+    INPUT3_COMPUTE_TYPE  output_low_val  = DECODE_INPUT3_COMPUTE_TYPE(output_low[output_low_offset]);
+    INPUT4_COMPUTE_TYPE  output_high_val  = DECODE_INPUT4_COMPUTE_TYPE(output_high[output_high_offset]);
 
 
     if (val <= input_low_val)

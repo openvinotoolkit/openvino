@@ -616,6 +616,8 @@ inline std::vector<float> get_output_values_to_float(cldnn::network& net, const 
     switch(output.get_layout().data_type){
         case cldnn::data_types::f16:
             return get_output_values_to_float<ov::float16>(net, output, max_cnt);
+        case cldnn::data_types::bf16:
+            return get_output_values_to_float<ov::bfloat16>(net, output, max_cnt);
         case cldnn::data_types::f32:
             return get_output_values_to_float<float>(net, output, max_cnt);
         case cldnn::data_types::i8:
