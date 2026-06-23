@@ -17,6 +17,16 @@
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
+namespace ov {
+#ifdef _WIN32
+// Windows uses HANDLE (void*) for file handles
+using FileHandle = void*;
+#else
+// Linux/Unix uses int for file descriptors
+using FileHandle = int;
+#endif
+}  // namespace ov
+
 namespace ov::util {
 
 inline std::filesystem::path library_prefix() {

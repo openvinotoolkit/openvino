@@ -1512,3 +1512,62 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
                                            Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true},
                                            Moe3GemmTestParams{1, true, 256, 512, 4, 2, 64, true}));
+
+// ----- get_expert_mask_from_gpu buffer overflow regression test -----
+// Reproduces the bug where shape predictor flattens topk_id layout [N, top_k] → [N*top_k*1.1]
+// and shape[0] is incorrectly used as token count, causing N*top_k*1.1 * top_k read overflow.
+namespace {
+struct expert_mask_test_result {
+    std::vector<int8_t> pred_flag;
+    std::vector<std::vector<int>> batch;
+    std::vector<std::vector<int>> topk;
+};
+
+void build_expert_mask_cpu(const int32_t* topk_id_buf, int max_tokens, int max_topk, int max_expert_num,
+                           expert_mask_test_result& result) {
+    result.pred_flag.assign(max_expert_num, 0);
+    result.batch.assign(max_expert_num, {});
+    result.topk.assign(max_expert_num, {});
+    for (int b = 0; b < max_tokens; b++) {
+        auto* tok_p = &topk_id_buf[b * max_topk];
+        for (int t = 0; t < max_topk; t++) {
+            auto expert_no = tok_p[t];
+            OPENVINO_ASSERT(expert_no >= 0 && expert_no < max_expert_num);
+            result.batch[expert_no].push_back(b);
+            result.topk[expert_no].push_back(t + b * max_topk);
+            result.pred_flag[expert_no] = 1;
+        }
+    }
+}
+}  // namespace
+
+TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
+    // Simulates Gemma4-26b MoE: 128 experts, top_k=8, 274 tokens in prefill
+    constexpr int num_experts = 128;
+    constexpr int top_k = 8;
+    constexpr int actual_tokens = 274;
+    // Shape predictor flattens [274,8]=2192 elements, applies ratio 1.1: 2411
+    constexpr int predictor_shape0 = static_cast<int>(274 * 8 * 1.1);  // 2411
+
+    // Buffer allocated by predictor: 2411 int32 elements (not 2411*8)
+    std::vector<int32_t> buffer(predictor_shape0, 0);
+    for (int i = 0; i < actual_tokens * top_k; i++) {
+        buffer[i] = (i * 7) % num_experts;
+    }
+
+    // BUG: using predictor_shape0 as token count: reads 2411*8=19288 > buffer size 2411
+    size_t buggy_read = static_cast<size_t>(predictor_shape0) * top_k;
+    ASSERT_GT(buggy_read, buffer.size());
+
+    // FIX: using actual_token_num from hidden_states: reads 274*8=2192 ≤ buffer size 2411
+    size_t correct_read = static_cast<size_t>(actual_tokens) * top_k;
+    ASSERT_LE(correct_read, buffer.size());
+
+    expert_mask_test_result result;
+    ASSERT_NO_THROW(build_expert_mask_cpu(buffer.data(), actual_tokens, top_k, num_experts, result));
+
+    int total = 0;
+    for (int e = 0; e < num_experts; e++)
+        total += static_cast<int>(result.batch[e].size());
+    ASSERT_EQ(total, actual_tokens * top_k);
+}

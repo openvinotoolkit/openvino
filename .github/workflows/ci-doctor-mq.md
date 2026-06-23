@@ -21,6 +21,8 @@ on:
     types:
       - completed
 
+    branches:
+      - master
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -31,7 +33,7 @@ permissions: read-all
 
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: claude-sonnet-4.6
 
 network: defaults
 
@@ -64,14 +66,17 @@ safe-outputs:
           description: "Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise."
           required: false
           type: string
+          default: "not_found"
         pr_url:
           description: "Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise."
           required: false
           type: string
+          default: "not_found"
         author:
           description: "GitHub login of the PR author or commit author, if known. Omit otherwise."
           required: false
           type: string
+          default: "not_found"
         db_entries:
           description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
           required: true
@@ -191,7 +196,7 @@ safe-outputs:
 
         - name: Upload statistics artifact
           if: always()
-          uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
           with:
             name: ci-doctor-mq-statistics
             path: ${{ runner.temp }}/ci-doctor-mq-stats
@@ -311,14 +316,15 @@ tools:
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
   repo-memory:
     branch-name: memory/ci-doctor-mq
-    file-glob: ["*.md", "*.json", "*.jsonl"]
-    max-file-size: 102400
+    allowed-extensions: [".md", ".json", ".jsonl"]
+    max-file-size: 1048576 # 1MB max
+    max-patch-size: 1048576 # 1MB max
     max-file-count: 500
 
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
     if: always()
-    uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+    uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
     with:
       name: ci-doctor-mq-investigations
       path: |
@@ -602,6 +608,55 @@ ELSE:
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
+### Phase 7: Output Format Validation (MANDATORY before any safe-output call)
+
+You MUST validate and normalise the payload
+before calling `notify_teams` or `notify_teams_recurring`.
+
+**Every numeric-looking field in these tools is declared as `type: string` and
+MUST be passed as a JSON string, not a JSON number.** Wrap the value in quotes.
+
+1. **Build the payload object first**, then run the checklist below against it.
+   Do not call the safe-output tool until every check passes.
+
+2. **String-encoding checklist** — for each field, confirm the value is a string
+   (quoted), never a bare number, boolean, null, or object:
+
+   For `notify_teams`:
+   - `title` — non-empty string
+   - `failed_workflow` — non-empty string
+   - `pipeline_url` — non-empty string (a valid URL)
+   - `description` — non-empty string
+   - `db_entries` — string-encoded non-negative integer, e.g. `"42"` (NOT `42`)
+   - `occurrence_count` — string-encoded positive integer, e.g. `"4"` (NOT `4`)
+   - `statistics` — non-empty string
+   - `statistics_json` — string (a JSON document serialized into a string; the
+     value itself must be a string, even though its contents are JSON)
+   - `pr_number` — when provided, string-encoded integer, e.g. `"27618"`
+     (NOT `27618`). This is the field most commonly rejected — double-check it.
+   - `pr_url` — when provided, string
+   - `author` — when provided, string
+
+   For `notify_teams_recurring`:
+   - `title`, `failed_workflow`, `pipeline_url`, `description`,
+     `affected_prs`, `recent_run_urls` — non-empty strings
+   - `recent_count` — string-encoded positive integer, e.g. `"3"` (NOT `3`)
+
+3. **Normalization rule**: if you computed any of the numeric fields as an
+   integer (e.g., `count` read from a pattern file, a file count, or a PR number
+   parsed from the API), explicitly convert it to its string form before placing
+   it in the payload. For example, treat `pr_number` derived as `27618` as
+   `"27618"`.
+
+4. **Optional-field rule**: for optional fields (`pr_number`, `pr_url`,
+   `author`), either provide a correctly-typed string value OR an explicit string "not_found". Never pass `null`, an empty object, or a bare number.
+
+5. **Final self-check**: re-read the assembled payload one last time and verify
+   that no value that should be a string is an unquoted number. Only after this
+   check passes may you call the safe-output tool. If you are unsure whether a
+   field is correctly typed, coerce it to a string — string is always the safe
+   choice for these tools.
+
 ## Output Requirements
 
 Report the investigation as a Microsoft Teams notification by calling the `notify_teams` safe-output tool exactly once.
@@ -738,6 +793,10 @@ This notification is **only** sent when the same failure has occurred 3 or more 
 
 ## Mandatory Output Requirement
 
+**Before calling any safe output tool, run the Phase 7 Output Format Validation
+checklist.** All numeric-looking fields (`pr_number`, `db_entries`,
+`occurrence_count`, `recent_count`) MUST be passed as JSON strings, not numbers.
+
 You **MUST** always call at least one safe output tool before finishing:
 
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
@@ -765,5 +824,5 @@ Example noop call: `{"noop": {"message": "No action needed: [brief explanation]"
 - **Filename Requirements**: Use filesystem-safe characters only (no colons, quotes, or special characters)
   - ✅ Good: `2026-02-12-11-20-45-458-12345.json`
   - ❌ Bad: `2026-02-12T11:20:45.458Z-12345.json` (contains colons)
-- **Allowed file extensions**: Only save artifacts as `.json`, `.md`, or `.jsonl` files. These are the only extensions tracked by `tools.repo-memory` (`file-glob: ["*.md", "*.json", "*.jsonl"]`). Files with any other extension (e.g., `.txt`, `.log`, `.yaml`) will **not** be persisted to the `memory/ci-doctor-mq` branch and will be lost when the runner is torn down.
+- **Allowed file extensions**: Only save artifacts as `.json`, `.md`, or `.jsonl` files. These are the only extensions tracked by `tools.repo-memory`. Files with any other extension (e.g., `.txt`, `.log`, `.yaml`) will **not** be persisted to the `memory/ci-doctor-mq` branch and will be lost when the runner is torn down. If there are any files with not-allowed extensions present in the `/tmp/gh-aw/repo-memory/default/mq` folder, remove them safely before finishing.
 - **Isolated branch**: This workflow uses `/tmp/gh-aw/repo-memory/default/mq/` as its own subdirectory within the dedicated `memory/ci-doctor-mq` branch. This keeps merge-queue failure patterns isolated from any other workflows, ensuring threshold-crossing logic only counts merge-queue occurrences.
