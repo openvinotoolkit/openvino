@@ -176,15 +176,9 @@ protected:
 };
 
 // DEPRECATED
-// Replace the usage by `ov::test::utils::create_core()`
-// in NVIDIA and NPU plugin
+// Replace the usage by `ov::test::utils::create_core()` in NVIDIA
 inline ov::Core createCoreWithTemplate() {
-    ov::test::utils::PluginCache::get().reset();
-    ov::Core core;
-#ifndef OPENVINO_STATIC_LIBRARY
-    ov::test::utils::register_template_plugin(core);
-#endif // !OPENVINO_STATIC_LIBRARY
-    return core;
+    return ov::test::utils::create_core();
 }
 
 class OVClassNetworkTest {
