@@ -48,7 +48,7 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
     };
     const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::Summary);
     clock::time_point t0{};
-    clock::duration compile_submodels_time{};
+    clock::duration submodel_total_time{};
     if (perf_logging_enabled) {
         t0 = clock::now();
     }
@@ -103,7 +103,7 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
 
         if (perf_logging_enabled) {
             t_submodel_end = clock::now();
-            compile_submodels_time += t_submodel_end - t_submodel_start;
+            submodel_total_time += t_submodel_end - t_submodel_start;
             HETERO_PERF_LOG_LEVEL(PerfLogLevel::Summary,
                                   "CompiledModel::compile_model submodel[",
                                   submodel_index,
@@ -133,8 +133,8 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
                               to_ms(t_set_io_end - t0),
                               " ms, submodels=",
                               submodels.size(),
-                              ", compile_submodels=",
-                              to_ms(compile_submodels_time),
+                              ", submodel_total=",
+                              to_ms(submodel_total_time),
                               " ms, set_inputs_and_outputs=",
                               to_ms(t_set_io_end - t_set_io_start),
                               " ms");

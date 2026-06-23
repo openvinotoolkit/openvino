@@ -276,6 +276,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     };
     const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::Summary);
     const bool detailed_perf_logging_enabled = perf_log_enabled(PerfLogLevel::DeviceBreakdown);
+    const bool partition_details_logging_enabled = perf_log_enabled(PerfLogLevel::PartitionDetails);
     std::map<std::string, size_t> available_device_mem_map;
     clock::time_point t0{};
     clock::duration query_model_total_time{};
@@ -301,6 +302,25 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     auto update_supported_ops = [](ov::SupportedOpsMap& final_results, const ov::SupportedOpsMap& device_results) {
         for (const auto& layer_query_result : device_results)
             final_results.emplace(layer_query_result);
+    };
+
+    const auto mask_model_subgraphs_with_optional_context = [&](std::shared_ptr<ov::Model>& target_model,
+                                                                 ov::SupportedOpsMap& target_supported_ops,
+                                                                 const bool dump_dot_files,
+                                                                 const std::string& default_device,
+                                                                 const char* stage_prefix,
+                                                                 const std::string& device_name) {
+        if (partition_details_logging_enabled) {
+            return ov::hetero::mask_model_subgraphs_by_ops(target_model,
+                                                           target_supported_ops,
+                                                           dump_dot_files,
+                                                           default_device,
+                                                           std::string{stage_prefix} + device_name);
+        }
+        return ov::hetero::mask_model_subgraphs_by_ops(target_model,
+                                                       target_supported_ops,
+                                                       dump_dot_files,
+                                                       default_device);
     };
 
     auto has_subgraph_ops = [](std::shared_ptr<ov::Model>& model) {
@@ -411,12 +431,12 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             if (perf_logging_enabled) {
                 t_mask_start = clock::now();
             }
-            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
-                                                                   supported_ops_temp,
-                                                                   m_cfg.dump_dot_files(),
-                                                                   default_device,
-                                                                   std::string{"initial_partition stage_device="} +
-                                                                       device_name);
+            mapping_info = mask_model_subgraphs_with_optional_context(model,
+                                                                      supported_ops_temp,
+                                                                      m_cfg.dump_dot_files(),
+                                                                      default_device,
+                                                                      "initial_partition stage_device=",
+                                                                      device_name);
             if (perf_logging_enabled) {
                 const auto t_mask_end = clock::now();
                 const auto elapsed = t_mask_end - t_mask_start;
@@ -444,12 +464,12 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             if (perf_logging_enabled) {
                 t_temp_mask_start = clock::now();
             }
-            auto mapping_info_temp =
-                ov::hetero::mask_model_subgraphs_by_ops(temp_model,
-                                                        supported_ops_temp_1,
-                                                        false,
-                                                        default_device,
-                                                        std::string{"temp_partition stage_device="} + device_name);
+            auto mapping_info_temp = mask_model_subgraphs_with_optional_context(temp_model,
+                                                                                supported_ops_temp_1,
+                                                                                false,
+                                                                                default_device,
+                                                                                "temp_partition stage_device=",
+                                                                                device_name);
             if (perf_logging_enabled) {
                 const auto t_temp_mask_end = clock::now();
                 const auto elapsed = t_temp_mask_end - t_temp_mask_start;
@@ -487,12 +507,12 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             if (perf_logging_enabled) {
                 t_final_mask_start = clock::now();
             }
-            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
-                                                                   supported_ops_temp,
-                                                                   m_cfg.dump_dot_files(),
-                                                                   default_device,
-                                                                   std::string{"final_partition stage_device="} +
-                                                                       device_name);
+            mapping_info = mask_model_subgraphs_with_optional_context(model,
+                                                                      supported_ops_temp,
+                                                                      m_cfg.dump_dot_files(),
+                                                                      default_device,
+                                                                      "final_partition stage_device=",
+                                                                      device_name);
             if (perf_logging_enabled) {
                 const auto t_final_mask_end = clock::now();
                 const auto elapsed = t_final_mask_end - t_final_mask_start;

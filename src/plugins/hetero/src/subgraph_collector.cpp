@@ -155,7 +155,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::PartitionDetails);
     clock::time_point t0{};
     clock::duration collect_ids_time{};
-    size_t per_node_iterations = 0;
+    size_t node_scan_iterations = 0;
     size_t scc_iterations = 0;
     size_t scc_promoted_edges = 0;
     if (perf_logging_enabled) {
@@ -265,7 +265,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
         OPENVINO_ASSERT(cyclic_split_step < _ordered_ops.size(), "Cannot resolve cycles during submodels split!");
         clock::time_point t_collect_start{};
         if (perf_logging_enabled) {
-            ++per_node_iterations;
+            ++node_scan_iterations;
             t_collect_start = clock::now();
         }
         prev_subgraphs = _subgraph_inputs.size();
@@ -813,7 +813,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
                                   " ms, node_scan_nodes_per_iteration=",
                                   nodes_count,
                                   ", node_scan_iterations=",
-                                  per_node_iterations,
+                                  node_scan_iterations,
                                   ", collect_subgraphs_ids=",
                                   to_ms(collect_ids_time),
                                   " ms, scc_fallback=",
