@@ -165,7 +165,7 @@ memory_ptr ze_engine::create_mmap_hostbuffer(const void* mmapped_address, size_t
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-memory_ptr ze_engine::create_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+memory_ptr ze_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
