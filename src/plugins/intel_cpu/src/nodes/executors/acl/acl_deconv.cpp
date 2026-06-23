@@ -235,7 +235,7 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
 bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
                                                  const std::vector<MemoryDescPtr>& srcDescs,
                                                  const std::vector<MemoryDescPtr>& dstDescs) {
-    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ISA);
+    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if (srcDescs[0]->getShape().getDims().size() != 4 || dstDescs[0]->getShape().getDims().size() != 4 ||
         srcDescs[1]->getShape().getDims().size() != 4) {
         DEBUG_LOG("AclDeconvExecutor only supports 4D tensors:",

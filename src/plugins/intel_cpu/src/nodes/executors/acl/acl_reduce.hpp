@@ -42,8 +42,8 @@ public:
     [[nodiscard]] bool isSupported(const ReduceAttrs& reduceAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly.
         if (!aclCommonExecutorSupported()) {
+            DEBUG_LOG("ACL common preconditions not met");
             return false;
         }
         if (reduceAttrs.operation == Algorithm::ReduceMean) {

@@ -117,7 +117,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ISA);
+    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);

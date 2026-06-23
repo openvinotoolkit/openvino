@@ -35,8 +35,8 @@ public:
     [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly.
         if (!aclCommonExecutorSupported()) {
+            DEBUG_LOG("ACL common preconditions not met");
             return false;
         }
         if ((srcDescs[0]->hasLayoutType(LayoutType::ncsp) || dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&

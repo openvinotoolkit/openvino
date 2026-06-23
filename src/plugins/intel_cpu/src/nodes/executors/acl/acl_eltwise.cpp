@@ -76,9 +76,8 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
 }
 
 bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
-    // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly
-    // so the executor is selected only on a core that provides the required ISA.
     if (!aclCommonExecutorSupported()) {
+        DEBUG_LOG("ACL common preconditions not met");
         return false;
     }
     std::vector<MemoryDescPtr> srcDescs(config.descs.size() - 1);

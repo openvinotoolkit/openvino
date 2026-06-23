@@ -54,8 +54,8 @@ public:
     [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly.
         if (!aclCommonExecutorSupported()) {
+            DEBUG_LOG("ACL common preconditions not met");
             return false;
         }
         auto isSupportedPrecision = [](const ov::element::Type precision) {

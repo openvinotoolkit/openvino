@@ -102,7 +102,7 @@ void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
 bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
                                         const std::vector<MemoryDescPtr>& srcDescs,
                                         const std::vector<MemoryDescPtr>& dstDescs) const {
-    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ISA);
+    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if ((srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16) ||
         srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
         DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",
