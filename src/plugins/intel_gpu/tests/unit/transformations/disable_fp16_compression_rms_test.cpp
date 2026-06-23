@@ -158,14 +158,20 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_KeepsRMSInFP32) {
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map);
     manager.run_passes(model);
 
+    bool found_rms = false;
+    bool found_matmul = false;
     for (const auto& op : model->get_ops()) {
         if (op->get_friendly_name() == "rms_target") {
+            found_rms = true;
             ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "RMS node must have FP16 conversion disabled to prevent NaN from overflow";
         }
         if (op->get_friendly_name() == "matmul_consumer") {
+            found_matmul = true;
             ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "MatMul consumer should NOT be marked - only RMS needs FP32 protection";
         }
     }
+    ASSERT_TRUE(found_rms) << "RMS node 'rms_target' not found after passes";
+    ASSERT_TRUE(found_matmul) << "MatMul node 'matmul_consumer' not found after passes";
 }
