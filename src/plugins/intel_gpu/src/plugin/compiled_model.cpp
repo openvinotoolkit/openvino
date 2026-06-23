@@ -256,12 +256,22 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
     // v1 simplified GPU compatibility descriptor.
-    // Captures high-level execution requirements (OV version, driver, GFX IP, EU count).
-    // Future releases can extend the desc=[...] block with true per-model requirements
-    // without changing the property plumbing or blob layout.
+    //
+    // The "meta;ov" prefix mirrors the NPU compatibility-string structure (meta=<schema>;
+    // ov=<major.minor.patch>) so a future shared OpenVINO helper can parse every plugin
+    // uniformly. "meta" is the GPU compat-string schema version (independent of the blob
+    // layout guard runtime_requirements_version).
+    //
+    // The desc=[...] block is the GPU-specific device descriptor. It lists the device
+    // properties that, if changed, invalidate a previously compiled blob:
+    //   - driver: OpenCL/L0 driver that compiles and owns the kernel binaries
+    //   - ip:     raw GFX IP version (device architecture / generation)
+    //   - eus:    execution units count
+    // These mirror the GPU model-cache fingerprint (ov::device::architecture +
+    // execution_units_count) plus the driver/compiler version expected by the NPU format.
     std::ostringstream ss;
     ss << "meta=1.0"
-       << ";ov=" << ov::get_openvino_version().buildNumber
+       << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
        << ";desc=[driver=" << info.driver_version
        << ";ip=" << info.ip_version
        << ";eus=" << info.execution_units_count << "]";
