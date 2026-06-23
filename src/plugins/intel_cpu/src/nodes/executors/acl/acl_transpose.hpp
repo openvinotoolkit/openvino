@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/functions/NEPermute.h"
 #include "arm_compute/runtime/Tensor.h"
 #include "nodes/executors/transpose.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -36,7 +36,7 @@ public:
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
         // ACL kernels run on the ARMv8-A NEON baseline (ASIMD); declare it explicitly.
-        if (!hasArmISASupport(ArmISA::ASIMD)) {
+        if (!aclCommonExecutorSupported()) {
             return false;
         }
         if ((srcDescs[0]->hasLayoutType(LayoutType::ncsp) || dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&

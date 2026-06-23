@@ -9,8 +9,22 @@
 #include "arm_compute/core/Types.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
+
+/**
+ * @brief Common precondition shared by every ACL executor, independent of the op/config type.
+ * ACL kernels run on the ARMv8-A NEON baseline (ASIMD), so an executor must not be selected on a
+ * core that lacks it. Op-specific checks (precisions, ranks, post ops, ...) stay in each executor's
+ * own supports()/isSupported(). Use it with the predicate's own idiom, e.g.
+ *   VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ISA);   // VERIFY-based predicates
+ *   if (!aclCommonExecutorSupported()) { return false; }     // if/return predicates
+ * @return whether the current core can run ACL executors
+ */
+inline bool aclCommonExecutorSupported() {
+    return hasArmISASupport(ArmISA::ASIMD);
+}
 
 /**
  * @brief Convert ACL DataType to quantized variant for U8/S8 tensors.

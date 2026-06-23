@@ -29,7 +29,6 @@
 #include "openvino/core/type/float16.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -236,7 +235,7 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
 bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
                                                  const std::vector<MemoryDescPtr>& srcDescs,
                                                  const std::vector<MemoryDescPtr>& dstDescs) {
-    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ISA);
     if (srcDescs[0]->getShape().getDims().size() != 4 || dstDescs[0]->getShape().getDims().size() != 4 ||
         srcDescs[1]->getShape().getDims().size() != 4) {
         DEBUG_LOG("AclDeconvExecutor only supports 4D tensors:",
