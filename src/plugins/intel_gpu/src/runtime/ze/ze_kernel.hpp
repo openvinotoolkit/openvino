@@ -44,8 +44,8 @@ public:
 
     ze_kernel(ze_module_resource module, ze_kernel_resource kernel, const std::string& kernel_id, ze_module_build_log_resource build_log)
         : m_module(std::move(module))
-        , m_kernel(std::move(kernel))
         , m_build_log(std::move(build_log))
+        , m_kernel(std::move(kernel))
         , m_kernel_id(kernel_id) {
             // Allow empty build log holder
             OPENVINO_ASSERT(!m_kernel.is_empty(), "[GPU] Attempt to create kernel with empty kernel resource");
@@ -106,9 +106,10 @@ public:
     }
 
 private:
+    // To ensure correct lifetime, drop kernel first then build log and module
     ze_module_resource m_module;
-    ze_kernel_resource m_kernel;
     ze_module_build_log_resource m_build_log;
+    ze_kernel_resource m_kernel;
     std::string m_kernel_id;
 };
 
