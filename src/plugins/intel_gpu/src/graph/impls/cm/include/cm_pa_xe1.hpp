@@ -41,8 +41,11 @@ void pa_lsc_u8(
     constexpr int num_P_tiles = REG_N / REG_M;
     static_assert(num_P_tiles == 1, "XE1 kernels currently require REG_N/REG_M == 1");
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
-    matrix <float, head_size/REG_N, REG_M*REG_N> rO;
-    rO = 0;  // Initialize to prevent NaN from uninitialized values
+    constexpr int rO_half_rows = head_size / 2 / REG_N * num_P_tiles;
+    matrix<float, rO_half_rows, REG_M * REG_N> rO_lo;
+    matrix<float, rO_half_rows, REG_M * REG_N> rO_hi;
+    rO_lo = 0;
+    rO_hi = 0;
     bool first_active = true;
 
     // clamp per-tile valid query tokens to [0, q_step]
@@ -295,11 +298,15 @@ void pa_lsc_u8(
             matrix<half, REG_N, REG_K> P;
             Transpose2DMatrix(St, P);
 
+            constexpr uint slm_V_lo_offset = 0;
+            constexpr uint slm_V_hi_offset = (head_size / 2) * REG_K * sizeof(half);
             if (first_active) {
-                ugemm_PV0(slm_V, P, rO, slm_offset);
+                ugemm_PV0(slm_V, P, rO_lo, slm_offset + slm_V_lo_offset);
+                ugemm_PV0(slm_V, P, rO_hi, slm_offset + slm_V_hi_offset);
                 first_active = false;
             } else {
-                ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+                ugemm_PV1(slm_V, P, max_comp, rO_lo, slm_offset + slm_V_lo_offset);
+                ugemm_PV1(slm_V, P, max_comp, rO_hi, slm_offset + slm_V_hi_offset);
             }
         }
     }
@@ -318,8 +325,23 @@ void pa_lsc_u8(
     cur_sum = cm_inv(cur_sum);
 
     #pragma unroll
-    for(int k = 0, ri=0; k < head_size; k += REG_N, ri++) {
-        auto cO = rO[ri].format<float, REG_M, REG_N>();
+    for(int k = 0, ri=0; k < head_size / 2; k += REG_N, ri++) {
+        auto cO = rO_lo[ri].format<float, REG_M, REG_N>();
+        #pragma unroll
+        for(int r = 0; r < cO.n_rows(); r++) {
+            cur_O_f16[r] = cm_mul<float>(cO.row(r), cur_sum[r]);
+        }
+        int o_stride_elems = o_pitch / sizeof(half);
+        half* output_ptr = (half*)o_base + k;
+
+        for (int r = 0; r < q_tokens_in_tile; r++) {
+            cm_svm_block_write<half, REG_N>((svmptr_t)(output_ptr + r * o_stride_elems), cur_O_f16.row(r).format<half>());
+        }
+    }
+
+    #pragma unroll
+    for(int k = head_size / 2, ri=0; k < head_size; k += REG_N, ri++) {
+        auto cO = rO_hi[ri].format<float, REG_M, REG_N>();
         #pragma unroll
         for(int r = 0; r < cO.n_rows(); r++) {
             cur_O_f16[r] = cm_mul<float>(cO.row(r), cur_sum[r]);
@@ -371,8 +393,11 @@ void pa_kernel_lsc_prefetch_f16(
     static_assert(num_P_tiles == 1, "XE1 kernels currently require REG_N/REG_M == 1");
     constexpr int VALUE_TILE_NUM = 2;
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
-    matrix <float, head_size/REG_M, REG_M*REG_N> rO;
-    rO = 0;  // Initialize to prevent NaN from uninitialized values
+    constexpr int rO_half_rows_f16 = head_size / 2 / REG_M;
+    matrix<float, rO_half_rows_f16, REG_M * REG_N> rO_lo;
+    matrix<float, rO_half_rows_f16, REG_M * REG_N> rO_hi;
+    rO_lo = 0;
+    rO_hi = 0;
     bool first_active = true;
 
     // clamp per-tile valid query tokens to [0, q_step]
@@ -511,8 +536,9 @@ void pa_kernel_lsc_prefetch_f16(
 
         auto P_vec = P.format<half, REG_M, REG_K>();
         matrix<half, REG_K/2, REG_N*2*VALUE_TILE_NUM> Vmat;
+
         #pragma unroll
-        for(int k = 0, ri=0; k < head_size; k += REG_N * VALUE_TILE_NUM, ri += VALUE_TILE_NUM) {
+        for(int k = 0, ri=0; k < head_size / 2; k += REG_N * VALUE_TILE_NUM, ri += VALUE_TILE_NUM) {
             matrix<half, REG_K, REG_N*VALUE_TILE_NUM> Vmat_tmp;
             constexpr uint elem_size = sizeof(half);
             constexpr int value_row_u32 = (REG_N * VALUE_TILE_NUM * sizeof(half)) / sizeof(uint);
@@ -541,16 +567,15 @@ void pa_kernel_lsc_prefetch_f16(
                 #pragma unroll
                 for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
                     auto Vtile = Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile);
-                    rO[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                    rO_lo[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
                         0,
                         Vtile.format<int32_t>(),
                         P_vec.format<int32_t>());
                 }
-                first_active = false;
             } else {
                 #pragma unroll
                 for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
-                    auto cO = rO[ri + tile].format<float, REG_M, REG_N>();
+                    auto cO = rO_lo[ri + tile].format<float, REG_M, REG_N>();
                     #pragma unroll
                     for(int r = 0; r < REG_M; r++)
                         cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r]);
@@ -561,13 +586,72 @@ void pa_kernel_lsc_prefetch_f16(
                     auto Vtile =
                         Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>()
                             .select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile);
-                    rO[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
-                        rO[ri + tile].format<float>(),
+                    rO_lo[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                        rO_lo[ri + tile].format<float>(),
                         Vtile.format<int32_t>(),
                         P_vec.format<int32_t>());
                 }
             }
         }
+
+        #pragma unroll
+        for(int k = head_size / 2, ri=0; k < head_size; k += REG_N * VALUE_TILE_NUM, ri += VALUE_TILE_NUM) {
+            matrix<half, REG_K, REG_N*VALUE_TILE_NUM> Vmat_tmp;
+            constexpr uint elem_size = sizeof(half);
+            constexpr int value_row_u32 = (REG_N * VALUE_TILE_NUM * sizeof(half)) / sizeof(uint);
+            #pragma unroll
+            for(int Vr = 0; Vr < REG_K; Vr++){
+                uint elem_offset = cur_block_id * blk_stride
+                                + (kv_pos % CMPA_BLOCK_SZ) * head_size
+                                + Vr * head_size
+                                + k;
+                uint cur_row_offset = v_cache_stateful_offset_bytes + elem_offset * elem_size;
+                auto row_vec_u32 = cm_load<uint, value_row_u32>(v_cache_stateful, cur_row_offset);
+                Vmat_tmp.row(Vr).format<uint>() = row_vec_u32;
+            }
+            if ((kv_pos + kv_step) > kv_stop) {
+                uint valid_rows = kv_stop - kv_pos;
+                for (uint r = valid_rows; r < kv_step; r++)
+                    Vmat_tmp.row(r) = 0.f;
+            }
+            #pragma unroll
+            for (int r = 0; r < REG_K/2; r++) {
+                Vmat.row(r).select<REG_N*VALUE_TILE_NUM, 2>(0) = Vmat_tmp.row(r*2);
+                Vmat.row(r).select<REG_N*VALUE_TILE_NUM, 2>(1) = Vmat_tmp.row(r*2+1);
+            }
+
+            if (first_active) {
+                #pragma unroll
+                for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
+                    auto Vtile = Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile);
+                    rO_hi[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                        0,
+                        Vtile.format<int32_t>(),
+                        P_vec.format<int32_t>());
+                }
+            } else {
+                #pragma unroll
+                for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
+                    auto cO = rO_hi[ri + tile].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r]);
+                }
+
+                #pragma unroll
+                for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
+                    auto Vtile =
+                        Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>()
+                            .select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile);
+                    rO_hi[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                        rO_hi[ri + tile].format<float>(),
+                        Vtile.format<int32_t>(),
+                        P_vec.format<int32_t>());
+                }
+            }
+        }
+
+        if (first_active) first_active = false;
     }
 
 #ifdef CMPA_DEBUG_ALL_MASKED
@@ -579,9 +663,25 @@ void pa_kernel_lsc_prefetch_f16(
     //# save cur_O/cur_sum.transpose(0, 1)
     matrix<half, REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
+
     #pragma unroll
-    for(int k = 0, ri=0; k < head_size; k += REG_N, ri++) {
-        auto cO = rO[ri].format<float, REG_M, REG_N>();
+    for(int k = 0, ri=0; k < head_size / 2; k += REG_N, ri++) {
+        auto cO = rO_lo[ri].format<float, REG_M, REG_N>();
+        #pragma unroll
+        for(int r = 0; r < cO.n_rows(); r++) {
+            cur_O_f16[r] = cm_mul<float>(cO.row(r), cur_sum[r]);
+        }
+        int o_stride_elems = o_pitch / sizeof(half);
+        half* output_ptr = (half*)o_base + k;
+
+        for (int r = 0; r < q_tokens_in_tile; r++) {
+            cm_svm_block_write<half, REG_N>((svmptr_t)(output_ptr + r * o_stride_elems), cur_O_f16.row(r).format<half>());
+        }
+    }
+
+    #pragma unroll
+    for(int k = head_size / 2, ri=0; k < head_size; k += REG_N, ri++) {
+        auto cO = rO_hi[ri].format<float, REG_M, REG_N>();
         #pragma unroll
         for(int r = 0; r < cO.n_rows(); r++) {
             cur_O_f16[r] = cm_mul<float>(cO.row(r), cur_sum[r]);

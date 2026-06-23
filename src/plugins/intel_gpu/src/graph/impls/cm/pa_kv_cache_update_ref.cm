@@ -131,22 +131,30 @@ CM_INLINE void process_quantization_per_channel(const half* in,
                                                 uint pitch,
                                                 uint dequant_size,
                                                 uint cur_sub_block_size) {
-    // NOTE: CM compiler has matrix size limit < 8192 bytes.
-    // With HEAD_SIZE=128 and SUB_BLOCK_SIZE=32: matrix size = 32*128*2 = 8192 bytes (hits limit).
-    // OpenVINO uses SUB_BLOCK_SIZE=16 which avoids this issue (16*128*2 = 4096 bytes).
-    // If testing with larger SUB_BLOCK_SIZE values, keep HEAD_SIZE < 128 or SUB_BLOCK_SIZE <= 16.
-    matrix<half, SUB_BLOCK_SIZE, HEAD_SIZE> in_data;
+    // CM compiler has matrix size limit < 8192 bytes.
+    // Split in_data into lo/hi halves to stay within the limit for HEAD_SIZE=256.
+    constexpr int HALF_HEAD = HEAD_SIZE / 2;
+    matrix<half, SUB_BLOCK_SIZE, HALF_HEAD> in_data_lo;
+    matrix<half, SUB_BLOCK_SIZE, HALF_HEAD> in_data_hi;
     #pragma unroll
     for (int i = 0; i < cur_sub_block_size; i++) {
-        load_kvcache<HEAD_SIZE>(in_data.row(dequant_size + i), in, (in_offset + i * pitch) * (int)sizeof(half));
+        uint offset = (in_offset + i * pitch) * (int)sizeof(half);
+        load_kvcache<HALF_HEAD>(in_data_lo.row(dequant_size + i), in, offset);
+        load_kvcache<HALF_HEAD>(in_data_hi.row(dequant_size + i), in, offset + HALF_HEAD * (int)sizeof(half));
     }
 
-    vector<half, HEAD_SIZE> max_vals = in_data.row(dequant_size);
-    vector<half, HEAD_SIZE> min_vals = in_data.row(dequant_size);
+    vector<half, HEAD_SIZE> max_vals;
+    vector<half, HEAD_SIZE> min_vals;
+    max_vals.select<HALF_HEAD, 1>(0) = in_data_lo.row(dequant_size);
+    max_vals.select<HALF_HEAD, 1>(HALF_HEAD) = in_data_hi.row(dequant_size);
+    min_vals = max_vals;
     #pragma unroll
     for (int i = 1; i < cur_sub_block_size; i++) {
-        max_vals = cm_max<half>(max_vals, in_data.row(dequant_size + i));
-        min_vals = cm_min<half>(min_vals, in_data.row(dequant_size + i));
+        vector<half, HEAD_SIZE> row_data;
+        row_data.select<HALF_HEAD, 1>(0) = in_data_lo.row(dequant_size + i);
+        row_data.select<HALF_HEAD, 1>(HALF_HEAD) = in_data_hi.row(dequant_size + i);
+        max_vals = cm_max<half>(max_vals, row_data);
+        min_vals = cm_min<half>(min_vals, row_data);
     }
 
     if (dequant_size) {
@@ -162,9 +170,11 @@ CM_INLINE void process_quantization_per_channel(const half* in,
             // Use SUB_BLOCK_SIZE in for-loop to avoid cm compiler bug regarding tail loop with data type conversion
             if (i < dequant_size) {
                 load_kvcache<HEAD_SIZE>(update_data_u8.row(i), out, update_offset + i * HEAD_SIZE);
-                in_data.row(i) = cm_mul<half>(update_data_u8.row(i) - zp_stale, scale_stale);
-                max_vals = cm_max<half>(max_vals, in_data.row(i));
-                min_vals = cm_min<half>(min_vals, in_data.row(i));
+                vector<half, HEAD_SIZE> row_data = cm_mul<half>(update_data_u8.row(i) - zp_stale, scale_stale);
+                in_data_lo.row(i) = row_data.select<HALF_HEAD, 1>(0);
+                in_data_hi.row(i) = row_data.select<HALF_HEAD, 1>(HALF_HEAD);
+                max_vals = cm_max<half>(max_vals, row_data);
+                min_vals = cm_min<half>(min_vals, row_data);
             }
         }
     }
@@ -193,7 +203,10 @@ CM_INLINE void process_quantization_per_channel(const half* in,
         #pragma unroll
         for (int i = 0; i < SUB_BLOCK_SIZE; i++) {
             if (i < dequant_size) {
-                vector<half, HEAD_SIZE> quant_data = cm_mul<half>(in_data.row(i), scale_vals) + zp_vals;
+                vector<half, HEAD_SIZE> row_data;
+                row_data.select<HALF_HEAD, 1>(0) = in_data_lo.row(i);
+                row_data.select<HALF_HEAD, 1>(HALF_HEAD) = in_data_hi.row(i);
+                vector<half, HEAD_SIZE> quant_data = cm_mul<half>(row_data, scale_vals) + zp_vals;
                 quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0f), (half)255.0f);
                 vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(quant_data);
                 store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + update_offset + i * HEAD_SIZE), 0, data_u8);
@@ -203,7 +216,10 @@ CM_INLINE void process_quantization_per_channel(const half* in,
 
     #pragma unroll
     for (int i = 0; i < cur_sub_block_size; i++) {
-        vector<half, HEAD_SIZE> quant_data = cm_mul<half>(in_data.row(dequant_size + i), scale_vals) + zp_vals;
+        vector<half, HEAD_SIZE> row_data;
+        row_data.select<HALF_HEAD, 1>(0) = in_data_lo.row(dequant_size + i);
+        row_data.select<HALF_HEAD, 1>(HALF_HEAD) = in_data_hi.row(dequant_size + i);
+        vector<half, HEAD_SIZE> quant_data = cm_mul<half>(row_data, scale_vals) + zp_vals;
         quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0f), (half)255.0f);
         vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(quant_data);
         store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + data_offset + i * HEAD_SIZE), 0, data_u8);

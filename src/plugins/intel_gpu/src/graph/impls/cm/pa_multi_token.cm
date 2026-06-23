@@ -121,6 +121,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     constexpr uint K_SLM_SIZE = (ring_depth * kv_step * head_size * sizeof(half));
     constexpr uint V_SLM_SIZE = (ring_depth * kv_step * head_size * sizeof(half));
     constexpr uint Q_SLM_SIZE = 0;
+#ifdef CM_HAS_LSC_UNTYPED_2D
     uint slm_St = 0;
     if constexpr (head_size == 256) {
         constexpr int wg_size_u8 = 16;
@@ -129,16 +130,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     } else {
         cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
     }
+#else
+    cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
+#endif
 
     auto slm_K = cm_slm_alloc(K_SLM_SIZE);
     auto slm_V = cm_slm_alloc(V_SLM_SIZE);
+#ifdef CM_HAS_LSC_UNTYPED_2D
     if constexpr (head_size == 256) {
         constexpr int wg_size_u8 = 16;
         constexpr uint St_SLM_SIZE = wg_size_u8 * kv_step * q_step * sizeof(float);
         slm_St = cm_slm_alloc(St_SLM_SIZE);
     }
+#endif
 
 #else
+#ifdef CM_HAS_LSC_UNTYPED_2D
     uint slm_St_f16 = 0;
     if constexpr (head_size == 256) {
         constexpr int wg_size_f16 = 16;
@@ -146,6 +153,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         cm_slm_init(St_SLM_SIZE_F16);
         slm_St_f16 = cm_slm_alloc(St_SLM_SIZE_F16);
     }
+#endif
 #endif
     auto batch = cm_group_id(0);
     auto h = cm_group_id(1);
@@ -302,7 +310,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     pa_lsc_u8<is_causal, num_heads, num_kv_heads, head_size, 0>(
                             slm_K,
                             slm_V,
+#ifdef CM_HAS_LSC_UNTYPED_2D
                             slm_St,
+#endif
                             wg_local_id,
                             local_size,
                             q_start_local, //q_start within current subsequence,
@@ -335,7 +345,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     uint v_offset_bytes = kv_offset * sizeof(half);
 #endif
     pa_kernel_lsc_prefetch_f16<is_causal, num_heads, num_kv_heads, head_size, 0, 16>(
+#ifdef CM_HAS_LSC_UNTYPED_2D
                             slm_St_f16,
+#endif
                             wg_local_id,
                             q_start_local, //q_start within current subsequence,
                             kv_stop,
