@@ -56,12 +56,7 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
         // All affinities must be defined by user
         ov::hetero::SubgraphsVector ordered_subgraphs;
         std::tie(ordered_subgraphs, mapping_info) =
-            get_model_subgraphs(model,
-                                query_model_result,
-                                true,
-                                m_cfg.dump_dot_files(),
-                                "",
-                                "user_affinity_partition");
+            get_model_subgraphs(model, query_model_result, true, m_cfg.dump_dot_files(), "", "user_affinity_partition");
 
         submodels.resize(ordered_subgraphs.size());
         for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
@@ -305,11 +300,11 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     };
 
     const auto mask_model_subgraphs_with_optional_context = [&](std::shared_ptr<ov::Model>& target_model,
-                                                                 ov::SupportedOpsMap& target_supported_ops,
-                                                                 const bool dump_dot_files,
-                                                                 const std::string& default_device,
-                                                                 const char* stage_prefix,
-                                                                 const std::string& device_name) {
+                                                                ov::SupportedOpsMap& target_supported_ops,
+                                                                const bool dump_dot_files,
+                                                                const std::string& default_device,
+                                                                const char* stage_prefix,
+                                                                const std::string& device_name) {
         if (partition_details_logging_enabled) {
             return ov::hetero::mask_model_subgraphs_by_ops(target_model,
                                                            target_supported_ops,
