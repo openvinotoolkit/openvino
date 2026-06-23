@@ -345,19 +345,19 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain a remote tensor object from a user-supplied mmap-backed host pointer
+     * @brief This function is used to obtain a remote tensor object from a user-suppliedhost pointer
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param mmap_ptr A pointer to already created mmap region that should be wrapped by a remote tensor
-    * @param memory_type Memory type to use; only MemType::cpu_pointer is supported by this overload
+     * @param mmap_ptr A pointer to already created mmap region or std::aligned_alloc allocation that should be wrapped by a remote tensor
+    * @param memory_type Memory type to use; only MemType::CPU_POINTER is supported by this overload
      * @return A remote tensor instance
      */
-    ClBufferTensor create_tensor(const element::Type type,
+    ClBufferTensor create_tensor_from_cpu_pointer(const element::Type type,
                                  const Shape& shape,
                                  void* mmap_ptr,
                                  const MemType memory_type) {
-        OPENVINO_ASSERT(memory_type == MemType::cpu_pointer,
-                        "Only MMAPED_FILE memory type is supported for mmap pointer overload");
+        OPENVINO_ASSERT(memory_type == MemType::CPU_POINTER,
+                        "Only CPU_POINTER memory type is supported for mmap pointer overload");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_ALLOCATED},
                          {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(mmap_ptr)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();

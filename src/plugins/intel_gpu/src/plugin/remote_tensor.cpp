@@ -302,7 +302,6 @@ void RemoteTensorImpl::allocate() {
 
     auto context = std::dynamic_pointer_cast<RemoteContextImpl>(m_context);
     auto enable_caching = supports_caching();
-    auto& engine = context->get_engine();
 
     if (is_surface()) {
         m_layout.format = cldnn::format::nv12;  // Other formats are not supported
@@ -316,6 +315,8 @@ void RemoteTensorImpl::allocate() {
             return;
         }
     }
+
+    auto& engine = context->get_engine();
 
     // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
     // W/A for this issue:
@@ -371,7 +372,7 @@ void RemoteTensorImpl::allocate() {
         OPENVINO_ASSERT(is_no_copy_aligned_ptr(m_mem),
                         "[GPU] shared buffer pointer must be ", minimal_alignment_no_copy, "-byte aligned");
         OPENVINO_ASSERT(is_no_copy_aligned_size(m_layout.bytes_count()),
-                        "[GPU] shared buffer size must be a multiple of ", minimal_size_no_copy, " bytes");
+                        "[GPU] shared buffer size must be a multiple of ", minimal_alignment_no_copy, " bytes");
         // look on compute-runtime\opencl\source\mem_obj\buffer.cpp:639 zero copy conditions
                         m_memory_object = engine.create_hostbuffer(m_mem,
                                                         m_layout.bytes_count(),

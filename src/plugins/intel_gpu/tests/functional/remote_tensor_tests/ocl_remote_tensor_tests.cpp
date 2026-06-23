@@ -2964,14 +2964,14 @@ TEST(GpuMmapedMemoryRemoteTensor, smoke_allocAlignedCPUMemory) {
     std::fill_n(static_cast<float*>(input_ptr), element_count, 2.0f);
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
 
-    auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
+    auto remote_input_tensor = ctx.create_tensor_from_cpu_pointer(ov::element::f32,
                                                  shape,
                                                  input_ptr,
-                                                 ov::intel_gpu::MemType::cpu_pointer);
-    auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
+                                                 ov::intel_gpu::MemType::CPU_POINTER);
+    auto remote_output_tensor = ctx.create_tensor_from_cpu_pointer(ov::element::f32,
                                                   shape,
                                                   output_ptr,
-                                                  ov::intel_gpu::MemType::cpu_pointer);
+                                                  ov::intel_gpu::MemType::CPU_POINTER);
 
     auto model = make_copy_model(shape);
     auto compiled = core.compile_model(model, ctx);
@@ -2986,6 +2986,7 @@ TEST(GpuMmapedMemoryRemoteTensor, smoke_allocAlignedCPUMemory) {
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
     }
+    std::free(input_ptr);
 }
 
 #endif  // OV_GPU_WITH_OCL_RT

@@ -118,7 +118,7 @@ enum class SharedMemType {
     DX_BUFFER = 6,           //!< Shared D3D buffer blob
     BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
                              //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
-    CPU_ALLOCATED = 8,       //!< Shared mmap-backed host pointer mapped by plugin for zero-copy path
+    CPU_ALLOCATED = 8,       //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin for zero-copy path
 };
 
 /**
@@ -127,34 +127,8 @@ enum class SharedMemType {
  */
 enum class MemType {
     SHARED_BUF = 0,   //!< Shared OpenCL buffer handle passed as void* or int
-    cpu_pointer = 2,  //!< Shared mmap-backed host pointer
+    CPU_POINTER = 1,  //!< Shared mmap-backed/aligned allocated host pointer
 };
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const MemType& mem_type) {
-    switch (mem_type) {
-    case MemType::SHARED_BUF:
-        return os << "SHARED_BUF";
-    case MemType::cpu_pointer:
-        return os << "MMAPED_FILE";
-    default:
-        OPENVINO_THROW("Unsupported memory type");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, MemType& mem_type) {
-    std::string str;
-    is >> str;
-    if (str == "SHARED_BUF") {
-        mem_type = MemType::SHARED_BUF;
-    } else if (str == "MMAPED_FILE") {
-        mem_type = MemType::cpu_pointer;
-    } else {
-        OPENVINO_THROW("Unsupported memory type: ", str);
-    }
-    return is;
-}
-/** @endcond */
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem_type) {
@@ -170,7 +144,7 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
     case SharedMemType::USM_DEVICE_BUFFER:
         return os << "USM_DEVICE_BUFFER";
     case SharedMemType::CPU_ALLOCATED:
-        return os << "MMAP_SHARED_BUFFER";
+        return os << "CPU_ALLOCATED";
     case SharedMemType::VA_SURFACE:
         return os << "VA_SURFACE";
     case SharedMemType::DX_BUFFER:
@@ -195,7 +169,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
         share_mem_type = SharedMemType::USM_HOST_BUFFER;
     } else if (str == "USM_DEVICE_BUFFER") {
         share_mem_type = SharedMemType::USM_DEVICE_BUFFER;
-    } else if (str == "MMAP_SHARED_BUFFER") {
+    } else if (str == "CPU_ALLOCATED") {
         share_mem_type = SharedMemType::CPU_ALLOCATED;
     } else if (str == "VA_SURFACE") {
         share_mem_type = SharedMemType::VA_SURFACE;
