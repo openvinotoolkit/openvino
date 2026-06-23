@@ -7,28 +7,40 @@
 
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
-#define KQ_WG_TILE_KEYS      128
-#define KQ_WG_TILE_QUERIES   32
-#define KQ_SG_PER_WG_KEYS    8
-#define KQ_SG_PER_WG_QUERIES 2
-#define KQ_SG_TILE_KEYS      (KQ_WG_TILE_KEYS / KQ_SG_PER_WG_KEYS)    // 16
-#define KQ_SG_TILE_QUERIES   (KQ_WG_TILE_QUERIES / KQ_SG_PER_WG_QUERIES)    // 16
+// #ifndef KQ_SG_TILE_KEYS
+// #define KQ_SG_TILE_KEYS      16
+// #endif
+// #ifndef KQ_SG_TILE_QUERIES
+// #define KQ_SG_TILE_QUERIES   16
+// #endif
+// #ifndef KQ_SG_PER_WG_KEYS
+// #define KQ_SG_PER_WG_KEYS    8
+// #endif
+// #ifndef KQ_SG_PER_WG_QUERIES
+// #define KQ_SG_PER_WG_QUERIES 2
+// #endif
+#define KQ_WG_TILE_KEYS      (KQ_SG_TILE_KEYS * KQ_SG_PER_WG_KEYS)
+#define KQ_WG_TILE_QUERIES   (KQ_SG_TILE_QUERIES * KQ_SG_PER_WG_QUERIES)
 #define KQ_MB                (KQ_SG_TILE_KEYS / 8)       // 2
 #define KQ_QB                (KQ_SG_TILE_QUERIES / 16)      // 1
 
-// VS subgroup layout matched to sdpa_micro (xehpc_h128_s32: wg_m_vs=8, wg_n_vs=2).
-// For D_MAX=128 this gives 8 (head-dim) x 2 (query) subgroups, sg tile 16(D) x 16(Q),
-// so the VS query split (sg_j_vs = sg_ij/8) matches the KQ split (sg_j_kq = sg_ij/8).
-#define ugemm_vs_sg_per_wg_m ((D_MAX <= 64) ? 4 : 8)
-#define ugemm_vs_sg_per_wg_n (sg_per_wg / ugemm_vs_sg_per_wg_m)
-#define ugemm_vs_sg_tile_m   (D_MAX / ugemm_vs_sg_per_wg_m)
-#define ugemm_vs_sg_tile_n   (KQ_WG_TILE_QUERIES / ugemm_vs_sg_per_wg_n)
-#define VS_DB                (ugemm_vs_sg_tile_m / 16)      // 2
-#define VS_QB                (ugemm_vs_sg_tile_n / 8)
-#define VS_KB                (KQ_WG_TILE_KEYS / 16)
-#define Q_BLOCKS             (KQ_WG_TILE_QUERIES / SUBGROUP_SIZE)
-
 #define sg_per_wg (KQ_SG_PER_WG_KEYS * KQ_SG_PER_WG_QUERIES)
+
+// S*V subgroup layout is supplied by the host config.
+// #ifndef SV_SG_PER_WG_VALUES
+// #define SV_SG_PER_WG_VALUES ((D_MAX <= 64) ? 4 : 8)
+// #endif
+// #ifndef SV_SG_PER_WG_SCORES
+// #define SV_SG_PER_WG_SCORES (sg_per_wg / SV_SG_PER_WG_VALUES)
+// #endif
+#define sv_sg_per_wg_values SV_SG_PER_WG_VALUES
+#define sv_sg_per_wg_scores SV_SG_PER_WG_SCORES
+#define sv_sg_tile_values   SV_SG_TILE_VALUES
+#define sv_sg_tile_scores   SV_SG_TILE_SCORES
+#define SV_VALUE_BLOCKS     (sv_sg_tile_values / 16)      // 2
+#define SV_SCORE_BLOCKS     (sv_sg_tile_scores / 8)
+#define SV_KEY_BLOCKS       (KQ_WG_TILE_KEYS / 16)
+#define Q_BLOCKS             (KQ_WG_TILE_QUERIES / SUBGROUP_SIZE)
 
 // Mask-kind predicates. When the host proved the mask shape at compile time
 // (MASK_KIND in {0,1,2}) these fold to compile-time constants so IGC drops the
@@ -69,10 +81,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const size_t sg_i0_kq = sg_i_kq * KQ_SG_TILE_KEYS;
     const size_t sg_j0_kq = sg_j_kq * KQ_SG_TILE_QUERIES;
 
-    const size_t sg_i_vs  = sg_ij % ugemm_vs_sg_per_wg_m;
-    const size_t sg_j_vs  = sg_ij / ugemm_vs_sg_per_wg_m;
-    const size_t sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
-    const size_t vs_q0    = sg_j_vs * ugemm_vs_sg_tile_n;
+    const size_t sv_sg_values = sg_ij % sv_sg_per_wg_values;
+    const size_t sv_sg_scores = sg_ij / sv_sg_per_wg_values;
+    const size_t sv_value0 = sv_sg_values * sv_sg_tile_values;
+    const size_t sv_score0 = sv_sg_scores * sv_sg_tile_scores;
 
     const float LOG2E = 1.4426950408889634f;
 
@@ -124,11 +136,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         S_sum_tile[qb] = 0.0f;
     }
 
-    float8 A_tile[VS_QB][VS_DB];
+    float8 A_tile[SV_SCORE_BLOCKS][SV_VALUE_BLOCKS];
     #pragma unroll
-    for (int r = 0; r < VS_QB; ++r)
+    for (int r = 0; r < SV_SCORE_BLOCKS; ++r)
         #pragma unroll
-        for (int cd = 0; cd < VS_DB; ++cd)
+        for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
             A_tile[r][cd] = (float8)0.0f;
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -173,12 +185,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // same V tiles consumed by the transform-load in this same iteration, with no
         // intervening compute to hide latency, so it is pure overhead here).
         #pragma unroll
-        for (int cp = 0; cp < VS_KB; ++cp) {
+        for (int cp = 0; cp < SV_KEY_BLOCKS; ++cp) {
             #pragma unroll
-            for (int cd = 0; cd < VS_DB; ++cd) {
+            for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd) {
                 intel_sub_group_2d_block_prefetch_16b_16r16x1c(
                     (const global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sg_i0_vs + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
+                    (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
             }
         }
 #endif
@@ -312,16 +324,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
         if (!first) {
             #pragma unroll
-            for (int r = 0; r < VS_QB; ++r) {
+            for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
                 float8 av;
-                const int rel_query = vs_q0 + r * 8 - sg_j0_kq;
+                const int rel_query = sv_score0 + r * 8 - sg_j0_kq;
                 const int alpha_qb = rel_query / SUBGROUP_SIZE;
                 const int alpha_lane0 = rel_query - alpha_qb * SUBGROUP_SIZE;
                 #pragma unroll
                 for (int rr = 0; rr < 8; ++rr)
                     av[rr] = sub_group_broadcast(alpha[alpha_qb], alpha_lane0 + rr);
                 #pragma unroll
-                for (int cd = 0; cd < VS_DB; ++cd)
+                for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
                     A_tile[r][cd] *= av;
             }
         }
@@ -329,37 +341,37 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
         #pragma unroll
-        for (int cp = 0; cp < VS_KB; ++cp) {
-            short8 pA[VS_QB];
+        for (int cp = 0; cp < SV_KEY_BLOCKS; ++cp) {
+            short8 pA[SV_SCORE_BLOCKS];
             #pragma unroll
-            for (int r = 0; r < VS_QB; ++r) {
-                const int query0 = vs_q0 + r * 8;
+            for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
+                const int query0 = sv_score0 + r * 8;
                 pA[r] = as_short8(intel_sub_group_block_read_us8(
                     (local void *)&S_slm[((cp * KQ_WG_TILE_QUERIES + query0) * SUBGROUP_SIZE) >> 1]));
             }
 
-            int8 vb[VS_DB];
+            int8 vb[SV_VALUE_BLOCKS];
             #pragma unroll
-            for (int cd = 0; cd < VS_DB; ++cd) {
+            for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd) {
                 intel_sub_group_2d_block_read_transform_16b_16r16x1c(
                     (global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sg_i0_vs + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
+                    (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
             }
 
             #pragma unroll
-            for (int r = 0; r < VS_QB; ++r)
+            for (int r = 0; r < SV_SCORE_BLOCKS; ++r)
                 #pragma unroll
-                for (int cd = 0; cd < VS_DB; ++cd)
+                for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
                     A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
         }
     }
 
     #pragma unroll
-    for (int r = 0; r < VS_QB; ++r) {
+    for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
         float8 inv_l;
         #pragma unroll
         for (int rr = 0; rr < 8; ++rr) {
-            const int query = vs_q0 + r * 8 + rr;
+            const int query = sv_score0 + r * 8 + rr;
             float l = S_sum_slm[query * KQ_SG_PER_WG_KEYS + 0];
             #pragma unroll
             for (int p = 1; p < KQ_SG_PER_WG_KEYS; ++p)
@@ -367,17 +379,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             inv_l[rr] = (l > 0.0f) ? native_recip(l) : 0.0f;
         }
         #pragma unroll
-        for (int cd = 0; cd < VS_DB; ++cd)
+        for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
             A_tile[r][cd] *= inv_l;
     }
 
     #pragma unroll
-    for (int r = 0; r < VS_QB; ++r) {
+    for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
         #pragma unroll
-        for (int cd = 0; cd < VS_DB; ++cd) {
+        for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd) {
             half8 out = convert_half8(A_tile[r][cd]);
-            const int col = sg_i0_vs + cd * SUBGROUP_SIZE;
-            const int row = wg_j0 + vs_q0 + r * 8;
+            const int col = sv_value0 + cd * SUBGROUP_SIZE;
+            const int row = wg_j0 + sv_score0 + r * 8;
             if (row + 7 < q && col + SUBGROUP_SIZE <= d) {
                 intel_sub_group_2d_block_write_16b_8r16x1c(
                     (global void *)A, AD_w, AD_h, AD_p,
