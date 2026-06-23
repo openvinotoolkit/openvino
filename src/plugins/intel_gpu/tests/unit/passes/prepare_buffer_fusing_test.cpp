@@ -14,6 +14,8 @@
 #include "concatenation_inst.h"
 #include "gemm_inst.h"
 #include "crop_inst.h"
+#include <intel_gpu/primitives/vl_sdpa.hpp>
+#include "vl_sdpa_inst.h"
 #include "convolution_inst.h"
 #include "gather_inst.h"
 #include "gemm_inst.h"
@@ -2899,7 +2901,7 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_eltwise_consum
 //   crop1(axis=1, slice=1) → reshape → eltwise (K proxy) ─────────────────► vl_sdpa
 //   crop2(axis=1, slice=2) → reshape (V, direct)   ─────────────────────────►
 //
-// All 3 crops must have can_be_optimized=1 at runtime after the vl_sdpa fix.
+// All 3 crops must have can_be_optimized=1 at runtime for the vl_sdpa consumer.
 // The CM kernel applies token_offset_q/kv scalars to the SVM pointer to
 // compensate for the feature-axis padding set by the in-place crop optimization.
 //
