@@ -10,6 +10,7 @@
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/runtime/system_conf.hpp"
 #endif
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 
@@ -68,7 +69,9 @@ bool hasArmISASupport(ArmISA isa) {
     case ArmISA::I8MM:
         return with_cpu_arm_i8mm();
     }
-    return true;
+    // An unhandled ArmISA must never be silently reported as supported: that could let an
+    // executor emit instructions the core lacks. Fail loudly so a newly added ISA is wired up.
+    OPENVINO_THROW("hasArmISASupport: unhandled ArmISA value");
 }
 #endif
 }  // namespace ov::intel_cpu
