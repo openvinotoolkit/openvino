@@ -39,5 +39,14 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# Create a virtual environment for the system Python as Python in Debian 12 complains about installing
+# packages into the system Python
+RUN python3 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
+
 ENV LD_LIBRARY_PATH="/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH"
 RUN ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
