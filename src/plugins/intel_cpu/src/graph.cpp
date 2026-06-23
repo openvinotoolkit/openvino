@@ -1756,9 +1756,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             ov::ProfilingInfo pc;
             pc.node_name = node->getName();
             uint64_t avg_time = node->PerfCounter().avg();
+            const bool has_measurement = node->PerfCounter().count() > 0;
             pc.cpu_time = pc.real_time = std::chrono::microseconds(avg_time);
-            pc.start_time =
-                std::chrono::duration_cast<std::chrono::microseconds>(node->PerfCounter().start().time_since_epoch());
+            pc.start_time = has_measurement ? std::chrono::duration_cast<std::chrono::microseconds>(
+                                                  node->PerfCounter().start().time_since_epoch())
+                                            : std::chrono::microseconds::zero();
             pc.status = avg_time > 0 ? ov::ProfilingInfo::Status::EXECUTED : ov::ProfilingInfo::Status::NOT_RUN;
             pc.exec_type = node->getPrimitiveDescriptorType();
             pc.node_type = node->typeStr;

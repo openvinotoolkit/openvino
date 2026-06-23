@@ -162,27 +162,27 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
     ov::ProfilingInfo info_avg = {
         ov::ProfilingInfo::Status::EXECUTED,
         std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_accu_cc / _npu_infer_stats_cnt)),
-        std::chrono::microseconds::zero(),
         std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_accu_cc / _npu_infer_stats_cnt)),
         "AVG",
         "AVG",
-        "AVG"};
+        "AVG",
+        std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_avg));
     ov::ProfilingInfo info_min = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
-                                  std::chrono::microseconds::zero(),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   "MIN",
                                   "MIN",
-                                  "MIN"};
+                                  "MIN",
+                                  std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_min));
     ov::ProfilingInfo info_max = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
-                                  std::chrono::microseconds::zero(),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   "MAX",
                                   "MAX",
-                                  "MAX"};
+                                  "MAX",
+                                  std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_max));
     return npuPerfCounts;
 }
