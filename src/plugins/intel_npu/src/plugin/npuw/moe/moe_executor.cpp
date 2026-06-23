@@ -676,32 +676,20 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
             // Slice expert weight using view (no copy) - returns ov::Tensor object
             auto sliced_weight_tensor = ov::npuw::moe::slice_expert_weight(closure, expert_id, num_experts);
 
-            // Get impl pointer for use in unpacking/setting
+            // Get impl pointer for use in setting
             auto sliced_weight = ov::get_tensor_impl(sliced_weight_tensor);
 
-            // Handle unpacking if needed
-            if (m_accessor.unpack_required(idx, cidx)) {
-                auto clparam = request->get_tensor(iport);
+            // Unpack is not expected for MoE sliced weights — assert to catch if this changes.
+            NPUW_ASSERT(!m_accessor.unpack_required(idx, cidx) &&
+                        "EXPERT_ITERATIVE: unpack of sliced MoE weight is not supported");
 
-                if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
-                    ov::npuw::util::unpack(sliced_weight,
-                                           ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
-                                           ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                           clparam);
-                } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
-                    ov::npuw::util::unpack(sliced_weight, ov::get_tensor_impl(comp_model_desc.scales[cidx]), clparam);
-                } else {
-                    ov::npuw::util::unpack(sliced_weight, clparam);
-                }
+            // Direct set (no unpacking needed)
+            // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
+            // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
+            if (m_resources.request_cache) {
+                request->set_tensor(iport, sliced_weight);
             } else {
-                // Direct set (no unpacking needed)
-                // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
-                // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
-                if (m_resources.request_cache) {
-                    request->set_tensor(iport, sliced_weight);
-                } else {
-                    ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
-                }
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
             }
         } else {
             // This closure parameter doesn't need slicing, use original logic
@@ -799,53 +787,27 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
 
         // ========== Step 3: Process batched parameters (K experts) ==========
 
-        // Pre-determine unpack configuration (same for all K experts)
+        // Unpack is not expected for MoE unrolled weights — assert to catch if this changes.
         const auto batched_elem_type = batched_closure.get_element_type();
         const auto target_elem_type = request->get_tensor(compiled_inputs[unrolled_indices[0]])->get_element_type();
-        const bool needs_unpack = (batched_elem_type != target_elem_type);
+        NPUW_ASSERT(batched_elem_type == target_elem_type &&
+                    "EXPERT_BATCH: dtype mismatch in MoE closure, unpack path is not supported");
 
-        ov::SoPtr<ov::ITensor> scales_impl, zerops_impl;
-        if (needs_unpack) {
-            if (!comp_model_desc.scales.empty() && comp_model_desc.scales[closure_idx]) {
-                scales_impl = ov::get_tensor_impl(comp_model_desc.scales[closure_idx]);
-            }
-            if (!comp_model_desc.zerops.empty() && comp_model_desc.zerops[closure_idx]) {
-                zerops_impl = ov::get_tensor_impl(comp_model_desc.zerops[closure_idx]);
-            }
-        }
-
-        // Process K experts
+        // Process K experts (direct set, no unpacking)
         for (size_t position = 0; position < K; ++position) {
             const size_t expert_id = expert_ids[position];
             const auto& iport = compiled_inputs[unrolled_indices[position]];
 
-            // Slice expert weight (zero-copy view)
+            // Slice expert weight (zero-copy view) and bind directly to the request port.
             ov::Tensor sliced_expert = ov::npuw::moe::slice_expert_weight(batched_closure, expert_id, num_experts);
+            auto sliced_impl = ov::get_tensor_impl(sliced_expert);
 
-            if (needs_unpack) {
-                // Unpack path (dtype mismatch)
-                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
-                auto clparam = request->get_tensor(iport);
-
-                if (scales_impl && zerops_impl) {
-                    ov::npuw::util::unpack(sliced_impl, zerops_impl, scales_impl, clparam);
-                } else if (scales_impl) {
-                    ov::npuw::util::unpack(sliced_impl, scales_impl, clparam);
-                } else if (zerops_impl) {
-                    ov::npuw::util::unpack(sliced_impl, zerops_impl, clparam);
-                } else {
-                    ov::npuw::util::unpack(sliced_impl, clparam);
-                }
+            // When cache is enabled: use set_tensor to avoid polluting shared input tensors.
+            // When cache is disabled: use set_tensor_optimized (copies small tensors, faster).
+            if (m_resources.request_cache) {
+                request->set_tensor(iport, sliced_impl);
             } else {
-                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
-                // Direct set (no unpacking needed)
-                // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
-                // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
-                if (m_resources.request_cache) {
-                    request->set_tensor(iport, sliced_impl);
-                } else {
-                    ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
-                }
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
             }
         }  // for each expert
     }  // for each closure parameter
