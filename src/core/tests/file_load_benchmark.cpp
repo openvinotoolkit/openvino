@@ -20,6 +20,7 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 #ifdef __linux__
@@ -44,7 +45,7 @@ struct TestFile {
 std::filesystem::path generate_test_file(const TestFile& tf) {
     auto path = std::filesystem::path("test_file" + std::to_string(tf.size_mb) + "mb.bin");
 
-    if (std::filesystem::exists(path) && std::filesystem::file_size(path) == tf.size_bytes) {
+    if (util::file_exists(path) && std::filesystem::file_size(path) == tf.size_bytes) {
         std::cout << "Test file already exists: " << path << ", skipping generation." << std::endl;
         return path;
     }
