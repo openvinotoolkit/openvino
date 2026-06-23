@@ -174,7 +174,6 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
     CompilerAdapterFactory compilerFactory;
     auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
     try {
-        std::cout << "Checking compatibility check support via plugin compiler" << std::endl;
         auto tempCompiler = compilerFactory.getCompiler(backend, compilerType, std::string_view{});
         return tempCompiler->is_option_supported(ov::compatibility_check.name());
     } catch (...) {
@@ -257,9 +256,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
                            other._compatibilityCheckSupported,
                            other._currentlyUsedPlatform,
                            other._compilerConfigsFilteredByCompiler,
-                           other._compatibilityCheckFiltered,
-                           other._properties,
-                           other._supportedProperties};
+                           other._compatibilityCheckFiltered};
       }()) {}
 
 PluginPropertyManager::PluginPropertyManager(CopyState&& state)
@@ -741,7 +738,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
 }
 
 bool PluginPropertyManager::isPropertySupported(const std::string& name, const ov::AnyMap& arguments) const {
-    if (!arguments.empty()) {
+    if (!arguments.empty() && name != ov::compatibility_check.name()) {
         auto pluginArguments = arguments;
         exclude_model_ptr_from_map(pluginArguments);
 

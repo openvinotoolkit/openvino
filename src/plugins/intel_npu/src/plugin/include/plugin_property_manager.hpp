@@ -56,8 +56,6 @@ private:
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
         bool compatibilityCheckFiltered;
-        std::map<std::string, PropertyDescriptor> properties;
-        std::vector<ov::PropertyName> supportedProperties;
     };
 
     explicit PluginPropertyManager(CopyState&& state);

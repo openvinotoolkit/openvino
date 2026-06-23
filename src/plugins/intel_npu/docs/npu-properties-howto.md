@@ -328,7 +328,7 @@ Notes:
 
 ## Step 2. Define and register a callback function for the new (metric) Property
 You need to register the new property and define a callback function in the owner-specific property manager.
-For plugin: npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerPluginProperties()
+For plugin: npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 For compiled-model: npu_plugin/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
     register_simple_metric(_properties, ov::intel_npu::example_property.name(), true, _metrics->GetDriverVersion());

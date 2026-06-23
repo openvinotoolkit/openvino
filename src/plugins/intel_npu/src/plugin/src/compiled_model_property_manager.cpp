@@ -25,7 +25,7 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 
     auto compatibilityDescriptor = graph->get_compatibility_descriptor();
     if (!compatibilityDescriptor.has_value()) {
-        OPENVINO_THROW("RUNTIME_REQUIREMENTS can not be generated for this compiled model.");
+        OPENVINO_THROW("RUNTIME_REQUIREMENTS cannot be generated for this compiled model.");
     }
     const auto descriptorView = compatibilityDescriptor.value();
     logger.debug("Runtime requirements from the graph %.*s length: %zu",

@@ -7,7 +7,6 @@
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <level_zero/ze_api.h>
 
 #include <memory>
 #include <mutex>
@@ -17,16 +16,9 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-
-namespace intel_npu {
-class ZeroInitStructsHolder {
-public:
-    static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
-    ze_api_version_t getZeDrvApiVersion() const;
-};
-}  // namespace intel_npu
 
 using namespace ov::test::behavior;
 
