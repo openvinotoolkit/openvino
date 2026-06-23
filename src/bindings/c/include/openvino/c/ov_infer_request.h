@@ -37,9 +37,9 @@ typedef struct {
  * @brief Defines the general execution status of a profiled node.
  */
 typedef enum {
-    NOT_RUN,       //!< A node is not executed.
-    OPTIMIZED_OUT, //!< A node is optimized out during graph optimization phase.
-    EXECUTED       //!< A node is executed.
+    NOT_RUN,        //!< A node is not executed.
+    OPTIMIZED_OUT,  //!< A node is optimized out during graph optimization phase.
+    EXECUTED        //!< A node is executed.
 } ov_profiling_status_e;
 
 /**
