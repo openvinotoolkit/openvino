@@ -16,12 +16,12 @@
 #elif defined ENABLE_LIBVA
 # include "openvino/runtime/intel_gpu/ocl/va.hpp"
 #endif
-#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
-
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+
 
 namespace {
 template <typename T>
@@ -192,7 +192,6 @@ struct OpenCL {
     }
 };
 
-// Keep data unchanged while still forcing an explicit output tensor write path.
 inline std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});

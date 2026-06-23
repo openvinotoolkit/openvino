@@ -2951,7 +2951,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorDataType, OVRemoteTensorDataType_Test
                                                               ov::element::Type_t::u32)),
                          OVRemoteTensorDataType_Test::getTestCaseName);
 
-TEST(GpuMmapedMemoryRemoteTensor, smoke_allocAlignedCPUMemory) {
+TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::Core core;
     const ov::Shape shape{16};
     const size_t element_count = ov::shape_size(shape);

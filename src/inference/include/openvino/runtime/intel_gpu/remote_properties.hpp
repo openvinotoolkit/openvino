@@ -118,7 +118,7 @@ enum class SharedMemType {
     DX_BUFFER = 6,           //!< Shared D3D buffer blob
     BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
                              //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
-    CPU_POINTER = 8,       //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin for zero-copy path
+    CPU_POINTER = 8,         //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin for zero-copy path
 };
 
 /**

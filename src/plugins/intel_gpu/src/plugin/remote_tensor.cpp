@@ -8,9 +8,7 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 
-#include <cstdint>
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -366,7 +364,7 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.share_usm(m_layout, m_mem);
         break;
     }
-    case TensorType::BF_BUF_CPU_MEMORY: {
+    case TensorType::BT_CPU_MEMORY: {
         OPENVINO_ASSERT(engine.runtime_type() == cldnn::runtime_types::ocl,
                         "[GPU] MMAP shared buffer is supported only for OCL runtime");
         // definition: repo compute-runtime\opencl\source\mem_obj\buffer.cpp Buffer::checkMemory zero copy conditions
@@ -375,10 +373,10 @@ void RemoteTensorImpl::allocate() {
         OPENVINO_ASSERT(is_no_copy_aligned_size(m_layout.bytes_count()),
                         "[GPU] shared buffer size must be a multiple of ", minimal_alignment_no_copy, " bytes");
 
-                        m_memory_object = engine.create_hostbuffer(m_mem,
-                                                        m_layout.bytes_count(),
-                                                        cldnn::allocation_type::usm_host,
-                                                        m_layout);
+        m_memory_object = engine.create_hostbuffer(m_mem,
+                                        m_layout.bytes_count(),
+                                        cldnn::allocation_type::usm_host,
+                                        m_layout);
         break;
     }
 #ifdef _WIN32
@@ -418,7 +416,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
-           m_mem_type == TensorType::BF_BUF_CPU_MEMORY ||
+           m_mem_type == TensorType::BT_CPU_MEMORY ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
            m_mem_type == TensorType::BT_SURF_SHARED ||
@@ -505,7 +503,7 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
-    case TensorType::BF_BUF_CPU_MEMORY:
+    case TensorType::BT_CPU_MEMORY:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_POINTER),
             ov::intel_gpu::ocl_context(params.context),
