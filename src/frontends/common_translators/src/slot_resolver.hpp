@@ -27,7 +27,6 @@ namespace sal_detail {
 using Slots = std::vector<ov::Output<ov::Node>>;
 
 struct LengthTemplate {
-    int64_t length{};
     std::vector<ov::Output<ov::Node>> slot_templates;
 };
 
@@ -69,7 +68,6 @@ public:
     }
 
     std::optional<Slots> slots_of(const ov::Output<ov::Node>& value_in);
-    std::optional<int64_t> length_of(const ov::Output<ov::Node>& value_in);
 
     // True when `value` resolves to the per-element slots of a Loop merged
     // input that was seeded from an empty sequence (SequenceEmpty). Such a

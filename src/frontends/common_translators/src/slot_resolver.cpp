@@ -586,7 +586,6 @@ std::optional<LengthTemplate> SlotResolver::find_template_via_chain(const ov::Ou
                     // dependency during Loop pre-allocation.
                     LengthTemplate t;
                     expand_chain_templates(v, t.slot_templates);
-                    t.length = static_cast<int64_t>(t.slot_templates.size());
                     return t;
                 }
             }
@@ -801,14 +800,6 @@ std::optional<Slots> SlotResolver::slots_of(const ov::Output<ov::Node>& value_in
         cache_[value] = *result;
     }
     return result;
-}
-
-std::optional<int64_t> SlotResolver::length_of(const ov::Output<ov::Node>& value_in) {
-    auto s = slots_of(value_in);
-    if (!s) {
-        return std::nullopt;
-    }
-    return static_cast<int64_t>(s->size());
 }
 
 bool SlotResolver::is_loop_carried_empty_seed(const ov::Output<ov::Node>& value) {
