@@ -443,8 +443,10 @@ TEST_P(CoreThreadingCpuMultiAppThreadSyncTest, smoke_CpuExecNetworkMultiAppThrea
         const auto input = compiledModel.input();
         for (size_t i = 0; i < numThreads; ++i) {
             requests.push_back(compiledModel.create_infer_request());
-            inputTensors.push_back(
-                ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_shape(), 256, i + 1));
+            inputTensors.push_back(ov::test::utils::create_and_fill_tensor(input.get_element_type(),
+                                                                           input.get_shape(),
+                                                                           256,
+                                                                           static_cast<double_t>(i + 1)));
             requests.back().set_input_tensor(inputTensors.back());
         }
 
