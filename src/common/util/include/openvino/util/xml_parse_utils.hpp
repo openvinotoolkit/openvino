@@ -241,7 +241,7 @@ inline ParseResult parse_xml(const std::filesystem::path& file_path) {
         }();
 
         return {std::move(xml), std::move(error_msg)};
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }

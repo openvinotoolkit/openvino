@@ -21,7 +21,7 @@ protected:
     std::filesystem::path m_xml_path;
 
     void SetUp() override {
-        m_xml_path = ov::test::utils::generateTestFilePrefix() + "_gh34337.xml";
+        m_xml_path = ov::test::utils::generateTestFilePrefix() + "_test.xml";
     }
 
     void TearDown() override {
@@ -39,12 +39,12 @@ TEST_F(ParseXmlTest, utf16_cjk_expanded_buffer) {
     //   u'\u4E00'   -> 00 4E per char (CJK '一': 2 bytes UTF-16, 3 bytes UTF-8)
     // File is truncated (no closing </a>), so pugixml returns a parse error whose offset
     // is into the expanded UTF-8 decoded buffer (~305 bytes), which exceeds the 208 raw bytes on disk.
-    const std::u16string content = u"\uFEFF<a>" + std::u16string(100, u'\u4E00');
-    const auto raw_file_size = content.size() * sizeof(char16_t);  // 208 bytes
     {
+        const std::u16string content = u"\uFEFF<a>" + std::u16string(100, u'\u4E00');
+        const std::streamsize raw_file_size = content.size() * sizeof(char16_t);
         std::ofstream out(m_xml_path, std::ios::binary);
         ASSERT_TRUE(out.is_open());
-        out.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(raw_file_size));
+        out.write(reinterpret_cast<const char*>(content.data()), raw_file_size);
     }
 
     // trigger condition (offset > file.size())
@@ -55,7 +55,7 @@ TEST_F(ParseXmlTest, utf16_cjk_expanded_buffer) {
     std::ifstream fs(m_xml_path);
     const std::string raw(std::istreambuf_iterator<char>{fs}, std::istreambuf_iterator<char>{});
     // the crafted file triggers offset > file.size().
-    ASSERT_GT(static_cast<std::size_t>(pugi_result.offset), raw.size());
+    ASSERT_GT(static_cast<size_t>(pugi_result.offset), raw.size());
 
     const auto result = ov::util::pugixml::parse_xml(m_xml_path);
     // The file is genuinely malformed – parse_xml must always report an error.
