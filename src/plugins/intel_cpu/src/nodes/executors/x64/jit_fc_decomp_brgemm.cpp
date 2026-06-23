@@ -14,6 +14,7 @@
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "common/c_types_map.hpp"
@@ -30,6 +31,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -66,9 +68,28 @@ struct DecompressionParamLayout {
     size_t groups = 1;
 };
 
+struct CanonicalDecompressionParams {
+    bool scalar = true;
+    bool perOutputChannel = false;
+    size_t groups = 1;
+    std::vector<float> values;
+
+    [[nodiscard]] bool empty() const {
+        return values.empty();
+    }
+};
+
 struct WeightsLayout {
     size_t inputChannels = 0;
     size_t outputChannels = 0;
+};
+
+struct PreparedCompressedWeights {
+    const uint8_t* jitData = nullptr;
+    const uint8_t* fallbackData = nullptr;
+    bool jitWeightsNonTransposed = false;
+    size_t icInternalSize = 1;
+    size_t packedIcCount = 0;
 };
 
 bool hasBiasMemory(const MemoryArgs& memory);
@@ -87,6 +108,17 @@ struct ExecutionPlan {
     bool useSeparateDynamicQuantPostOps = false;
     bool canWriteDirectly = false;
 };
+
+#ifdef CPU_DEBUG_CAPS
+bool shouldLogDecompressionDebugCounter(const size_t count) {
+    return count <= 4 || (count & (count - 1)) == 0;
+}
+
+std::string layoutToDebugString(const DecompressionParamLayout& layout) {
+    return "scalar=" + std::to_string(layout.scalar) + ",per_output_channel=" + std::to_string(layout.perOutputChannel) +
+           ",output_major=" + std::to_string(layout.outputMajor) + ",groups=" + std::to_string(layout.groups);
+}
+#endif
 
 int32_t readPackedValue(const uint8_t* data, ov::element::Type type, size_t index) {
     switch (type) {
@@ -261,6 +293,127 @@ DecompressionParamLayout getParamLayout(const MemoryDescPtr& desc, bool weightsN
     return layout;
 }
 
+size_t getCanonicalDecompressionParamGroupCount(const CanonicalDecompressionParams& params) {
+    if (params.scalar || params.perOutputChannel) {
+        return 1;
+    }
+
+    return params.groups;
+}
+
+CanonicalDecompressionParams prepackDecompressionParams(const MemoryPtr& memory,
+                                                        bool weightsNonTransposed,
+                                                        size_t outputChannels,
+                                                        bool isZeroPoint) {
+    CanonicalDecompressionParams params;
+    if (!memory || memory->getDesc().empty()) {
+        return params;
+    }
+
+    const auto layout = getParamLayout(memory, weightsNonTransposed, outputChannels);
+    params.scalar = layout.scalar;
+    params.perOutputChannel = layout.perOutputChannel;
+    params.groups = layout.scalar || layout.perOutputChannel ? 1 : layout.groups;
+
+    std::vector<float> cache;
+    auto readValue = [&](size_t index) {
+        return isZeroPoint ? readZeroPointValue(memory, cache, index) : readScaleValue(memory, cache, index);
+    };
+
+    if (params.scalar) {
+        params.values.push_back(readValue(0));
+        return params;
+    }
+
+    if (params.perOutputChannel) {
+        params.values.resize(outputChannels);
+        for (size_t outputChannel = 0; outputChannel < outputChannels; outputChannel++) {
+            params.values[outputChannel] = readValue(outputChannel);
+        }
+        return params;
+    }
+
+    params.values.resize(params.groups * outputChannels);
+    for (size_t group = 0; group < params.groups; group++) {
+        for (size_t outputChannel = 0; outputChannel < outputChannels; outputChannel++) {
+            const size_t sourceIndex = layout.outputMajor ? (outputChannel * params.groups + group)
+                                                          : (group * outputChannels + outputChannel);
+            params.values[group * outputChannels + outputChannel] = readValue(sourceIndex);
+        }
+    }
+
+    return params;
+}
+
+const float* getCanonicalDecompressionParamPtr(const CanonicalDecompressionParams& params,
+                                               size_t outputChannels,
+                                               size_t outputChannel,
+                                               size_t group) {
+    if (params.empty()) {
+        return nullptr;
+    }
+
+    if (params.scalar) {
+        return params.values.data();
+    }
+
+    if (params.perOutputChannel) {
+        return params.values.data() + outputChannel;
+    }
+
+    return params.values.data() + group * outputChannels + outputChannel;
+}
+
+float readCanonicalDecompressionParamValue(const CanonicalDecompressionParams& params,
+                                           size_t outputChannels,
+                                           size_t outputChannel,
+                                           size_t group,
+                                           float defaultValue) {
+    const auto* ptr = getCanonicalDecompressionParamPtr(params, outputChannels, outputChannel, group);
+    return ptr == nullptr ? defaultValue : *ptr;
+}
+
+PreparedCompressedWeights prepareCompressedWeights(const FCAttrs& attrs,
+                                                   const MemoryArgs& memory,
+                                                   size_t outputChannels,
+                                                   size_t inputChannels,
+                                                   std::vector<uint8_t>& canonicalBuffer) {
+    const auto& weightsMemory = memory.at(ARG_WEI);
+    const auto compressedType = weightsMemory->getDesc().getPrecision();
+    const auto* rawData = weightsMemory->getDataAs<const uint8_t>();
+
+    PreparedCompressedWeights prepared;
+    prepared.jitData = rawData;
+    prepared.fallbackData = rawData;
+    prepared.jitWeightsNonTransposed = attrs.weightsNonTransposed;
+    prepared.icInternalSize = (compressedType == ov::element::u4 || compressedType == ov::element::i4) ? 2
+                             : (compressedType == ov::element::u2) ? 4
+                             : 1;
+    prepared.packedIcCount = (inputChannels + prepared.icInternalSize - 1) / prepared.icInternalSize;
+
+    if (attrs.weightsNonTransposed || !attrs.constantWeights) {
+        if (!attrs.weightsNonTransposed) {
+            canonicalBuffer.clear();
+        }
+        return prepared;
+    }
+
+    const size_t canonicalSize = prepared.packedIcCount * outputChannels;
+    if (canonicalBuffer.size() != canonicalSize) {
+        canonicalBuffer.resize(canonicalSize);
+        for (size_t outputChannel = 0; outputChannel < outputChannels; outputChannel++) {
+            for (size_t packedIcIdx = 0; packedIcIdx < prepared.packedIcCount; packedIcIdx++) {
+                canonicalBuffer[packedIcIdx * outputChannels + outputChannel] =
+                    rawData[outputChannel * prepared.packedIcCount + packedIcIdx];
+            }
+        }
+    }
+
+    prepared.jitData = canonicalBuffer.data();
+    prepared.jitWeightsNonTransposed = true;
+    return prepared;
+}
+
 WeightsLayout getWeightsLayout(const FCAttrs& attrs, const MemoryArgs& memory) {
     const auto& srcMemory = memory.at(ARG_SRC);
     const auto& weightsMemory = memory.at(ARG_WEI);
@@ -289,11 +442,22 @@ WeightsLayout getWeightsLayout(const FCAttrs& attrs, const MemoryArgs& memory) {
 }
 
 WeightsLayout getWeightsLayout(const FCAttrs& attrs, const MemoryDescPtr& srcDesc, const MemoryDescPtr& weightsDesc) {
-    const auto& weightsDims = weightsDesc->getShape().getStaticDims();
+    const auto& weightsShape = weightsDesc->getShape();
+    OPENVINO_ASSERT(weightsShape.isStatic(), "Only static rank-2 FC weights are supported for external decompression");
+    const auto& weightsDims = weightsShape.getStaticDims();
 
     OPENVINO_ASSERT(weightsDims.size() == 2, "Only rank-2 FC weights are supported for external decompression");
 
-    const size_t srcK = srcDesc->getShape().getStaticDims().back();
+    const auto& srcShape = srcDesc->getShape();
+    if (!srcShape.isStatic()) {
+        if (attrs.weightsNonTransposed) {
+            return {weightsDims[0], weightsDims[1]};
+        }
+
+        return {weightsDims[1], weightsDims[0]};
+    }
+
+    const size_t srcK = srcShape.getStaticDims().back();
     const bool dim0Matches = weightsDims[0] == srcK;
     const bool dim1Matches = weightsDims[1] == srcK;
 
@@ -320,18 +484,7 @@ bool supportsJitDecompression(const FCAttrs& attrs,
                              const ov::element::Type compressedType,
                              const DecompressionParamLayout& scaleLayout,
                              const DecompressionParamLayout& zeroPointLayout) {
-    if (!attrs.weightsNonTransposed) {
-        return false;
-    }
-
-    if (!dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8)) {
-        return false;
-    }
-
-    const bool scalesSupported = scaleLayout.scalar || scaleLayout.perOutputChannel || !scaleLayout.outputMajor;
-    const bool zeroPointsSupported = zeroPointLayout.scalar || zeroPointLayout.perOutputChannel || !zeroPointLayout.outputMajor;
-
-    return scalesSupported && zeroPointsSupported;
+    return dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8);
 }
 
 bool supportsDynamicQuantization(const FCAttrs& attrs,
@@ -501,6 +654,7 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
                                      const MemoryArgs& memory,
                                      size_t dqGroupSize,
                                      const std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>>& jitUnpackKernels,
+                                     std::vector<uint8_t>& canonicalCompressedWeights,
                                      std::vector<uint8_t>& weights,
                                      std::vector<float>& weightScales,
                                      std::vector<float>& weightZeroPoints,
@@ -518,19 +672,16 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
     const size_t ic = weightsLayout.inputChannels;
     const size_t groups = (ic + dqGroupSize - 1) / dqGroupSize;
 
-    const auto scaleLayout = getParamLayout(scalesMemory, attrs.weightsNonTransposed, oc);
-    const auto zeroPointLayout = getParamLayout(zeroPointsMemory, attrs.weightsNonTransposed, oc);
+    const auto scaleParams = prepackDecompressionParams(scalesMemory, attrs.weightsNonTransposed, oc, false);
+    const auto zeroPointParams = prepackDecompressionParams(zeroPointsMemory, attrs.weightsNonTransposed, oc, true);
 
-    const size_t scaleGroups = scaleLayout.groups;
-    const size_t zeroPointGroups = zeroPointLayout.groups;
+    const size_t scaleGroups = getCanonicalDecompressionParamGroupCount(scaleParams);
+    const size_t zeroPointGroups = getCanonicalDecompressionParamGroupCount(zeroPointParams);
     OPENVINO_ASSERT(ic % scaleGroups == 0, "Scale grouping must evenly divide IC");
     OPENVINO_ASSERT(ic % zeroPointGroups == 0, "Zero-point grouping must evenly divide IC");
 
     const size_t scaleGroupSize = ic / scaleGroups;
     const size_t zeroPointGroupSize = ic / zeroPointGroups;
-    const auto* compressedData = weightsMemory->getDataAs<const uint8_t>();
-    std::vector<float> scaleCache;
-    std::vector<float> zeroPointCache;
     std::vector<float> unpackCache;
 
     weightsType = isUnsignedCompressedWeightsType(compressedType) ? ov::element::u8 : ov::element::i8;
@@ -538,33 +689,38 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
     weightScales.resize(groups * oc);
     weightZeroPoints.resize(groups * oc);
 
-    const bool canUseJitUnpack = !jitUnpackKernels.empty() && attrs.weightsNonTransposed
-            && dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8,
-                                         ov::element::u4, ov::element::i4, ov::element::u2);
+    const bool canUseJitUnpack = !jitUnpackKernels.empty() && dnnl::impl::utils::one_of(compressedType,
+                                                                                         ov::element::u8,
+                                                                                         ov::element::i8,
+                                                                                         ov::element::u4,
+                                                                                         ov::element::i4,
+                                                                                         ov::element::u2);
     const size_t jitBlock = canUseJitUnpack ? jitUnpackKernels[0]->blockSize() : 0;
     if (canUseJitUnpack) {
         unpackCache.resize(jitBlock);
     }
 
-    // Determine sub-byte packing factor for dynamic quant
-    const size_t icInternalSize = (compressedType == ov::element::u4 || compressedType == ov::element::i4) ? 2
-                                 : (compressedType == ov::element::u2) ? 4
-                                 : 1;
+    const auto preparedWeights = prepareCompressedWeights(attrs, memory, oc, ic, canonicalCompressedWeights);
+    const auto* compressedData = preparedWeights.jitData;
+    const auto* fallbackCompressedData = preparedWeights.fallbackData;
 
     for (size_t icIdx = 0; icIdx < ic; icIdx++) {
         size_t ocIdx = 0;
         if (canUseJitUnpack) {
             for (; ocIdx + jitBlock <= oc; ocIdx += jitBlock) {
                 // For sub-byte types: calculate packed address
-                const size_t packedIcIdx = icIdx / icInternalSize;
-                const size_t internalIcIdx = icIdx % icInternalSize;
-                const size_t compressedWeightsAddr = packedIcIdx * oc + ocIdx;
+                const size_t packedIcIdx = icIdx / preparedWeights.icInternalSize;
+                const size_t internalIcIdx = icIdx % preparedWeights.icInternalSize;
+                const size_t compressedWeightsAddr = preparedWeights.jitWeightsNonTransposed
+                    ? (packedIcIdx * oc + ocIdx)
+                    : (ocIdx * preparedWeights.packedIcCount + packedIcIdx);
 
                 // Select the appropriate kernel for this IC index
                 const auto* selectedKernel = jitUnpackKernels[internalIcIdx].get();
 
                 FCWeightDecompressionKernelRuntimeParams rtParams{};
                 rtParams.weights = compressedData + compressedWeightsAddr;
+                rtParams.weightsStride = preparedWeights.jitWeightsNonTransposed ? 0 : preparedWeights.packedIcCount;
                 rtParams.dst = unpackCache.data();
                 (*selectedKernel)(&rtParams);
 
@@ -582,7 +738,7 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
         for (; ocIdx < oc; ocIdx++) {
             const size_t compressedWeightIndex = attrs.weightsNonTransposed ? (icIdx * oc + ocIdx)
                                                                             : (ocIdx * ic + icIdx);
-            const int32_t value = readPackedValue(compressedData, compressedType, compressedWeightIndex);
+            const int32_t value = readPackedValue(fallbackCompressedData, compressedType, compressedWeightIndex);
             if (weightsType == ov::element::u8) {
                 weights[icIdx * oc + ocIdx] = static_cast<uint8_t>(value);
             } else {
@@ -597,44 +753,12 @@ void refreshDynamicQuantWeightParams(const FCAttrs& attrs,
         const size_t zeroPointGroup = std::min(icIdx / zeroPointGroupSize, zeroPointGroups - 1);
 
         for (size_t ocIdx = 0; ocIdx < oc; ocIdx++) {
-            const size_t scaleIndex = scaleLayout.scalar ? 0
-                                                         : scaleLayout.perOutputChannel ? ocIdx
-                                                                                        : (scaleLayout.outputMajor
-                                                                                               ? (ocIdx * scaleGroups + scaleGroup)
-                                                                                               : (scaleGroup * oc + ocIdx));
-            const size_t zeroPointIndex = zeroPointLayout.scalar ? 0
-                                                                 : zeroPointLayout.perOutputChannel ? ocIdx
-                                                                                                    : (zeroPointLayout.outputMajor
-                                                                                                           ? (ocIdx * zeroPointGroups + zeroPointGroup)
-                                                                                                           : (zeroPointGroup * oc + ocIdx));
-            weightScales[group * oc + ocIdx] = readScaleValue(scalesMemory, scaleCache, scaleIndex);
-            weightZeroPoints[group * oc + ocIdx] = readZeroPointValue(zeroPointsMemory, zeroPointCache, zeroPointIndex);
+            weightScales[group * oc + ocIdx] =
+                readCanonicalDecompressionParamValue(scaleParams, oc, ocIdx, scaleGroup, 1.0F);
+            weightZeroPoints[group * oc + ocIdx] =
+                readCanonicalDecompressionParamValue(zeroPointParams, oc, ocIdx, zeroPointGroup, 0.0F);
         }
     }
-}
-
-const float* getJitParamPtr(const std::vector<float>& cache,
-                            const DecompressionParamLayout& layout,
-                            size_t outputChannels,
-                            size_t outputChannel,
-                            size_t group) {
-    if (cache.empty()) {
-        return nullptr;
-    }
-
-    if (layout.scalar) {
-        return cache.data();
-    }
-
-    if (layout.perOutputChannel) {
-        return cache.data() + outputChannel;
-    }
-
-    if (layout.outputMajor) {
-        return nullptr;
-    }
-
-    return cache.data() + group * outputChannels + outputChannel;
 }
 
 MemoryPtr prepareDecompressedWeightsMemory(const MemoryArgs& memory,
@@ -658,7 +782,8 @@ MemoryPtr prepareDecompressedWeightsMemory(const MemoryArgs& memory,
 void decompressWeights(const FCAttrs& attrs,
                        const MemoryArgs& memory,
                        const MemoryPtr& decompressedWeights,
-                       const std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>>& jitKernels) {
+                       const std::vector<std::unique_ptr<FCWeightDecompressionKernelBase>>& jitKernels,
+                       std::vector<uint8_t>& canonicalCompressedWeights) {
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto scalesIt = memory.find(ARG_WEI | ARG_ATTR_SCALES);
     const auto zeroPointsIt = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS);
@@ -673,28 +798,26 @@ void decompressWeights(const FCAttrs& attrs,
 
     const auto scaleLayout = getParamLayout(scalesMemory, attrs.weightsNonTransposed, oc);
     const auto zeroPointLayout = getParamLayout(zeroPointsMemory, attrs.weightsNonTransposed, oc);
+    const auto scaleParams = prepackDecompressionParams(scalesMemory, attrs.weightsNonTransposed, oc, false);
+    const auto zeroPointParams = prepackDecompressionParams(zeroPointsMemory, attrs.weightsNonTransposed, oc, true);
 
-    const size_t scaleGroups = scaleLayout.groups;
-    const size_t zeroPointGroups = zeroPointLayout.groups;
+    const size_t scaleGroups = getCanonicalDecompressionParamGroupCount(scaleParams);
+    const size_t zeroPointGroups = getCanonicalDecompressionParamGroupCount(zeroPointParams);
 
     OPENVINO_ASSERT(ic % scaleGroups == 0, "Scale grouping must evenly divide IC");
     OPENVINO_ASSERT(ic % zeroPointGroups == 0, "Zero-point grouping must evenly divide IC");
 
     const size_t scaleGroupSize = ic / scaleGroups;
     const size_t zeroPointGroupSize = ic / zeroPointGroups;
-    const auto* compressedData = weightsMemory->getDataAs<const uint8_t>();
     std::vector<float> decompressed(oc * ic);
     auto* decompressedData = decompressed.data();
-    std::vector<float> scaleCache;
-    std::vector<float> zeroPointCache;
 
     const bool canUseJit = !jitKernels.empty() && supportsJitDecompression(attrs, compressedType, scaleLayout, zeroPointLayout);
     const size_t jitBlock = canUseJit ? jitKernels[0]->blockSize() : 0;
 
-    // Determine sub-byte packing factor
-    const size_t icInternalSize = (compressedType == ov::element::u4 || compressedType == ov::element::i4) ? 2
-                                 : (compressedType == ov::element::u2) ? 4
-                                 : 1;
+    const auto preparedWeights = prepareCompressedWeights(attrs, memory, oc, ic, canonicalCompressedWeights);
+    const auto* compressedData = preparedWeights.jitData;
+    const auto* fallbackCompressedData = preparedWeights.fallbackData;
 
     for (size_t icIdx = 0; icIdx < ic; icIdx++) {
         const size_t scaleGroup = std::min(icIdx / scaleGroupSize, scaleGroups - 1);
@@ -703,33 +826,23 @@ void decompressWeights(const FCAttrs& attrs,
 
         if (canUseJit) {
             for (; ocIdx + jitBlock <= oc; ocIdx += jitBlock) {
-                if (scalesMemory && scaleCache.empty()) {
-                    readScaleValue(scalesMemory, scaleCache, 0);
-                }
-                if (zeroPointsMemory && zeroPointCache.empty()) {
-                    readZeroPointValue(zeroPointsMemory, zeroPointCache, 0);
-                }
-
-                const auto* scalesPtr = getJitParamPtr(scaleCache, scaleLayout, oc, ocIdx, scaleGroup);
-                const auto* zeroPointsPtr = getJitParamPtr(zeroPointCache, zeroPointLayout, oc, ocIdx, zeroPointGroup);
-
-                if ((scalesMemory && scalesPtr == nullptr) || (zeroPointsMemory && zeroPointsPtr == nullptr)) {
-                    break;
-                }
+                const auto* scalesPtr = getCanonicalDecompressionParamPtr(scaleParams, oc, ocIdx, scaleGroup);
+                const auto* zeroPointsPtr = getCanonicalDecompressionParamPtr(zeroPointParams, oc, ocIdx, zeroPointGroup);
 
                 // For sub-byte types: calculate packed address
                 // u4/i4: 2 values per byte, u2: 4 values per byte
-                const size_t packedIcIdx = icIdx / icInternalSize;
-                const size_t internalIcIdx = icIdx % icInternalSize;
-                const size_t compressedWeightsAddr = attrs.weightsNonTransposed
+                const size_t packedIcIdx = icIdx / preparedWeights.icInternalSize;
+                const size_t internalIcIdx = icIdx % preparedWeights.icInternalSize;
+                const size_t compressedWeightsAddr = preparedWeights.jitWeightsNonTransposed
                     ? (packedIcIdx * oc + ocIdx)
-                    : (ocIdx * (ic / icInternalSize) + packedIcIdx);
+                    : (ocIdx * preparedWeights.packedIcCount + packedIcIdx);
 
                 // Select the appropriate kernel for this IC index
                 const auto* selectedKernel = jitKernels[internalIcIdx].get();
 
                 FCWeightDecompressionKernelRuntimeParams rtParams{};
                 rtParams.weights = compressedData + compressedWeightsAddr;
+                rtParams.weightsStride = preparedWeights.jitWeightsNonTransposed ? 0 : preparedWeights.packedIcCount;
                 rtParams.dst = decompressedData + icIdx * oc + ocIdx;
                 rtParams.scales = scalesPtr;
                 rtParams.zeroPoints = zeroPointsPtr;
@@ -741,20 +854,9 @@ void decompressWeights(const FCAttrs& attrs,
             const size_t compressedWeightIndex = attrs.weightsNonTransposed ? (icIdx * oc + ocIdx)
                                                                             : (ocIdx * ic + icIdx);
             const size_t decompressedWeightIndex = icIdx * oc + ocIdx;
-            const size_t scaleIndex = scaleLayout.scalar ? 0
-                                                          : scaleLayout.perOutputChannel ? ocIdx
-                                                                                         : (scaleLayout.outputMajor
-                                                                                                ? (ocIdx * scaleGroups + scaleGroup)
-                                                                                                : (scaleGroup * oc + ocIdx));
-            const size_t zeroPointIndex = zeroPointLayout.scalar ? 0
-                                                                  : zeroPointLayout.perOutputChannel ? ocIdx
-                                                                                                     : (zeroPointLayout.outputMajor
-                                                                                                            ? (ocIdx * zeroPointGroups + zeroPointGroup)
-                                                                                                            : (zeroPointGroup * oc + ocIdx));
-
-            const float scale = readScaleValue(scalesMemory, scaleCache, scaleIndex);
-            const float zeroPoint = readZeroPointValue(zeroPointsMemory, zeroPointCache, zeroPointIndex);
-            const float value = static_cast<float>(readPackedValue(compressedData, compressedType, compressedWeightIndex));
+            const float scale = readCanonicalDecompressionParamValue(scaleParams, oc, ocIdx, scaleGroup, 1.0F);
+            const float zeroPoint = readCanonicalDecompressionParamValue(zeroPointParams, oc, ocIdx, zeroPointGroup, 0.0F);
+            const float value = static_cast<float>(readPackedValue(fallbackCompressedData, compressedType, compressedWeightIndex));
             decompressedData[decompressedWeightIndex] = (value - zeroPoint) * scale;
         }
     }
@@ -1000,6 +1102,10 @@ bool JitFCDecompBrgemmExecutor::supports(const FCConfig& config) {
         return false;
     }
 
+    if (!config.attrs.weightsNonTransposed && !config.attrs.constantWeights) {
+        return false;
+    }
+
     if (hasMemory(config, ARG_WEI | ARG_ATTR_SCALES) &&
         !isSupportedScaleType(config.descs.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision())) {
         return false;
@@ -1031,7 +1137,13 @@ bool JitFCDecompBrgemmExecutor::supports(const FCConfig& config) {
                                            zeroPointDesc);
     }
 
-    return true;
+    const auto weightsLayout = getWeightsLayout(config.attrs, config.descs.at(ARG_SRC), config.descs.at(ARG_WEI));
+    const auto scaleDesc = hasMemory(config, ARG_WEI | ARG_ATTR_SCALES) ? config.descs.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
+    const auto zeroPointDesc = hasMemory(config, ARG_WEI | ARG_ATTR_ZERO_POINTS) ? config.descs.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
+    const auto scaleLayout = getParamLayout(scaleDesc, config.attrs.weightsNonTransposed, weightsLayout.outputChannels);
+    const auto zeroPointLayout = getParamLayout(zeroPointDesc, config.attrs.weightsNonTransposed, weightsLayout.outputChannels);
+
+    return supportsJitDecompression(config.attrs, weiType, scaleLayout, zeroPointLayout);
 }
 
 JitFCDecompBrgemmExecutor::JitFCDecompBrgemmExecutor(const FCAttrs& attrs,
@@ -1248,14 +1360,29 @@ DnnlPrimitiveAttrs JitFCDecompBrgemmExecutor::buildBrgemmPostOps(const MemoryArg
 }
 
 void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& memory) {
+#ifdef CPU_DEBUG_CAPS
+    const size_t rebuildCount = ++m_debugRebuildDecompressionCount;
+#endif
     m_jitDecompressionKernels.clear();
     m_jitWeightUnpackKernels.clear();
 
+    const bool useStridedCompressedWeights = !m_attrs.weightsNonTransposed && !m_attrs.constantWeights;
+
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto compressedType = weightsMemory->getDesc().getPrecision();
-    if (!m_attrs.weightsNonTransposed ||
-        !dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8,
+    if (!dnnl::impl::utils::one_of(compressedType, ov::element::u8, ov::element::i8,
                                     ov::element::u4, ov::element::i4, ov::element::u2)) {
+#ifdef CPU_DEBUG_CAPS
+        if (shouldLogDecompressionDebugCounter(rebuildCount)) {
+            DEBUG_LOG("JitFCDecompBrgemmExecutor@",
+                      this,
+                      " rebuildDecompressionKernel#",
+                      rebuildCount,
+                      " compressed_type=",
+                      compressedType.to_string(),
+                          " jit_hit=false reason=unsupported_rebuild_gate");
+        }
+#endif
         return;
     }
 
@@ -1268,6 +1395,21 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
     const auto zeroPointLayout = getParamLayout(zeroPointsMemory, m_attrs.weightsNonTransposed, weightsLayout.outputChannels);
 
     if (!supportsJitDecompression(m_attrs, compressedType, scaleLayout, zeroPointLayout)) {
+#ifdef CPU_DEBUG_CAPS
+        if (shouldLogDecompressionDebugCounter(rebuildCount)) {
+            DEBUG_LOG("JitFCDecompBrgemmExecutor@",
+                      this,
+                      " rebuildDecompressionKernel#",
+                      rebuildCount,
+                      " compressed_type=",
+                      compressedType.to_string(),
+                      " jit_hit=false reason=supportsJitDecompression_rejected scale_layout={",
+                      layoutToDebugString(scaleLayout),
+                      "} zero_point_layout={",
+                      layoutToDebugString(zeroPointLayout),
+                      "}");
+        }
+#endif
         return;
     }
 
@@ -1286,6 +1428,7 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
         params.broadcastScales = scaleLayout.scalar;
         params.broadcastZeroPoints = zeroPointLayout.scalar;
         params.weightsType = compressedType;
+        params.stridedWeights = useStridedCompressedWeights;
         params.icIndex = static_cast<int>(icIdx);
 
         if (mayiuse(avx512_core)) {
@@ -1294,6 +1437,7 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
 
             FCWeightDecompressionKernelCompileParams unpackParams{};
             unpackParams.weightsType = compressedType;
+            unpackParams.stridedWeights = useStridedCompressedWeights;
             unpackParams.icIndex = static_cast<int>(icIdx);
             m_jitWeightUnpackKernels.push_back(
                 std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx512_core>>(unpackParams));
@@ -1303,11 +1447,34 @@ void JitFCDecompBrgemmExecutor::rebuildDecompressionKernel(const MemoryArgs& mem
 
             FCWeightDecompressionKernelCompileParams unpackParams{};
             unpackParams.weightsType = compressedType;
+            unpackParams.stridedWeights = useStridedCompressedWeights;
             unpackParams.icIndex = static_cast<int>(icIdx);
             m_jitWeightUnpackKernels.push_back(
                 std::make_unique<JitFCWeightDecompressionKernel<cpu_isa_t::avx2>>(unpackParams));
         }
     }
+
+#ifdef CPU_DEBUG_CAPS
+    if (shouldLogDecompressionDebugCounter(rebuildCount)) {
+        DEBUG_LOG("JitFCDecompBrgemmExecutor@",
+                  this,
+                  " rebuildDecompressionKernel#",
+                  rebuildCount,
+                  " compressed_type=",
+                  compressedType.to_string(),
+                  " jit_hit=",
+                  !m_jitDecompressionKernels.empty(),
+                  " jit_kernel_count=",
+                  m_jitDecompressionKernels.size(),
+                  " unpack_kernel_count=",
+                  m_jitWeightUnpackKernels.size(),
+                  " scale_layout={",
+                  layoutToDebugString(scaleLayout),
+                  "} zero_point_layout={",
+                  layoutToDebugString(zeroPointLayout),
+                  "}");
+    }
+#endif
 }
 
 void JitFCDecompBrgemmExecutor::rebuildSourceQuantizationKernel(const MemoryArgs& memory) {
@@ -1329,8 +1496,28 @@ void JitFCDecompBrgemmExecutor::rebuildSourceQuantizationKernel(const MemoryArgs
 }
 
 void JitFCDecompBrgemmExecutor::refreshDecompressedWeights(const MemoryArgs& memory) {
+#ifdef CPU_DEBUG_CAPS
+    const size_t refreshCount = ++m_debugRefreshDecompressedWeightsCount;
+    if (shouldLogDecompressionDebugCounter(refreshCount)) {
+        const auto& weightsMemory = memory.at(ARG_WEI);
+        DEBUG_LOG("JitFCDecompBrgemmExecutor@",
+                  this,
+                  " refreshDecompressedWeights#",
+                  refreshCount,
+                  " repeated_refresh=",
+                  refreshCount > 1,
+                  " compressed_type=",
+                  weightsMemory->getDesc().getPrecision().to_string(),
+                  " jit_kernel_count=",
+                  m_jitDecompressionKernels.size(),
+                  " weights_ptr=",
+                  static_cast<const void*>(weightsMemory->getDataAs<const uint8_t>()),
+                  " decompressed_buffer=",
+                  m_decompressedWeights ? m_decompressedWeights->getData() : nullptr);
+    }
+#endif
     ensureDecompressedWeightsMemory(memory);
-    decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernels);
+    decompressWeights(m_attrs, memory, m_decompressedWeights, m_jitDecompressionKernels, m_canonicalCompressedWeights);
 }
 
 void JitFCDecompBrgemmExecutor::refreshDynamicQuantWeights(const MemoryArgs& memory) {
@@ -1339,6 +1526,7 @@ void JitFCDecompBrgemmExecutor::refreshDynamicQuantWeights(const MemoryArgs& mem
                                     memory,
                                     dqGroupSize,
                                     m_jitWeightUnpackKernels,
+                                    m_canonicalCompressedWeights,
                                     m_dynamicQuantWeights,
                                     m_dynamicQuantWeightScales,
                                     m_dynamicQuantWeightZeroPoints,

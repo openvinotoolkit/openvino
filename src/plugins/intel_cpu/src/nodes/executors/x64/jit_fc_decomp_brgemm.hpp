@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -103,12 +104,17 @@ private:
     std::vector<uint8_t> m_dynamicQuantWeights;
     std::vector<float> m_dynamicQuantWeightScales;
     std::vector<float> m_dynamicQuantWeightZeroPoints;
+    std::vector<uint8_t> m_canonicalCompressedWeights;
     ov::element::Type m_dynamicQuantWeightsType = ov::element::dynamic;
     size_t m_m = 0;
     size_t m_n = 0;
     size_t m_k = 0;
     size_t m_brgemmNBlock = 0;
     size_t m_threads = 0;
+#ifdef CPU_DEBUG_CAPS
+    std::atomic<size_t> m_debugRebuildDecompressionCount{0};
+    std::atomic<size_t> m_debugRefreshDecompressedWeightsCount{0};
+#endif
 };
 
 }  // namespace ov::intel_cpu
