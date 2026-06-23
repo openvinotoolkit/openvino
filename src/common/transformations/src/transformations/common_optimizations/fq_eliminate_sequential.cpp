@@ -46,7 +46,8 @@ bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs
 FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
     MATCHER_SCOPE(FakeQuantizeEliminateSequential);
     auto p_fq1 = pattern::wrap_type<v0::FakeQuantize>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()}, pattern::consumers_count(1));
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
+        pattern::consumers_count(1));
 
     // Eliminates a redundant second FakeQuantize (FQ1 -> FQ2). Notation below:
     // FQ(in_low, in_high, out_low, out_high, levels). FQ1 and FQ2 may be separated by one or several
