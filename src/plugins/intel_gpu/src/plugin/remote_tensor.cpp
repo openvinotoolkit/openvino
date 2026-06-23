@@ -14,13 +14,18 @@
 #include <memory>
 
 namespace ov::intel_gpu {
+const size_t minimal_alignment_no_copy = 64;
 
 namespace {
-static bool is_page_aligned_ptr(const void* ptr) {
+static bool is_no_copy_aligned_ptr(const void* ptr) {
     if (ptr == nullptr)
         return false;
 
-    return (reinterpret_cast<std::uintptr_t>(ptr) % cldnn::CACHE_PAGE_SIZE) == 0;
+    return (reinterpret_cast<std::uintptr_t>(ptr) % minimal_alignment_no_copy) == 0;
+}
+
+static bool is_no_copy_aligned_size(size_t size) {
+    return (size % minimal_alignment_no_copy) == 0;
 }
 
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
@@ -363,9 +368,12 @@ void RemoteTensorImpl::allocate() {
     case TensorType::BF_BUF_CPU_MEMORY: {
         OPENVINO_ASSERT(engine.runtime_type() == cldnn::runtime_types::ocl,
                         "[GPU] MMAP shared buffer is supported only for OCL runtime");
-        OPENVINO_ASSERT(is_page_aligned_ptr(m_mem),
-                        "[GPU] MMAP shared buffer pointer must be ", cldnn::CACHE_PAGE_SIZE, "-byte aligned");
-        m_memory_object = engine.create_mmap_hostbuffer(m_mem,
+        OPENVINO_ASSERT(is_no_copy_aligned_ptr(m_mem),
+                        "[GPU] shared buffer pointer must be ", minimal_alignment_no_copy, "-byte aligned");
+        OPENVINO_ASSERT(is_no_copy_aligned_size(m_layout.bytes_count()),
+                        "[GPU] shared buffer size must be a multiple of ", minimal_size_no_copy, " bytes");
+        // look on compute-runtime\opencl\source\mem_obj\buffer.cpp:639 zero copy conditions
+                        m_memory_object = engine.create_hostbuffer(m_mem,
                                                         m_layout.bytes_count(),
                                                         cldnn::allocation_type::usm_host,
                                                         m_layout);

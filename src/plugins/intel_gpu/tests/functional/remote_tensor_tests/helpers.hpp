@@ -18,6 +18,11 @@
 #endif
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+
 namespace {
 template <typename T>
 T load_entrypoint(const cl_platform_id platform, const std::string name) {
@@ -186,3 +191,12 @@ struct OpenCL {
         return ret_val;
     }
 };
+
+// Keep data unchanged while still forcing an explicit output tensor write path.
+inline std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(param, zero);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}

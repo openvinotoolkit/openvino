@@ -26,6 +26,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "remote_tensor_tests/helpers.hpp"
 
 namespace {
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
@@ -50,16 +51,6 @@ bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUI
 
     return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
 }
-
-// Keep data unchanged while still forcing an explicit output tensor write path.
-std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
-    auto add = std::make_shared<ov::op::v1::Add>(param, zero);
-    auto result = std::make_shared<ov::op::v0::Result>(add);
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-}
-
 
 struct Dx11TestContext {
     CComPtr<ID3D11Device> device;
