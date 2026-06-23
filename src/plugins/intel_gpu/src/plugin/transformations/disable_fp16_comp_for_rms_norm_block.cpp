@@ -18,6 +18,9 @@ bool DisableFP16CompForRMSNormBlock::run_on_model(const std::shared_ptr<ov::Mode
         if (!rms)
             continue;
 
+        if (transformation_callback(rms))
+            continue;
+
         if (ov::is_conversion_disabled(rms, ov::element::f16))
             continue;
 

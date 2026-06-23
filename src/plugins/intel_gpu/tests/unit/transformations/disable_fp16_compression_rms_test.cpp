@@ -155,7 +155,12 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_KeepsRMSInFP32) {
     manager.register_pass<DisableFP16CompForRMSNormBlock>();
 
     precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map);
+    const bool keep_precision_sensitive_in_fp32 = true;
+    const bool convert_input_output_precision = false;
+    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                      type_to_fuse_map{},
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
     manager.run_passes(model);
 
     bool found_rms = false;
@@ -165,11 +170,15 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_KeepsRMSInFP32) {
             found_rms = true;
             ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "RMS node must have FP16 conversion disabled to prevent NaN from overflow";
+            ASSERT_EQ(op->get_output_element_type(0), ov::element::f32)
+                << "RMS must execute in FP32";
         }
         if (op->get_friendly_name() == "matmul_consumer") {
             found_matmul = true;
             ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "MatMul consumer should NOT be marked - only RMS needs FP32 protection";
+            ASSERT_EQ(op->get_output_element_type(0), ov::element::f16)
+                << "MatMul should remain in FP16 for performance";
         }
     }
     ASSERT_TRUE(found_rms) << "RMS node 'rms_target' not found after passes";
