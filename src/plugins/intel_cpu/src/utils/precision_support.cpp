@@ -8,9 +8,9 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/except.hpp"
 #    include "openvino/runtime/system_conf.hpp"
 #endif
-#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 
