@@ -55,7 +55,7 @@ FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
       m_weights_source_id(std::filesystem::hash_value(weights_path)),
       m_weights_source_handle(std::make_shared<ov::AlignedBuffer>()) {
     std::ifstream weights_stream(m_weights_path, std::ios::binary);
-    OPENVINO_ASSERT(weights_stream.is_open(), "Cannot open weight file at: ", m_weights_path);
+    OPENVINO_ASSERT(weights_stream.is_open(), m_weights_path, " cannot be opened");
 }
 
 std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offset, size_t size) {
@@ -67,7 +67,7 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
     }
 
     std::ifstream weights_stream(m_weights_path, std::ios::binary);
-    OPENVINO_ASSERT(weights_stream.is_open(), "Cannot open weight file at: ", m_weights_path);
+    OPENVINO_ASSERT(weights_stream.is_open(), m_weights_path, " cannot be opened");
 
     weights_stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
     OPENVINO_ASSERT(weights_stream.good(), "Failed to seek weights file ", m_weights_path, " to offset ", offset);
