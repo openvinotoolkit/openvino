@@ -7,40 +7,17 @@
 
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
-// #ifndef KQ_SG_TILE_KEYS
-// #define KQ_SG_TILE_KEYS      16
-// #endif
-// #ifndef KQ_SG_TILE_QUERIES
-// #define KQ_SG_TILE_QUERIES   16
-// #endif
-// #ifndef KQ_SG_PER_WG_KEYS
-// #define KQ_SG_PER_WG_KEYS    8
-// #endif
-// #ifndef KQ_SG_PER_WG_QUERIES
-// #define KQ_SG_PER_WG_QUERIES 2
-// #endif
-#define KQ_WG_TILE_KEYS      (KQ_SG_TILE_KEYS * KQ_SG_PER_WG_KEYS)
-#define KQ_WG_TILE_QUERIES   (KQ_SG_TILE_QUERIES * KQ_SG_PER_WG_QUERIES)
-#define KQ_MB                (KQ_SG_TILE_KEYS / 8)       // 2
-#define KQ_QB                (KQ_SG_TILE_QUERIES / 16)      // 1
+#define kq_wg_tile_keys      (kq_sg_tile_keys * kq_sg_per_wg_keys)
+#define kq_wg_tile_queries   (kq_sg_tile_queries * kq_sg_per_wg_queries)
+#define kq_key_blocks        (kq_sg_tile_keys / DPAS_ROWS)
+#define kq_query_blocks      (kq_sg_tile_queries / SUBGROUP_SIZE)
 
-#define sg_per_wg (KQ_SG_PER_WG_KEYS * KQ_SG_PER_WG_QUERIES)
+#define sg_per_wg (kq_sg_per_wg_keys * kq_sg_per_wg_queries)
 
-// S*V subgroup layout is supplied by the host config.
-// #ifndef SV_SG_PER_WG_VALUES
-// #define SV_SG_PER_WG_VALUES ((D_MAX <= 64) ? 4 : 8)
-// #endif
-// #ifndef SV_SG_PER_WG_SCORES
-// #define SV_SG_PER_WG_SCORES (sg_per_wg / SV_SG_PER_WG_VALUES)
-// #endif
-#define sv_sg_per_wg_values SV_SG_PER_WG_VALUES
-#define sv_sg_per_wg_scores SV_SG_PER_WG_SCORES
-#define sv_sg_tile_values   SV_SG_TILE_VALUES
-#define sv_sg_tile_scores   SV_SG_TILE_SCORES
-#define SV_VALUE_BLOCKS     (sv_sg_tile_values / 16)      // 2
-#define SV_SCORE_BLOCKS     (sv_sg_tile_scores / 8)
-#define SV_KEY_BLOCKS       (KQ_WG_TILE_KEYS / 16)
-#define Q_BLOCKS             (KQ_WG_TILE_QUERIES / SUBGROUP_SIZE)
+#define sv_score_blocks      (sv_sg_tile_scores / DPAS_ROWS)
+#define sv_value_blocks      (sv_sg_tile_values / SUBGROUP_SIZE)
+#define sv_key_blocks        (kq_wg_tile_keys / DPAS_K)
+#define q_blocks             (kq_wg_tile_queries / SUBGROUP_SIZE)
 
 // Mask-kind predicates. When the host proved the mask shape at compile time
 // (MASK_KIND in {0,1,2}) these fold to compile-time constants so IGC drops the
@@ -71,15 +48,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 {
     const size_t lane  = get_sub_group_local_id();
     const size_t sg_ij = get_local_id(1);
-    const size_t wg_j0 = get_group_id(0) * KQ_WG_TILE_QUERIES;
+    const size_t wg_j0 = get_group_id(0) * kq_wg_tile_queries;
     const size_t b0 = get_group_id(1);     // heads_num
     const size_t b1 = get_group_id(2);     // batch
     const size_t b0_kv = b0 / (HEADS_NUM / KV_HEADS_NUM);
 
-    const size_t sg_i_kq  = sg_ij % KQ_SG_PER_WG_KEYS;
-    const size_t sg_j_kq  = sg_ij / KQ_SG_PER_WG_KEYS;
-    const size_t sg_i0_kq = sg_i_kq * KQ_SG_TILE_KEYS;
-    const size_t sg_j0_kq = sg_j_kq * KQ_SG_TILE_QUERIES;
+    const size_t sg_i_kq  = sg_ij % kq_sg_per_wg_keys;
+    const size_t sg_j_kq  = sg_ij / kq_sg_per_wg_keys;
+    const size_t sg_i0_kq = sg_i_kq * kq_sg_tile_keys;
+    const size_t sg_j0_kq = sg_j_kq * kq_sg_tile_queries;
 
     const size_t sv_sg_values = sg_ij % sv_sg_per_wg_values;
     const size_t sv_sg_scores = sg_ij / sv_sg_per_wg_values;
@@ -102,80 +79,79 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const int KD_w = d * (int)sizeof(half), KD_h = k, KD_p = KEY_S2 * (int)sizeof(half);
     const int VD_w = d * (int)sizeof(half), VD_h = k, VD_p = VAL_S2 * (int)sizeof(half);
     const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = DST_S2 * (int)sizeof(half);
-    local uint  Q_slm[DKS * Q_BLOCKS * Q_DWORDS * SUBGROUP_SIZE];
-    local uint  S_slm[KQ_WG_TILE_KEYS * KQ_WG_TILE_QUERIES / 2];
-    local float S_sum_slm[KQ_WG_TILE_QUERIES * KQ_SG_PER_WG_KEYS];
-    local float S_max_slm[KQ_WG_TILE_QUERIES];
+    local uint  Q_slm[DKS * q_blocks * Q_DWORDS * SUBGROUP_SIZE];
+    local uint  S_slm[kq_wg_tile_keys * kq_wg_tile_queries / 2];
+    local float S_sum_slm[kq_wg_tile_queries * kq_sg_per_wg_keys];
+    local float S_max_slm[kq_wg_tile_queries];
 
-    for (int qi = sg_ij * SUBGROUP_SIZE + lane; qi < KQ_WG_TILE_QUERIES; qi += sg_per_wg * SUBGROUP_SIZE)
+    for (int qi = sg_ij * SUBGROUP_SIZE + lane; qi < kq_wg_tile_queries; qi += sg_per_wg * SUBGROUP_SIZE)
         S_max_slm[qi] = -INFINITY;
 
-    // Cooperative Q->SLM staging: the Q tile is Q_BLOCKS(=2) query-blocks x DKS(=8)
-    // head-dim chunks = 16 independent (q_block, db) tiles. Distribute them 1:1 across
-    // the 16 subgroups so all subgroups load Q (instead of only the first Q_BLOCKS),
-    // shrinking the prologue Q-load latency.
-    {
-        const int q_block = sg_ij / DKS;   // 0..Q_BLOCKS-1
-        const int db      = sg_ij % DKS;   // 0..DKS-1
-        if (q_block < Q_BLOCKS) {
-            const int query = wg_j0 + q_block * SUBGROUP_SIZE + lane;
-            ushort16 qv = (ushort16)0;
-            if (query < q)
-                qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + db * KSTEP));
-            uint8 q_pack = as_uint8(as_short16(qv));
-            intel_sub_group_block_write8(
-                (local uint *)&Q_slm[((db * Q_BLOCKS + q_block) * Q_DWORDS) * SUBGROUP_SIZE], q_pack);
-        }
+    // Cooperative Q->SLM staging: the Q tile is q_blocks query-blocks x DKS head-dim
+    // chunks = q_blocks*DKS independent (q_block, db) tiles. Distribute them round-robin
+    // across the workgroup subgroups so all subgroups load Q and every tile is staged even
+    // when q_blocks*DKS exceeds sg_per_wg (e.g. D_MAX >= 256), shrinking the prologue
+    // Q-load latency. The loop bound guarantees q_block < q_blocks, so no guard is needed.
+    for (int tile = sg_ij; tile < q_blocks * DKS; tile += sg_per_wg) {
+        const int q_block = tile / DKS;   // 0..q_blocks-1
+        const int db      = tile % DKS;   // 0..DKS-1
+        const int query = wg_j0 + q_block * SUBGROUP_SIZE + lane;
+        ushort16 qv = (ushort16)0;
+        if (query < q)
+            qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + db * DPAS_K));
+        uint8 q_pack = as_uint8(as_short16(qv));
+        intel_sub_group_block_write8(
+            (local uint *)&Q_slm[((db * q_blocks + q_block) * Q_DWORDS) * SUBGROUP_SIZE], q_pack);
     }
 
-    float S_max_tile[KQ_QB];
-    float S_sum_tile[KQ_QB];
+    float S_max_tile[kq_query_blocks];
+    float S_sum_tile[kq_query_blocks];
     #pragma unroll
-    for (int qb = 0; qb < KQ_QB; ++qb) {
+    for (int qb = 0; qb < kq_query_blocks; ++qb) {
         S_max_tile[qb] = -INFINITY;
         S_sum_tile[qb] = 0.0f;
     }
 
-    float8 A_tile[SV_SCORE_BLOCKS][SV_VALUE_BLOCKS];
+    float8 A_tile[sv_score_blocks][sv_value_blocks];
     #pragma unroll
-    for (int r = 0; r < SV_SCORE_BLOCKS; ++r)
+    for (int r = 0; r < sv_score_blocks; ++r)
         #pragma unroll
-        for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
+        for (int cd = 0; cd < sv_value_blocks; ++cd)
             A_tile[r][cd] = (float8)0.0f;
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    for (int k0 = 0; k0 < k; k0 += KQ_WG_TILE_KEYS) {
+    for (int k0 = 0; k0 < k; k0 += kq_wg_tile_keys) {
         const int key_base = k0 + sg_i0_kq;
         const bool first = (k0 == 0);
-        const bool last = (k0 + KQ_WG_TILE_KEYS >= k);
+        const bool last = (k0 + kq_wg_tile_keys >= k);
 
-        float8 S_tile[KQ_MB][KQ_QB];
+        float8 S_tile[kq_key_blocks][kq_query_blocks];
         #pragma unroll
-        for (int mb = 0; mb < KQ_MB; ++mb)
+        for (int mb = 0; mb < kq_key_blocks; ++mb)
             #pragma unroll
-            for (int qb = 0; qb < KQ_QB; ++qb)
+            for (int qb = 0; qb < kq_query_blocks; ++qb)
                 S_tile[mb][qb] = (float8)0.0f;
 
         #pragma unroll
         for (int db = 0; db < DKS; ++db) {
-            int8 qB[KQ_QB];
+            int8 qB[kq_query_blocks];
             #pragma unroll
-            for (int qb = 0; qb < KQ_QB; ++qb) {
+            for (int qb = 0; qb < kq_query_blocks; ++qb) {
                 const int q_block = sg_j0_kq / SUBGROUP_SIZE + qb;
                 qB[qb] = as_int8(intel_sub_group_block_read8(
-                    (local void *)&Q_slm[((db * Q_BLOCKS + q_block) * Q_DWORDS) * SUBGROUP_SIZE]));
+                    (local void *)&Q_slm[((db * q_blocks + q_block) * Q_DWORDS) * SUBGROUP_SIZE]));
             }
 
-            ushort8 k_raw[KQ_MB];
+            ushort8 k_raw[kq_key_blocks];
             intel_sub_group_2d_block_read_16b_16r16x1c(
                 (global void *)K, KD_w, KD_h, KD_p,
-                (int2)(db * KSTEP, key_base), (private ushort *)&k_raw[0]);
+                (int2)(db * DPAS_K, key_base), (private ushort *)&k_raw[0]);
 
             #pragma unroll
-            for (int mb = 0; mb < KQ_MB; ++mb) {
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 #pragma unroll
-                for (int qb = 0; qb < KQ_QB; ++qb)
+                for (int qb = 0; qb < kq_query_blocks; ++qb)
                     S_tile[mb][qb] = intel_sub_group_f16_f16_matrix_mad_k16(as_short8(k_raw[mb]), qB[qb], S_tile[mb][qb]);
             }
         }
@@ -185,9 +161,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // same V tiles consumed by the transform-load in this same iteration, with no
         // intervening compute to hide latency, so it is pure overhead here).
         #pragma unroll
-        for (int cp = 0; cp < SV_KEY_BLOCKS; ++cp) {
+        for (int cp = 0; cp < sv_key_blocks; ++cp) {
             #pragma unroll
-            for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd) {
+            for (int cd = 0; cd < sv_value_blocks; ++cd) {
                 intel_sub_group_2d_block_prefetch_16b_16r16x1c(
                     (const global void *)V, VD_w, VD_h, VD_p,
                     (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
@@ -198,7 +174,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         half2 mask_tile;
         float2 k_mask;
         #pragma unroll
-        for (int ii = 0; ii < KQ_SG_TILE_KEYS / SUBGROUP_SIZE; ++ii) {
+        for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
             const int key = key_base + ii * SUBGROUP_SIZE + lane;
             #if WITH_ATTN_MASK
                 if (MASK_IS_PER_KEY)
@@ -212,7 +188,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
         float2 mask_tile_float = convert_float2(mask_tile);
         #pragma unroll
-        for (int ii = 0; ii < KQ_SG_TILE_KEYS / SUBGROUP_SIZE; ++ii)
+        for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii)
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
 
         #if WITH_ATTN_MASK
@@ -220,13 +196,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // same access pattern as sdpa_micro's tile_load_t). Pre-scale by iscale at
             // load time and keep it as float so the softmax max-loop below only does a
             // branchless add (mirrors micro's tile_elementwise(unscale)+tile_binary add).
-            float16 mask_full[KQ_QB][KQ_SG_TILE_KEYS / SUBGROUP_SIZE];
+            float16 mask_full[kq_query_blocks][kq_sg_tile_keys / SUBGROUP_SIZE];
             if (MASK_IS_FULL_2D) {
                 #pragma unroll
-                for (int qb = 0; qb < KQ_QB; ++qb) {
+                for (int qb = 0; qb < kq_query_blocks; ++qb) {
                     const int mask_query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane;
                     #pragma unroll
-                    for (int ii = 0; ii < KQ_SG_TILE_KEYS / SUBGROUP_SIZE; ++ii) {
+                    for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
                         const int mask_key = key_base + ii * SUBGROUP_SIZE;
                         half16 mv = (half16)0.0f;
                         if (mask_query < q) {
@@ -246,12 +222,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
         #endif
 
-        float alpha[KQ_QB];
+        float alpha[kq_query_blocks];
         #pragma unroll
-        for (int qb = 0; qb < KQ_QB; ++qb) {
+        for (int qb = 0; qb < kq_query_blocks; ++qb) {
             float lmax = -INFINITY;
             #pragma unroll
-            for (int mb = 0; mb < KQ_MB; ++mb) {
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 #pragma unroll
                 for (int mm = 0; mm < 8; ++mm) {
                     const int key_rel = mb * 8 + mm;
@@ -283,7 +259,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         barrier(CLK_LOCAL_MEM_FENCE);
 
         #pragma unroll
-        for (int qb = 0; qb < KQ_QB; ++qb) {
+        for (int qb = 0; qb < kq_query_blocks; ++qb) {
             const int query = sg_j0_kq + qb * SUBGROUP_SIZE + lane;
             const float m_new = S_max_slm[query];
             // Required when a query has no valid keys in the current prefix, e.g. future
@@ -298,7 +274,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             alpha[qb] = a;
 
             #pragma unroll
-            for (int mb = 0; mb < KQ_MB; ++mb) {
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 float8 exp_tile = ok ? native_exp2(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
                 lsum += exp_tile[0] + exp_tile[1] + exp_tile[2] + exp_tile[3]
                       + exp_tile[4] + exp_tile[5] + exp_tile[6] + exp_tile[7];
@@ -306,7 +282,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int key = sg_i0_kq + mb * 8;
                 const int key_block = key / SUBGROUP_SIZE;
                 const int key_lane = key - key_block * SUBGROUP_SIZE;
-                const int s_half_offset = (key_block * KQ_WG_TILE_QUERIES + query) * SUBGROUP_SIZE + key_lane;
+                const int s_half_offset = (key_block * kq_wg_tile_queries + query) * SUBGROUP_SIZE + key_lane;
                 vstore4(as_uint4(convert_half8(exp_tile)), 0, &S_slm[s_half_offset >> 1]);
             }
             S_sum_tile[qb] = a * S_sum_tile[qb] + lsum;
@@ -314,9 +290,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
         if (last) {
             #pragma unroll
-            for (int qb = 0; qb < KQ_QB; ++qb) {
+            for (int qb = 0; qb < kq_query_blocks; ++qb) {
                 const int query = sg_j0_kq + qb * SUBGROUP_SIZE + lane;
-                S_sum_slm[query * KQ_SG_PER_WG_KEYS + sg_i_kq] = S_sum_tile[qb];
+                S_sum_slm[query * kq_sg_per_wg_keys + sg_i_kq] = S_sum_tile[qb];
             }
         }
 
@@ -324,7 +300,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
         if (!first) {
             #pragma unroll
-            for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
+            for (int r = 0; r < sv_score_blocks; ++r) {
                 float8 av;
                 const int rel_query = sv_score0 + r * 8 - sg_j0_kq;
                 const int alpha_qb = rel_query / SUBGROUP_SIZE;
@@ -333,7 +309,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int rr = 0; rr < 8; ++rr)
                     av[rr] = sub_group_broadcast(alpha[alpha_qb], alpha_lane0 + rr);
                 #pragma unroll
-                for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
+                for (int cd = 0; cd < sv_value_blocks; ++cd)
                     A_tile[r][cd] *= av;
             }
         }
@@ -341,52 +317,52 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
         #pragma unroll
-        for (int cp = 0; cp < SV_KEY_BLOCKS; ++cp) {
-            short8 pA[SV_SCORE_BLOCKS];
+        for (int cp = 0; cp < sv_key_blocks; ++cp) {
+            short8 pA[sv_score_blocks];
             #pragma unroll
-            for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
+            for (int r = 0; r < sv_score_blocks; ++r) {
                 const int query0 = sv_score0 + r * 8;
                 pA[r] = as_short8(intel_sub_group_block_read_us8(
-                    (local void *)&S_slm[((cp * KQ_WG_TILE_QUERIES + query0) * SUBGROUP_SIZE) >> 1]));
+                    (local void *)&S_slm[((cp * kq_wg_tile_queries + query0) * SUBGROUP_SIZE) >> 1]));
             }
 
-            int8 vb[SV_VALUE_BLOCKS];
+            int8 vb[sv_value_blocks];
             #pragma unroll
-            for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd) {
+            for (int cd = 0; cd < sv_value_blocks; ++cd) {
                 intel_sub_group_2d_block_read_transform_16b_16r16x1c(
                     (global void *)V, VD_w, VD_h, VD_p,
                     (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
             }
 
             #pragma unroll
-            for (int r = 0; r < SV_SCORE_BLOCKS; ++r)
+            for (int r = 0; r < sv_score_blocks; ++r)
                 #pragma unroll
-                for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
+                for (int cd = 0; cd < sv_value_blocks; ++cd)
                     A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
         }
     }
 
     #pragma unroll
-    for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
+    for (int r = 0; r < sv_score_blocks; ++r) {
         float8 inv_l;
         #pragma unroll
         for (int rr = 0; rr < 8; ++rr) {
             const int query = sv_score0 + r * 8 + rr;
-            float l = S_sum_slm[query * KQ_SG_PER_WG_KEYS + 0];
+            float l = S_sum_slm[query * kq_sg_per_wg_keys + 0];
             #pragma unroll
-            for (int p = 1; p < KQ_SG_PER_WG_KEYS; ++p)
-                l += S_sum_slm[query * KQ_SG_PER_WG_KEYS + p];
+            for (int p = 1; p < kq_sg_per_wg_keys; ++p)
+                l += S_sum_slm[query * kq_sg_per_wg_keys + p];
             inv_l[rr] = (l > 0.0f) ? native_recip(l) : 0.0f;
         }
         #pragma unroll
-        for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd)
+        for (int cd = 0; cd < sv_value_blocks; ++cd)
             A_tile[r][cd] *= inv_l;
     }
 
     #pragma unroll
-    for (int r = 0; r < SV_SCORE_BLOCKS; ++r) {
+    for (int r = 0; r < sv_score_blocks; ++r) {
         #pragma unroll
-        for (int cd = 0; cd < SV_VALUE_BLOCKS; ++cd) {
+        for (int cd = 0; cd < sv_value_blocks; ++cd) {
             half8 out = convert_half8(A_tile[r][cd]);
             const int col = sv_value0 + cd * SUBGROUP_SIZE;
             const int row = wg_j0 + sv_score0 + r * 8;
