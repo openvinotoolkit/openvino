@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "disable_fp16_comp_for_rms_norm_block.hpp"
+#include "disable_fp16_comp_for_all_rms.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "ov_ops/rms.hpp"

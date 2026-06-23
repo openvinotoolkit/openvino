@@ -14,7 +14,7 @@
 #include <transformations/rt_info/disable_precision_conversion.hpp>
 
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
-#include "plugin/transformations/disable_fp16_comp_for_rms_norm_block.hpp"
+#include "plugin/transformations/disable_fp16_comp_for_all_rms.hpp"
 #include "ov_ops/rms.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
