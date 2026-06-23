@@ -323,7 +323,9 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
         }
         if (device_memory_access_properties.deviceAllocCapabilities) {
             memory_caps.push_back(allocation_type::usm_device);
-            memory_caps.push_back(allocation_type::cl_mem);
+            if (info.supports_leo) {
+                memory_caps.push_back(allocation_type::cl_mem);
+            }
         }
     }
     if (info.supports_image) {
