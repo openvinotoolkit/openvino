@@ -108,6 +108,10 @@ add_test(NAME TestOCLCodePreprocessing
          COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+if(ENABLE_CM_FOR_GPU)
+    add_compile_definitions(ENABLE_CM_FOR_GPU)
+endif()
+
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
     if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
         continue()
