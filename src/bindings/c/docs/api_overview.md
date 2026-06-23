@@ -135,11 +135,41 @@ typedef struct {
 ```
 typedef struct {
 
+  ov_profiling_info_t::Status status;
+
+  int64_t real_time;
+
+  int64_t cpu_time;
+
+  const char* node_name;
+
+  const char* exec_type;
+
+  const char* node_type;
+
+  int64_t start_time;
+
+} ov_profiling_info_v2_t;
+```
+
+```
+typedef struct {
+
     ov_profiling_info_t* profiling_infos;
 
     size_t size;
 
 } ov_profiling_info_list_t;
+```
+
+```
+typedef struct {
+
+  ov_profiling_info_v2_t* profiling_infos;
+
+  size_t size;
+
+} ov_profiling_info_v2_list_t;
 ```
 
 ```
@@ -1054,13 +1084,35 @@ This struct provides an interface to infer requests of `ov_compiled_model_t` and
     - `infer_request` - A pointer to `ov_infer_request_t` instance.
   - Return value:  None.
 
-- `void ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos)`
+- `ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos)`
 
   - Description: Query performance measures per layer to identify the most time consuming operation.
   - Parameters:
     - `infer_request` - A pointer to `ov_infer_request_t` instance.
     - `profiling_infos` - Vector of profiling information for operations in a model.
-  - Return value:  None.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_infer_request_get_profiling_info_v2(const ov_infer_request_t* infer_request, ov_profiling_info_v2_list_t* profiling_infos)`
+
+  - Description: Query performance measures per layer, including the backend-specific node start timestamp.
+  - Parameters:
+    - `infer_request` - A pointer to `ov_infer_request_t` instance.
+    - `profiling_infos` - Vector of profiling information for operations in a model.
+  - Return value: Status code of the operation: OK(0) for success.
+
+- `void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos)`
+
+  - Description: Release the memory allocated by `ov_profiling_info_list_t`.
+  - Parameters:
+    - `profiling_infos` - A pointer to `ov_profiling_info_list_t` instance.
+  - Return value: None.
+
+- `void ov_profiling_info_v2_list_free(ov_profiling_info_v2_list_t* profiling_infos)`
+
+  - Description: Release the memory allocated by `ov_profiling_info_v2_list_t`.
+  - Parameters:
+    - `profiling_infos` - A pointer to `ov_profiling_info_v2_list_t` instance.
+  - Return value: None.
 
 ## Tensor
 
