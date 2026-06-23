@@ -80,6 +80,9 @@ private:
                                               std::unique_ptr<MetadataBase> metadata,
                                               const ov::AnyMap& properties) const;
 
+    ov::CompatibilityCheck validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
+                                                             const ov::AnyMap& arguments) const;
+
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.

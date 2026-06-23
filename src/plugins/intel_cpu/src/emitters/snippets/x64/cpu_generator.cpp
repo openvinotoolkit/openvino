@@ -104,11 +104,11 @@
 #include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
 #include "utils/general_utils.h"
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -329,8 +329,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] =
         emitter_factory.from_node<ov::intel_cpu::jit_swish_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_hswish_emitter>();
-    jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_gelu_v0_emitter>();
-    jitters[ov::op::v7::Gelu::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_gelu_v7_emitter>();
+    jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_gelu_erf_emitter>();
+    jitters[ov::op::v7::Gelu::get_type_info_static()] =
+        CREATE_GELU_V7_EMITTER(intel_cpu::jit_gelu_erf_emitter, intel_cpu::jit_gelu_tanh_emitter);
     jitters[snippets::op::Fill::get_type_info_static()] = emitter_factory.from_expr<intel_cpu::jit_fill_emitter>();
 
     jitters[snippets::op::HorizonMax::get_type_info_static()] =

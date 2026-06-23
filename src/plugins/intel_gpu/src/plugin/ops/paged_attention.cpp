@@ -51,7 +51,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     // WA: in some cases, the query input may have a bounded dimension
     // Use input shape of the input node in such cases
-    auto heads_num = 0;
+    int64_t heads_num = 0;
     auto query_merged_dim = query_ps[1];
     if (query_merged_dim.is_static()) {
         heads_num = query_merged_dim.get_length() / k_head_size;
@@ -126,6 +126,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_qq_bias = true;
     }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+    prim.write_kv_cache = op->get_write_kv_cache();
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {

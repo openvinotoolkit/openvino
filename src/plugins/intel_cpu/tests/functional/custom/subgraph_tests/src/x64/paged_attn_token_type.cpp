@@ -72,7 +72,8 @@ public:
 
     std::shared_ptr<ov::Model> get_pa_model(ov::element::Type data_type,
                                             ov::Dimension::value_type head_size,
-                                            ov::Dimension::value_type head_num) {
+                                            ov::Dimension::value_type head_num,
+                                            int32_t sliding_window_size = 0) {
         auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
         auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
@@ -87,7 +88,7 @@ public:
 
         float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-        auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
         auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
         auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
         auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
@@ -269,18 +270,10 @@ TEST_P(PagedAttnTokenTypeTest, AllTextIsCausal) {
 
     // First prefix_len positions of the full run should match the prefix run exactly
     size_t hidden_dim = head_num * head_size;
-    auto* full_data = result_full.output.data<float>();
-    auto* prefix_data = result_prefix.output.data<float>();
-
-    for (size_t pos = 0; pos < prefix_len; pos++) {
-        for (size_t d = 0; d < hidden_dim; d++) {
-            float diff = std::abs(full_data[pos * hidden_dim + d] - prefix_data[pos * hidden_dim + d]);
-            EXPECT_LT(diff, 1e-5f)
-                << "Causal masking violated: position " << pos << " dim " << d
-                << " differs between seq_len=" << full_len << " and seq_len=" << prefix_len
-                << ", diff=" << diff;
-        }
-    }
+    ov::Tensor full_prefix_view(result_full.output.get_element_type(),
+                                ov::Shape{prefix_len, hidden_dim},
+                                result_full.output.data<float>());
+    ov::test::utils::compare(full_prefix_view, result_prefix.output, 1e-5);
 }
 
 
@@ -344,21 +337,20 @@ TEST_P(PagedAttnTokenTypeTest, TextTokensUnaffected) {
 
     // Text tokens BEFORE the first image group should have identical output
     size_t hidden_dim = head_num * head_size;
-    auto* bidir_data = result_bidir.output.data<float>();
-    auto* causal_data = result_causal.output.data<float>();
 
     size_t first_image_pos = seq_len;
     for (size_t i = 0; i < seq_len; i++) {
         if (pattern.types[i] == 1) { first_image_pos = i; break; }
     }
 
-    for (size_t pos = 0; pos < first_image_pos; pos++) {
-        for (size_t d = 0; d < hidden_dim; d++) {
-            float diff = std::abs(bidir_data[pos * hidden_dim + d] - causal_data[pos * hidden_dim + d]);
-            EXPECT_LT(diff, 1e-5f)
-                << "Text token at position " << pos << " dim " << d
-                << " should be unaffected by token_type_ids, but diff=" << diff;
-        }
+    if (first_image_pos > 0) {
+        ov::Tensor bidir_text(result_bidir.output.get_element_type(),
+                              ov::Shape{first_image_pos, hidden_dim},
+                              result_bidir.output.data<float>());
+        ov::Tensor causal_text(result_causal.output.get_element_type(),
+                               ov::Shape{first_image_pos, hidden_dim},
+                               result_causal.output.data<float>());
+        ov::test::utils::compare(causal_text, bidir_text, 1e-5);
     }
 }
 
@@ -393,13 +385,72 @@ TEST_P(PagedAttnTokenTypeTest, PostImageTextIsCausal) {
     // Text tokens after the last image group should match causal baseline
     for (size_t pos = last_image_pos + 1; pos < seq_len; pos++) {
         ASSERT_EQ(pattern.types[pos], 0) << "Expected text token at position " << pos;
-        for (size_t d = 0; d < hidden_dim; d++) {
-            float diff = std::abs(bidir_data[pos * hidden_dim + d] - causal_data[pos * hidden_dim + d]);
-            EXPECT_LT(diff, 1e-5f)
-                << "Post-image text token at position " << pos << " dim " << d
-                << " should match causal baseline, but diff=" << diff;
+    }
+    if (last_image_pos + 1 < seq_len) {
+        size_t post_len = seq_len - last_image_pos - 1;
+        ov::Tensor bidir_post(result_bidir.output.get_element_type(),
+                              ov::Shape{post_len, hidden_dim},
+                              bidir_data + (last_image_pos + 1) * hidden_dim);
+        ov::Tensor causal_post(result_causal.output.get_element_type(),
+                               ov::Shape{post_len, hidden_dim},
+                               causal_data + (last_image_pos + 1) * hidden_dim);
+        ov::test::utils::compare(causal_post, bidir_post, 1e-5);
+    }
+}
+
+
+// Verify that bidirectional image attention interacts correctly with sliding window
+TEST_P(PagedAttnTokenTypeTest, ImageTokensWithSlidingWindowDifferFromCausal) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, head_size, head_num, pattern] = this->GetParam();
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    targetDevice = ov::test::utils::DEVICE_CPU;
+
+    const size_t seq_len = pattern.types.size();
+
+    int first_image = -1;
+    int last_image = -1;
+    for (size_t i = 0; i < seq_len; ++i) {
+        if (pattern.types[i] == 1) {
+            if (first_image == -1)
+                first_image = static_cast<int>(i);
+            if (last_image != -1 && pattern.types[last_image] == 1 && static_cast<int>(i) > last_image + 1)
+                break;
+            last_image = static_cast<int>(i);
         }
     }
+
+    const int group_size = last_image - first_image + 1;
+    const int32_t sw = group_size - 1;
+
+    auto model_bidir = get_pa_model(inType, head_size, head_num, sw);
+    auto result_bidir = run_pa_with_token_types(model_bidir, inType, seq_len, head_size, head_num, pattern.types);
+
+    std::vector<int32_t> all_text(seq_len, 0);
+    auto model_causal = get_pa_model(inType, head_size, head_num, sw);
+    auto result_causal = run_pa_with_token_types(model_causal, inType, seq_len, head_size, head_num, all_text);
+
+    const size_t hidden_dim = head_num * head_size;
+    const auto* bidir_data  = result_bidir.output.data<float>();
+    const auto* causal_data = result_causal.output.data<float>();
+
+    bool any_image_differs = false;
+    for (int pos = first_image; pos <= last_image && !any_image_differs; ++pos) {
+        for (size_t d = 0; d < hidden_dim; ++d) {
+            float diff = std::abs(bidir_data[pos * hidden_dim + d] - causal_data[pos * hidden_dim + d]);
+            if (diff > 1e-5f) {
+                any_image_differs = true;
+                break;
+            }
+        }
+    }
+    EXPECT_TRUE(any_image_differs)
+        << "Pattern '" << pattern.name << "' with sliding_window=" << sw
+        << ": expected image tokens (bidir) to differ from causal baseline, but they were identical.\n"
+        << "This indicates the sliding window is incorrectly clipping the image group "
+        << "[" << first_image << ", " << last_image << "].\n";
 }
 
 namespace {

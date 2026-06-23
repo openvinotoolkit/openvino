@@ -253,6 +253,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath);
+std::string getModelFromTestModelZoo(const std::filesystem::path& relModelPath);
 
 std::string getOpenvinoLibDirectory();
 std::string getExecutableDirectory();

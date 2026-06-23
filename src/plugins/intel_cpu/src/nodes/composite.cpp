@@ -23,7 +23,6 @@
 #include "openvino/core/type.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
-#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu::node {
 

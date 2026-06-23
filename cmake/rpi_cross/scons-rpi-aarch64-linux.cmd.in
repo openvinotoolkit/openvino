@@ -1,0 +1,6 @@
+@echo off
+REM Copyright (C) 2018-2026 Intel Corporation
+REM SPDX-License-Identifier: Apache-2.0
+
+"@OV_RPI_REAL_SCONS_NATIVE@" --site-dir="@OV_RPI_SCONS_SITE_DIR_NATIVE@" %*
+exit /b %ERRORLEVEL%

@@ -252,7 +252,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     {
         ACTIVATION_TYPE dequantized = my_chunk[output_idx] / my_sum;
         FUSED_OPS_MAIN;
-        output[aligned_data_offset + get_sub_group_local_id() + i * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
+        output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
     }
 
     if (in_data_set_idx < aligned_offset)
@@ -433,7 +433,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     {
         ACTIVATION_TYPE dequantized = output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] / my_sum;
         FUSED_OPS_MAIN;
-        output[aligned_data_offset + get_sub_group_local_id() + i * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
+        output[aligned_data_offset + get_sub_group_local_id() + output_idx * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
     }
 
     if (in_data_set_idx < aligned_offset)

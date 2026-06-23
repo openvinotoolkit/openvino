@@ -26,6 +26,8 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
 jobs:
   PyTorch_FX_Layer_Tests:
@@ -36,8 +38,8 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
@@ -79,7 +81,7 @@ jobs:
 
       - name: Setup Variables
         run: |
-          echo "PIP_INSTALL_COMMAND=python3 -m pip install" >> "$GITHUB_ENV" # Linux and MacOS only, and just for debug purposes, will be reverted, see PR #34185
+          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -112,7 +114,7 @@ jobs:
       - name: Install Pytorch FX Layer tests dependencies
         run: |
           # pytorch test requirements
-          ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
@@ -124,7 +126,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-pytorch-fx-layers
