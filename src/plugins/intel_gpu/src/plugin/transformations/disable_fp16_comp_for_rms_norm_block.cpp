@@ -10,7 +10,7 @@
 
 namespace ov::intel_gpu {
 
-bool DisableFP16CompForRMSNormBlock::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool DisableFP16CompForAllRMS::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool is_changed = false;
 
     for (const auto& node : model->get_ordered_ops()) {

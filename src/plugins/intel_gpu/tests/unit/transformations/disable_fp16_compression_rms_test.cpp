@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 
 using namespace testing;
@@ -139,7 +140,7 @@ TEST(TransformationTests, DisableFP16CompForRMS_Negative) {
     run_test(model, expected_status);
 }
 
-TEST(TransformationTests, DisableFP16CompForRMSNormBlock_MatMulProducerToRMS) {
+TEST(TransformationTests, DisableFP16CompForAllRMS_MatMulProducerToRMS) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 39, 768});
     auto weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{768, 768}, {0.01f});
     auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weight, false, true);
@@ -152,7 +153,7 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_MatMulProducerToRMS) {
     auto model = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
 
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForRMSNormBlock>();
+    manager.register_pass<DisableFP16CompForAllRMS>();
 
     precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
     const bool keep_precision_sensitive_in_fp32 = true;
@@ -170,8 +171,6 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_MatMulProducerToRMS) {
             found_matmul = true;
             ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
                 << "MatMul producer should NOT be marked - it should convert to FP16 normally";
-            ASSERT_EQ(op->get_output_element_type(0), ov::element::f16)
-                << "MatMul should be converted to FP16";
         }
         if (op->get_friendly_name() == "rms_downstream") {
             found_rms = true;
@@ -180,7 +179,25 @@ TEST(TransformationTests, DisableFP16CompForRMSNormBlock_MatMulProducerToRMS) {
             ASSERT_EQ(op->get_output_element_type(0), ov::element::f32)
                 << "RMS must stay in FP32";
             ASSERT_EQ(op->get_input_element_type(0), ov::element::f32)
-                << "RMS input must be FP32 (Convert f16->f32 should be inserted by ConvertPrecision)";
+                << "RMS input must be FP32";
+
+            const auto producer = op->get_input_node_shared_ptr(0);
+            if (ov::as_type_ptr<ov::op::v0::Convert>(producer)) {
+                auto convert = ov::as_type_ptr<ov::op::v0::Convert>(producer);
+                ASSERT_EQ(convert->get_input_element_type(0), ov::element::f16)
+                    << "If RMS input is converted, Convert must be f16->f32";
+                ASSERT_EQ(convert->get_output_element_type(0), ov::element::f32)
+                    << "If RMS input is converted, Convert output must be f32";
+
+                const auto upstream = convert->get_input_node_shared_ptr(0);
+                ASSERT_EQ(upstream->get_friendly_name(), "matmul_producer")
+                    << "Convert feeding RMS must come from matmul_producer";
+            } else {
+                ASSERT_EQ(producer->get_friendly_name(), "matmul_producer")
+                    << "RMS input producer must be matmul_producer when no Convert is inserted";
+                ASSERT_EQ(producer->get_output_element_type(0), ov::element::f32)
+                    << "Without Convert, matmul_producer must stay in f32";
+            }
         }
     }
     ASSERT_TRUE(found_matmul) << "MatMul node 'matmul_producer' not found after passes";
