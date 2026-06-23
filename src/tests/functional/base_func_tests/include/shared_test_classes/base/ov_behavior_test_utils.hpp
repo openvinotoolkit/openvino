@@ -182,10 +182,7 @@ inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "openvino_template_plugin";
-    pluginName += OV_BUILD_POSTFIX;
-    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
-        ov::test::utils::DEVICE_TEMPLATE);
+    ov::test::utils::register_template_plugin(core);
 #endif // !OPENVINO_STATIC_LIBRARY
     return core;
 }
