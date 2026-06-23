@@ -94,29 +94,32 @@
         #error "Invalid REDUCE_MODE value"
     #endif
 
-    // Generic CAS loop. Pass the full desired_value expression as expr.
-    // For f32 modes: wrap float result with as_int(), e.g. as_int(as_float(expected_value) + as_float(val)).
-    // For int/fp16 modes: pass integer expression directly, e.g. expected_value * val.
-    #define CAS_OP(addr, val, expr) { \
+    // Generic CAS loop. scope must match the storage qualifier of addr:
+    //   memory_scope_work_group for __local,  memory_scope_device for __global.
+    #define CAS_OP(addr, val, scope, expr) { \
         int expected_value; \
         int desired_value; \
         bool success; \
         do { \
-            expected_value = atomic_load_explicit(addr, memory_order_acquire, memory_scope_work_group); \
+            expected_value = atomic_load_explicit(addr, memory_order_acquire, scope); \
             desired_value  = (expr); \
             success = atomic_compare_exchange_weak_explicit(addr, &expected_value, desired_value, \
-                          memory_order_acq_rel, memory_order_acquire, memory_scope_work_group); \
+                          memory_order_acq_rel, memory_order_acquire, scope); \
         } while (!success); \
     }
 
-    inline int FUNC(to_fixed_point)(INPUT2_TYPE data_in)
+    // to_int: encode INPUT2_TYPE value into int32 accumulator representation.
+    // from_int: decode int32 accumulator back to float for output writeback.
+    //
+    // f32:  bit-reinterpret (as_int/as_float) — no scale, full f32 range.
+    // fp16: fixed-point scale (FP_SCALE) — fp16 range fits within int32.
+    // int:  identity — value is already an integer.
+    inline int FUNC(to_int)(INPUT2_TYPE data_in)
     {
         #if INPUT2_IS_FP
             #if INPUT2_TYPE_SIZE == 4
-                // f32: store IEEE 754 bits directly — as_float() reverses this.
                 return as_int((float)data_in);
             #else
-                // fp16: fixed-point scale; fp16 range fits within int32.
                 float scaled = convert_float((half)data_in) * FP_SCALE;
                 scaled = clamp(scaled, FP_SCALE_MIN, FP_SCALE_MAX);
                 return convert_int_rte(scaled);
@@ -126,57 +129,65 @@
         #endif
     }
 
-    #if REDUCE_MODE < 1 && REDUCE_MODE > 5
+    inline float FUNC(from_int)(int acc)
+    {
+        #if INPUT2_IS_FP && INPUT2_TYPE_SIZE == 4
+            return as_float(acc);
+        #elif INPUT2_IS_FP
+            return convert_float(acc) / FP_SCALE;
+        #else
+            return convert_float(acc);
+        #endif
+    }
+
+    #if REDUCE_MODE < 1 || REDUCE_MODE > 5
         #error "Invalid REDUCE_MODE value"
     #endif
 
     // f32: native float atomics unavailable in OpenCL — use bit-reinterpret CAS for all modes.
     // fp16 / int: native atomic ops suffice for SUM/MIN/MAX/MEAN (fixed-point representation
     //             preserves ordering); only PROD requires a CAS loop.
-    // f32: native float atomics unavailable in OpenCL — use bit-reinterpret CAS for all modes.
-    // fp16 / int: native atomic ops suffice for SUM/MIN/MAX/MEAN (fixed-point representation
-    //             preserves ordering); only PROD requires a CAS loop.
     #if INPUT2_IS_FP == 1 && INPUT2_TYPE_SIZE == 4
         #if REDUCE_MODE == SUM_MODE || REDUCE_MODE == MEAN_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) \
-                CAS_OP(addr, val, as_int(as_float(expected_value) + as_float(val)))
+            #define ATOMIC_REDUCE_OP(addr, val, scope) \
+                CAS_OP(addr, val, scope, as_int(as_float(expected_value) + as_float(val)))
         #elif REDUCE_MODE == MIN_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) \
-                CAS_OP(addr, val, as_int(fmin(as_float(expected_value), as_float(val))))
+            #define ATOMIC_REDUCE_OP(addr, val, scope) \
+                CAS_OP(addr, val, scope, as_int(fmin(as_float(expected_value), as_float(val))))
         #elif REDUCE_MODE == MAX_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) \
-                CAS_OP(addr, val, as_int(fmax(as_float(expected_value), as_float(val))))
+            #define ATOMIC_REDUCE_OP(addr, val, scope) \
+                CAS_OP(addr, val, scope, as_int(fmax(as_float(expected_value), as_float(val))))
         #elif REDUCE_MODE == PROD_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) \
-                CAS_OP(addr, val, as_int(as_float(expected_value) * as_float(val)))
+            #define ATOMIC_REDUCE_OP(addr, val, scope) \
+                CAS_OP(addr, val, scope, as_int(as_float(expected_value) * as_float(val)))
         #endif
     #else
         #if REDUCE_MODE == SUM_MODE || REDUCE_MODE == MEAN_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) atomic_fetch_add(addr, val)
+            #define ATOMIC_REDUCE_OP(addr, val, scope) atomic_fetch_add(addr, val)
         #elif REDUCE_MODE == MIN_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) atomic_fetch_min(addr, val)
+            #define ATOMIC_REDUCE_OP(addr, val, scope) atomic_fetch_min(addr, val)
         #elif REDUCE_MODE == MAX_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) atomic_fetch_max(addr, val)
+            #define ATOMIC_REDUCE_OP(addr, val, scope) atomic_fetch_max(addr, val)
         #elif REDUCE_MODE == PROD_MODE && INPUT2_IS_FP == 1
             // fp16 PROD: decode fixed-point, multiply as float, re-encode.
-            #define ATOMIC_REDUCE_OP(addr, val) \
-                CAS_OP(addr, val, FUNC_CALL(to_fixed_point)( \
+            #define ATOMIC_REDUCE_OP(addr, val, scope) \
+                CAS_OP(addr, val, scope, FUNC_CALL(to_int)( \
                     (convert_float(expected_value) / FP_SCALE) * (convert_float(val) / FP_SCALE)))
         #elif REDUCE_MODE == PROD_MODE
-            #define ATOMIC_REDUCE_OP(addr, val) \
-                CAS_OP(addr, val, expected_value * val)
+            #define ATOMIC_REDUCE_OP(addr, val, scope) \
+                CAS_OP(addr, val, scope, expected_value * val)
         #endif
     #endif
 
-    #define DEFINE_ATOMIC_REDUCE(STORAGE_QUALIFIER, SUFFIX) \
+    #define DEFINE_ATOMIC_REDUCE(STORAGE_QUALIFIER, SUFFIX, SCOPE) \
     inline void FUNC(atomic_reduce##SUFFIX)(volatile STORAGE_QUALIFIER int *ptr, int val) \
     { \
         atomic_int *atomic_addr = (atomic_int *)ptr; \
-        ATOMIC_REDUCE_OP(atomic_addr, val); \
+        ATOMIC_REDUCE_OP(atomic_addr, val, SCOPE); \
     }
 
-    DEFINE_ATOMIC_REDUCE(__local, _local)
-    DEFINE_ATOMIC_REDUCE(__global, _global)
+    DEFINE_ATOMIC_REDUCE(__local,  _local,  memory_scope_work_group)
+    DEFINE_ATOMIC_REDUCE(__global, _global, memory_scope_device)
 
     #define DEFINE_ATOMIC_COUNT(STORAGE_QUALIFIER, SUFFIX) \
     inline INPUT1_TYPE FUNC(count_add##SUFFIX)(volatile STORAGE_QUALIFIER int *ptr, int val) \
@@ -251,9 +262,9 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         #if REDUCE_MODE == MEAN_MODE && USE_INIT_VAL == 0
             // For MEAN with USE_INIT_VAL=0: init to neutral so only scattered updates
             // contribute to the sum. Non-scattered positions restored in ITER=2.
-            output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
+            output_fp[output_idx] = FUNC_CALL(to_int)(REDUCTION_NEUTRAL_VALUE);
         #else
-            INPUT1_TYPE val_fp = FUNC_CALL(to_fixed_point)(val);
+            INPUT1_TYPE val_fp = FUNC_CALL(to_int)(val);
             output_fp[output_idx] = val_fp;
         #endif
         #if REDUCE_MODE == MEAN_MODE
@@ -294,18 +305,18 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         #ifndef NO_LOCAL_MEMORY
             reduction_thread[output_idx] = 0;
         #endif
-        reduction_v[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
+        reduction_v[output_idx] = FUNC_CALL(to_int)(REDUCTION_NEUTRAL_VALUE);
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
-        int val_fixed = FUNC_CALL(to_fixed_point)(val);
+        int val_fixed = FUNC_CALL(to_int)(val);
 
         #ifndef NO_LOCAL_MEMORY
             INPUT1_TYPE write_thread = FUNC_CALL(count_add_local)(&reduction_thread[output_idx], 1);
             #if REDUCE_MODE != MEAN_MODE
                 if (write_thread == 0) {
                     #if USE_INIT_VAL == 0
-                        output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
+                        output_fp[output_idx] = FUNC_CALL(to_int)(REDUCTION_NEUTRAL_VALUE);
                     #endif
                 }
             #endif
@@ -330,7 +341,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             #endif
 
             #if REDUCE_MODE != MEAN_MODE && USE_INIT_VAL == 0
-                output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
+                output_fp[output_idx] = FUNC_CALL(to_int)(REDUCTION_NEUTRAL_VALUE);
             #endif
 
             FUNC_CALL(atomic_reduce_global)(&output_fp[output_idx], val_fixed);
@@ -394,11 +405,8 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input_idx = GET_INPUT_INDEX(ORDER);
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
 
-    #if INPUT2_IS_FP == 1 && INPUT2_TYPE_SIZE == 4
-        float val_f32 = as_float(output_fp[input_idx]);
-        INPUT2_TYPE val = TO_OUTPUT_TYPE(val_f32);
-    #elif INPUT2_IS_FP == 1
-        float val_f32 = convert_float(output_fp[input_idx]) / FP_SCALE;
+    #if INPUT2_IS_FP == 1
+        float val_f32 = FUNC_CALL(from_int)(output_fp[input_idx]);
         INPUT2_TYPE val = TO_OUTPUT_TYPE(val_f32);
     #else
         INPUT2_TYPE val = output_fp[input_idx];
