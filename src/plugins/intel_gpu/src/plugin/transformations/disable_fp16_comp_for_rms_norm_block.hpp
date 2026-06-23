@@ -10,15 +10,16 @@
 namespace ov::intel_gpu {
 
 /**
- * @brief Keeps all RMS normalization nodes in FP32.
+ * @brief Disables f32->f16 precision conversion for RMS normalization nodes.
  *
- * RMS (Root Mean Square normalization) computes rsqrt(mean(x²)) which is
+ * RMS (Root Mean Square normalization) computes rsqrt(mean(x²)) which can be
  * numerically unstable in FP16: when preceding MatMul outputs exceed the FP16
  * range (>65504), they overflow to INF, and rsqrt(INF)=0 leads to INF*0=NaN
- * per IEEE 754.  Keeping RMS in FP32 prevents this chain of corruption.
+ * per IEEE 754. Disabling conversion to FP16 keeps RMS in FP32 when
+ * ConvertPrecision would otherwise convert it.
  *
  * This pass is a catch-all for RMS nodes not already protected by more specific
- * pattern-based passes (e.g. DisableFP16CompForGemma3RMSPattern).  It skips
+ * pattern-based passes (e.g. DisableFP16CompForGemma3RMSPattern). It skips
  * nodes that already have the disable_conversion mark set.
  *
  * Performance impact is negligible: RMS is element-wise and memory-bound,
