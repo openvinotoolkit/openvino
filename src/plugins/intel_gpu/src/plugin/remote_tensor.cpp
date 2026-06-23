@@ -507,7 +507,7 @@ void RemoteTensorImpl::update_properties() {
         break;
     case TensorType::BF_BUF_CPU_MEMORY:
         m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_ALLOCATED),
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_POINTER),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(m_mem),
         };

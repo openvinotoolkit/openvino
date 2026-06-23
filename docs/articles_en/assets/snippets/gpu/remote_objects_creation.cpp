@@ -46,6 +46,7 @@ int main() {
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
     //! [wrap_usm_pointer]
 }
+
 {
     //! [wrap_cpu_pointer]
     // To be wrapped as a zero-copy remote tensor, the host buffer must be aligned
@@ -65,7 +66,6 @@ int main() {
     }
     //! [wrap_cpu_pointer]
 }
-
 
 {
     //! [wrap_cl_mem]

@@ -69,7 +69,7 @@ public:
                                  {{std::string(ov::intel_gpu::mem_handle.name()), {}},
                                   {std::string(ov::intel_gpu::shared_mem_type.name()),
                                    {ov::Any(ov::intel_gpu::SharedMemType::OCL_BUFFER).as<std::string>(),
-                                    ov::Any(ov::intel_gpu::SharedMemType::CPU_ALLOCATED).as<std::string>(),
+                                    ov::Any(ov::intel_gpu::SharedMemType::CPU_POINTER).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::DX_BUFFER).as<std::string>()}}});
     }
@@ -359,7 +359,7 @@ public:
                                                   const MemType memory_type) {
         OPENVINO_ASSERT(memory_type == MemType::CPU_POINTER,
                         "Only CPU_POINTER memory type is supported for mmap pointer overload");
-        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_ALLOCATED},
+        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_POINTER},
                          {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(cpu_ptr)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
