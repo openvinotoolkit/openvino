@@ -17,7 +17,6 @@
 #include "acl_fullyconnected_utils.hpp"
 #include "arm_compute/runtime/NEON/functions/NEGEMMLowpMatrixMultiplyCore.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/common/common_utils.hpp"
@@ -130,18 +129,7 @@ std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTens
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    const auto result = [&]() {
-        switch (dataType) {
-        case arm_compute::DataType::S8:
-            return arm_compute::DataType::QASYMM8_SIGNED;
-        case arm_compute::DataType::U8:
-            return arm_compute::DataType::QASYMM8;
-        default:
-            return dataType;
-        }
-    }();
-
-    return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
+    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

@@ -29,6 +29,10 @@ const CpuBlockedMemoryDescPtr& InputRepacker::desc() const {
     return m_desc;
 }
 
+bool InputRepacker::already_repacked() const {
+    return m_desc != nullptr;
+}
+
 const VectorDims& InputRepacker::in_offsets() const {
     return m_in_offsets;
 }

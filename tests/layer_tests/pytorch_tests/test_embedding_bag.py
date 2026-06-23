@@ -55,6 +55,9 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
+    # TracerWarning comes from inside torch.nn.functional.embedding_bag (size check on
+    # per_sample_weights) which is not actionable at the test level.
+    @pytest.mark.filterwarnings("ignore:Converting a tensor to a Python boolean:torch.jit.TracerWarning")
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     @pytest.mark.parametrize(
         "mode, per_sample_weights", [("mean", False), ("sum", False), ("sum", True)]
@@ -132,6 +135,9 @@ class TestEmbeddingBag2d(PytorchLayerTest):
         condition=platform.system() == "Darwin" and platform.machine() == "arm64",
         reason="Ticket - 122715",
     )
+    # TracerWarning comes from inside torch.nn.functional.embedding_bag (size check on
+    # per_sample_weights) which is not actionable at the test level.
+    @pytest.mark.filterwarnings("ignore:Converting a tensor to a Python boolean:torch.jit.TracerWarning")
     def test_embedding_bag(
         self,
         ie_device,
@@ -212,6 +218,9 @@ class TestEmbeddingBagPretrained(PytorchLayerTest):
         condition=platform.system() == "Darwin" and platform.machine() == "arm64",
         reason="Ticket - 122715",
     )
+    # TracerWarning comes from inside torch.nn.functional.embedding_bag (size check on
+    # per_sample_weights) which is not actionable at the test level.
+    @pytest.mark.filterwarnings("ignore:Converting a tensor to a Python boolean:torch.jit.TracerWarning")
     def test_embedding_bag(
         self,
         ie_device,

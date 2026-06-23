@@ -1,24 +1,6 @@
-/*
- * Copyright (c) 2020-2023, Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include <cm/cm.h>
 #include <cm/cmtl.h>
@@ -32,20 +14,64 @@
 #define CUR_TYPE_(a) MYCONCAT(IS_, a)
 #define CUR_TYPE CUR_TYPE_(SOFTMAX_TYPE)
 
+template <int M, int N>
+CM_INLINE void cm_load_2d(matrix_ref<SOFTMAX_TYPE, M, N> out,
+                          svmptr_t base, uint offset, uint pitch, uint valid_m) {
+    #pragma unroll
+    for (int i = 0; i < out.n_rows(); i++) {
+        if (i < (int)valid_m) {
+            out.row(i).format<uint>() =
+                cm_ptr_load<uint, N, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (uint*)base, offset + i * pitch);
+        } else {
+            out.row(i) = SOFTMAX_TYPE(0);
+        }
+    }
+}
+
+template <int M, int N>
+CM_INLINE void cm_store_2d(matrix_ref<SOFTMAX_TYPE, M, N> out, svmptr_t base, uint offset, uint pitch,  uint valid_m) {
+    #pragma unroll
+    for(int i = 0; i < out.n_rows(); i++) {
+        if(offset + i * pitch < valid_m*pitch)
+            cm_ptr_store<uint, N>((uint*)base, offset + i * pitch, out.row(i).format<uint>());
+    }
+}
+
 // kq_max_wg:          [b, hq, n_groups, q_stride_pad]
 // kq_exp_partial_sum: [b, hq, q_stride_pad, k_block_pad]
 // kq_sum:             [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
-CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_partial_sum, svmptr_t block_mask, uint q_len, uint q_stride, uint q_stride_pad, uint k_block_pad, float thresh, uint causal_start_index
+CM_INLINE void find(uint slm, int m_block,
+    svmptr_t kq_max_wg,
+    //#ifdef CM_HAS_LSC_UNTYPED_2D
+    svmptr_t kq_exp_partial_sum,
+    // #else
+    // SurfaceIndex kq_exp_partial_sum [[type("buffer_t")]],
+    // #endif
+    svmptr_t block_mask, uint q_len, uint q_stride, uint q_stride_pad, uint k_block_pad, float thresh, uint causal_start_index
 #if DEBUG_ACC == 1
     , svmptr_t kq_sum
 #endif
 ) {
+#ifndef BLOCK_SHARE_MAX
+    #define BLOCK_SG_M  64
+    #define BLOCK_SG_N  32
+    #define SG_M  2
+    #define SG_N  4
+    #define HEAD_SIZE  128
+    #define KV_BLOCK_SIZE  256
+    #define STRIDE  16
+    #define BLOCK_SIZE 128
+    #define BLOCK_SHARE_MAX 256
+#endif
+
     constexpr int TOKEN_IN_BLOCK = (BLOCK_SIZE / STRIDE);   // 8 -> 16
     int m = m_block * TOKEN_IN_BLOCK;
     vector<SOFTMAX_TYPE, TOKEN_IN_BLOCK> max_m;
 
     constexpr int TOKEN_SHARE_MAX = BLOCK_SHARE_MAX / TOKEN_IN_BLOCK;   // 32 -> 16
     kq_exp_partial_sum += m * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+
     kq_max_wg += m * (int)sizeof(SOFTMAX_TYPE);
     constexpr SOFTMAX_TYPE log2e = 1.4426950408889634f;
     matrix<float, TOKEN_IN_BLOCK, TOKEN_SHARE_MAX> sum_m = 0;
@@ -64,13 +90,18 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
         }
         return;
     }
-#if BLOCK_SIZE == 128
+    #ifdef CM_HAS_LSC_UNTYPED_2D
+    #if BLOCK_SIZE == 128
     lsc::block_2d_desc<SOFTMAX_TYPE, 1, TOKEN_IN_BLOCK, TOKEN_SHARE_MAX / (sizeof(SOFTMAX_TYPE) / sizeof(half))> desc_sum{ kq_exp_partial_sum, (uint)valid_m - 1, (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         0, 0 };
-#else
+    #else
     lsc::block_2d_desc<SOFTMAX_TYPE, 1, TOKEN_IN_BLOCK / 2, TOKEN_SHARE_MAX> desc_sum{ kq_exp_partial_sum, (uint)valid_m - 1, (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         0, 0 };
-#endif
+    #endif
+    #else
+    const uint pitch_sum = k_block_pad * sizeof(SOFTMAX_TYPE);
+    uint off_sum = 0;// m * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    #endif
     {
         // find max: (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad
         max_m = SOFTMAX_TYPE{-60000};
@@ -82,12 +113,16 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
         }
     }
     // compensation: val*exp(local - global)
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     desc_sum.set_block_x(0);
+    #else
+    off_sum = 0;
+    #endif
     for (int j = 0, idx = 0; j < k_block_pad; j += TOKEN_SHARE_MAX, idx++) {
         vector<SOFTMAX_TYPE, TOKEN_IN_BLOCK> max_m_in_group;
         max_m_in_group.format<int>() = cm_ptr_load<int, TOKEN_IN_BLOCK / (sizeof(int) / sizeof(SOFTMAX_TYPE))>((int*)kq_max_wg, q_stride_pad * idx * (int)sizeof(SOFTMAX_TYPE));
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CUR_TYPE == IS_float && BLOCK_SIZE == 128
-        // 2x(8, 16) -> (8, 32)
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached,  0, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>(), desc_sum);
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 16, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2).format<SOFTMAX_TYPE>(), desc_sum);
 #elif CUR_TYPE == IS_float && BLOCK_SIZE == 256
@@ -97,12 +132,17 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #else
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached>(data.format<SOFTMAX_TYPE>(), desc_sum);
 #endif
+#else
+//xe1
+        cm_load_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
+#endif
         for (int i = 0; i < TOKEN_IN_BLOCK; i++) {
             if (i < valid_m) {
                 data.row(i) *= cm_exp((max_m_in_group[i] - max_m[i]) * log2e);
                 sum_m.row(i) += data.row(i);
             }
         }
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CUR_TYPE == IS_float && BLOCK_SIZE == 128
         cm_store<CacheHint::Uncached, CacheHint::WriteBack,  0, 0>(desc_sum, data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>());
         cm_store<CacheHint::Uncached, CacheHint::WriteBack, 16, 0>(desc_sum, data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2).format<SOFTMAX_TYPE>());
@@ -112,7 +152,15 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #else
         cm_store(desc_sum, data.format<SOFTMAX_TYPE>());
 #endif
-        desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);  // k_block_in_group? 32 ->16
+#else
+//xe1
+        cm_store_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
+#endif
+#ifdef CM_HAS_LSC_UNTYPED_2D
+        desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);
+#else
+        off_sum += TOKEN_SHARE_MAX * sizeof(SOFTMAX_TYPE);
+#endif
     }
 
     // exp/sum
@@ -125,12 +173,18 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     }
     // compensation: sum(val*inv_sum_v)
     vector<float, TOKEN_SHARE_MAX> sum_m_after_add = 0;
+#ifdef CM_HAS_LSC_UNTYPED_2D
     desc_sum.set_block_x(0);
+#else
+    off_sum = 0;
+#endif
+
 #if DEBUG_ACC == 1
-    kq_sum += m_block * k_block_pad * (int)sizeof(half);
+    kq_sum += m_block * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
 #endif
     vector<uchar, TOKEN_SHARE_MAX> zero = 0;
     for (int j = 0; j < k_block_pad; j += TOKEN_SHARE_MAX) {
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CUR_TYPE == IS_float && BLOCK_SIZE == 128
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached,  0, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>(), desc_sum);
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 16, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2).format<SOFTMAX_TYPE>(), desc_sum);
@@ -140,49 +194,66 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #else
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached>(data.format<SOFTMAX_TYPE>(), desc_sum);
 #endif
+#else
+
+//xe1
+        cm_load_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
+
+#endif
         data.row(0) *= inv_sum_v[0];
         for (int i = 1; i < TOKEN_IN_BLOCK; i++) {
             data.row(0) += data.row(i) * inv_sum_v[i];
         }
+
+#ifdef CM_HAS_LSC_UNTYPED_2D
         desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);
-        // the sum type is always half in the reference code of the paper: https://github.com/mit-han-lab/x-attention/blob/fb2ac200a23d20568f7d166ddb5ee247926d2b2b/xattn/src/kernels.py#L248
-        vector<half, TOKEN_SHARE_MAX> data_half = data.row(0);  // 32 -> 16
-        sum_m_after_add += data_half;
-        cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_exp_partial_sum, j * (int)sizeof(half), data_half.format<int>());
+#else
+        off_sum += TOKEN_SHARE_MAX * sizeof(SOFTMAX_TYPE);
+#endif
+        // The paper reference keeps this accumulation in half, but Xe1 long
+        // sparse prefill over-masks if we follow that literally here. Keep the
+        // thresholding path in float while storing scores using SOFTMAX_TYPE.
+        sum_m_after_add += data.row(0);
+        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_exp_partial_sum, j * (int)sizeof(SOFTMAX_TYPE), data.row(0).format<int>());
 #if DEBUG_ACC == 1
-        cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_sum, j * (int)sizeof(half), data_half.format<int>());
+        cm_ptr_store<int, TOKEN_SHARE_MAX>((int*)kq_sum, j * (int)sizeof(SOFTMAX_TYPE), data.row(0).format<int>());
 #endif
         cm_ptr_store<int, TOKEN_SHARE_MAX / 4>((int*)block_mask, j, zero.format<int>());
     }
     auto thresh_act = cm_sum<float>(sum_m_after_add) * thresh;
 
-    // content of 8(aka stride) lines:
-    // line 0: score
-    // line 1: sorted value
-    // line 3: sorted index
-    // line 5: sorted tmp
-    // line 6: accumalative score
-    auto score        = kq_exp_partial_sum + 0 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto sorted_value = kq_exp_partial_sum + 1 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto sorted_index = kq_exp_partial_sum + 3 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto sorted_tmp   = kq_exp_partial_sum + 5 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
-    auto acc_score    = kq_exp_partial_sum + 6 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    // Repack the per-block scratch space by actual byte size instead of the
+    // historical half-based line layout. Score/value keep SOFTMAX_TYPE storage;
+    // index/tmp remain ushort arrays even when scores are float.
+    const int score_bytes = k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    const int sorted_value_bytes = k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    const int sorted_index_bytes = k_block_pad * (int)sizeof(ushort);
+    const int sorted_tmp_bytes = k_block_pad * (int)sizeof(ushort);
+
+    auto score        = kq_exp_partial_sum;
+    auto sorted_value = score + score_bytes;
+    auto sorted_index = sorted_value + sorted_value_bytes;
+    auto sorted_tmp   = sorted_index + sorted_index_bytes;
+    auto acc_score    = sorted_tmp + sorted_tmp_bytes;
 
 #if IS_CAUSAL == 1
-    auto score_p = (half*)score;
-    half s_0 = score_p[0];
-    half s_causal = score_p[causal_start_index + m_block];
+    auto score_p = (SOFTMAX_TYPE*)score;
+    SOFTMAX_TYPE s_0 = score_p[0];
+    SOFTMAX_TYPE s_causal = score_p[causal_start_index + m_block];
     float s_sum = s_0;
     if (causal_start_index + m_block) s_sum += s_causal;
-    score_p[0] = -1;
-    score_p[causal_start_index + m_block] = -1;
-    sort<half>(slm, score, sorted_value + 2 * sizeof(half), sorted_index + 2 * sizeof(half), sorted_tmp, k_block_pad);
+    score_p[0] = SOFTMAX_TYPE(-1);
+    score_p[causal_start_index + m_block] = SOFTMAX_TYPE(-1);
     uchar* block_mask_p = (uchar*)block_mask;
-    auto sorted_value_p = (half*)sorted_value;
+    auto sorted_value_p = (SOFTMAX_TYPE*)sorted_value;
     auto sorted_index_p = (ushort*)sorted_index;
-    auto acc_score_p = (half*)acc_score;
+    auto acc_score_p = (SOFTMAX_TYPE*)acc_score;
+    // Preserve the historical debug/acc buffer contract while using
+    // float-based causal block selection on Xe1.
     sorted_value_p[0] = 0;
     sorted_value_p[1] = s_sum;
+    sorted_index_p[0] = 0;
+    sorted_index_p[1] = causal_start_index + m_block;
     block_mask_p[0] = 1;
     block_mask_p[causal_start_index + m_block] = 1;
     float sum_cur = s_sum;
@@ -195,19 +266,29 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
-        if (sum_cur < thresh_act) {
-            auto k_idx = sorted_index_p[j];
-            if (k_idx <= causal_start_index + m_block)
-                block_mask_p[k_idx] = 1;
-        } else {
+        if (sum_cur >= thresh_act) {
             break;
         }
-        sum_cur += sorted_value_p[j];
+        float best_score = -1.f;
+        int best_idx = -1;
+        for (int k_idx = 1; k_idx <= (int)(causal_start_index + m_block); k_idx++) {
+            if (score_p[k_idx] > best_score) {
+                best_score = score_p[k_idx];
+                best_idx = k_idx;
+            }
+        }
+        if (best_idx < 0) {
+            break;
+        }
+        sorted_index_p[j] = static_cast<ushort>(best_idx);
+        sorted_value_p[j] = best_score;
+        block_mask_p[best_idx] = 1;
+        score_p[best_idx] = SOFTMAX_TYPE(-1);
+        sum_cur += best_score;
     }
 #if DEBUG_ACC == 1
     for (; j < k_block_pad; j++) {
         acc_score_p[j] = sum_cur;
-        sum_cur += sorted_value_p[j];
     }
 #endif
 
@@ -215,11 +296,11 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     //     block_mask_p[j] = 0;
 
 #else
-    sort<half>(slm, score, sorted_value, sorted_index, sorted_tmp, k_block_pad);
+    sort<SOFTMAX_TYPE>(slm, score, sorted_value, sorted_index, sorted_tmp, k_block_pad);
     uchar* block_mask_p = (uchar*)block_mask;
-    auto sorted_value_p = (half*)sorted_value;
+    auto sorted_value_p = (SOFTMAX_TYPE*)sorted_value;
     auto sorted_index_p = (ushort*)sorted_index;
-    auto acc_score_p = (half*)acc_score;
+    auto acc_score_p = (SOFTMAX_TYPE*)acc_score;
     block_mask_p[0] = 1;
     float sum_cur = 0;
 #if DEBUG_ACC == 1

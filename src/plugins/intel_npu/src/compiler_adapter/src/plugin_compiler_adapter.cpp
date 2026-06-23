@@ -15,6 +15,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
@@ -34,7 +35,8 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     _logger.info("Loading PLUGIN compiler");
     try {
-        auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ov_lib_path);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
@@ -64,16 +66,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    auto networkDesc = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    ov::Tensor tensor;
-    tensor = std::move(networkDesc.compiledNetworkTensor);
+    if (config.get<COMPILATION_MODE>().find("HostCompile") == 0) {
+        NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
-    if (config.get<COMPILATION_MODE>() == "HostCompile") {
-        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
-        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
+        // metadata will be obtained in initialze() of DynamicGraph
+        _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
     }
 
     GraphDescriptor graphDesc;
@@ -102,8 +103,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         config,
-        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        _compiler);
+        compatibilityDescriptor,
+        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -134,15 +135,17 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
-        std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-            _compiler->compileWsOneShot(model, localConfig);
+        std::vector<ov::Tensor> initMainTensors = _compiler->compileWsOneShot(model, localConfig);
 
-        std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions.back();
-        initMainNetworkDescriptions.pop_back();
-        OPENVINO_ASSERT(initMainNetworkDescriptions.size() > 0, "No init schedules have been returned by the compiler");
-        std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions =
-            std::move(initMainNetworkDescriptions);
-        tensorMain = std::move(mainNetworkDescription->compiledNetworkTensor);
+        tensorMain = initMainTensors.back();
+        initMainTensors.pop_back();
+        if (initMainTensors.empty()) {
+            _logger.warning("NPU compiler did not produce any init schedules. "
+                            "This likely means that the compiled model blob has weights inside even "
+                            "though weightless compilation was requested.");
+        }
+
+        tensorsInits = std::move(initMainTensors);
 
         if (_zeGraphExt) {
             // Depending on the config, we may get an error when trying to
@@ -160,13 +163,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                 "No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
         }
 
-        initGraphDescriptors.reserve(initNetworkDescriptions.size());
-        tensorsInits.reserve(initNetworkDescriptions.size());
-        initNetworkMetadata.reserve(initNetworkDescriptions.size());
-        for (auto& networkDesc : initNetworkDescriptions) {
-            ov::Tensor tensor;
-            tensor = std::move(networkDesc->compiledNetworkTensor);
-
+        initGraphDescriptors.reserve(tensorsInits.size());
+        initNetworkMetadata.reserve(tensorsInits.size());
+        for (const auto& tensor : tensorsInits) {
             GraphDescriptor initGraphDesc;
             NetworkMetadata initNetworkMeta;
             if (_zeGraphExt) {
@@ -185,7 +184,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
             }
 
             initGraphDescriptors.push_back(initGraphDesc);
-            tensorsInits.push_back(std::move(tensor));
             initNetworkMetadata.push_back(std::move(initNetworkMeta));
         }
     } break;
@@ -199,11 +197,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
-        while (auto networkDescription =
-                   std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, localConfig, i++))) {
-            ov::Tensor tensor;
-            tensor = std::move(networkDescription->compiledNetworkTensor);
-
+        while (auto tensor = _compiler->compileWsIterative(targetModel, localConfig, i++)) {
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
@@ -250,94 +244,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
-        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        _compiler);
-}
-
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const ov::Tensor& mainBlob,
-                                                     const FilteredConfig& config,
-                                                     const std::optional<std::vector<ov::Tensor>>& initBlobs,
-                                                     std::optional<std::shared_ptr<const ov::Model>>&& model) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
-
-    const void* data = mainBlob.data();
-    size_t size = mainBlob.get_byte_size();
-    std::string header;
-    if (size >= 20) {
-        header.assign(static_cast<const char*>(data), 20);
-    } else {
-        header.assign(static_cast<const char*>(data), size);
-    }
-    if (header.find("ELF") == std::string::npos) {
-        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
-        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
-    } else {
-        _logger.debug("blob is ELF format, create graph for elf blob!");
-    }
-
-    GraphDescriptor mainGraphDesc;
-    NetworkMetadata mainNetworkMetadata;
-
-    if (_zeGraphExt) {
-        _logger.debug("parse start");
-        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
-        mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
-        _logger.debug("main schedule parse end");
-        if (model) {
-            mainNetworkMetadata.name = model.value()->get_friendly_name();
-        } else {
-            _logger.info("networkMeta name is empty in parse!");
-        }
-    } else {
-        _logger.warning("no zeGraphExt, metadata is empty from vcl compiler.");
-    }
-
-    // exporting the blob when we get it from cache or ov::hint::compiled_blob property
-    // shall be available
-    const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
-                                  : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
-                                                                    : false;
-
-    if (!initBlobs.has_value()) {
-        return std::make_shared<Graph>(_zeGraphExt,
-                                       _zeroInitStruct,
-                                       mainGraphDesc,
-                                       std::move(mainNetworkMetadata),
-                                       mainBlob,
-                                       config,
-                                       blobIsPersistent,
-                                       _compiler);
-    }
-
-    // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
-    // "Graph" object as wrapper over all L0 handles.
-    std::vector<GraphDescriptor> initGraphDescriptors;
-    std::vector<NetworkMetadata> initNetworkMetadata;
-
-    for (const auto& initBlob : initBlobs.value()) {
-        if (_zeGraphExt) {
-            auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());
-            auto initNetworkMeta = _zeGraphExt->getNetworkMeta(initGraphDesc);
-
-            initGraphDescriptors.push_back(initGraphDesc);
-            initNetworkMetadata.push_back(std::move(initNetworkMeta));
-        }
-    }
-
-    _logger.debug("init schedules parse end");
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphDesc,
-                                             std::move(mainNetworkMetadata),
-                                             mainBlob,
-                                             initGraphDescriptors,
-                                             std::move(initNetworkMetadata),
-                                             initBlobs,
-                                             std::move(model.value()),
-                                             config,
-                                             blobIsPersistent,
-                                             _compiler);
+        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -377,18 +284,42 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 }
 
 bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
-    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
-    if (_compiler->is_option_supported(optname, optValue)) {
+    const bool hasValue = optValue.has_value();
+    const std::string value = hasValue ? optValue.value() : "";
+    if (_compiler->is_option_supported(optname, std::move(optValue))) {
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
-                      optvalue_ch ? optvalue_ch : "null");
+                      hasValue ? value.c_str() : "null");
         return true;
     } else {
         _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
-                      optvalue_ch ? optvalue_ch : "null");
+                      hasValue ? value.c_str() : "null");
         return false;
     }
+}
+
+bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
+        ze_device_properties_t device_properties = {};
+        device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+        auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
+
+        if (result == ZE_RESULT_SUCCESS) {
+            vcl_device_desc_t vcl_desc = {sizeof(vcl_device_desc_t),
+                                          device_properties.deviceId,
+                                          static_cast<uint16_t>(device_properties.subdeviceId),
+                                          device_properties.numSlices};
+
+            _logger.info("Validating compatibility logic using deviceID: 0x%X, maxTiles: %u",
+                         vcl_desc.deviceID,
+                         vcl_desc.tileCount);
+
+            return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
+        }
+    }
+
+    return false;
 }
 
 }  // namespace intel_npu

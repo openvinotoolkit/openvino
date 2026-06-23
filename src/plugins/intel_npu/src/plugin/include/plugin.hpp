@@ -32,6 +32,8 @@ public:
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
+    bool is_property_supported(const std::string& name, const ov::AnyMap& arguments = {}) const override;
+
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
 
@@ -77,6 +79,9 @@ private:
     std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
                                               std::unique_ptr<MetadataBase> metadata,
                                               const ov::AnyMap& properties) const;
+
+    ov::CompatibilityCheck validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
+                                                             const ov::AnyMap& arguments) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

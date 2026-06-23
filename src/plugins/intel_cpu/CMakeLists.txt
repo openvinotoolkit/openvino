@@ -183,6 +183,10 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
+if(X86_64 OR AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
+endif()
+
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
@@ -214,6 +218,15 @@ if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
 endif ()
+
+if(NOT ENABLE_CPU_DEBUG_CAPS)
+    list(APPEND EXCLUDE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_capabilities.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/memory_stats_dump.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/node_dumper.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/verbose.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp)
+endif()
 
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
@@ -256,12 +269,6 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
-    set_source_files_properties(
-        src/emitters/snippets/aarch64/jit_gemm_emitter.cpp
-        src/emitters/snippets/aarch64/jit_gemm_copy_b_emitter.cpp
-        PROPERTIES
-            COMPILE_OPTIONS -march=armv8.2-a+fp16
-            SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 if(RISCV64)
@@ -315,22 +322,55 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
-        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
+        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d attn_memcpy2d_kernel
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
+        NAME        paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_token attn_quant_by_channel attn_quant_by_channel_u8 attn_dequant_by_channel_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/mha_kv_cache_codec.cpp
+        API         src/nodes/kernels/scaled_attn/mha_kv_cache_codec.hpp
+        NAME        mha_kv_cache turboq_head_bytes
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp
+        API         src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp
+        NAME        turboq_quantize_head turboq_quantize
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);
+## SIMD WHT butterfly is inline in turboq_rotation.hpp and gets ISA-specialized
+## when included by cross-compiled translation units.
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
                     src/nodes/kernels/x64/mlp_utils.cpp
         API         src/nodes/kernels/x64/mlp_utils.hpp
         NAME        llm_mlp_transpose_epi32_16x16  llm_mlp_quantize_bf16_i8 llm_mlp_quantize_f16_i8 llm_mlp_dequantize_i32_f32
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
+        API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
+        NAME        recurrent_linear_attn recurrent_linear_attn_paged
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/paged_causal_conv1d.cpp
+        API         src/nodes/kernels/paged_causal_conv1d.hpp
+        NAME        paged_causal_conv1d_exec
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 

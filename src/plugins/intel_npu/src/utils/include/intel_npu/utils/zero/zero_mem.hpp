@@ -4,12 +4,16 @@
 
 #pragma once
 
+#include <memory>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace intel_npu {
 
-class ZeroMemPool;
+namespace zero_mem {
+class ZeroMemPoolManager;
+}  // namespace zero_mem
 
 class ZeroMem final {
 public:
@@ -26,7 +30,7 @@ public:
     size_t size();
 
 private:
-    friend class intel_npu::ZeroMemPool;
+    friend class zero_mem::ZeroMemPoolManager;
 
     /**
      * @brief Allocates a new memory region in the level zero context provided through init_structs.

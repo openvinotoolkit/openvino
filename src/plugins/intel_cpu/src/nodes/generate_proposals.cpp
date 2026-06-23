@@ -466,7 +466,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
                            img_W,
                            min_box_H,
                            min_box_W,
-                           static_cast<const float>(std::log(1000. / 16.)),
+                           static_cast<float>(std::log(1000. / 16.)),
                            coordinates_offset_,
                            cpu_parallel);
             std::partial_sort(proposals_.begin(),

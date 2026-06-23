@@ -36,7 +36,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
 #include "nodes/bin_conv.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
@@ -2328,10 +2327,10 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph& graph) {
         std::vector<float> newCropLow(cropLowData.size());
         std::vector<float> newCropHigh(cropHighData.size());
         for (size_t i = 0; i < cropLowData.size(); i++) {
-            newCropLow[i] = std::max(cropLowData[i], static_cast<float>(eltwiseNode->getAlpha()));
+            newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getAlpha());
         }
         for (size_t i = 0; i < cropHighData.size(); i++) {
-            newCropHigh[i] = std::min(cropHighData[i], static_cast<float>(eltwiseNode->getBeta()));
+            newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getBeta());
         }
 
         fakeQuantizeNode->setCropLow(newCropLow);
@@ -3494,7 +3493,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         std::unordered_set<NodePtr> visited;
         const NodePtr& cur = node;
         while (cur) {
-            if (!visited.insert(cur).second) {
+            if (!visited.insert(NodePtr(cur)).second) {
                 break;
             }
             size_t parentNum = cur->getParentEdges().size();

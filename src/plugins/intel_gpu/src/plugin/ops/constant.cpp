@@ -6,6 +6,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/op/convolution.hpp"
 
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
@@ -145,6 +146,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
+        ov::wsh::Extension::hint_evict(*op);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
@@ -213,6 +215,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
     for (auto& node : constUsers) {
         auto outOp = node.get_node();
+        bool apply_rank2_matmul_wa = false;
         size_t user_index = node.get_index();
         auto is_convert_matmul_pattern = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
             if (ov::is_type<ov::op::v0::Convert>(convert_node) && !p.use_new_shape_infer()) {
@@ -220,6 +223,10 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 for (auto& consumer_input : convert_consumers) {
                     if (ov::is_type<ov::op::v0::MatMul>(consumer_input.get_node()) && consumer_input.get_index() < 2) {
                         matmul_input_index_ref = consumer_input.get_index();
+                        auto* matmul = consumer_input.get_node();
+                        const size_t opposite_input_idx = (matmul_input_index_ref == 0) ? 1 : 0;
+                        const auto opposite_rank = matmul->get_input_partial_shape(opposite_input_idx).rank();
+                        apply_rank2_matmul_wa = opposite_rank.is_static() && opposite_rank.get_length() > 2;
                         return true;
                     }
                 }
@@ -286,14 +293,11 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (is_convert_matmul_pattern(outOp, user_index)) {
             const size_t const_static_max_dims = 4;
             // MatMul constant reshape WA (legacy shape infer path):
-            // - Only reshape when constant is consumed as activation(0) or weight(1)
-            //   to mirror gemm_inst::update_input_shape 1D asymmetry.
-            // - Bias (index 2) is intentionally left untouched; other users rely on
-            //   getConstTensor() default mapping.
-            // 1D cases:
-            //   index 0 (activation): [d] -> [1,1,1,d]
-            //   index 1 (weight):     [d] -> [1,1,d,1]
-            // Rank <4 non-1D: right-align into 4D: e.g. [M,K] -> [1,1,M,K], [B,M,K]->[1,B,M,K]
+            // Only reshape 1D and 2D constants to fix getConstTensor batch/feature
+            // mis-mapping. For rank >= 3, getConstTensor already produces layouts
+            // compatible with gemm_inst::transform_input_layouts (trailing 1s align
+            // with weight_rank extraction). Reshaping rank >= 3 would prepend 1s,
+            // breaking the first-N-dims extraction in transform_input_layouts.
             if (constDims.size() == 1) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
                 const size_t const_idx = (user_index == 0)?
@@ -301,9 +305,11 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                     : (const_static_max_dims - 2);
                 reshaped_const_dims[const_idx] = constDims[0];
                 constDims = std::move(reshaped_const_dims);
-            } else if (constDims.size() < const_static_max_dims) {
+            } else if (constDims.size() == 2 && user_index == 0 && apply_rank2_matmul_wa) {
                 ov::Shape reshaped_const_dims(const_static_max_dims, 1);
-                const auto offset = const_static_max_dims - constDims.size();
+                // For MatMul input0, gemm::transform_input_layouts takes the first input_rank dims.
+                // Keep [M, K] in leading positions and append trailing 1s.
+                const size_t offset = 0;
                 for (size_t i = 0; i < constDims.size(); ++i) {
                     reshaped_const_dims[offset + i] = constDims[i];
                 }

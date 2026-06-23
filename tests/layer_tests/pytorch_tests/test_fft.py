@@ -48,16 +48,23 @@ class TestRFFTN(PytorchLayerTest):
 
 
 class aten_fft(torch.nn.Module):
-    def __init__(self, op, n, dim, norm):
+    def __init__(self, op, n, dim, norm, in_complex=False):
         super().__init__()
         self.n = n
         self.dim = dim
         self.norm = norm
         self.op = op
+        if in_complex:
+            self.forward = self.forward_complex
 
     def forward(self, x):
-        if x.shape[-1] == 2:
-            x = torch.view_as_complex(x)
+        res = self.op(x, self.n, dim=self.dim, norm=self.norm)
+        if res.dtype.is_complex:
+            return torch.view_as_real(res)
+        return res
+
+    def forward_complex(self, x):
+        x = torch.view_as_complex(x)
         res = self.op(x, self.n, dim=self.dim, norm=self.norm)
         if res.dtype.is_complex:
             return torch.view_as_real(res)
@@ -90,7 +97,7 @@ class TestFFT(PytorchLayerTest):
             self.input_shape = input_shape + [2]
         else:
             self.input_shape = input_shape
-        m = aten_fft(op, n, dim, norm)
+        m = aten_fft(op, n, dim, norm, in_complex)
         self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)
 
@@ -114,7 +121,7 @@ class TestFFT(PytorchLayerTest):
             self.input_shape = input_shape + [2]
         else:
             self.input_shape = input_shape
-        m = aten_fft(op, s, dim, norm)
+        m = aten_fft(op, s, dim, norm, in_complex)
         self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)
 
@@ -152,6 +159,6 @@ class TestFFT(PytorchLayerTest):
             self.input_shape = input_shape + (2,)
         else:
             self.input_shape = input_shape
-        m = aten_fft(op, s, dim, norm)
+        m = aten_fft(op, s, dim, norm, in_complex)
         self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)

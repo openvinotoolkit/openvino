@@ -51,6 +51,11 @@ jobs:
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
       - name: Install deps
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
         run: pip3 install -r requirements.txt
@@ -86,6 +91,11 @@ jobs:
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
           lfs: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
 
       - name: Install deps
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun

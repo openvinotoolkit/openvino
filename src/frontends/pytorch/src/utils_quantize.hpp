@@ -100,7 +100,7 @@ public:
         }
         return input_value(3);
     }
-    const QuantizedPtNodeType get_type() const {
+    QuantizedPtNodeType get_type() const {
         return type;
     }
     const element::Type get_dtype() const {

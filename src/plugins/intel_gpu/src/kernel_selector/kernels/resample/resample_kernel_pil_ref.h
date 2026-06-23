@@ -22,6 +22,11 @@ public:
 
     KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::ELTWISE,
+                 FusedOpType::ACTIVATION };
+    }
 
 protected:
     JitConstants GetJitConstantsForKernel(KernelId id, const resample_params& params) const;

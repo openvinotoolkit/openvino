@@ -27,6 +27,7 @@ class TestSelectScatter(PytorchLayerTest):
         return aten_select_scatter(src, dim, index), "aten::select_scatter"
 
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize(("src", "dim", "index"),
                              [(torch.ones(2), 0, 0),])
     def aten_select_scatter(self, src, dim, index, ie_device, precision, ir_version):

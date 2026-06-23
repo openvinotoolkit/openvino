@@ -14,7 +14,6 @@
 
 #include "acl_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"

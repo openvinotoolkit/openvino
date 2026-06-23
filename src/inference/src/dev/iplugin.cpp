@@ -9,6 +9,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
@@ -76,16 +78,21 @@ const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor
     return m_executor_manager;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::filesystem::path& model_path,
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
-    const auto model = core->read_model(util::make_path(model_path), {}, properties);
+    const auto model = core->read_model(model_path, {}, properties);
     auto local_properties = properties;
     if (!ov::is_virtual_device(get_device_name())) {
         CoreConfig::remove_core(local_properties);
     }
     return compile_model(model, local_properties);
+}
+
+bool ov::IPlugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    const auto properties = get_property(ov::supported_properties.name(), arguments);
+    return util::contains(properties.as<std::vector<ov::PropertyName>>(), name);
 }
 
 std::unordered_set<std::string> ov::get_supported_nodes(

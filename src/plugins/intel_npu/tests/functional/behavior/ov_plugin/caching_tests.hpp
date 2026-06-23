@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <ze_api.h>  // not redundant, needed for `ze_structure_type_t` structure
-
 #include <behavior/ov_plugin/caching_tests.hpp>
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/log_util.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -20,7 +19,7 @@ using OVCompileModelLoadFromFileTestBaseNPU = CompileModelLoadFromFileTestBase;
 TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImported) {
     core->set_property(ov::cache_dir(m_cacheFolderName));
 
-    if (!intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
+    if (!::intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
         GTEST_SKIP() << "Standard allocation is not supported by the current configuration.";
     }
 
@@ -30,6 +29,11 @@ TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImpor
             custom_logger << s << std::endl;
         };
     ov::util::set_log_callback(custom_log_callback);
+    struct ResetLogCallbackGuard {
+        ~ResetLogCallbackGuard() {
+            ov::util::reset_log_callback();
+        }
+    } reset_log_callback_guard;
 
     for (size_t i = 0; i < 2; ++i) {
         if (i != 0) {
@@ -38,7 +42,6 @@ TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImpor
         std::ignore = core->compile_model(m_modelName, targetDevice, configuration);
         configuration.erase(ov::log::level.name());
     }
-    ov::util::reset_log_callback();
     EXPECT_THAT(custom_logger.str(),
                 ::testing::HasSubstr("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT"));
 }
