@@ -5,6 +5,7 @@
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+#include <openvino/util/memory.hpp>
 
 #include <cstdlib>
 
@@ -53,15 +54,15 @@ int main() {
     // to 64 bytes and its size in bytes must be a multiple of 64.
     constexpr size_t alignment = 64;
     size_t shared_buffer_bytes = input_size * in_element_type.size();
-    // std::aligned_alloc requires the size to be a multiple of the alignment.
+    // The zero-copy remote tensor requires the buffer size to be a multiple of the alignment.
     if (shared_buffer_bytes % alignment == 0) {
-        void* cpu_pointer = std::aligned_alloc(alignment, shared_buffer_bytes);
+        void* cpu_pointer = ov::util::aligned_alloc(shared_buffer_bytes, alignment);
         if (cpu_pointer != nullptr) {
             auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
                                                            in_shape,
                                                            cpu_pointer,
                                                            ov::intel_gpu::MemType::CPU_POINTER);
-            std::free(cpu_pointer);
+            ov::util::aligned_free(cpu_pointer);
         }
     }
     //! [wrap_cpu_pointer]

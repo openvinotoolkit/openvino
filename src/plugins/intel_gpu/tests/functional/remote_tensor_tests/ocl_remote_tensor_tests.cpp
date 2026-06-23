@@ -5,7 +5,6 @@
 #ifdef OV_GPU_WITH_OCL_RT
 
 #include <algorithm>
-#include <cstdlib>
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
@@ -15,6 +14,7 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/util/memory.hpp"
 
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -2959,8 +2959,8 @@ TEST(GpuMmapedMemoryRemoteTensor, smoke_allocAlignedCPUMemory) {
 
     std::string target_device = ov::test::utils::DEVICE_GPU;
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
-    void* input_ptr = std::aligned_alloc(byte_size, byte_size);
-    void* output_ptr = std::aligned_alloc(byte_size, byte_size);
+    void* input_ptr = ov::util::aligned_alloc(byte_size, byte_size);
+    void* output_ptr = ov::util::aligned_alloc(byte_size, byte_size);
 
     std::fill_n(static_cast<float*>(input_ptr), element_count, 2.0f);
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
@@ -2987,7 +2987,8 @@ TEST(GpuMmapedMemoryRemoteTensor, smoke_allocAlignedCPUMemory) {
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
     }
-    std::free(input_ptr);
+    ov::util::aligned_free(input_ptr);
+    ov::util::aligned_free(output_ptr);
 }
 
 #endif  // OV_GPU_WITH_OCL_RT
