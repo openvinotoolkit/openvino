@@ -184,9 +184,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Aggregate max/min across all blocks in this quantization group
-    max_value = local_mem_max[group_base_idx];
+    max_value = fmax(max_value, local_mem_max[group_base_idx]);
 #if ASYMMETRIC_QUANTIZATION
-    min_value = local_mem_min[group_base_idx];
+    min_value = fmin(min_value, local_mem_min[group_base_idx]);
 #endif
     unroll_for (int j = 1; j < QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE; j++) {
         max_value = fmax(max_value, local_mem_max[group_base_idx + j]);

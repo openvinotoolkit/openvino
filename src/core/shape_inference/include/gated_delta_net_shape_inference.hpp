@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "dimension_util.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "utils.hpp"
 
@@ -28,6 +29,7 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
     const auto& k_head_size = key_ps[3];
     const auto& q_head_size = query_ps[3];
     const auto& v_head_size = value_ps[3];
+    auto out_shape = TRShape(value_ps);
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -44,6 +46,15 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
                            k_head_size,
                            " and ",
                            q_head_size);
+
+    NODE_SHAPE_INFER_CHECK(
+        op,
+        input_shapes,
+        q_head_num.is_dynamic() || ov::util::dim::is_divisible(out_shape[2], q_head_num.get_length()),
+        "The number of value heads must be a multiple of query/key heads (GQA), but got v_H=",
+        v_head_num,
+        " and qk_H=",
+        q_head_num);
 
     const auto& gate_head_num = gate_ps[2];
     const auto& beta_head_num = beta_ps[2];
@@ -84,6 +95,6 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
         v_head_size);
     // output has the same shape and type as input value, output state has the same shape and type as input
     // recurrent_state
-    return {value_ps, state_ps};
+    return {out_shape, state_ps};
 }
 }  // namespace ov::op::internal
