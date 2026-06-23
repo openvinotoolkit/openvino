@@ -6,6 +6,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
+#include "openvino/core/version.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -13,6 +14,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 
+#include <sstream>
 #include <sys/types.h>
 
 namespace ov::intel_gpu {
@@ -61,6 +63,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
+    m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -83,6 +86,14 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
+    uint32_t requirements_version = 0;
+    ib >> requirements_version;
+    ib >> m_runtime_requirements;
+    if (requirements_version != runtime_requirements_version) {
+        // Descriptor was produced by a build using a different on-disk contract:
+        // its content cannot be trusted, so drop it (compatibility check -> NOT_APPLICABLE).
+        m_runtime_requirements.clear();
+    }
     {
         size_t num_params;
         ib >> num_params;
@@ -192,6 +203,10 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
+    const uint32_t requirements_version = runtime_requirements_version;
+    ob << requirements_version;
+    ob << m_runtime_requirements;
+
     // Inputs
     {
         const auto& params = inputs();
@@ -238,6 +253,20 @@ void CompiledModel::export_model(std::ostream& model) const {
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return get_graph(0)->get_runtime_model();
 }
+
+std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
+    // v1 simplified GPU compatibility descriptor.
+    // Captures high-level execution requirements (OV version, driver, GFX IP, EU count).
+    // Future releases can extend the desc=[...] block with true per-model requirements
+    // without changing the property plumbing or blob layout.
+    std::ostringstream ss;
+    ss << "meta=1.0"
+       << ";ov=" << ov::get_openvino_version().buildNumber
+       << ";desc=[driver=" << info.driver_version
+       << ";ip=" << info.ip_version
+       << ";eus=" << info.execution_units_count << "]";
+    return ss.str();
+}
 const std::vector<std::shared_ptr<Graph>>& CompiledModel::get_graphs() const {
     return m_graphs;
 }
@@ -278,6 +307,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
     } else if (name == ov::model_name) {
         return decltype(ov::model_name)::value_type {m_model_name};
@@ -290,6 +320,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
+    } else if (name == ov::runtime_requirements) {
+        return decltype(ov::runtime_requirements)::value_type{m_runtime_requirements};
     }
 
     return m_config.get_property(name, OptionVisibility::RELEASE);

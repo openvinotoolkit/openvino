@@ -46,6 +46,15 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
+    // Builds the simplified v1 GPU compatibility descriptor.
+    // Format mirrors NPU: meta=<ver>;ov=<ov>;desc=[<driver/hw features>]
+    static std::string build_runtime_requirements(const cldnn::device_info& info);
+
+    // Layout version of the runtime requirements descriptor persisted in the blob.
+    // Bump when the on-disk contract (the data following this field) changes so the
+    // importer can detect and reject descriptors produced by a future build.
+    static constexpr uint32_t runtime_requirements_version = 1;
+
     void set_property(const ov::AnyMap& properties) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. Set property "
                                        "to Core::compile_model during compilation");
@@ -84,6 +93,7 @@ private:
     std::vector<ov::Output<const ov::Node>> m_outputs;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
+    std::string m_runtime_requirements;
     std::shared_ptr<ov::Tensor> _backing_tensor;
 };
 
