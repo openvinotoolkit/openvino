@@ -819,13 +819,56 @@ bool SlotResolver::is_loop_carried_empty_seed(const ov::Output<ov::Node>& value)
     if (!s) {
         return false;
     }
-    // A sequence read straight off an empty-seeded Loop merged input resolves to
-    // exactly the recorded slot Parameters. (A sequence rebuilt this iteration —
-    // e.g. SequenceConstruct of fresh tensors — resolves to non-Parameter slots
-    // and is correctly treated as static.)
+    // A sequence read off an empty-seeded Loop merged input resolves to slot
+    // Parameters that either ARE the recorded empty-seed params, or are body
+    // Parameters bound (invariant/merged) to them across one or more nested
+    // Loop/If boundaries (e.g. the cache read inside a decoder's inner If). Walk
+    // each slot's input-binding chain back to its origin and check for a recorded
+    // empty-seed param. (A sequence rebuilt this iteration — e.g. SequenceConstruct
+    // of fresh tensors — resolves to non-Parameter slots and is correctly static.)
+    std::set<ov::op::v0::Parameter*> visited;
+    std::function<bool(ov::op::v0::Parameter*)> originates_from_empty_seed = [&](ov::op::v0::Parameter* p) -> bool {
+        if (!p || !visited.insert(p).second) {
+            return false;
+        }
+        if (empty_seed_slot_params_.count(p)) {
+            return true;
+        }
+        // Trace to the outer value bound to this body Parameter.
+        auto body_it = param_to_model_.find(p);
+        if (body_it == param_to_model_.end()) {
+            return false;
+        }
+        auto owner_it = body_owner_.find(body_it->second.get());
+        if (owner_it == body_owner_.end()) {
+            return false;
+        }
+        auto owner = owner_it->second.first;
+        const int body_idx = owner_it->second.second;
+        const auto& params = body_it->second->get_parameters();
+        size_t p_idx = 0;
+        bool found = false;
+        for (size_t i = 0; i < params.size(); ++i) {
+            if (params[i].get() == p) {
+                p_idx = i;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+        InputBinding binding;
+        if (!find_input_binding(owner, body_idx, p_idx, binding)) {
+            return false;
+        }
+        auto outer = unwrap_identity(owner->input_value(binding.outer_input));
+        return originates_from_empty_seed(ov::as_type_ptr<v0::Parameter>(outer.get_node_shared_ptr()).get());
+    };
+
     for (const auto& slot : *s) {
-        auto p = ov::as_type_ptr<v0::Parameter>(slot.get_node_shared_ptr());
-        if (p && empty_seed_slot_params_.count(p.get())) {
+        auto p = ov::as_type_ptr<v0::Parameter>(unwrap_identity(slot).get_node_shared_ptr());
+        if (p && originates_from_empty_seed(p.get())) {
             return true;
         }
     }
