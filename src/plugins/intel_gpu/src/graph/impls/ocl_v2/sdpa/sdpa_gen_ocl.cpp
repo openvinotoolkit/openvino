@@ -25,10 +25,29 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
-static constexpr int SubgroupSize = 16;
-static constexpr int sgPerWG = 16;
-static constexpr int wgTileK = 128;
-static constexpr int wgTileQ = 32;
+struct sdpa_ocl_config_t {
+    int subgroup_size = 16;
+    int kq_sg_tile_keys = 16;
+    int kq_sg_tile_queries = 16;
+    int kq_sg_per_wg_keys = 8;
+    int kq_sg_per_wg_queries = 2;
+    int sv_sg_tile_values = 16;
+    int sv_sg_tile_scores = 16;
+    int sv_sg_per_wg_values = 8;
+    int sv_sg_per_wg_scores = 2;
+
+    int sg_per_wg() const {
+        return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
+    }
+
+    int kq_wg_tile_keys() const {
+        return kq_sg_tile_keys * kq_sg_per_wg_keys;
+    }
+
+    int kq_wg_tile_queries() const {
+        return kq_sg_tile_queries * kq_sg_per_wg_queries;
+    }
+};
 
 size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
@@ -50,6 +69,16 @@ inline size_t get_d_max(size_t head_size) {
         }
     }
     return head_size;
+}
+
+sdpa_ocl_config_t get_default_sdpa_ocl_config(gpu_arch arch, size_t d_max) {
+    sdpa_ocl_config_t config;
+    config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+    config.sv_sg_per_wg_values = d_max <= 64 ? 4 : 8;
+    config.sv_sg_per_wg_scores = config.sg_per_wg() / config.sv_sg_per_wg_values;
+    config.sv_sg_tile_values = static_cast<int>(d_max) / config.sv_sg_per_wg_values;
+    config.sv_sg_tile_scores = config.kq_wg_tile_queries() / config.sv_sg_per_wg_scores;
+    return config;
 }
 
 JitConstants unit_parameters(const std::string& prefix) {
@@ -347,11 +376,21 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     auto ldv = v_head_size * ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
+    const auto ocl_config = get_default_sdpa_ocl_config(device_info.arch, d_max);
+
     jit.make("KSTEP", 16);          // intel_sub_group_f16_f16_matrix_mad_k16 only supports KSTEP of 16
+    jit.make("KQ_SG_TILE_KEYS", ocl_config.kq_sg_tile_keys);
+    jit.make("KQ_SG_TILE_QUERIES", ocl_config.kq_sg_tile_queries);
+    jit.make("KQ_SG_PER_WG_KEYS", ocl_config.kq_sg_per_wg_keys);
+    jit.make("KQ_SG_PER_WG_QUERIES", ocl_config.kq_sg_per_wg_queries);
+    jit.make("SV_SG_TILE_VALUES", ocl_config.sv_sg_tile_values);
+    jit.make("SV_SG_TILE_SCORES", ocl_config.sv_sg_tile_scores);
+    jit.make("SV_SG_PER_WG_VALUES", ocl_config.sv_sg_per_wg_values);
+    jit.make("SV_SG_PER_WG_SCORES", ocl_config.sv_sg_per_wg_scores);
     jit.make("D_MAX", d_max);
     jit.make("DKS", "(D_MAX / KSTEP)");
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
-    jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
+    jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
     jit.make("INVERT_SCALE", false);
     jit.make("SCALE_DATA_T", "half");
     jit.make("HEAD_SIZE", k_head_size);
@@ -687,15 +726,20 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             const auto& out = params.output_layouts[0];
             const auto& out_ps = out.get_partial_shape();
 
-            const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, wgTileK);
-            const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, wgTileQ);
+            const auto& device_info = params.get_device_info();
+            const auto k_head_size = micro_get_head_size(params, 1);
+            const auto d_max = get_d_max(k_head_size);
+            const auto ocl_config = get_default_sdpa_ocl_config(device_info.arch, d_max);
+
+            const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, ocl_config.kq_wg_tile_keys());
+            const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, ocl_config.kq_wg_tile_queries());
             const auto v_head_size = micro_get_head_size(params, 2);
 
             size_t q = n_queries.get_length();
 
-            wgs.local = {SubgroupSize, sgPerWG, 1};
+            wgs.local = {static_cast<size_t>(ocl_config.subgroup_size), static_cast<size_t>(ocl_config.sg_per_wg()), 1};
             wgs.global = wgs.local;
-            wgs.global[0] = wgs.global[0] * ((q + wgTileQ - 1) / wgTileQ);
+            wgs.global[0] = wgs.global[0] * ((q + ocl_config.kq_wg_tile_queries() - 1) / ocl_config.kq_wg_tile_queries());
             wgs.global[1] *= out_ps[1].get_length();
             wgs.global[2] *= out_ps[0].get_length();
 
