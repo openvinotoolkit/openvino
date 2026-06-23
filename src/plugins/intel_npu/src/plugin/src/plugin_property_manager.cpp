@@ -174,6 +174,7 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
     CompilerAdapterFactory compilerFactory;
     auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
     try {
+        std::cout << "Checking compatibility check support via plugin compiler" << std::endl;
         auto tempCompiler = compilerFactory.getCompiler(backend, compilerType, std::string_view{});
         return tempCompiler->is_option_supported(ov::compatibility_check.name());
     } catch (...) {
@@ -420,12 +421,10 @@ void PluginPropertyManager::registerProperties() const {
             return _metrics->GetBackendName();
         });
 
-        register_custom_metric(_properties, ov::device::architecture.name(), !_metrics->GetAvailableDevicesNames().empty(), true,
-        [&](const Config& config) {
+        try_register_custom_metric(_properties, ov::device::architecture.name(), !_metrics->GetAvailableDevicesNames().empty(), true, [&](const Config& config) {
             return _metrics->GetDeviceArchitecture(get_specified_device_name(config));
         });
-        register_custom_metric(_properties, ov::device::full_name.name(), !_metrics->GetAvailableDevicesNames().empty(), true,
-        [&](const Config& config) {
+        try_register_custom_metric(_properties, ov::device::full_name.name(), !_metrics->GetAvailableDevicesNames().empty(), true, [&](const Config& config) {
             return _metrics->GetFullDeviceName(get_specified_device_name(config));
         });
         // clang-format on
@@ -481,13 +480,13 @@ void PluginPropertyManager::registerProperties() const {
         return _supportedProperties;
     });
 
-    register_custom_metric_with_args(_properties,
-                                     ov::compatibility_check.name(),
-                                     _compatibilityCheckFiltered && _compatibilityCheckSupported,
-                                     true,
-                                     [this](const Config&, const ov::AnyMap& arguments) {
-                                         return validateCompatibilityDescriptor(_backend, arguments);
-                                     });
+    try_register_custom_metric_with_args(_properties,
+                                         ov::compatibility_check.name(),
+                                         _compatibilityCheckFiltered && _compatibilityCheckSupported,
+                                         true,
+                                         [this](const Config&, const ov::AnyMap& arguments) {
+                                             return validateCompatibilityDescriptor(_backend, arguments);
+                                         });
 
     for (auto& property : _properties) {
         if (property.second.isPublic) {
@@ -509,13 +508,13 @@ void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() const 
     // Keep only one descriptor for this property and update it after the one-time probe.
     _properties.erase(compatibilityCheckName);
 
-    register_custom_metric_with_args(_properties,
-                                     compatibilityCheckName,
-                                     _compatibilityCheckSupported,
-                                     true,
-                                     [this](const Config&, const ov::AnyMap& arguments) {
-                                         return validateCompatibilityDescriptor(_backend, arguments);
-                                     });
+    try_register_custom_metric_with_args(_properties,
+                                         compatibilityCheckName,
+                                         _compatibilityCheckSupported,
+                                         true,
+                                         [this](const Config&, const ov::AnyMap& arguments) {
+                                             return validateCompatibilityDescriptor(_backend, arguments);
+                                         });
 
     // Update supported_properties incrementally for compatibility_check only.
     _supportedProperties.erase(

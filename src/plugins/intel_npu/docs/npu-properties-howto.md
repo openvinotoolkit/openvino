@@ -410,34 +410,34 @@ Example:
 ## SC.2 Adding a new (metric-backed) property which requires customization
 Apart from `register_simple_metric`, two additional helper functions are available for metric-backed properties:
 
-#### register_custom_metric(properties, propertyName, shouldRegister, isPublic, getter)
+#### try_register_custom_metric(properties, propertyName, shouldRegister, isPublic, getter)
 Conditionally registers a metric property. The property is only added when `shouldRegister` is true.
 Use this when the availability of a metric depends on a runtime condition (e.g. backend capability check).
 Example:
 ```cpp
-    register_custom_metric(_properties,
-                           ov::device::full_name.name(),
-                           !_metrics->GetAvailableDevicesNames().empty(),
-                           true,
-                           [&](const Config& config) {
-                               const auto specifiedDeviceName = get_specified_device_name(config);
-                               return _metrics->GetFullDeviceName(specifiedDeviceName);
-                           });
+    try_register_custom_metric(_properties,
+                               ov::device::full_name.name(),
+                               !_metrics->GetAvailableDevicesNames().empty(),
+                               true,
+                               [&](const Config& config) {
+                                   const auto specifiedDeviceName = get_specified_device_name(config);
+                                   return _metrics->GetFullDeviceName(specifiedDeviceName);
+                               });
 ```
 
-#### register_custom_metric_with_args(properties, propertyName, shouldRegister, isPublic, getter)
-Same as `register_custom_metric`, but for properties whose getter also receives an `ov::AnyMap` of additional
+#### try_register_custom_metric_with_args(properties, propertyName, shouldRegister, isPublic, getter)
+Same as `try_register_custom_metric`, but for properties whose getter also receives an `ov::AnyMap` of additional
 arguments at get_property call time. Use this for properties such as `ov::compatibility_check` that accept
 extra input arguments.
 Example:
 ```cpp
-    register_custom_metric_with_args(_properties,
-                                     ov::compatibility_check.name(),
-                                     _compatibilityCheckSupported,
-                                     true,
-                                     [this](const Config&, const ov::AnyMap& arguments) {
-                                         return validateCompatibilityDescriptor(_backend, arguments);
-                                     });
+    try_register_custom_metric_with_args(_properties,
+                                         ov::compatibility_check.name(),
+                                         _compatibilityCheckSupported,
+                                         true,
+                                         [this](const Config&, const ov::AnyMap& arguments) {
+                                             return validateCompatibilityDescriptor(_backend, arguments);
+                                         });
 ```
 
 ## SC.3 Filtering out options at registration phase

@@ -202,11 +202,11 @@ inline void register_simple_metric(PropertyMap& properties,
  * Use this when a metric property must be conditionally exposed based on device/backend capabilities.
  */
 template <typename Getter>
-inline void register_custom_metric(PropertyMap& properties,
-                                   const std::string& propertyName,
-                                   bool shouldRegister,
-                                   bool isPublic,
-                                   Getter&& getter) {
+inline void try_register_custom_metric(PropertyMap& properties,
+                                       const std::string& propertyName,
+                                       bool shouldRegister,
+                                       bool isPublic,
+                                       Getter&& getter) {
     if (!shouldRegister) {
         return;
     }
@@ -224,11 +224,11 @@ inline void register_custom_metric(PropertyMap& properties,
  * Use this for properties that accept extra arguments at get_property call time (e.g. compatibility_check).
  */
 template <typename Getter>
-inline void register_custom_metric_with_args(PropertyMap& properties,
-                                             const std::string& propertyName,
-                                             bool shouldRegister,
-                                             bool isPublic,
-                                             Getter&& getter) {
+inline void try_register_custom_metric_with_args(PropertyMap& properties,
+                                                 const std::string& propertyName,
+                                                 bool shouldRegister,
+                                                 bool isPublic,
+                                                 Getter&& getter) {
     if (!shouldRegister) {
         return;
     }

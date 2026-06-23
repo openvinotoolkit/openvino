@@ -203,13 +203,13 @@ void CompiledModelPropertyManager::registerProperties() {
         return ov::Any(_supportedProperties);
     });
 
-    register_custom_metric(_properties,
-                           ov::runtime_requirements.name(),
-                           _graph != nullptr && _graph->get_compatibility_descriptor().has_value(),
-                           true,
-                           [this](const Config&) {
-                               return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
-                           });
+    try_register_custom_metric(_properties,
+                               ov::runtime_requirements.name(),
+                               _graph != nullptr && _graph->get_compatibility_descriptor().has_value(),
+                               true,
+                               [this](const Config&) {
+                                   return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
+                               });
 
     for (const auto& property : _properties) {
         if (property.second.isPublic) {
