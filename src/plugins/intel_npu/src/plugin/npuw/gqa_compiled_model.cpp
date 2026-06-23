@@ -15,8 +15,10 @@
 #include "npuw_transformations/drop_zp_subtract.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
+#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 
 namespace {
 
@@ -121,6 +123,14 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     if (prepared_properties.at(std::string(::intel_npu::NPUW_UNQDQ::key())).as<bool>()) {
         ov::npuw::CollapseUNQDQ collapse_unqdq;
         collapse_unqdq.run_on_model(model);
+    }
+    // Apply the core GQA decomposition (ScatterUpdate-based left-aligned KV cache) when requested.
+    const auto gqa_managed_key = std::string(::intel_npu::NPUW_GQA_MANAGED::key());
+    if (prepared_properties.at(gqa_managed_key).as<bool>()) {
+        LOG_INFO("NPUW_GQA_MANAGED: applying GroupQueryAttentionDecomposition");
+        ov::pass::GraphRewrite rewrite;
+        rewrite.add_matcher<ov::pass::GroupQueryAttentionDecomposition>();
+        rewrite.run_on_model(model);
     }
     return {model, std::move(prepared_properties)};
 }
