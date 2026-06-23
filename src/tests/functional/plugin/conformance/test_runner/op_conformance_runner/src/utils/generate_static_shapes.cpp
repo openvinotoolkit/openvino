@@ -12,6 +12,7 @@ namespace utils {
 
 namespace {
     uint64_t get_dim_max_for_rank(size_t rank) {
+        // Empirical thresholds to prevent OOM as tensor rank increases
         return (rank <= 2) ? 127 : (rank <= 4) ? 32 : 20;
     }
 } // namespace
