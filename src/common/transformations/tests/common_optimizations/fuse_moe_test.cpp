@@ -204,7 +204,6 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
             expert_weights.push_back(weight_const);
         }
         auto concat = std::make_shared<v0::Concat>(expert_weights, 0);
-        concat->get_rt_info()["postponed_constant"] = true;
         return concat;
     };
 
