@@ -17,30 +17,20 @@ constexpr std::string_view OLD_MLIR_RUNTIME_NAME = "npu_mlir_runtime";
 constexpr std::string_view NEW_VM_RUNTIME_NAME = "openvino_intel_npu_vm_runtime";
 constexpr std::string_view OLD_VM_RUNTIME_NAME = "npu_interpreter_runtime";
 
-std::string getRuntimeName(std::string_view libName) {
-    if (libName.empty() || libName == OLD_MLIR_RUNTIME_NAME) {
-        return std::string(NEW_MLIR_RUNTIME_NAME);
-    }
-    if (libName == OLD_VM_RUNTIME_NAME) {
-        return std::string(NEW_VM_RUNTIME_NAME);
-    }
-    return std::string(libName);
-}
-
 std::string g_libName{NEW_MLIR_RUNTIME_NAME};
 bool g_instanceCreated{false};
 }  // namespace
 
 NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
-    const std::string baseName = getRuntimeName(libName);
+    const std::string baseName = libName.empty() ? std::string(NEW_MLIR_RUNTIME_NAME) : std::string(libName);
     try {
         auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
         this->lib = ov::util::load_shared_object(libPath);
     } catch (const std::runtime_error& error) {
         // Temporary compatibility for packages built before the runtime library rename.
-        const auto fallbackName = baseName == NEW_MLIR_RUNTIME_NAME ? std::string(OLD_MLIR_RUNTIME_NAME)
-                                  : baseName == NEW_VM_RUNTIME_NAME ? std::string(OLD_VM_RUNTIME_NAME)
-                                                                    : std::string{};
+        const auto fallbackName = baseName == std::string(NEW_MLIR_RUNTIME_NAME) ? std::string(OLD_MLIR_RUNTIME_NAME)
+                                  : baseName == std::string(NEW_VM_RUNTIME_NAME) ? std::string(OLD_VM_RUNTIME_NAME)
+                                                                                 : std::string{};
         if (fallbackName.empty()) {
             OPENVINO_THROW(error.what());
         }
@@ -85,7 +75,7 @@ void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
 }
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
-    const std::string resolvedName = getRuntimeName(libName);
+    const std::string resolvedName = libName.empty() ? std::string(NEW_MLIR_RUNTIME_NAME) : std::string(libName);
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
