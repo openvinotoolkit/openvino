@@ -71,13 +71,49 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
-sdpa_ocl_config_t get_default_sdpa_ocl_config(gpu_arch arch, size_t d_max) {
-    sdpa_ocl_config_t config;
+// Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
+// choose_config_* tables. The KQ workgroup tile is kept at 128 keys with sg_per_wg = 16
+// across all head sizes; only the S*V split (and, for d_max <= 32, the query tile) vary.
+// Every branch's values were verified by the Phase-0 constraint checker for:
+//   - sv_value_blocks >= 1 and sv_score_blocks >= 1 (non-empty DPAS tiles),
+//   - WG coverage (sv tile_values*per_wg == d_max, tile_scores*per_wg == wg_queries),
+//   - SLM budget and alpha-rescale (KQ/SV query-split) alignment.
+// arch is currently used only for the subgroup size; per-arch specialization can be
+// added here later the same way sdpa_micro splits choose_config_xehpc/xe2/xe3p.
+sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
+    sdpa_ocl_config_t config;  // struct defaults already encode the d_max <= 128 tiling
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
-    config.sv_sg_per_wg_values = d_max <= 64 ? 4 : 8;
-    config.sv_sg_per_wg_scores = config.sg_per_wg() / config.sv_sg_per_wg_values;
-    config.sv_sg_tile_values = static_cast<int>(d_max) / config.sv_sg_per_wg_values;
-    config.sv_sg_tile_scores = config.kq_wg_tile_queries() / config.sv_sg_per_wg_scores;
+
+    if (d_max <= 32) {
+        // wg_queries is doubled to 64 so the 16 subgroups still get a valid S*V split
+        // (sv_sg_tile_values must be >= 16; a 32-wide head dim cannot be split 8 ways).
+        config.kq_sg_tile_queries = 32;
+        config.sv_sg_tile_values = 16;
+        config.sv_sg_tile_scores = 8;
+        config.sv_sg_per_wg_values = 2;
+        config.sv_sg_per_wg_scores = 8;
+    } else if (d_max <= 64) {
+        config.sv_sg_tile_values = 16;
+        config.sv_sg_tile_scores = 8;
+        config.sv_sg_per_wg_values = 4;
+        config.sv_sg_per_wg_scores = 4;
+    } else if (d_max <= 128) {
+        config.sv_sg_tile_values = 16;
+        config.sv_sg_tile_scores = 16;
+        config.sv_sg_per_wg_values = 8;
+        config.sv_sg_per_wg_scores = 2;
+    } else if (d_max <= 256) {
+        config.sv_sg_tile_values = 32;
+        config.sv_sg_tile_scores = 16;
+        config.sv_sg_per_wg_values = 8;
+        config.sv_sg_per_wg_scores = 2;
+    } else {
+        // d_max <= 512; larger head sizes are rejected upstream by supports_micro_sdpa.
+        config.sv_sg_tile_values = 64;
+        config.sv_sg_tile_scores = 16;
+        config.sv_sg_per_wg_values = 8;
+        config.sv_sg_per_wg_scores = 2;
+    }
     return config;
 }
 
@@ -376,19 +412,20 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     auto ldv = v_head_size * ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
-    const auto ocl_config = get_default_sdpa_ocl_config(device_info.arch, d_max);
+    const auto ocl_config = choose_config(device_info.arch, d_max);
 
-    jit.make("KSTEP", 16);          // intel_sub_group_f16_f16_matrix_mad_k16 only supports KSTEP of 16
-    jit.make("KQ_SG_TILE_KEYS", ocl_config.kq_sg_tile_keys);
-    jit.make("KQ_SG_TILE_QUERIES", ocl_config.kq_sg_tile_queries);
-    jit.make("KQ_SG_PER_WG_KEYS", ocl_config.kq_sg_per_wg_keys);
-    jit.make("KQ_SG_PER_WG_QUERIES", ocl_config.kq_sg_per_wg_queries);
-    jit.make("SV_SG_TILE_VALUES", ocl_config.sv_sg_tile_values);
-    jit.make("SV_SG_TILE_SCORES", ocl_config.sv_sg_tile_scores);
-    jit.make("SV_SG_PER_WG_VALUES", ocl_config.sv_sg_per_wg_values);
-    jit.make("SV_SG_PER_WG_SCORES", ocl_config.sv_sg_per_wg_scores);
+    jit.make("DPAS_K", 16);          // intel_sub_group_f16_f16_matrix_mad_k16 only supports KSTEP of 16
+    jit.make("DPAS_ROWS", 8);
+    jit.make("kq_sg_tile_keys", ocl_config.kq_sg_tile_keys);
+    jit.make("kq_sg_tile_queries", ocl_config.kq_sg_tile_queries);
+    jit.make("kq_sg_per_wg_keys", ocl_config.kq_sg_per_wg_keys);
+    jit.make("kq_sg_per_wg_queries", ocl_config.kq_sg_per_wg_queries);
+    jit.make("sv_sg_tile_scores", ocl_config.sv_sg_tile_scores);
+    jit.make("sv_sg_tile_values", ocl_config.sv_sg_tile_values);
+    jit.make("sv_sg_per_wg_scores", ocl_config.sv_sg_per_wg_scores);
+    jit.make("sv_sg_per_wg_values", ocl_config.sv_sg_per_wg_values);
     jit.make("D_MAX", d_max);
-    jit.make("DKS", "(D_MAX / KSTEP)");
+    jit.make("DKS", "(D_MAX / DPAS_K)");
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
     jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
     jit.make("INVERT_SCALE", false);
@@ -729,7 +766,7 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             const auto& device_info = params.get_device_info();
             const auto k_head_size = micro_get_head_size(params, 1);
             const auto d_max = get_d_max(k_head_size);
-            const auto ocl_config = get_default_sdpa_ocl_config(device_info.arch, d_max);
+            const auto ocl_config = choose_config(device_info.arch, d_max);
 
             const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, ocl_config.kq_wg_tile_keys());
             const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, ocl_config.kq_wg_tile_queries());
