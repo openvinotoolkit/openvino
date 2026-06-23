@@ -34,7 +34,7 @@ jobs:
           submodules: 'true'
 
       - name: Install OpenCL
-        uses: awalsh128/cache-apt-pkgs-action@2c09a5e66da6c8016428a2172bd76e5e4f14bb17 # v1.5.3
+        uses: awalsh128/cache-apt-pkgs-action@681749ae568c81c2037cb9185e38b709b261bd2f # v1.6.1
         if: runner.os == 'Linux'
         with:
           packages: ocl-icd-opencl-dev opencl-headers
