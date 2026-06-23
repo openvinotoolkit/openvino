@@ -348,9 +348,17 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
 
     auto expert_input_source = io.expert_input;
 
-    // Output embedding dimension
-    const auto output_shape = m_config.compiled_models.begin()->second->outputs()[0].get_shape();
-    const size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
+    // Use the embed_dim already validated against the accumulator buffer during prepare().
+    // Defensively assert that the compiled model's output last-dim agrees, so any future
+    // layout change (2D/3D/4D) is caught immediately at runtime instead of producing
+    // silently wrong scatter results.
+    const size_t embed_dim = m_config.expert_hidden_dim;
+    {
+        const auto output_shape = m_config.compiled_models.begin()->second->outputs()[0].get_shape();
+        NPUW_ASSERT(!output_shape.empty() && output_shape.back() == embed_dim &&
+                    "Chunk model output last-dim does not match expert_hidden_dim — "
+                    "layout may have changed, update embed_dim derivation");
+    }
 
     // num_tokens and num_experts come from config, validated once during prepare().
     // The router tensor's token dimension is guaranteed to match input_token_count because
