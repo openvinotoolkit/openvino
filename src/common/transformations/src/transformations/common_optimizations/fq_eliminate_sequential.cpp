@@ -15,11 +15,17 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
@@ -43,23 +49,43 @@ bool is_integer_multiple(double value, double step, double eps = 1e-9) {
 FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
     MATCHER_SCOPE(FakeQuantizeEliminateSequential);
     auto p_fq1 = pattern::wrap_type<v0::FakeQuantize>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
-        pattern::consumers_count(1));
-    auto p_fq2 = pattern::wrap_type<v0::FakeQuantize>(
-        {p_fq1, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()}, pattern::consumers_count(1));
 
     // Folds two sequential FakeQuantize ops (FQ1 -> FQ2) into one. Notation below:
-    // FQ(in_low, in_high, out_low, out_high, levels).
+    // FQ(in_low, in_high, out_low, out_high, levels). FQ1 and FQ2 may be separated by one or several
+    // value-preserving Reshape/Transpose/Squeeze/Unsqueeze ops: a scalar (per-tensor) FakeQuantize is
+    // applied element-wise, so it commutes with such ops and the folding stays valid through the chain.
     //   - Elimination (FQ2 dropped, FQ1 kept), e.g.
     //       FQ1(-1, 1, -1, 1, 256) -> FQ2(-2, 2, -2, 2, 1021)  =>  FQ1(-1, 1, -1, 1, 256)
     //   - Merge into a single FQ (FQ1 input range -> FQ2 output range), e.g.
     //       FQ1(-2, 2, -1, 1, 256) -> FQ2(-1, 1, -1, 0, 256)    =>  FQ(-2, 2, -1, 0, 256)
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(pattern_map.at(p_fq1).get_node_shared_ptr());
-        auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(pattern_map.at(p_fq2).get_node_shared_ptr());
+        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(m.get_match_root());
+        if (!fq1) {
+            return false;
+        }
 
-        if (!fq1 || !fq2) {
+        // Walk down from FQ1 through value-preserving Reshape/Transpose/Squeeze/Unsqueeze ops to reach
+        // the consuming FQ2. Every op along the chain (starting with FQ1) must have a single consumer,
+        // otherwise bypassing it would change the graph for its other consumers.
+        auto is_value_preserving = [](const std::shared_ptr<ov::Node>& node) {
+            return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
+                   ov::is_type<op_util::SqueezeBase>(node) || ov::is_type<v0::Unsqueeze>(node);
+        };
+        auto output = fq1->output(0);
+        std::shared_ptr<ov::Node> consumer;
+        while (true) {
+            if (output.get_target_inputs().size() != 1) {
+                return false;
+            }
+            consumer = output.get_target_inputs().begin()->get_node()->shared_from_this();
+            if (!is_value_preserving(consumer)) {
+                break;
+            }
+            output = consumer->output(0);
+        }
+        auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(consumer);
+        if (!fq2) {
             return false;
         }
 
@@ -123,7 +149,7 @@ FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
         const bool fq2_is_identity = is_close(fq2_ranges["in.low"], fq2_ranges["out.low"]) &&
                                      is_close(fq2_ranges["in.high"], fq2_ranges["out.high"]);
         if (fq2_is_identity) {
-            return replace_output_update_name(fq2->output(0), fq1->output(0));
+            return replace_output_update_name(fq2->output(0), fq2->input_value(0));
         }
 
         // Otherwise merge FQ1 and FQ2 into a single FakeQuantize: FQ1 input range -> FQ2 output range.
@@ -150,13 +176,15 @@ FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
                                                             fq2_out_high_const,
                                                             fq1->get_levels());
 
-        merged_fq->set_friendly_name(fq2->get_friendly_name());
+        // Replace FQ1 with the merged FQ (any Reshape/Transpose chain keeps reading from it) and
+        // bypass FQ2, since reshape(merged(x)) == FQ2(reshape(FQ1(x))).
+        merged_fq->set_friendly_name(fq1->get_friendly_name());
         ov::copy_runtime_info({fq1, fq2}, merged_fq);
-        ov::replace_node(fq2, merged_fq);
-        return true;
+        ov::replace_node(fq1, merged_fq);
+        return replace_output_update_name(fq2->output(0), fq2->input_value(0));
     };
 
-    auto m = std::make_shared<pattern::Matcher>(p_fq2, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(p_fq1, matcher_name);
     register_matcher(m, callback);
 }
 

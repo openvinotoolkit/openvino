@@ -20,6 +20,10 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
  * @brief FakeQuantizeEliminateSequential folds two sequential FakeQuantize operations (FQ1 -> FQ2)
  * into a single one. The notation below is FQ(in_low, in_high, out_low, out_high, levels).
  *
+ * FQ1 and FQ2 may be separated by one or several value-preserving Reshape/Transpose/Squeeze/Unsqueeze
+ * ops. A matched FakeQuantize is per-tensor (scalar ranges) and therefore applied element-wise, so it
+ * commutes with such ops and the folding stays valid through the chain.
+ *
  * The transformation applies only when:
  *  - all four range bounds of both ops are finite constants;
  *  - FQ1 output range lies within FQ2 input range, otherwise FQ2 clamps FQ1 output;
