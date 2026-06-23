@@ -88,13 +88,13 @@ Enable **additional** flags only when they matter for correctness of your test:
 | `NODES` | yes | (always on) op type and graph topology |
 | `PRECISIONS` | yes | (always on) element type of each tensor |
 | `RUNTIME_KEYS` | yes | (always on) `rt_info` key presence and values |
-| `SUBGRAPH_DESCRIPTORS` | yes | (always on) Loop/If body port descriptors |
+| `SUBGRAPH_DESCRIPTORS` | yes | (always on) SubGraphOp bodies port descriptors |
 | `CONST_VALUES` | no | Transformation changes, inserts, or folds constant data |
-| `ATTRIBUTES` | no | Transformation sets or changes op attributes (broadcast mode, strides, group count, …) |
+| `ATTRIBUTES` | no | Transformation sets or changes op attributes (broadcast mode, strides, group count, …), or creates new nodes with some specific attributes |
 | `NAMES` | no | Transformation must preserve specific friendly names |
 | `TENSOR_NAMES` | no | Transformation must preserve output tensor names |
-| `ACCURACY` | no | Runs Template plugin inference on the pre- and post-transformation models and checks outputs are within threshold (structural `model_ref` comparison still runs after). **Makes tests significantly slower** — only enable when there is a direct justification (e.g. the transformation does floating-point constant folding and plugin functional tests don't cover this path); plugin tests already verify accuracy for most transformations |
-| `CONSUMERS_COUNT` | no | Transformation changes the number of consumers on an output (e.g. constant deduplication, shared subgraph nodes) |
+| `CONSUMERS_COUNT` | no | Transformation changes the number of consumers on an output (e.g. constant deduplication, shared subgraph nodes) or the transformation's logic depends on the consumers count |
+| `ACCURACY` | no | Runs Template plugin inference on the pre- and post-transformation models and checks outputs are within threshold (structural `model_ref` comparison still runs after). **Makes tests significantly slower** — only enable when there is a direct justification; plugin tests already verify accuracy for most transformations |
 
 Enable in the constructor or `SetUp`, or inline at the test level:
 
@@ -112,11 +112,6 @@ Do **not** explicitly enable flags already on by default in `TransformationTests
 
 Use `node_builders/` helpers instead of constructing ops directly when they exist.
 Headers live in `src/tests/test_utils/common_test_utils/include/common_test_utils/node_builders/`.
-
-To discover what builders are available:
-```bash
-ls src/tests/test_utils/common_test_utils/include/common_test_utils/node_builders/
-```
 
 Import example:
 ```cpp
