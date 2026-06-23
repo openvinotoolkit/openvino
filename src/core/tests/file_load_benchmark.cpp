@@ -72,22 +72,11 @@ void evict_cache(const std::filesystem::path& path, size_t file_size) {
     // is started with --privileged).  Writing "3" flushes the host page
     // cache, dentries, and inodes — the only fully reliable way to guarantee a cold-cache run.
     // Fallback: posix_fadvise(DONTNEED) is best-effort; the kernel may ignore it.
-    static const bool have_drop_caches = [] {
-        int fd = ::open("/proc/sys/vm/drop_caches", O_WRONLY);
-        if (fd >= 0) {
-            ::close(fd);
-            return true;
-        }
-        return false;
-    }();
+    static const bool have_drop_caches = std::ofstream("/proc/sys/vm/drop_caches").is_open();
 
     if (have_drop_caches) {
         ::sync();  // commit all dirty pages before dropping
-        int fd = ::open("/proc/sys/vm/drop_caches", O_WRONLY);
-        if (fd >= 0) {
-            std::ignore = ::write(fd, "3", 1);
-            ::close(fd);
-        }
+        std::ofstream("/proc/sys/vm/drop_caches") << "3";
         sleep(1);  // give the kernel a moment to settle
         return;
     } else {
