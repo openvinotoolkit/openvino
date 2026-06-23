@@ -39,13 +39,6 @@ struct ProfilingInfo {
     Status status;
 
     /**
-     * @brief The backend-specific timestamp, in microseconds, when the node started.
-     *
-     * If the backend cannot provide a meaningful start timestamp, this value is zero.
-     */
-    std::chrono::microseconds start_time;
-
-    /**
      * @brief The absolute time, in microseconds, that the node ran (in total).
      */
     std::chrono::microseconds real_time;
@@ -69,6 +62,13 @@ struct ProfilingInfo {
      * @brief Node type.
      */
     std::string node_type;
+
+    /**
+     * @brief The backend-specific timestamp, in microseconds, when the node started.
+     *
+     * If the backend cannot provide a meaningful start timestamp, this value is zero.
+     */
+    std::chrono::microseconds start_time;
 };
 
 }  // namespace ov
