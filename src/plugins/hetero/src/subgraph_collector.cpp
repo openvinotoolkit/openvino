@@ -62,7 +62,8 @@ std::shared_ptr<ov::Node> ov::hetero::SubgraphCollector::input_node(
 }
 
 ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model>& model,
-                                                 const AffinitiesMap& affinities)
+                                                 const AffinitiesMap& affinities,
+                                                 std::string log_context)
     : _ordered_ops{model->get_ordered_ops()},
       _origin_parameters(model->get_parameters()),
       _origin_results(model->get_results()),
@@ -71,9 +72,12 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
       _intermediate_results(),
       _affinities{affinities},
       _subgraph_inputs{},
-      _subgraph_parameter_to_prev_result{} {
+      _subgraph_parameter_to_prev_result{},
+      _log_context{std::move(log_context)} {
     using clock = std::chrono::steady_clock;
-    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::SplitDetails);
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::PartitionDetails);
+    const auto& model_name = model->get_friendly_name();
+    const auto node_count = _ordered_ops.size();
     clock::time_point t0{};
     clock::time_point t_init_start{};
     clock::time_point t_init_end{};
@@ -97,14 +101,23 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
         return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
     };
     if (perf_logging_enabled) {
-        HETERO_PERF_LOG_LEVEL(PerfLogLevel::SplitDetails,
-                              "SubgraphCollector::SubgraphCollector timing: total=",
-                              to_ms(t_split_end - t0),
-                              " ms, init=",
-                              to_ms(t_init_end - t_init_start),
-                              " ms, split_cyclic_dependencies=",
-                              to_ms(t_split_end - t_split_start),
-                              " ms");
+        const auto total_ms = to_ms(t_split_end - t0);
+        if (total_ms > 0) {
+            HETERO_PERF_LOG_LEVEL(PerfLogLevel::PartitionDetails,
+                                  "SubgraphCollector::SubgraphCollector timing: stage=",
+                                  _log_context,
+                                  ", model=",
+                                  model_name,
+                                  ", nodes=",
+                                  node_count,
+                                  ", total=",
+                                  total_ms,
+                                  " ms, init=",
+                                  to_ms(t_init_end - t_init_start),
+                                  " ms, split_cyclic_dependencies=",
+                                  to_ms(t_split_end - t_split_start),
+                                  " ms");
+        }
     }
 }
 
@@ -139,7 +152,7 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     const auto to_ms = [](clock::duration d) {
         return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
     };
-    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::SplitDetails);
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::PartitionDetails);
     clock::time_point t0{};
     clock::duration collect_ids_time{};
     size_t per_node_iterations = 0;
@@ -786,23 +799,30 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::spl
     }
     if (perf_logging_enabled) {
         const auto t_end = clock::now();
-        HETERO_PERF_LOG_LEVEL(PerfLogLevel::SplitDetails,
-                              "SubgraphCollector::split_cyclic_dependencies timing: total=",
-                              to_ms(t_end - t0),
-                              " ms, node_scan_total=",
-                              to_ms(t_per_node_end - t_per_node_start),
-                              " ms, node_scan_nodes_per_iteration=",
-                              nodes_count,
-                              ", node_scan_iterations=",
-                              per_node_iterations,
-                              ", collect_subgraphs_ids=",
-                              to_ms(collect_ids_time),
-                              " ms, scc_fallback=",
-                              to_ms(t_scc_end - t_scc_start),
-                              " ms, scc_iterations=",
-                              scc_iterations,
-                              ", scc_promoted_edges=",
-                              scc_promoted_edges);
+        const auto total_ms = to_ms(t_end - t0);
+        if (total_ms > 0) {
+            HETERO_PERF_LOG_LEVEL(PerfLogLevel::PartitionDetails,
+                                  "SubgraphCollector::split_cyclic_dependencies timing: stage=",
+                                  _log_context,
+                                  ", nodes=",
+                                  nodes_count,
+                                  ", total=",
+                                  total_ms,
+                                  " ms, node_scan_total=",
+                                  to_ms(t_per_node_end - t_per_node_start),
+                                  " ms, node_scan_nodes_per_iteration=",
+                                  nodes_count,
+                                  ", node_scan_iterations=",
+                                  per_node_iterations,
+                                  ", collect_subgraphs_ids=",
+                                  to_ms(collect_ids_time),
+                                  " ms, scc_fallback=",
+                                  to_ms(t_scc_end - t_scc_start),
+                                  " ms, scc_iterations=",
+                                  scc_iterations,
+                                  ", scc_promoted_edges=",
+                                  scc_promoted_edges);
+        }
     }
     return subgraph_ids;
 }
@@ -1201,7 +1221,8 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     ov::SupportedOpsMap& supported_ops,
     const bool user_set_affinities,
     const bool dump_dot_files,
-    const std::string default_device) {
+    const std::string default_device,
+    const std::string log_context) {
     std::unordered_set<std::string> devices;
     ov::hetero::SubgraphCollector::AffinitiesMap affinities;
     ov::SupportedOpsMap debug_supported_ops{supported_ops};
@@ -1253,7 +1274,7 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     }
 
     // Init subgraph collector
-    ov::hetero::SubgraphCollector subgraph_collector(model, affinities);
+    ov::hetero::SubgraphCollector subgraph_collector(model, affinities, log_context);
 
     if (dump_dot_files) {
         auto subgraph_ids = subgraph_collector.get_subgraph_ids();
@@ -1316,16 +1337,36 @@ void ov::hetero::fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& m
 ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& model,
                                                                          ov::SupportedOpsMap& supported_ops,
                                                                          const bool dump_dot_files,
-                                                                         const std::string default_device) {
+                                                                         const std::string default_device,
+                                                                         const std::string log_context) {
+    using clock = std::chrono::steady_clock;
+    const auto to_ms = [](clock::duration d) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+    };
+    const bool perf_logging_enabled = perf_log_enabled(PerfLogLevel::PartitionDetails);
     const std::string subgraph_id_rt_info_name = "HETERO_SUBGRAPH_ID";
     const std::string input_id_rt_info_name = "HETERO_INPUT_ID";
     const std::string output_id_rt_info_name = "HETERO_OUTPUT_ID";
     const auto& name = model->get_friendly_name();
+    const auto original_nodes = model->get_ops().size();
+    clock::time_point t0{};
+    clock::time_point t_collect_start{};
+    clock::time_point t_collect_end{};
+    clock::time_point t_rewrite_start{};
+    clock::time_point t_rewrite_end{};
+    if (perf_logging_enabled) {
+        t0 = clock::now();
+        t_collect_start = t0;
+    }
 
     SubgraphsVector ordered_subgraphs;
     SubgraphsMappingInfo mapping_info;
     std::tie(ordered_subgraphs, mapping_info) =
-        get_model_subgraphs(model, supported_ops, false, dump_dot_files, default_device);
+        get_model_subgraphs(model, supported_ops, false, dump_dot_files, default_device, log_context);
+    if (perf_logging_enabled) {
+        t_collect_end = clock::now();
+        t_rewrite_start = t_collect_end;
+    }
 
     SubmodelsVector submodels{ordered_subgraphs.size()};
     for (size_t i = 0; i < ordered_subgraphs.size(); i++) {
@@ -1392,6 +1433,27 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
                     }
                 }
             }
+        }
+    }
+    if (perf_logging_enabled) {
+        t_rewrite_end = clock::now();
+        const auto total_ms = to_ms(t_rewrite_end - t0);
+        if (total_ms > 0) {
+            HETERO_PERF_LOG_LEVEL(PerfLogLevel::PartitionDetails,
+                                  "partition_and_rewrite_model timing: stage=",
+                                  log_context,
+                                  ", model=",
+                                  name,
+                                  ", nodes=",
+                                  original_nodes,
+                                  ", total=",
+                                  total_ms,
+                                  " ms, collect_subgraphs=",
+                                  to_ms(t_collect_end - t_collect_start),
+                                  " ms, rewrite_subgraph_model=",
+                                  to_ms(t_rewrite_end - t_rewrite_start),
+                                  " ms, subgraph_count=",
+                                  ordered_subgraphs.size());
         }
     }
 

@@ -216,11 +216,17 @@ For HETERO compilation-time diagnostics, you can also enable internal performanc
    * ``Plugin::compile_model`` - top-level HETERO compilation flow.
    * ``CompiledModel::compile_model`` - submodel compilation and overall HETERO compiled-model construction.
    * ``CompiledModel::compile_model submodel[...]`` - per-subgraph compile time on the target device.
+   * ``Plugin::query_model_update`` - overall multi-device query and graph-partition update time.
 
-* ``OPENVINO_HETERO_PERF=2`` enables all level-1 logs and additional subgraph-splitting diagnostics for:
+* ``OPENVINO_HETERO_PERF=2`` enables all level-1 logs and per-device query/update breakdown for:
+
+   * ``Plugin::query_model_update device timing`` - per-device summary including query, mask, clone, and device-subgraph state.
+
+* ``OPENVINO_HETERO_PERF=3`` enables all level-2 logs and additional subgraph-splitting diagnostics for:
 
    * ``SubgraphCollector::SubgraphCollector`` - subgraph collector setup.
    * ``SubgraphCollector::split_cyclic_dependencies`` - affinity-boundary and cycle-resolution work during graph splitting.
+   * ``partition_and_rewrite_model`` - subgraph collection and model rewrite time per partition pass.
 
 These logs are intended for HETERO-specific compilation analysis and are separate from runtime layer profiling such as
 sample application ``-pc`` output.

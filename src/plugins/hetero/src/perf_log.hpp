@@ -12,44 +12,49 @@
 namespace ov::hetero {
 
 enum class PerfLogLevel {
-    Disabled = 0,
-    Basic = 1,
-    SplitDetails = 2,
+    Off = 0,
+    Summary = 1,
+    DeviceBreakdown = 2,
+    PartitionDetails = 3,
 };
 
 inline PerfLogLevel perf_log_level() {
     static const PerfLogLevel cached = []() {
         const char* value = std::getenv("OPENVINO_HETERO_PERF");
         if (value == nullptr || *value == '\0') {
-            return PerfLogLevel::Disabled;
+            return PerfLogLevel::Off;
         }
 
         char* end = nullptr;
         const long parsed = std::strtol(value, &end, 10);
         if (end == value || *end != '\0') {
-            return PerfLogLevel::Disabled;
+            return PerfLogLevel::Off;
         }
 
         if (parsed <= 0) {
-            return PerfLogLevel::Disabled;
+            return PerfLogLevel::Off;
         }
 
-        if (parsed >= static_cast<long>(PerfLogLevel::SplitDetails)) {
-            return PerfLogLevel::SplitDetails;
+        if (parsed >= static_cast<long>(PerfLogLevel::PartitionDetails)) {
+            return PerfLogLevel::PartitionDetails;
         }
 
-        return PerfLogLevel::Basic;
+        if (parsed >= static_cast<long>(PerfLogLevel::DeviceBreakdown)) {
+            return PerfLogLevel::DeviceBreakdown;
+        }
+
+        return PerfLogLevel::Summary;
     }();
 
     return cached;
 }
 
 inline bool perf_log_enabled() {
-    return perf_log_level() != PerfLogLevel::Disabled;
+    return perf_log_level() != PerfLogLevel::Off;
 }
 
 inline bool perf_log_enabled(PerfLogLevel level) {
-    if (level == PerfLogLevel::Disabled) {
+    if (level == PerfLogLevel::Off) {
         return false;
     }
     return static_cast<int>(perf_log_level()) >= static_cast<int>(level);
@@ -70,4 +75,4 @@ inline void perf_log_impl(const char* file, int line, Args&&... args) {
             ::ov::hetero::perf_log_impl(__FILE__, __LINE__, __VA_ARGS__); \
         }                                                                 \
     } while (0)
-#define HETERO_PERF_LOG(...) HETERO_PERF_LOG_LEVEL(::ov::hetero::PerfLogLevel::Basic, __VA_ARGS__)
+#define HETERO_PERF_LOG(...) HETERO_PERF_LOG_LEVEL(::ov::hetero::PerfLogLevel::Summary, __VA_ARGS__)
