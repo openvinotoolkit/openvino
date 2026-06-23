@@ -139,7 +139,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_12_arm }}
-      python-version: '3.13'
+      python-version: '3.11'
       scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
 
   Overall_Status:
