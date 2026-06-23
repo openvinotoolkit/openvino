@@ -17,27 +17,62 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief FakeQuantizeEliminateSequential folds two sequential FakeQuantize operations (FQ1 -> FQ2)
- * into a single one. The notation below is FQ(in_low, in_high, out_low, out_high, levels).
+ * @brief FakeQuantizeEliminateSequential removes a redundant second FakeQuantize from a sequential
+ * pair (FQ1 -> FQ2). The notation below is FQ(in_low, in_high, out_low, out_high, levels).
  *
  * FQ1 and FQ2 may be separated by one or several value-preserving Reshape/Transpose/Squeeze/Unsqueeze
  * ops. A matched FakeQuantize is per-tensor (scalar ranges) and therefore applied element-wise, so it
  * commutes with such ops and the folding stays valid through the chain.
  *
- * The transformation applies only when:
- *  - all four range bounds of both ops are finite constants;
- *  - FQ1 output range lies within FQ2 input range, otherwise FQ2 clamps FQ1 output;
- *  - both ops have more than one level;
- *  - FQ1 output grid aligns with FQ2 output grid: the offset between the grids and the FQ1 step are
- *    integer multiples of the FQ2 step, so re-quantization preserves every FQ1 level.
+ * FQ2 is removed (FQ1 kept) when it is identical to FQ1, i.e. it has the same levels, auto broadcast,
+ * and input range constants. In that case FQ2 only re-applies the quantization already produced by
+ * FQ1 and is redundant.
  *
- * When these conditions hold:
- *  - Elimination: if FQ2 is identity on its range (input range equals output range), it only
- *    re-quantizes onto an aligned super-grid and is removed, keeping FQ1. For example:
- *      FQ1(-1, 1, -1, 1, 256) -> FQ2(-2, 2, -2, 2, 1021)  =>  FQ1(-1, 1, -1, 1, 256)
- *  - Merge: otherwise, if FQ1 and FQ2 have the same level count, they are replaced by a single
- *    FakeQuantize with FQ1's input range and FQ2's output range. For example:
- *      FQ1(-2, 2, -1, 1, 256) -> FQ2(-1, 1, -1, 0, 256)   =>  FQ(-2, 2, -1, 0, 256)
+ * Before:
+ *      ┌─────────┐
+ *      │  Data   │
+ *      └────┬────┘
+ *           │
+ *      ┌────┴────┐
+ *      │   FQ1   │
+ *      └────┬────┘
+ *           │
+ *    ┌──────┴───────┐
+ *    │ Reshape /    │  (optional, zero or more value-preserving ops)
+ *    │ Transpose /  │
+ *    │ Squeeze /    │
+ *    │ Unsqueeze    │
+ *    └──────┬───────┘
+ *           │
+ *      ┌────┴────┐
+ *      │   FQ2   │  (identical params to FQ1)
+ *      └────┬────┘
+ *           │
+ *      ┌────┴────┐
+ *      │Consumer │
+ *      └─────────┘
+ *
+ * After:
+ *      ┌─────────┐
+ *      │  Data   │
+ *      └────┬────┘
+ *           │
+ *      ┌────┴────┐
+ *      │   FQ1   │
+ *      └────┬────┘
+ *           │
+ *    ┌──────┴───────┐
+ *    │ Reshape /    │  (optional, preserved)
+ *    │ Transpose /  │
+ *    │ Squeeze /    │
+ *    │ Unsqueeze    │
+ *    └──────┬───────┘
+ *           │
+ *      ┌────┴────┐
+ *      │Consumer │
+ *      └─────────┘
+ *
+ * For example: FQ1(-1, 1, -1, 1, 256) -> FQ2(-1, 1, -1, 1, 256)  =>  FQ1(-1, 1, -1, 1, 256)
  */
 class ov::pass::FakeQuantizeEliminateSequential : public ov::pass::MatcherPass {
 public:

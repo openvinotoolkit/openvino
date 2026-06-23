@@ -87,67 +87,16 @@ TEST_P(SequentialFakeQuantizeTests, CompareFunctions) {
 }
 
 const std::vector<SequentialFqParams> sequential_fq_params = {
-    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -1.0f, 1.0f}, 256, true, "exact_match"},
-    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-0.5f, 0.5f, -1.0f, 1.0f}, 256, false, "mismatch_ranges"},
-    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-2.0f, 2.0f, -2.0f, 2.0f}, 1021, true, "subrange_aligned"},
-    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-2.0f, 2.0f, -2.0f, 2.0f}, 256, false, "subrange_unaligned"},
-    {{-2.0f, 2.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -2.0f, 2.0f}, 511, true, "same_range_aligned"},
-    {{-2.0f, 2.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -2.0f, 2.0f}, 257, false, "same_range_unaligned"},
+    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -1.0f, 1.0f}, 256, true, "identical"},
+    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-0.5f, 0.5f, -1.0f, 1.0f}, 256, false, "different_input_range"},
+    {{-1.0f, 1.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -2.0f, 2.0f}, 256, false, "different_output_range"},
+    {{-2.0f, 2.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -2.0f, 2.0f}, 257, false, "different_levels"},
 };
 
 INSTANTIATE_TEST_SUITE_P(SequentialFakeQuantize,
                          SequentialFakeQuantizeTests,
                          testing::ValuesIn(sequential_fq_params),
                          SequentialFakeQuantizeTests::get_test_case_name);
-
-struct MergedFqParams {
-    std::vector<float> fq1;
-    size_t fq1_levels;
-    std::vector<float> fq2;
-    size_t fq2_levels;
-    std::string name;
-};
-
-class MergedFakeQuantizeTests : public TransformationTestsF, public testing::WithParamInterface<MergedFqParams> {
-public:
-    static std::string get_test_case_name(testing::TestParamInfo<MergedFqParams> info) {
-        return info.param.name;
-    }
-};
-
-TEST_P(MergedFakeQuantizeTests, CompareFunctions) {
-    const auto& p = GetParam();
-    {
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, p.fq1[0], p.fq1[1], p.fq1[2], p.fq1[3], p.fq1_levels);
-        auto fq2 = make_fake_quantize(fq1, p.fq2[0], p.fq2[1], p.fq2[2], p.fq2[3], p.fq2_levels);
-        auto abs = std::make_shared<v0::Abs>(fq2);
-        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
-    }
-    {
-        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        // Reference model with merged FQ: FQ1's input range -> FQ2's output range, FQ1's levels
-        auto merged_fq = make_fake_quantize(input, p.fq1[0], p.fq1[1], p.fq2[2], p.fq2[3], p.fq1_levels);
-        auto abs = std::make_shared<v0::Abs>(merged_fq);
-        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
-    }
-
-    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-}
-
-const std::vector<MergedFqParams> merged_fq_params = {
-    {{-2.0f, 2.0f, -1.0f, 1.0f}, 256, {-1.0f, 1.0f, -1.0f, 0.0f}, 256, "merge_compressed_output"},
-    {{-4.0f, 4.0f, -2.0f, 2.0f}, 256, {-2.0f, 2.0f, -2.0f, 0.0f}, 256, "merge_different_input_ranges"},
-    {{-3.0f, 3.0f, -1.5f, 1.5f}, 512, {-1.5f, 1.5f, -1.5f, 0.0f}, 512, "merge_even_levels"},
-};
-
-INSTANTIATE_TEST_SUITE_P(MergedFakeQuantize,
-                         MergedFakeQuantizeTests,
-                         testing::ValuesIn(merged_fq_params),
-                         MergedFakeQuantizeTests::get_test_case_name);
 
 TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_subgraph) {
     {
@@ -222,15 +171,15 @@ TEST_F(TransformationTestsF, FakeQuantizeEliminateSequential_out_of_range_callba
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-// FQ2 separated from FQ1 by a Reshape: FQ2 is identity and grids align, so FQ2 is eliminated while
-// the Reshape is preserved.
+// FQ2 separated from FQ1 by a Reshape: FQ2 is identical to FQ1, so FQ2 is eliminated while the
+// Reshape is preserved.
 TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_reshape) {
     auto target_shape = v0::Constant::create(element::i64, Shape{3}, {1, 3, 256});
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
         auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto reshape = std::make_shared<v1::Reshape>(fq1, target_shape, false);
-        auto fq2 = make_fake_quantize(reshape, -2.0f, 2.0f, -2.0f, 2.0f, 1021);
+        auto fq2 = make_fake_quantize(reshape, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto abs = std::make_shared<v0::Abs>(fq2);
         model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
@@ -248,22 +197,22 @@ TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_reshape) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-// FQ2 separated from FQ1 by a Transpose: FQ2 is not identity, so FQ1 and FQ2 are merged into a single
-// FQ placed before the Transpose.
-TEST_F(TransformationTestsF, merge_sequential_fake_quantize_with_transpose) {
+// FQ2 separated from FQ1 by a Transpose: FQ2 is identical to FQ1, so FQ2 is eliminated while the
+// Transpose is preserved.
+TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_transpose) {
     auto order = v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2});
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, -2.0f, 2.0f, -1.0f, 1.0f, 256);
+        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto transpose = std::make_shared<v1::Transpose>(fq1, order);
-        auto fq2 = make_fake_quantize(transpose, -1.0f, 1.0f, -1.0f, 0.0f, 256);
+        auto fq2 = make_fake_quantize(transpose, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto abs = std::make_shared<v0::Abs>(fq2);
         model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto merged_fq = make_fake_quantize(input, -2.0f, 2.0f, -1.0f, 0.0f, 256);
-        auto transpose = std::make_shared<v1::Transpose>(merged_fq, order);
+        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto transpose = std::make_shared<v1::Transpose>(fq1, order);
         auto abs = std::make_shared<v0::Abs>(transpose);
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
@@ -275,7 +224,7 @@ TEST_F(TransformationTestsF, merge_sequential_fake_quantize_with_transpose) {
 }
 
 // FQ2 separated from FQ1 by a Reshape followed by a Transpose: the whole value-preserving chain is
-// traversed and FQ2 (identity) is eliminated while the chain is preserved.
+// traversed and FQ2 (identical to FQ1) is eliminated while the chain is preserved.
 TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_reshape_transpose_chain) {
     auto target_shape = v0::Constant::create(element::i64, Shape{3}, {1, 3, 256});
     auto order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
@@ -284,7 +233,7 @@ TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_reshape_tra
         auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto reshape = std::make_shared<v1::Reshape>(fq1, target_shape, false);
         auto transpose = std::make_shared<v1::Transpose>(reshape, order);
-        auto fq2 = make_fake_quantize(transpose, -2.0f, 2.0f, -2.0f, 2.0f, 1021);
+        auto fq2 = make_fake_quantize(transpose, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto abs = std::make_shared<v0::Abs>(fq2);
         model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
@@ -303,24 +252,24 @@ TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_reshape_tra
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-// FQ2 separated from FQ1 by a Squeeze followed by an Unsqueeze: the chain is traversed and FQ1/FQ2
-// are merged into a single FQ placed before the chain.
-TEST_F(TransformationTestsF, merge_sequential_fake_quantize_with_squeeze_unsqueeze) {
+// FQ2 separated from FQ1 by a Squeeze followed by an Unsqueeze: the chain is traversed and FQ2
+// (identical to FQ1) is eliminated while the chain is preserved.
+TEST_F(TransformationTestsF, eliminate_sequential_fake_quantize_with_squeeze_unsqueeze) {
     auto squeeze_axes = v0::Constant::create(element::i64, Shape{1}, {0});
     auto unsqueeze_axes = v0::Constant::create(element::i64, Shape{1}, {0});
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto fq1 = make_fake_quantize(input, -2.0f, 2.0f, -1.0f, 1.0f, 256);
+        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto squeeze = std::make_shared<v0::Squeeze>(fq1, squeeze_axes);
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(squeeze, unsqueeze_axes);
-        auto fq2 = make_fake_quantize(unsqueeze, -1.0f, 1.0f, -1.0f, 0.0f, 256);
+        auto fq2 = make_fake_quantize(unsqueeze, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto abs = std::make_shared<v0::Abs>(fq2);
         model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
-        auto merged_fq = make_fake_quantize(input, -2.0f, 2.0f, -1.0f, 0.0f, 256);
-        auto squeeze = std::make_shared<v0::Squeeze>(merged_fq, squeeze_axes);
+        auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
+        auto squeeze = std::make_shared<v0::Squeeze>(fq1, squeeze_axes);
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(squeeze, unsqueeze_axes);
         auto abs = std::make_shared<v0::Abs>(unsqueeze);
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
@@ -340,7 +289,7 @@ TEST_F(TransformationTestsF, do_not_fold_when_intermediate_op_has_multiple_consu
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
         auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto reshape = std::make_shared<v1::Reshape>(fq1, target_shape, false);
-        auto fq2 = make_fake_quantize(reshape, -2.0f, 2.0f, -2.0f, 2.0f, 1021);
+        auto fq2 = make_fake_quantize(reshape, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto abs1 = std::make_shared<v0::Abs>(fq2);
         auto abs2 = std::make_shared<v0::Abs>(reshape);
         model = std::make_shared<ov::Model>(OutputVector{abs1, abs2}, ParameterVector{input});
@@ -349,7 +298,7 @@ TEST_F(TransformationTestsF, do_not_fold_when_intermediate_op_has_multiple_consu
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
         auto fq1 = make_fake_quantize(input, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto reshape = std::make_shared<v1::Reshape>(fq1, target_shape, false);
-        auto fq2 = make_fake_quantize(reshape, -2.0f, 2.0f, -2.0f, 2.0f, 1021);
+        auto fq2 = make_fake_quantize(reshape, -1.0f, 1.0f, -1.0f, 1.0f, 256);
         auto abs1 = std::make_shared<v0::Abs>(fq2);
         auto abs2 = std::make_shared<v0::Abs>(reshape);
         model_ref = std::make_shared<ov::Model>(OutputVector{abs1, abs2}, ParameterVector{input});
