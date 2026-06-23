@@ -156,87 +156,6 @@ bool depends_on_node(const ov::Output<ov::Node>& value, ov::Node* target, std::s
     return false;
 }
 
-// Structurally enumerate sequence slots without resolving values via slots_of()
-// — avoids cyclic dependencies during Loop merged-input pre-allocation.
-//   SequenceMark   -> one template per input (recursing into seq-typed inputs)
-//   SequenceInsert -> base templates with the inserted value spliced in
-//   SequenceErase  -> base templates with one element removed
-//   anything else  -> a single opaque template (the value itself)
-void expand_chain_templates(const ov::Output<ov::Node>& value, std::vector<ov::Output<ov::Node>>& out, int depth = 0) {
-    if (depth > 256) {
-        // Recursion guard against pathological chains. Collapsing to one opaque
-        // slot here undercounts a genuinely long Insert/Erase chain, so surface
-        // it: a >256-deep sequence chain points at an unhandled pattern rather
-        // than a real stack-depth risk.
-        OPENVINO_DEBUG("SequenceArrayLowering: sequence chain exceeds depth 256 during template "
-                       "expansion; slot count may be undercounted.");
-        out.push_back(value);
-        return;
-    }
-    auto v = unwrap_identity(value);
-    auto node = v.get_node_shared_ptr();
-    if (auto mark = ov::as_type_ptr<ov::frontend::SequenceMark>(node)) {
-        for (size_t i = 0; i < mark->get_input_size(); ++i) {
-            auto in = mark->input_value(i);
-            auto in_node = in.get_node_shared_ptr();
-            if (ov::is_type<ov::frontend::SequenceInsert>(in_node) ||
-                ov::is_type<ov::frontend::SequenceErase>(in_node) || ov::is_type<ov::frontend::SequenceMark>(in_node)) {
-                expand_chain_templates(in, out, depth + 1);
-            } else {
-                out.push_back(in);
-            }
-        }
-        return;
-    }
-    if (auto ins = ov::as_type_ptr<ov::frontend::SequenceInsert>(node)) {
-        std::vector<ov::Output<ov::Node>> base;
-        expand_chain_templates(ins->input_value(0), base, depth + 1);
-        size_t pos = base.size();  // default: append at end
-        if (ins->has_position()) {
-            if (auto pc = ov::util::get_constant_from_source(ins->input_value(2))) {
-                const auto pv = pc->cast_vector<int64_t>();
-                if (pv.size() == 1) {
-                    int64_t p = pv[0];
-                    if (p < 0) {
-                        p += static_cast<int64_t>(base.size()) + 1;
-                    }
-                    if (p >= 0 && static_cast<size_t>(p) <= base.size()) {
-                        pos = static_cast<size_t>(p);
-                    }
-                }
-            }
-        }
-        base.insert(base.begin() + static_cast<long>(pos), ins->input_value(1));
-        out.insert(out.end(), base.begin(), base.end());
-        return;
-    }
-    if (auto era = ov::as_type_ptr<ov::frontend::SequenceErase>(node)) {
-        std::vector<ov::Output<ov::Node>> base;
-        expand_chain_templates(era->input_value(0), base, depth + 1);
-        if (!base.empty()) {
-            size_t pos = base.size() - 1;  // default: erase last
-            if (era->has_position()) {
-                if (auto pc = ov::util::get_constant_from_source(era->input_value(1))) {
-                    const auto pv = pc->cast_vector<int64_t>();
-                    if (pv.size() == 1) {
-                        int64_t p = pv[0];
-                        if (p < 0) {
-                            p += static_cast<int64_t>(base.size());
-                        }
-                        if (p >= 0 && static_cast<size_t>(p) < base.size()) {
-                            pos = static_cast<size_t>(p);
-                        }
-                    }
-                }
-            }
-            base.erase(base.begin() + static_cast<long>(pos));
-        }
-        out.insert(out.end(), base.begin(), base.end());
-        return;
-    }
-    out.push_back(v);
-}
-
 // Return the Result index for `value` in `body`, adding a new Result if needed.
 // Loop wiring APIs require back-edge values to be reachable via a body Result.
 int64_t ensure_body_result(const std::shared_ptr<ov::Model>& body, const ov::Output<ov::Node>& value) {
@@ -582,10 +501,10 @@ std::optional<LengthTemplate> SlotResolver::find_template_via_chain(const ov::Ou
                     }
                 }
                 if (!deps) {
-                    // Expand structurally (not via slots_of()) to avoid cyclic
-                    // dependency during Loop pre-allocation.
+                    // Enumerate structurally (not via slots_of()) to avoid
+                    // cyclic dependency during Loop pre-allocation.
                     LengthTemplate t;
-                    expand_chain_templates(v, t.slot_templates);
+                    t.slot_templates = mark->get_sequence();
                     return t;
                 }
             }
