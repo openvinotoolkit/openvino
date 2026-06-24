@@ -10,6 +10,8 @@
 
 namespace ov::intel_gpu {
 
+DisableFP16CompForAllRMS::DisableFP16CompForAllRMS() {}
+
 bool DisableFP16CompForAllRMS::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool is_changed = false;
 

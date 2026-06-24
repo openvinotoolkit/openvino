@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov::intel_gpu {
@@ -28,6 +27,7 @@ namespace ov::intel_gpu {
 class DisableFP16CompForAllRMS : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("DisableFP16CompForAllRMS");
+    DisableFP16CompForAllRMS();
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
