@@ -180,11 +180,14 @@ bool GdnJitExecutor::supports(const GatedDeltaNetConfig& config) {
         return mayiuse(dnnl::impl::cpu::x64::avx512_core) || mayiuse(dnnl::impl::cpu::x64::avx2);
     }
 
-    if (precision != ov::element::f16 && precision != ov::element::bf16) {
-        return false;
+    if (precision == ov::element::f16) {
+        return mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16);
+    }
+    if (precision == ov::element::bf16) {
+        return mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
     }
 
-    return mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16);
+    return false;
 }
 
 GdnJitExecutor::GdnJitExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs& memory, ExecutorContext::CPtr context)
