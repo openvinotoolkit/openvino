@@ -17,6 +17,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/loop.hpp"
@@ -687,4 +688,46 @@ TEST(TransformationTests, UnrollLoopCurrentIterationPreservesElementType) {
     }
 
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+//check if the rank of the replacement Constant and Gather output is same as before after unrolling
+TEST(TransformationTests, UnrollLoopCurrentIterationPreservesShapeRank) {
+    const size_t num_iter = 1;
+    const ov::Shape scalar{};
+    const ov::Shape iter_shape{1};
+
+    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, iter_shape);
+
+    auto gather_table = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {10.f, 11.f});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, scalar, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(gather_table, b_iter, gather_axis);
+
+    auto b_cond = ov::op::v0::Constant::create(ov::element::boolean, scalar, {true});
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{b_cond, gather}, ov::ParameterVector{b_iter});
+
+    auto trip_count = ov::op::v0::Constant::create(ov::element::i64, scalar, {num_iter});
+    auto exec_cond = ov::op::v0::Constant::create(ov::element::boolean, scalar, {true});
+    auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+    loop->set_function(body);
+    loop->set_special_body_ports({0, 0});
+    loop->get_iter_value(gather, -1);
+
+    auto result = std::make_shared<ov::op::v0::Result>(loop->output(0));
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::UnrollTensorIterator>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::op::v8::Gather> unrolled_gather;
+    for (const auto& node : model->get_ops()) {
+        if (auto g = ov::as_type_ptr<ov::op::v8::Gather>(node))
+            unrolled_gather = g;
+    }
+    ASSERT_NE(unrolled_gather, nullptr);
+
+    const auto indices = ov::as_type_ptr<ov::op::v0::Constant>(unrolled_gather->get_input_node_shared_ptr(1));
+    ASSERT_NE(indices, nullptr) << "Gather indices must be the current_iteration replacement Constant";
+    EXPECT_EQ(indices->get_shape(), iter_shape) << "replacement Constant rank was shrunk to a scalar";
+    EXPECT_EQ(unrolled_gather->get_output_shape(0), iter_shape) << "Gather output rank was shrunk to a scalar";
 }
