@@ -580,7 +580,7 @@ void Concat::execute(const dnnl::stream& strm) {
             if (srcMem.getShape().hasZeroDims()) {
                 continue;
             }
-            mem_ags[DNNL_ARG_MULTIPLE_SRC + static_cast<int32_t>(nonZeroInShapes)] = srcMem.getPrimitive();
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + static_cast<int>(nonZeroInShapes)] = srcMem.getPrimitive();
             nonZeroInShapes++;
         }
         prim.execute(strm, mem_ags);
@@ -631,7 +631,7 @@ void Concat::execNspcSpecCase() {
         channels_size += num_channels * dataSize;
 
         if (firstNonZeroEdge == -1) {
-            firstNonZeroEdge = static_cast<int32_t>(i);
+            firstNonZeroEdge = static_cast<int>(i);
         }
 
         nonZeroInShapes++;

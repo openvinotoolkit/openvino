@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <iterator>
 #include <utility>
 #include <vector>
@@ -26,10 +25,10 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     VectorDims src_block_order = params.src_block_order;
     VectorDims src_block_strides(params.src_block_dims.size(), 1);
     VectorDims dst_block_strides(params.dst_block_dims.size(), 1);
-    for (auto i = static_cast<int32_t>(params.src_block_dims.size()) - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(params.src_block_dims.size()) - 2; i >= 0; i--) {
         src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
     }
-    for (auto i = static_cast<int32_t>(params.dst_block_dims.size()) - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(params.dst_block_dims.size()) - 2; i >= 0; i--) {
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
     }
 
@@ -44,7 +43,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
     }
 
-    for (auto i = static_cast<int32_t>(tmp_order.size()) - 1; i >= 0; i--) {
+    for (auto i = static_cast<int>(tmp_order.size()) - 1; i >= 0; i--) {
         auto pos = std::distance(std::find(src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]),
                                  src_block_order.rend() - 1);
         if (pos != -1) {

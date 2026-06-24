@@ -60,7 +60,7 @@ private:
             conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         const auto to_reg_idx = [](size_t idx) {
-            return static_cast<int32_t>(idx);
+            return static_cast<int>(idx);
         };
 
         auto in = Vmm(to_reg_idx(in_vec_idxs[0]));

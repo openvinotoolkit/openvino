@@ -200,7 +200,7 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
         size_t i = 0LU;
         for (auto& a : attrs.axes) {
             if (a < 0) {
-                a += static_cast<int32_t>(outputRank);
+                a += static_cast<int>(outputRank);
             }
             beginTmp[a] = attrs.begin[i];
             endTmp[a] = attrs.end[i];
@@ -427,8 +427,8 @@ void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(
     auto srcOrder = blockedMemoryDesc->getOrder();
 
     if (isBlockedLayout) {
-        params.attrs.begin[1] = params.attrs.begin[1] / static_cast<int32_t>(blk);
-        params.attrs.end[1] = static_cast<int32_t>(std::ceil(params.attrs.end[1] / static_cast<float>(blk)));
+        params.attrs.begin[1] = params.attrs.begin[1] / static_cast<int>(blk);
+        params.attrs.end[1] = static_cast<int>(std::ceil(params.attrs.end[1] / static_cast<float>(blk)));
         params.attrs.begin.push_back(0);
         params.attrs.end.push_back(0);
         params.attrs.stride.push_back(1);

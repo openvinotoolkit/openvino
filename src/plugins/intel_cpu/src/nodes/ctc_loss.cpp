@@ -94,9 +94,9 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t maxTime = inDims[1];
     const size_t classesNum = inDims[2];
 
-    auto blankIndex = static_cast<int32_t>(classesNum) - 1;
+    auto blankIndex = static_cast<int>(classesNum) - 1;
     if (inputShapes.size() > 4) {
-        blankIndex = getSrcDataAtPortAs<const int32_t>(4)[0];
+        blankIndex = getSrcDataAtPortAs<const int>(4)[0];
     }
 
     std::vector<int> decodedTargetLenB(batchNum, 0);
@@ -164,7 +164,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 }
                 targetD[decodedTargetLen++] = blankIndex;
             }
-            decodedTargetLenB[b] = static_cast<int32_t>(decodedTargetLen);
+            decodedTargetLenB[b] = static_cast<int>(decodedTargetLen);
 
             auto& logProbabilities = logProbabilitiesB[b];
             logProbabilities.resize(actualLogitLen);

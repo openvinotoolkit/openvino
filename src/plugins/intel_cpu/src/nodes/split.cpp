@@ -588,7 +588,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         auto partDim = outputShapes[i].getDims()[axis];
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         "can not use inPlace memory with splitting on dynamic dimension");
-        const auto& childEdges = getChildEdgesAtPort(static_cast<int32_t>(i));
+        const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
         for (const auto& childEdge : childEdges) {
             CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 

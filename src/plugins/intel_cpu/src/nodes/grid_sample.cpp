@@ -243,7 +243,7 @@ void GridSample::prepareParams() {
         p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
         CPU_NODE_ASSERT(dataTypeSize <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()),
                         "has unsupported data element size for packed JIT offsets.");
-        p.dataTypeSize[0] = static_cast<int32_t>(dataTypeSize);
+        p.dataTypeSize[0] = static_cast<int>(dataTypeSize);
 
         p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
         p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
@@ -253,12 +253,12 @@ void GridSample::prepareParams() {
             const auto srcWidthB = (srcDataShape[3] - 3) * dataTypeSize;
             CPU_NODE_ASSERT(srcWidthB <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()),
                             "has unsupported source width stride for packed JIT offsets.");
-            p.srcWidthB[0] = static_cast<int32_t>(srcWidthB);
+            p.srcWidthB[0] = static_cast<int>(srcWidthB);
         } else {
             const auto srcWidthB = srcDataShape[3] * dataTypeSize;
             CPU_NODE_ASSERT(srcWidthB <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()),
                             "has unsupported source width stride for packed JIT offsets.");
-            p.srcWidthB[0] = static_cast<int32_t>(srcWidthB);
+            p.srcWidthB[0] = static_cast<int>(srcWidthB);
         }
         if (alignCorners) {
             p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.F ? 1.F : p.srcHeightSub1F[0] * 2.F;

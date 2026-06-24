@@ -42,8 +42,8 @@ private:
     float score_threshold_;
     float nms_threshold_;
     float max_delta_log_wh_;
-    int32_t classes_num_;
-    int32_t max_detections_per_class_;
+    int64_t classes_num_;
+    int64_t max_detections_per_class_;
     size_t max_detections_per_image_;
     bool class_agnostic_box_regression_;
     std::vector<float> deltas_weights_;

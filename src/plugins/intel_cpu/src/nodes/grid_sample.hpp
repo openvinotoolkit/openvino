@@ -35,8 +35,8 @@ public:
         uint64_t channelsNum = 1LU;
         std::vector<float> srcHeightF{1.F};
         std::vector<float> srcWidthF{1.F};
-        std::vector<int32_t> srcWidthB{1};
-        std::vector<int32_t> dataTypeSize{1};
+        std::vector<int> srcWidthB{1};
+        std::vector<int> dataTypeSize{1};
         std::vector<float> srcHeightMul2F{1.F};
         std::vector<float> srcWidthMul2F{1.F};
         std::vector<float> srcHeightMul2Sub1F{1.F};

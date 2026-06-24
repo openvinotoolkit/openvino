@@ -84,7 +84,7 @@ static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const Memo
 }
 
 // this method get all memory ptrs of childs of one port to redefine descs for them
-static std::vector<MemoryPtr> getToMemories(const Node* node, const int32_t port) {
+static std::vector<MemoryPtr> getToMemories(const Node* node, const int port) {
     std::vector<MemoryPtr> memories;
     for (auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());

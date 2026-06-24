@@ -143,7 +143,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     auto* seqLengthsData = seqLengthsMemPtr->getDataAs<T>();
 
     for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
-        OPENVINO_ASSERT(static_cast<int32_t>(seqLengthsData[i]) <= static_cast<int32_t>(srcDims[seqAxis]),
+        OPENVINO_ASSERT(static_cast<size_t>(seqLengthsData[i]) <= srcDims[seqAxis],
                         "Incorrect input 'seq_lengths' values!");
     }
 

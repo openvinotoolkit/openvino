@@ -298,8 +298,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     }
 
     if (blockSize > 1) {
-        params.attrs.padsBegin[1] /= static_cast<int32_t>(blockSize);
-        params.attrs.padsEnd[1] /= static_cast<int32_t>(blockSize);
+        params.attrs.padsBegin[1] /= static_cast<int>(blockSize);
+        params.attrs.padsEnd[1] /= static_cast<int>(blockSize);
         params.attrs.padsBegin.push_back(0);
         params.attrs.padsEnd.push_back(0);
     } else {
@@ -314,11 +314,11 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
         params.attrs.padsEnd = newPadsEnd;
     }
     params.attrs.beginPadIdx = 0;
-    params.attrs.endPadIdx = static_cast<int32_t>(params.attrs.padsBegin.size()) - 1;
+    params.attrs.endPadIdx = static_cast<int>(params.attrs.padsBegin.size()) - 1;
 
     for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
         if (params.attrs.padsBegin[i] != 0 || params.attrs.padsEnd[i] != 0) {
-            params.attrs.beginPadIdx = static_cast<int32_t>(i) - 1;
+            params.attrs.beginPadIdx = static_cast<int>(i) - 1;
             break;
         }
     }
@@ -326,7 +326,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     for (int64_t i = static_cast<int64_t>(params.attrs.padsBegin.size()) - 1; i >= 0; --i) {
         const auto index = static_cast<size_t>(i);
         if (params.attrs.padsBegin[index] != 0 || params.attrs.padsEnd[index] != 0) {
-            params.attrs.endPadIdx = static_cast<int32_t>(index);
+            params.attrs.endPadIdx = static_cast<int>(index);
             break;
         }
     }
@@ -448,7 +448,7 @@ void Pad::executeDynamicImpl(const dnnl::stream& strm) {
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
     for (int64_t j = static_cast<int64_t>(nDims) - 1; j >= 0; --j) {
         const auto index = static_cast<size_t>(j);
-        indexes[index] = static_cast<int32_t>(start % dims[index]);
+        indexes[index] = static_cast<int>(start % dims[index]);
         start = start / dims[index];
     }
     return start;
@@ -543,7 +543,7 @@ void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryP
     const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
-    parallel_nt(params.nThreads, [&](const int32_t ithr, const int32_t nthr) {
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;
         VectorIdxs indexes(params.nDimsForWork, 0);

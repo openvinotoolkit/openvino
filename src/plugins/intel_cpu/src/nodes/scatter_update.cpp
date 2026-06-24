@@ -346,7 +346,7 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
-    auto shapeRank = static_cast<int32_t>(shape.size());
+    auto shapeRank = static_cast<int>(shape.size());
     std::vector<size_t> blockND(shapeRank + 1, 1);
     for (auto i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
@@ -375,7 +375,7 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 }
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
-    auto shapeRank = static_cast<int32_t>(shape.size());
+    auto shapeRank = static_cast<int>(shape.size());
     for (auto i = shapeRank - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
@@ -565,7 +565,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    const auto updates_rank = static_cast<int32_t>(indices_shape.size());
+    const auto updates_rank = static_cast<int>(indices_shape.size());
 
     if (axis < 0) {
         axis += updates_rank;
@@ -697,7 +697,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += static_cast<int32_t>(updates_rank);
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
