@@ -142,7 +142,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         if (!isSupportedOperation(op, errorMessage)) {
             return false;
         }
-        if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
+        if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
             return false;
         }
         if (config.fcDynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max()) {
