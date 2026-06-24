@@ -153,9 +153,13 @@ struct CPUStreamsExecutor::Impl {
                 // sys_core_types = [LPECore, Ecore, Pcore]
                 const auto sys_core_types = custom::info::core_types();
                 if (core_types.size() == 1) {
-                    auto real_core_type = (core_types[0] == MAIN_CORE_PROC || core_types[0] == HYPER_THREADING_PROC)
-                                              ? sys_core_types.back()
-                                              : *(sys_core_types.end() - core_types.size());
+                    // Default to P-core (MAIN / HYPER_THREADING)
+                    auto real_core_type = sys_core_types.back();
+                    if (core_types[0] == EFFICIENT_CORE_PROC && sys_core_types.size() >= 2) {
+                        real_core_type = *(sys_core_types.end() - 2);
+                    } else if (core_types[0] == LP_EFFICIENT_CORE_PROC) {
+                        real_core_type = sys_core_types.front();
+                    }
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(real_core_type)
                                                                 .set_max_concurrency(concurrency)

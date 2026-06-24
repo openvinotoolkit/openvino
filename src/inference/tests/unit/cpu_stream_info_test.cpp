@@ -57,19 +57,6 @@ public:
                                                    test_data._proc_type_table,
                                                    stream_processor_ids,
                                                    NOT_USED);
-
-        auto get_stream_proc_type = [&](int stream_index) -> int {
-            int stream_offset = 0;
-            for (const auto& stream_info : test_data._streams_info_table) {
-                stream_offset += stream_info[NUMBER_OF_STREAMS];
-                if (stream_index < stream_offset) {
-                    return stream_info[PROC_TYPE];
-                }
-            }
-
-            return ALL_PROC;
-        };
-
         for (auto i = 0; i < streams; i++) {
             StreamCreateType test_stream_type;
             int test_concurrency;
