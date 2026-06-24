@@ -57,4 +57,16 @@ void vm_release(void* ptr, size_t) noexcept {
     std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // CVS-186579
+    // assert if region is not mmap-baked.
+
+    if (num_threads == 0) {
+        // Option 1: OS advisory hints
+    } else {
+        // Option 2: parallel synchronous prefault & touch
+    }
+}
+
 }  // namespace ov::util
