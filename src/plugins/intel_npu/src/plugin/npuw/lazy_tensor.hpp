@@ -73,22 +73,26 @@ public:
     };
     Meta eval_meta() const;
 
-    void serialize(std::ostream& stream) const;
-    static LazyTensor deserialize(std::istream& stream);
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     operator bool() const;
 
 private:
+    friend void ov::npuw::orc::serialize(ov::npuw::orc::Stream& stream, LazyTensor& var);
+    void serialize(ov::npuw::orc::Stream& stream);
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
 };
 
 namespace op {
+// These v0 payloads are now part of the frozen on-wire baseline. Any new field
+// or semantic change must be introduced through a versioned successor payload
+// instead of changing the existing v0 layout.
 class Const {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
-    Const() = default;
+    static constexpr std::uint16_t kVersion = 0u;
 
+    Const() = default;
     explicit Const(const std::shared_ptr<ov::op::v0::Constant>& n);
     std::size_t hash() const;
     bool operator==(const Const& other) const;
@@ -96,8 +100,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
-    void serialize(std::ostream& stream) const;
-    static Const deserialize(std::istream& stream);
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
     std::shared_ptr<ov::op::v0::Constant> m_node = nullptr;
@@ -120,6 +123,8 @@ class Concat {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint16_t kVersion = 0u;
+
     Concat() = default;
     Concat(const std::vector<LazyTensor>& _tensors, std::size_t _axis) : tensors(_tensors), axis(_axis) {}
 
@@ -129,8 +134,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
-    void serialize(std::ostream& stream) const;
-    static Concat deserialize(std::istream& stream);
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
     std::vector<LazyTensor> tensors;
@@ -141,6 +145,8 @@ class Unpack {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint16_t kVersion = 0u;
+
     Unpack() = default;
     Unpack(const LazyTensor& _w, const LazyTensor& _z, const LazyTensor& _s, ov::element::Type _type, ov::Shape _shape)
         : w(_w),
@@ -155,8 +161,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
-    void serialize(std::ostream& stream) const;
-    static Unpack deserialize(std::istream& stream);
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
     LazyTensor w, z, s;
@@ -168,6 +173,8 @@ class Permute {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint16_t kVersion = 0u;
+
     Permute() = default;
     Permute(const LazyTensor& _tensor, const std::vector<std::size_t>& _axes) : tensor(_tensor), axes(_axes) {}
 
@@ -177,8 +184,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
-    void serialize(std::ostream& stream) const;
-    static Permute deserialize(std::istream& stream);
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
     LazyTensor tensor;
@@ -189,6 +195,8 @@ class Convert {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint16_t kVersion = 0u;
+
     Convert() = default;
     Convert(const LazyTensor& _tensor, ov::element::Type _type) : tensor(_tensor), type(_type) {}
 
@@ -198,8 +206,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
-    void serialize(std::ostream& stream) const;
-    static Convert deserialize(std::istream& stream);
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
     LazyTensor tensor;
@@ -210,6 +217,8 @@ class Gather {
     friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
+    static constexpr std::uint16_t kVersion = 0u;
+
     Gather() = default;
     Gather(const LazyTensor& _w, const ov::Tensor& _t, const ov::element::Type& _dst_type, const ov::Shape& _dst_shape)
         : w(_w),
@@ -223,8 +232,7 @@ public:
     LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
-    void serialize(std::ostream& stream) const;
-    static Gather deserialize(std::istream& stream);
+    void serialize(ov::npuw::orc::Stream& stream);
 
 private:
     LazyTensor w;

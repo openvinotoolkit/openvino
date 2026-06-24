@@ -172,7 +172,22 @@ void Loop::validate_and_infer_types() {
             const auto& input_partial_shape = input(index).get_partial_shape();
             const auto& input_type = input(index).get_element_type();
 
-            body_parameter->set_partial_shape(input_partial_shape);
+            // A merged (back-edged) input holds the outer initial value only on the first iteration;
+            // from the second iteration on it is overwritten by the body result. A statically-empty
+            // dimension (size 0, e.g. an empty KV cache) therefore describes just that initial value,
+            // not the loop-carried shape, so set it dynamic up front instead of clamping the body
+            // parameter at 0. A static 0 is "compatible" with the body's [0, ...] interval, so the
+            // back-edge reconciliation below could not relax it afterwards.
+            PartialShape body_parameter_shape = input_partial_shape;
+            if (body_parameter_shape.rank().is_static()) {
+                for (auto& dim : body_parameter_shape) {
+                    if (dim.is_static() && dim.get_length() == 0) {
+                        dim = Dimension::dynamic();
+                    }
+                }
+            }
+
+            body_parameter->set_partial_shape(body_parameter_shape);
             body_parameter->set_element_type(input_type);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =

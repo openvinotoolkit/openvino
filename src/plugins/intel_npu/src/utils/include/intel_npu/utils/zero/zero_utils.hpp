@@ -5,7 +5,7 @@
 #pragma once
 
 #include <limits.h>
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <optional>
@@ -63,6 +63,17 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
         return ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH;
     default:
         OPENVINO_THROW("Incorrect queue priority.");
+    }
+}
+
+static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadType(const ov::WorkloadType val) {
+    switch (val) {
+    case ov::WorkloadType::DEFAULT:
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_DEFAULT};
+    case ov::WorkloadType::EFFICIENT:
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_BACKGROUND};
+    default:
+        OPENVINO_THROW("Incorrect workload type.");
     }
 }
 

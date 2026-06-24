@@ -59,7 +59,7 @@ void test_select_basic(bool is_caching_test) {
                           15.f,   0.5f,   8.f,  12.f,
                            4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -117,7 +117,7 @@ TEST(select_gpu_f32, select_basic_negative) {
         15.f,   0.5f,   8.f,  12.f,
         4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1209,7 +1209,7 @@ TEST(select_gpu_f32, select_basic_comma) {
         15.f,   0.5f,   8.f,  12.f,
         4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1310,7 +1310,7 @@ TEST(select_gpu_f32, select_basic_byxf) {
         15.f,   0.5f,   8.f,  12.f,
         4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1364,7 +1364,7 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
         15.f,   0.5f,   8.f,  12.f,
         4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1418,7 +1418,7 @@ TEST(select_gpu_f32, select_basic_mask_i8) {
         15.f,   0.5f,   8.f,  12.f,
         4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1472,7 +1472,7 @@ TEST(select_gpu_f32, select_basic_mask_u8) {
         15.f,   0.5f,   8.f,  12.f,
         4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1518,7 +1518,7 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
         0.5f,    2.5f,    2.f,    0.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1568,7 +1568,7 @@ TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
         2.f,   0.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1618,7 +1618,7 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
         2.f,   0.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1670,7 +1670,7 @@ void test_f16_select_basic_1x1x2x2(bool is_caching_test) {
         2,   0
     };
 
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1724,7 +1724,7 @@ TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
         2,   0
     };
 
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1774,7 +1774,7 @@ TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
         2,   0
     };
 
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1824,7 +1824,7 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
         2,   0
     };
 
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1876,7 +1876,7 @@ void test_i8_select_basic_1x1x2x2(bool is_caching_test) {
         2,  0
     };
 
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1930,7 +1930,7 @@ TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
         2,  0
     };
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -1980,7 +1980,7 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
         2,  0
     };
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -2030,7 +2030,7 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
         2,  0
     };
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -2082,7 +2082,7 @@ void test_u8_select_basic_1x1x2x2(bool is_caching_test) {
         255,  0
     };
 
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -2136,7 +2136,7 @@ TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
         255,  0
     };
 
-    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<unsigned char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -2186,7 +2186,7 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
         255,  0
     };
 
-    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<unsigned char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
@@ -2236,7 +2236,7 @@ TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
         255,  0
     };
 
-    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<unsigned char, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {

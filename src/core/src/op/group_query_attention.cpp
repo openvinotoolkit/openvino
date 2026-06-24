@@ -26,7 +26,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
 void GroupQueryAttention::validate_and_infer_types() {
     OV_OP_SCOPE(GroupQueryAttention_validate_and_infer_types);
     // GroupQueryAttention expects the following inputs:
-    // query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache.
+    // query, key, value, past_key, past_value, seqlens_k, total_sequence_length.
+    // In the rotary embedding case, following inputs are also required: cos_cache, sin_cache.
     // All qkv tensors should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H]).
     // The operation produces three outputs:
     // 1. Output tensor of shape [B, S, N * H].
@@ -49,7 +50,7 @@ void GroupQueryAttention::validate_and_infer_types() {
     const auto& element_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           element_type == element::f32 || element_type == element::f16,
-                          "GroupQueryAttention only suuports f32 and f16");
+                          "GroupQueryAttention supports following element types: {f32, f16}");
 
     set_output_type(0, element_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
     for (auto&& port : {1, 2}) {

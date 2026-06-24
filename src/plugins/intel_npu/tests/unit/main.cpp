@@ -28,7 +28,7 @@ int main(int argc, char** argv, char** envp) {
 
     std::shared_ptr<intel_npu::ZeroApi> zeroApi;
     try {
-        zeroApi = intel_npu::ZeroApi::getInstance();
+        zeroApi = intel_npu::ZeroApi::get_instance();
         if (zeroApi) {
             zeroApi->zelSetDriverTeardown();
         }
@@ -62,7 +62,7 @@ int main(int argc, char** argv, char** envp) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new testing::Environment());
 
-    std::string dTest = ::testing::internal::GTEST_FLAG(internal_run_death_test);
+    std::string dTest = ::testing::GTEST_FLAG(internal_run_death_test);
     if (!dTest.empty()) {
         std::cout << "gtest death test process is running" << std::endl;
     }
