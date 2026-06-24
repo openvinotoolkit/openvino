@@ -88,9 +88,9 @@ struct WeightChainPattern {
 
 static WeightChainPattern make_weight_chain() {
     WeightChainPattern wc;
-    wc.convert_in  = opp::optional<ov::op::v0::Convert>({opp::any_input()});
-    wc.multiply    = opp::wrap_type<ov::op::v1::Multiply>({wc.convert_in, opp::any_input()});
-    wc.reshape     = opp::optional<ov::op::v1::Reshape>({wc.multiply, opp::any_input()});
+    wc.convert_in = opp::optional<ov::op::v0::Convert>({opp::any_input()});
+    wc.multiply = opp::wrap_type<ov::op::v1::Multiply>({wc.convert_in, opp::any_input()});
+    wc.reshape = opp::optional<ov::op::v1::Reshape>({wc.multiply, opp::any_input()});
     wc.convert_out = opp::wrap_type<ov::op::v0::Convert>({wc.reshape});
     return wc;
 }
@@ -420,16 +420,21 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
         auto isolate = [&](const std::shared_ptr<ov::Node>& pat) {
             isolate_node(node_to_output.at(pat).get_node_shared_ptr(), isol_tag, node_to_gptr);
         };
-        // Isolate all nodes in a weight chain; optional nodes (convert_in, reshape) are
-        // skipped when not present (type-check distinguishes the fallback map entry).
+        // Isolate all nodes in a weight chain.
+        // convert_in and reshape are optional: when absent, opp::optional does NOT insert an
+        // entry into node_to_output, so we must guard with .count() before calling .at().
         auto isolate_weight_chain = [&](const WeightChainPattern& wc) {
-            auto n_cin = node_to_output.at(wc.convert_in).get_node_shared_ptr();
-            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(n_cin))
-                isolate_node(n_cin, isol_tag, node_to_gptr);
+            if (node_to_output.count(wc.convert_in)) {
+                auto n_cin = node_to_output.at(wc.convert_in).get_node_shared_ptr();
+                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(n_cin))
+                    isolate_node(n_cin, isol_tag, node_to_gptr);
+            }
             isolate_node(node_to_output.at(wc.multiply).get_node_shared_ptr(), isol_tag, node_to_gptr);
-            auto n_rs = node_to_output.at(wc.reshape).get_node_shared_ptr();
-            if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(n_rs))
-                isolate_node(n_rs, isol_tag, node_to_gptr);
+            if (node_to_output.count(wc.reshape)) {
+                auto n_rs = node_to_output.at(wc.reshape).get_node_shared_ptr();
+                if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(n_rs))
+                    isolate_node(n_rs, isol_tag, node_to_gptr);
+            }
             isolate_node(node_to_output.at(wc.convert_out).get_node_shared_ptr(), isol_tag, node_to_gptr);
         };
 
