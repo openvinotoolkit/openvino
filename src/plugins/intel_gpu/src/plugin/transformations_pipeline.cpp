@@ -571,19 +571,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ov::pass::TransposeMatMul>();
-        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8,
-                                                                                           ov::element::u8,
-                                                                                           ov::element::i4,
-                                                                                           ov::element::u4,
-                                                                                           ov::element::f8e4m3,
-                                                                                           ov::element::f8e5m2,
-                                                                                           ov::element::f4e2m1},
-                                                            !device_info.supports_immad);
-        if (ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(*func)) {
+
+        const bool can_use_lp_fp_systolic = config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p;
+        ov::element::TypeVector dequantization_dtypes = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
+        if (can_use_lp_fp_systolic) {
+            dequantization_dtypes.insert(dequantization_dtypes.end(), {ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1});
+        }
+        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{dequantization_dtypes}, !device_info.supports_immad);
+        if (can_use_lp_fp_systolic && ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(*func)) {
             manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1, ov::element::f8e8m0},
-                !device_info.supports_immad,
-                !device_info.supports_immad);
+                true,
+                false);
         }
 
         const bool is_pa = [&func]() {
@@ -1734,6 +1733,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
                                                                                     use_gs128_for_linear_attention);
+                manager.register_pass<ov::pass::SharedOpOptimization>();
             }
         }
 

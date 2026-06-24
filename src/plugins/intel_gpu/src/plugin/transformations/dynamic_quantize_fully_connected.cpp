@@ -99,14 +99,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto scale_dtype = m_fc->get_input_element_type(3);
         if (weight_dtype.is_integral()) {
             config.quantization_dt = element::i8;
-        } else if (weight_dtype == element::f8e4m3) {
-            config.quantization_dt = element::f8e4m3;
-        } else if (weight_dtype == element::f8e5m2) {
-            config.quantization_dt = element::f8e5m2;
-        } else if (weight_dtype == element::f4e2m1) {
-            config.quantization_dt = element::f4e2m1;
+        } else if (cldnn::one_of(weight_dtype, {element::f8e4m3, element::f8e5m2, element::f4e2m1})) {
+            config.quantization_dt = weight_dtype;
         } else {
-            OPENVINO_THROW("Unexpected weight data type: " + weight_dtype.to_string());
+            OPENVINO_THROW("Unexpected weight data type: ", weight_dtype);
         }
         const bool is_mxfp = scale_dtype == element::f8e8m0;
 
@@ -120,25 +116,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.zp_dt = element::u8; // it supports u8 only now
         }
 
-        std::shared_ptr<ov::op::internal::DynamicQuantize> dyn_quan = nullptr;
-
-        // If the parent already has an identical dynamic quantize as a user, reuse it instead of creating a new one.
-        const auto siblings = m_fc->get_input_node_shared_ptr(0)->get_users();
-        for (const auto& sibling : siblings) {
-            if (auto dyn_quan_sibling = as_type_ptr<ov::op::internal::DynamicQuantize>(sibling)) {
-                if (dyn_quan_sibling->is_config_equal(config)) {
-                    dyn_quan = dyn_quan_sibling;
-                }
-            }
-
-            if (dyn_quan) {
-                break;
-            }
-        }
-
-        if (!dyn_quan) {
-            dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
-        }
+        std::shared_ptr<ov::op::internal::DynamicQuantize> dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
 
         int dyn_quan_output_idx = 2;
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
