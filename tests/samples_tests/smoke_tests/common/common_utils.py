@@ -55,15 +55,19 @@ def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backof
     return retry_decorator
 
 
-def shell(cmd, env=None, cwd=None, out_format="plain"):
+def shell(cmd, env=None, cwd=None, out_format="plain", timeout=600):
     """
     Run command execution in specified environment
     :param cmd: list containing command and its parameters
     :param env: set of environment variables to set for this command
     :param cwd: working directory from which execute call
     :param out_format: 'plain' or 'html'. If 'html' all '\n; symbols are replaced by '<br>' tag
+    :param timeout: seconds to wait before killing the process, or None to wait indefinitely.
+                    Default is 600 s (10 min) — generous enough for samples that load large
+                    models on slow CI machines, while still bounding true hangs.
     :return:
     """
+
     if sys.platform.startswith('linux') or sys.platform == 'darwin':
         cmd = ['/bin/bash', '-c', " ".join(cmd)]
     else:
@@ -71,7 +75,13 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
 
     sys.stdout.write("Running command:\n" + " ".join(cmd) + "\n")
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (stdout, stderr) = p.communicate()
+    try:
+        stdout, stderr = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        stdout, stderr = p.communicate()
+        stdout_str = stdout.decode("utf-8") if stdout else ""
+        return -1, stdout_str, f"Command timed out after {timeout} seconds"
     stdout = str(stdout.decode('utf-8'))
     stderr = str(stderr.decode('utf-8'))
     if out_format == "html":

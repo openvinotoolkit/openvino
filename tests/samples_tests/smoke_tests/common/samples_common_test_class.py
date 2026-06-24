@@ -52,7 +52,9 @@ def get_cmd_output(*cmd):
 
 @retry(max_retries=3, exceptions=(requests.RequestException,), delay=5, exponential_backoff=True)
 def _requests_get(url):
-    return requests.get(url)
+    # (connect_timeout, read_timeout)
+    # 10 s to establish the TCP connection, 30 s of inactivity between data chunks
+    return requests.get(url, timeout=(10, 30))
 
 
 def download(test_data_dir, file_path):
@@ -62,6 +64,7 @@ def download(test_data_dir, file_path):
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
     for _ in range(9999):  # Give up after about 3 hours
+        lock_acquired = False
         with contextlib.suppress(FileExistsError, PermissionError):
             with lock_path.open('bx'):
                 if not file_path.exists():
@@ -78,7 +81,10 @@ def download(test_data_dir, file_path):
                         with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                             zfile.extractall(test_data_dir)
                         cv2.imwrite(str(test_data_dir / 'dog-224x224.bmp'), cv2.resize(cv2.imread(str(test_data_dir / 'samples_smoke_tests_data_2021.4/validation_set/227x227/dog.bmp')), (224, 224)))
-            lock_path.unlink(missing_ok=True)
+            lock_acquired = True
+        if lock_acquired:
+            with contextlib.suppress(FileNotFoundError, PermissionError):
+                lock_path.unlink()
             assert file_path.exists()
             return file_path
         time.sleep(1.0)
