@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstring>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <functional>
 #include <iostream>
@@ -348,19 +349,18 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     try {
         result.context.reqDynamic = result.context.compiledModel.create_infer_request();
     } catch (const ov::Exception& e) {
-        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
-            result.status = RuntimeCompareStatus::fail;
-            result.message =
-                std::string("Expected exception message to contain 'Cannot load library', but got: ") + e.what();
-            return result;
-        }
-
-        result.status = RuntimeCompareStatus::skip;
-        result.message = "Cannot load library, skip test.";
+        result.status = RuntimeCompareStatus::fail;
+        result.message = std::string("Failed to create dynamic infer request: ") + e.what();
         return result;
     }
 
-    result.context.reqReference = result.context.referenceCompiledModel.create_infer_request();
+    try {
+        result.context.reqReference = result.context.referenceCompiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        result.status = RuntimeCompareStatus::fail;
+        result.message = std::string("Failed to create reference infer request: ") + e.what();
+        return result;
+    }
     return result;
 }
 
@@ -373,24 +373,16 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
-    // Compilation shall pass since load of interpreter is deferred with NPU_CREATE_EXECUTOR=0
+
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     ov::InferRequest reqDynamic;
-    try {
-        ov::CompiledModel importedModel = core->import_model(modelStream, target_device);
-        reqDynamic = importedModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
-            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        } else {
-            GTEST_SKIP() << "Cannot load library, skip test.";
-        }
-    }
-
+    ov::CompiledModel importedModel;
+    OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device));
+    OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
