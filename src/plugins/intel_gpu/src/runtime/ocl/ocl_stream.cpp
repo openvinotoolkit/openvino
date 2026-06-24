@@ -187,7 +187,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
             case args_t::LOCAL_MEMORY_SIZE:
                 OPENVINO_ASSERT(args[i].index < data.local_memory_args->size() && data.local_memory_args->at(args[i].index),
                                 "The allocated local memory is necessary to set kernel arguments.");
-                status = set_kernel_arg(kernel, i,  data.local_memory_args->at(args[i].index));
+                status = set_kernel_arg(kernel, i, static_cast<uint32_t>(data.local_memory_args->at(args[i].index)));
                 break;
                 break;
             default:
@@ -241,7 +241,7 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
 #ifdef OV_GPU_WITH_ZE_RT
-        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with Level Zero runtime");
 #else
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
 #endif

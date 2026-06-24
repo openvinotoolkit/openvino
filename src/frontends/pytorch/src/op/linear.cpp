@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -65,22 +64,25 @@ OutputVector translate_linear_ext(const NodeContext& context) {
 
 namespace {
 
+// Write a u4 value at a given linear index in a packed u4 buffer.
+inline void set_u4(uint8_t* data, size_t idx, uint8_t val) {
+    size_t byte_idx = idx / 2;
+    if (idx & 1)
+        data[byte_idx] = (data[byte_idx] & 0x0F) | static_cast<uint8_t>((val & 0x0F) << 4);
+    else
+        data[byte_idx] = (data[byte_idx] & 0xF0) | (val & 0x0F);
+}
+
 Output<Node> low_precision_subgraph(const NodeContext& context,
                                     const Output<Node>& x,
                                     const Output<Node>& weights,
                                     const Output<Node>& zero_points,
                                     const Output<Node>& scales,
                                     const Output<Node>& out_shape) {
-    auto new_qweight = context.mark_node(std::make_shared<v0::Convert>(weights, scales.get_element_type()));
-    auto new_qzeros = context.mark_node(std::make_shared<v0::Convert>(zero_points, scales.get_element_type()));
-
-    auto w_s = context.mark_node(std::make_shared<v1::Subtract>(new_qweight, new_qzeros));
-    auto weight = context.mark_node(std::make_shared<v1::Multiply>(w_s, scales));
-    auto weight_shape = weights.get_shape();
-    if (out_shape.get_node() != nullptr) {
-        weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
-    }
-    weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
+    ov::pass::NodeRegistry reg;
+    auto weight = ov::decomposition::low_precision_dequantize(reg, weights, scales, zero_points, out_shape);
+    weight = reg.make<v1::ConvertLike>(weight, x);
+    context.mark_nodes(reg.get());
     return weight;
 }
 
@@ -104,6 +106,8 @@ uint32_t rearrange_awq_bits(uint32_t num) {
 Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
+    FRONT_END_OP_CONVERSION_CHECK(constant->get_byte_size() == shape_size(constant->get_shape()) * sizeof(uint32_t),
+                                  "AWQ constant storage size does not match expected int32 packing.");
     auto src = constant->get_data_ptr<uint32_t>();
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
@@ -123,6 +127,66 @@ Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
 }
+
+// GPTQ packs 8 u4 values per int32 along the INPUT dimension.
+// Each int32 at [i, j] holds u4 values for rows i*8..i*8+7 at column j.
+// This is a transpose of the inner dims: [K, N, 8] u4 → [K, 8, N] u4.
+Output<Node> unpack_gptq_qweight(const Output<Node>& c, int64_t group_size) {
+    auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
+    FRONT_END_OP_CONVERSION_CHECK(constant, "qweight must be Constant.");
+    FRONT_END_OP_CONVERSION_CHECK(constant->get_byte_size() == shape_size(constant->get_shape()) * sizeof(uint32_t),
+                                  "GPTQ qweight storage size does not match expected int32 packing.");
+    auto src = constant->get_data_ptr<uint32_t>();
+    auto initial_shape = constant->get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D qweight constants are supported.");
+    const size_t K = initial_shape[0];  // in_features / 8
+    const size_t N = initial_shape[1];  // out_features
+    const size_t in_features = K * 8;
+    FRONT_END_OP_CONVERSION_CHECK(group_size > 0, "GPTQ group_size must be greater than 0.");
+    FRONT_END_OP_CONVERSION_CHECK(static_cast<size_t>(group_size) <= in_features,
+                                  "GPTQ group_size must not exceed in_features.");
+    const size_t group_size_u = static_cast<size_t>(group_size);
+    FRONT_END_OP_CONVERSION_CHECK(in_features % group_size_u == 0, "GPTQ in_features must be divisible by group_size.");
+    const size_t n_groups = in_features / group_size_u;
+    auto new_shape = Shape{n_groups, group_size_u, N};
+    auto new_const = std::make_shared<v0::Constant>(element::u4, new_shape, 0);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
+    for (size_t i = 0; i < K; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            uint32_t val = src[i * N + j];
+            for (size_t k = 0; k < 8; ++k) {
+                set_u4(dst, (i * 8 + k) * N + j, (val >> (k * 4)) & 0xF);
+            }
+        }
+    }
+    new_const->set_friendly_name(constant->get_friendly_name());
+    return new_const;
+}
+
+// GPTQ qzeros: packs 8 u4 values per int32 along the OUTPUT dimension.
+// Byte layout matches u4 layout directly — single-pass copy with +1 offset.
+Output<Node> unpack_gptq_qzeros(const Output<Node>& c) {
+    auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
+    FRONT_END_OP_CONVERSION_CHECK(constant, "qzeros must be Constant.");
+    FRONT_END_OP_CONVERSION_CHECK(constant->get_byte_size() == shape_size(constant->get_shape()) * sizeof(uint32_t),
+                                  "GPTQ qzeros storage size does not match expected int32 packing.");
+    auto src = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
+    auto initial_shape = constant->get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D qzeros constants are supported.");
+    auto new_shape = Shape{initial_shape[0], 1, initial_shape[1] * 8};
+    auto new_const = std::make_shared<v0::Constant>(element::u4, new_shape);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
+    // Apply +1 offset per u4 value while copying (GPTQ stores zp-1)
+    const size_t n_bytes = shape_size(initial_shape) * sizeof(uint32_t);
+    for (size_t i = 0; i < n_bytes; ++i) {
+        uint8_t lo = (src[i] & 0x0F) + 1;
+        uint8_t hi = ((src[i] >> 4) & 0x0F) + 1;
+        dst[i] = (lo & 0x0F) | static_cast<uint8_t>((hi & 0x0F) << 4);
+    }
+    new_const->set_friendly_name(constant->get_friendly_name());
+    return new_const;
+}
+
 }  // namespace
 
 OutputVector translate_linear_awq(const NodeContext& context) {
@@ -150,6 +214,58 @@ OutputVector translate_linear_awq(const NodeContext& context) {
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
     if (!context.input_is_none(6)) {
         auto bias = context.get_input(6);
+
+        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+            bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
+        }
+        matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    return {matmul};
+};
+
+OutputVector translate_linear_gptq(const NodeContext& context) {
+    // ov_ext::gptq_gemm(input, qweight, qzeros, scales, group_size, bits, sym, bias?)
+    num_inputs_check(context, 7, 8);
+    auto x = context.get_input(0);
+    auto qweight = context.get_input(1);
+    auto qzeros = context.get_input(2);
+    auto scales = context.get_input(3);
+    auto group_size = context.const_input<int64_t>(4);
+    auto bits = context.const_input<int64_t>(5);
+    auto sym = context.const_input<bool>(6);
+
+    FRONT_END_OP_CONVERSION_CHECK(bits == 4, "Only 4-bit GPTQ is supported.");
+
+    // qweight: [in_features/8, out_features] int32 → [n_groups, group_size, out_features] u4
+    auto new_qweight = unpack_gptq_qweight(qweight, group_size);
+
+    Output<Node> new_qzeros;
+    if (sym) {
+        // Symmetric quantisation: zero point is always 8 (midpoint of u4 range)
+        new_qzeros = context.mark_node(v0::Constant::create(element::u4, Shape{}, std::vector<uint8_t>{8}));
+    } else {
+        // qzeros: [n_groups, out_features/8] int32 → [n_groups, 1, out_features] u4 (with +1 offset)
+        new_qzeros = unpack_gptq_qzeros(qzeros);
+    }
+
+    FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "Scales must be constant.");
+    auto scales_shape = scales.get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(scales_shape.size() == 2,
+                                  "GPTQ scales input is expected to be 2D, but got rank ",
+                                  scales_shape.size(),
+                                  ".");
+    auto new_scales_shape =
+        v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0], 1, scales_shape[1]});
+    auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
+    // Reshape dequantised weight to [in_features, out_features] for matmul
+    auto qweight_shape = qweight.get_shape();
+    auto out_shape =
+        v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight_shape[0] * 8), -1});
+    auto weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
+
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
+    if (!context.input_is_none(7)) {
+        auto bias = context.get_input(7);
 
         if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
             bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));

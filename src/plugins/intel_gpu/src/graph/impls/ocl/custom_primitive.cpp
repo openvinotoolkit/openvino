@@ -6,6 +6,7 @@
 
 #include "custom_gpu_primitive_inst.h"
 #include "jitter.h"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
 
 #include <map>
 #include <sstream>
@@ -20,6 +21,50 @@ using jit_constants = kernel_selector::JitConstants;
 namespace cldnn {
 namespace ocl {
 
+static size_t evaluate_size_expr(const std::string& size_expr, const kernel_impl_params& impl_params) {
+    std::string expr = size_expr;
+
+    // if INPUTn_DIMS[i] tokens
+    for (size_t n = 0; n < impl_params.input_layouts.size(); ++n) {
+        auto shape = impl_params.input_layouts[n].get_shape();
+        for (size_t i = 0; i < shape.size(); ++i) {
+            std::string token = "INPUT" + std::to_string(n) + "_DIMS[" + std::to_string(i) + "]";
+            size_t pos = 0;
+            while ((pos = expr.find(token, pos)) != std::string::npos) {
+                auto val = std::to_string(shape[i]);
+                expr.replace(pos, token.length(), val);
+                pos += val.length();
+            }
+        }
+    }
+
+    // if OUTPUTn_DIMS[i] tokens
+    for (size_t n = 0; n < impl_params.output_layouts.size(); ++n) {
+        auto shape = impl_params.output_layouts[n].get_shape();
+        for (size_t i = 0; i < shape.size(); ++i) {
+            std::string token = "OUTPUT" + std::to_string(n) + "_DIMS[" + std::to_string(i) + "]";
+            size_t pos = 0;
+            while ((pos = expr.find(token, pos)) != std::string::npos) {
+                auto val = std::to_string(shape[i]);
+                expr.replace(pos, token.length(), val);
+                pos += val.length();
+            }
+        }
+    }
+
+    SimpleMathExpression math_expr;
+    OPENVINO_ASSERT(math_expr.SetExpression(expr),
+                    "[GPU] Failed to parse internal buffer size expression: '", size_expr,
+                    "' (resolved to: '", expr, "')");
+
+    int result = math_expr.Evaluate();
+    OPENVINO_ASSERT(result > 0,
+                    "[GPU] Internal buffer size expression evaluated to non-positive value: ", result,
+                    " for expression: '", size_expr, "'");
+
+    return static_cast<size_t>(result);
+}
+
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     using parent = typed_primitive_impl<custom_gpu_primitive>;
     using parent::parent;
@@ -28,6 +73,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
+    std::map<uint32_t, std::string> size_expr_map;
 
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<custom_gpu_primitive_impl>(*this);
@@ -38,7 +84,8 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : cl_kernel(other.cl_kernel)
-    , _kernels({}) {
+    , _kernels({}) 
+    , size_expr_map(other.size_expr_map) {
         for (const auto& kernel : other._kernels) {
             _kernels.emplace_back(kernel->clone(other.can_share_kernels));
         }
@@ -48,6 +95,13 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
         : cl_kernel(cl_kernel)
         , _kernels() { }
+
+    custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
+                             std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel,
+                             const std::map<uint32_t, std::string>& size_expr_map)
+        : cl_kernel(cl_kernel)
+        , _kernels()
+        , size_expr_map(size_expr_map) { }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
@@ -82,32 +136,51 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         }
     }
 
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
+        if (size_expr_map.empty())
+            return {};
+
+        const auto& input_layout = impl_params.input_layouts[0];
+        auto shape = input_layout.get_shape();
+        std::vector<int64_t> input_dims(shape.begin(), shape.end());
+        auto data_type = impl_params.input_layouts[0].data_type;
+
+        std::vector<BufferDescriptor> descs;
+        for (const auto& [index, size_expr] : size_expr_map) {
+            size_t element_count = evaluate_size_expr(size_expr, impl_params);
+            descs.emplace_back(element_count, data_type);
+        }
+        return descs;
+    }
+
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep.first->output_memory_ptr());
         }
-
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-
+        for (const auto& buf : instance.get_intermediates_memories()) {
+            args.intermediates.push_back(buf);
+        }
         stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,
-                                 custom_gpu_primitive_inst& instance) override {
+                            custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep.first->output_memory_ptr());
         }
-
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-
+        for (const auto& buf : instance.get_intermediates_memories()) {
+            args.intermediates.push_back(buf);
+        }
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
     }
 
@@ -118,12 +191,14 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << *cl_kernel;
+        ob << size_expr_map;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
         ib >> *cl_kernel;
+        ib >> size_expr_map;
     }
 };
 
@@ -135,6 +210,9 @@ static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::ar
             break;
         case custom_gpu_primitive::arg_output:
             ret.t = kernel_selector::kernel_argument_types::OUTPUT;
+            break;
+        case custom_gpu_primitive::arg_internal:
+            ret.t = kernel_selector::kernel_argument_types::INTERNAL_BUFFER;
             break;
         default:
             throw std::runtime_error("Unknown argument type");
@@ -224,7 +302,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
 
     // Offset (in elements)
     // #define INPUT0_OFFSET 0
-    int32_t offset =
+    auto offset =
         (pitches[0] * l.data_padding._lower_size[0]) + (pitches[1] * l.data_padding._lower_size[1]) +
         (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]);
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
@@ -295,11 +373,18 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     cl_kernel->params.workGroups.global = gws;
     cl_kernel->params.workGroups.local = lws;
 
+    std::map<uint32_t, std::string> size_expr_map;
     for (const auto& p : primitive->kernel_arguments) {
         cl_kernel->params.arguments.push_back(get_arg(p));
+        if (p.type == custom_gpu_primitive::arg_internal) {
+            size_expr_map[p.index] = p.size_expr;
+        }
     }
-
-    return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
+    if (!size_expr_map.empty()) {
+        return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel, size_expr_map);
+    } else {
+        return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
+    }
 }
 
 namespace detail {

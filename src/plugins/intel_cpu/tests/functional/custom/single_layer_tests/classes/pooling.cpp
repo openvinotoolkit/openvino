@@ -368,7 +368,7 @@ TEST_P(MaxPoolingV14LayerCPUTest, CompareWithRefs) {
 namespace Pooling {
 
 // The combination of parameters: NCHW + CEIL gives an accuracy problem in ACL AvgPool
-const ov::op::RoundingType expectedAvgRoundingType(const ov::op::RoundingType ceil_type) {
+ov::op::RoundingType expectedAvgRoundingType(const ov::op::RoundingType ceil_type) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     return ov::op::RoundingType::FLOOR;
 #else

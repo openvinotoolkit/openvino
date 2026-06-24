@@ -145,6 +145,8 @@ public:
     }
     void set_virtual_port_count(size_t count);
 
+    bool is_dynamic() const override;
+
     void print() const;
 
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);

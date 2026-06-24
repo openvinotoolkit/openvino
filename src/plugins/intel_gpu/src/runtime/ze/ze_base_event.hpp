@@ -6,8 +6,8 @@
 
 #include "intel_gpu/runtime/event.hpp"
 #include "ze_base_event_factory.hpp"
+#include "ze_common.hpp"
 
-#include <ze_api.h>
 #include <chrono>
 #include <optional>
 
