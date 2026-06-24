@@ -78,8 +78,20 @@ size_t getOutputVerticalSize(const resample_params& params) {
     return ExtractDim(params.outputs[0], params.axes[eVertical]).v;
 }
 
+bool IsIdentityResample(const resample_params& params) {
+    return getInputHorizontalSize(params, true) == getOutputHorizontalSize(params) &&
+           getInputVerticalSize(params, true) == getOutputVerticalSize(params);
+}
+
 bool NeedHorizontalPass(const resample_params& params) {
-    return getInputHorizontalSize(params, true) != getOutputHorizontalSize(params);
+    // Pillow's CPU resample copies the input straight to the output when neither axis needs
+    // resampling (input size == output size on both axes). The staged GPU pipeline derives the
+    // number of passes from NeedHorizontalPass/NeedVerticalPass, so a true identity would emit
+    // zero passes: the output is left unwritten and the primitive is built with zero kernels,
+    // which crashes at execution. Force a single horizontal pass for the identity case; it runs
+    // with scale==1 (identity) coefficients and copies the input to the output.
+    return IsIdentityResample(params) ||
+           getInputHorizontalSize(params, true) != getOutputHorizontalSize(params);
 }
 
 bool NeedVerticalPass(const resample_params& params) {
