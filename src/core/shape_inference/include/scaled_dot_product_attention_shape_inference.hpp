@@ -44,14 +44,14 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         n_dims.resize(n_dims.size() - 2);
         n_dims_sub = TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1));
         bool success = false;
-        if ((key_rank.is_static() && key_rank.get_length() >= 3) &&
-            value_rank.is_static() && value_rank.get_length() >= 3) {
+        if ((key_rank.is_static() && key_rank.get_length() >= 3) && value_rank.is_static() &&
+            value_rank.get_length() >= 3) {
             const ov::Dimension q_num_head = *(n_dims.end() - 1);
             const ov::Dimension k_num_head = (key_rank.is_static()) ? *(key.end() - 3) : ov::Dimension(1);
             if (q_num_head.is_static() && k_num_head.is_static()) {
                 if ((q_num_head.get_length() % k_num_head.get_length() == 0) &&
                     (q_num_head.get_length() != k_num_head.get_length())) {
-                        gqa_mode = true;
+                    gqa_mode = true;
                 }
             }
         }
