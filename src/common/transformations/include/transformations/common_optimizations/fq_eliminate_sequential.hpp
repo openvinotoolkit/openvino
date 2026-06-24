@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
  * pair (FQ1 -> FQ2). The notation below is FQ(in_low, in_high, out_low, out_high, levels).
  *
  * FQ1 and FQ2 may be separated by one or several value-preserving Reshape/Transpose/Squeeze/Unsqueeze
- * ops. A matched FakeQuantize is per-tensor (scalar ranges) and therefore applied element-wise, so it
+ * ops. A matched FakeQuantize is applied element-wise (whether per-tensor or per-channel), so it
  * commutes with such ops and the folding stays valid through the chain.
  *
  * FQ2 is removed (FQ1 kept) when it is identical to FQ1, i.e. it has the same levels, auto broadcast,

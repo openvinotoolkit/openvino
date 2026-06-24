@@ -200,3 +200,29 @@ TEST_F(TransformationTestsF, do_not_fold_when_intermediate_op_has_multiple_consu
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+// FQ1 and FQ2 use per-channel ranges (constants broadcast over the channel axis). FQ2 is identical to
+// FQ1, so it re-applies the same quantization and is eliminated.
+TEST_F(TransformationTestsF, eliminate_sequential_per_channel_fake_quantize) {
+    const Shape per_channel_shape{1, 3, 1, 1};
+    const std::vector<float> in_low{-1.0f, -2.0f, -3.0f};
+    const std::vector<float> in_high{1.0f, 2.0f, 3.0f};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto fq2 = make_fake_quantize(fq1, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto abs = std::make_shared<v0::Abs>(fq1);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
