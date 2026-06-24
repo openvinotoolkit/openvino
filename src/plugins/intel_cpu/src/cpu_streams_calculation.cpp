@@ -640,7 +640,7 @@ struct StreamsInfoBuilder {
                 set_ids(proc_type_table[0]);
             } else {
                 stream_info[PROC_TYPE] = ALL_PROC;
-                n_threads_per_stream = std::min(model_prefer_threads, proc_type_table[0][ALL_PROC]);
+                n_threads_per_stream = proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 ? std::min(model_prefer_threads, proc_type_table[0][ALL_PROC]) : proc_type_table[0][ALL_PROC];
                 if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
                     n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
                     n_threads_per_stream = std::max(model_prefer_threads, n_threads_per_stream);

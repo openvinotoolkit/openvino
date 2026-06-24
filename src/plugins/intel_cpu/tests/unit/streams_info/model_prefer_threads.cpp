@@ -299,6 +299,52 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_generic
     EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
 }
 
+TEST_F(ModelPreferThreadsIntegrationTest, latency_single_socket_preserves_main_and_efficient_preference) {
+    const std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+
+    auto streams_info_table = get_streams_info_table(1,
+                                                     false,
+                                                     0,
+                                                     0,
+                                                     24,
+                                                     false,
+                                                     ov::util::to_string(ov::hint::PerformanceMode::LATENCY),
+                                                     {},
+                                                     proc_type_table);
+
+    ASSERT_EQ(streams_info_table.size(), 3);
+    EXPECT_EQ(streams_info_table[0][PROC_TYPE], ALL_PROC);
+    EXPECT_EQ(streams_info_table[0][THREADS_PER_STREAM], 24);
+    EXPECT_EQ(streams_info_table[1][PROC_TYPE], MAIN_CORE_PROC);
+    EXPECT_EQ(streams_info_table[1][THREADS_PER_STREAM], 8);
+    EXPECT_EQ(streams_info_table[2][PROC_TYPE], EFFICIENT_CORE_PROC);
+    EXPECT_EQ(streams_info_table[2][THREADS_PER_STREAM], 16);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, latency_single_socket_preserves_all_core_preference_with_lpecores) {
+    const std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+
+    auto streams_info_table = get_streams_info_table(1,
+                                                     false,
+                                                     0,
+                                                     0,
+                                                     28,
+                                                     false,
+                                                     ov::util::to_string(ov::hint::PerformanceMode::LATENCY),
+                                                     {},
+                                                     proc_type_table);
+
+    ASSERT_EQ(streams_info_table.size(), 4);
+    EXPECT_EQ(streams_info_table[0][PROC_TYPE], ALL_PROC);
+    EXPECT_EQ(streams_info_table[0][THREADS_PER_STREAM], 28);
+    EXPECT_EQ(streams_info_table[1][PROC_TYPE], MAIN_CORE_PROC);
+    EXPECT_EQ(streams_info_table[1][THREADS_PER_STREAM], 8);
+    EXPECT_EQ(streams_info_table[2][PROC_TYPE], EFFICIENT_CORE_PROC);
+    EXPECT_EQ(streams_info_table[2][THREADS_PER_STREAM], 16);
+    EXPECT_EQ(streams_info_table[3][PROC_TYPE], LP_EFFICIENT_CORE_PROC);
+    EXPECT_EQ(streams_info_table[3][THREADS_PER_STREAM], 4);
+}
+
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_relaxed_auto_boundary_case) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
