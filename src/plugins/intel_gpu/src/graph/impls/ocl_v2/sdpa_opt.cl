@@ -1154,6 +1154,19 @@ inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq
         int found_block_range_end = default_block_range_end;
         int found_block_range_begin = default_block_range_begin;
 
+        // Bounds guard with full-range fallback.
+        // When any token_type_ids index would exceed seq_len, bypass token-type filtering
+        // for this work item and fall back to the full valid source range.
+        // Note: range.max is an inclusive bound, while subgroup_max is exclusive.
+        if (default_seq_range.max >= seq_len || default_block_range_end <= 0 || default_block_range_begin >= seq_len) {
+            // Return full valid source range: [0, seq_len - 1].
+            SEQ_RANGE range;
+            range.min = 0;
+            range.max = seq_len > 0 ? seq_len - 1 : 0;
+            range.subgroup_max = min(default_block_range_end, seq_len);
+            return range;
+        }
+
         // block cooperative search for token group end
         if (token_type_ids[default_block_range_end - 1] == 1) {
             found_block_range_end = FUNC_CALL(find_first_zero_to_the_right_wg)(token_type_ids, reduction_buffer, default_block_range_end, seq_len);
