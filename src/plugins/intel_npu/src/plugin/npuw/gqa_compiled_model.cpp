@@ -82,6 +82,7 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
     if (stage == GQAModelStage::PREFILL) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+                           {"NPUW_FOLD_ONLY", "attn"},
                            {"NPUW_ONLINE_ISOLATE", "ATTN"},
                            {"NPUW_ATTN", "STATIC"},
                            {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"}});
