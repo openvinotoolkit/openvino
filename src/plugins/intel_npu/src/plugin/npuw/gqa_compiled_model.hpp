@@ -4,9 +4,12 @@
 
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
+#include <vector>
 
 #include "npuw/compiled_model.hpp"
 
@@ -30,10 +33,13 @@ public:
 private:
     void ensure_inner_request_locked() const;
     const ov::Output<const ov::Node>& map_port_locked(const ov::Output<const ov::Node>& port) const;
+    bool is_kv_output_locked(size_t output_index) const;
 
     std::shared_ptr<const GQACompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
+    // User-set tensors for KV outputs intercepted by the managed KV scatter path.
+    mutable std::unordered_map<size_t, ov::SoPtr<ov::ITensor>> m_user_kv_tensors;
 };
 
 class GQACompiledModel final : public ov::npuw::ICompiledModel {
@@ -65,8 +71,18 @@ public:
 
 private:
     struct PreparedState {
-        std::shared_ptr<ov::Model> model;
+        std::shared_ptr<ov::Model> model;        // outer interface (full KV output shapes)
+        std::shared_ptr<ov::Model> inner_model;  // for NPU compilation (stripped KV outputs)
         ov::AnyMap properties;
+        bool kv_managed = false;                // true when ScatterUpdate was stripped from KV results
+        std::string seqlens_k_name;             // friendly name of the seqlens_k parameter
+        std::vector<size_t> kv_output_indices;  // which result indices are KV-managed
+        std::vector<size_t> kv_max_seqs;        // max_seq for each KV output
+        std::vector<bool> kv_transposed;        // true when V output is transposed [1,H,head_size,max_seq]
+        // When importing from blob the stub model includes extra Parameters for outputs
+        // (to satisfy ov::Model validation).  This field records how many leading Parameters
+        // are REAL model inputs; inputs() overrides the base-class list accordingly.
+        size_t real_input_count = 0;
     };
 
     static PreparedState prepare(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
@@ -77,9 +93,22 @@ private:
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
+    // Override inputs() to hide the extra stub Parameters that the stub outer model
+    // (built during import_model) includes to satisfy ov::Model validation.
+    // In the normal compile path m_outer_inputs is empty, so the base class result is used.
+    const std::vector<ov::Output<const ov::Node>>& inputs() const override;
+
     friend class GQAInferRequest;
 
     std::shared_ptr<ov::npuw::ICompiledModel> m_compiled_model;
+    bool m_kv_managed = false;
+    std::string m_seqlens_k_name;
+    std::vector<size_t> m_kv_output_indices;
+    std::vector<size_t> m_kv_max_seqs;
+    std::vector<bool> m_kv_transposed;  // per-KV: true when V is [1,H,head_size,max_seq]
+    // Populated during import_model when the stub outer model has extra stub Parameters.
+    // inputs() returns this instead of the base-class m_inputs when non-empty.
+    std::vector<ov::Output<const ov::Node>> m_outer_inputs;
 };
 
 }  // namespace ov::npuw
