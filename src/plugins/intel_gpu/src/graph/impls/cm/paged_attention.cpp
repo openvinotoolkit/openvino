@@ -729,6 +729,13 @@ private:
             return block_size_128;
         }
 
+        // head_size=256 partition path on Xe2+ shrinks wg_seq_len to num_team * q_step = 128.
+        // SPARSE_BLOCK_SIZE must not exceed wg_seq_len, otherwise blocks_per_wg = 0 in the
+        // kernel's sparse-mask indexing.
+        if (desc->k_head_size == 256) {
+            return block_size_128;
+        }
+
         xattn_block_size = (xattn_block_size == block_size_128 || xattn_block_size == block_size_256) ? xattn_block_size : block_size_256;
         return xattn_block_size;
     }

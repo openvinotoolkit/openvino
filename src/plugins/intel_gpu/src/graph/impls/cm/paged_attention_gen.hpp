@@ -201,7 +201,8 @@ public:
 
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->k_head_size == 256) {
+        const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+        if (desc->k_head_size == 256 && xe_arch >= 2) {
             constexpr size_t num_team = 8;
             return num_team * get_q_step(params);
         }
