@@ -51,7 +51,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const size_t wg_j0 = get_group_id(0) * kq_wg_tile_queries;
     const size_t b0 = get_group_id(1);     // heads_num
     const size_t b1 = get_group_id(2);     // batch
-    const size_t b0_kv = b0 / (HEADS_NUM / KV_HEADS_NUM);
+    const size_t b0_kv = b0 / KV_GROUP_SIZE;
 
     const size_t sg_i_kq  = sg_ij % kq_sg_per_wg_keys;
     const size_t sg_j_kq  = sg_ij / kq_sg_per_wg_keys;
