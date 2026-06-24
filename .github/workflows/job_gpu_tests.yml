@@ -97,9 +97,14 @@ jobs:
           TEST_TYPE: ${{ inputs.test_type }}
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
+          NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
+          NEO_CACHE_STATS: 1
+          NEO_CACHE_PERSISTENT: 1
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-
+          echo $NEO_CACHE_STATS
+          echo $NEO_CACHE_DIR
+          echo $NEO_CACHE_PERSISTENT
           TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
           echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
 
