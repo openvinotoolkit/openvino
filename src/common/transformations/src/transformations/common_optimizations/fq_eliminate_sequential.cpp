@@ -5,16 +5,19 @@
 #include "transformations/common_optimizations/fq_eliminate_sequential.hpp"
 
 #include <memory>
+#include <unordered_set>
+#include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/squeeze_base.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -41,60 +44,50 @@ bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs
     return true;
 }
 
+bool is_value_preserving(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
+           ov::is_type<op_util::SqueezeBase>(node) || ov::is_type<v0::Unsqueeze>(node);
+}
+
 }  // namespace
 
-FakeQuantizeEliminateSequential::FakeQuantizeEliminateSequential() {
-    MATCHER_SCOPE(FakeQuantizeEliminateSequential);
-    auto p_fq1 = pattern::wrap_type<v0::FakeQuantize>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()},
-        pattern::consumers_count(1));
+bool FakeQuantizeEliminateSequential::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(FakeQuantizeEliminateSequential);
 
-    // Eliminates a redundant second FakeQuantize (FQ1 -> FQ2). Notation below:
-    // FQ(in_low, in_high, out_low, out_high, levels). FQ1 and FQ2 may be separated by one or several
-    // value-preserving Reshape/Transpose/Squeeze/Unsqueeze ops: a scalar (per-tensor) FakeQuantize is
-    // applied element-wise, so it commutes with such ops and the folding stays valid through the chain.
-    // FQ2 is dropped (FQ1 kept) when it is identical to FQ1 (same range constants and levels), e.g.
-    //   FQ1(-1, 1, -1, 1, 256) -> FQ2(-1, 1, -1, 1, 256)  =>  FQ1(-1, 1, -1, 1, 256)
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(m.get_match_root());
+    bool eliminated = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(op);
         if (!fq1) {
-            return false;
+            continue;
         }
 
-        // Walk down from FQ1 through value-preserving Reshape/Transpose/Squeeze/Unsqueeze ops to reach
-        // the consuming FQ2. Every op along the chain (starting with FQ1) must have a single consumer,
-        // otherwise bypassing it would change the graph for its other consumers.
-        auto is_value_preserving = [](const std::shared_ptr<ov::Node>& node) {
-            return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
-                   ov::is_type<op_util::SqueezeBase>(node) || ov::is_type<v0::Unsqueeze>(node);
-        };
-        auto output = fq1->output(0);
-        std::shared_ptr<ov::Node> consumer;
-        while (true) {
-            if (output.get_target_inputs().size() != 1) {
+        // Walk forward from FQ1 following its consumers and collect the redundant FakeQuantizes.
+        // Traversal continues only through FQ1, value-preserving ops, and redundant FakeQuantizes, so
+        // branches into several consumers are handled as well. visit_path_forward queries a node's
+        // consumers right after the visitor runs, so the redundant FakeQuantizes are only collected
+        // here and detached afterwards to avoid dereferencing a freed node.
+        std::vector<std::shared_ptr<v0::FakeQuantize>> redundant_fqs;
+        std::unordered_set<ov::Node*> visited;
+        auto skip_node = [&](ov::Node* node) {
+            auto shared_node = node->shared_from_this();
+            if (shared_node == fq1 || is_value_preserving(shared_node)) {
                 return false;
             }
-            consumer = output.get_target_inputs().begin()->get_node()->shared_from_this();
-            if (!is_value_preserving(consumer)) {
-                break;
+            return !have_same_fake_quantize_params(fq1, ov::as_type_ptr<v0::FakeQuantize>(shared_node));
+        };
+        auto collect_redundant_fq = [&](ov::Node* node) {
+            if (auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(node->shared_from_this()); fq2 && fq2 != fq1) {
+                redundant_fqs.push_back(fq2);
             }
-            output = consumer->output(0);
-        }
-        auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(consumer);
-        if (!fq2) {
-            return false;
-        }
+        };
+        op_util::visit_path_forward(fq1.get(), visited, collect_redundant_fq, skip_node);
 
-        // Drop FQ2 only when it is identical to FQ1: same levels and same four range bounds. Then FQ2
-        // re-applies the exact quantization already produced by FQ1 and is redundant.
-        if (!have_same_fake_quantize_params(fq1, fq2)) {
-            return false;
+        for (const auto& fq2 : redundant_fqs) {
+            eliminated = replace_output_update_name(fq2->output(0), fq2->input_value(0)) || eliminated;
         }
-        return replace_output_update_name(fq2->output(0), fq2->input_value(0));
-    };
+    }
 
-    auto m = std::make_shared<pattern::Matcher>(p_fq1, matcher_name);
-    register_matcher(m, callback);
+    return eliminated;
 }
 
 }  // namespace ov::pass

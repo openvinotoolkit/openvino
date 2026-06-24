@@ -172,9 +172,9 @@ INSTANTIATE_TEST_SUITE_P(SequentialFakeQuantizeChain,
                          testing::ValuesIn(sequential_fq_chain_params),
                          SequentialFakeQuantizeChainTests::get_test_case_name);
 
-// The intermediate Reshape feeds more than one consumer, so bypassing it would change the graph for
-// the other consumer: the transformation must not fire.
-TEST_F(TransformationTestsF, do_not_fold_when_intermediate_op_has_multiple_consumers) {
+// The intermediate Reshape feeds more than one consumer. Eliminating FQ2 only rewires FQ2's own
+// output, so the other consumer is unaffected and the transformation still fires.
+TEST_F(TransformationTestsF, eliminate_when_intermediate_op_has_multiple_consumers) {
     auto target_shape = v0::Constant::create(element::i64, Shape{3}, {1, 3, 256});
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
@@ -189,8 +189,7 @@ TEST_F(TransformationTestsF, do_not_fold_when_intermediate_op_has_multiple_consu
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
         auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
         auto reshape = std::make_shared<v1::Reshape>(fq1, target_shape, false);
-        auto fq2 = make_fake_quantize(reshape, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
-        auto abs1 = std::make_shared<v0::Abs>(fq2);
+        auto abs1 = std::make_shared<v0::Abs>(reshape);
         auto abs2 = std::make_shared<v0::Abs>(reshape);
         model_ref = std::make_shared<ov::Model>(OutputVector{abs1, abs2}, ParameterVector{input});
     }
@@ -219,6 +218,84 @@ TEST_F(TransformationTestsF, eliminate_sequential_per_channel_fake_quantize) {
         auto fq1 = make_fake_quantize(input, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
         auto abs = std::make_shared<v0::Abs>(fq1);
         model_ref = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+// FQ1 feeds several consumers that are all identical to it: every one re-applies FQ1's quantization
+// and is eliminated, leaving the consumers connected directly to FQ1.
+TEST_F(TransformationTestsF, eliminate_when_fq1_has_several_identical_consumers) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto fq2_a = make_fake_quantize(fq1, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto fq2_b = make_fake_quantize(fq1, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto abs_a = std::make_shared<v0::Abs>(fq2_a);
+        auto abs_b = std::make_shared<v0::Abs>(fq2_b);
+        model = std::make_shared<ov::Model>(OutputVector{abs_a, abs_b}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto abs_a = std::make_shared<v0::Abs>(fq1);
+        auto abs_b = std::make_shared<v0::Abs>(fq1);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs_a, abs_b}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+// FQ1 branches into an identical FakeQuantize (eliminated) and a different one (kept): only the
+// redundant branch is folded.
+TEST_F(TransformationTestsF, eliminate_only_identical_consumer_when_fq1_branches) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto fq_same = make_fake_quantize(fq1, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto fq_diff = make_fake_quantize(fq1, element::f32, 256, {1}, {-2.0f}, {2.0f}, {-2.0f}, {2.0f});
+        auto abs_same = std::make_shared<v0::Abs>(fq_same);
+        auto abs_diff = std::make_shared<v0::Abs>(fq_diff);
+        model = std::make_shared<ov::Model>(OutputVector{abs_same, abs_diff}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto fq_diff = make_fake_quantize(fq1, element::f32, 256, {1}, {-2.0f}, {2.0f}, {-2.0f}, {2.0f});
+        auto abs_same = std::make_shared<v0::Abs>(fq1);
+        auto abs_diff = std::make_shared<v0::Abs>(fq_diff);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs_same, abs_diff}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+// FQ1 branches into an identical FakeQuantize (eliminated) and a direct non-FakeQuantize consumer
+// (left intact).
+TEST_F(TransformationTestsF, eliminate_identical_consumer_with_direct_branch) {
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto fq2 = make_fake_quantize(fq1, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto abs_fq = std::make_shared<v0::Abs>(fq2);
+        auto abs_direct = std::make_shared<v0::Abs>(fq1);
+        model = std::make_shared<ov::Model>(OutputVector{abs_fq, abs_direct}, ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1}, {-1.0f}, {1.0f}, {-1.0f}, {1.0f});
+        auto abs_fq = std::make_shared<v0::Abs>(fq1);
+        auto abs_direct = std::make_shared<v0::Abs>(fq1);
+        model_ref = std::make_shared<ov::Model>(OutputVector{abs_fq, abs_direct}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();

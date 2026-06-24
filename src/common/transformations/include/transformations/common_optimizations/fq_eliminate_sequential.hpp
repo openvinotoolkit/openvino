@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -74,8 +74,8 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
  *
  * For example: FQ1(-1, 1, -1, 1, 256) -> FQ2(-1, 1, -1, 1, 256)  =>  FQ1(-1, 1, -1, 1, 256)
  */
-class ov::pass::FakeQuantizeEliminateSequential : public ov::pass::MatcherPass {
+class ov::pass::FakeQuantizeEliminateSequential : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FakeQuantizeEliminateSequential");
-    FakeQuantizeEliminateSequential();
+    OPENVINO_MODEL_PASS_RTTI("FakeQuantizeEliminateSequential");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
