@@ -263,7 +263,7 @@ memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_si
                                                    data_size,
                                                    _allocation_type);
     cl_int err = CL_SUCCESS;
-    cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR;
+    cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
 #ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
     flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
 #endif
