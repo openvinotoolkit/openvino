@@ -12,6 +12,7 @@
 #include <arm_compute/runtime/NEON/functions/NECopy.h>
 
 #include <cassert>
+#include <initializer_list>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
@@ -99,9 +100,10 @@ void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vec
 }
 
 bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
-                                            [[maybe_unused]] const MemoryDescPtr& srcDesc,
-                                            [[maybe_unused]] const MemoryDescPtr& dstDesc) const {
-    VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+                                            const MemoryDescPtr& srcDesc,
+                                            const MemoryDescPtr& dstDesc) const {
+    VERIFY(aclCommonExecutorSupported(std::initializer_list<MemoryDescPtr>{srcDesc, dstDesc}),
+           UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (none_of(convertParams.srcPrc,
                     ov::element::i8,

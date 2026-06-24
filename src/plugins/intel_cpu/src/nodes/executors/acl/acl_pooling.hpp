@@ -54,7 +54,7 @@ public:
     [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!aclCommonExecutorSupported()) {
+        if (!aclCommonExecutorSupported(srcDescs, dstDescs)) {
             DEBUG_LOG("ACL common preconditions not met");
             return false;
         }

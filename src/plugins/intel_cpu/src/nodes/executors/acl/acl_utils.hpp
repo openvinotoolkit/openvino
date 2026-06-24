@@ -3,28 +3,18 @@
 //
 #pragma once
 
+#include <algorithm>
+#include <initializer_list>
 #include <vector>
 
 #include "arm_compute/core/QuantizationInfo.h"
 #include "arm_compute/core/Types.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/memory_arguments.hpp"
 #include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
-
-/**
- * @brief Common precondition shared by every ACL executor, independent of the op/config type.
- * ACL kernels run on the ARMv8-A NEON baseline (ASIMD), so an executor must not be selected on a
- * core that lacks it. Op-specific checks (precisions, ranks, post ops, ...) stay in each executor's
- * own supports()/isSupported(). Use it with the predicate's own idiom, e.g.
- *   VERIFY(aclCommonExecutorSupported(), UNSUPPORTED_ACL_COMMON_PRECONDITION);  // VERIFY-based predicates
- *   if (!aclCommonExecutorSupported()) { return false; }                        // if/return predicates
- * @return whether the current core meets the common preconditions to run ACL executors
- */
-inline bool aclCommonExecutorSupported() {
-    return hasArmISASupport(ArmISA::ASIMD);
-}
 
 /**
  * @brief Convert ACL DataType to quantized variant for U8/S8 tensors.
@@ -181,6 +171,55 @@ inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision)
     default:
         return arm_compute::DataType::UNKNOWN;
     }
+}
+
+/**
+ * @brief Whether ACL can represent this descriptor's precision (precisionToAclDataType maps it to a
+ * concrete DataType, not UNKNOWN). A type ACL cannot represent (e.g. u4/i4/nf4/string) must never
+ * reach an ACL kernel.
+ */
+inline bool aclSupportedPrecision(const MemoryDescPtr& desc) {
+    return precisionToAclDataType(desc->getPrecision()) != arm_compute::DataType::UNKNOWN;
+}
+
+/**
+ * @brief Collect the ACL precision-representable check across descriptors given in any of the forms
+ * an executor's predicate has them. These overloads exist so each executor passes its own tensor
+ * descriptors directly (a vector, a MemoryDescArgs map keyed by ARG_*, or individual descriptors)
+ * without hand-rolling a vector at the call site.
+ */
+inline bool aclSupportedPrecisions(const std::vector<MemoryDescPtr>& descs) {
+    return std::all_of(descs.begin(), descs.end(), aclSupportedPrecision);
+}
+inline bool aclSupportedPrecisions(const MemoryDescArgs& descs) {
+    return std::all_of(descs.begin(), descs.end(), [](const auto& argDesc) {
+        // Empty descriptors (e.g. an absent optional bias) carry no real tensor and never reach an
+        // ACL kernel, so they must not be precision-checked (their precision is dynamic == UNKNOWN).
+        return argDesc.second->empty() || aclSupportedPrecision(argDesc.second);
+    });
+}
+inline bool aclSupportedPrecisions(std::initializer_list<MemoryDescPtr> descs) {
+    return std::all_of(descs.begin(), descs.end(), aclSupportedPrecision);
+}
+
+/**
+ * @brief Preconditions common to every ACL executor, independent of the op/config type. ACL kernels
+ * run on the ARMv8-A NEON baseline (ASIMD) and can only operate on ACL-representable precisions, so
+ * an executor must not be selected when either is unmet. Op-specific checks (exact precisions, ranks,
+ * post ops, layouts, ...) stay in each executor's own supports()/isSupported(). The descriptor
+ * argument accepts any of the forms a predicate has (vector, MemoryDescArgs map, or an initializer
+ * list of individual descriptors), e.g.
+ *   VERIFY(aclCommonExecutorSupported(config.descs), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+ *   if (!aclCommonExecutorSupported(srcDescs, dstDescs)) { return false; }
+ * @return whether the current core and the tensor precisions meet the common ACL preconditions
+ */
+template <typename Descs>
+bool aclCommonExecutorSupported(const Descs& descs) {
+    return hasArmISASupport(ArmISA::ASIMD) && aclSupportedPrecisions(descs);
+}
+inline bool aclCommonExecutorSupported(const std::vector<MemoryDescPtr>& srcDescs,
+                                       const std::vector<MemoryDescPtr>& dstDescs) {
+    return hasArmISASupport(ArmISA::ASIMD) && aclSupportedPrecisions(srcDescs) && aclSupportedPrecisions(dstDescs);
 }
 
 /**

@@ -76,10 +76,6 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
 }
 
 bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
-    if (!aclCommonExecutorSupported()) {
-        DEBUG_LOG("ACL common preconditions not met");
-        return false;
-    }
     std::vector<MemoryDescPtr> srcDescs(config.descs.size() - 1);
     std::vector<MemoryDescPtr> dstDescs{config.descs.at(ARG_DST)};
 
@@ -89,6 +85,11 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
         }
 
         srcDescs[argId - ARG_SRC] = desc;
+    }
+
+    if (!aclCommonExecutorSupported(srcDescs, dstDescs)) {
+        DEBUG_LOG("ACL common preconditions not met");
+        return false;
     }
 
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc,
