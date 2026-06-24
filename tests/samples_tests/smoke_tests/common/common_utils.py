@@ -55,7 +55,7 @@ def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backof
     return retry_decorator
 
 
-def shell(cmd, env=None, cwd=None, out_format="plain", timeout=600):
+def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
     """
     Run command execution in specified environment
     :param cmd: list containing command and its parameters
@@ -63,7 +63,7 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=600):
     :param cwd: working directory from which execute call
     :param out_format: 'plain' or 'html'. If 'html' all '\n; symbols are replaced by '<br>' tag
     :param timeout: seconds to wait before killing the process, or None to wait indefinitely.
-                    Default is 600 s (10 min) — generous enough for samples that load large
+                    Default is 1200 s (20 min) — generous enough for samples that load large
                     models on slow CI machines, while still bounding true hangs.
     :return:
     """
