@@ -73,7 +73,7 @@ TEST_F(MyTransformTests, MyTransformName_SomeVariant) {
 - Runs `InitNodeInfo` before the registered pass
 - Runs `FunctionsComparator` comparison in `TearDown`
 
-**`manager.register_pass<*>()` shoud be moved to fixture's `SetUp()`** when multiple TEST_F tests in the same fixture use the same transformation — this avoids duplication and makes the transformation explicit per fixture rather than hidden in each test body.
+**`manager.register_pass<*>()` should be moved to fixture's `SetUp()`** when multiple TEST_F tests in the same fixture use the same transformation — this avoids duplication and makes the transformation explicit per fixture rather than hidden in each test body.
 
 **Never** manually create a `pass::Manager`, call `check_rt_info`, or call `compare_functions` — those are handled by the fixture.
 
@@ -103,7 +103,7 @@ Enable in the constructor or `SetUp`, or inline at the test level:
 comparator.enable(FunctionsComparator::ATTRIBUTES);
 
 // In an individual TEST_F (after both models are assigned):
-comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+comparator.enable(FunctionsComparator::CONST_VALUES);
 ```
 
 Do **not** explicitly enable flags already on by default in `TransformationTestsF` (`NODES`, `PRECISIONS`, `RUNTIME_KEYS`, `SUBGRAPH_DESCRIPTORS`).
