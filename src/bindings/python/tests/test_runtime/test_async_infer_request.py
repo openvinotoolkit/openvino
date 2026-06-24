@@ -4,6 +4,10 @@
 
 from collections.abc import Iterable
 from copy import deepcopy
+import gc
+import sys
+import threading
+import weakref
 import numpy as np
 import pytest
 import time
@@ -213,8 +217,7 @@ def test_results_async_infer(device, share_inputs):
     outputs = request.infer({0: img})
 
     for i in range(num_request):
-        assert np.allclose(list(outputs.values()), list(
-            infer_queue[i].results.values()))
+        assert np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -382,3 +385,118 @@ def test_array_like_input_async(device, share_inputs):
     request.start_async(model_input_list)
     request.wait()
     assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="relies on glibc LIFO freelist address reuse")
+def test_infer_queue_share_inputs_data_integrity(device):
+    # Regression test for output data corruption caused by use-after-free when share_inputs=True.
+    jobs = 8
+    num_request = 4
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
+
+    outputs = [None] * jobs
+
+    def callback(request, job_id):
+        outputs[job_id] = request.get_output_tensor(0).data.copy()
+
+    infer_queue.set_callback(callback)
+
+    shape = (1, 3, 32, 32)
+    fillers = []  # kept alive so the poison buffer is not freed before inference
+
+    for i in range(jobs):
+        # Unique positive fill value per job; relu(positive) = positive.
+        img = np.full(shape, float(i + 1), dtype=np.float32)
+        infer_queue.start_async({"data": img}, i, share_inputs=True)
+        # Drop the caller's reference and trigger GC so the allocator reclaims the buffer immediately.
+        del img
+        gc.collect()
+        # Allocate a same-sized array with negative values.
+        # On CPython this lands at the exact same address the allocator just freed (100% reproducible).
+        fillers.append(np.full(shape, float(-(i + 1)), dtype=np.float32))
+
+    infer_queue.wait_all()
+
+    for i in range(jobs):
+        expected = float(i + 1)
+        actual = float(outputs[i].flat[0])
+        assert abs(actual - expected) < 0.01, (
+            f"Job {i}: output corrupted by use-after-free in shared inputs. "
+            f"Expected {expected} (relu of original input), got {actual}. "
+        )
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="relies on glibc LIFO freelist address reuse")
+def test_infer_queue_share_inputs_hang(device):
+    # Hang-simulation regression test for the use-after-free with share_inputs=True.
+    shape = (1, 3, 32, 32)
+    expected = 7.0
+    # 3s is far more than enough for a tiny relu to complete
+    # if the event is not set within this window the callback already fired with wrong output.
+    hang_timeout = 3.0
+
+    core = Core()
+    model = get_relu_model(list(shape))
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+
+    correct_output_seen = threading.Event()
+
+    def callback(request, _):
+        value = float(request.get_output_tensor(0).data.flat[0])
+        if abs(value - expected) < 0.1:
+            correct_output_seen.set()
+
+    infer_queue.set_callback(callback)
+
+    img = np.full(shape, expected, dtype=np.float32)
+    infer_queue.start_async({"data": img}, None, share_inputs=True)
+
+    # Drop the caller-side reference and force GC, so the allocator reclaims the buffer.
+    # On CPython the very next same-sized allocation (below) reuses the same address deterministically.
+    del img
+    gc.collect()
+
+    # Zero-filled array lands at the freed address (same glibc free-list slot).
+    # relu(0.0) = 0.0 ≠ EXPECTED — if inference reads this the callback will NOT signal the event.
+    poison = np.zeros(shape, dtype=np.float32)  # noqa: F841 – must stay alive
+
+    event_was_set = correct_output_seen.wait(timeout=hang_timeout)
+    infer_queue.wait_all()
+
+    assert event_was_set, (
+        f"HANG SIMULATED (timed out after {hang_timeout}s): "
+        f"callback never received expected output {expected}. "
+        "The shared input buffer was freed and zeroed before inference read it. "
+    )
+
+
+def test_infer_queue_share_inputs_array_lifetime(device):
+    # Regression test for use-after-free when share_inputs=True.
+    #
+    # Platform-independent: uses a weakref to verify that the queue holds a Python reference to each numpy array
+    # for the lifetime of the corresponding async inference request.
+    jobs = 8
+    num_request = 4
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    for i in range(jobs):
+        img = generate_image()
+        wr = weakref.ref(img)
+        infer_queue.start_async({"data": img}, i, share_inputs=True)
+        del img
+        gc.collect()
+        assert wr() is not None, (
+            f"Input numpy array for job {i} was freed while async inference "
+            "may still be using its memory (use-after-free). "
+            "The queue must keep shared input arrays alive via _inputs_data[handle]."
+        )
+
+    infer_queue.wait_all()
