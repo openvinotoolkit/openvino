@@ -323,7 +323,11 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
+    # NOTE: Current CMake version required for OpenVINO dropped support for versions below 3.5
+    # This requires suppressing requirements imposed by gflags CMakeLists.txt
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    unset(CMAKE_POLICY_VERSION_MINIMUM)
     ov_developer_package_export_targets(
         TARGET gflags
         INSTALL_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/thirdparty/gflags/gflags/include/gflags"
@@ -539,7 +543,12 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/WX-)
             endif()
 
+            # NOTE: Current CMake version required for OpenVINO dropped support for versions below 3.5
+            # This requires suppressing requirements imposed by gflags CMakeLists.txt
+            set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
+            unset(CMAKE_POLICY_VERSION_MINIMUM)
+
             # need to create alias openvino::snappy
             add_library(openvino::snappy ALIAS snappy)
 
