@@ -53,7 +53,7 @@
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
-#    include "utils/precision_support.h"
+#    include "utils/arm_isa_support.h"
 #endif
 
 using namespace dnnl;

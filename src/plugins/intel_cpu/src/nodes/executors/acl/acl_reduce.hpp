@@ -42,8 +42,8 @@ public:
     [[nodiscard]] bool isSupported(const ReduceAttrs& reduceAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!aclCommonExecutorSupported({srcDescs[0], dstDescs[0]})) {
-            DEBUG_LOG("ACL common preconditions not met");
+        if (!aclSupported({srcDescs[0], dstDescs[0]})) {
+            DEBUG_LOG("ACL common preconditions are not met");
             return false;
         }
         if (reduceAttrs.operation == Algorithm::ReduceMean) {

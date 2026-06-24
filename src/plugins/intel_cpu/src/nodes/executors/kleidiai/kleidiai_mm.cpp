@@ -38,7 +38,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/precision_support.h"
+#include "utils/arm_isa_support.h"
 
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN (-3.4028235e38f)

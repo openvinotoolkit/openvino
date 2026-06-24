@@ -20,7 +20,7 @@
 #    include <cstdint>
 #    include <limits>
 
-#    include "utils/precision_support.h"
+#    include "utils/arm_isa_support.h"
 #endif
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"

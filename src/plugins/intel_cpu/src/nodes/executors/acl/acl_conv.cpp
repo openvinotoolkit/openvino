@@ -121,7 +121,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     const auto& weiDesc = config.descs.at(ARG_WEI);
     const auto& dstDesc = config.descs.at(ARG_DST);
 
-    VERIFY(aclCommonExecutorSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    VERIFY(aclSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     // ACL GemmConv2d supports 4D activations and 4D weight only

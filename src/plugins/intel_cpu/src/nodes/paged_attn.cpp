@@ -35,7 +35,7 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/core/shape.hpp"
-#    include "utils/precision_support.h"
+#    include "utils/arm_isa_support.h"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)

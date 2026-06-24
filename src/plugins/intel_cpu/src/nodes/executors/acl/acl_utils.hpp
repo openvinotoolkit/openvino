@@ -10,7 +10,7 @@
 #include "arm_compute/core/Types.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "utils/precision_support.h"
+#include "utils/arm_isa_support.h"
 
 namespace ov::intel_cpu {
 
@@ -178,11 +178,11 @@ inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision)
  * executor must not be selected when either is unmet. Op-specific checks (exact precisions, ranks,
  * post ops, layouts, ...) stay in each executor's own supports()/isSupported(). Pass the executor's
  * tensor descriptors; empty ones (e.g. an absent optional bias) are ignored. Usage:
- *   VERIFY(aclCommonExecutorSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
- *   if (!aclCommonExecutorSupported({srcDescs[0], dstDescs[0]})) { return false; }
+ *   VERIFY(aclSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+ *   if (!aclSupported({srcDescs[0], dstDescs[0]})) { return false; }
  * @return whether the current core and the tensor precisions meet the common ACL preconditions
  */
-inline bool aclCommonExecutorSupported(const std::vector<MemoryDescPtr>& descs) {
+inline bool aclSupported(const std::vector<MemoryDescPtr>& descs) {
     return hasArmISASupport(ArmISA::ASIMD) && std::all_of(descs.begin(), descs.end(), [](const MemoryDescPtr& desc) {
                return desc->empty() || precisionToAclDataType(desc->getPrecision()) != arm_compute::DataType::UNKNOWN;
            });

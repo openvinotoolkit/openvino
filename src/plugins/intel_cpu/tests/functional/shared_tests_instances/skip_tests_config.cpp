@@ -5,6 +5,7 @@
 #include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/arm_isa_support.h"
 #include "utils/precision_support.h"
 #include "snippets/utils.hpp"
 #if defined(OPENVINO_ARCH_RISCV64)

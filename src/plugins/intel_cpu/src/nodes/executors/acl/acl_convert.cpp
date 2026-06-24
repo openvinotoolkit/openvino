@@ -101,7 +101,7 @@ void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vec
 bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                                             const MemoryDescPtr& srcDesc,
                                             const MemoryDescPtr& dstDesc) const {
-    VERIFY(aclCommonExecutorSupported({srcDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    VERIFY(aclSupported({srcDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (none_of(convertParams.srcPrc,
                     ov::element::i8,
