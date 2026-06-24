@@ -170,7 +170,7 @@ TEST(TransformationTests, DisableFP16CompForAllRMS_MatMulProducerToRMS) {
         if (op->get_friendly_name() == "matmul_producer") {
             found_matmul = true;
             ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "MatMul producer should NOT be marked - it should convert to FP16 normally";
+                << "MatMul producer should not be explicitly protected from FP16 conversion";
         }
         if (op->get_friendly_name() == "rms_downstream") {
             found_rms = true;
