@@ -1889,6 +1889,12 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
         }
 
         auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
+        const auto dataPrecision = topKOp->get_input_element_type(TOPK_DATA);
+        if (any_of(dataPrecision, ov::element::i64, ov::element::u64)) {
+            errorMessage = std::string("Unsupported data precision for CPU TopK: ") + dataPrecision.get_type_name();
+            return false;
+        }
+
         if (!isDynamicNgraphNode(op)) {
             auto topKConst = ov::as_type_ptr<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
