@@ -2981,11 +2981,8 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     infer_req.set_tensor(compiled.output(), remote_output_tensor);
     infer_req.infer();
 
-    ov::Tensor host_output(ov::element::f32, shape);
-    remote_output_tensor.copy_to(host_output);
-    const auto* output_values = host_output.data<const float>();
     for (size_t i = 0; i < element_count; ++i) {
-        EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
+        EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
     }
     ov::util::aligned_free(input_ptr);
     ov::util::aligned_free(output_ptr);
