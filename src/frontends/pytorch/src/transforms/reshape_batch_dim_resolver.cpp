@@ -5,16 +5,17 @@
 #include "reshape_batch_dim_resolver.hpp"
 
 #include <memory>
+#include <optional>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -23,7 +24,6 @@ namespace pytorch {
 namespace pass {
 
 using namespace ov::op;
-using namespace ov::pass::pattern;
 
 namespace {
 // True if `out` is a Constant holding a single element equal to `value`.
@@ -47,102 +47,190 @@ bool is_scalar_positive_constant(const Output<Node>& out) {
     const auto values = constant->cast_vector<int64_t>();
     return values.size() == 1 && values[0] > 0;
 }
+
+// Structural signature of a window-reverse style view whose leading batch was frozen by tracing.
+// Independent of where the channel value comes from: special_zero false (a 0 already means "copy
+// dim", which this rewrite would conflict with); shape concat on axis 0; a leading baked positive-int
+// batch constant; exactly one `-1` and it sits in the LAST (channel) position; at least one dynamic
+// interior dimension (a genuine shape expression -- a fully-constant shape vector is never a
+// propagation bug and would have const-folded away before reaching this pass).
+bool passes_structural_gates(const std::shared_ptr<v1::Reshape>& reshape, const std::shared_ptr<v0::Concat>& concat) {
+    if (reshape->get_special_zero())
+        return false;
+    if (concat->get_axis() != 0)
+        return false;
+
+    const auto& shape_inputs = concat->input_values();
+    // Need a leading batch dim, at least one interior dim, and a trailing channel slot.
+    if (shape_inputs.size() < 3)
+        return false;
+
+    // Leading element must be a baked positive-int batch constant (e.g. the traced 1).
+    if (!is_scalar_positive_constant(shape_inputs.front()))
+        return false;
+
+    // The infer slot (-1) must be unique and sit in the LAST (channel) position. This is the
+    // window-reverse signature and excludes ordinary reshapes whose -1 is elsewhere/absent.
+    const size_t channel_idx = shape_inputs.size() - 1;
+    if (!is_scalar_constant_with_value(shape_inputs.back(), -1))
+        return false;
+    for (size_t i = 0; i + 1 < shape_inputs.size(); ++i) {
+        if (is_scalar_constant_with_value(shape_inputs[i], -1))
+            return false;  // more than one -1 -> ambiguous, not our pattern
+    }
+
+    // At least one interior dimension (between batch and channel) must be dynamic.
+    for (size_t i = 1; i < channel_idx; ++i) {
+        if (!ov::as_type_ptr<v0::Constant>(shape_inputs[i].get_node_shared_ptr()))
+            return true;
+    }
+    return false;
+}
+
+// Recover the statically-known last (channel) dimension of `data` by walking the graph deterministically,
+// WITHOUT relying on OV re-inferring/propagating shapes through the intervening permute (which does not
+// happen on the real model -- the spatial value-bounds collapse the permuted output to fully dynamic).
+//   1. If `data`'s last dimension is already static -> return it. This covers the first window-reverse
+//      view (data `[?,8,8,180]`) and any last-dim-preserving eltwise producer in between (e.g. `+ 0.0`),
+//      since those keep the static last dimension.
+//   2. If the producer is a Transpose whose order keeps the original last axis last (`order.back() ==
+//      rank-1`, e.g. `[0,1,3,2,4,5]`) -> recurse into the transposed data: the channel stays trailing.
+//   3. If the producer is a Reshape we have already selected for rewrite -> use its resolved channel
+//      (this is how the second view resolves through the permute back to the first view's baked channel).
+//   4. Otherwise the channel is not statically recoverable -> nullopt (so ordinary `view(1, C, -1)` /
+//      attention head-merge, whose data comes from a Parameter with a dynamic last dim, is skipped).
+// `visited` guards against re-entry; the graph is a DAG and each step moves strictly to a producer, so
+// the walk terminates, but the set keeps it robust to any malformed structure.
+std::optional<int64_t> resolve_static_last_dim(const Output<Node>& data,
+                                               const std::unordered_map<const Node*, int64_t>& pending_channel,
+                                               std::unordered_set<const Node*>& visited) {
+    const Node* producer = data.get_node();
+    if (producer && !visited.insert(producer).second)
+        return std::nullopt;
+
+    // Step 1: a statically-known last dimension on `data` itself.
+    const auto& ps = data.get_partial_shape();
+    if (ps.rank().is_static() && ps.size() > 0) {
+        const auto& last = ps[static_cast<std::ptrdiff_t>(ps.size()) - 1];
+        if (last.is_static())
+            return last.get_length();
+    }
+
+    // Step 2: a last-axis-preserving Transpose -> recurse into the transposed data.
+    if (auto transpose = ov::as_type_ptr<v1::Transpose>(data.get_node_shared_ptr())) {
+        auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+        const auto& in_ps = transpose->input_value(0).get_partial_shape();
+        if (order && in_ps.rank().is_static()) {
+            const auto perm = order->cast_vector<int64_t>();
+            const int64_t rank = in_ps.rank().get_length();
+            // The order must be a full permutation we can reason about, and its last element must keep
+            // the original last axis last so the channel remains the trailing dimension.
+            if (static_cast<int64_t>(perm.size()) == rank && !perm.empty() && perm.back() == rank - 1)
+                return resolve_static_last_dim(transpose->input_value(0), pending_channel, visited);
+        }
+        return std::nullopt;
+    }
+
+    // Step 3: a Reshape already selected for rewrite -> reuse its resolved channel.
+    if (auto rs = ov::as_type_ptr<v1::Reshape>(data.get_node_shared_ptr())) {
+        const auto it = pending_channel.find(rs.get());
+        if (it != pending_channel.end())
+            return it->second;
+    }
+
+    return std::nullopt;
+}
+
+// Rebuild the shape vector for THIS reshape's own data (the concat may be shared between blocks, so we
+// must not edit it in place):
+//   leading batch -> -1                       (inferred from the real element count)
+//   channel (-1)  -> Constant(channel)        (the baked channel recovered by the walk-back)
+// Pinning the channel to a static constant (not a runtime Gather) is correct because the channel is
+// batch-independent, and it keeps the rewritten reshape's output last dimension static.
+void rewrite_reshape(const std::shared_ptr<v1::Reshape>& reshape,
+                     const std::shared_ptr<v0::Concat>& concat,
+                     int64_t channel) {
+    const auto& shape_inputs = concat->input_values();
+    const size_t channel_idx = shape_inputs.size() - 1;
+
+    ov::pass::NodeRegistry rg;
+
+    // Keep the same integer element type the original shape elements used.
+    const auto& channel_et = concat->input_value(channel_idx).get_element_type();
+    const auto channel_out = rg.make<v0::Constant>(channel_et.is_static() ? channel_et : element::i64,
+                                                   Shape{1},
+                                                   std::vector<int64_t>{channel});
+
+    const auto& batch_et = shape_inputs.front().get_element_type();
+    const auto minus_one =
+        rg.make<v0::Constant>(batch_et.is_static() ? batch_et : element::i64, Shape{1}, std::vector<int64_t>{-1});
+
+    OutputVector new_shape_inputs;
+    new_shape_inputs.reserve(shape_inputs.size());
+    new_shape_inputs.push_back(minus_one);
+    for (size_t i = 1; i < channel_idx; ++i)
+        new_shape_inputs.push_back(shape_inputs[i]);
+    new_shape_inputs.push_back(channel_out);
+
+    const auto new_concat = rg.make<v0::Concat>(new_shape_inputs, 0);
+    reshape->input(1).replace_source_output(new_concat);
+    copy_runtime_info_and_name(concat, rg.get(), {reshape});
+}
 }  // namespace
 
-ReshapeBatchDimResolver::ReshapeBatchDimResolver() {
-    // Match `Reshape(data, Concat(...))`: the offending view-shape is always built as a Concat
-    // (see get_input_concat_if_list); a fully const-folded shape has no propagation problem.
-    const auto concat_pattern = wrap_type<v0::Concat>();
-    const auto reshape_pattern = wrap_type<v1::Reshape>({any_input(), concat_pattern});
+bool ReshapeBatchDimResolver::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    model->validate_nodes_and_infer_types();
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto reshape = ov::as_type_ptr<v1::Reshape>(pattern_map.at(reshape_pattern).get_node_shared_ptr());
-        auto concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-        if (!reshape || !concat)
-            return false;
-
-        // Only the standard frozen-batch shape: special_zero must be false (a 0 already means
-        // "copy dim", which this rewrite would conflict with) and the shape concat is on axis 0.
-        if (reshape->get_special_zero())
-            return false;
-        if (concat->get_axis() != 0)
-            return false;
-
-        const auto& shape_inputs = concat->input_values();
-        // Need a leading batch dim, at least one interior dim, and a trailing channel slot.
-        if (shape_inputs.size() < 3)
-            return false;
-
-        // Leading element must be a baked positive-int batch constant (e.g. the traced 1).
-        if (!is_scalar_positive_constant(shape_inputs.front()))
-            return false;
-
-        // The infer slot (-1) must be unique and sit in the LAST (channel) position. This is the
-        // window-reverse signature and excludes ordinary reshapes whose -1 is elsewhere/absent.
-        const size_t channel_idx = shape_inputs.size() - 1;
-        if (!is_scalar_constant_with_value(shape_inputs.back(), -1))
-            return false;
-        for (size_t i = 0; i + 1 < shape_inputs.size(); ++i) {
-            if (is_scalar_constant_with_value(shape_inputs[i], -1))
-                return false;  // more than one -1 -> ambiguous, not our pattern
-        }
-
-        // At least one interior dimension (between batch and channel) must be dynamic, i.e. a
-        // genuine shape expression. A fully-constant shape vector is never a propagation bug.
-        bool has_dynamic_interior = false;
-        for (size_t i = 1; i < channel_idx; ++i) {
-            if (!ov::as_type_ptr<v0::Constant>(shape_inputs[i].get_node_shared_ptr())) {
-                has_dynamic_interior = true;
-                break;
-            }
-        }
-        if (!has_dynamic_interior)
-            return false;
-
-        // The batch must be dynamic for the frozen leading constant to be wrong. After
-        // conversion the PyTorch decoder makes parameter dims dynamic, so this holds for the
-        // traced model while excluding genuinely static reshapes.
-        const auto& data = reshape->input_value(0);
-        const auto& data_ps = data.get_partial_shape();
-        if (data_ps.rank().is_static() && data_ps[0].is_static())
-            return false;
-
-        // Rebuild the shape vector for THIS reshape's own data (the concat may be shared between
-        // blocks, so we must not edit it in place):
-        //   leading batch  -> -1          (inferred from the real element count)
-        //   channel (-1)    -> Gather(ShapeOf(data), last)  (data's last dim, == the channel)
-        ov::pass::NodeRegistry rg;
-        const auto shape_of = rg.make<v3::ShapeOf>(data, element::i32);
-        const auto last_index = v0::Constant::create(element::i32, Shape{1}, {-1});
-        const auto gather_axis = v0::Constant::create(element::i32, Shape{}, {0});
-        const auto channel_dim = rg.make<v8::Gather>(shape_of, last_index, gather_axis);
-
-        const auto& channel_et = concat->input_value(channel_idx).get_element_type();
-        Output<Node> channel_out = channel_dim;
-        if (channel_et.is_static() && channel_et != element::i32)
-            channel_out = rg.make<v0::Convert>(channel_dim, channel_et);
-
-        const auto& batch_et = shape_inputs.front().get_element_type();
-        const auto minus_one =
-            rg.make<v0::Constant>(batch_et.is_static() ? batch_et : element::i64, Shape{1}, std::vector<int64_t>{-1});
-
-        OutputVector new_shape_inputs;
-        new_shape_inputs.reserve(shape_inputs.size());
-        new_shape_inputs.push_back(minus_one);
-        for (size_t i = 1; i < channel_idx; ++i)
-            new_shape_inputs.push_back(shape_inputs[i]);
-        new_shape_inputs.push_back(channel_out);
-
-        const auto new_concat = rg.make<v0::Concat>(new_shape_inputs, 0);
-        reshape->input(1).replace_source_output(new_concat);
-        copy_runtime_info_and_name(concat, rg.get(), {reshape});
-        return true;
+    struct PendingRewrite {
+        std::shared_ptr<v1::Reshape> reshape;
+        std::shared_ptr<v0::Concat> concat;
+        int64_t channel;
     };
+    // Ordered list replayed in phase 2; the map gives the resolver O(1) lookup of an already-selected
+    // upstream Reshape's channel (so the second window-reverse view resolves through the permute).
+    std::vector<PendingRewrite> pending;
+    std::unordered_map<const Node*, int64_t> pending_channel;
 
-    auto m = std::make_shared<Matcher>(reshape_pattern, "ov::frontend::pytorch::pass::ReshapeBatchDimResolver");
-    this->register_matcher(m, callback);
-};
+    // PHASE 1 -- COLLECT. get_ordered_ops() is topological (producers before consumers), so the first
+    // window-reverse view is recorded before the second one is examined, letting the second resolve its
+    // channel through the recorded first.
+    for (const auto& op : model->get_ordered_ops()) {
+        auto reshape = ov::as_type_ptr<v1::Reshape>(op);
+        if (!reshape)
+            continue;
+        auto concat = ov::as_type_ptr<v0::Concat>(reshape->input_value(1).get_node_shared_ptr());
+        if (!concat)
+            continue;
+        if (!passes_structural_gates(reshape, concat))
+            continue;
+
+        std::unordered_set<const Node*> visited;
+        const auto channel = resolve_static_last_dim(reshape->input_value(0), pending_channel, visited);
+        if (!channel)
+            continue;
+
+        // Value-preservation guard: if the reshape's inferred output channel is statically known it must
+        // equal the recovered channel (the value the rewrite pins `-1` to). If they differ the `-1`
+        // resolves to a different product and the rewrite would corrupt the result, so skip it. This is
+        // the safety net that closes adversarial cases where a last-axis-preserving walk-back reaches a
+        // statically-shaped tensor whose last dim is not the reshape's true `-1` product.
+        const auto& out_ps = reshape->get_output_partial_shape(0);
+        if (out_ps.rank().is_static() && out_ps.size() > 0) {
+            const auto& out_last = out_ps[static_cast<std::ptrdiff_t>(out_ps.size()) - 1];
+            if (out_last.is_static() && out_last.get_length() != *channel)
+                continue;
+        }
+
+        pending.push_back({reshape, concat, *channel});
+        pending_channel.emplace(reshape.get(), *channel);
+    }
+
+    // PHASE 2 -- REWRITE.
+    for (const auto& entry : pending)
+        rewrite_reshape(entry.reshape, entry.concat, entry.channel);
+
+    return !pending.empty();
+}
 
 }  // namespace pass
 }  // namespace pytorch

@@ -35,17 +35,25 @@ class WindowReverseModel(torch.nn.Module):
     H and W are read from the input tensor at runtime (as SwinIR does), so under tracing
     the spatial dims become dynamic `aten::size` expressions while the batch B collapses
     to a literal via `int(...)` -- reproducing the frozen-batch / dynamic-spatial Concat
-    that ReshapeBatchDimResolver must repair."""
+    that ReshapeBatchDimResolver must repair.
 
-    def __init__(self, window_size):
+    A `Linear(c_in, embed_dim)` projects to a fixed channel width before the window ops,
+    mirroring real SwinIR (which carries a static embed_dim=180 through the window blocks).
+    This makes the window_reverse channel STATIC -- the dimension the resolver recovers by
+    walking back from the view's data -- so the test exercises the same path as the model."""
+
+    def __init__(self, window_size, c_in, embed_dim):
         super().__init__()
         self.window_size = window_size
+        self.proj = torch.nn.Linear(c_in, embed_dim)
 
     def forward(self, x):
-        # x: (B, C, H, W) -> (B, H, W, C); H, W flow from the dynamic input shape.
+        # x: (B, C_in, H, W) -> (B, H, W, C_in); H, W flow from the dynamic input shape.
         H = x.shape[2]
         W = x.shape[3]
         x = x.permute(0, 2, 3, 1).contiguous()
+        # Project to a fixed embed_dim so the window channel is static, as in SwinIR.
+        x = self.proj(x)
         windows = window_partition(x, self.window_size)
         # touch the windows so the graph is non-trivial but still an identity overall
         windows = windows + 0.0
@@ -65,19 +73,19 @@ class TestWindowReverseBatchReshape:
     """
 
     @staticmethod
-    def _convert_batch1(window_size, H, W, C):
-        model = WindowReverseModel(window_size).eval()
+    def _convert_batch1(window_size, H, W, C, embed_dim):
+        model = WindowReverseModel(window_size, C, embed_dim).eval()
         example = torch.randn(1, C, H, W)
         with torch.no_grad():
             om = convert_model(model, example_input=example)
         return model, om
 
-    @pytest.mark.parametrize("window_size,H,W,C", [(8, 16, 16, 6), (4, 12, 8, 3)])
+    @pytest.mark.parametrize("window_size,H,W,C,embed_dim", [(8, 16, 16, 6, 12), (4, 12, 8, 3, 8)])
     @pytest.mark.parametrize("batch", [1, 2, 3])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_window_reverse_rebatch(self, window_size, H, W, C, batch, ie_device, precision):
-        model, om = self._convert_batch1(window_size, H, W, C)
+    def test_window_reverse_rebatch(self, window_size, H, W, C, embed_dim, batch, ie_device, precision):
+        model, om = self._convert_batch1(window_size, H, W, C, embed_dim)
 
         # Reshape the converted (traced-at-batch-1) model to the target batch.
         om.reshape({om.input(0): PartialShape([batch, C, H, W])})
@@ -98,15 +106,15 @@ class TestWindowReverseBatchReshape:
         max_abs = float(np.abs(ov_out - ref).max())
         assert n_bad == 0, f"accuracy failed: {n_bad} mismatches, max_abs_diff={max_abs}"
 
-    @pytest.mark.parametrize("window_size,H,W,C", [(8, 16, 16, 6)])
+    @pytest.mark.parametrize("window_size,H,W,C,embed_dim", [(8, 16, 16, 6, 12)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_window_reverse_pass_fired(self, window_size, H, W, C, ie_device, precision):
+    def test_window_reverse_pass_fired(self, window_size, H, W, C, embed_dim, ie_device, precision):
         """Structural check: ReshapeBatchDimResolver must rebuild every window_reverse
         view shape so no Reshape keeps a frozen positive-int leading constant alongside a
         single trailing -1 (the baked-batch signature). Device/precision-independent
         (ie_device/precision are accepted only to satisfy the shared parametrization)."""
-        _, om = self._convert_batch1(window_size, H, W, C)
+        _, om = self._convert_batch1(window_size, H, W, C, embed_dim)
 
         offenders = []
         for node in om.get_ordered_ops():
@@ -163,4 +171,94 @@ class TestPlainReshapeNotAffected:
         compiled = Core().compile_model(om, ie_device, config)
         ov_out = np.asarray(compiled(np_in)[compiled.output(0)], dtype=np.float32)
         eps = 1e-4 if precision == "FP32" else 5e-2
+        assert np.isclose(ov_out, ref, atol=eps, rtol=eps).all()
+
+
+def _has_rewritten_reshape(om):
+    """Return True if any Reshape in `om` was rewritten by ReshapeBatchDimResolver. The pass
+    turns the leading baked-batch Constant into a Constant(-1) and pins the former trailing -1
+    channel to a Constant holding data's (static) last dimension, i.e. a positive value. So the
+    fingerprint is a shape Concat whose leading element is Constant(-1) and whose last element is
+    a positive Constant -- the inverse of the offending baked pattern."""
+    for node in om.get_ordered_ops():
+        if node.get_type_info().name != "Reshape":
+            continue
+        shape_src = node.input_value(1).get_node()
+        if shape_src.get_type_info().name != "Concat":
+            continue
+        elems = [shape_src.input_value(i).get_node() for i in range(len(shape_src.inputs()))]
+        if len(elems) < 2:
+            continue
+
+        def const_scalar(n):
+            if n.get_type_info().name != "Constant":
+                return None
+            vals = n.data.flatten()
+            return int(vals[0]) if vals.size == 1 else None
+
+        lead = const_scalar(elems[0])
+        last = const_scalar(elems[-1])
+        if lead == -1 and last is not None and last > 0:
+            return True
+    return False
+
+
+class TestReshapeFalsePositiveNotFired:
+    """Negative tests for ReshapeBatchDimResolver over-matching.
+
+    These models contain the exact structural signature the pass keys on -- a literal leading
+    batch constant, a dynamic interior dim from the input shape, and a single trailing -1 built
+    as a Concat under TorchScript tracing. But the -1 here means "product of the remaining
+    dimensions" (H*W, or heads*head_dim), which is NOT the data tensor's last dimension. The
+    earlier (loose) pass rewrote the channel to Gather(ShapeOf(data), -1) and corrupted the output
+    even at the traced batch=1. The hardened predicate must leave these untouched: data's last
+    dimension is dynamic (it comes straight from a Parameter), so the static-last-dim gate excludes
+    them. We assert BOTH that the pass did not rewrite the Reshape (structural) and that batch=1
+    output matches torch (numeric -- catches the traced-batch corruption)."""
+
+    class SpatialFlatten(torch.nn.Module):
+        # x: (B, C, H, W); reshape(1, C, -1) -> -1 == H*W, NOT data's last dim (W).
+        def forward(self, x):
+            C = x.shape[1]
+            return x.reshape(1, C, -1)
+
+    class AttnHeadMerge(torch.nn.Module):
+        # x: (1, heads, N, head_dim); after transpose, reshape(1, N, -1) -> -1 == heads*head_dim,
+        # NOT data's last dim (head_dim). The classic attention output merge.
+        def forward(self, x):
+            N = x.shape[2]
+            x = x.transpose(1, 2)
+            return x.reshape(1, N, -1)
+
+    @pytest.mark.parametrize(
+        "model_cls,shape",
+        [
+            (SpatialFlatten, (1, 3, 4, 5)),
+            (AttnHeadMerge, (1, 4, 6, 8)),
+        ],
+    )
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_false_positive_not_fired(self, model_cls, shape, ie_device, precision):
+        model = model_cls().eval()
+        example = torch.randn(*shape)
+        with torch.no_grad():
+            om = convert_model(model, example_input=example)
+
+        # Structural: the pass must NOT have rewritten this ordinary reshape.
+        assert not _has_rewritten_reshape(om), (
+            f"{model_cls.__name__}: ReshapeBatchDimResolver fired on an ordinary reshape"
+        )
+
+        # Numeric at the traced batch: the loose pass corrupted the result even here.
+        np_in = np.random.randn(*shape).astype(np.float32)
+        with torch.no_grad():
+            ref = model(torch.from_numpy(np_in)).numpy()
+        config = {}
+        if precision == "FP32":
+            config[hints.inference_precision] = Type.f32
+        compiled = Core().compile_model(om, ie_device, config)
+        ov_out = np.asarray(compiled(np_in)[compiled.output(0)], dtype=np.float32)
+        eps = 1e-4 if precision == "FP32" else 5e-2
+        assert ov_out.shape == ref.shape, f"shape mismatch ov={ov_out.shape} ref={ref.shape}"
         assert np.isclose(ov_out, ref, atol=eps, rtol=eps).all()
