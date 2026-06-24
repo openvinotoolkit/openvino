@@ -1,0 +1,33 @@
+# Configuration for DistilGPT-2 with INT8 quantization
+
+model:
+  name: "distilgpt2"
+  max_length: 512
+  batch_size: 1
+  trust_remote_code: true
+  torch_dtype: "float32"
+
+optimization:
+  precision: "int8"
+  quantization_dataset_size: 200
+  calibration_steps: 300
+  compression_ratio: 0.8
+
+inference:
+  device: "CPU"
+  num_threads: 0  # Auto-detect
+  enable_profiling: false
+  cache_dir: null
+
+benchmark:
+  warmup_runs: 15
+  benchmark_runs: 100
+  measure_memory: true
+  measure_latency: true
+  output_tokens: 50
+  input_length: 128
+
+# Output configuration
+output_dir: "outputs/distilgpt2_int8"
+cache_dir: "cache"
+log_level: "INFO"
