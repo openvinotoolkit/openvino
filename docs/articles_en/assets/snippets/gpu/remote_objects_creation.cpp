@@ -57,10 +57,12 @@ int main() {
     if (shared_buffer_bytes % alignment == 0) {
         void* cpu_pointer = ov::util::aligned_alloc(shared_buffer_bytes, alignment);
         if (cpu_pointer != nullptr) {
-            auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
-                                                           in_shape,
-                                                           cpu_pointer,
-                                                           ov::intel_gpu::MemType::CPU_POINTER);
+            {
+                auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
+                                                                               in_shape,
+                                                                               cpu_pointer,
+                                                                               ov::intel_gpu::MemType::CPU_POINTER);
+            }  // remote_tensor must be destroyed before freeing cpu_pointer
             ov::util::aligned_free(cpu_pointer);
         }
     }
