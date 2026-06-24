@@ -26,15 +26,15 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 struct sdpa_ocl_config_t {
-    int subgroup_size = 16;
-    int kq_sg_tile_keys = 16;
-    int kq_sg_tile_queries = 16;
-    int kq_sg_per_wg_keys = 8;
-    int kq_sg_per_wg_queries = 2;
-    int sv_sg_tile_values = 16;
-    int sv_sg_tile_scores = 16;
-    int sv_sg_per_wg_values = 8;
-    int sv_sg_per_wg_scores = 2;
+    int subgroup_size = 0;
+    int kq_sg_tile_keys = 0;
+    int kq_sg_tile_queries = 0;
+    int kq_sg_per_wg_keys = 0;
+    int kq_sg_per_wg_queries = 0;
+    int sv_sg_tile_values = 0;
+    int sv_sg_tile_scores = 0;
+    int sv_sg_per_wg_values = 0;
+    int sv_sg_per_wg_scores = 0;
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -83,6 +83,15 @@ inline size_t get_d_max(size_t head_size) {
 sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
     sdpa_ocl_config_t config;  // struct defaults already encode the d_max <= 128 tiling
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+
+    config.kq_sg_tile_keys = 16;
+    config.kq_sg_tile_queries = 16;
+    config.kq_sg_per_wg_keys = 8;
+    config.kq_sg_per_wg_queries = 2;
+    config.sv_sg_tile_values = 16;
+    config.sv_sg_tile_scores = 16;
+    config.sv_sg_per_wg_values = 8;
+    config.sv_sg_per_wg_scores = 2;
 
     if (d_max <= 32) {
         // wg_queries is doubled to 64 so the 16 subgroups still get a valid S*V split
@@ -498,6 +507,10 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
     jit.make("HEADS_NUM", config.heads_num);
+
+    const auto q_heads_num = micro_get_num_heads(params, 0);
+    const auto k_heads_num = micro_get_num_heads(params, 1);
+    jit.make("KV_GROUP_SIZE", q_heads_num / k_heads_num);
 
     jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
