@@ -23,7 +23,6 @@ RUN apt-get update && \
         curl \
         git \
         ca-certificates \
-        cmake \
         wget \
         build-essential \
         shellcheck \
@@ -36,3 +35,9 @@ ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Install custom cmake
+ARG CMAKE_VERSION="3.26.0"
+RUN wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh --output-document=cmake.sh && \
+    sh cmake.sh --skip-license --prefix=/usr/local && \
+    rm cmake.sh
