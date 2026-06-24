@@ -193,8 +193,18 @@ public:
     [[nodiscard]] static size_t get_max_gemma_sgk(const RuntimeParams& params) {
         size_t max_workgroup_size = params.get_device_info().max_work_group_size;
         size_t lora_count = LoraRefBase<LT>::get_lora_count(params);
-        size_t max_gemma_sgk = max_workgroup_size / min_lora_rank / lora_count;
-        return max_gemma_sgk;
+        // MAX_GEMMA_SGK is the compile-time upper bound of GEMMA_SGK and sets the row count
+        // of the second-token fma_buff[MAX_GEMMA_SGK * MAX_LORA_RANK] SLM buffer. GEMMA_SGK
+        // itself never exceeds max_work_group_size / (lora_rank * lora_count), so deriving the
+        // bound from min_lora_rank (16) over-allocates the buffer by lora_rank / 16 rows and,
+        // for large ranks with wider accumulators (e.g. rank 256 in f32), overflows the 64KB
+        // local-memory budget => clBuildProgram CL_OUT_OF_RESOURCES. Use the actual rank so the
+        // SLM footprint stays ~max_work_group_size elements regardless of rank.
+        const auto& state_alpha_lo = params.input_layouts[3];
+        size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
+        size_t rank_divisor = std::max<size_t>(lora_rank, min_lora_rank);
+        size_t max_gemma_sgk = max_workgroup_size / rank_divisor / lora_count;
+        return std::max<size_t>(max_gemma_sgk, 1ul);
     }
 
     [[nodiscard]] static size_t is_first_token(const RuntimeParams& params) {
