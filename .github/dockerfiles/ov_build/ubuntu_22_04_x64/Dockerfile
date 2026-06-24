@@ -73,11 +73,6 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
     
-# Install custom cmake (4.0+)
-RUN wget https://cmake.org/files/v4.1/cmake-4.1.1-linux-x86_64.sh && \
-    sh cmake-4.1.1-linux-x86_64.sh --skip-license --prefix=/usr/local && \
-    rm cmake-4.1.1-linux-x86_64.sh
-
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Setup pip

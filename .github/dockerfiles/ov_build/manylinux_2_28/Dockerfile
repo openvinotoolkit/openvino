@@ -24,3 +24,8 @@ ENV PATH="/opt/python/cp311-cp311/bin:$SCCACHE_HOME:$PATH"
 
 # Install newer ninja (yum ships older version lacking --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
+# Install custom cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3-linux-x86_64.sh --output-document=cmake.sh && \
+    sh cmake.sh --skip-license --prefix=/usr/local && \
+    rm cmake.sh
