@@ -43,7 +43,6 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         e_dim = *(n_dims.end() - 1);
         n_dims.resize(n_dims.size() - 2);
         n_dims_sub = TRShape(std::vector<DimType>(n_dims.begin(), n_dims.end() - 1));
-        bool success = false;
         if ((key_rank.is_static() && key_rank.get_length() >= 3) && value_rank.is_static() &&
             value_rank.get_length() >= 3) {
             const ov::Dimension q_num_head = *(n_dims.end() - 1);
