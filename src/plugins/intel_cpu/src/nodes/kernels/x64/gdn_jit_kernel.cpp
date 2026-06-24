@@ -71,13 +71,16 @@ void jit_gdn_kernel<isa>::reduce_zmm_f32_to_xmm_scalar(const Xbyak::Zmm& zmm_src
                                                        const Xbyak::Xmm& xmm_dst,
                                                        const Xbyak::Xmm& xmm_tmp0,
                                                        const Xbyak::Xmm& xmm_tmp1) {
-    // Horizontal reduce 16x f32 (ZMM) into scalar lane of xmm_dst
+    // Horizontal reduce 16x f32 (ZMM) into scalar lane of xmm_dst.
+    // Prefer shuffle/add pattern over vhaddps on AVX-512.
     vextractf32x8(Xbyak::Ymm(xmm_tmp1.getIdx()), zmm_src, 1);
     vaddps(Xbyak::Ymm(xmm_tmp0.getIdx()), Xbyak::Ymm(zmm_src.getIdx()), Xbyak::Ymm(xmm_tmp1.getIdx()));
     vextractf128(xmm_tmp1, Xbyak::Ymm(xmm_tmp0.getIdx()), 1);
     vaddps(xmm_tmp0, xmm_tmp0, xmm_tmp1);
-    vhaddps(xmm_tmp0, xmm_tmp0, xmm_tmp0);
-    vhaddps(xmm_tmp0, xmm_tmp0, xmm_tmp0);
+    vpermilps(xmm_tmp1, xmm_tmp0, 0xB1);
+    vaddps(xmm_tmp0, xmm_tmp0, xmm_tmp1);
+    vpermilps(xmm_tmp1, xmm_tmp0, 0x4E);
+    vaddps(xmm_tmp0, xmm_tmp0, xmm_tmp1);
     vaddss(xmm_dst, xmm_dst, xmm_tmp0);
 }
 
@@ -90,16 +93,40 @@ void jit_gdn_kernel<isa>::dot_product_scalar(const Xbyak::Xmm& xmm_dst,
                                              size_t elem_size,
                                              const Xbyak::Xmm& xmm_tmp0,
                                              const Xbyak::Xmm& xmm_tmp1) {
-    // Scalar tail dot-product accumulation into xmm_dst
-    const Vmm vmm_tmp0 = Vmm(xmm_tmp0.getIdx());
-    const Vmm vmm_tmp1 = Vmm(xmm_tmp1.getIdx());
+    // Tail handling via load-emitter masks: process full vectors then one masked vector.
+    if (tail_count == 0) {
+        return;
+    }
 
-    for (size_t i = 0; i < tail_count; i++) {
-        const size_t off = base_off + i * elem_size;
-        load(vmm_tmp0, reg_a, m_jcp.data_prc, 1, false, off);
-        load(vmm_tmp1, reg_b, m_jcp.data_prc, 1, false, off);
-        vmulss(xmm_tmp0, xmm_tmp0, xmm_tmp1);
+    const size_t step = vec_size * elem_size;
+    const size_t vec_cnt = tail_count / vec_size;
+    const size_t tail = tail_count % vec_size;
+
+    uni_vpxor(v_aux0, v_aux0, v_aux0);
+    for (size_t i = 0; i < vec_cnt; i++) {
+        const size_t off = base_off + i * step;
+        load(v_aux1, reg_a, m_jcp.data_prc, static_cast<int>(vec_size), false, off);
+        load(v_aux2, reg_b, m_jcp.data_prc, static_cast<int>(vec_size), false, off);
+        vfmadd231ps(v_aux0, v_aux1, v_aux2);
+    }
+
+    if (tail > 0) {
+        const size_t off = base_off + vec_cnt * step;
+        load(v_aux1, reg_a, m_jcp.data_prc, static_cast<int>(tail), false, off);
+        load(v_aux2, reg_b, m_jcp.data_prc, static_cast<int>(tail), false, off);
+        vfmadd231ps(v_aux0, v_aux1, v_aux2);
+    }
+
+    if constexpr (std::is_same_v<Vmm, Xbyak::Ymm>) {
+        vextractf128(xmm_tmp1, v_aux0, 1);
+        vaddps(xmm_tmp0, Xbyak::Xmm(v_aux0.getIdx()), xmm_tmp1);
+        vpermilps(xmm_tmp1, xmm_tmp0, 0xB1);
+        vaddps(xmm_tmp0, xmm_tmp0, xmm_tmp1);
+        vpermilps(xmm_tmp1, xmm_tmp0, 0x4E);
+        vaddps(xmm_tmp0, xmm_tmp0, xmm_tmp1);
         vaddss(xmm_dst, xmm_dst, xmm_tmp0);
+    } else {
+        reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_dst, xmm_tmp0, xmm_tmp1);
     }
 }
 
@@ -127,8 +154,10 @@ void jit_gdn_kernel<isa>::dot_product_to_scalar(const Xbyak::Xmm& xmm_dst,
         if constexpr (std::is_same_v<Vmm, Xbyak::Ymm>) {
             vextractf128(x_tmp0, v_aux0, 1);
             vaddps(Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()), x_tmp0);
-            vhaddps(Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()));
-            vhaddps(Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()));
+            vpermilps(x_tmp0, Xbyak::Xmm(v_aux0.getIdx()), 0xB1);
+            vaddps(Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()), x_tmp0);
+            vpermilps(x_tmp0, Xbyak::Xmm(v_aux0.getIdx()), 0x4E);
+            vaddps(Xbyak::Xmm(v_aux0.getIdx()), Xbyak::Xmm(v_aux0.getIdx()), x_tmp0);
             vaddss(xmm_dst, xmm_dst, Xbyak::Xmm(v_aux0.getIdx()));
         } else {
             reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_dst, x_tmp0, x_tmp1);
@@ -157,11 +186,11 @@ void jit_gdn_kernel<isa>::multiply_scalar(const Xbyak::Reg64& reg_vec, const Xby
         vmulps(v_tmp0, v_tmp0, v_tmp1);
         store(reg_vec, v_tmp0, m_jcp.data_prc, elt_num, off);
     }
-    for (size_t i = 0; i < tail; i++) {
-        const size_t off = vec_cnt * step + i * elem_size;
-        load(v_tmp0, reg_vec, m_jcp.data_prc, 1, false, off);
-        vmulss(x_tmp0, x_tmp0, xmm_scalar);
-        store(reg_vec, v_tmp0, m_jcp.data_prc, 1, off);
+    if (tail > 0) {
+        const size_t off = vec_cnt * step;
+        load(v_tmp0, reg_vec, m_jcp.data_prc, static_cast<int>(tail), false, off);
+        vmulps(v_tmp0, v_tmp0, v_tmp1);
+        store(reg_vec, v_tmp0, m_jcp.data_prc, static_cast<int>(tail), off);
     }
 }
 
@@ -185,26 +214,26 @@ void jit_gdn_kernel<isa>::l2norm_inplace(const Xbyak::Reg64& reg_vec,
         vfmadd231ps(v_aux0, v_aux1, v_aux1);
     }
 
+    if (tail > 0) {
+        const size_t off = vec_cnt * vec_bytes;
+        load(v_aux1, reg_vec, ov::element::f32, static_cast<int>(tail), false, off);
+        vfmadd231ps(v_aux0, v_aux1, v_aux1);
+    }
+
     if constexpr (std::is_same_v<Vmm, Xbyak::Ymm>) {
         vextractf128(x_tmp1, v_aux0, 1);
         vaddps(xmm_sum, Xbyak::Xmm(v_aux0.getIdx()), x_tmp1);
-        vhaddps(xmm_sum, xmm_sum, xmm_sum);
-        vhaddps(xmm_sum, xmm_sum, xmm_sum);
+        vpermilps(x_tmp1, xmm_sum, 0xB1);
+        vaddps(xmm_sum, xmm_sum, x_tmp1);
+        vpermilps(x_tmp1, xmm_sum, 0x4E);
+        vaddps(xmm_sum, xmm_sum, x_tmp1);
     } else {
         reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_sum, xmm_tmp0, xmm_tmp1);
     }
 
-    for (size_t i = 0; i < tail; i++) {
-        const size_t off = vec_cnt * vec_bytes + i * sizeof(float);
-        vmovss(xmm_tmp0, ptr[reg_vec + off]);
-        vmulss(xmm_tmp0, xmm_tmp0, xmm_tmp0);
-        vaddss(xmm_sum, xmm_sum, xmm_tmp0);
-    }
-
     vaddss(xmm_sum, xmm_sum, xmm_eps);
     vsqrtss(xmm_sum, xmm_sum, xmm_sum);
-    mov(reg_aux2.cvt32(), float2int(1.0F));
-    vmovd(xmm_tmp1, reg_aux2.cvt32());
+    vmovd(xmm_tmp1, reg_one.cvt32());
     vdivss(xmm_tmp1, xmm_tmp1, xmm_sum);
 
     vbroadcastss(v_tmp1, xmm_tmp1);
@@ -216,11 +245,11 @@ void jit_gdn_kernel<isa>::l2norm_inplace(const Xbyak::Reg64& reg_vec,
         store(reg_vec, v_tmp0, ov::element::f32, static_cast<int>(vec_size), off);
     }
 
-    for (size_t i = 0; i < tail; i++) {
-        const size_t off = vec_cnt * vec_bytes + i * sizeof(float);
-        vmovss(xmm_tmp0, ptr[reg_vec + off]);
-        vmulss(xmm_tmp0, xmm_tmp0, xmm_tmp1);
-        vmovss(ptr[reg_vec + off], xmm_tmp0);
+    if (tail > 0) {
+        const size_t off = vec_cnt * vec_bytes;
+        load(v_tmp0, reg_vec, ov::element::f32, static_cast<int>(tail), false, off);
+        vmulps(v_tmp0, v_tmp0, v_tmp1);
+        store(reg_vec, v_tmp0, ov::element::f32, static_cast<int>(tail), off);
     }
 }
 
@@ -380,8 +409,7 @@ void jit_gdn_kernel<isa>::l2norm_inplace_native_xf16(Vmm* vmm_array, const Xbyak
     vaddss(x_hk, x_hk, xmm_eps);
     vsqrtss(x_hk, x_hk, x_hk);
 
-    mov(reg_aux.cvt32(), float2int(1.0F));
-    vmovd(x_tmp1, reg_aux.cvt32());
+    vmovd(x_tmp1, reg_one.cvt32());
     vdivss(x_tmp1, x_tmp1, x_hk);  // reciprocal
 
     // Scale vector by reciprocal
@@ -440,8 +468,7 @@ void jit_gdn_kernel<isa>::l2norm_buffer_compute_scale_native_xf16(const Xbyak::R
     reduce_zmm_f32_to_xmm_scalar(Xbyak::Zmm(v_aux0.getIdx()), xmm_scale_out, x_tmp0, x_tmp1);
     vaddss(xmm_scale_out, xmm_scale_out, xmm_eps);
     vsqrtss(xmm_scale_out, xmm_scale_out, xmm_scale_out);
-    mov(reg_aux.cvt32(), float2int(1.0F));
-    vmovd(x_value, reg_aux.cvt32());
+    vmovd(x_value, reg_one.cvt32());
     vdivss(xmm_scale_out, x_value, xmm_scale_out);
 }
 
@@ -498,12 +525,12 @@ void jit_gdn_kernel<isa>::load_qk(bool is_f32, bool use_registers, int num_regs,
             load(v_tmp1, reg_query_seq, m_jcp.data_prc, copy_elt_num, false, off, m_jcp.data_prc);
             store(reg_query_tmp, v_tmp1, m_jcp.data_prc, copy_elt_num, off, m_jcp.data_prc);
         }
-        for (size_t i = 0; i < tail; i++) {
-            const size_t off = vec_cnt * copy_step + i * m_jcp.data_prc.size();
-            load(v_tmp0, reg_key_seq, m_jcp.data_prc, 1, false, off, m_jcp.data_prc);
-            store(reg_key_tmp, v_tmp0, m_jcp.data_prc, 1, off, m_jcp.data_prc);
-            load(v_tmp1, reg_query_seq, m_jcp.data_prc, 1, false, off, m_jcp.data_prc);
-            store(reg_query_tmp, v_tmp1, m_jcp.data_prc, 1, off, m_jcp.data_prc);
+        if (tail > 0) {
+            const size_t off = vec_cnt * copy_step;
+            load(v_tmp0, reg_key_seq, m_jcp.data_prc, static_cast<int>(tail), false, off, m_jcp.data_prc);
+            store(reg_key_tmp, v_tmp0, m_jcp.data_prc, static_cast<int>(tail), off, m_jcp.data_prc);
+            load(v_tmp1, reg_query_seq, m_jcp.data_prc, static_cast<int>(tail), false, off, m_jcp.data_prc);
+            store(reg_query_tmp, v_tmp1, m_jcp.data_prc, static_cast<int>(tail), off, m_jcp.data_prc);
         }
 
         if (is_f32) {
@@ -568,12 +595,20 @@ void jit_gdn_kernel<isa>::generate() {
 
     const bool is_f32 = (m_jcp.data_prc == ov::element::f32);
     const size_t qk = m_jcp.qk_head_size;
+    const auto data_size = static_cast<int>(m_jcp.data_prc.size());
     const bool use_registers = !is_f32 && (qk <= 128);
     const auto num_regs = is_f32 ? 0 : static_cast<int>(qk / XF16_ELEMS_PER_ZMM);
     const auto num_chunks = is_f32 ? 0 : (num_regs + MAX_REGS_PER_VEC - 1) / MAX_REGS_PER_VEC;
 
     // One-time setup
     exp_injector->load_table_addr();
+    mov(reg_aux.cvt32(), float2int(m_jcp.k_l2_norm_eps));
+    vmovd(x_eps_k, reg_aux.cvt32());
+    mov(reg_aux.cvt32(), float2int(m_jcp.q_l2_norm_eps));
+    vmovd(x_eps_q, reg_aux.cvt32());
+    mov(reg_aux.cvt32(), float2int(m_jcp.q_scale));
+    vmovd(x_qscale, reg_aux.cvt32());
+    mov(reg_one.cvt32(), float2int(1.0F));
 
     mov(reg_key_seq, ptr[reg_args + GET_OFF(key_seq)]);
     mov(reg_query_seq, ptr[reg_args + GET_OFF(query_seq)]);
@@ -593,14 +628,6 @@ void jit_gdn_kernel<isa>::generate() {
 
     L(l_t_loop);
     {
-        // Reload scalar constants each iteration
-        mov(reg_aux.cvt32(), float2int(m_jcp.k_l2_norm_eps));
-        vmovd(x_eps_k, reg_aux.cvt32());
-        mov(reg_aux.cvt32(), float2int(m_jcp.q_l2_norm_eps));
-        vmovd(x_eps_q, reg_aux.cvt32());
-        mov(reg_aux.cvt32(), float2int(m_jcp.q_scale));
-        vmovd(x_qscale, reg_aux.cvt32());
-
         load_qk(is_f32, use_registers, num_regs, num_chunks);
 
         // Compute gate and beta once per timestep and share across V lanes
@@ -719,13 +746,12 @@ void jit_gdn_kernel<isa>::generate() {
                         vfmadd231ps(v_tmp0, v_tmp1, v_aux2);
                         store(reg_state, v_tmp0, ov::element::f32, update_elt_num, off);
                     }
-                    for (size_t i = 0; i < update_tail; i++) {
-                        const size_t off = update_vec_cnt * update_step + i * sizeof(float);
-                        load(v_tmp0, reg_state, ov::element::f32, 1, false, off);
-                        load(v_tmp1, reg_aux2, ov::element::f32, 1, false, off);
-                        vmulss(x_tmp1, x_tmp1, x_delta);
-                        vaddss(x_tmp0, x_tmp0, x_tmp1);
-                        store(reg_state, v_tmp0, ov::element::f32, 1, off);
+                    if (update_tail > 0) {
+                        const size_t off = update_vec_cnt * update_step;
+                        load(v_tmp0, reg_state, ov::element::f32, static_cast<int>(update_tail), false, off);
+                        load(v_tmp1, reg_aux2, ov::element::f32, static_cast<int>(update_tail), false, off);
+                        vfmadd231ps(v_tmp0, v_tmp1, v_aux2);
+                        store(reg_state, v_tmp0, ov::element::f32, static_cast<int>(update_tail), off);
                     }
 
                     mov(reg_query_tmp, reg_state);
@@ -782,22 +808,18 @@ void jit_gdn_kernel<isa>::generate() {
 
         // Advance pointers using stride parameters.
         mov(reg_aux2, ptr[reg_args + GET_OFF(key_query_stride)]);
-        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
-        add(reg_key_seq, reg_aux2);
-        add(reg_query_seq, reg_aux2);
+        lea(reg_key_seq, ptr[reg_key_seq + reg_aux2 * data_size]);
+        lea(reg_query_seq, ptr[reg_query_seq + reg_aux2 * data_size]);
 
         mov(reg_aux2, ptr[reg_args + GET_OFF(value_stride)]);
-        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
-        add(reg_value_seq, reg_aux2);
+        lea(reg_value_seq, ptr[reg_value_seq + reg_aux2 * data_size]);
 
         mov(reg_aux2, ptr[reg_args + GET_OFF(gate_beta_stride)]);
-        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
-        add(reg_gate_seq, reg_aux2);
-        add(reg_beta_seq, reg_aux2);
+        lea(reg_gate_seq, ptr[reg_gate_seq + reg_aux2 * data_size]);
+        lea(reg_beta_seq, ptr[reg_beta_seq + reg_aux2 * data_size]);
 
         mov(reg_aux2, ptr[reg_args + GET_OFF(output_stride)]);
-        imul(reg_aux2, reg_aux2, m_jcp.data_prc.size());
-        add(reg_out_seq, reg_aux2);
+        lea(reg_out_seq, ptr[reg_out_seq + reg_aux2 * data_size]);
 
         dec(reg_t);
         jnz(l_t_loop, T_NEAR);

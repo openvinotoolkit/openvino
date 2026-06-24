@@ -70,6 +70,7 @@ private:
     const Xbyak::Reg64 reg_query_seq = r14;
     const Xbyak::Reg64 reg_value_seq = r15;
     const Xbyak::Reg64 reg_aux = r11;
+    const Xbyak::Reg64 reg_one = rdx;
     const Xbyak::Reg64 reg_gate_seq = rsi;
     const Xbyak::Reg64 reg_beta_seq = rdi;
     const Xbyak::Reg64 reg_out_seq = rbp;
