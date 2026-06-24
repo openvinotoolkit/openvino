@@ -296,7 +296,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory,
         // TODO: 109204
         // cpu_convert have to be used here because its implementation faster than cpu_memcpy
         // in the case when copySize exceeds L2 cache size
-        cpu_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
+        cpu_parallel_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
     } else if (optimizedParams.srcStrides[5] == 0) {
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
