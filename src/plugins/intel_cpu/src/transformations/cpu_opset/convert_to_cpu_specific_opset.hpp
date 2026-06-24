@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <cstddef>
 #include <memory>
 
@@ -28,6 +30,7 @@
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
@@ -46,6 +49,19 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_X64(
+        manager,
+        ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+        [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
+            size_t IC,
+            size_t OC,
+            size_t G) {
+            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
+        });
+    CPU_REGISTER_PASS_ARM64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
+    CPU_REGISTER_PASS_ARM64(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_ARM64(
         manager,
         ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
@@ -77,9 +93,15 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
-    // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or
-    // fused
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
+    // TransposeToReshape is also registered in MOC, but plugin-specific transformations
+    // can introduce new Transpose nodes after MOC runs.
+    CPU_REGISTER_PASS_COMMON(
+        manager,
+        ov::pass::TransposeToReshape);  // Should be after all transformations that can produce transposes
+    CPU_REGISTER_PASS_COMMON(
+        manager,
+        ov::pass::ReshapeSequenceFusion);  // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped
+                                           // sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager,
                              ov::pass::ConvertPrecision,

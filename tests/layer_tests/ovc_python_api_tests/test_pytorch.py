@@ -1516,3 +1516,188 @@ class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
                                     graph_ref, compare_tensor_names=False,
                                     ovc=True)
         os.remove(ep_file_name)
+
+
+class TestPytorchModelOnDiskFileTypeDetection:
+    """Tests for the structural ZIP-based detection used by
+    get_pytorch_decoder_for_model_on_disk to skip non-PyTorch files
+    without importing torch or running pickle-based deserialization.
+    """
+
+    @staticmethod
+    def _make_zip(path, entries):
+        import zipfile
+        with zipfile.ZipFile(path, "w") as zf:
+            for name, data in entries.items():
+                zf.writestr(name, data)
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_detects_torchscript_archive(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        # Real TorchScript archive saved by torch.jit.save contains data.pkl
+        # and constants.pkl entries. Emulate the structural shape.
+        ts_path = str(tmp_path / "ts_like.zip")
+        self._make_zip(ts_path, {"model/data.pkl": b"\x80\x02", "model/constants.pkl": b""})
+        assert _is_pytorch_zip(ts_path) is True
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_detects_legacy_exported_program(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        # ExportedProgram archives in torch <= 2.6 contain serialized_*.json files.
+        ep_path = str(tmp_path / "ep_legacy.zip")
+        self._make_zip(ep_path, {"serialized_state_dict.json": b"{}"})
+        assert _is_pytorch_zip(ep_path) is True
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_detects_pt2_archive(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        # PT2 archives (torch >= 2.7) contain an "archive_format" entry == b"pt2".
+        pt2_path = str(tmp_path / "pt2.zip")
+        self._make_zip(pt2_path, {"archive_format": b"pt2", "data/blob": b"\x00"})
+        assert _is_pytorch_zip(pt2_path) is True
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_rejects_non_zip_file(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        path = tmp_path / "plain.bin"
+        path.write_bytes(b"not a zip file")
+        assert _is_pytorch_zip(str(path)) is False
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_rejects_unrelated_zip(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        path = str(tmp_path / "unrelated.zip")
+        self._make_zip(path, {"foo.txt": b"hello", "bar/baz.bin": b"\x00\x01"})
+        assert _is_pytorch_zip(path) is False
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_rejects_archive_format_with_other_content(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        # An "archive_format" entry whose content is not b"pt2" must not be
+        # accepted as a PyTorch archive.
+        path = str(tmp_path / "other_archive.zip")
+        self._make_zip(path, {"archive_format": b"other"})
+        assert _is_pytorch_zip(path) is False
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_rejects_oversized_archive_format(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        # A crafted ZIP where the "archive_format" entry is larger than the
+        # legitimate b"pt2" marker must be rejected without being read into
+        # memory. This guards against CPU/memory amplification on auto-detect.
+        path = str(tmp_path / "oversized_archive_format.zip")
+        # 1 MiB of zeros; even highly compressible, must not be decompressed.
+        self._make_zip(path, {"archive_format": b"\x00" * (1 << 20)})
+        assert _is_pytorch_zip(path) is False
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_is_pytorch_zip_handles_missing_file(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _is_pytorch_zip
+
+        assert _is_pytorch_zip(str(tmp_path / "does_not_exist.zip")) is False
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_get_pytorch_decoder_skips_non_pytorch_file(self, tmp_path, ie_device, precision, ir_version):
+        """A non-PyTorch file on disk must short-circuit and return False
+        without populating argv (i.e. without attempting torch.jit.load /
+        torch.export.load on it).
+        """
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import (
+            get_pytorch_decoder_for_model_on_disk,
+        )
+
+        path = tmp_path / "model.onnx"
+        path.write_bytes(b"\x08\x01\x12\x00not-a-pytorch-archive")
+
+        class _Argv:
+            input_model = str(path)
+            framework = None
+
+        argv = _Argv()
+        result = get_pytorch_decoder_for_model_on_disk(argv, {})
+
+        assert result is False
+        # input_model is left as the original string path; framework not set.
+        assert argv.input_model == str(path)
+        assert argv.framework is None
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_get_pytorch_decoder_skips_unrelated_zip(self, tmp_path, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import (
+            get_pytorch_decoder_for_model_on_disk,
+        )
+
+        path = str(tmp_path / "unrelated.zip")
+        self._make_zip(path, {"foo.txt": b"hello"})
+
+        class _Argv:
+            input_model = path
+            framework = None
+
+        argv = _Argv()
+        result = get_pytorch_decoder_for_model_on_disk(argv, {})
+
+        assert result is False
+        assert argv.input_model == path
+        assert argv.framework is None
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_get_pytorch_decoder_rejects_non_path_input(self, ie_device, precision, ir_version):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import (
+            get_pytorch_decoder_for_model_on_disk,
+        )
+
+        class _Argv:
+            input_model = 12345
+            framework = None
+
+        argv = _Argv()
+        # A non-(str/Path) input_model must early-return False.
+        assert get_pytorch_decoder_for_model_on_disk(argv, {}) is False
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_get_pytorch_decoder_loads_real_torchscript_file(self, tmp_path, ie_device, precision, ir_version):
+        """End-to-end: a genuine torch.jit-saved file must be picked up by
+        get_pytorch_decoder_for_model_on_disk and populate argv.
+        """
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import (
+            get_pytorch_decoder_for_model_on_disk,
+        )
+
+        model = make_pt_model_one_input()
+        scripted = torch.jit.script(model)
+        path = str(tmp_path / "scripted.pt")
+        scripted.save(path)
+
+        class _Argv:
+            input_model = path
+            framework = None
+
+        argv = _Argv()
+        result = get_pytorch_decoder_for_model_on_disk(
+            argv, {"example_input": (torch.zeros(1, 3, 10, 10),)}
+        )
+
+        assert result is True
+        assert argv.framework == "pytorch"
+        # On success, argv.input_model is replaced with a TorchScriptPythonDecoder.
+        assert not isinstance(argv.input_model, str)

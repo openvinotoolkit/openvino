@@ -12,6 +12,10 @@
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestCompileModel);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestQueryModel);
+
 namespace {
 //
 // OV Class Common tests with <pluginName, deviceName params>

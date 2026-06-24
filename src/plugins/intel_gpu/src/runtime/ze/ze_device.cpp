@@ -44,12 +44,10 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
         case ngen::HW::XeLP: return gpu_arch::xe_lp;
         case ngen::HW::XeHP: return gpu_arch::xe_hp;
         case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
-        case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
+        case ngen::HW::XeHPC: OPENVINO_THROW("[GPU] XeHPC is not supported");
         case ngen::HW::Xe2: return gpu_arch::xe2;
         case ngen::HW::Xe3: return gpu_arch::xe3;
-        case ngen::HW::XE3P_35_10: return gpu_arch::xe3p_35_10;
-        case ngen::HW::XE3P_35_11: return gpu_arch::xe3p_35_11;
-        case ngen::HW::XE3P_UNKNOWN: return gpu_arch::xe3p_unknown;
+        case ngen::HW::Xe3p: return gpu_arch::xe3p;
         case ngen::HW::Gen10:
         case ngen::HW::Unknown: return gpu_arch::unknown;
     }
@@ -172,7 +170,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.vendor_id = device_properties.vendorId;
     info.dev_name = device_properties.name;
-    // L0 returns drivers version in different format than OCL
+    // ZE returns drivers version in different format than OCL
     info.driver_version = std::to_string(driver_properties.driverVersion);
     info.dev_type = (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) ? device_type::integrated_gpu : device_type::discrete_gpu;
 
@@ -198,7 +196,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     if (mem_properties != device_memory_properties.end()) {
         info.max_global_mem_size = mem_properties->totalSize;
-        info.device_memory_ordinal = std::distance(device_memory_properties.begin(), mem_properties);
+        info.device_memory_ordinal = static_cast<uint32_t>(std::distance(device_memory_properties.begin(), mem_properties));
     } else {
         info.max_global_mem_size = 0;
         info.device_memory_ordinal = 0;
@@ -222,7 +220,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
-    // FIXME: Could not find how to retrieve those from L0
+    // FIXME: Could not find how to retrieve those from ZE
     info.supports_work_group_collective_functions = false;
     info.supports_intel_planar_yuv = false;
     info.supports_khr_subgroups = true;
@@ -230,7 +228,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_subgroups_short = true;
     info.supports_intel_subgroups_char = true;
     info.supports_intel_required_subgroup_size = true;
-    // queue families correspond to L0 cmd queue ordinal and index
+    // queue families correspond to ZE cmd queue ordinal and index
     info.supports_queue_families = true;
 
     if (supports_ip_version) {
@@ -249,7 +247,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 
     info.kernel_timestamp_valid_bits  = device_properties.kernelTimestampValidBits;
     info.timer_resolution  = device_properties.timerResolution;
-    info.compute_queue_group_ordinal = std::distance(queue_properties.begin(), compute_queue_props);
+    info.compute_queue_group_ordinal = static_cast<uint32_t>(std::distance(queue_properties.begin(), compute_queue_props));
 
     static_assert(ZE_MAX_DEVICE_UUID_SIZE == ov::device::UUID::MAX_UUID_SIZE, "");
     static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "");
@@ -324,6 +322,9 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
         if (device_memory_access_properties.deviceAllocCapabilities) {
             memory_caps.push_back(allocation_type::usm_device);
         }
+    }
+    if (info.supports_image) {
+        memory_caps.push_back(allocation_type::ze_image);
     }
 
     return memory_capabilities(memory_caps);

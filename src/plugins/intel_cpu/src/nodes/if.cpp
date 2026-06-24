@@ -51,11 +51,11 @@ void If::PortMapHelper::execute([[maybe_unused]] const dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_convert(srcMemPtr->getData(),
-                dstMemPtrs.front()->getData(),
-                srcMemPtr->getDesc().getPrecision(),
-                dstMemPtrs.front()->getDesc().getPrecision(),
-                size);
+    cpu_parallel_convert(srcMemPtr->getData(),
+                         dstMemPtrs.front()->getData(),
+                         srcMemPtr->getDesc().getPrecision(),
+                         dstMemPtrs.front()->getDesc().getPrecision(),
+                         size);
 }
 
 void If::PortMapHelper::redefineTo() {
@@ -255,7 +255,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
 }
 
 void If::execute(const dnnl::stream& strm) {
-    const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
+    const auto condition = static_cast<bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

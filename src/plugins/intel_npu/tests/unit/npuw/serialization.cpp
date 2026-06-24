@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 
 #include "attention.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -17,8 +18,8 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
-#include "moe_transformations/moe_transformation.hpp"
 #include "model_builder.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -60,15 +61,16 @@ ov::npuw::s11n::WeightsContext::ConstsCache make_consts_cache(
     const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants) {
     ov::npuw::s11n::WeightsContext::ConstsCache cache;
     for (const auto& constant : constants) {
-        const auto attr =
-            constant->get_rt_info().at(ov::WeightlessCacheAttribute::get_type_info_static())
-                .as<ov::WeightlessCacheAttribute>();
+        const auto attr = constant->get_rt_info()
+                              .at(ov::WeightlessCacheAttribute::get_type_info_static())
+                              .as<ov::WeightlessCacheAttribute>();
         cache[{attr.bin_offset, constant->get_byte_size()}] = constant;
     }
     return cache;
 }
 
-void expect_attention_equal(const ov::npuw::compiled::Attention& expected, const ov::npuw::compiled::Attention& actual) {
+void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
+                            const ov::npuw::compiled::Attention& actual) {
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.context_size, actual.context_size);
     EXPECT_EQ(expected.params.size(), actual.params.size());
@@ -80,8 +82,8 @@ void expect_attention_equal(const ov::npuw::compiled::Attention& expected, const
     expect_tensors_equal(expected.attend_all, actual.attend_all);
 }
 
-void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttention& expected,
-                                    const ov::npuw::compiled::PyramidAttention& actual) {
+void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionContiguous& expected,
+                                    const ov::npuw::compiled::PyramidAttentionContiguous& actual) {
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
@@ -100,6 +102,27 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttention& 
     }
 }
 
+void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBlock& expected,
+                                    const ov::npuw::compiled::PyramidAttentionBlock& actual) {
+    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.full_context_size, actual.full_context_size);
+    EXPECT_EQ(expected._context_lengths, actual._context_lengths);
+    EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
+    EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
+    ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
+    for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
+        const auto& lhs = expected._attention_infos[i];
+        const auto& rhs = actual._attention_infos[i];
+        EXPECT_EQ(lhs.mask_idx, rhs.mask_idx);
+        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.context_length, rhs.context_length);
+        EXPECT_EQ(lhs.past_key_block_port_map, rhs.past_key_block_port_map);
+        EXPECT_EQ(lhs.past_value_block_port_map, rhs.past_value_block_port_map);
+        EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
+        EXPECT_EQ(lhs.past_value_block_port_set, rhs.past_value_block_port_set);
+    }
+}
+
 void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttention& expected,
                                        const ov::npuw::compiled::HostFlashAttention& actual) {
     const auto& lhs = expected._sdpa_attention_info;
@@ -109,8 +132,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._k_seq_dim, rhs._k_seq_dim);
     EXPECT_EQ(lhs._v_seq_dim, rhs._v_seq_dim);
     EXPECT_EQ(lhs._sdpa_indices.query, rhs._sdpa_indices.query);
-    EXPECT_EQ(lhs._sdpa_indices.past_key, rhs._sdpa_indices.past_key);
-    EXPECT_EQ(lhs._sdpa_indices.past_value, rhs._sdpa_indices.past_value);
+    EXPECT_EQ(lhs._sdpa_indices.past_key_blocks, rhs._sdpa_indices.past_key_blocks);
+    EXPECT_EQ(lhs._sdpa_indices.past_value_blocks, rhs._sdpa_indices.past_value_blocks);
     EXPECT_EQ(lhs._sdpa_indices.present_key, rhs._sdpa_indices.present_key);
     EXPECT_EQ(lhs._sdpa_indices.present_value, rhs._sdpa_indices.present_value);
     EXPECT_EQ(lhs._sdpa_indices.attention_mask, rhs._sdpa_indices.attention_mask);
@@ -134,8 +157,10 @@ void expect_moe_experts_equal(const ov::npuw::compiled::MoEExperts& expected,
     EXPECT_EQ(expected.expert_hidden_dim, actual.expert_hidden_dim);
     EXPECT_EQ(expected.num_active_experts, actual.num_active_experts);
     EXPECT_EQ(expected.input_token_count, actual.input_token_count);
-    EXPECT_EQ(expected._router_scores_idx, actual._router_scores_idx);
-    EXPECT_EQ(expected._expert_input_param_idx, actual._expert_input_param_idx);
+    EXPECT_EQ(expected._router_scores.original, actual._router_scores.original);
+    EXPECT_EQ(expected._router_scores.compiled, actual._router_scores.compiled);
+    EXPECT_EQ(expected._expert_input.original, actual._expert_input.original);
+    EXPECT_EQ(expected._expert_input.compiled, actual._expert_input.compiled);
     EXPECT_EQ(expected._param_mapping, actual._param_mapping);
 }
 
@@ -515,13 +540,72 @@ TEST(SerializationTest, OVTypes_Attention) {
 TEST(SerializationTest, OVTypes_PyramidAttention) {
     using namespace ov::npuw::s11n;
 
-    ov::npuw::compiled::PyramidAttention var;
+    ov::npuw::compiled::PyramidAttentionContiguous var;
     var.query_size = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
-    var._attention_infos = {{{{0, 2}, {1, 3}}, 4, 16, 32}, {{{2, 1}}, 5, 16, 64}};
 
-    ov::npuw::compiled::PyramidAttention res;
+    ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
+    info1.params = {{0, 2}, {1, 3}};
+    info1.mask_idx = 4;
+    info1.query_size = 16;
+    info1.context_length = 32;
+
+    ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
+    info2.params = {{2, 1}};
+    info2.mask_idx = 5;
+    info2.query_size = 16;
+    info2.context_length = 64;
+
+    var._attention_infos = {info1, info2};
+
+    ov::npuw::compiled::PyramidAttentionContiguous res;
+
+    std::stringstream ss;
+
+    write(ss, var);
+    read(ss, res);
+
+    expect_pyramid_attention_equal(var, res);
+}
+
+TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::PyramidAttentionBlock var;
+    var.query_size = 16;
+    var.full_context_size = 128;
+    var._context_lengths = {16, 32, 64, 128};
+    var.past_key_block_global_param_indices = {10, 11, 12};
+    var.past_value_block_global_param_indices = {20, 21, 22};
+
+    ov::npuw::compiled::PyramidAttentionBlockInfo info1;
+    info1.mask_idx = 4;
+    info1.query_size = 16;
+    info1.context_length = 32;
+    info1.past_key_block_port_map = {{10, std::numeric_limits<size_t>::max()},
+                                     {11, std::numeric_limits<size_t>::max()},
+                                     {12, std::numeric_limits<size_t>::max()}};
+    info1.past_value_block_port_map = {{20, std::numeric_limits<size_t>::max()},
+                                       {21, std::numeric_limits<size_t>::max()},
+                                       {22, std::numeric_limits<size_t>::max()}};
+
+    ov::npuw::compiled::PyramidAttentionBlockInfo info2;
+    info2.mask_idx = 5;
+    info2.query_size = 16;
+    info2.context_length = 64;
+    info2.past_key_block_port_map = {{10, 0},
+                                     {11, std::numeric_limits<size_t>::max()},
+                                     {12, std::numeric_limits<size_t>::max()}};
+    info2.past_value_block_port_map = {{20, 1},
+                                       {21, std::numeric_limits<size_t>::max()},
+                                       {22, std::numeric_limits<size_t>::max()}};
+    info2.past_key_block_port_set = {0};
+    info2.past_value_block_port_set = {1};
+
+    var._attention_infos = {info1, info2};
+
+    ov::npuw::compiled::PyramidAttentionBlock res;
 
     std::stringstream ss;
 
@@ -539,7 +623,7 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._context_size = 32;
     var._sdpa_attention_info._k_seq_dim = 1;
     var._sdpa_attention_info._v_seq_dim = 2;
-    var._sdpa_attention_info._sdpa_indices = {3, 4, 5, 6, 7, 8};
+    var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
     var._tile_size = 64;
@@ -563,8 +647,10 @@ TEST(SerializationTest, OVTypes_MoEExperts) {
     var.expert_hidden_dim = 128;
     var.num_active_experts = 2;
     var.input_token_count = 64;
-    var._router_scores_idx = 5;
-    var._expert_input_param_idx = 3;
+    var._router_scores.original = 5;
+    var._router_scores.compiled = 7;
+    var._expert_input.original = 3;
+    var._expert_input.compiled = 2;
     var._param_mapping = {{0, {1, 2}}, {4, {6, 7, 8}}};
 
     ov::npuw::compiled::MoEExperts res;
@@ -674,12 +760,10 @@ TEST(SerializationTest, OVTypes_Tensor_allocator) {
     bool allocator_called = false;
     ov::Tensor res;
     auto input_stream = Stream::reader(ss);
-    transfer_tensor(input_stream,
-                    res,
-                    [&](const ov::element::Type& type, const ov::Shape& shape) {
-                        allocator_called = true;
-                        return ov::Tensor(type, shape);
-                    });
+    transfer_tensor(input_stream, res, [&](const ov::element::Type& type, const ov::Shape& shape) {
+        allocator_called = true;
+        return ov::Tensor(type, shape);
+    });
 
     EXPECT_TRUE(allocator_called);
     expect_tensors_equal(var, res);
@@ -780,8 +864,7 @@ TEST(SerializationTest, OVTypes_ParameterPointer_throws_on_write) {
 TEST(SerializationTest, OVTypes_NodePointer_throws_on_write) {
     using namespace ov::npuw::s11n;
 
-    std::shared_ptr<ov::Node> node =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
+    std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     std::stringstream ss;
 
     EXPECT_THROW(write(ss, node), ov::Exception);
@@ -824,7 +907,8 @@ TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {
 TEST(SerializationTest, OVTypes_LazyTensor_const_with_embedded_weight_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f});
+    auto constant =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f});
     ov::npuw::weights::LazyTensor var(constant);
     ov::npuw::weights::LazyTensor res;
 
@@ -842,11 +926,12 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     using namespace ov::npuw::s11n;
 
     auto first = make_weightless_constant<float>(ov::element::f32, ov::Shape{1, 2}, {1.0f, 2.0f}, 0);
-    auto second = make_weightless_constant<float>(ov::element::f32, ov::Shape{1, 2}, {3.0f, 4.0f}, first->get_byte_size());
-    ov::npuw::weights::LazyTensor concat(std::vector<ov::npuw::weights::LazyTensor>{
-                                             ov::npuw::weights::LazyTensor(first),
-                                             ov::npuw::weights::LazyTensor(second)},
-                                         0);
+    auto second =
+        make_weightless_constant<float>(ov::element::f32, ov::Shape{1, 2}, {3.0f, 4.0f}, first->get_byte_size());
+    ov::npuw::weights::LazyTensor concat(
+        std::vector<ov::npuw::weights::LazyTensor>{ov::npuw::weights::LazyTensor(first),
+                                                   ov::npuw::weights::LazyTensor(second)},
+        0);
     auto var = concat.permute({1, 0}).convert(ov::element::f16);
     ov::npuw::weights::LazyTensor res;
 
@@ -865,7 +950,10 @@ TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
     using namespace ov::npuw::s11n;
 
     auto w = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{8}, {1, 2, 3, 4, 5, 6, 7, 8}, 0);
-    auto s = make_weightless_constant<ov::float16>(ov::element::f16, ov::Shape{8}, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f}, w->get_byte_size());
+    auto s = make_weightless_constant<ov::float16>(ov::element::f16,
+                                                   ov::Shape{8},
+                                                   {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f},
+                                                   w->get_byte_size());
     ov::npuw::weights::LazyTensor var(ov::npuw::weights::LazyTensor(w),
                                       ov::npuw::weights::LazyTensor(),
                                       ov::npuw::weights::LazyTensor(s),
@@ -886,8 +974,9 @@ TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
 TEST(SerializationTest, OVTypes_LazyTensor_gather_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto w = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{16}, {0, 1, 2, 3, 4, 5, 6, 7,
-                                                                                8, 9, 10, 11, 12, 13, 14, 15},
+    auto w = make_weightless_constant<uint8_t>(ov::element::u8,
+                                               ov::Shape{16},
+                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
                                                0);
     std::vector<uint8_t> indices{0, 1, 2, 3};
     ov::Tensor lut(ov::element::f8e4m3, ov::Shape{4}, indices.data());

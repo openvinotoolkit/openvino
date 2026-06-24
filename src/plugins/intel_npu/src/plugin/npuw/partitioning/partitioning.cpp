@@ -5,6 +5,7 @@
 #include "partitioning.hpp"
 
 #include <memory>
+#include <set>
 
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -37,7 +38,7 @@ inline bool operator==(const std::reference_wrapper<Subgraph>& lhs, const std::r
 
 void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Function& function) const {
     for (const auto& registration : m_registrations) {
-        if (function.gettag() != registration.tag) {
+        if (!registration.tag.empty() && function.gettag() != registration.tag) {
             continue;
         }
 
@@ -48,15 +49,24 @@ void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Function& functio
         if (func_pipeline.registration.name.empty()) {
             func_pipeline.registration.name = registration.name;
         }
-        if (std::find(func_pipeline.registration.patterns.begin(),
+        if (!registration.pattern.empty() &&
+            std::find(func_pipeline.registration.patterns.begin(),
                       func_pipeline.registration.patterns.end(),
                       registration.pattern) == func_pipeline.registration.patterns.end()) {
             func_pipeline.registration.patterns.push_back(registration.pattern);
         }
 
-        if (registration.partition_stage) {
-            registration.partition_stage(function, func_pipeline.context);
-        }
+        auto previous_partition_stage = func_pipeline.partition_stage;
+        func_pipeline.partition_stage = [previous_partition_stage, registration](
+                                            ov::npuw::Function& staged_function,
+                                            ov::npuw::v1::subgraphs::Context& ctx) {
+            if (previous_partition_stage) {
+                previous_partition_stage(staged_function, ctx);
+            }
+            if (registration.partition_stage) {
+                registration.partition_stage(staged_function, ctx);
+            }
+        };
 
         auto previous_compile_stage = func_pipeline.compile_stage;
         func_pipeline.compile_stage = [previous_compile_stage, registration](
@@ -81,7 +91,7 @@ void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Function& functio
 
 void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Subgraph& subgraph) const {
     for (const auto& registration : m_registrations) {
-        if (subgraph.gettag() != registration.tag) {
+        if (!registration.tag.empty() && subgraph.gettag() != registration.tag) {
             continue;
         }
 
@@ -92,11 +102,24 @@ void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Subgraph& subgrap
         if (subgraph_pipeline.registration.name.empty()) {
             subgraph_pipeline.registration.name = registration.name;
         }
-        if (std::find(subgraph_pipeline.registration.patterns.begin(),
+        if (!registration.pattern.empty() &&
+            std::find(subgraph_pipeline.registration.patterns.begin(),
                       subgraph_pipeline.registration.patterns.end(),
                       registration.pattern) == subgraph_pipeline.registration.patterns.end()) {
             subgraph_pipeline.registration.patterns.push_back(registration.pattern);
         }
+
+        auto previous_partition_stage = subgraph_pipeline.partition_stage;
+        subgraph_pipeline.partition_stage = [previous_partition_stage, registration](
+                                                ov::npuw::Function& staged_function,
+                                                ov::npuw::v1::subgraphs::Context& ctx) {
+            if (previous_partition_stage) {
+                previous_partition_stage(staged_function, ctx);
+            }
+            if (registration.partition_stage) {
+                registration.partition_stage(staged_function, ctx);
+            }
+        };
 
         auto previous_compile_stage = subgraph_pipeline.compile_stage;
         subgraph_pipeline.compile_stage = [previous_compile_stage, registration](
@@ -116,6 +139,13 @@ void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Subgraph& subgrap
                 compiled_pipeline.runtime_behavior = std::move(spec);
             }
         };
+    }
+}
+
+void ov::npuw::v1::subgraphs::PatternRegistry::append_from(const PatternRegistry& other) {
+    for (auto registration : other.m_registrations) {
+        registration.id = ++m_next_id;
+        m_registrations.push_back(std::move(registration));
     }
 }
 
@@ -323,11 +353,6 @@ private:
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
 
-    // Helper method to find and cache router model for MoE transformations
-    // Returns cached router model if available, otherwise searches P.functions
-    // for a function tagged as "router" and caches it for future use
-    std::shared_ptr<ov::Model> getRouterModel();
-
     void createFunction(FunctionPipeline& func_ggg);
 
     // NB(dm): This method should get a better place, it is here only because
@@ -425,12 +450,6 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
-
-    // MoE-specific transformations (require router model availability)
-    // transformMoeExperts: Transform expert functions (tag="expert") to optimized MoE expert models
-    // transformMoeDownstream: Transform downstream processing (pattern-based detection)
-    void transformMoeExperts(const std::string& func_name);
-    void transformMoeDownstream(const std::string& func_name);
 
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
@@ -892,10 +911,24 @@ void Partitioner::identifySubgraphs() {
 std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType utype) {
     func_pipeline_type = utype;
 
+    std::set<std::string> selected_repeated_ids;
+    if (func_pipeline_type == FunctionPipelineType::FOLD && !cfg.get<::intel_npu::NPUW_FOLD>()) {
+        const auto fold_only_tags_vec = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
+        const std::set<std::string> fold_only_tags(fold_only_tags_vec.begin(), fold_only_tags_vec.end());
+        if (!fold_only_tags.empty()) {
+            for (const auto& subgraph : P.subgraphs) {
+                if (!subgraph._repeated_id.empty() && fold_only_tags.count(subgraph.gettag()) > 0) {
+                    selected_repeated_ids.insert(subgraph._repeated_id);
+                }
+            }
+        }
+    }
+
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
-        if (!part_sg._repeated_id.empty()) {
+        if (!part_sg._repeated_id.empty() &&
+            (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
             const auto& fcid = func_pipeline_type == FunctionPipelineType::FOLD
                                    ? part_sg._repeated_id          // with folding, functions of the
@@ -2067,85 +2100,6 @@ void Partitioner::attention(const std::string& func_name) {
     }
 }
 
-std::shared_ptr<ov::Model> Partitioner::getRouterModel() {
-    // Find and cache router model in context if not already cached
-    if (part_ctx.router_model != nullptr) {
-        return part_ctx.router_model;
-    }
-
-    for (const auto& [name, func] : P.functions) {
-        LOG_DEBUG("Checking function " << name << " with tag " << func.gettag());
-        if (func.gettag() != ov::npuw::patterns::moe::ROUTER_TAG) {
-            continue;
-        }
-
-        part_ctx.router_model = func._model;
-        LOG_INFO("Found router model: " << name);
-        break;
-    }
-
-    return part_ctx.router_model;
-}
-
-void Partitioner::transformMoeExperts(const std::string& func_name) {
-    ov::npuw::Function& f = P.functions.at(func_name);
-
-    // Only process functions tagged as "expert"
-    if (f.gettag() != ov::npuw::patterns::moe::EXPERT_TAG) {
-        return;
-    }
-
-    // Retrieve router model (required for extracting K from TopK node)
-    auto router_model = getRouterModel();
-    if (!router_model) {
-        LOG_WARN("Router model not available yet, skipping MoE expert transformation for " << func_name);
-        return;
-    }
-
-    LOG_DEBUG("Transforming " << func_name << " into MoE expert block in model " << model->get_friendly_name()
-                              << "...");
-    LOG_BLOCK();
-
-    // Determine compilation strategy from configuration:
-    // - moe_chunk_size = 0 (default): Compile multiple models for various chunk sizes
-    //   {16, 32, 64, 128, 256} to enable dynamic chunk selection at runtime
-    // - moe_chunk_size > 0: Compile a single model with the specified fixed chunk size
-    const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>();
-
-    // Create MoEExperts using factory method:
-    // - Analyzes expert model structure
-    // - Extracts K (number of active experts) from router model's TopK node
-    // - Generates optimized expert models for prefill and/or decoding stages
-    f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, router_model, moe_chunk_size);
-}
-
-void Partitioner::transformMoeDownstream(const std::string& func_name) {
-    ov::npuw::Function& f = P.functions.at(func_name);
-
-    // Retrieve router model (required for extracting active expert count)
-    auto router_model = getRouterModel();
-    if (!router_model) {
-        LOG_WARN("Router model not available, skipping MoE downstream transformation for " << func_name);
-        return;
-    }
-
-    LOG_DEBUG("Attempting MoE downstream transformation for " << func_name << "...");
-    LOG_BLOCK();
-
-    // Detect and transform MoE downstream processing pattern:
-    // Expected pattern: Parameter[total_experts, 1, H, W] -> Convert -> ReduceSum
-    //
-    // Transformation:
-    // - Identifies parameters with expert dimension (first dimension = total_experts)
-    // - Reshapes from [total_experts, ...] to [active_experts, ...]
-    // - active_experts (K) is extracted from router model's TopK node
-    //
-    // Note: No tag-based filtering - pattern matching determines applicability
-    // This allows downstream processing to be detected in any function that follows
-    // the structural pattern, regardless of how it was originally tagged
-    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, router_model);
-}
-
 void Partitioner::optimize(const std::string& func_name) {
     using namespace ov::npuw::weights;
 
@@ -2596,9 +2550,11 @@ void Partitioner::finalizeLinks() {
         } else {
             // A function call: find in the prototype subgraph
             auto& params = P.functions.at(sg_desc._funcall)._model->get_parameters();
-            auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
-                              ? ptr  // no protos in the CWAI case..
-                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(SubgParam(sg_desc, ptr));
+            auto& func_group = all_functions.at(sg_desc._funcall);
+            // Mixed FOLD/CWAI partitionings are resolved per function group:
+            // FOLD fills param_call_to_proto, while CWAI falls back to the call-local ptr.
+            auto proto_iter = func_group.param_call_to_proto.find(SubgParam(sg_desc, ptr));
+            auto& proto = proto_iter == func_group.param_call_to_proto.end() ? ptr : proto_iter->second;
             auto param_iter = std::find(params.begin(), params.end(), proto);
             NPUW_ASSERT(param_iter != params.end());
             return std::distance(params.begin(), param_iter);
@@ -2617,9 +2573,9 @@ void Partitioner::finalizeLinks() {
         } else {
             // A function call: find in the prototype subgraph
             auto& results = P.functions.at(sg_desc._funcall)._model->get_results();
-            auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
-                              ? ptr  // no protos in the CWAI case...
-                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(SubgResult(sg_desc, ptr));
+            auto& func_group = all_functions.at(sg_desc._funcall);
+            auto proto_iter = func_group.result_call_to_proto.find(SubgResult(sg_desc, ptr));
+            auto& proto = proto_iter == func_group.result_call_to_proto.end() ? ptr : proto_iter->second;
             auto result_iter = std::find(results.begin(), results.end(), proto);
             NPUW_ASSERT(result_iter != results.end());
             return std::distance(results.begin(), result_iter);
@@ -2663,6 +2619,8 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     LOG_BLOCK();
 
     ov::npuw::Ensemble ens;
+    ov::npuw::Partitioning P;
+    ov::npuw::PartitioningContext effective_ctx = ctx;
 
     // Try to load the partitioning plan...
     // Ensure all nodes in the model have unique friendly names before online partitioning.
@@ -2695,7 +2653,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
     if (file_path.empty()) {
         LOG_INFO("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");
-        ens = ov::npuw::online::buildPartitioning(model, cfg);
+        ens = ov::npuw::online::buildPartitioning(model, cfg, effective_ctx.subgraph_patterns);
     } else {
         ens = load_groups(model, file_path);
     }
@@ -2743,18 +2701,17 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
         }  // for(ens.groups)
     }  // if(fcew.enabled)
 
-    Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P, cfg, ctx);
+    Partitioner p(model, ens, P, cfg, effective_ctx);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
-        if (cfg.get<::intel_npu::NPUW_FOLD>()) {
-            // Do full-featured folding
+        auto run_fold_pipeline = [&]() {
+            // Do full-featured folding.
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
 
-            // Pass 1: Register all functions and apply general transformations
+            // Pass 1: Register all functions and apply general transformations.
             // - matchRepeatedSubgraphs() populates P.functions with all function definitions
             // - Other transformations (spatial, attention, optimize, etc.) can be applied
             //   independently without cross-function dependencies
@@ -2771,28 +2728,44 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
+                p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
 
-            // Pass 2: MoE-specific transformations (requires all functions registered)
-            //
-            // Why separate pass?
-            // - transformMoeExperts() and transformMoeDownstream() require the "router" function
-            // - Router function must be found in P.functions (populated in Pass 1)
-            // - Processing order in Pass 1 is not guaranteed (router may come after experts)
-            // - Therefore, MoE transformations run in Pass 2 after all function registration
-            //   completes, ensuring router model is always available when needed
+            // Pass 2: run deferred partition-stage transformations after all functions are registered.
+            // Partitioning stays generic here: it only exposes shared lookup helpers through the
+            // pipeline context and then runs the registered callbacks.
             for (auto&& func_group : all_functions) {
-                LOG_INFO("FOLD Pass 2: MoE-specific transformations for " << func_group << "...");
+                LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
                 LOG_BLOCK();
-                p.transformMoeExperts(func_group);
-                p.transformMoeDownstream(func_group);
+                auto& function = P.functions.at(func_group);
+                if (function._pipeline.partition_stage) {
+                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                        {[&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                            auto cached = part_ctx.tagged_models.find(tag);
+                            if (cached != part_ctx.tagged_models.end()) {
+                                return cached->second;
+                            }
+                            for (const auto& [name, candidate] : P.functions) {
+                                if (candidate.gettag() == tag) {
+                                    part_ctx.tagged_models.emplace(tag, candidate._model);
+                                    return candidate._model;
+                                }
+                            }
+                            return nullptr;
+                        }});
+                    function._pipeline.partition_stage(function, function._pipeline.context);
+                    // The callback captures partitioning state by reference, so keep it scoped to this
+                    // immediate partition-stage invocation and remove it before the context outlives us.
+                    function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
+                }
             }
-        } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
+        };
+
+        auto run_cwai_pipeline = [&]() {
             // Less brutal version - just transform repeated blocks
             // into the closure forms, but don't do folding.
             // This path is likely to be removed soon (is here for
@@ -2807,9 +2780,51 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.createFunction(func_group);
                 p.decompressionCutOff(func_group);
             }
-        } else {
-            LOG_INFO("Note: Repeated blocks are found in the model " << model->get_friendly_name()
-                                                                     << ", but folding or eager mode are not enabled");
+        };
+
+        auto select_repeated_ids_by_tag = [&](const std::set<std::string>& tags) {
+            std::set<std::string> selected_repeated_ids;
+            for (const auto& subgraph : P.subgraphs) {
+                if (!subgraph._repeated_id.empty() && tags.count(subgraph.gettag()) > 0) {
+                    selected_repeated_ids.insert(subgraph._repeated_id);
+                }
+            }
+            return selected_repeated_ids;
+        };
+
+        const bool fold_enabled = cfg.get<::intel_npu::NPUW_FOLD>();
+        const bool cwai_enabled = cfg.get<::intel_npu::NPUW_CWAI>();
+        const auto fold_only_tags_vec = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
+        const std::set<std::string> fold_only_tags(fold_only_tags_vec.begin(), fold_only_tags_vec.end());
+        const auto fold_only_repeated_ids =
+            fold_only_tags.empty() ? std::set<std::string>{} : select_repeated_ids_by_tag(fold_only_tags);
+        const bool fold_only_matches = !fold_only_repeated_ids.empty();
+        const bool should_run_fold = fold_enabled || fold_only_matches;
+        const bool should_run_cwai = !fold_enabled && cwai_enabled;
+
+        if (!fold_enabled) {
+            if (!fold_only_tags.empty()) {
+                if (cwai_enabled) {
+                    LOG_INFO(::intel_npu::NPUW_FOLD_ONLY().key()
+                             << " is set, so selected-tag FOLD takes precedence over " << ::intel_npu::NPUW_CWAI().key()
+                             << ".");
+                }
+                if (!fold_only_matches) {
+                    LOG_INFO("No repeated subgraphs matched " << ::intel_npu::NPUW_FOLD_ONLY().key()
+                                                              << "; repeated blocks stay unprocessed.");
+                }
+            } else if (!cwai_enabled) {
+                LOG_INFO("Note: Repeated blocks are found in the model " << model->get_friendly_name()
+                                                                         << ", but folding is not enabled");
+            }
+        }
+
+        if (should_run_fold) {
+            run_fold_pipeline();
+        }
+        if (should_run_cwai) {
+            // Selected FOLD families are already converted to funcalls, so CWAI only sees the remainder.
+            run_cwai_pipeline();
         }
     }
     p.finalizeLinks();

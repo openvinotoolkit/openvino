@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov::test::behavior {
 
@@ -26,6 +26,8 @@ public:
 };
 
 using OVPropertiesIncorrectTestsNPU = OVPropertiesTestsNPU;
+
+using OVPropertiesEnvVarTestsNPU = OVPropertiesTestsNPU;
 
 using CompileModelPropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 

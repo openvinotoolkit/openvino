@@ -71,6 +71,7 @@ public:
     size_t size() const;
     void freeze();
     void noFold();
+    void unfreeze();
     bool isFrozen() const;
     bool isNoFold() const;
     const detail::OVNodeSet& getContent() const;
