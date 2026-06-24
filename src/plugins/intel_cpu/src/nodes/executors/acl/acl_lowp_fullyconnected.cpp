@@ -78,7 +78,8 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
-    VERIFY(aclCommonExecutorSupported(config.descs), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    VERIFY(aclCommonExecutorSupported({config.descs.at(ARG_SRC), config.descs.at(ARG_WEI), config.descs.at(ARG_DST)}),
+           UNSUPPORTED_ACL_COMMON_PRECONDITION);
     VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);

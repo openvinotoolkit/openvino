@@ -35,7 +35,7 @@ public:
     [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!aclCommonExecutorSupported(srcDescs, dstDescs)) {
+        if (!aclCommonExecutorSupported({srcDescs[0], dstDescs[0]})) {
             DEBUG_LOG("ACL common preconditions not met");
             return false;
         }

@@ -75,7 +75,8 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
-    VERIFY(aclCommonExecutorSupported(config.descs), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    VERIFY(aclCommonExecutorSupported({config.descs.at(ARG_SRC), config.descs.at(ARG_WEI), config.descs.at(ARG_DST)}),
+           UNSUPPORTED_ACL_COMMON_PRECONDITION);
     VERIFY(any_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(any_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(postOpsNumbers(config) < 2, UNSUPPORTED_NUMBER_OF_POSTOPS);

@@ -87,7 +87,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
         srcDescs[argId - ARG_SRC] = desc;
     }
 
-    if (!aclCommonExecutorSupported(srcDescs, dstDescs)) {
+    if (!aclCommonExecutorSupported({srcDescs[0], dstDescs[0]})) {
         DEBUG_LOG("ACL common preconditions not met");
         return false;
     }
