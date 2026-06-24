@@ -6,7 +6,6 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "arm_isa_support.h"
-
 #    include "openvino/core/except.hpp"
 #    include "openvino/runtime/system_conf.hpp"
 

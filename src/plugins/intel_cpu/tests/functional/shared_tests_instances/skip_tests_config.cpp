@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "snippets/utils.hpp"
 #include "utils/arm_isa_support.h"
 #include "utils/precision_support.h"
-#include "snippets/utils.hpp"
 #if defined(OPENVINO_ARCH_RISCV64)
-#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 #include <string>
 #include <vector>
