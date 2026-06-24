@@ -14,10 +14,11 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
 
 class ConvertKVCacheToPrecision : public ov::pass::ModelPass {
     ov::element::Type m_lp_type;
+    bool m_quantize_q;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertKVCacheToPrecision");
-    explicit ConvertKVCacheToPrecision(const ov::element::Type lptype);
+    explicit ConvertKVCacheToPrecision(const ov::element::Type lptype, bool quantize_q = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 

@@ -59,6 +59,14 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
+bool is_fp8_kv_cache_type(const ov::element::Type& type) {
+    return type == ov::element::f8e4m3 || type == ov::element::f8e5m2 || type == ov::element::f8e8m0;
+}
+
+bool is_integer_kv_cache_type(const ov::element::Type& type) {
+    return type == ov::element::i8 || type == ov::element::u8;
+}
+
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -519,9 +527,10 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
                                                const ::intel_npu::Config& cfg,
                                                ov::AnyMap& other_props) {
     auto kv_kache_storage_type = ov::element::f16;
+    const bool optimize_fp8_enabled = cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>();
 
     // kv-cache-precision changes to fp8 does make sense unconditionally only if LPT passes succesfully applied
-    if (cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>()) {
+    if (optimize_fp8_enabled) {
         kv_kache_storage_type = ov::npuw::optimize_kv_cache_storage(model);
     }
 
@@ -530,6 +539,14 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     // results
     if (kv_cache_precision_hint.has_value()) {
         auto suggested_kv_cache_precision = kv_cache_precision_hint.value().as<ov::element::Type>();
+        const bool keep_fp8_path = optimize_fp8_enabled && is_fp8_kv_cache_type(kv_kache_storage_type) &&
+                                   is_integer_kv_cache_type(suggested_kv_cache_precision);
+        if (keep_fp8_path) {
+            LOG_WARN("Ignoring integer KV-cache precision hint "
+                     << suggested_kv_cache_precision
+                     << " because FP8 FakeConvert path is selected by NPUW_LLM_OPTIMIZE_FP8");
+            return kv_kache_storage_type;
+        }
         if (kv_kache_storage_type != suggested_kv_cache_precision) {
             LOG_WARN("KV-cache precision HINT: " << suggested_kv_cache_precision << " applied");
             kv_kache_storage_type = suggested_kv_cache_precision;
@@ -988,12 +1005,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
         }
     }
+    const bool quantize_q_enabled = m_cfg.get<::intel_npu::NPUW_QUANTIZE_Q>();
     LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, quantize_q_enabled)
+            .run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
-    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, quantize_q_enabled).run_on_model(prefill_model);
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
     if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
@@ -1608,6 +1627,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
+                          BIND(npuw::llm::quantize_q, NPUW_QUANTIZE_Q, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
