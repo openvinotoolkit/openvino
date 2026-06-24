@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"  // OPENVINO_ARCH_* macros used by the guard below
+
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "arm_isa_support.h"
 
