@@ -35,6 +35,9 @@ private:
     std::vector<float> fqInputShift;
     std::vector<float> fqOutputShift;
     std::vector<float> weightScale;
+
+    bool isI8DstF32 = false;
+    bool isU8DstF32 = false;
 };
 
 using ACLConvolutionExecutorPtr = std::shared_ptr<ACLConvolutionExecutor>;

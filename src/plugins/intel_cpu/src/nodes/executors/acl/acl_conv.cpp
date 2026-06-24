@@ -54,6 +54,11 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
 
+    const auto srcPrec = memory.at(ARG_SRC_0)->getDescPtr()->getPrecision();
+    const auto dstPrec = memory.at(ARG_DST)->getDescPtr()->getPrecision();
+    isI8DstF32 = (srcPrec == ov::element::i8 && dstPrec == ov::element::f32);
+    isU8DstF32 = (srcPrec == ov::element::u8 && dstPrec == ov::element::f32);
+
     weightsInfo = arm_compute::WeightsInfo(false, kw, kh, oc, false, arm_compute::WeightFormat::UNSPECIFIED);
     auto paddingLeft = (attrs.paddingL.size() >= 2U) ? attrs.paddingL[1] : attrs.paddingL[0];
     auto paddingRight = (attrs.paddingR.size() >= 2U) ? attrs.paddingR[1] : attrs.paddingR[0];
@@ -184,7 +189,11 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
                                                      padStrideInfo,
                                                      weightsInfo,
                                                      dilation,
-                                                     activationLayerInfo);
+                                                     activationLayerInfo,
+                                                     false, //enable fast math 
+                                                     1, //num_groups
+                                                     isI8DstF32, //use_direct_i8_s8_f32
+                                                     isU8DstF32); //use_direct_u8_u8_f32
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -197,7 +206,11 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       padStrideInfo,
                       weightsInfo,
                       dilation,
-                      activationLayerInfo);
+                      activationLayerInfo,
+                      false, //enable fast math 
+                      1, //num_groups
+                      isI8DstF32, //use_direct_i8_s8_f32
+                      isU8DstF32); //use_direct_u8_u8_f32
     return neConv;
 }
 
