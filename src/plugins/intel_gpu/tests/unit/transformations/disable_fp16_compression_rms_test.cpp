@@ -175,7 +175,7 @@ TEST(TransformationTests, DisableFP16CompForAllRMS_MatMulProducerToRMS) {
         if (op->get_friendly_name() == "rms_downstream") {
             found_rms = true;
             ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "RMS must have FP16 conversion disabled even when its producer is FP16";
+                << "RMS must have FP16 conversion disabled for mixed-precision producer paths";
             ASSERT_EQ(op->get_output_element_type(0), ov::element::f32)
                 << "RMS must stay in FP32";
             ASSERT_EQ(op->get_input_element_type(0), ov::element::f32)
@@ -185,9 +185,9 @@ TEST(TransformationTests, DisableFP16CompForAllRMS_MatMulProducerToRMS) {
             if (ov::as_type_ptr<ov::op::v0::Convert>(producer)) {
                 auto convert = ov::as_type_ptr<ov::op::v0::Convert>(producer);
                 ASSERT_EQ(convert->get_input_element_type(0), ov::element::f16)
-                    << "If RMS input is converted, Convert must be f16->f32";
+                    << "If RMS input is explicitly converted, Convert must be f16->f32";
                 ASSERT_EQ(convert->get_output_element_type(0), ov::element::f32)
-                    << "If RMS input is converted, Convert output must be f32";
+                    << "If RMS input is explicitly converted, Convert output must be f32";
 
                 const auto upstream = convert->get_input_node_shared_ptr(0);
                 ASSERT_EQ(upstream->get_friendly_name(), "matmul_producer")
