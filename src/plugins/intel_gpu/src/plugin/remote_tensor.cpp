@@ -324,7 +324,10 @@ void RemoteTensorImpl::allocate() {
         } else if (engine.supports_allocation(cldnn::allocation_type::sycl_buffer)) {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::sycl_buffer, reset);
         } else {
-            OPENVINO_THROW("[GPU] Can't allocate buffer as engine does not support cl_mem or sycl_buffer allocation types");
+            // Fall back to usm_host and override memory type
+            GPU_DEBUG_INFO << "[Warning] [GPU] Could not allocate cl_mem, using usm_host allocation instead\n";
+            m_mem_type = TensorType::BT_USM_HOST_INTERNAL;
+            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
         }
         break;
     }
