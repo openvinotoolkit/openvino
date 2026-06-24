@@ -23,9 +23,9 @@ public:
     void initialize() override;
     bool is_initialized() const override;
 
-    const ze_driver_resource& get_driver() const { return _driver; }
-    const ze_device_resource& get_device() const { return _device; }
-    const ze_context_resource& get_context() const { return _context; }
+    ze_driver_resource get_driver() const { return _driver; }
+    ze_device_resource get_device() const { return _device; }
+    ze_context_resource get_context() const { return _context; }
 
     bool is_same(const device::ptr other) override;
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
