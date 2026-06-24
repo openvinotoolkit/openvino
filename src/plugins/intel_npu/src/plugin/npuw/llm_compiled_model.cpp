@@ -1083,32 +1083,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config["NPUW_FALLBACK_EXEC"] = "NO";
     }
 
-    if (is_moe) {
-        // Apply MoE configuration for prefill stage
-        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
-
-        // Apply MoE configuration for generate stage
-        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
-
-        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
-        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
-        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
-        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
-        for (auto&& model_variant : generate_model_variants) {
-            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
-        }
-
-        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
-            // transformations)
-            for (auto&& model_variant : generate_model_variants) {
-                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
-            }
-        }
-    }
-
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
         if (is_int8_compressed(model)) {
@@ -1149,6 +1123,32 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    if (is_moe) {
+        // All MoE-specific config and model transforms are applied here, after RopeCache but
+        // BEFORE RegularizeSDPA, because:
+        //   1. RopeCache needs ShapeOf→Gather→Concat intact; FoldShapeComputeChain folds it after.
+        //   2. ApplyMoEDeviceRoutedTransforms must run before RegularizeSDPA modifies SDPA nodes,
+        //      otherwise topological sort detects a cycle in the router subgraph.
+        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
+
+        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
+
+        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) before online partitioning.
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        for (auto&& model_variant : generate_model_variants) {
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+        }
+
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            // PREFILL doesn't support DEVICE_ROUTED transformations
+            for (auto&& model_variant : generate_model_variants) {
+                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
+            }
+        }
+    }
+
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
@@ -1162,21 +1162,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Compile multiple generate model variants with different sizes
-    // DBG: dump final effective config keys relevant to online partitioning / attention isolation
-    {
-        auto dump_key = [](const ov::AnyMap& cfg, const std::string& key, const std::string& label) {
-            auto it = cfg.find(key);
-            std::cout << "[LLM_CFG] " << label << " " << key << " = "
-                      << (it != cfg.end() ? it->second.as<std::string>() : "(not set)") << std::endl;
-        };
-        dump_key(prefill_config, "NPUW_ONLINE_PIPELINE", "PREFILL");
-        dump_key(prefill_config, "NPUW_ONLINE_ISOLATE", "PREFILL");
-        dump_key(prefill_config, "NPUW_ATTN", "PREFILL");
-        dump_key(generate_config, "NPUW_ONLINE_PIPELINE", "GENERATE");
-        dump_key(generate_config, "NPUW_ONLINE_ISOLATE", "GENERATE");
-        dump_key(generate_config, "NPUW_ATTN", "GENERATE");
-        dump_key(generate_config, "NPUW_UNFOLD_IREQS", "GENERATE");
-    }
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
