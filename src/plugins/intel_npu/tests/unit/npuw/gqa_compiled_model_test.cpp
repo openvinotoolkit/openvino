@@ -276,7 +276,7 @@ TEST_F(GQACompiledModelTest, AddsExpectedNpuwDefaultsBeforeInnerCompilation) {
     EXPECT_EQ(call.props.count("NPUW_UNFOLD_IREQS"), 0u);
 }
 
-TEST_F(GQACompiledModelTest, SkipsAttnIsolationDefaultsForGenerateStyleModels) {
+TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
@@ -291,8 +291,8 @@ TEST_F(GQACompiledModelTest, SkipsAttnIsolationDefaultsForGenerateStyleModels) {
     EXPECT_EQ(call.props.at("NPUW_UNQDQ").as<std::string>(), "YES");
     EXPECT_EQ(call.props.at("NPUW_FUNCALL_ASYNC").as<std::string>(), "YES");
     EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "YES");
+    EXPECT_EQ(call.props.at("NPUW_FOLD_ONLY").as<std::string>(), "attn");
     EXPECT_EQ(call.props.count("NPUW_ONLINE_ISOLATE"), 0u);
-    EXPECT_EQ(call.props.count("NPUW_FOLD_ONLY"), 0u);
     EXPECT_EQ(call.props.count("NPUW_ATTN"), 0u);
     EXPECT_EQ(call.props.count("NPUW_ONLINE_KEEP_BLOCK_SIZE"), 0u);
 }
