@@ -27,23 +27,6 @@ namespace ov::pass {
 
 namespace {
 
-bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs,
-                                    const std::shared_ptr<v0::FakeQuantize>& rhs) {
-    if (!lhs || !rhs || lhs->get_levels() != rhs->get_levels() ||
-        lhs->get_auto_broadcast() != rhs->get_auto_broadcast()) {
-        return false;
-    }
-
-    for (size_t index = 1; index < lhs->get_input_size(); ++index) {
-        if (!ov::compare_constants(lhs->input_value(index).get_node_shared_ptr(),
-                                   rhs->input_value(index).get_node_shared_ptr())) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 bool is_value_preserving(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
            ov::is_type<op_util::SqueezeBase>(node) || ov::is_type<v0::Unsqueeze>(node);
@@ -73,7 +56,7 @@ bool FakeQuantizeEliminateSequential::run_on_model(const std::shared_ptr<ov::Mod
             if (shared_node == fq1 || is_value_preserving(shared_node)) {
                 return false;
             }
-            return !have_same_fake_quantize_params(fq1, ov::as_type_ptr<v0::FakeQuantize>(shared_node));
+            return !op_util::have_same_fake_quantize_params(fq1, ov::as_type_ptr<v0::FakeQuantize>(shared_node));
         };
         auto collect_redundant_fq = [&](ov::Node* node) {
             if (auto fq2 = ov::as_type_ptr<v0::FakeQuantize>(node->shared_from_this()); fq2 && fq2 != fq1) {
