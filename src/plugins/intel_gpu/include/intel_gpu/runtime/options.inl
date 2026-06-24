@@ -53,6 +53,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, partial_build_program, false, "
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_new_shape_infer, false, "Switch between new and old shape inference flow. Shall be removed soon")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_onednn, false, "Enable/Disable onednn for usage for particular model/platform")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_onednn_sdpa_primitive, false, "Enable/Disable preview oneDNN SDPA primitive implementation")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, disable_sdpa_micro, false, "Disable oneDNN-derived SDPA micro kernel and fall back to the OCL sdpa_opt kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_cm, true, "Enable/Disable CM for usage for particular model/platform")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")

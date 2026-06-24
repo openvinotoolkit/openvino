@@ -135,6 +135,7 @@ static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_r
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
 static constexpr Property<bool, PropertyMutability::RW> enable_onednn_sdpa_primitive{"GPU_ENABLE_ONEDNN_SDPA_PRIMITIVE"};
+static constexpr Property<bool, PropertyMutability::RW> disable_sdpa_micro{"GPU_DISABLE_SDPA_MICRO"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};

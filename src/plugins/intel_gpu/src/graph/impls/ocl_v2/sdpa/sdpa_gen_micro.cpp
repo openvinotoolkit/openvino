@@ -18,6 +18,11 @@
 #include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
+
+#include <iostream>
+#include <set>
+#include <sstream>
+#include <string>
 // clang-format on
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -437,12 +442,40 @@ sdpa_config_t xe2_q_h256_s768_2nd_integrated = {64, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe2_q_h256_s512_2nd_integrated = {32, 32, 32, 16, 16, 1, 8, 2};
 sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xe3_h128 = {32, 16, 32, 16, 16, 2, 16, 2};
-sdpa_config_t xe3_h256 = {32, 16, 32, 16, 16, 2, 16, 2};
+// xe3p configs synced from oneDNN tuned table
+// (thirdparty/onednn_gpu/src/gpu/intel/sdpa/configs.cpp, gpu_arch_t::xe3p entries).
+// ALL oneDNN xe3p rows are represented here, INCLUDING the ones oneDNN tags with the
+// `fma` property. fma is oneDNN-internal (it selects the non-systolic GEMM path); the
+// OV micro SDPA path has no fma notion and choose_config_xe3p has no fma argument, so
+// we IGNORE the fma tag and just reuse those rows' tuned tile configs. (We still drop
+// the `f32` rows: those stay gated on the f32 property, which OV f16 SDPA never sets.)
+// choose_config_xe3p() below reproduces oneDNN's head_size CEILING match + exact
+// second_token/quantized match + xe3p->xe2 fallback over the fma-folded row set.
+//
+// Verbatim oneDNN xe3p rows (fma tag ignored; config = {unroll_m_kq,unroll_n_kq,
+//   unroll_m_vs,unroll_n_vs, wg_m_kq,wg_n_kq,wg_m_vs,wg_n_vs}):
+//   {xe3p, 32, fma}                              -> xe3p_h32
+//   {xe3p, 32, fma|2nd|quant}                    -> xe3p_h32 (same config)
+//   {xe3p, 64, fma|2nd}  {xe3p,64,fma|2nd|quant} -> xe3p_h64_2nd
+//   {xe3p,128}           {xe3p,128,quant}        -> xe3p_h128
+//   {xe3p,128,2nd}       {xe3p,128,2nd|quant}    -> xe3p_h128_2nd
+//   {xe3p,256,2nd}       {xe3p,256,2nd|quant}    -> xe3p_h256_2nd
+//   {xe3p,256,quant}                             -> xe3p_q_h256
+//   {xe3p,512}                                   -> xe3p_h512
+//   {xe3p,512,2nd}                               -> xe3p_h512_2nd
+//   {xe3p,512,2nd|quant} {xe3p,512,fma|quant}    -> xe3p_q_h512_2nd (same config)
+sdpa_config_t xe3p_h32 = {16, 16, 16, 16, 2, 2, 2, 2};
+sdpa_config_t xe3p_h64_2nd = {16, 16, 16, 16, 8, 4, 8, 4};
 
-sdpa_config_t xe3_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
-sdpa_config_t xe3_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
-sdpa_config_t xe3_q_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3p_h128 = {32, 32, 32, 32, 4, 4, 4, 4};
+sdpa_config_t xe3p_h128_2nd = {32, 32, 32, 32, 4, 1, 4, 1};
+
+sdpa_config_t xe3p_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
+sdpa_config_t xe3p_q_h256 = {32, 32, 32, 32, 8, 2, 8, 2};
+
+sdpa_config_t xe3p_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xe3p_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3p_q_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
 
 sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
@@ -794,22 +827,65 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
 sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+    // Faithful port of oneDNN's data-driven choose_config for gpu_arch_t::xe3p
+    // (thirdparty/onednn_gpu/src/gpu/intel/sdpa/configs.cpp). oneDNN does a CEILING
+    // match on head_size (query.head_size <= key.head_size, smallest bucket that
+    // fits), exact match on the second_token/quantized properties, then falls back
+    // xe3p -> xe3 -> xe2 (there are no xe3 rows, so a miss lands on the xe2 table =
+    // choose_config_xe2 here).
+    //
+    // !!! fma is IGNORED (folded in, not dropped): oneDNN tags some xe3p rows with
+    // the `fma` property (its non-systolic GEMM path), but the OV micro SDPA path
+    // has no fma notion and choose_config_xe3p has no fma argument. Rather than let
+    // those rows go unmatched, we reuse their tuned tile configs as the xe3p config
+    // for that (head_size, thin_q, quantized) bucket. (The `f32`-tagged rows ARE
+    // still skipped -- OV f16 SDPA never sets f32.) This is why head_size 32/64 now
+    // have their own configs instead of falling through to h128.
+    //
+    // Resolved per (head_size ceiling bucket, thin_q, quantized), fma folded:
+    //   hs<=32  : plain -> h32 ; quant -> h128 (no fma|quant-plain row -> ceiling
+    //             to {xe3p,128,quant}) ; 2nd -> h64_2nd (no fma|2nd-plain hs32 row
+    //             -> ceiling to {xe3p,64,fma|2nd}) ; 2nd|quant -> h32
+    //   hs<=64  : plain -> h128 (no hs64 plain row -> ceiling to {xe3p,128}) ;
+    //             quant -> h128 ; 2nd/2nd|quant -> h64_2nd
+    //   hs<=128 : plain/quant -> h128 ; 2nd/2nd|quant -> h128_2nd
+    //   hs<=256 : quant -> q_h256 ; 2nd/2nd|quant -> h256_2nd ;
+    //             plain has NO xe3p-256 row -> ceiling to {xe3p,512} plain (h512)
+    //   hs<=512 : plain -> h512 ; 2nd -> h512_2nd ; quant|2nd / plain|quant
+    //             (via {xe3p,512,fma|quant}) -> q_h512_2nd
+    //   hs>512  : no xe3p row -> fall back to xe2
+	if(!is_pa) {
+    if (head_size <= 32) {
+        if (thin_q)
+            return quantized ? &xe3p_h32 : &xe3p_h64_2nd;
+        return quantized ? &xe3p_h128 : &xe3p_h32;
+    }
+    if (head_size <= 64) {
+        if (thin_q)
+            return &xe3p_h64_2nd;  // {xe3p,64, fma|2nd} and {fma|2nd|quant}
+        return &xe3p_h128;         // no {xe3p,64} plain/quant -> ceiling to {xe3p,128}
+    }
     if (head_size <= 128) {
-        return &xe3_h128;
+        if (thin_q)
+            return &xe3p_h128_2nd;  // {xe3p,128, 2nd} and {2nd|quant}
+        return &xe3p_h128;          // {xe3p,128} and {quant}
     }
     if (head_size <= 256) {
-        return &xe3_h256;
-        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+        if (thin_q)
+            return &xe3p_h256_2nd;  // {xe3p,256, 2nd} and {2nd|quant}
+        if (quantized)
+            return &xe3p_q_h256;    // {xe3p,256, quant}
+        // No {xe3p,256} plain row -> head_size ceiling matches {xe3p,512} plain.
+        return &xe3p_h512;
     }
     if (head_size <= 512) {
-        if (thin_q) {
-            if (quantized) {
-                return &xe3_q_h512_2nd;
-            }
-            return &xe3_h512_2nd;
-        }
-        return &xe3_h512;
+        if (thin_q)
+            return quantized ? &xe3p_q_h512_2nd : &xe3p_h512_2nd;  // {512,2nd}/{512,2nd|quant}
+        if (quantized)
+            return &xe3p_q_h512_2nd;  // {xe3p,512, fma|quant} (fma folded; same config)
+        return &xe3p_h512;            // {xe3p,512} plain
     }
+	}
     return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
 
@@ -1544,6 +1620,24 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     OPENVINO_ASSERT(config != nullptr);
 
+    // [choose_config args dump] all 7 inputs to choose_config_xe3p + the resolved 8-field config.
+    // Field order matches oneDNN fwd_config_t: {unroll_m_kq, unroll_n_kq, unroll_m_vs, unroll_n_vs, wg_m_kq, wg_n_kq, wg_m_vs, wg_n_vs}.
+    // Unconditional (no OV_GPU_Verbose needed) but DEDUPED to one line per distinct arg-tuple to avoid
+    // log spam (this is called per-layer-per-iteration). The whole fn runs under lock `m`, so the static
+    // seen-set needs no extra synchronization.
+    {
+        std::ostringstream oss;
+        oss << "[choose_config arch=" << static_cast<int>(device_info.arch) << "] head_size=" << static_cast<int32_t>(k_head_size)
+            << " seq=" << nkeys_v << " thin_q=" << thin_q << " quantized=" << is_quantized << " is_integrated=" << is_integrated
+            << " is_pa=" << is_paged_attention << " is_prefill=" << is_prefill << " is_gqa_single_token=" << is_gqa_single_token
+            << " => config={" << config->unroll_m_kq << "," << config->unroll_n_kq << "," << config->unroll_m_vs << ","
+            << config->unroll_n_vs << "," << config->wg_m_kq << "," << config->wg_n_kq << "," << config->wg_m_vs << ","
+            << config->wg_n_vs << "}";
+        static std::set<std::string> seen_choose_config;
+        if (seen_choose_config.insert(oss.str()).second)
+            std::cout << oss.str() << std::endl;
+    }
+
     /* Get device information */
     micro::HWInformation hw_info;
     hw_info.euCount = device_info.execution_units_count;
@@ -1826,6 +1920,48 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
+    }
+
+    // [selected microkernel dump] The 8-field choose_config struct is only a TUNING HINT; the ACTUAL
+    // generated microkernel is what select_gemm_microkernel() resolved (it can differ between models that
+    // share the same config struct -- e.g. phi head_size=96 and llama head_size=128 both resolve to
+    // xe3p_h128 {32,32,32,32,4,4,4,4} yet build DIFFERENT kernels because k_head_size/d_max/problem sizes
+    // differ). This logs the per-GEMM selected strategy (Package settings) so we can see what really runs.
+    // Deduped to one line per distinct tuple (called per-layer-per-iter); fn runs under lock `m`.
+    {
+        // getSetting() throws on an unknown key -- wrap it so a missing setting prints -1 instead of aborting.
+        auto setting_or = [](const micro::Package& pkg, const char* name) -> int {
+            try {
+                return pkg.getSetting(name);
+            } catch (const std::runtime_error&) {
+                return -1;
+            }
+        };
+        // micro::Type encodes its value as a bitfield (raw int is unreadable) -> print bit width + kind.
+        auto fmt_type = [](micro::Type t) -> std::string {
+            std::string k = t.is4() ? "i4" : (t.isInteger() ? "int" : "fp");
+            return std::to_string(t.bits()) + (t.isInteger() && !t.isSigned() ? "u" : "") + k;
+        };
+        auto fmt_pkg = [&](std::ostringstream& o, const micro::Package& pkg) {
+            o << "sg_tile=" << setting_or(pkg, "sg_tile_m") << "x" << setting_or(pkg, "sg_tile_n")
+              << " wg_tile=" << setting_or(pkg, "wg_tile_m") << "x" << setting_or(pkg, "wg_tile_n")
+              << " sg_per_wg=" << setting_or(pkg, "sg_per_wg_m") << "x" << setting_or(pkg, "sg_per_wg_n")
+              << "x" << setting_or(pkg, "sg_per_wg_k") << " slm=" << setting_or(pkg, "slm_size")
+              << " systolic=" << pkg.systolic << " grfMin=" << pkg.grfMin << " barriers=" << pkg.barrierCount;
+        };
+        std::ostringstream oss;
+        oss << "[micro_selected arch=" << static_cast<int>(device_info.arch) << "] head_size=" << static_cast<int32_t>(k_head_size)
+            << " v_head_size=" << static_cast<int32_t>(v_head_size) << " d_max=" << d_max
+            << " is_pa=" << is_paged_attention << " is_prefill=" << is_prefill << " thin_q=" << thin_q
+            << " quantized=" << is_quantized
+            << " | KQ{Ta_ext=" << fmt_type(problem_kq.Ta_ext) << " Tb_ext=" << fmt_type(problem_kq.Tb_ext) << " ";
+        fmt_pkg(oss, gemm_kq);
+        oss << "} | VS{Ta_ext=" << fmt_type(problem_vs.Ta_ext) << " ";
+        fmt_pkg(oss, gemm_vs);
+        oss << "}";
+        static std::set<std::string> seen_micro_selected;
+        if (seen_micro_selected.insert(oss.str()).second)
+            std::cout << oss.str() << std::endl;
     }
 
     if (!is_prefill && !is_gqa_single_token) {

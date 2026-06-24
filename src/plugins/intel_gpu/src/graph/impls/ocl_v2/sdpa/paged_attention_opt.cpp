@@ -11,7 +11,9 @@
 
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include <memory>
+#include <mutex>
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
@@ -1360,6 +1362,19 @@ public:
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
+
+        // Knob (OV_GPU_DISABLE_SDPA_MICRO=1): force PagedAttention onto the OCL sdpa_opt path
+        // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
+        if (params.get_program().get_config().get_disable_sdpa_micro()) {
+            // Print once — this is queried per PA layer per token, so unconditional logging
+            // floods the output with thousands of identical lines.
+            static std::once_flag once;
+            std::call_once(once, [] {
+                std::cout << "[GPU] PA micro SDPA kernel DISABLED via OV_GPU_DISABLE_SDPA_MICRO; "
+                             "falling back to OCL paged_attention/sdpa_opt kernel." << std::endl;
+            });
+            return false;
+        }
 
         if (params.get_device_info().supports_immad) {
             const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
