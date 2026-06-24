@@ -232,6 +232,20 @@ bool is_all_core_auto_case(const ov::MemBandwidthPressure& tolerance) {
            tolerance.ratio_compute_convs > 0.33F && tolerance.total_gemms == 0.0F;
 }
 
+bool is_all_core_auto_case_small_conv_exclusion_profile(const ov::MemBandwidthPressure& tolerance,
+                                float lp_ecore_share) {
+    using namespace ThreadPreferenceConstants;
+    return lp_ecore_share < LP_ECORE_SHARE_HIGH &&
+        tolerance.total_nodes > 0 && tolerance.total_convs > 0 &&
+        tolerance.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN &&
+        tolerance.ratio_compute_convs == 1.0F && tolerance.ratio_mem_limited_convs == 0.0F &&
+        tolerance.total_gemms == 0.0F && tolerance.ratio_mem_limited_adds > 0.7F &&
+        static_cast<float>(tolerance.total_convs) <=
+            CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes) &&
+        static_cast<float>(tolerance.total_heavy_convs) <=
+            CONV_RATIO_VERY_LOW * static_cast<float>(tolerance.total_convs);
+}
+
 bool is_all_core_auto_case_high_lp_share_relaxed_profile(const ov::MemBandwidthPressure& tolerance,
                                  float lp_ecore_share) {
     using namespace ThreadPreferenceConstants;
@@ -307,7 +321,9 @@ void determine_tbb_partitioner_and_threads(Config& config,
          is_all_core_auto_case_high_lp_share_vision_profile(tolerance, lp_ecore_share) ||
          is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
          is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
-         is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) || is_all_core_auto_case(tolerance))) {
+         is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) ||
+         (is_all_core_auto_case(tolerance) &&
+          !is_all_core_auto_case_small_conv_exclusion_profile(tolerance, lp_ecore_share)))) {
         config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
                                            proc_type_table[0][EFFICIENT_CORE_PROC] +
                                            proc_type_table[0][LP_EFFICIENT_CORE_PROC];
