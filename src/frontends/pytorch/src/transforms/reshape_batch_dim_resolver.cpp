@@ -4,6 +4,7 @@
 
 #include "reshape_batch_dim_resolver.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -141,6 +142,55 @@ std::optional<int64_t> resolve_static_last_dim(const Output<Node>& data,
     return std::nullopt;
 }
 
+// Value-preservation guard for the DIRECT path (the channel was recovered from the reshape's own data
+// last dimension, i.e. data's last dim is static). Pinning the trailing `-1` to data's last dim and
+// freeing the leading dim to `-1` is value-preserving ONLY when the rewrite merely re-partitions data's
+// leading dimension and keeps data's entire trailing block intact -- exactly the first window-reverse view
+// (`data [?,8,8,180]` -> `[B, H//ws, W//ws, 8, 8, 180]`, whose output trailing dims `[8,8,180]` equal data's
+// trailing dims). It is NOT value-preserving for ordinary reshapes whose `-1` spans more than data's last
+// dim, e.g. a head-merge `Linear(D,D)` then `view(1, T//2, -1)` on data `[?,?,D]` (here `-1 == 2*D != D`):
+// those corrupt the result even at the traced batch. We require: data rank >= 2 and static; the shape
+// vector has at least one leading dim to absorb the freed batch (size >= data rank); and its trailing
+// (rank-1) elements statically equal data's dims [1 .. rank-1] (constant kept dims match data's static
+// dims; the trailing `-1` channel matches data's static last dim). When this cannot be proven the rewrite
+// is skipped. (The walk-back path -- the second window-reverse view, whose data is the fully dynamic
+// permuted output of the first view -- does not take this guard; its channel is resolved structurally
+// through a last-axis-preserving transpose to an already-validated upstream view.)
+bool keeps_data_trailing_block(const std::shared_ptr<v1::Reshape>& reshape,
+                               const std::shared_ptr<v0::Concat>& concat,
+                               int64_t channel) {
+    const auto& data_ps = reshape->input_value(0).get_partial_shape();
+    if (data_ps.rank().is_dynamic())
+        return false;
+    const int64_t rank = data_ps.rank().get_length();
+    if (rank < 2)
+        return false;
+
+    const auto& shape_inputs = concat->input_values();
+    const auto m = static_cast<int64_t>(shape_inputs.size());
+    // Need at least one leading dim (beyond the preserved trailing block) to absorb the freed batch.
+    if (m < rank)
+        return false;
+
+    // The last (rank-1) shape elements must map to data dims [1 .. rank-1]; element at index
+    // (m - rank + j) corresponds to data dim j.
+    for (int64_t j = 1; j < rank; ++j) {
+        const auto& data_dim = data_ps[static_cast<std::ptrdiff_t>(j)];
+        if (data_dim.is_dynamic())
+            return false;
+        const auto& shape_elem = shape_inputs[static_cast<size_t>(m - rank + j)];
+        if (j == rank - 1) {
+            // The trailing channel slot (the `-1`) is pinned to `channel`; it must equal data's last dim.
+            if (channel != data_dim.get_length())
+                return false;
+        } else if (!is_scalar_constant_with_value(shape_elem, data_dim.get_length())) {
+            // A kept interior dim must be a constant equal to data's corresponding (static) dim.
+            return false;
+        }
+    }
+    return true;
+}
+
 // Rebuild the shape vector for THIS reshape's own data (the concat may be shared between blocks, so we
 // must not edit it in place):
 //   leading batch -> -1                       (inferred from the real element count)
@@ -179,6 +229,25 @@ void rewrite_reshape(const std::shared_ptr<v1::Reshape>& reshape,
 }  // namespace
 
 bool ReshapeBatchDimResolver::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    // Cheap structural pre-scan: the structural gates inspect only the shape Concat's axis and constant
+    // elements -- never an inferred PartialShape -- so they need no shape inference. If no reshape carries
+    // the window-reverse signature (the common case for the vast majority of converted models) we return
+    // immediately, skipping the full-model validation below entirely.
+    const auto matches_signature = [](const std::shared_ptr<Node>& op) {
+        auto reshape = ov::as_type_ptr<v1::Reshape>(op);
+        if (!reshape)
+            return false;
+        auto concat = ov::as_type_ptr<v0::Concat>(reshape->input_value(1).get_node_shared_ptr());
+        return concat && passes_structural_gates(reshape, concat);
+    };
+    const auto& ordered_ops = model->get_ordered_ops();
+    if (std::none_of(ordered_ops.begin(), ordered_ops.end(), matches_signature))
+        return false;
+
+    // A candidate exists: make sure the shapes the walk-back keys on (a statically-known data last
+    // dimension, e.g. [?,8,8,180]) are materialized before resolving. In the normalize() pipeline the
+    // preceding pass already triggers a Validate, but this keeps the pass self-contained and correct if it
+    // is ever run standalone or after a non-validating pass.
     model->validate_nodes_and_infer_types();
 
     struct PendingRewrite {
@@ -191,10 +260,11 @@ bool ReshapeBatchDimResolver::run_on_model(const std::shared_ptr<ov::Model>& mod
     std::vector<PendingRewrite> pending;
     std::unordered_map<const Node*, int64_t> pending_channel;
 
-    // PHASE 1 -- COLLECT. get_ordered_ops() is topological (producers before consumers), so the first
+    // PHASE 1 -- COLLECT. ordered_ops is topological (producers before consumers), so the first
     // window-reverse view is recorded before the second one is examined, letting the second resolve its
-    // channel through the recorded first.
-    for (const auto& op : model->get_ordered_ops()) {
+    // channel through the recorded first. validate_nodes_and_infer_types() above only re-inferred shapes
+    // on these same nodes; it did not change the node set, so the captured order is still valid.
+    for (const auto& op : ordered_ops) {
         auto reshape = ov::as_type_ptr<v1::Reshape>(op);
         if (!reshape)
             continue;
@@ -220,6 +290,19 @@ bool ReshapeBatchDimResolver::run_on_model(const std::shared_ptr<ov::Model>& mod
             if (out_last.is_static() && out_last.get_length() != *channel)
                 continue;
         }
+
+        // Stronger guard for the DIRECT path (channel recovered from data's OWN static last dim). When the
+        // output last dim is dynamic the cheap guard above is vacuous, so an ordinary reshape whose `-1`
+        // spans more than data's last dim (e.g. `Linear(D,D)` then `view(1, T//2, -1)`, `-1 == 2*D`) would
+        // slip through and corrupt the result even at the traced batch. Require the rewrite to merely
+        // re-partition data's leading dim and keep data's entire trailing block (the genuine window-reverse
+        // semantics). The walk-back path (data last dim dynamic -- the second view) is exempt: its channel
+        // is resolved structurally through the permute to an already-validated upstream view.
+        const auto& data_ps = reshape->input_value(0).get_partial_shape();
+        const bool direct_path = data_ps.rank().is_static() && data_ps.size() > 0 &&
+                                 data_ps[static_cast<std::ptrdiff_t>(data_ps.size()) - 1].is_static();
+        if (direct_path && !keeps_data_trailing_block(reshape, concat, *channel))
+            continue;
 
         pending.push_back({reshape, concat, *channel});
         pending_channel.emplace(reshape.get(), *channel);

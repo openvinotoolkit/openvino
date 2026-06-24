@@ -32,6 +32,17 @@ namespace pass {
 /// rewritten shape reproduces the original element count; after `model.reshape` it tracks the real
 /// batch.
 ///
+/// Two value-preservation guards keep the rewrite from corrupting ordinary reshapes that happen to
+/// share the structural signature:
+///   1. If the reshape's output last dim is statically known, it must equal the recovered channel.
+///   2. (Direct path only — the channel was recovered from the data's OWN static last dim.) When the
+///      output last dim is dynamic, guard 1 is vacuous, so a reshape whose `-1` spans more than data's
+///      last dim — e.g. `Linear(D, D)` then `view(1, T//2, -1)` (here `-1 == 2*D`, a head-merge over a
+///      static-`D` tensor with a dynamic interior) — would otherwise be rewritten and corrupt the result
+///      even at the traced batch. Guard 2 requires the rewrite to merely re-partition data's leading
+///      dimension and keep data's entire trailing block (output trailing `rank_data-1` dims equal data's
+///      trailing dims), which is exactly the window-reverse semantics and rejects merge/split reshapes.
+///
 /// This is a ModelPass rather than a MatcherPass because window-reverse uses two chained views:
 /// the second view (`view(B, H, W, -1)`) takes its data from the first view (`view(B, ..., -1)`)
 /// through a permute, so its data last dimension is dynamic at the time the pass runs and OV shape

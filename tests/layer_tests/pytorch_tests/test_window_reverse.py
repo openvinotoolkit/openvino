@@ -262,3 +262,212 @@ class TestReshapeFalsePositiveNotFired:
         eps = 1e-4 if precision == "FP32" else 5e-2
         assert ov_out.shape == ref.shape, f"shape mismatch ov={ov_out.shape} ref={ref.shape}"
         assert np.isclose(ov_out, ref, atol=eps, rtol=eps).all()
+
+
+class TestReshapeResolverBatch1Safety:
+    """The pass runs in normalize() on EVERY converted PyTorch model, so it must never
+    change the result at the traced batch. These models have the structural signature
+    the pass keys on -- a literal leading batch constant, a dynamic interior dim, a
+    single trailing -1 -- AND a STATIC data last dim (from a Linear), but the trailing
+    -1 spans MORE than data's last dimension, so pinning the channel to data's last dim
+    and freeing the batch would corrupt the output even at batch=1.
+
+    A `Linear(D, D)` gives a static last dim D; `reshape(1, T//2, -1)` makes -1 == 2*D
+    (a head-merge) and `reshape(1, T*2, -1)` makes -1 == D//2 (a head-split). The
+    earlier guard (output-channel-static) is vacuous here because the output last dim is
+    DYNAMIC, so without the trailing-block guard the pass fired and corrupted batch=1.
+    The hardened pass must NOT rewrite these and must match torch at the traced batch."""
+
+    class HeadMerge(torch.nn.Module):
+        def __init__(self, d):
+            super().__init__()
+            self.proj = torch.nn.Linear(d, d)
+
+        def forward(self, x):
+            # x: (B, T, D) with T even. -1 == 2*D, data last dim == D. interior T//2 dynamic.
+            x = self.proj(x)
+            T = x.shape[1]
+            return x.reshape(1, T // 2, -1)
+
+    class HeadSplit(torch.nn.Module):
+        def __init__(self, d):
+            super().__init__()
+            self.proj = torch.nn.Linear(d, d)
+
+        def forward(self, x):
+            # x: (B, T, D) with D even. -1 == D//2, data last dim == D. interior T*2 dynamic.
+            x = self.proj(x)
+            T = x.shape[1]
+            return x.reshape(1, T * 2, -1)
+
+    @pytest.mark.parametrize("model_cls,shape,d", [(HeadMerge, (1, 4, 8), 8), (HeadSplit, (1, 4, 8), 8)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_traced_batch_not_corrupted(self, model_cls, shape, d, ie_device, precision):
+        model = model_cls(d).eval()
+        example = torch.randn(*shape)
+        with torch.no_grad():
+            om = convert_model(model, example_input=example)
+
+        # Structural: the trailing-block guard must reject these -- the pass must not fire.
+        assert not _has_rewritten_reshape(om), (
+            f"{model_cls.__name__}: ReshapeBatchDimResolver fired on an ordinary reshape"
+        )
+
+        np_in = np.random.randn(*shape).astype(np.float32)
+        with torch.no_grad():
+            ref = model(torch.from_numpy(np_in)).numpy()
+        config = {}
+        if precision == "FP32":
+            config[hints.inference_precision] = Type.f32
+        compiled = Core().compile_model(om, ie_device, config)
+        ov_out = np.asarray(compiled(np_in)[compiled.output(0)], dtype=np.float32)
+        eps = 1e-4 if precision == "FP32" else 5e-2
+        assert ov_out.shape == ref.shape, f"shape mismatch ov={ov_out.shape} ref={ref.shape}"
+        assert np.isclose(ov_out, ref, atol=eps, rtol=eps).all()
+
+
+class TestReshapeResolverIdempotent:
+    """The rewrite turns the leading baked-batch Constant into Constant(-1). Re-running
+    conversion (and thus the pass) must not re-fire or otherwise change the structure:
+    a Constant(-1) leading element fails the positive-int leading gate, so the pass is a
+    fixed point. Converting twice must yield the same rewrite fingerprint exactly once."""
+
+    @pytest.mark.parametrize("window_size,H,W,C,embed_dim", [(8, 16, 16, 6, 12)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_idempotent(self, window_size, H, W, C, embed_dim, ie_device, precision):
+        def convert():
+            m = WindowReverseModel(window_size, C, embed_dim).eval()
+            example = torch.randn(1, C, H, W)
+            with torch.no_grad():
+                return convert_model(m, example_input=example)
+
+        om1 = convert()
+        om2 = convert()
+        # The fix fired on both conversions (the rewrite fingerprint is present)...
+        assert _has_rewritten_reshape(om1)
+        assert _has_rewritten_reshape(om2)
+        # ...and produced the SAME count of rewritten reshapes (no double-fire / drift).
+        def count_rewrites(om):
+            n = 0
+            for node in om.get_ordered_ops():
+                if node.get_type_info().name != "Reshape":
+                    continue
+                src = node.input_value(1).get_node()
+                if src.get_type_info().name != "Concat":
+                    continue
+                elems = [src.input_value(i).get_node() for i in range(len(src.inputs()))]
+                if len(elems) < 2:
+                    continue
+
+                def cs(n):
+                    if n.get_type_info().name != "Constant":
+                        return None
+                    v = n.data.flatten()
+                    return int(v[0]) if v.size == 1 else None
+
+                if cs(elems[0]) == -1 and (cs(elems[-1]) or 0) > 0:
+                    n += 1
+            return n
+
+        assert count_rewrites(om1) == count_rewrites(om2), "rewrite count differs across conversions"
+
+
+class TestWindowReverseDynamicChannel:
+    """Coverage-boundary test: when the window channel is DYNAMIC (no projection to a
+    fixed embed_dim -- the channel flows from the input), the resolver cannot recover
+    the channel by walking back to a static last dim, so the pass deliberately does NOT
+    fire. This documents the (intended) scope of the static-channel resolver: it fixes
+    the SwinIR case (static embed_dim) and leaves dynamic-channel reshapes untouched.
+    The traced batch=1 must still be correct (the pass is a no-op here)."""
+
+    class DynChannel(torch.nn.Module):
+        def __init__(self, window_size):
+            super().__init__()
+            self.window_size = window_size
+
+        def forward(self, x):
+            H = x.shape[2]
+            W = x.shape[3]
+            x = x.permute(0, 2, 3, 1).contiguous()  # (B,H,W,C), C dynamic from input
+            windows = window_partition(x, self.window_size)
+            windows = windows + 0.0
+            x = window_reverse(windows, self.window_size, H, W)
+            return x.permute(0, 3, 1, 2).contiguous()
+
+    @pytest.mark.parametrize("window_size,H,W,C", [(8, 16, 16, 6)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_dynamic_channel_not_fired_and_b1_ok(self, window_size, H, W, C, ie_device, precision):
+        model = self.DynChannel(window_size).eval()
+        example = torch.randn(1, C, H, W)
+        with torch.no_grad():
+            om = convert_model(model, example_input=example)
+
+        # The resolver must not fire (channel is dynamic -> not statically recoverable).
+        assert not _has_rewritten_reshape(om), "resolver fired on a dynamic-channel window reverse"
+
+        np_in = np.random.randn(1, C, H, W).astype(np.float32)
+        with torch.no_grad():
+            ref = model(torch.from_numpy(np_in)).numpy()
+        config = {}
+        if precision == "FP32":
+            config[hints.inference_precision] = Type.f32
+        compiled = Core().compile_model(om, ie_device, config)
+        ov_out = np.asarray(compiled(np_in)[compiled.output(0)], dtype=np.float32)
+        eps = 1e-4 if precision == "FP32" else 5e-2
+        assert ov_out.shape == ref.shape, f"shape mismatch ov={ov_out.shape} ref={ref.shape}"
+        assert np.isclose(ov_out, ref, atol=eps, rtol=eps).all()
+
+
+class TestWindowReverseWalkBackFragility:
+    """The walk-back crosses exactly one last-axis-preserving Transpose. If an extra
+    last-axis-CHANGING permute sits between the two window_reverse views, the second
+    view's channel cannot be resolved through it. Whatever the pass does in that case,
+    it must remain correct at the traced batch=1 (it may legitimately skip the second
+    view). This pins the safety property: the pass never corrupts the traced batch even
+    when its structural assumption is perturbed."""
+
+    class Fragile(torch.nn.Module):
+        def __init__(self, window_size, c_in, embed_dim):
+            super().__init__()
+            self.window_size = window_size
+            self.proj = torch.nn.Linear(c_in, embed_dim)
+
+        def forward(self, x):
+            ws = self.window_size
+            H = x.shape[2]
+            W = x.shape[3]
+            x = x.permute(0, 2, 3, 1).contiguous()
+            x = self.proj(x)
+            windows = window_partition(x, ws)
+            windows = windows + 0.0
+            B = int(windows.shape[0] / (H * W / ws / ws))
+            v = windows.view(B, H // ws, W // ws, ws, ws, -1)
+            v = v.permute(0, 1, 3, 2, 4, 5).contiguous()
+            # extra last-axis-changing twist (transpose last two axes, then back):
+            v = v.transpose(-1, -2).contiguous().transpose(-1, -2).contiguous()
+            v = v.view(B, H, W, -1)
+            return v.permute(0, 3, 1, 2).contiguous()
+
+    @pytest.mark.parametrize("window_size,H,W,C,embed_dim", [(8, 16, 16, 6, 12)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_fragile_walkback_b1_ok(self, window_size, H, W, C, embed_dim, ie_device, precision):
+        model = self.Fragile(window_size, C, embed_dim).eval()
+        example = torch.randn(1, C, H, W)
+        with torch.no_grad():
+            om = convert_model(model, example_input=example)
+
+        np_in = np.random.randn(1, C, H, W).astype(np.float32)
+        with torch.no_grad():
+            ref = model(torch.from_numpy(np_in)).numpy()
+        config = {}
+        if precision == "FP32":
+            config[hints.inference_precision] = Type.f32
+        compiled = Core().compile_model(om, ie_device, config)
+        ov_out = np.asarray(compiled(np_in)[compiled.output(0)], dtype=np.float32)
+        eps = 1e-4 if precision == "FP32" else 5e-2
+        assert ov_out.shape == ref.shape, f"shape mismatch ov={ov_out.shape} ref={ref.shape}"
+        assert np.isclose(ov_out, ref, atol=eps, rtol=eps).all()
