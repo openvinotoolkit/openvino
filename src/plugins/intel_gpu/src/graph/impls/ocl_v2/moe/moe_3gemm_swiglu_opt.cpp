@@ -2016,7 +2016,6 @@ public:
         auto topk_id_mem = scratch.topk_id;
         auto token_num = get_seq_len(hidden_states_layout);
         expert_mask_cpu expert_mask;
-        auto token_num = get_seq_len(hidden_states_layout);
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask, token_num);
 
         for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
