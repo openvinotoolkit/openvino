@@ -10,6 +10,8 @@
 
 #include "sdpa_opt.hpp"
 
+#include <iostream>
+
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
@@ -179,6 +181,14 @@ public:
 
 bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    // Knob (OV_GPU_DISABLE_SDPA_MICRO=1): force the SDPA backend onto the OCL sdpa_opt kernel
+    // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
+    if (params.get_program().get_config().get_disable_sdpa_micro()) {
+        std::cout << "[GPU] SDPA micro kernel DISABLED via OV_GPU_DISABLE_SDPA_MICRO; "
+                     "falling back to OCL sdpa_opt kernel." << std::endl;
+        return false;
+    }
+
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
     auto desc = params.typed_desc<scaled_dot_product_attention>();
