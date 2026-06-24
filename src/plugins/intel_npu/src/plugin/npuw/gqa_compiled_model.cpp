@@ -90,6 +90,7 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+                           {"NPUW_FOLD_ONLY", "attn"},
                            {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
         LOG_INFO("Detected generate-style GQA model; applying FOLD with async funcall");
