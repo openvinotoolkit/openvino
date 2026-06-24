@@ -116,7 +116,10 @@ bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs
     }
 
     for (size_t index = 1; index < lhs->get_input_size(); ++index) {
-        if (!ov::compare_constants(lhs->input_value(index).get_node_shared_ptr(),
+        // compare_constants matches flattened values only, so the shapes are compared separately to
+        // avoid treating constants that broadcast differently (e.g. {1, 3, 1, 1} vs {3, 1}) as equal.
+        if (lhs->get_input_partial_shape(index) != rhs->get_input_partial_shape(index) ||
+            !ov::compare_constants(lhs->input_value(index).get_node_shared_ptr(),
                                    rhs->input_value(index).get_node_shared_ptr())) {
             return false;
         }

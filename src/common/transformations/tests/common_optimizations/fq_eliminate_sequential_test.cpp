@@ -200,6 +200,26 @@ TEST_F(TransformationTestsF, eliminate_when_intermediate_op_has_multiple_consume
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+// FQ1 and FQ2 use range constants with equal flattened values but different shapes (per-channel
+// {1, 3, 1, 1} vs spatial {3, 1}), so they broadcast differently and are not interchangeable. FQ2
+// must be kept: comparing only the flattened values would wrongly treat the two as identical.
+TEST_F(TransformationTestsF, keep_sequential_fake_quantize_with_same_values_different_shapes) {
+    const std::vector<float> in_low{-1.0f, -2.0f, -3.0f};
+    const std::vector<float> in_high{1.0f, 2.0f, 3.0f};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 3, 1});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, {1, 3, 1, 1}, in_low, in_high, in_low, in_high);
+        auto fq2 = make_fake_quantize(fq1, element::f32, 256, {3, 1}, in_low, in_high, in_low, in_high);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
 // FQ1 and FQ2 use per-channel ranges (constants broadcast over the channel axis). FQ2 is identical to
 // FQ1, so it re-applies the same quantization and is eliminated.
 TEST_F(TransformationTestsF, eliminate_sequential_per_channel_fake_quantize) {
