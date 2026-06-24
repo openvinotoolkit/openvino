@@ -23,3 +23,4 @@ vulnerability-check: true
 allow-dependencies-licenses:
   - 'pkg:pypi/PyGithub@2.2.0'
   - 'pkg:pypi/psycopg2-binary'
+  - 'pkg:npm/@sinclair/typebox@0.34.49' # It has only an MIT license, but the dependency check actions reports it as MIT AND Zlib, see https://github.com/sinclairzx81/sinclair-typebox?tab=License-1-ov-file
