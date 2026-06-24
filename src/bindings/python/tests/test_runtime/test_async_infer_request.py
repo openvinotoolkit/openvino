@@ -500,3 +500,35 @@ def test_infer_queue_share_inputs_array_lifetime(device):
         )
 
     infer_queue.wait_all()
+
+
+def test_infer_queue_stale_shared_input_released_on_non_shared_reuse(device):
+    # Regression test: when a queue handle is reused with share_inputs=False after share_inputs=True,
+    # the stale _inputs_data[handle] reference must be cleared so the array can be garbage-collected.
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    # First call with share_inputs=True — queue must retain a reference.
+    img = generate_image()
+    wr = weakref.ref(img)
+    infer_queue.start_async({"data": img}, None, share_inputs=True)
+    infer_queue.wait_all()
+    del img
+    gc.collect()
+    # Queue still holds _inputs_data[0] → array must be alive even after inference finishes.
+    assert wr() is not None, (
+        "Array should still be alive — queue owns the last reference via _inputs_data. "
+        "If it is already None here the test is no longer exercising the leak scenario."
+    )
+
+    # Reuse the same handle with share_inputs=False — stale entry must be cleared.
+    infer_queue.start_async({"data": generate_image()}, None, share_inputs=False)
+    infer_queue.wait_all()
+    gc.collect()
+    assert wr() is None, (
+        "Stale shared-input array was not released after reusing the same handle with share_inputs=False. "
+        "The queue must pop _inputs_data[handle] when share_inputs=False to avoid unbounded memory growth."
+    )
