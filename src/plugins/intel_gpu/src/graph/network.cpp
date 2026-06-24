@@ -37,6 +37,7 @@
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "program_dump_graph.h"
+#include "to_string_utils.h"
 
 #include <algorithm>
 #include <string>
@@ -623,6 +624,18 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
+    try {
+        auto it = _primitives.find(id);
+        if (it != _primitives.end()) {
+            auto* impl = it->second->get_impl();
+            auto kernel_name = impl ? impl->get_kernel_name() : "";
+            if (!kernel_name.empty()) {
+                const auto& node = it->second->get_node();
+                return kernel_name + "__" + dt_to_str(_program->get_inference_precision(node));
+            }
+        }
+    } catch (...) { }
+
     return _program->get_implementation_info(id);
 }
 
