@@ -16,7 +16,7 @@ namespace ze {
 
 class ze_kernel : public kernel {
 public:
-    static void create_kernels_from_module(const ze_module_resource &module_holder, const ze_module_build_log_resource &build_log_holder, std::vector<kernel::ptr> &out) {
+    static void create_kernels_from_module(ze_module_resource module_holder, ze_module_build_log_resource build_log_holder, std::vector<kernel::ptr> &out) {
         ze_module_handle_t module_handle = module_holder.handle();
         uint32_t kernel_count = 0;
         OV_ZE_EXPECT(ze::zeModuleGetKernelNames(module_handle, &kernel_count, nullptr));
@@ -42,10 +42,10 @@ public:
         }
     }
 
-    ze_kernel(ze_module_resource module, ze_kernel_resource kernel, const std::string& kernel_id, ze_module_build_log_resource build_log)
-        : m_module(std::move(module))
+    ze_kernel(ze_module_resource module_res, ze_kernel_resource kernel_res, const std::string& kernel_id, ze_module_build_log_resource build_log)
+        : m_module(std::move(module_res))
         , m_build_log(std::move(build_log))
-        , m_kernel(std::move(kernel))
+        , m_kernel(std::move(kernel_res))
         , m_kernel_id(kernel_id) {
             // Allow empty build log holder
             OPENVINO_ASSERT(!m_kernel.is_empty(), "[GPU] Attempt to create kernel with empty kernel resource");

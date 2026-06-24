@@ -39,7 +39,7 @@ ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_que
 /// @param ocl_buffer OpenCL memory object handle.
 /// @param context Level Zero context resource.
 /// @return Level Zero USM resource extracted from OpenCL memory object handle.
-ze_usm_resource ze_import_usm(cl_mem ocl_buffer, const ze_context_resource& context);
+ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context);
 
 /// @brief Import Level Zero image resource from OpenCL image object.
 /// @param ocl_image OpenCL image object handle.

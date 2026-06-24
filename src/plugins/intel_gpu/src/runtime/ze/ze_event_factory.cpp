@@ -31,7 +31,6 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
         };
         auto ctx_handle = m_engine.get_context().handle();
         auto device_handle = m_engine.get_device().handle();
-        auto device = m_engine.get_device();
         ze_event_pool_handle_t event_pool;
         OV_ZE_EXPECT(ze::zeEventPoolCreate(ctx_handle, &event_pool_desc, 1, &device_handle, &event_pool));
         m_current_pool = ze_event_pool_resource{event_pool};

@@ -248,7 +248,7 @@ allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const v
     return alloc_type;
 }
 
-allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const ze_usm_resource& buffer) {
+allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, ze_usm_resource buffer) {
     if (buffer.has_ocl_handle<ocl_resource_type::mem_object>()) {
         return allocation_type::cl_mem;
     }

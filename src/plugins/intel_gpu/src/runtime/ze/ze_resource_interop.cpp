@@ -48,7 +48,7 @@ ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_que
     return resource;
 }
 
-ze_usm_resource ze_import_usm(cl_mem ocl_buffer, const ze_context_resource& context) {
+ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context) {
     ze_ocl_interop& interop = ze_ocl_interop::get_instance();
     auto ze_usm_ptr = interop.get_ze_usm(ocl_buffer);
     const bool is_borrowed = true;

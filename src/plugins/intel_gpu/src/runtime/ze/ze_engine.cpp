@@ -133,13 +133,13 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
     // Convert OCL handles from `params` to L0 and create memory objects
     if (params.mem_type == shared_mem_type::shared_mem_usm) {
         // USM memory does not need to be converted
-        const auto &ctx = get_context();
+        auto ctx = get_context();
         ov_ze_usm_handle usm_handle{ctx.handle(), params.mem};
         const bool is_borrowed = true;
         ze_usm_resource usm_res(usm_handle, is_borrowed);
         return std::make_shared<ze::gpu_usm>(this, new_layout, usm_res, nullptr);
     }  else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
-        const auto &ctx = get_context();
+        auto ctx = get_context();
         auto ocl_buffer = static_cast<cl_mem>(params.mem);
         auto imported_buffer = ze_import_usm(ocl_buffer, ctx);
         return std::make_shared<ze::gpu_usm>(this, new_layout, imported_buffer, allocation_type::cl_mem, nullptr);

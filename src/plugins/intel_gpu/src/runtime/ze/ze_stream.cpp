@@ -195,7 +195,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
     }
 }
 
-QueueTypes detect_queue_type(ze_command_list_resource& cmd_list) {
+QueueTypes detect_queue_type(ze_command_list_resource cmd_list) {
     OPENVINO_ASSERT(cmd_list.has_ocl_handle<ocl_resource_type::command_queue>(), "[GPU] Queue type detection requires OpenCL handle");
     auto queue = cmd_list.ocl_handle<ocl_resource_type::command_queue>();
     cl_command_queue_properties properties;
