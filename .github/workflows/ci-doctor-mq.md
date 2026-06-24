@@ -17,7 +17,18 @@ on:
   workflow_run:
     workflows:
       - "Linux (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 24.04, Python 3.12)"
+      - "Android"
+      - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)"
+      - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
+      - "Linux RISC-V (Ubuntu 22.04, Python 3.10)"
       - "Windows (VS 2022, Python 3.11, Release)"
+      - "Windows (VS 2022, Python 3.11, Debug)"
+      - "Windows Conditional Compilation (VS 2022, Python 3.11)"
+      - "Webassembly"
+      - "Manylinux 2_28"
+      - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
 
