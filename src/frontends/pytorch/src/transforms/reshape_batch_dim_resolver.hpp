@@ -20,7 +20,45 @@ namespace pass {
 /// constant cannot propagate the new batch, so the `-1` channel silently absorbs it and the
 /// data is mis-partitioned.
 ///
-/// The rewrite that repairs this — leading dimension becomes `-1` (inferred from the real
+/// The pass rewrites the shape `Concat` that feeds the Reshape: the leading baked-batch
+/// `Constant` becomes `Constant(-1)` (so the batch is inferred from the real element count) and
+/// the trailing `-1` (infer) slot becomes `Constant(channel)` (the batch-independent channel that
+/// was baked into the data, recovered statically — see below). The interior dimensions are kept.
+///
+/// Before:
+///   ┌───────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐  ┌──────┐
+///   │  Constant(B)  │ │   <interior> │ │   <interior> │ │ Constant(-1) │  │ data │
+///   │ leading batch │ │   (dynamic)  │ │   (dynamic)  │ │   channel    │  └──┬───┘
+///   └───────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘     │
+///           └────────────────┴───────┬────────┴────────────────┘             │
+///                              ┌──────▼──────┐                                │
+///                              │   Concat    │ axis = 0                       │
+///                              │ (view shape)│                                │
+///                              └──────┬──────┘                                │
+///                                     └─────────────────┬─────────────────────┘
+///                                                ┌──────▼──────┐
+///                                                │   Reshape   │ special_zero = false
+///                                                └──────┬──────┘
+///                                                       ▼
+///
+/// After:
+///   ┌───────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐  ┌──────┐
+///   │ Constant(-1)  │ │   <interior> │ │   <interior> │ │Constant(chan)│  │ data │
+///   │ leading batch │ │   (dynamic,  │ │   (dynamic,  │ │   channel    │  └──┬───┘
+///   │   (inferred)  │ │  unchanged)  │ │  unchanged)  │ │  (static)    │     │
+///   └───────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘     │
+///           └────────────────┴───────┬────────┴────────────────┘             │
+///                              ┌──────▼──────┐                                │
+///                              │   Concat    │ axis = 0                       │
+///                              │ (view shape)│                                │
+///                              └──────┬──────┘                                │
+///                                     └─────────────────┬─────────────────────┘
+///                                                ┌──────▼──────┐
+///                                                │   Reshape   │ special_zero = false
+///                                                └──────┬──────┘
+///                                                       ▼
+///
+/// The rewrite — leading dimension becomes `-1` (inferred from the real
 /// element count) and the former `-1` channel is pinned to its (batch-independent) value as a
 /// `Constant` — is value-preserving ONLY for window-reverse views, where the restored channel
 /// provably equals the data tensor's channel dimension. The pass fires only when the matched
@@ -54,6 +92,27 @@ namespace pass {
 /// (order ends in `rank-1`), or through a reshape already selected for rewrite — then REWRITE
 /// replays the recorded rewrites. A static-output-channel value-preservation guard rejects any case
 /// where the recovered channel disagrees with the reshape's statically inferred output channel.
+///
+/// Channel recovery walk-back (the two chained window-reverse views):
+///
+///        data [?,8,8,180]                          (static last dim = 180)
+///              │
+///        ┌─────▼──────┐  Reshape_1 (1st view)   ── channel resolved DIRECTLY from data's
+///        │  Reshape   │  out [?,?,?,8,8,180]        static last dim ──────────────► 180
+///        └─────┬──────┘                                                              │
+///              │  out last dim 180 still static                                      │
+///        ┌─────▼──────┐  Transpose(order=[0,1,3,2,4,5])   last axis kept last        │
+///        │ Transpose  │  out [?,?,?,?,?,?] (fully dynamic — bounds collapse)         │
+///        └─────┬──────┘                                                              │
+///              │  data last dim now DYNAMIC                                          │
+///        ┌─────▼──────┐  Reshape_2 (2nd view)   ── channel resolved by WALK-BACK:    │
+///        │  Reshape   │  out [?,H,W,-1]            Transpose (last-axis-preserving)   │
+///        └─────┬──────┘                            then Reshape_1's recorded channel ┘
+///              ▼
+///
+/// Reshape_1 takes the DIRECT path (its own data last dim is static) and the trailing-block guard
+/// applies; Reshape_2 takes the WALK-BACK path (its data last dim is dynamic, recovered structurally
+/// through the permute) and is exempt from the trailing-block guard.
 class ReshapeBatchDimResolver : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::frontend::pytorch::pass::ReshapeBatchDimResolver");
