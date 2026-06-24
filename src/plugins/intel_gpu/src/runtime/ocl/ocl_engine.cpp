@@ -225,7 +225,7 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
                                      memory.get_mem_tracker());
         } else {
             auto buffer = reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer();
-            cl_buffer_region sub_buffer_region = {byte_offset, new_layout.get_linear_size()};
+            cl_buffer_region sub_buffer_region = {byte_offset, new_layout.bytes_count()};
             auto sub_buffer = buffer.createSubBuffer({}, CL_BUFFER_CREATE_TYPE_REGION, &sub_buffer_region);
 
             return std::make_shared<ocl::gpu_buffer>(this,

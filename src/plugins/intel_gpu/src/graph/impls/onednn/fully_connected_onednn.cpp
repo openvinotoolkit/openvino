@@ -109,22 +109,23 @@ protected:
 
         dnnl::memory::format_tag target_fmt;
         dnnl::memory::format_tag weights_fmt;
+        bool weights_transposed = impl_params.typed_desc<fully_connected>()->weights_transposed;
 
         if (prim_input_size == 3) {
             target_fmt = dnnl::memory::format_tag::abc;
-            weights_fmt = dnnl::memory::format_tag::acb;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc;
         } else if (prim_input_size == 4) {
             target_fmt = dnnl::memory::format_tag::abcd;
-            weights_fmt = dnnl::memory::format_tag::abdc;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd;
         } else if (prim_input_size == 5) {
             target_fmt = dnnl::memory::format_tag::abcde;
-            weights_fmt = dnnl::memory::format_tag::abced;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde;
         } else if (prim_input_size == 6) {
             target_fmt = dnnl::memory::format_tag::abcdef;
-            weights_fmt = dnnl::memory::format_tag::abcdfe;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef;
         } else {
             target_fmt = dnnl::memory::format_tag::ab;
-            weights_fmt = dnnl::memory::format_tag::ba;
+            weights_fmt = weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab;
         }
 
         if (prim_input_size < 4) {
