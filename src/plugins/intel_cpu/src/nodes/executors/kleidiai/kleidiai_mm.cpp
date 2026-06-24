@@ -35,10 +35,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/arm_isa_support.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/arm_isa_support.h"
 
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN (-3.4028235e38f)
