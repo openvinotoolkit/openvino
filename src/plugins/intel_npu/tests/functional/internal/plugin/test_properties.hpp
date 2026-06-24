@@ -275,14 +275,21 @@ TEST_P(CompatibilityCheckTests, CompatibilityCheckUsesPluginCompilerAdapterOnlyW
 
     if (driverHandlesCompatibilityCheck) {
         // Driver version >= 1.16: Property must be reported as supported.
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter complete"), std::string::npos);
         ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
         ASSERT_TRUE(isSupported);
     } else {
-        // Driver version < 1.16: Because CiP can not be loaded on this path in CI, the property must be reported as
-        // unsupported.
-        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-        ASSERT_FALSE(isSupported);
+        if (logs.find("initialize PluginCompilerAdapter complete") == std::string::npos) {
+            // Driver version < 1.16: Because CiP can not be loaded on this path in CI, the property must be reported as
+            // unsupported.
+            ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+            ASSERT_FALSE(isSupported);
+        } else {
+            // Driver version < 1.16: Because CiP can be loaded on this path in CI, the property must be reported as
+            // supported.
+            ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+            ASSERT_TRUE(isSupported);
+        }
     }
 }
 
