@@ -4,10 +4,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 #include "openvino/openvino.hpp"
@@ -20,6 +24,35 @@
 namespace ov {
 namespace test {
 namespace behavior {
+
+inline std::shared_ptr<ov::Model> createMaxPoolModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
+    input->set_friendly_name("input1");
+
+    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
+                                                         Strides{1, 1},
+                                                         Shape{0, 0},
+                                                         Shape{0, 0},
+                                                         Shape{1, 1},
+                                                         op::RoundingType::FLOOR,
+                                                         op::PadType::EXPLICIT);
+    maxpool->set_friendly_name("MaxPool_2");
+
+    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
+    result->set_friendly_name("output");
+    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
+    // making input and output to be NHWC
+    auto preProc = ov::preprocess::PrePostProcessor(model);
+    preProc.input(0).tensor().set_layout("NHWC");
+    preProc.input(0).model().set_layout("NCHW");
+    preProc.output(0).tensor().set_layout("NHWC");
+    preProc.output(0).model().set_layout("NCHW");
+
+    model = preProc.build();
+
+    return model;
+}
 
 inline std::shared_ptr<ov::Model> createCustomNetModel() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
@@ -36,12 +69,12 @@ inline std::shared_ptr<ov::Model> createCustomNetModel() {
 
         auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{16, 16, 1, 1}, weightValues);
         auto conv = std::make_shared<ov::op::v1::Convolution>(data,
-                                                               weights,
-                                                               ov::Strides{1, 1},
-                                                               ov::CoordinateDiff{0, 0},
-                                                               ov::CoordinateDiff{0, 0},
-                                                               ov::Strides{1, 1},
-                                                               ov::op::PadType::EXPLICIT);
+                                                              weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1},
+                                                              ov::op::PadType::EXPLICIT);
         conv->set_friendly_name(convName);
 
         auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, biasValues);
@@ -109,7 +142,8 @@ inline std::shared_ptr<ov::Model> createCustomNetModel() {
 }
 
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
-                                              ov::AnyMap    // Config
+                                              ov::AnyMap,   // Config
+                                              std::string   // Model name
                                               >;
 
 // These tests are required by the NPU plugin to verify the support of dynamic shape during
@@ -154,7 +188,8 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<InferWithHostCompileParams> obj) {
         std::string target_device;
         ov::AnyMap configuration;
-        std::tie(target_device, configuration) = obj.param;
+        std::string modelName;
+        std::tie(target_device, configuration, modelName) = obj.param;
         std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "targetDevice=" << target_device << "_";
@@ -165,6 +200,7 @@ public:
                 result << "_";
             }
         }
+        result << "model=" << modelName;
         return result.str();
     }
 
@@ -172,7 +208,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-        std::tie(target_device, configuration) = this->GetParam();
+        std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
         std::vector<std::string> deviceNames =
             core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
@@ -208,11 +244,14 @@ public:
 
     static bool logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry);
 
+    static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName);
+
     RuntimeCompareSetupResult prepareRuntimeCompareContext(const std::shared_ptr<ov::Model>& model);
 
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
+    std::string selectedModelName;
     bool isTargetDevice = false;
     ov::log::Level originalLogLevel = ov::log::Level::ERR;
 };
@@ -274,6 +313,17 @@ bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, 
     return logCapture.str().find(expectedEntry) != std::string::npos;
 }
 
+std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
+    if (modelName == "CustomNet") {
+        return createCustomNetModel();
+    }
+    if (modelName == "MaxPool") {
+        return createMaxPoolModel();
+    }
+
+    OPENVINO_THROW("Unknown model name for InferWithHostCompileTests: ", modelName);
+}
+
 InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::prepareRuntimeCompareContext(
     const std::shared_ptr<ov::Model>& model) {
     RuntimeCompareSetupResult result;
@@ -320,10 +370,10 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
-    auto model = createCustomNetModel();
+    auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
-    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+    // Compilation shall pass since load of interpreter is deferred with NPU_CREATE_EXECUTOR=0
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;
@@ -353,7 +403,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    auto model = createCustomNetModel();
+    auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
@@ -400,7 +450,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         << logCapture.str();
 
     logCapture.clear();
-
     ov::Shape shape2 = {1, 720, 720, 16};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
@@ -424,7 +473,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    auto model = createCustomNetModel();
+    auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
@@ -494,7 +543,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    auto model = createCustomNetModel();
+    auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
