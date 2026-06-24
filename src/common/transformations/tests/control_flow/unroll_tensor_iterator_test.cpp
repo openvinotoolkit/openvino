@@ -690,7 +690,7 @@ TEST(TransformationTests, UnrollLoopCurrentIterationPreservesElementType) {
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-//check if the rank of the replacement Constant and Gather output is same as before after unrolling
+// check if the rank of the replacement Constant and Gather output is same as before after unrolling
 TEST(TransformationTests, UnrollLoopCurrentIterationPreservesShapeRank) {
     const size_t num_iter = 1;
     const ov::Shape scalar{};
