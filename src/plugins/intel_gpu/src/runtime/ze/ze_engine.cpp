@@ -48,19 +48,19 @@ void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
     }
 }
 #endif
-const ze_driver_resource& ze_engine::get_driver() const {
+ze_driver_resource ze_engine::get_driver() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_driver();
 }
 
-const ze_context_resource& ze_engine::get_context() const {
+ze_context_resource ze_engine::get_context() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_context();
 }
 
-const ze_device_resource& ze_engine::get_device() const {
+ze_device_resource ze_engine::get_device() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type for ze_engine");
     return casted->get_device();
@@ -207,8 +207,7 @@ void* ze_engine::get_user_context(runtime_types rt_type) const {
     if (rt_type == runtime_types::ze) {
         return ctx.handle();
     } else if (rt_type == runtime_types::ocl) {
-        auto &device = get_device();
-        ze_export_ocl_context(ctx, device);
+        ze_export_ocl_context(ctx, get_device());
         return ctx.ocl_handle<ocl_resource_type::context>();
     } else {
         OPENVINO_THROW("[GPU] ZE engine cannot provide context for ", rt_type);
