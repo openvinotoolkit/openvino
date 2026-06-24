@@ -62,6 +62,8 @@ jobs:
       NEO_CACHE_DIR: /root/.cache/neo_compiler_cache
       NEO_CACHE_STATS: 1
       NEO_CACHE_PERSISTENT: 1
+      BinaryCacheTrace: 1
+      PrintDebugMessages: 1
     steps:
 
       - name: Download OpenVINO artifacts (package)
