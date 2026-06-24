@@ -572,8 +572,6 @@ class AsyncInferQueue(AsyncInferQueueBase):
             if not hasattr(self, "_inputs_data"):
                 self._inputs_data = {}
             self._inputs_data[request_id] = getattr(request, "_inputs_data", None)
-        elif hasattr(self, "_inputs_data"):
-            self._inputs_data.pop(request_id, None)
         super().start_async(dispatched, userdata)
 
 

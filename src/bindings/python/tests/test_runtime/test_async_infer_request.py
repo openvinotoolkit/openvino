@@ -502,33 +502,206 @@ def test_infer_queue_share_inputs_array_lifetime(device):
     infer_queue.wait_all()
 
 
-def test_infer_queue_stale_shared_input_released_on_non_shared_reuse(device):
-    # Regression test: when a queue handle is reused with share_inputs=False after share_inputs=True,
-    # the stale _inputs_data[handle] reference must be cleared so the array can be garbage-collected.
+def test_infer_queue_inputs_data_not_created_when_always_non_shared(device):
+    # _inputs_data must not be created at all when share_inputs is always False.
+    # Verifies that the hasattr guard does not fabricate the dict on non-shared paths.
     core = Core()
     model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, 1)
     infer_queue.set_callback(lambda request, userdata: None)
 
-    # First call with share_inputs=True — queue must retain a reference.
+    for _ in range(3):
+        infer_queue.start_async({"data": generate_image()}, None, share_inputs=False)
+        infer_queue.wait_all()
+
+    assert not hasattr(infer_queue, "_inputs_data"), (
+        "_inputs_data must not be created when share_inputs is always False — "
+        "the dict should only be allocated on the first share_inputs=True call."
+    )
+
+
+def test_infer_queue_non_shared_then_shared_establishes_ownership(device):
+    # A handle whose first use is share_inputs=False must correctly switch to
+    # owning the array when subsequently called with share_inputs=True.
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    # First use: share_inputs=False — _inputs_data must NOT be created.
+    infer_queue.start_async({"data": generate_image()}, None, share_inputs=False)
+    infer_queue.wait_all()
+    assert not hasattr(infer_queue, "_inputs_data"), (
+        "No _inputs_data should exist after a non-shared first call."
+    )
+
+    # Second use: share_inputs=True — _inputs_data must now be created and hold the array.
     img = generate_image()
     wr = weakref.ref(img)
     infer_queue.start_async({"data": img}, None, share_inputs=True)
     infer_queue.wait_all()
     del img
     gc.collect()
-    # Queue still holds _inputs_data[0] → array must be alive even after inference finishes.
+
+    assert hasattr(infer_queue, "_inputs_data"), (
+        "_inputs_data must be created on the first share_inputs=True call."
+    )
     assert wr() is not None, (
-        "Array should still be alive — queue owns the last reference via _inputs_data. "
-        "If it is already None here the test is no longer exercising the leak scenario."
+        "Array must be alive — queue must hold it via _inputs_data after share_inputs=True."
     )
 
-    # Reuse the same handle with share_inputs=False — stale entry must be cleared.
+
+def test_infer_queue_shared_to_shared_releases_old_array(device):
+    # When the same handle is reused with share_inputs=True, the OLD array must be
+    # released: _inputs_data[handle] is overwritten with the new array reference.
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    img1 = generate_image()
+    wr1 = weakref.ref(img1)
+    infer_queue.start_async({"data": img1}, None, share_inputs=True)
+    infer_queue.wait_all()
+    del img1
+    gc.collect()
+    assert wr1() is not None  # queue holds it
+
+    img2 = generate_image()
+    wr2 = weakref.ref(img2)
+    infer_queue.start_async({"data": img2}, None, share_inputs=True)
+    infer_queue.wait_all()
+    del img2
+    gc.collect()
+
+    assert wr1() is None, (
+        "Old shared array must be released when the handle is reused with share_inputs=True: "
+        "_inputs_data[handle] must be overwritten, dropping the old reference."
+    )
+    assert wr2() is not None, "New shared array must be alive — queue holds it."
+
+
+def test_infer_queue_shared_buffer_kept_alive_during_non_shared_reuse(device):
+    # When share_inputs=False follows share_inputs=True on the same handle, the existing
+    # ov::Tensor still wraps the original numpy buffer.  _data_dispatch (non-shared path)
+    # copies new data INTO that same buffer via tensor.data[:] = inputs[:], so the OLD
+    # numpy array must remain alive for the whole lifetime of the tensor.
+    #
+    # The old array is only released when the NEXT share_inputs=True call replaces the
+    # tensor with a fresh zero-copy wrapper around a different numpy buffer.
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    # Step 1: shared — tensor wraps img1's buffer; queue holds img1 in _inputs_data[0].
+    img1 = generate_image()
+    wr1 = weakref.ref(img1)
+    infer_queue.start_async({"data": img1}, None, share_inputs=True)
+    infer_queue.wait_all()
+    del img1
+    gc.collect()
+    assert wr1() is not None, "Queue must hold img1 via _inputs_data after share_inputs=True."
+
+    # Step 2: non-shared — copies img2's data INTO img1's buffer; tensor unchanged.
+    # img1 MUST NOT be freed here: the tensor's data pointer still points to its buffer.
     infer_queue.start_async({"data": generate_image()}, None, share_inputs=False)
     infer_queue.wait_all()
     gc.collect()
-    assert wr() is None, (
-        "Stale shared-input array was not released after reusing the same handle with share_inputs=False. "
-        "The queue must pop _inputs_data[handle] when share_inputs=False to avoid unbounded memory growth."
+    assert wr1() is not None, (
+        "img1 must still be alive after a non-shared reuse: update_tensor copies data "
+        "into the existing tensor buffer (which wraps img1's memory). Releasing img1 here "
+        "would create a dangling pointer and cause a use-after-free during inference."
     )
+
+    # Step 3: another shared call — new zero-copy tensor created; _inputs_data[0] updated;
+    # img1 reference dropped → img1 finally released.
+    img3 = generate_image()
+    wr3 = weakref.ref(img3)
+    infer_queue.start_async({"data": img3}, None, share_inputs=True)
+    infer_queue.wait_all()
+    del img3
+    gc.collect()
+    assert wr1() is None, (
+        "img1 must be released once share_inputs=True replaces the tensor and overwrites "
+        "_inputs_data[0] with the new array reference."
+    )
+    assert wr3() is not None, "New shared array must be alive — queue holds it."
+
+
+def test_infer_queue_multi_handle_inputs_data_independence(device):
+    # _inputs_data[A] and _inputs_data[B] must be managed independently.
+    # Updating or releasing one handle's entry must not affect the other.
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 2)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    # Fill both handles with share_inputs=True.
+    img_a = generate_image()
+    wr_a = weakref.ref(img_a)
+    infer_queue.start_async({"data": img_a}, None, share_inputs=True)
+
+    img_b = generate_image()
+    wr_b = weakref.ref(img_b)
+    infer_queue.start_async({"data": img_b}, None, share_inputs=True)
+
+    infer_queue.wait_all()
+    del img_a, img_b
+    gc.collect()
+    assert wr_a() is not None and wr_b() is not None, (
+        "Both arrays must be alive — each handle independently owns its _inputs_data entry."
+    )
+
+    # Reuse ONE handle with a fresh share_inputs=True call.
+    # The OTHER handle's entry must remain untouched.
+    img_new = generate_image()
+    wr_new = weakref.ref(img_new)
+    infer_queue.start_async({"data": img_new}, None, share_inputs=True)
+    infer_queue.wait_all()
+    del img_new
+    gc.collect()
+
+    # Exactly one of the original arrays must have been released (the reused handle's).
+    dead = sum(1 for wr in (wr_a, wr_b) if wr() is None)
+    alive = sum(1 for wr in (wr_a, wr_b) if wr() is not None)
+    assert dead == 1, (
+        f"Exactly one original array must be released (the reused handle's). "
+        f"Got dead={dead}, alive={alive}."
+    )
+    assert alive == 1, "The other original array must still be alive — its handle was not touched."
+    assert wr_new() is not None, "New shared array must be alive — queue holds it."
+
+
+def test_infer_queue_many_shared_cycles_no_use_after_free(device):
+    # Stress: many consecutive share_inputs=True calls on the same 1-slot queue.
+    # After each call the current array must be alive; the previous one must be dead.
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    infer_queue.set_callback(lambda request, userdata: None)
+
+    prev_wr = None
+    for cycle in range(6):
+        img = generate_image()
+        wr = weakref.ref(img)
+        infer_queue.start_async({"data": img}, None, share_inputs=True)
+        infer_queue.wait_all()
+        del img
+        gc.collect()
+
+        assert wr() is not None, (
+            f"Cycle {cycle}: current shared array must be alive — queue owns the reference."
+        )
+        if prev_wr is not None:
+            assert prev_wr() is None, (
+                f"Cycle {cycle}: previous shared array must be released — "
+                "_inputs_data[handle] must be overwritten when the handle is reused."
+            )
+        prev_wr = wr
