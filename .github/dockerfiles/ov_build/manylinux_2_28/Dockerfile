@@ -7,7 +7,20 @@ FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux_2_28
 USER root
 
 RUN yum groupinstall -y "Development Tools" && \
-    yum install -y wget bzip2 gcc-c++ libmpc-devel mpfr-devel gmp-devel cmake ccache ninja-build make tbb-devel ocl-icd-devel opencl-headers lld
+    yum install -y \
+        wget \
+        zip \
+        bzip2 \
+        gcc-c++ \
+        libmpc-devel \
+        mpfr-devel \
+        gmp-devel \
+        ccache \
+        make \
+        tbb-devel \
+        ocl-icd-devel \
+        opencl-headers \
+        lld
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -24,3 +37,9 @@ ENV PATH="/opt/python/cp311-cp311/bin:$SCCACHE_HOME:$PATH"
 
 # Install newer ninja (yum ships older version lacking --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
+# Install custom cmake
+ARG CMAKE_VERSION="3.26.0"
+RUN wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh --output-document=cmake.sh && \
+    sh cmake.sh --skip-license --prefix=/usr/local && \
+    rm cmake.sh
