@@ -22,7 +22,6 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
-
 namespace {
 template <typename T>
 T load_entrypoint(const cl_platform_id platform, const std::string name) {

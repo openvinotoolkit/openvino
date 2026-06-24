@@ -25,8 +25,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "remote_tensor_tests/helpers.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace {
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {

@@ -21,6 +21,7 @@
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
 
+#include "remote_tensor_tests/helpers.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/op/add.hpp"
@@ -28,7 +29,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "remote_tensor_tests/helpers.hpp"
 
 namespace {
 bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {

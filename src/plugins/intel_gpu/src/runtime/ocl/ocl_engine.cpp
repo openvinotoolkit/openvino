@@ -4,7 +4,6 @@
 
 #include "ocl_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"  // For CACHE_PAGE_SIZE
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
@@ -269,7 +268,11 @@ memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_si
     flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
 #endif
     cl::Buffer buffer(get_cl_context(), flags, data_size, const_cast<void*>(cpu_address), &err);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "clcreatebuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
+#else
+    OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR failed!");
+#endif
 
     return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);
 }
@@ -400,7 +403,3 @@ std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runti
 
 }  // namespace ocl
 }  // namespace cldnn
-
-
-
-
