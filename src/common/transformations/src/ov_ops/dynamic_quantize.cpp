@@ -4,12 +4,11 @@
 
 #include "ov_ops/dynamic_quantize.hpp"
 
+#include "itt.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/util/common_util.hpp"
-
-#include "itt.hpp"
 
 namespace ov {
 namespace op {
@@ -153,16 +152,19 @@ bool DynamicQuantize::visit_attributes(AttributeVisitor& visitor) {
 }  // namespace internal
 }  // namespace op
 
-std::ostream& operator<<(std::ostream& s, const ov::op::internal::DynamicQuantize::QuantizationType& quantization_type) {
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::QuantizationType& quantization_type) {
     return s << ov::as_string(quantization_type);
 }
 
-std::ostream& operator<<(std::ostream& s, const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type) {
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type) {
     return s << ov::as_string(output_storage_type);
 }
 
 template <>
-OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>& EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>::get() {
+OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>&
+EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>::get() {
     static auto enum_names = EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>(
         "ov::op::internal::DynamicQuantize::QuantizationType",
         {
@@ -173,7 +175,8 @@ OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::QuantizationType>& Enu
 }
 
 template <>
-OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>& EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>::get() {
+OPENVINO_API EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>&
+EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>::get() {
     static auto enum_names = EnumNames<ov::op::internal::DynamicQuantize::OutputStorageType>(
         "ov::op::internal::DynamicQuantize::OutputStorageType",
         {

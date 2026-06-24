@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/core/attribute_adapter.hpp"
 
 namespace ov {
 namespace op {
@@ -94,7 +94,8 @@ protected:
 }  // namespace op
 
 std::ostream& operator<<(std::ostream& s, const ov::op::internal::DynamicQuantize::QuantizationType& quantization_type);
-std::ostream& operator<<(std::ostream& s, const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type);
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type);
 
 template <>
 class OPENVINO_API AttributeAdapter<ov::op::internal::DynamicQuantize::QuantizationType>

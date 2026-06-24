@@ -313,7 +313,11 @@ bool replace_outputs_update_name(OutputVector outputs, const OutputVector& repla
 
     for (size_t i = 0; i < outputs.size(); ++i) {
         bool replaced = replace_output_update_name(outputs[i], replacements[i]);
-        OPENVINO_ASSERT(replaced, "Failed to replace output ", i, " of node ", outputs[i].get_node()->get_friendly_name());
+        OPENVINO_ASSERT(replaced,
+                        "Failed to replace output ",
+                        i,
+                        " of node ",
+                        outputs[i].get_node()->get_friendly_name());
     }
 
     return true;
