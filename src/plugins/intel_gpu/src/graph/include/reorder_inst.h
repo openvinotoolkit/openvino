@@ -109,10 +109,8 @@ public:
 
 private:
     void on_execute() override;
-    void update_padding_fill_flag();
 
     bool _req_reinterpr = false;
-    bool _needs_padding_fill = false;
 };
 
 using reorder_inst = typed_primitive_inst<reorder>;
