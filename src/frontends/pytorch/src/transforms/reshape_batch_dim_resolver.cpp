@@ -17,6 +17,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/node_registry.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -29,24 +30,24 @@ using namespace ov::op;
 namespace {
 // True if `out` is a Constant holding a single element equal to `value`.
 bool is_scalar_constant_with_value(const Output<Node>& out, int64_t value) {
-    auto constant = ov::as_type_ptr<v0::Constant>(out.get_node_shared_ptr());
-    if (!constant)
-        return false;
-    if (shape_size(constant->get_shape()) != 1)
-        return false;
-    const auto values = constant->cast_vector<int64_t>();
-    return values.size() == 1 && values[0] == value;
+    return ov::op::util::has_constant_value<int64_t>(out.get_node_shared_ptr(), value);
 }
 
 // True if `out` is a Constant holding a single positive integer.
 bool is_scalar_positive_constant(const Output<Node>& out) {
-    auto constant = ov::as_type_ptr<v0::Constant>(out.get_node_shared_ptr());
-    if (!constant)
-        return false;
-    if (shape_size(constant->get_shape()) != 1)
-        return false;
-    const auto values = constant->cast_vector<int64_t>();
-    return values.size() == 1 && values[0] > 0;
+    int64_t value = 0;
+    return ov::op::util::get_constant_value<int64_t>(out.get_node_shared_ptr(), value) && value > 0;
+}
+
+// The statically-known last dimension of `ps`, or nullopt when the rank is dynamic, the shape is a
+// scalar, or the last dimension itself is dynamic.
+std::optional<int64_t> static_last_dim(const PartialShape& ps) {
+    if (ps.rank().is_dynamic() || ps.size() == 0)
+        return std::nullopt;
+    const auto& last = ps[static_cast<std::ptrdiff_t>(ps.size()) - 1];
+    if (last.is_static())
+        return last.get_length();
+    return std::nullopt;
 }
 
 // Structural signature of a window-reverse style view whose leading batch was frozen by tracing.
@@ -110,12 +111,8 @@ std::optional<int64_t> resolve_static_last_dim(const Output<Node>& data,
         return std::nullopt;
 
     // Step 1: a statically-known last dimension on `data` itself.
-    const auto& ps = data.get_partial_shape();
-    if (ps.rank().is_static() && ps.size() > 0) {
-        const auto& last = ps[static_cast<std::ptrdiff_t>(ps.size()) - 1];
-        if (last.is_static())
-            return last.get_length();
-    }
+    if (const auto last = static_last_dim(data.get_partial_shape()))
+        return last;
 
     // Step 2: a last-axis-preserving Transpose -> recurse into the transposed data.
     if (auto transpose = ov::as_type_ptr<v1::Transpose>(data.get_node_shared_ptr())) {
@@ -284,12 +281,9 @@ bool ReshapeBatchDimResolver::run_on_model(const std::shared_ptr<ov::Model>& mod
         // resolves to a different product and the rewrite would corrupt the result, so skip it. This is
         // the safety net that closes adversarial cases where a last-axis-preserving walk-back reaches a
         // statically-shaped tensor whose last dim is not the reshape's true `-1` product.
-        const auto& out_ps = reshape->get_output_partial_shape(0);
-        if (out_ps.rank().is_static() && out_ps.size() > 0) {
-            const auto& out_last = out_ps[static_cast<std::ptrdiff_t>(out_ps.size()) - 1];
-            if (out_last.is_static() && out_last.get_length() != *channel)
-                continue;
-        }
+        const auto out_last = static_last_dim(reshape->get_output_partial_shape(0));
+        if (out_last && *out_last != *channel)
+            continue;
 
         // Stronger guard for the DIRECT path (channel recovered from data's OWN static last dim). When the
         // output last dim is dynamic the cheap guard above is vacuous, so an ordinary reshape whose `-1`
@@ -298,9 +292,7 @@ bool ReshapeBatchDimResolver::run_on_model(const std::shared_ptr<ov::Model>& mod
         // re-partition data's leading dim and keep data's entire trailing block (the genuine window-reverse
         // semantics). The walk-back path (data last dim dynamic -- the second view) is exempt: its channel
         // is resolved structurally through the permute to an already-validated upstream view.
-        const auto& data_ps = reshape->input_value(0).get_partial_shape();
-        const bool direct_path = data_ps.rank().is_static() && data_ps.size() > 0 &&
-                                 data_ps[static_cast<std::ptrdiff_t>(data_ps.size()) - 1].is_static();
+        const bool direct_path = static_last_dim(reshape->input_value(0).get_partial_shape()).has_value();
         if (direct_path && !keeps_data_trailing_block(reshape, concat, *channel))
             continue;
 
