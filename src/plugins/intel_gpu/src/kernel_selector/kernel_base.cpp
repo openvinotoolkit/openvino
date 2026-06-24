@@ -62,7 +62,7 @@ static bool IsTypeUsedIn(Datatype type, const base_params& params) {
 
 Datatype KernelBase::GetUnitType(const base_params& params) const {
     Datatype types_prioritized[] =
-        {Datatype::INT8, Datatype::F16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32, Datatype::INT16, Datatype::UINT16};
+        {Datatype::INT8, Datatype::INT16, Datatype::UINT16, Datatype::F16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32};
 
     for (Datatype type : types_prioritized)
         if (IsTypeUsedIn(type, params))
@@ -86,8 +86,6 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
         MakeJitConstant("INT64_UNIT_USED", IsTypeUsedIn(Datatype::INT64, params)),
         MakeJitConstant("UINT8_UNIT_USED", IsTypeUsedIn(Datatype::UINT8, params)),
         MakeJitConstant("UINT32_UNIT_USED", IsTypeUsedIn(Datatype::UINT32, params)),
-        MakeJitConstant("INT16_UNIT_USED", IsTypeUsedIn(Datatype::INT16, params)),
-        MakeJitConstant("UINT16_UNIT_USED", IsTypeUsedIn(Datatype::UINT16, params)),
     };
 
     // for activation function

@@ -342,7 +342,7 @@ TEST_F(ActivationFusingTest, reorder_activation_i16) {
     // This tests CVS-188408: Ensure int16 Reorder -> Abs activation compiles cleanly
     // Prior to fix, this would fail with CL_BUILD_PROGRAM_FAILURE due to "fabs" macro ambiguity.
     auto& engine = get_test_engine();
-    ov::PartialShape input_shape = { 1, 4 };
+    ov::PartialShape input_shape = { 1, 4, 1, 1 };
     layout in_layout{ input_shape, data_types::f32, format::bfyx };
 
     topology topology(
