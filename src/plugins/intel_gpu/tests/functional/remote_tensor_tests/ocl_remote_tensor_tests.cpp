@@ -2965,25 +2965,28 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     std::fill_n(static_cast<float*>(input_ptr), element_count, 2.0f);
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
 
-    auto remote_input_tensor = ctx.create_tensor_from_cpu_pointer(ov::element::f32,
-                                                 shape,
-                                                 input_ptr,
-                                                 ov::intel_gpu::MemType::CPU_POINTER);
-    auto remote_output_tensor = ctx.create_tensor_from_cpu_pointer(ov::element::f32,
-                                                  shape,
-                                                  output_ptr,
-                                                  ov::intel_gpu::MemType::CPU_POINTER);
+    {
+        auto remote_input_tensor = ctx.create_tensor_from_cpu_pointer(ov::element::f32,
+                                                                      shape,
+                                                                      input_ptr,
+                                                                      ov::intel_gpu::MemType::CPU_POINTER);
+        auto remote_output_tensor = ctx.create_tensor_from_cpu_pointer(ov::element::f32,
+                                                                       shape,
+                                                                       output_ptr,
+                                                                       ov::intel_gpu::MemType::CPU_POINTER);
 
-    auto model = make_copy_model(shape);
-    auto compiled = core.compile_model(model, ctx);
-    auto infer_req = compiled.create_infer_request();
-    infer_req.set_tensor(compiled.input(), remote_input_tensor);
-    infer_req.set_tensor(compiled.output(), remote_output_tensor);
-    infer_req.infer();
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), remote_input_tensor);
+        infer_req.set_tensor(compiled.output(), remote_output_tensor);
+        infer_req.infer();
 
-    for (size_t i = 0; i < element_count; ++i) {
-        EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
+        for (size_t i = 0; i < element_count; ++i) {
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
+        }
     }
+
     ov::util::aligned_free(input_ptr);
     ov::util::aligned_free(output_ptr);
 }
