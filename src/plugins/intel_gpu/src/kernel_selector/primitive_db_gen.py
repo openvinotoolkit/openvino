@@ -12,6 +12,10 @@ import argparse
 import glob
 import ntpath
 import re
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "graph", "common_utils"))
+from kernels_db_gen import detect_guard_patterns
 
 class KernelLang(Enum):
     OCLC = 0
@@ -89,28 +93,18 @@ class Kernels2CHeaders(object):
         with open(filename) as f:
             content += f.readlines()
 
-        # Detect include guard macros (#ifndef X paired with #define X for the
-        # same name) to avoid adding #undef for them. Without this, the guard
-        # is defeated when multiple kernels with the same inlined header are
-        # batched into a single compilation unit.
-        ifndef_pattern = re.compile(r'#\s*ifndef\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
-        ifndef_pattern2 = re.compile(r'#\s*if\s+!\s*defined\s*\(\s*(\w+)\s*\)\s*\n\s*#\s*define\s+(\w+)\s*\n')
-        ifndef_pattern3 = re.compile(r'#\s*if\s+!\s*defined\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
-        content_str = "".join(content)
-        ifndef_names = set(match.group(1) for match in ifndef_pattern.finditer(content_str) if match.group(1) == match.group(2))
-        ifndef_names.update(match.group(1) for match in ifndef_pattern2.finditer(content_str) if match.group(1) == match.group(2))
-        ifndef_names.update(match.group(1) for match in ifndef_pattern3.finditer(content_str) if match.group(1) == match.group(2))
+        guard_patterns = detect_guard_patterns("".join(content))
 
         for line in content:
             if '#define' in line:
                 name = line.strip().split(" ")[1].split("(")[0]
-                if name not in ifndef_names:
+                if name not in guard_patterns:
                     undefs += "#ifdef " + name + "\n"
                     undefs += "#undef " + name + "\n"
                     undefs += "#endif\n"
             if '# define' in line:
                 name = line.strip().split(" ")[2].split("(")[0]
-                if name not in ifndef_names:
+                if name not in guard_patterns:
                     undefs += "#ifdef " + name + "\n"
                     undefs += "#undef " + name + "\n"
                     undefs += "#endif\n"

@@ -7,6 +7,27 @@ import glob
 import ntpath
 import re
 
+def detect_guard_patterns(content):
+    # Detect include guard macros (#ifndef X paired with bodyless #define X for the
+    # same name) to avoid adding #undef for them. Without this, the guard is
+    # defeated when multiple kernels with the same inlined header are batched
+    # into a single compilation unit.
+    # The following patterns are supported:
+    # 1. #ifndef X
+    #    #define X
+    # 2. #if !defined(X)
+    #    #define X
+    # 3. #if !defined X
+    #    #define X
+    # All patterns allowed to have arbitrary whitespace between the tokens
+    ifndef_pattern = re.compile(r'#\s*ifndef\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
+    ifndef_pattern2 = re.compile(r'#\s*if\s+!\s*defined\s*\(\s*(\w+)\s*\)\s*\n\s*#\s*define\s+(\w+)\s*\n')
+    ifndef_pattern3 = re.compile(r'#\s*if\s+!\s*defined\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
+    ifndef_names = set(match.group(1) for match in ifndef_pattern.finditer(content) if match.group(1) == match.group(2))
+    ifndef_names.update(match.group(1) for match in ifndef_pattern2.finditer(content) if match.group(1) == match.group(2))
+    ifndef_names.update(match.group(1) for match in ifndef_pattern3.finditer(content) if match.group(1) == match.group(2))
+    return ifndef_names
+
 class Code2CHeaders(object):
     def __init__(self, kernels_folder, headers_folder, lang):
         self.kernels_folder = os.path.abspath(kernels_folder)
@@ -76,20 +97,10 @@ class Code2CHeaders(object):
 
         defines = set(match.group(1) for match in define_pattern.finditer(content))
         undef_directives = []
-
-        # Detect include guard macros (#ifndef X paired with #define X for the
-        # same name) to avoid adding #undef for them. Without this, the guard is
-        # defeated when multiple kernels with the same inlined header are batched
-        # into a single compilation unit.
-        ifndef_pattern = re.compile(r'#\s*ifndef\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
-        ifndef_pattern2 = re.compile(r'#\s*if\s+!\s*defined\s*\(\s*(\w+)\s*\)\s*\n\s*#\s*define\s+(\w+)\s*\n')
-        ifndef_pattern3 = re.compile(r'#\s*if\s+!\s*defined\s+(\w+)\s*\n\s*#\s*define\s+(\w+)\s*\n')
-        ifndef_names = set(match.group(1) for match in ifndef_pattern.finditer(content) if match.group(1) == match.group(2))
-        ifndef_names.update(match.group(1) for match in ifndef_pattern2.finditer(content) if match.group(1) == match.group(2))
-        ifndef_names.update(match.group(1) for match in ifndef_pattern3.finditer(content) if match.group(1) == match.group(2))
+        guard_patterns = detect_guard_patterns(content)
 
         for define in defines:
-            if define in ifndef_names:
+            if define in guard_patterns:
                 continue
 
             # Regex to check if #undef for this define already exists
