@@ -3,8 +3,7 @@
 This is the analysis phase of adding an operation to the Intel CPU plugin. Before
 writing any code, locate the op's contract and its reference implementation,
 check whether a CPU node already exists, and decide which implementation strategy
-to follow. The output is a short analysis summary that drives the rest of the work
-(see [Implementing a CPU Node](./implementing_a_node.md)).
+to follow.
 
 ## Contents
 
@@ -13,7 +12,6 @@ to follow. The output is a short analysis summary that drives the rest of the wo
 - [The strategy decision matrix](#the-strategy-decision-matrix)
 - [Supported precisions and layouts](#supported-precisions-and-layouts)
 - [CPU-specific transformations](#cpu-specific-transformations)
-- [Analysis summary template](#analysis-summary-template)
 
 ## Locating the core op and its reference
 
@@ -107,10 +105,11 @@ Decision criteria:
 4. **Is dynamic output shape data-dependent?** → Needs custom `needShapeInfer()`.
 5. **Do output shapes depend on the operation results?** → Use `InternalDynShapeInferFactory()` and update shape in `execute()`.
 
-The chosen strategy determines the next phase: a reference-only or portable-C++ op
-is finished after [Implementing a CPU Node](./implementing_a_node.md); an
-executor-based op continues into
-[Executors, Kernels and Optimization](./executors_and_optimization.md).
+The chosen strategy determines how much of the rest applies: a reference-only or
+portable-C++ op needs only the node itself
+([Implementing a CPU Node](./implementing_a_node.md)); an executor-based op also
+uses the executor framework
+([Executors, Kernels and Optimization](./executors_and_optimization.md)).
 
 ## Supported precisions and layouts
 
@@ -142,24 +141,3 @@ the node layer. Understand these to avoid duplicating logic. For the graph-level
 optimizations that may consume or rewrite the op (fusing into convolutions,
 FakeQuantize handling, etc.), see
 [Internal CPU Plugin Optimizations](../internal_cpu_plugin_optimization.md).
-
-## Analysis summary template
-
-Produce an analysis summary; its `strategy` field drives the rest of the work:
-
-```
-op_name:           <name>
-opset_version:     <vX>
-core_op_class:     <ov::op::vX::OpName>
-reference_impl:    <path or "none">
-existing_cpu_node: <path or "none">
-strategy:          <reference-only | reference+parallel | jit-optimized | onednn-backed | executor-based>
-inputs:            <list of {name, type, shape_info}>
-outputs:           <list of {name, type, shape_info}>
-attributes:        <list of {name, type, default}>
-precisions:        <list of supported element types>
-layouts:           <list of supported layout types>
-dynamic_shapes:    <full | partial | static-only>
-target_isa:        <list of ISA levels to target>
-transformations:   <list of relevant CPU transformations or "none">
-```

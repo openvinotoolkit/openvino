@@ -2,6 +2,22 @@
 ## Introduction
 Selective build or conditional compilation can significantly reduce OpenVINO™ binaries size by excluding unnecessary components for particular model's inference.
 
+## In-code conditional compilation
+Two families of macros let CPU plugin code participate in conditional compilation. They are the in-code counterpart of the build workflow described below: the COLLECT build records which branches are actually exercised, and the selective build then drops the rest.
+
+**`OV_SWITCH` / `OV_CASE`** — runtime element-type dispatch that the build system can prune. Defined in the shared conditional-compilation component, [`openvino/cc/selective_build.h`](../../../common/conditional_compilation/include/openvino/cc/selective_build.h). Inside the CPU plugin they are pulled in via `selective_build.h`. Use them for per-precision dispatch instead of a manual `if/else`/`switch` on the element type — a manual chain compiles in every type unconditionally and defeats selective build.
+
+```cpp
+OV_SWITCH(intel_cpu, OpNameExecute, ctx, precision,
+          OV_CASE(ov::element::f32, float),
+          OV_CASE(ov::element::bf16, ov::bfloat16),
+          OV_CASE(ov::element::i32, int32_t))
+```
+
+**`OV_CPU_INSTANCE_*`** — architecture/backend guards for executor implementation lists, defined in [`src/utils/arch_macros.h`](../src/utils/arch_macros.h) (`COMMON`, `X64`, `DNNL`, `DNNL_X64`, `ACL`, `KLEIDIAI`, `MLAS_X64`, `RISCV64`, …). Each wraps an `ExecutorImplementation` so code for unavailable platforms is compiled away. See [the executor framework](../src/nodes/executors/README.md#getimplementations-and-the-ov_cpu_instance-macros) for usage.
+
+For the OpenVINO-wide conditional-compilation guide see [docs/dev/conditional_compilation.md](../../../../docs/dev/conditional_compilation.md).
+
 ## Workflow
 
 Onednn path in OpenVINO:

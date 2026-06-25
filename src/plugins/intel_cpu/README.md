@@ -17,6 +17,7 @@ CPU Plugin contains the following components:
 ## Tutorials
 
 * [Adding a new CPU operation](./docs/op_development/README.md)
+* [Functional tests](./tests/README.md)
 * [Debug capabilities](./docs/debug_capabilities/README.md)
 * [Performance analysis using ITT counters](./src/docs/performance_analysis_ITT_counters.md)
 * [Intel Software Development Emulator (CPU emulation)](./docs/cpu_emulation.md)
