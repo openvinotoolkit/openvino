@@ -6,11 +6,14 @@
 // Validates that concurrent reset_state() on sibling InferRequests from the
 // same CompiledModel does not corrupt shape inference in the GPU plugin.
 
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/llm_builders.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/infer_request.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #include <thread>
 #include <atomic>
