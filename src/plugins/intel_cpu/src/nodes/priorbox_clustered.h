@@ -44,7 +44,7 @@ private:
     float step_widths;
     float offset;
 
-    int number_of_priors;
+    size_t number_of_priors;
 };
 
 }  // namespace ov::intel_cpu::node
