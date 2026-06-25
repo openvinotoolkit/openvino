@@ -572,13 +572,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        const bool can_use_lp_fp_systolic = config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p;
-        ov::element::TypeVector dequantization_dtypes = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
-        if (can_use_lp_fp_systolic) {
-            dequantization_dtypes.insert(dequantization_dtypes.end(), {ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1});
-        }
-        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{dequantization_dtypes}, !device_info.supports_immad);
-        if (can_use_lp_fp_systolic && ov::pass::low_precision::LowPrecision::does_model_contain_mxfp_patterns(*func)) {
+        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4},
+                                                            !device_info.supports_immad);
+        if (config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p) {
             manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1, ov::element::f8e8m0},
                 true,
