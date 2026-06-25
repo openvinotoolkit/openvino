@@ -16,7 +16,7 @@ public:
 
     concatenation_kernel_selector();
 
-    virtual ~concatenation_kernel_selector() {}
+    ~concatenation_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

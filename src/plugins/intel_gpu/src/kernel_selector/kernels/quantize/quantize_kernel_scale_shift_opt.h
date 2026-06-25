@@ -13,7 +13,7 @@ public:
     using Parent = QuantizeKernelBase;
 
     QuantizeKernelScaleShift() : QuantizeKernelBase("quantize_gpu_scale_shift_opt") {}
-    virtual ~QuantizeKernelScaleShift() {}
+    ~QuantizeKernelScaleShift() override {}
 
     JitConstants GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const override;
     CommonDispatchData SetDefault(const quantize_params& params) const override;

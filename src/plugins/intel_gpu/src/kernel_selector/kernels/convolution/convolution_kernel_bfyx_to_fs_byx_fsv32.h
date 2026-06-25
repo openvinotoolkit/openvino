@@ -12,7 +12,7 @@ namespace kernel_selector {
 class ConvolutionKernel_bfyx_to_fs_byx_fsv32 : public ConvolutionKernelBase {
 public:
     ConvolutionKernel_bfyx_to_fs_byx_fsv32();
-    virtual ~ConvolutionKernel_bfyx_to_fs_byx_fsv32() {}
+    ~ConvolutionKernel_bfyx_to_fs_byx_fsv32() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;

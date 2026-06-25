@@ -16,7 +16,7 @@ public:
 
     roi_pooling_kernel_selector();
 
-    virtual ~roi_pooling_kernel_selector() {}
+    ~roi_pooling_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

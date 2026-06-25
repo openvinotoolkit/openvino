@@ -16,7 +16,7 @@ public:
 
     rms_kernel_selector();
 
-    virtual ~rms_kernel_selector() {}
+    ~rms_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

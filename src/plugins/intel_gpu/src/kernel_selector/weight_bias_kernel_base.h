@@ -14,7 +14,7 @@ namespace kernel_selector {
 class WeightBiasKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~WeightBiasKernelBase() {}
+    ~WeightBiasKernelBase() override {}
 
 protected:
     virtual JitConstants GetJitConstants(const weight_bias_params& params) const;

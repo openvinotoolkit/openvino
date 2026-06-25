@@ -13,7 +13,7 @@ public:
     using Parent = QuantizeKernelBase;
 
     QuantizeKernelRef() : QuantizeKernelBase("quantize_gpu_ref") {}
-    virtual ~QuantizeKernelRef() {}
+    ~QuantizeKernelRef() override {}
 
     JitConstants GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const override;
     CommonDispatchData SetDefault(const quantize_params& params) const override;

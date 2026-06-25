@@ -14,7 +14,7 @@ class Convolution_kernel_b_fs_yx_fsv16_imad_1x1 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     Convolution_kernel_b_fs_yx_fsv16_imad_1x1();
-    virtual ~Convolution_kernel_b_fs_yx_fsv16_imad_1x1() {}
+    ~Convolution_kernel_b_fs_yx_fsv16_imad_1x1() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params & params) const override;

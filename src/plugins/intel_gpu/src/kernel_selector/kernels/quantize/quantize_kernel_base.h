@@ -12,7 +12,7 @@ namespace kernel_selector {
 class QuantizeKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~QuantizeKernelBase() {}
+    ~QuantizeKernelBase() override {}
 
     bool Validate(const Params& p) const override;
     KernelsData GetKernelsData(const Params& params) const override;

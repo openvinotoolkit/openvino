@@ -153,4 +153,6 @@ ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

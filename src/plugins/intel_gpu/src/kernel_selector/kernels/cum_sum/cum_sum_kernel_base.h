@@ -22,7 +22,7 @@ struct cum_sum_params : public base_params {
 class CumSumKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~CumSumKernelBase() = default;
+    ~CumSumKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         size_t sum_items_num;

@@ -1,0 +1,89 @@
+name: 'Clang-tidy build'
+description: 'Configure and build an OpenVINO target with clang-tidy enabled, then upload compile_commands.json'
+
+inputs:
+  build-target:
+    description: 'CMake target to build under clang-tidy (e.g. openvino_intel_cpu_plugin)'
+    required: true
+  compile-commands-artifact:
+    description: 'Name of the uploaded compile_commands.json artifact'
+    required: true
+  cmake-extra-args:
+    description: 'Extra -D flags appended to the CMake configure command (space-separated, single line)'
+    required: false
+    default: ''
+  build-extra-args:
+    description: 'Arguments passed to the native build tool after the -- separator'
+    required: false
+    default: '-k'
+  show-sccache-stats:
+    description: 'Whether to print sccache statistics after the build'
+    required: false
+    default: 'true'
+  openvino-repo:
+    description: 'Path to clone OpenVINO into'
+    required: false
+    default: '/__w/openvino/openvino/openvino'
+  build-dir:
+    description: 'CMake build directory'
+    required: false
+    default: '/__w/openvino/openvino/openvino_build'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+      shell: bash
+      run: |
+        SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+        echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+        echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+        echo "✓ Connection string loaded and masked"
+
+    - name: Clone OpenVINO
+      uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+      with:
+        path: ${{ inputs.openvino-repo }}
+        submodules: 'true'
+
+    - name: CMake configure
+      shell: bash
+      run: |
+        cmake \
+          -G "${CMAKE_GENERATOR}" \
+          -DENABLE_CLANG_TIDY=ON \
+          -DENABLE_PROFILING_ITT=FULL \
+          -DENABLE_DEBUG_CAPS=ON \
+          -DSELECTIVE_BUILD=COLLECT \
+          -DENABLE_PYTHON=OFF \
+          -DENABLE_TESTS=OFF \
+          -DENABLE_NCC_STYLE=OFF \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          ${{ inputs.cmake-extra-args }} \
+          -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}" \
+          -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}" \
+          -S "${{ inputs.openvino-repo }}" \
+          -B "${{ inputs.build-dir }}"
+
+    - name: Cmake build with clang-tidy enabled
+      shell: bash
+      run: |
+        cmake \
+          --build "${{ inputs.build-dir }}" \
+          --parallel "$(($(nproc) - 1))" \
+          --config "${CMAKE_BUILD_TYPE}" \
+          --target ${{ inputs.build-target }} \
+          -- ${{ inputs.build-extra-args }}
+
+    - name: Upload compile_commands
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      if: always()
+      with:
+        name: ${{ inputs.compile-commands-artifact }}
+        path: ${{ inputs.build-dir }}/compile_commands.json
+        if-no-files-found: 'ignore'
+
+    - name: Show sccache stats
+      if: ${{ inputs.show-sccache-stats == 'true' }}
+      shell: bash
+      run: ${SCCACHE_PATH} --show-stats

@@ -28,7 +28,7 @@ public:
 
     gather_elements_kernel_selector();
 
-    virtual ~gather_elements_kernel_selector() {}
+    ~gather_elements_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

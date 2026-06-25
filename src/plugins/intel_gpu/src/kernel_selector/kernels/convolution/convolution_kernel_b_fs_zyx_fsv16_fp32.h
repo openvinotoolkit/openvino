@@ -14,6 +14,6 @@ public:
 
     ConvolutionKernel_b_fs_zyx_fsv16_fp32() : ConvolutionKernel_b_fs_zyx_fsv16(Datatype::F32) {}
 
-    virtual ~ConvolutionKernel_b_fs_zyx_fsv16_fp32() {}
+    ~ConvolutionKernel_b_fs_zyx_fsv16_fp32() override {}
 };
 }  // namespace kernel_selector

@@ -16,7 +16,7 @@ public:
 
     depth_to_space_kernel_selector();
 
-    virtual ~depth_to_space_kernel_selector() {}
+    ~depth_to_space_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

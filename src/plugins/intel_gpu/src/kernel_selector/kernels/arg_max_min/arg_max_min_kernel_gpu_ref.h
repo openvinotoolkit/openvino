@@ -10,7 +10,7 @@ namespace kernel_selector {
 class ArgMaxMinKernelGPURef : public ArgMaxMinKernelBase {
 public:
     ArgMaxMinKernelGPURef() : ArgMaxMinKernelBase("arg_max_min_gpu_ref") {}
-    virtual ~ArgMaxMinKernelGPURef() {}
+    ~ArgMaxMinKernelGPURef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

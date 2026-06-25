@@ -12,7 +12,7 @@ class LRNKernelWithinChannelByxfOpt : public LRNKernelBase {
 public:
     using Parent = LRNKernelBase;
     LRNKernelWithinChannelByxfOpt() : LRNKernelBase("lrn_within_channel_byxf_opt") {}
-    virtual ~LRNKernelWithinChannelByxfOpt() {}
+    ~LRNKernelWithinChannelByxfOpt() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -11,7 +11,7 @@ class ConvertColorKernelRef : public ConvertColorKernelBase {
 public:
     using Parent = ConvertColorKernelBase;
     ConvertColorKernelRef() : ConvertColorKernelBase("convert_color_ref") {}
-    virtual ~ConvertColorKernelRef() {}
+    ~ConvertColorKernelRef() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

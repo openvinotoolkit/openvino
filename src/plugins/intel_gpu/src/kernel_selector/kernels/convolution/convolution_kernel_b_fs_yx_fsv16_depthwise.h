@@ -12,7 +12,7 @@ class ConvolutionKernel_b_fs_yx_fsv16_depthwise : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_b_fs_yx_fsv16_depthwise() : ConvolutionKernelBase("convolution_gpu_bfyx_f16_depthwise") {}
-    virtual ~ConvolutionKernel_b_fs_yx_fsv16_depthwise() {}
+    ~ConvolutionKernel_b_fs_yx_fsv16_depthwise() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -28,7 +28,7 @@ struct reorg_yolo_params : public base_params {
 class ReorgYoloKernelRef : public KernelBaseOpenCL {
 public:
     ReorgYoloKernelRef() : KernelBaseOpenCL("reorg_yolo_gpu_ref") {}
-    virtual ~ReorgYoloKernelRef() {}
+    ~ReorgYoloKernelRef() override {}
 
     using DispatchData = CommonDispatchData;
     KernelsData GetKernelsData(const Params& params) const override;

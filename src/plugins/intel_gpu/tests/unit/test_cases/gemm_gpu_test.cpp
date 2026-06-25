@@ -101,7 +101,7 @@ protected:
     }
 
 public:
-    virtual ~GemmGPUTest() {}
+    ~GemmGPUTest() override {}
     void test(bool is_caching_test = false) {
 
         fill_gemm_params();
@@ -3471,7 +3471,7 @@ TEST_F(gemm_onednn, dynamic_padding_input_transpose) {
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
 class GemmBaseOneDNNTest : public ::GemmBaseTest<gemm_params, input0_type, input1_type, input2_type, output_type, accumulator_type> {
 public:
-    virtual ov::intel_gpu::ImplementationDesc getImplementationDesc(gemm_params& p) {
+    ov::intel_gpu::ImplementationDesc getImplementationDesc(gemm_params& p) override {
         return { format::bfyx, "", impl_types::onednn };
     }
 

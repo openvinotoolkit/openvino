@@ -10,7 +10,7 @@ namespace kernel_selector {
 class ArgMaxMinKernelAxis : public ArgMaxMinKernelBase {
 public:
     ArgMaxMinKernelAxis() : ArgMaxMinKernelBase("arg_max_min_axis") {}
-    virtual ~ArgMaxMinKernelAxis() {}
+    ~ArgMaxMinKernelAxis() override {}
 
     JitConstants GetJitConstants(const arg_max_min_params& params) const override;
     DispatchData SetDefault(const arg_max_min_params& params) const override;

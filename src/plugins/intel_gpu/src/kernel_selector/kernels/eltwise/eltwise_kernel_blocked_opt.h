@@ -20,7 +20,7 @@ namespace kernel_selector {
 class EltwiseKernel_blocked_opt : public EltwiseKernelBase {
 public:
     EltwiseKernel_blocked_opt() : EltwiseKernelBase("eltwise_blocked_opt") {}
-    virtual ~EltwiseKernel_blocked_opt() {}
+    ~EltwiseKernel_blocked_opt() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -16,7 +16,7 @@ public:
 
     fully_connected_kernel_selector();
 
-    virtual ~fully_connected_kernel_selector() {}
+    ~fully_connected_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

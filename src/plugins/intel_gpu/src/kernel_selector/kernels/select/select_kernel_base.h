@@ -20,7 +20,7 @@ struct select_params : public base_params {
 class SelectKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~SelectKernelBase() {}
+    ~SelectKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
     JitConstants GetJitConstantsCommon(const select_params& params) const;

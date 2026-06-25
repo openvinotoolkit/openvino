@@ -25,7 +25,7 @@ class ExperimentalDetectronDetectionOutputKernelRef : public KernelBaseOpenCL {
 public:
     ExperimentalDetectronDetectionOutputKernelRef() : KernelBaseOpenCL("experimental_detectron_detection_output_ref") {}
 
-    ~ExperimentalDetectronDetectionOutputKernelRef() = default;
+    ~ExperimentalDetectronDetectionOutputKernelRef() override = default;
 
 protected:
     bool Validate(const Params& p) const override;

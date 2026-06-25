@@ -1248,7 +1248,7 @@ public:
         return output;
     }
 
-    virtual memory::ptr generate_reference(const std::vector<memory::ptr>& inputs) override {
+    memory::ptr generate_reference(const std::vector<memory::ptr>& inputs) override {
         if (generic_params->data_type == data_types::f32) {
             return generate_reference_typed<float>(inputs);
         } else {

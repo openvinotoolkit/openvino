@@ -10,7 +10,7 @@ namespace kernel_selector {
 class ReorderWeightsKernelInt4 : public ReorderKernelBase {
 public:
     ReorderWeightsKernelInt4() : ReorderKernelBase("reorder_weights_int4") {}
-    virtual ~ReorderWeightsKernelInt4() {}
+    ~ReorderWeightsKernelInt4() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

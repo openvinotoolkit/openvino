@@ -17,7 +17,7 @@ class FullyConnectedKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
     using FusedOpDesc = fused_operation_desc;
-    virtual ~FullyConnectedKernelBase() {}
+    ~FullyConnectedKernelBase() override {}
 
     struct DispatchData : public CommonDispatchData {
         uint32_t unit_byte_size = 0;
