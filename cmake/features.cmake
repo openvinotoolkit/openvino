@@ -155,9 +155,9 @@ ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
-# GGML frontend is an MVP development/testing component; disabled by default and never
+# GGUF frontend is an MVP development/testing component; disabled by default and never
 # installed into the release package (see SKIP_INSTALL in its CMakeLists.txt).
-ov_option(ENABLE_OV_GGML_FRONTEND "Enable GGML/GGUF FrontEnd" OFF)
+ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" OFF)
 
 if(WIN32 AND AARCH64 AND CMAKE_CL_64)
     # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
