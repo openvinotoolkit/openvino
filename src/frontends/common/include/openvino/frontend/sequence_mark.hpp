@@ -26,11 +26,13 @@ public:
     bool empty() const;
     ov::Output<ov::Node> get_element(size_t index) const;
 
-    /// \brief Returns all sequence elements by resolving any SequenceMark /
+    /// \brief Returns all sequence elements of this SequenceMark, flattening any
     /// SequenceInsert / SequenceErase chain (with statically known positions)
-    /// and Identity passthrough wrapping this SequenceMark. Insert/Erase with a
+    /// and unwrapping Identity passthrough. A directly nested SequenceMark input
+    /// is kept as a single opaque element, preserving the index->element mapping
+    /// expected by tuple/list unpack and getitem. An Insert/Erase with a
     /// non-constant position, or a producer that carries a sequence across a
-    /// Loop/If boundary, is treated as a single opaque element.
+    /// Loop/If boundary, is also treated as a single opaque element.
     ov::OutputVector get_sequence() const;
 };
 

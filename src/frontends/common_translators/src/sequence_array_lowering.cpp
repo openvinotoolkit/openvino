@@ -530,19 +530,13 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
     if (!slots) {
         return false;
     }
-    // Loop-carried sequence seeded from SequenceEmpty: SAL represents it as a
-    // FIXED number (N) of per-element slots, but the source model's element
-    // count is a runtime property — 0 before the cache is first populated, N
-    // afterwards. Emitting the static N here freezes a `SequenceLength(cache) >
-    // 0` populated-ness gate to always-true, which makes the build-fresh branch
-    // dead and leaks the empty seed (a zero-length slot tensor) into the first
-    // iteration's attention (see word_fluency_v2 cross-attention crash). The
-    // slot Parameters have not been widened yet at this point (dynamic rank), so
-    // the accumulation axis cannot be pinned; instead derive the count purely
-    // from emptiness: a slot tensor with any zero-sized dim carries no elements.
+    // Loop-carried sequence seeded from SequenceEmpty: the element count is a
+    // runtime property (0 until the cache is populated, then N). Emitting a
+    // static N would freeze a `SequenceLength(cache) > 0` populated-ness gate to
+    // always-true and leak the empty seed into the first iteration's attention
+    // (word_fluency_v2 cross-attention crash). Slots are not widened yet, so
+    // derive the count from emptiness instead of pinning an axis:
     //   count = (ReduceProd(ShapeOf(s0)) == 0) ? 0 : N
-    // This is 0 on the empty-seed iteration and N once the slot is populated,
-    // faithfully reproducing the original element count for the gate.
     if (resolver.is_loop_carried_empty_seed(len->input_value(0)) && !slots->empty()) {
         const auto& s0 = (*slots)[0];
         const auto n = static_cast<int64_t>(slots->size());
@@ -563,18 +557,14 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
     if (!slots->empty()) {
         const auto& s0 = (*slots)[0];
         const auto& ps = s0.get_partial_shape();
-        // Accumulation axis: dynamic after Loop Pass A widening,
-        // or static zero-length before widening (SequenceEmpty seed).
+        // Accumulation axis: dynamic after Loop Pass A widening, or static
+        // zero-length before widening (SequenceEmpty seed).
         int dyn_axis = -1;
-        // Only a static-rank slot whose growable axis cannot be
-        // pinned is ambiguous. A dynamic-rank slot simply means
-        // the growable axis is unknown; the sequence still has a
-        // fixed compile-time element count (slots->size()), which
-        // is the correct SequenceLength.
+        // Only a static-rank slot whose growable axis cannot be pinned is
+        // ambiguous; a dynamic-rank slot keeps its compile-time count (slots->size()).
         if (ps.rank().is_static()) {
-            // Collect candidate accumulation axes: dynamic
-            // dims or static zero-length dims (SequenceEmpty
-            // sentinel before Loop Pass A widening).
+            // Candidate accumulation axes: dynamic or static zero-length dims
+            // (SequenceEmpty sentinel before Loop Pass A widening).
             std::vector<int> candidates;
             for (size_t d = 0; d < ps.size(); ++d) {
                 const bool axis_growable = ps[d].is_dynamic() || (ps[d].is_static() && ps[d].get_length() == 0);
@@ -676,10 +666,9 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
         }
     }
     // Non-convergence within the iteration cap leaves a partially-lowered graph.
-    // SAL is conservative by design (unresolved readers are flagged by the
-    // unconverted-ops report rather than failing the import), so this is not a
-    // hard error, but it is a diagnostic worth surfacing: a sequence chain that
-    // still mutates after max_iterations rounds points at an unhandled pattern.
+    // SAL is conservative (unresolved readers are flagged by the unconverted-ops
+    // report, not a hard error), but surfacing it helps: a chain still mutating
+    // after max_iterations rounds points at an unhandled pattern.
     if (!converged) {
         OPENVINO_DEBUG("SequenceArrayLowering did not converge within ",
                        max_iterations,

@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/sequence_at.hpp"
@@ -266,12 +267,10 @@ bool SlotResolver::is_sequence_merged_input(const std::shared_ptr<v5::Loop>& loo
     return false;
 }
 
-// Pre-allocate N body Parameters for each sequence-typed Loop merged input,
-// populating the slot cache to prevent cyclic resolution later.
-// Pre-allocate N tensor merged-inputs for every Loop whose merged input carries
-// a sequence. Run as a first pass so slots_of() can later resolve readers
-// without re-entrant graph mutation; the actual wiring is deferred to
-// finalize_pending_wiring().
+// Pre-allocate N tensor merged-inputs (one per slot) for every Loop whose
+// merged input carries a sequence, populating the slot cache. Run as a first
+// pass so slots_of() can later resolve readers without re-entrant graph
+// mutation; the actual wiring is deferred to finalize_pending_wiring().
 //
 //   merged( seqParam <- seqResult )  ==>  merged( s0Param <- s0Result )
 //                                         merged( s1Param <- s1Result ) ...
@@ -427,17 +426,28 @@ void SlotResolver::finalize_pending_wiring() {
         if (!pm.outer_seed_resolved) {
             auto outer_src = pm.loop->input_value(pm.outer_input);
             auto src_slots = slots_of(outer_src);
-            if (!src_slots || src_slots->size() != N) {
-                continue;
-            }
+            // By this point preallocate_loop_merged_params has already added the
+            // N body Parameters and lowering has redirected the
+            // SequenceAt/SequenceLength readers onto them. If the outer seed
+            // cannot be reconciled to N slots there is no way to bind those
+            // Parameters, and silently skipping would leave them with live
+            // consumers but no input binding (unbound merged input ->
+            // silently-wrong KV values or a downstream shape error). The
+            // redirection cannot be cleanly rolled back here, so fail loudly
+            // instead of committing a corrupt graph.
+            OPENVINO_ASSERT(src_slots && src_slots->size() == N,
+                            "SequenceArrayLowering: could not reconcile the loop-carried sequence outer seed to ",
+                            N,
+                            " slots; the loop-carried sequence pattern is not supported.");
             pm.outer_seed_slots = *src_slots;
             pm.outer_seed_resolved = true;
         }
         auto back_value = pm.body->get_results()[pm.back_edge_result_idx]->input_value(0);
         auto back_slots = slots_of(back_value);
-        if (!back_slots || back_slots->size() != N) {
-            continue;
-        }
+        OPENVINO_ASSERT(back_slots && back_slots->size() == N,
+                        "SequenceArrayLowering: could not reconcile the loop-carried sequence back-edge to ",
+                        N,
+                        " slots; the loop-carried sequence pattern is not supported.");
         // A synthesized empty-sequence seed was built from the slot templates
         // visible at pre-allocation time, before lowering resolved the real
         // per-slot shapes; for an empty-initialized cache those templates are
@@ -655,7 +665,10 @@ std::optional<Slots> SlotResolver::slots_of(const ov::Output<ov::Node>& value_in
                 }
                 int64_t pos = pv[0];
                 if (pos < 0) {
-                    pos += static_cast<int64_t>(base->size()) + 1;
+                    // Python list.insert semantics: index == size + pos (e.g. -1
+                    // inserts before the last element). Append (index == size) is
+                    // only reachable via a non-negative position.
+                    pos += static_cast<int64_t>(base->size());
                 }
                 if (pos < 0 || static_cast<size_t>(pos) > base->size()) {
                     return std::nullopt;
@@ -954,11 +967,16 @@ std::optional<Slots> SlotResolver::slots_of_msg_output(const std::shared_ptr<ov:
             continue;
         }
         // A branch that forwards the sequence unchanged (1 opaque slot) is
-        // expanded like an empty (0-slot) branch. Strictly intermediate counts
-        // (1 < size < N) are genuine cross-branch length mismatches.
+        // expanded like an empty (0-slot) branch only when the live branch's
+        // invariant Parameters can be mirrored in (see below). Strictly
+        // intermediate counts (1 < size < N) are genuine cross-branch length
+        // mismatches.
         if (per_body_slots[b].size() > 1 && per_body_slots[b].size() != N) {
             return std::nullopt;
         }
+        // Distinguish an opaque-forward branch (size 1, passes the incoming
+        // sequence through unchanged) from a genuinely empty branch (size 0).
+        const size_t orig_branch_size = per_body_slots[b].size();
         // Find a non-empty body to source templates from.
         size_t ref = 0;
         for (size_t bb = 0; bb < per_body_slots.size(); ++bb) {
@@ -1041,6 +1059,17 @@ std::optional<Slots> SlotResolver::slots_of_msg_output(const std::shared_ptr<ov:
             }
             msg->set_input_descriptions(static_cast<int>(b), cur_descs);
             continue;
+        }
+        // Mirror failed. An opaque-forward branch (size 1) carries the live
+        // loop-carried sequence (e.g. the pass-through KV-cache of an
+        // If(first_iter ? build_fresh : pass_through_cache)); filling it with
+        // zero dummies would silently zero that cache and produce all-zero
+        // attention. Leave the sequence unlowered so it is flagged by the
+        // unconverted-ops report instead of committing wrong results. A
+        // genuinely empty branch (size 0) has no carried value, so a zero seed
+        // is the correct expansion.
+        if (orig_branch_size == 1) {
+            return std::nullopt;
         }
         for (size_t k = 0; k < N; ++k) {
             auto dummy = make_zero_dummy(per_body_slots[ref][k]);

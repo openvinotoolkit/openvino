@@ -17,10 +17,6 @@ namespace frontend {
 
 namespace {
 
-bool is_sequence_producer(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<SequenceMark>(node) || ov::is_type<SequenceInsert>(node) || ov::is_type<SequenceErase>(node);
-}
-
 ov::Output<ov::Node> unwrap_identity(const ov::Output<ov::Node>& value) {
     ov::Output<ov::Node> cur = value;
     while (auto identity = ov::as_type_ptr<ov::op::v16::Identity>(cur.get_node_shared_ptr())) {
@@ -29,10 +25,10 @@ ov::Output<ov::Node> unwrap_identity(const ov::Output<ov::Node>& value) {
     return cur;
 }
 
-// Resolve a statically known sequence position into a clamped index, applying
-// negative-index normalization relative to `size`. `size_bias` is 1 for insert
-// (a value may be appended at index == size) and 0 for erase. Returns nullopt
-// when the position is dynamic or out of range.
+// Resolve a statically known sequence position into an index. A negative
+// position counts from the back (Python list semantics): index == size + pos.
+// `size_bias` is 1 for insert (append at index == size is valid) and 0 for
+// erase. Returns nullopt when the position is dynamic or out of range.
 std::optional<size_t> static_position(const ov::Output<ov::Node>& position, size_t size, int64_t size_bias) {
     auto pc = ov::util::get_constant_from_source(position);
     if (!pc) {
@@ -44,7 +40,7 @@ std::optional<size_t> static_position(const ov::Output<ov::Node>& position, size
     }
     int64_t pos = values[0];
     if (pos < 0) {
-        pos += static_cast<int64_t>(size) + size_bias;
+        pos += static_cast<int64_t>(size);
     }
     if (pos < 0 || pos >= static_cast<int64_t>(size) + size_bias) {
         return std::nullopt;
@@ -68,7 +64,13 @@ void enumerate_sequence(const ov::Output<ov::Node>& value, ov::OutputVector& out
     if (auto mark = ov::as_type_ptr<SequenceMark>(node)) {
         for (size_t i = 0; i < mark->get_input_size(); ++i) {
             const auto in = mark->input_value(i);
-            if (is_sequence_producer(in.get_node_shared_ptr())) {
+            const auto in_node = unwrap_identity(in).get_node_shared_ptr();
+            // Flatten only SequenceInsert/SequenceErase chains. A directly
+            // nested SequenceMark represents an inline nested list/tuple
+            // construct (e.g. PyTorch builds nested SequenceMarks); it must stay
+            // a single opaque element so the returned element count and
+            // index->element mapping keep matching context.get_output_size().
+            if (ov::is_type<SequenceInsert>(in_node) || ov::is_type<SequenceErase>(in_node)) {
                 enumerate_sequence(in, out, depth + 1);
             } else {
                 out.push_back(in);
@@ -79,11 +81,19 @@ void enumerate_sequence(const ov::Output<ov::Node>& value, ov::OutputVector& out
     if (auto ins = ov::as_type_ptr<SequenceInsert>(node)) {
         ov::OutputVector base;
         enumerate_sequence(ins->get_input_sequence(), base, depth + 1);
-        size_t pos = base.size();  // default: append at end
+        size_t pos = base.size();  // default (no position): append at end
         if (ins->has_position()) {
-            if (auto resolved = static_position(ins->get_position(), base.size(), /*size_bias=*/1)) {
-                pos = *resolved;
+            auto resolved = static_position(ins->get_position(), base.size(), /*size_bias=*/1);
+            if (!resolved) {
+                // Non-constant (or out-of-range) position: the spliced index is
+                // not statically known, so keep the whole SequenceInsert as a
+                // single opaque element (documented contract). Downstream passes
+                // resolve such dynamic positions structurally (Select chains) or
+                // leave the reader unconverted.
+                out.push_back(v);
+                return;
             }
+            pos = *resolved;
         }
         base.insert(base.begin() + static_cast<long>(pos), ins->get_tensor());
         out.insert(out.end(), base.begin(), base.end());
@@ -93,11 +103,17 @@ void enumerate_sequence(const ov::Output<ov::Node>& value, ov::OutputVector& out
         ov::OutputVector base;
         enumerate_sequence(era->get_input_sequence(), base, depth + 1);
         if (!base.empty()) {
-            size_t pos = base.size() - 1;  // default: erase last
+            size_t pos = base.size() - 1;  // default (no position): erase last
             if (era->has_position()) {
-                if (auto resolved = static_position(era->get_position(), base.size(), /*size_bias=*/0)) {
-                    pos = *resolved;
+                auto resolved = static_position(era->get_position(), base.size(), /*size_bias=*/0);
+                if (!resolved) {
+                    // Non-constant (or out-of-range) position: keep the whole
+                    // SequenceErase as a single opaque element (documented
+                    // contract) rather than guessing erase-last.
+                    out.push_back(v);
+                    return;
                 }
+                pos = *resolved;
             }
             base.erase(base.begin() + static_cast<long>(pos));
         }
