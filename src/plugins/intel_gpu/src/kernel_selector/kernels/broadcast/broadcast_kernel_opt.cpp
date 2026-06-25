@@ -5,6 +5,9 @@
 #include "broadcast_kernel_opt.h"
 #include "kernel_selector_utils.h"
 
+#include <numeric>
+#include <vector>
+
 namespace kernel_selector {
 
 static constexpr size_t kOptVecSize = 8;
@@ -67,8 +70,11 @@ OptChoices PickStaticChoices(const broadcast_params& p) {
     c.num_rows = output.Y().v * output.Z().v * output.W().v * output.Feature().v * dispatch_batch;
     // Block-write path: handles aligned 128-element chunks plus a scalar tail.
     // Gate requires X >= 128 to make the block-write loop meaningful; smaller X
-     // takes the vstore8 splat path which is fine for tiny rows.
-    c.x_broadcast_block_write = c.is_x_broadcast && (c.out_x >= 128);
+    // takes the vstore8 splat path which is fine for tiny rows.
+    // intel_sub_group_block_write requires a contiguous, offset-0 output row — reject if the
+    // output has padding or a buffer offset, else fall back to the vstore8 splat path.
+    const bool output_contiguous = !output.PitchesDifferFromLogicalDims() && output.GetFirstElementOffset() == 0;
+    c.x_broadcast_block_write = c.is_x_broadcast && (c.out_x >= 128) && output_contiguous;
     return c;
 }
 
@@ -104,17 +110,38 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     if (input.GetDType() != output.GetDType())
         return false;
 
-    // Opt kernel does not implement axis-permutation logic that explicit-mode broadcasts require
-    // (canonicalize_shapes places the dynamic-rank input in a position the kernel doesn't reorder).
-    // Numpy-mode broadcasts always have identity axis ordering and are safe.
+    // The kernel maps output axis i directly to input axis i (no permutation). Two distinct
+    // cases can violate that, so both guards are required:
+    //  1. Numpy mode with broadcast_axes set (e.g. {2}) produces a permuted input_order like
+    //     [1,2,0,3] — caught by the identity check below.
+    //  2. Explicit mode (axes_mapping set) leaves broadcast_axes empty, so input_order looks
+    //     like identity [0,1,2,...], but canonicalize_shapes places the input dim elsewhere —
+    //     caught by the is_explicit_mode flag.
     if (p.is_explicit_mode)
         return false;
 
+    std::vector<uint16_t> identity_order(p.input_order.size());
+    std::iota(identity_order.begin(), identity_order.end(), 0);
+    if (p.input_order != identity_order)
+        return false;
+
     if (input.is_dynamic() || output.is_dynamic()) {
-        // Dynamic numpy-mode: kernel handles X-broadcast at runtime via INPUT0_SIZE_X==1
-        // branch, and outer dims via per-row modulo. Size-dependent optimizations
-        // (BATCH_REPEAT, JIT-time IS_X_BROADCAST splat, BLOCK_WRITE) are disabled —
-        // win comes from the per-row vload8/vstore8 vs ref's per-element get_idx_pos.
+        // Dynamic numpy-mode: the kernel processes one output row (X) per work-group and
+        // broadcasts outer dims via per-row modulo. It has no Y-blocking, so for a Y-only
+        // broadcast the ref kernel is faster. Only opt-in when we can STATICALLY PROVE the
+        // beneficial shape, otherwise defer to ref:
+        //  - Y must be statically known and equal (not a Y-broadcast). If Y is dynamic we
+        //    cannot rule out a Y-broadcast at compile time -> regression risk -> reject.
+        //  - X, if statically known, must either match or be a 1->N broadcast (the only
+        //    numpy-valid options); anything else is a non-row-coherent pattern -> reject.
+        const bool y_known = !input.Y().is_dynamic && !output.Y().is_dynamic;
+        if (!y_known || input.Y().v != output.Y().v)
+            return false;
+
+        const bool x_known = !input.X().is_dynamic && !output.X().is_dynamic;
+        if (x_known && input.X().v != output.X().v && input.X().v != 1)
+            return false;
+
         return true;
     }
 

@@ -92,8 +92,9 @@ KERNEL(broadcast_gpu_opt)(
     for (uint x_start = 0; x_start < x_aligned_end; x_start += 128) {
         DT_OUTPUT_BLOCK_WRITE8(output, out_row_base + x_start, out_vec8);
     }
-    // Tail: scalar fill, each lane writes one element with stride=SIMD_SIZE.
-    for (uint x = x_aligned_end + get_sub_group_local_id(); x < OUTPUT_SIZE_X; x += 16) {
+    // Tail: scalar fill, each lane writes one element with stride = sub-group size.
+    const uint sg_size = get_max_sub_group_size();
+    for (uint x = x_aligned_end + get_sub_group_local_id(); x < OUTPUT_SIZE_X; x += sg_size) {
         output[out_row_base + x] = scalar_val;
     }
 #else
