@@ -1335,8 +1335,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         const auto has_qq_bias = desc->has_qq_bias;
         if (m_is_prefill) {
             if (requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
-                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
-                                paged_attention_micro_sdpa_prefill_key_buffer_idx});  // Key
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, paged_attention_micro_sdpa_prefill_key_buffer_idx});  // Key
             } else {
                 args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             }
@@ -1369,8 +1368,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
         }
 
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
-                        paged_attention_micro_sdpa_mapping_buffer_idx});  // blocked_indexes_start_and_gws_mapping
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, paged_attention_micro_sdpa_mapping_buffer_idx});  // blocked_indexes_start_and_gws_mapping
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q

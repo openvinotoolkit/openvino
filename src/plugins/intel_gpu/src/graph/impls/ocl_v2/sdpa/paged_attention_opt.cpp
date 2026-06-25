@@ -1557,8 +1557,7 @@ public:
 
         const auto padded_key_mem = intermediates_memories[paged_attention_micro_sdpa_prefill_key_buffer_idx];
         const auto copy_size = key_layout.bytes_count();
-        OPENVINO_ASSERT(padded_key_mem->size() >= copy_size,
-                        "[GPU] Paged Attention micro-SDPA prefill key buffer is smaller than the key input");
+        OPENVINO_ASSERT(padded_key_mem->size() >= copy_size, "[GPU] Paged Attention micro-SDPA prefill key buffer is smaller than the key input");
 
         return padded_key_mem->copy_from(stream, *key_mem, 0, 0, copy_size, false);
     }
@@ -1823,8 +1822,7 @@ public:
                             "[GPU] Unexpected Paged Attention micro-SDPA mapping buffer index");
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
 
-            if (stage == PagedAttentionStage::PREFILL &&
-                requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
+            if (stage == PagedAttentionStage::PREFILL && requires_paged_attention_micro_sdpa_prefill_key_padding(desc->k_head_size)) {
                 const auto key_tile_tokens = get_micro_tile_ksize(pa_sdpa_micro->kd);
                 const auto tail_padded_key_bytes = get_tail_padded_key_buffer_bytes(params, key_tile_tokens);
                 OPENVINO_ASSERT(internal_buffers.size() == paged_attention_micro_sdpa_prefill_key_buffer_idx,
