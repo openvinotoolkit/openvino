@@ -67,6 +67,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/util.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/util_xarch.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/v1/elements/accuracy_checked.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/v1/elements/batched.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/v1/elements/failsafe.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/lazy_tensor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
@@ -143,6 +144,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/batched_element_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lincache_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
