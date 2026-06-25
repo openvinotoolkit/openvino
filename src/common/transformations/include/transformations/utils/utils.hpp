@@ -156,6 +156,8 @@ TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<ov::op::v0::Cons
                                           float& value,
                                           bool check_value_range = true);
 
+TRANSFORMATIONS_API bool fq_ranges_are_equal(const std::shared_ptr<const ov::Node>& fq);
+
 TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<ov::op::v0::Constant>& constant,
                                                              const PartialShape& shape);
 
