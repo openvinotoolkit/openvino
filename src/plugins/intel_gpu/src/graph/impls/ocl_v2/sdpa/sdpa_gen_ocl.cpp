@@ -472,6 +472,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
                     const bool q_gt1 = dq.get_length() > 1;
                     const bool k_gt1 = dk.get_length() > 1;
                     mask_kind = (q_gt1 && k_gt1) ? 2 : (!q_gt1 && k_gt1) ? 1 : 0;
+                } else if (dq.is_static()) {
+                    const bool q_gt1 = dq.get_length() > 1;
+                    mask_kind = q_gt1 ? 2 : 1;
                 } else {
                     // Dynamic trailing dims: infer from the SDPA stage. Prefill processes
                     // many query tokens at once, so the mask is full 2D [.,.,q>1,k>1]
@@ -746,7 +749,7 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // Q
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // scale
+        // args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // scale
     }
 
     if (config.is_kv_compressed) {
@@ -812,9 +815,9 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
 
-            ScalarDescriptor s_scale{ScalarDescriptor::Types::FLOAT32};
-            s_scale.v.f32 = static_cast<float>(1.0f / std::sqrt(static_cast<float>(v_head_size)));
-            scalars.push_back(s_scale);
+            // ScalarDescriptor s_scale{ScalarDescriptor::Types::FLOAT32};
+            // s_scale.v.f32 = static_cast<float>(1.0f / std::sqrt(static_cast<float>(v_head_size)));
+            // scalars.push_back(s_scale);
         }
     }};
 }
