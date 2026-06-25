@@ -1,22 +1,21 @@
-# Skill: CPU Op Analysis
+# Choosing an Implementation Strategy for a New CPU Op
 
-> Agent: `cpu_agent` — Step 1 of 4
+This is the analysis phase of adding an operation to the Intel CPU plugin. Before
+writing any code, locate the op's contract and its reference implementation,
+check whether a CPU node already exists, and decide which implementation strategy
+to follow. The output is a short analysis summary that drives the rest of the work
+(see [Implementing a CPU Node](./implementing_a_node.md)).
 
-## When to Use
+## Contents
 
-- A new operation needs to be enabled in the CPU plugin.
-- An existing CPU node needs to be updated (new opset version, missing precision,
-  dynamic shape support).
-- CPU inference fails with "not implemented" or unsupported-operation errors.
+- [Locating the core op and its reference](#locating-the-core-op-and-its-reference)
+- [Does a CPU node already exist?](#does-a-cpu-node-already-exist)
+- [The strategy decision matrix](#the-strategy-decision-matrix)
+- [Supported precisions and layouts](#supported-precisions-and-layouts)
+- [CPU-specific transformations](#cpu-specific-transformations)
+- [Analysis summary template](#analysis-summary-template)
 
-## Prerequisites
-
-- Op name and opset version are known (from error context or task description).
-- The OpenVINO repository is checked out and buildable.
-
-## Procedure
-
-### Step 1: Locate the Core Op Definition
+## Locating the core op and its reference
 
 Find the core op class to understand the operation's contract:
 
@@ -33,8 +32,6 @@ Read the op header to extract:
 - **Outputs**: count, element types, shape inference rules.
 - **Attributes**: names, types, defaults.
 - **Base class**: `Op`, `util::UnaryElementwiseArithmetic`, etc.
-
-### Step 2: Locate the Reference Implementation
 
 The reference implementation may reside in one of two places:
 
@@ -58,7 +55,7 @@ Read the reference implementation (whichever location) to understand:
 - Data type handling (templated on element type or generic).
 - Whether it supports dynamic output shapes.
 
-### Step 3: Check if the Op Already Has a CPU Node
+## Does a CPU node already exist?
 
 ```bash
 # Check if a node exists
@@ -79,12 +76,13 @@ If a dedicated node **already exists**, determine what needs updating:
 If **no dedicated node exists**, the op currently runs through the `Reference`
 fallback node (if it has `evaluate()` implemented). However, not all reference
 implementations are compiled into the shared libraries — some may be excluded
-by selective build. A dedicated CPU node should implement its own optimised C++
-(cache-aware memory access, `CpuParallel` parallelisation, function inlining).
-The core reference (from `ov::reference::` or the op's `evaluate()` method)
-should be reused only if it already meets these performance criteria.
+by selective build (see [Selective build](../selective_build.md)). A dedicated
+CPU node should implement its own optimised C++ (cache-aware memory access,
+`CpuParallel` parallelisation, function inlining). The core reference (from
+`ov::reference::` or the op's `evaluate()` method) should be reused only if it
+already meets these performance criteria.
 
-### Step 4: Determine Implementation Strategy
+## The strategy decision matrix
 
 Choose one of these approaches based on the op characteristics:
 
@@ -109,7 +107,12 @@ Decision criteria:
 4. **Is dynamic output shape data-dependent?** → Needs custom `needShapeInfer()`.
 5. **Do output shapes depend on the operation results?** → Use `InternalDynShapeInferFactory()` and update shape in `execute()`.
 
-### Step 5: Identify Supported Precisions and Layouts
+The chosen strategy determines the next phase: a reference-only or portable-C++ op
+is finished after [Implementing a CPU Node](./implementing_a_node.md); an
+executor-based op continues into
+[Executors, Kernels and Optimization](./executors_and_optimization.md).
+
+## Supported precisions and layouts
 
 Standard precision support matrix:
 
@@ -128,18 +131,21 @@ Standard layout types for `addSupportedPrimDesc`:
 | Planar (NCHW) | `LayoutType::ncsp` | Default, always supported |
 | Channels-last (NHWC) | `LayoutType::nspc` | Conv, Pooling adjacency |
 
-### Step 6: Check for Existing Transformations
+## CPU-specific transformations
 
 ```bash
 grep -r "<OpName>" src/plugins/intel_cpu/src/transformations/
 ```
 
 Some ops are decomposed or fused by CPU-specific transformations before reaching
-the node layer. Understand these to avoid duplicating logic.
+the node layer. Understand these to avoid duplicating logic. For the graph-level
+optimizations that may consume or rewrite the op (fusing into convolutions,
+FakeQuantize handling, etc.), see
+[Internal CPU Plugin Optimizations](../internal_cpu_plugin_optimization.md).
 
-## Output
+## Analysis summary template
 
-Return an analysis summary:
+Produce an analysis summary; its `strategy` field drives the rest of the work:
 
 ```
 op_name:           <name>
@@ -157,5 +163,3 @@ dynamic_shapes:    <full | partial | static-only>
 target_isa:        <list of ISA levels to target>
 transformations:   <list of relevant CPU transformations or "none">
 ```
-
-Proceed to **cpu_op_implementation** skill.

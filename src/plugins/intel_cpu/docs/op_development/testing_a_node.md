@@ -1,15 +1,27 @@
-# Skill: CPU Op Testing
+# Testing a CPU Op
 
-> Agent: `cpu_agent` — Step 4 of 4
+This is the testing phase of adding an operation to the Intel CPU plugin. It
+assumes the node compiles and executes (see
+[Implementing a CPU Node](./implementing_a_node.md)) and that any optimization is
+done or deliberately skipped (see
+[Executors, Kernels and Optimization](./executors_and_optimization.md)).
 
-## Prerequisites
+For the overall functional-test directory taxonomy (`classes/` vs `instances/`,
+the split by architecture and backend), see the
+[tests README](../../tests/README.md).
 
-- Completed **cpu_op_implementation** — node compiles and has basic execution.
-- Completed **cpu_op_optimization** (or skipped if reference-only).
+## Contents
 
-## Test Categories
+- [Test categories and locations](#test-categories-and-locations)
+- [Eltwise-routed ops: reuse the activation test infrastructure](#eltwise-routed-ops-reuse-the-activation-test-infrastructure)
+- [Edge cases to cover](#edge-cases-to-cover)
+- [Verifying ISA implementation selection](#verifying-isa-implementation-selection)
+- [Building and running the tests](#building-and-running-the-tests)
+- [Troubleshooting](#troubleshooting)
 
-### 1. Shared Single-Layer Tests (Mandatory)
+## Test categories and locations
+
+### 1. Shared single-layer tests (mandatory)
 
 **Directory:** `src/plugins/intel_cpu/tests/functional/shared_tests_instances/single_layer_tests/`
 
@@ -22,8 +34,6 @@ using `ov::test::static_shapes_to_test_representation` with dynamic `InputShape`
 entries (e.g., `{{-1, -1}, {{1, 16}, {2, 32}}}`), not only static shapes.
 
 **File to create:** `<op_name>.cpp`
-
-**Pattern:**
 
 ```cpp
 // Copyright (C) 2018-2026 Intel Corporation
@@ -74,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OpName,
 **Test naming:** Use the `smoke_` prefix for basic functionality tests,
 `nightly_` for exhaustive tests.
 
-### 2. Custom CPU Single-Layer Tests (Recommended)
+### 2. Custom CPU single-layer tests (recommended)
 
 **Directory:** `src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/`
 
@@ -86,8 +96,6 @@ cover:
 - Edge cases specific to the CPU implementation.
 
 **File to create:** `<op_name>.cpp`
-
-**Pattern:**
 
 ```cpp
 // Copyright (C) 2018-2026 Intel Corporation
@@ -208,10 +216,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_OpName_Dynamic,
 }  // namespace ov
 ```
 
-### Eltwise-Routed Ops: Use Activation Test Infrastructure
+## Eltwise-routed ops: reuse the activation test infrastructure
 
-For ops routed through the existing `Eltwise` node (see **cpu_op_implementation** Fast Path),
-**do not create a separate custom test file**. Instead, extend the existing activation test infrastructure:
+For ops routed through the existing `Eltwise` node (see
+[the fast path](./implementing_a_node.md#fast-path-routing-a-unary-elementwise-op-through-eltwise)),
+**do not create a separate custom test file**. Instead, extend the existing
+activation test infrastructure:
 
 **`src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/activation.cpp`:**
 1. Add `{ActivationTypes::OpName, {{}}}` to `activationTypes()` (or `activationTypesDynamicMath()` for ref-only ops).
@@ -221,7 +231,7 @@ For ops routed through the existing `Eltwise` node (see **cpu_op_implementation*
 **`src/plugins/intel_cpu/tests/functional/shared_tests_instances/single_layer_tests/activation.cpp`:**
 - The op is already covered by the parameterized `ActivationLayerTest` and `ActivationLayerCPUTest` once added to the `activationTypes()` map — no new `INSTANTIATE_TEST_SUITE_P` needed.
 
-### 3. Edge Cases to Cover
+## Edge cases to cover
 
 | Category | Test Cases |
 |----------|-----------|
@@ -233,7 +243,7 @@ For ops routed through the existing `Eltwise` node (see **cpu_op_implementation*
 | **Attribute values** | All valid attribute combinations, especially boundary values |
 | **Numerical stability** | Very small values (denormals), very large values, NaN, Inf |
 
-### 4. Verifying ISA Implementation Selection
+## Verifying ISA implementation selection
 
 Custom CPU tests can verify that the correct implementation type is selected:
 
@@ -249,9 +259,7 @@ The `CheckPluginRelatedResults` function validates that `selectedType`
 (e.g., `jit_avx512_FP32`) matches the expected implementation based on the
 current hardware.
 
-## Build and Run Tests
-
-### Build
+## Building and running the tests
 
 ```bash
 cd build
@@ -263,49 +271,28 @@ cmake --build . --target ov_cpu_func_tests -j$(nproc)
 cmake --build . --target openvino_intel_cpu_plugin -j$(nproc)
 ```
 
-### Run Shared Tests
-
 ```bash
-./bin/intel64/Release/ov_cpu_func_tests \
-    --gtest_filter=*smoke*OpName*
+# Run shared tests
+./bin/intel64/Release/ov_cpu_func_tests --gtest_filter=*smoke*OpName*
+
+# Run custom CPU tests
+./bin/intel64/Release/ov_cpu_func_tests --gtest_filter=*OpNameLayerCPUTest*
+
+# Run all tests for the op
+./bin/intel64/Release/ov_cpu_func_tests --gtest_filter=*OpName*
+
+# Run with verbose output
+./bin/intel64/Release/ov_cpu_func_tests --gtest_filter=*OpName* --gtest_print_time=1
 ```
 
-### Run Custom CPU Tests
+**Files created in this phase:**
 
-```bash
-./bin/intel64/Release/ov_cpu_func_tests \
-    --gtest_filter=*OpNameLayerCPUTest*
-```
+| File | Purpose |
+|------|---------|
+| `src/plugins/intel_cpu/tests/functional/shared_tests_instances/single_layer_tests/<op_name>.cpp` | Shared test instantiation |
+| `src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/<op_name>.cpp` | Custom CPU-specific tests |
 
-### Run All Tests for the Op
-
-```bash
-./bin/intel64/Release/ov_cpu_func_tests \
-    --gtest_filter=*OpName*
-```
-
-### Run with Verbose Output
-
-```bash
-./bin/intel64/Release/ov_cpu_func_tests \
-    --gtest_filter=*OpName* \
-    --gtest_print_time=1
-```
-
-## Debug Capabilities
-
-The CPU plugin provides debug features documented in
-`src/plugins/intel_cpu/docs/debug_capabilities/`:
-
-```bash
-# Print execution graph with performance counters
-export OV_CPU_DEBUG_LOG=1
-
-# Dump node execution details
-export OV_CPU_EXEC_GRAPH_INFO=1
-```
-
-## Test Failure Troubleshooting
+## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
@@ -316,15 +303,7 @@ export OV_CPU_EXEC_GRAPH_INFO=1
 | Wrong impl selected | `initSupportedPrimitiveDescriptors` ordering | First matching descriptor is selected — order matters |
 | Dynamic shape failure | Missing `executeDynamicImpl` | Ensure `executeDynamicImpl` delegates to `execute` |
 
-## Output
-
-- All shared single-layer tests pass.
-- Custom CPU single-layer tests pass (static + dynamic shapes).
-- Report `success` + list of files created to OV Orchestrator.
-
-### Files Created in This Step
-
-| File | Purpose |
-|------|---------|
-| `src/plugins/intel_cpu/tests/functional/shared_tests_instances/single_layer_tests/<op_name>.cpp` | Shared test instantiation |
-| `src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/<op_name>.cpp` | Custom CPU-specific tests |
+For deeper diagnosis (verbose execution tracing, blob dumping, execution-graph
+serialization, per-node inference precision, logging), use the plugin's debug
+capabilities — see [Debug capabilities](../debug_capabilities/README.md) and
+match the observed symptom to the right capability.
