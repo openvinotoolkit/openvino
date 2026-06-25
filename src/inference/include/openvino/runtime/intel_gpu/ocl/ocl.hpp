@@ -345,11 +345,11 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain a remote tensor object from a user-suppliedhost pointer
+     * @brief This function is used to obtain a remote tensor object from a user-supplied host pointer.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param mmap_ptr A pointer to already created mmap region or std::aligned_alloc allocation that should be wrapped
-     * by a remote tensor
+     * @param cpu_ptr A pointer to an mmap region or an ov::util::aligned_alloc allocation that should be wrapped by a
+     *                remote tensor
      * @param memory_type Memory type to use; only MemType::CPU_POINTER is supported by this overload
      * @return A remote tensor instance
      */
@@ -358,7 +358,7 @@ public:
                                                   void* cpu_ptr,
                                                   const MemType memory_type) {
         OPENVINO_ASSERT(memory_type == MemType::CPU_POINTER,
-                        "Only CPU_POINTER memory type is supported for mmap pointer overload");
+                        "Only CPU_POINTER memory type is supported for CPU pointer overload");
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_POINTER},
                          {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(cpu_ptr)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
