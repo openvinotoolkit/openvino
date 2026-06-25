@@ -710,7 +710,7 @@ Source the comment content directly from the investigation you already produced:
   * **What happened** is a condensed version of the Root Cause Analysis (Phase 4 / Phase 6).
   * **Possible remedy** comes from your Recommended Actions, refined with any matching pattern data from repo-memory (`/tmp/gh-aw/repo-memory/default/mq/patterns/` and `/tmp/gh-aw/repo-memory/default/mq/investigations/`). If a prior pattern exists, prefer the remedy that resolved it before.
 
-Do not duplicate the full Teams description in the comment — keep it to the pipeline reference, a short short possible remedy, and a failure description.
+Do not duplicate the full Teams description in the comment — keep it to the pipeline reference, a short possible remedy, and a failure description.
 
 ### `notify_teams` field guidance
 
