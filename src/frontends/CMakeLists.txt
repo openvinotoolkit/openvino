@@ -41,3 +41,7 @@ endif()
 if(ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
 endif()
+
+if(ENABLE_OV_GGML_FRONTEND)
+    add_subdirectory(ggml)
+endif()
