@@ -32,7 +32,7 @@ std::vector<cl_device_id> find_ocl_devices() {
         return {};
     }
     std::vector<cl_platform_id> platform_ids(numPlatforms);
-    error = clGetPlatformIDs(platform_ids.size(), platform_ids.data(), nullptr);
+    error = clGetPlatformIDs(numPlatforms, platform_ids.data(), nullptr);
     if (error != CL_SUCCESS) {
         return {};
     }
@@ -110,7 +110,7 @@ void ze_ocl_interop::init() {
         ze_device_handle_t ze_dev = nullptr;
         try {
             ze_dev = get_ze_device(ocl_device);
-        } catch (const std::exception &e) {
+        } catch (...) {
             continue;
         }
         _device_map[ze_dev] = ocl_device;
