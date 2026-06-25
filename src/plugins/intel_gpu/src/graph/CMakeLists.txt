@@ -95,6 +95,11 @@ macro(ov_gpu_add_backend_target)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
+
+    # The graph backend implementations are compiled in these per-backend OBJECT
+    # libraries (the openvino_intel_gpu_graph STATIC lib excludes them), so apply
+    # clang-tidy here to cover them as well.
+    ov_apply_clang_tidy(TARGET ${ARG_NAME})
 endmacro()
 
 set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/kernels_db_gen.py")

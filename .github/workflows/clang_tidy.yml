@@ -160,6 +160,8 @@ jobs:
           build-target: openvino_intel_cpu_plugin
           compile-commands-artifact: compile_commands_clang_tidy_x86_64
           build-extra-args: '--quiet -k 0'
+          openvino-repo: ${{ env.OPENVINO_REPO }}
+          build-dir: ${{ env.BUILD_DIR }}
 
   Build-aarch64:
     needs: [Docker_Arm, Smart_CI]
@@ -206,6 +208,8 @@ jobs:
           # Unix Makefiles generator; keep going on errors (no --quiet until Ubuntu 24.04+).
           cmake-extra-args: '-DCMAKE_RULE_MESSAGES=OFF'
           build-extra-args: '-k'
+          openvino-repo: ${{ env.OPENVINO_REPO }}
+          build-dir: ${{ env.BUILD_DIR }}
 
   Build-riscv64:
     needs: [Docker, Smart_CI]
@@ -253,6 +257,8 @@ jobs:
           cmake-extra-args: '-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -DCMAKE_RULE_MESSAGES=OFF -DTHREADING=SEQ'
           build-extra-args: '-k'
           show-sccache-stats: 'false'
+          openvino-repo: ${{ env.OPENVINO_REPO }}
+          build-dir: ${{ env.BUILD_DIR }}
 
   Build-GPU:
     needs: [Docker, Smart_CI]
@@ -298,6 +304,8 @@ jobs:
           compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64
           cmake-extra-args: '-DENABLE_INTEL_GPU=ON'
           build-extra-args: '--quiet -k 0'
+          openvino-repo: ${{ env.OPENVINO_REPO }}
+          build-dir: ${{ env.BUILD_DIR }}
 
   Overall_Status:
     name: ci/gha_overall_status_clang_tidy

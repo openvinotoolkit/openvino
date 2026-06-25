@@ -13,7 +13,7 @@ Checks: >
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes.
 FormatStyle: file
-HeaderFilterRegex: ".*(src/plugins/intel_gpu|src/tests/functional/plugin/gpu)/.*"
+HeaderFilterRegex: "src/plugins/intel_gpu/(include|src|tests)/.*\\.(h|hpp)$"
 CheckOptions:
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
