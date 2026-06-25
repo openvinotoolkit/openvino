@@ -97,14 +97,6 @@ public:
      */
     std::optional<std::string> fetchCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
 
-    /**
-     * @brief Validates a compatibility descriptor against the current device.
-     * @param compatibilityDescriptor The descriptor string obtained from blob metadata.
-     * @return - true: if the blob is compatible with this device OR if the descriptor is empty.
-     *         - false: if it is not compatible.
-     */
-    bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const;
-
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t indexUsedByDriver,
