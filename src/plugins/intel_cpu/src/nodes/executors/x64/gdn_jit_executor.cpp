@@ -33,25 +33,25 @@ struct GatedDeltaNetJitKey {
     ov::element::Type precision;
     size_t qk_head_size;
     size_t v_tile;
-    bool fuse_qk_l2norm;
     float q_l2_norm_eps;
     float k_l2_norm_eps;
+    bool fuse_qk_l2norm;
 
     [[nodiscard]] size_t hash() const {
         size_t seed = 0;
         seed = dnnl::impl::hash_combine(seed, precision.hash());
         seed = dnnl::impl::hash_combine(seed, qk_head_size);
         seed = dnnl::impl::hash_combine(seed, v_tile);
-        seed = dnnl::impl::hash_combine(seed, fuse_qk_l2norm);
         seed = dnnl::impl::hash_combine(seed, q_l2_norm_eps);
         seed = dnnl::impl::hash_combine(seed, k_l2_norm_eps);
+        seed = dnnl::impl::hash_combine(seed, fuse_qk_l2norm);
         return seed;
     }
 
     bool operator==(const GatedDeltaNetJitKey& rhs) const {
         return precision == rhs.precision && qk_head_size == rhs.qk_head_size && v_tile == rhs.v_tile &&
-               fuse_qk_l2norm == rhs.fuse_qk_l2norm && q_l2_norm_eps == rhs.q_l2_norm_eps &&
-               k_l2_norm_eps == rhs.k_l2_norm_eps;
+               q_l2_norm_eps == rhs.q_l2_norm_eps && k_l2_norm_eps == rhs.k_l2_norm_eps &&
+               fuse_qk_l2norm == rhs.fuse_qk_l2norm;
     }
 };
 
@@ -199,32 +199,16 @@ GdnJitExecutor::GdnJitExecutor(const GatedDeltaNetAttrs& attrs, const MemoryArgs
 bool GdnJitExecutor::updateKernelAndScratchpad(const MemoryArgs& memory) {
     const auto precision = memory.at(ARG_GDN_QUERY)->getDescPtr()->getPrecision();
     const auto& queryShape = memory.at(ARG_GDN_QUERY)->getDescPtr()->getShape();
-    const auto& valueShape = memory.at(ARG_GDN_VALUE)->getDescPtr()->getShape();
-    if (queryShape.isDynamic() || valueShape.isDynamic()) {
-        return false;
-    }
-
     const auto& queryDims = queryShape.getStaticDims();
-    const auto& valueDims = valueShape.getStaticDims();
-    OPENVINO_ASSERT(!queryDims.empty(), "GatedDeltaNet query tensor rank must be >= 1");
-    OPENVINO_ASSERT(!valueDims.empty(), "GatedDeltaNet value tensor rank must be >= 1");
-
     const size_t headSize = queryDims.back();
-    if ((precision == ov::element::f16 || precision == ov::element::bf16) && headSize % 32 != 0) {
-        return false;
-    }
-
     const size_t jitVTile = getJitVTile(precision, m_attrs.jit_v_tile);
-    if (valueDims.back() % jitVTile != 0) {
-        return false;
-    }
 
     GatedDeltaNetJitKey key{precision,
                             headSize,
                             jitVTile,
-                            m_attrs.fuse_qk_l2norm,
                             m_attrs.q_l2_norm_eps,
-                            m_attrs.k_l2_norm_eps};
+                            m_attrs.k_l2_norm_eps,
+                            m_attrs.fuse_qk_l2norm};
 
     auto builder = [](const GatedDeltaNetJitKey& compile_key) -> std::shared_ptr<kernel::JitKernelBase> {
         return kernel::create_gdn_jit_kernel(compile_key.precision,

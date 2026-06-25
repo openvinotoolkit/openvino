@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gated_delta_net_config.hpp"
@@ -39,21 +40,21 @@ const std::vector<ExecutorImplementation<GatedDeltaNetAttrs>>& getImplementation
                 const auto& queryShape = memory.at(ARG_GDN_QUERY)->getDescPtr()->getShape();
                 const size_t jitVTile = precision == ov::element::f32 ? 1 : attrs.jit_v_tile;
                 const auto& valueShape = memory.at(ARG_GDN_VALUE)->getDescPtr()->getShape();
-                if (queryShape.isDynamic() || valueShape.isDynamic()) {
-                    return false;
-                }
+                VERIFY(!queryShape.isDynamic() && !valueShape.isDynamic(), UNSUPPORTED_BY_EXECUTOR, " dynamic shape");
 
                 const auto& queryDims = queryShape.getStaticDims();
-                if (queryDims.empty()) {
-                    return false;
-                }
+                VERIFY(!queryDims.empty(), UNSUPPORTED_BY_EXECUTOR, " empty query dims");
 
-                if ((precision == ov::element::f16 || precision == ov::element::bf16) && queryDims.back() % 32 != 0) {
-                    return false;
-                }
+                VERIFY((precision != ov::element::f16 && precision != ov::element::bf16) || queryDims.back() % 32 == 0,
+                       UNSUPPORTED_BY_EXECUTOR,
+                       " xf16 requires qk_head_size % 32 == 0");
 
                 const auto& valueDims = valueShape.getStaticDims();
-                return !valueDims.empty() && (valueDims.back() % jitVTile == 0);
+                VERIFY(!valueDims.empty(), UNSUPPORTED_BY_EXECUTOR, " empty value dims");
+                VERIFY(valueDims.back() % jitVTile == 0,
+                       UNSUPPORTED_BY_EXECUTOR,
+                       " value head dim is not divisible by JIT tile");
+                return true;
             },
             CreateDefault<GdnJitExecutor, GatedDeltaNetAttrs>{}
         )

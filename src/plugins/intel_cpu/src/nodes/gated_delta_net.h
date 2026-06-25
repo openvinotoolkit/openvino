@@ -34,10 +34,6 @@ public:
         return true;
     }
 
-    bool needPrepareParams() const override {
-        return true;
-    }
-
     void createPrimitive() override;
     void prepareParams() override;
 
