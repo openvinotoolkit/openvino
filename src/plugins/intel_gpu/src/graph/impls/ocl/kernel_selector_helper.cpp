@@ -1214,6 +1214,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_image = device_info.supports_image;
     params.engineInfo.supports_work_group_collective_functions = device_info.supports_work_group_collective_functions;
     params.engineInfo.supports_non_uniform_work_group = device_info.supports_non_uniform_work_group;
+    std::cout << "Engine info supports non uniform work group: " << params.engineInfo.supports_non_uniform_work_group << std::endl;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;

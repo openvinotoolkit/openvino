@@ -43,6 +43,7 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
                                      ": Dispatch data cannot contain zeros. Actual: " +
                                      toString(dispatchData));
 
+        std::cout << "In kernel base: " << engineInfo.supports_non_uniform_work_group << std::endl;
         if (!engineInfo.supports_non_uniform_work_group) {
             if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
                 throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
