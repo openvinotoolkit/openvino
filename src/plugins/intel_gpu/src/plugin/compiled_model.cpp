@@ -265,16 +265,40 @@ std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& 
     // The desc=[...] block is the GPU-specific device descriptor. It lists the device
     // properties that, if changed, invalidate a previously compiled blob:
     //   - driver: OpenCL/L0 driver that compiles and owns the kernel binaries
-    //   - ip:     raw GFX IP version (device architecture / generation)
+    //   - ip:     GPU architecture / generation (human-readable arch name)
     //   - eus:    execution units count
+    //   - simd:   SIMD widths the compiler targets (kernels are SIMD-specialized)
+    //   - immad:  int8 systolic / DPAS support (flips kernel selection)
     // These mirror the GPU model-cache fingerprint (ov::device::architecture +
     // execution_units_count) plus the driver/compiler version expected by the NPU format.
+    const auto arch_to_string = [](cldnn::gpu_arch arch) -> std::string {
+        switch (arch) {
+        case cldnn::gpu_arch::gen9:   return "gen9";
+        case cldnn::gpu_arch::gen11:  return "gen11";
+        case cldnn::gpu_arch::xe_lp:  return "xe_lp";
+        case cldnn::gpu_arch::xe_hp:  return "xe_hp";
+        case cldnn::gpu_arch::xe_hpg: return "xe_hpg";
+        case cldnn::gpu_arch::xe_hpc: return "xe_hpc";
+        case cldnn::gpu_arch::xe2:    return "xe2";
+        case cldnn::gpu_arch::xe3:    return "xe3";
+        case cldnn::gpu_arch::xe3p:   return "xe3p";
+        default:                      return "unknown";
+        }
+    };
+
     std::ostringstream ss;
     ss << "meta=1.0"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
        << ";desc=[driver=" << info.driver_version
-       << ";ip=" << info.ip_version
-       << ";eus=" << info.execution_units_count << "]";
+       << ";ip=" << arch_to_string(info.arch)
+       << ";eus=" << info.execution_units_count
+       << ";simd=";
+    for (size_t i = 0; i < info.supported_simd_sizes.size(); ++i) {
+        if (i != 0)
+            ss << ".";
+        ss << info.supported_simd_sizes[i];
+    }
+    ss << ";immad=" << (info.supports_immad ? 1 : 0) << "]";
     return ss.str();
 }
 const std::vector<std::shared_ptr<Graph>>& CompiledModel::get_graphs() const {
