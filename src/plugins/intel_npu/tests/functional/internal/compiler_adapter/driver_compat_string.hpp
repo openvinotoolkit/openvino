@@ -14,9 +14,9 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "driver_compiler_adapter.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "zero_device.hpp"
 
 namespace ov::test::behavior {
 
@@ -54,23 +54,23 @@ protected:
         ASSERT_NE(zeroInitStruct, nullptr);
         ASSERT_NE(zeroInitStruct->getDevice(), nullptr);
 
-        adapter = std::make_unique<DriverCompilerAdapter>(zeroInitStruct);
+        device = std::make_unique<ZeroDevice>(zeroInitStruct);
     }
 
     std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
-    std::unique_ptr<DriverCompilerAdapter> adapter;
+    std::unique_ptr<ZeroDevice> device;
 };
 
 // a E2E test fails earlier (metadata parse), so this narrow unit test is the only coverage for the L0 driver validation
 // branch.
 TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
     if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
-        ASSERT_ANY_THROW(adapter->validate_compatibility_descriptor("not_a_valid_compat_string"));
+        ASSERT_ANY_THROW(device->validateCompatibilityDescriptor("not_a_valid_compat_string"));
     } else {
         bool isCompatible = true;
-        OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor("not_a_valid_compat_string"));
+        OV_ASSERT_NO_THROW(isCompatible = device->validateCompatibilityDescriptor("not_a_valid_compat_string"));
         EXPECT_FALSE(isCompatible);
     }
 }
@@ -78,7 +78,7 @@ TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
 // no E2E test reaches this branch because compilation never produces an empty descriptor.
 TEST_P(DriverCompatStringTest, ValidateAcceptsEmptyString) {
     bool isCompatible = false;
-    OV_ASSERT_NO_THROW(isCompatible = adapter->validate_compatibility_descriptor(""));
+    OV_ASSERT_NO_THROW(isCompatible = device->validateCompatibilityDescriptor(""));
     EXPECT_TRUE(isCompatible);
 }
 
