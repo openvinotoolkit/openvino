@@ -44,6 +44,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/gqa_compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_request.cpp
@@ -93,8 +94,12 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/attn/attn_subgraph.cpp
             # npuw_transformations
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/add_position_ids_param.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/collapse_unqdq.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/conv_to_matmul.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/decompose_gqa.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/drop_zp_subtract.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/untangle_dq_scale.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/optimize_value_tensors.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/patch_sliding_window_mask.cpp
@@ -137,6 +142,7 @@ install(TARGETS ${TARGET_NAME}
 target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lincache_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
@@ -149,6 +155,11 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_behavior_infer_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/preserve_const_matmul_pattern_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/add_position_ids_param_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/collapse_unqdq_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/conv_to_matmul_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/patch_sliding_mask_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/remove_empty_kv_inputs_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/stateful_to_stateless_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sdpa_pattern_matcher_test.cpp
 )

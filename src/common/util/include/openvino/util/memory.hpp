@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <system_error>
 
 namespace ov::util {
 
@@ -76,40 +77,51 @@ void* aligned_alloc(size_t size, size_t alignment) noexcept;
 void aligned_free(void* ptr) noexcept;
 
 /**
- * @brief Reserves a block of memory of the specified size without actually allocating physical memory.
- * The reserved memory block is not accessible until acquire_buffer() is called on it. The reserved memory block should
- * be released with release_buffer() when it is no longer needed.
- * @param size [in] Size of the memory block to reserve in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
- * @return Pointer to the reserved memory block, or nullptr if the reservation fail.
+ * @brief Reserves virtual address space of the given size without backing it with physical memory.
+ * The region is inaccessible until vm_commit() is called. Release with vm_release() when no longer needed.
+ * @param size  Size in bytes to reserve. Must be greater than 0.
+ * @param ec    Set to the OS error code on failure, cleared on success.
+ * @return Pointer to the reserved region, or nullptr on failure.
  */
-void* reserve_buffer(size_t size, std::string* error = nullptr) noexcept;
+void* vm_reserve(size_t size, std::error_code& ec) noexcept;
 
 /**
- * @brief Acquires the reserved memory block, making it accessible for read/write operations.
- * @param reserved_buffer [in] Pointer to the reserved memory block to acquire.
- * @param size [in] Size of the memory block to acquire in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
- * @note The reserved memory block should be successfully acquired before it can be used.
+ * @brief Commits a previously reserved region, making it readable and writable.
+ * @param ptr   Pointer returned by vm_reserve().
+ * @param size  Size in bytes to commit. Must be greater than 0.
+ * @param ec    Set to the OS error code on failure, cleared on success.
  */
-void acquire_buffer(void* reserved_buffer, size_t size, std::string* error = nullptr) noexcept;
+void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept;
 
 /**
- * @brief Evicts the acquired memory block, making it inaccessible and allowing the system to free physical memory.
- * @param reserved_buffer [in] Pointer to the reserved memory block to evict.
- * @param size [in] Size of the memory block to evict in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
- * @note After eviction, the reserved memory block can be acquired again with acquire_buffer().
+ * @brief Decommits a committed region: revokes access and returns physical pages to the OS.
+ * The virtual address range remains reserved and can be committed again with vm_commit().
+ * @param ptr   Pointer returned by vm_reserve(). Must not be nullptr.
+ * @param size  Size in bytes to decommit. Must be greater than 0.
+ * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
-void evict_buffer(void* reserved_buffer, size_t size, std::string* error = nullptr) noexcept;
+void vm_decommit(void* ptr, size_t size) noexcept;
 
 /**
- * @brief Releases the reserved memory block, freeing any associated resources. After this call, the reserved memory
- * block is no longer valid and should not be used.
- * @param reserved_buffer [in] Pointer to the reserved memory block to release.
- * @param size [in] Size of the memory block to release in bytes. Must be greater than 0.
- * @param error [out] Optional Error message in case of failure, empty otherwise.
+ * @brief Releases the reserved virtual address range. Can be called without a prior vm_decommit().
+ * After this call the pointer is invalid and must not be used.
+ * @param ptr   Pointer returned by vm_reserve(). Must not be nullptr.
+ * @param size  Size in bytes originally passed to vm_reserve(). Must be greater than 0.
+ * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
-void release_buffer(void* reserved_buffer, size_t size, std::string* error = nullptr) noexcept;
+void vm_release(void* ptr, size_t size) noexcept;
+
+/**
+ * @brief Pre-fetch a committed VM range into physical memory.
+ *
+ * Works with both anonymous (@ref vm_commit) and file-backed (mmap) regions.
+ *
+ * @param ptr         Base address of the range. Must be page-aligned.
+ * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
+ * @param num_threads Strategy selector:
+ *                    - @c 0 (default) → OS advisory hint (async, low overhead).
+ *                    - @c N >= 1      → parallel touch with N threads (synchronous).
+ */
+void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
 
 }  // namespace ov::util

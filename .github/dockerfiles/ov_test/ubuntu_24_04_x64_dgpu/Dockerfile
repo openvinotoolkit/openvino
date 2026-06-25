@@ -46,10 +46,19 @@ RUN wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_pa
 
 # Install dgpu drivers
 RUN add-apt-repository -y ppa:kobuk-team/intel-graphics && \
-    apt-get update && \
-    apt-get install -y libze-intel-gpu1 libze1 intel-metrics-discovery intel-opencl-icd clinfo intel-gsc \
-        intel-media-va-driver-non-free libmfx-gen1 libvpl2 libvpl-tools libva-glx2 va-driver-all vainfo \
-        libze-dev intel-ocloc libze-intel-gpu-raytracing
+    apt-get update && apt-get install ocl-icd-libopencl1 libze-dev libze1 && \
+    mkdir drivers && \
+    cd drivers && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-core-2_2.32.7+21184_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-opencl-2_2.32.7+21184_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-ocloc-dbgsym_26.14.37833.4-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-ocloc_26.14.37833.4-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-opencl-icd-dbgsym_26.14.37833.4-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-opencl-icd_26.14.37833.4-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libigdgmm12_22.9.0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libze-intel-gpu1-dbgsym_26.14.37833.4-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libze-intel-gpu1_26.14.37833.4-0_amd64.deb && \
+    dpkg -i *.deb && cd .. && rm -rf drivers
 
 # Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
 # packages into the system Python

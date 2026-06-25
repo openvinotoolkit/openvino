@@ -15,7 +15,6 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "pyramid_attention.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -719,54 +718,67 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
 
     // Extract Q (query) parameter - input 0 of MatMul1
     if (auto q_param = extract_param(pattern_nodes.matmul1_node->get_input_node_shared_ptr(0))) {
-        std::size_t q_idx = model->get_parameter_index(q_param);
-        hfa._sdpa_param_index_map[SDPAInputId::QUERY] = q_idx;
+        hfa._query_param_idx = model->get_parameter_index(q_param);
     }
 
-    // Extract past_key parameter - input 0 of past_key_concat
-    if (pattern_nodes.past_key_concat_node) {
-        if (auto past_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(0))) {
-            std::size_t past_k_idx = model->get_parameter_index(past_k_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PAST_KEY] = past_k_idx;
+    // Extract past KV parameters from a Concat node: all inputs except the last are treated as
+    // past (one entry in non-block mode, multiple entries in block mode); the last input is
+    // the present key/value. Key and value follow identical logic.
+    auto extract_kv_params = [&](const std::shared_ptr<ov::Node>& concat_node,
+                                 std::vector<std::size_t>& block_indices,
+                                 std::size_t& present_idx_out,
+                                 const char* kv_name) {
+        if (!concat_node)
+            return;
+        const size_t n = concat_node->get_input_size();
+        block_indices.clear();
+        block_indices.reserve(n - 1);
+        for (size_t i = 0; i < n - 1; ++i) {
+            if (auto param = extract_param(concat_node->get_input_node_shared_ptr(i))) {
+                const std::size_t idx = model->get_parameter_index(param);
+                block_indices.push_back(idx);
+                LOG_DEBUG("  Found " << kv_name << " block[" << i << "] at parameter index " << idx);
+            } else {
+                LOG_WARN("Could not extract parameter from " << kv_name << " Concat input[" << i << "]");
+            }
         }
+        if (auto param = extract_param(concat_node->get_input_node_shared_ptr(n - 1))) {
+            present_idx_out = model->get_parameter_index(param);
+            LOG_DEBUG("  Found " << kv_name << "_present at parameter index " << present_idx_out);
+        }
+    };
 
-        // Extract present_key parameter - input 1 of past_key_concat
-        if (auto present_k_param = extract_param(pattern_nodes.past_key_concat_node->get_input_node_shared_ptr(1))) {
-            std::size_t present_k_idx = model->get_parameter_index(present_k_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PRESENT_KEY] = present_k_idx;
-        }
-    }
-
-    // Extract past_value parameter - input 0 of past_value_concat
-    if (pattern_nodes.past_value_concat_node) {
-        if (auto past_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(0))) {
-            std::size_t past_v_idx = model->get_parameter_index(past_v_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PAST_VALUE] = past_v_idx;
-        }
-
-        // Extract present_value parameter - input 1 of past_value_concat
-        if (auto present_v_param = extract_param(pattern_nodes.past_value_concat_node->get_input_node_shared_ptr(1))) {
-            std::size_t present_v_idx = model->get_parameter_index(present_v_param);
-            hfa._sdpa_param_index_map[SDPAInputId::PRESENT_VALUE] = present_v_idx;
-        }
-    }
+    extract_kv_params(pattern_nodes.past_key_concat_node,
+                      hfa._past_key_block_indices,
+                      hfa._present_key_param_idx,
+                      "past_key");
+    extract_kv_params(pattern_nodes.past_value_concat_node,
+                      hfa._past_value_block_indices,
+                      hfa._present_value_param_idx,
+                      "past_value");
 
     // Extract mask parameter - input 1 of add_node
     if (auto add_param = extract_param(pattern_nodes.add_node->get_input_node_shared_ptr(1))) {
-        std::size_t mask_idx = model->get_parameter_index(add_param);
-        hfa._sdpa_param_index_map[SDPAInputId::ATTENTION_MASK] = mask_idx;
+        hfa._attention_mask_param_idx = model->get_parameter_index(add_param);
     }
 
-    LOG_INFO("Built SDPA input mapping with " << hfa._sdpa_param_index_map.size() << " entries");
+    LOG_INFO("Built SDPA input mapping: query="
+             << hfa._query_param_idx << ", present_key=" << hfa._present_key_param_idx
+             << ", present_value=" << hfa._present_value_param_idx << ", mask=" << hfa._attention_mask_param_idx);
+    LOG_INFO("  Past key blocks: " << hfa._past_key_block_indices.size());
+    LOG_INFO("  Past value blocks: " << hfa._past_value_block_indices.size());
 
-    // Print the complete mapping table
-    LOG_DEBUG("");
-    LOG_DEBUG("========== SDPA Input Index Mapping ==========");
-    LOG_DEBUG("Total entries: " << hfa._sdpa_param_index_map.size());
-
-    for (const auto& [input_id, param_idx] : hfa._sdpa_param_index_map) {
-        LOG_DEBUG("  " << sdpa_input_id_to_string(input_id) << " -> parameter[" << param_idx << "]");
+    // Print KV cache blocks
+    LOG_DEBUG("Past key blocks (" << hfa._past_key_block_indices.size() << "):");
+    for (size_t i = 0; i < hfa._past_key_block_indices.size(); ++i) {
+        LOG_DEBUG("  block[" << i << "] -> parameter[" << hfa._past_key_block_indices[i] << "]");
     }
+
+    LOG_DEBUG("Past value blocks (" << hfa._past_value_block_indices.size() << "):");
+    for (size_t i = 0; i < hfa._past_value_block_indices.size(); ++i) {
+        LOG_DEBUG("  block[" << i << "] -> parameter[" << hfa._past_value_block_indices[i] << "]");
+    }
+
     LOG_DEBUG("=============================================");
 }
 
@@ -926,7 +938,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     std::size_t query_size = q_shape_static[2];  // seq_len at index 2
     LOG_DEBUG("Extracted query_size (seq_len) from Q shape: " << query_size);
 
-    auto mask_param = find_mask_parameter(pattern_nodes.add_node);
+    auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
         LOG_WARN("Could not find mask parameter in model");
         return std::nullopt;
@@ -1071,21 +1083,16 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Pre-cache all indices from function HFA maps
     LOG_INFO("Pre-caching SDPA and tile indices...");
 
-    // Pre-cache SDPA parameter indices
-    auto get_sdpa_param_idx = [&](SDPAInputId input_id) -> std::size_t {
-        auto it = func_hfa._sdpa_param_index_map.find(input_id);
-        if (it == func_hfa._sdpa_param_index_map.end()) {
-            OPENVINO_THROW("HFA: SDPA parameter mapping not found for input ID: ", static_cast<uint8_t>(input_id));
-        }
-        return it->second;
-    };
+    // Pre-cache SDPA parameter indices (direct field access — no map lookup)
+    _sdpa_attention_info._sdpa_indices.query = func_hfa._query_param_idx;
 
-    _sdpa_attention_info._sdpa_indices.query = get_sdpa_param_idx(SDPAInputId::QUERY);
-    _sdpa_attention_info._sdpa_indices.past_key = get_sdpa_param_idx(SDPAInputId::PAST_KEY);
-    _sdpa_attention_info._sdpa_indices.past_value = get_sdpa_param_idx(SDPAInputId::PAST_VALUE);
-    _sdpa_attention_info._sdpa_indices.present_key = get_sdpa_param_idx(SDPAInputId::PRESENT_KEY);
-    _sdpa_attention_info._sdpa_indices.present_value = get_sdpa_param_idx(SDPAInputId::PRESENT_VALUE);
-    _sdpa_attention_info._sdpa_indices.attention_mask = get_sdpa_param_idx(SDPAInputId::ATTENTION_MASK);
+    // Copy all KV cache block indices
+    _sdpa_attention_info._sdpa_indices.past_key_blocks = func_hfa._past_key_block_indices;
+    _sdpa_attention_info._sdpa_indices.past_value_blocks = func_hfa._past_value_block_indices;
+
+    _sdpa_attention_info._sdpa_indices.present_key = func_hfa._present_key_param_idx;
+    _sdpa_attention_info._sdpa_indices.present_value = func_hfa._present_value_param_idx;
+    _sdpa_attention_info._sdpa_indices.attention_mask = func_hfa._attention_mask_param_idx;
 
     // Pre-cache tile input indices
     auto get_tile_input_idx = [&](HFATileInputId input_id) -> std::size_t {
@@ -1119,11 +1126,12 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._tile_output_indices.d = get_tile_output_idx(HFATileOutputId::D);
 
     LOG_INFO("Pre-cached SDPA indices: [query="
-             << _sdpa_attention_info._sdpa_indices.query << ", past_key=" << _sdpa_attention_info._sdpa_indices.past_key
-             << ", past_value=" << _sdpa_attention_info._sdpa_indices.past_value
+             << _sdpa_attention_info._sdpa_indices.query
              << ", present_key=" << _sdpa_attention_info._sdpa_indices.present_key
              << ", present_value=" << _sdpa_attention_info._sdpa_indices.present_value
              << ", attention_mask=" << _sdpa_attention_info._sdpa_indices.attention_mask << "]");
+    LOG_INFO("  Past key blocks: " << _sdpa_attention_info._sdpa_indices.past_key_blocks.size());
+    LOG_INFO("  Past value blocks: " << _sdpa_attention_info._sdpa_indices.past_value_blocks.size());
     LOG_INFO("Attention configuration: query_size="
              << _sdpa_attention_info._query_size << ", context_size=" << _sdpa_attention_info._context_size
              << ", k_seq_dim=" << _sdpa_attention_info._k_seq_dim << ", v_seq_dim=" << _sdpa_attention_info._v_seq_dim);
