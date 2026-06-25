@@ -28,12 +28,15 @@ struct SDPAImplementationManager : public ImplementationManager {
             return false;
         }
 
+#ifndef ENABLE_DEBUG_CAPS
+        return false;
+#else
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!config.get_use_onednn() || !config.get_enable_onednn_sdpa_primitive() || !info.supports_immad || info.arch == gpu_arch::unknown) {
+        if (!config.get_use_onednn() || !config.get_use_onednn_sdpa() || !info.supports_immad || info.arch == gpu_arch::unknown) {
             GPU_DEBUG_TRACE_DETAIL << "onednn::sdpa validate_impl: config/device check failed"
                                    << " use_onednn=" << config.get_use_onednn()
-                                   << " enable_sdpa=" << config.get_enable_onednn_sdpa_primitive()
+                                   << " use_onednn_sdpa=" << config.get_use_onednn_sdpa()
                                    << " immad=" << info.supports_immad
                                    << std::endl;
             return false;
@@ -49,6 +52,7 @@ struct SDPAImplementationManager : public ImplementationManager {
         GPU_DEBUG_TRACE_DETAIL << "onednn::sdpa validate_impl: validate_common=" << result
                                << " node=" << node.id() << std::endl;
         return result;
+#endif
     }
 
     bool support_shapes(const kernel_impl_params& params) const override {
