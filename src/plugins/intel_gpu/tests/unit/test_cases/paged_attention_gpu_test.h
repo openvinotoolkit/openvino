@@ -1523,6 +1523,7 @@ private:
         }
     }
 
+public:
     std::vector<ov::float16> read_key_from_cache(cldnn::memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
         // Read key vectors from key_cache memory
         // key_cache layout: [num_blocks, num_kv_heads, head_size, block_size]
@@ -1727,6 +1728,7 @@ private:
         return key_data;
     }
 
+private:
     std::vector<ov::float16> compute_diversity_reference(cldnn::memory::ptr key_cache_mem) {
         std::vector<ov::float16> diversity_output;
 
