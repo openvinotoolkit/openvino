@@ -86,6 +86,20 @@ private:
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
     ov::element::Type getRuntimePrecision() const override;
     void resetBeamTablePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
+    // OSCAR write path: rotates L1 tokens, stages into residual, flushes packed blocks.
+    // Operates on a single side (K or V). K-side passes residual_norms; V-side passes
+    // null and writes packed blocks without per-token norms (with_norms=false).
+    void oscar_stage_cache(const PlainTensor& cur,
+                           PlainTensor& past,
+                           size_t L0,
+                           const ov::Extensions::Cpu::CacheSpec& spec,
+                           PlainTensor& residual,
+                           PlainTensor& residual_norms,
+                           size_t residual_count_in,
+                           size_t& residual_count_out,
+                           const PlainTensor& wht_signs,
+                           ov::Extensions::Cpu::StridedData<float> ws,
+                           const CpuParallelPtr& cpu_parallel);
     // Derive per-thread scratch {base, stride} (f32 slots) from m_per_thread_head_scratch.
     // Indexed as ws[tid] to get per-thread buffer start. {nullptr, 0} when non-codec.
     ov::Extensions::Cpu::StridedData<float> get_per_thread_scratch() const;
@@ -110,7 +124,13 @@ private:
                              size_t per_thread_head_stride,
                              const PlainTensor& k_quant_meta_data,
                              const PlainTensor& v_quant_meta_data,
-                             const PlainTensor& wht_signs) = 0;
+                             const PlainTensor& wht_signs,
+                             const PlainTensor& oscar_k_residual,
+                             const PlainTensor& oscar_v_residual,
+                             const PlainTensor& oscar_k_residual_norms,
+                             const PlainTensor& oscar_v_residual_norms,
+                             size_t oscar_k_residual_count,
+                             size_t oscar_v_residual_count) = 0;
         [[nodiscard]] virtual impl_desc_type implType() const = 0;
         virtual ~Executor() = default;
     };
@@ -142,6 +162,20 @@ private:
     PlainTensor m_v_quant_meta_data;
     // Random ±1 sign vector for WHT rotation.
     PlainTensor m_wht_signs;
+
+    // OScaR residual region: fp16 unit vectors + per-token norms (K only) staged
+    // until R=128 tokens accumulate, then flushed to a packed block. Allocated in
+    // createPrimitive when either side has alg=OSCAR. Single scalar count is OK
+    // because SDPA input is one [B,H,L1,S] tensor — all batch entries advance by
+    // the same L1 each call, and beam>1 is rejected for OSCAR.
+    PlainTensor m_oscar_K_residual;        // [B, H_kv, R, S] fp16
+    PlainTensor m_oscar_V_residual;        // [B, H_kv, R, SV] fp16
+    PlainTensor m_oscar_K_residual_norms;  // [B, H_kv, R] fp16
+    PlainTensor m_oscar_V_residual_norms;  // [B, H_kv, R] fp16 (mirrors K for v1)
+    // Separate K/V counters even though they currently advance identically — V-fold (paper)
+    // would decouple them later by removing V-side staging entirely.
+    size_t m_oscar_K_residual_count = 0;
+    size_t m_oscar_V_residual_count = 0;
 };
 
 }  // namespace ov::intel_cpu::node
