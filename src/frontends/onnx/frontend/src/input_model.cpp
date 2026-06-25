@@ -565,15 +565,34 @@ public:
                        const ov::frontend::InputModel& input_model,
                        unify::InputModel::Ptr parent_model);
 
+    // Returns the raw iterator so the single-pass converter can translate directly from
+    // decoders, bypassing the Place graph built by load_model().
+    GraphIterator::Ptr get_graph_iterator() const {
+        return m_graph_iterator;
+    }
+
+    bool is_loaded() const {
+        return m_loaded;
+    }
+
+    // Whether constant data may be wrapped zero-copy (vs. deep-copied). The single-pass converter
+    // needs this because it materializes Constants directly, bypassing the Place graph that would
+    // otherwise carry the flag.
+    bool is_const_data_reusable() const {
+        return m_reuse_const_data;
+    }
+
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
 
     /////  Searching for places  /////
     std::vector<std::shared_ptr<OpPlace>>& get_op_places() {
+        ensure_loaded();
         return m_op_places;
     }
     std::map<std::string, std::shared_ptr<TensorONNXPlace>>& get_tensor_places() {
+        ensure_loaded();
         return m_tensor_places;
     }
 
@@ -622,7 +641,15 @@ public:
 private:
     void load_model();
     void clean_up();
+    // Builds the Place graph on first access when construction deferred it.
+    void ensure_loaded() {
+        if (!m_loaded) {
+            load_model();
+            m_loaded = true;
+        }
+    }
 
+    bool m_loaded = false;
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
     std::map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
@@ -868,7 +895,9 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_mmap_cache = nullptr;
         m_stream_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>();
     }
-    load_model();
+    // The single-pass converter translates straight from the GraphIterator decoders and never reads
+    // the Place graph, so building it at construction is pure overhead. The Place graph is always
+    // deferred; any Place-graph accessor (editor API, decode, fallback convert) lazily builds it.
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
@@ -888,13 +917,16 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_model_dir = parent_model->_impl->m_model_dir;
     }
     load_model();
+    m_loaded = true;
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::InputModelONNXImpl::get_inputs() const {
+    const_cast<InputModelONNXImpl*>(this)->ensure_loaded();
     return m_inputs;
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::InputModelONNXImpl::get_outputs() const {
+    const_cast<InputModelONNXImpl*>(this)->ensure_loaded();
     return m_outputs;
 }
 
@@ -906,6 +938,7 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& p
 }
 
 ov::frontend::Place::Ptr InputModel::InputModelONNXImpl::get_place_by_tensor_name(const std::string& tensorName) const {
+    const_cast<InputModelONNXImpl*>(this)->ensure_loaded();
     if (m_tensor_places.find(tensorName) != m_tensor_places.end())
         return castToTensorPlace(m_tensor_places.at(tensorName));
     else
@@ -1010,6 +1043,18 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<TelemetryExtension>& telemetry,
                        const bool reuse_const_data)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry, enable_mmap, reuse_const_data)} {}
+
+ov::frontend::onnx::GraphIterator::Ptr InputModel::get_graph_iterator() const {
+    return _impl->get_graph_iterator();
+}
+
+bool InputModel::is_loaded() const {
+    return _impl->is_loaded();
+}
+
+bool InputModel::is_const_data_reusable() const {
+    return _impl->is_const_data_reusable();
+}
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        ov::frontend::onnx::unify::InputModel::Ptr parent_model)

@@ -491,7 +491,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
         ov_model = translate_session.get_converted_model();
     } catch (const std::exception&) {
         throw;
-    }
+    } 
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode_unify(const InputModel::Ptr& model) const {
