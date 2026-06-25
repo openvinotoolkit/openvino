@@ -27,10 +27,10 @@ void regclass_ProfilingInfo(py::module m) {
 
     cls.def(py::init<>())
         .def_readwrite("status", &ov::ProfilingInfo::status)
-        .def_readwrite("start_time", &ov::ProfilingInfo::start_time)
         .def_readwrite("real_time", &ov::ProfilingInfo::real_time)
         .def_readwrite("cpu_time", &ov::ProfilingInfo::cpu_time)
         .def_readwrite("node_name", &ov::ProfilingInfo::node_name)
         .def_readwrite("exec_type", &ov::ProfilingInfo::exec_type)
-        .def_readwrite("node_type", &ov::ProfilingInfo::node_type);
+        .def_readwrite("node_type", &ov::ProfilingInfo::node_type)
+        .def_readwrite("start_time", &ov::ProfilingInfo::start_time);
 }
