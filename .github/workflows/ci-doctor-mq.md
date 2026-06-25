@@ -842,6 +842,10 @@ This notification is **only** sent when the same failure has occurred 3 or more 
 
 ## Mandatory Output Requirement
 
+**Before calling any safe output tool, run the Phase 7 Output Format Validation
+checklist.** All numeric-looking fields (`pr_number`, `db_entries`,
+`occurrence_count`, `recent_count`) MUST be passed as JSON strings, not numbers.
+
 You **MUST** always call at least one safe output tool before finishing:
 
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
