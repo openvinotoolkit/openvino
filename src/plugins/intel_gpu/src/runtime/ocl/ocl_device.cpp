@@ -255,6 +255,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
                         extensions.find("cl_intel_unified_shared_memory_preview ") != std::string::npos;
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
+    
+    int cl_hpp_version = CL_HPP_TARGET_OPENCL_VERSION;
+    std::cout << "CL HPP TARGET OPENCL VERSION: " << cl_hpp_version << std::endl;
 
 #if CL_HPP_TARGET_OPENCL_VERSION >= 300
     // refer: https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_C.html#optional-functionality
@@ -270,6 +273,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.supports_work_group_collective_functions = false;
     info.supports_non_uniform_work_group = false;
 #endif
+    std::cout << "Supports non uniform work group: " << device.getInfo<CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT>() << std::endl;
+    std::cout << "Supports work group collective: " << device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>() << std::endl;
 
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
