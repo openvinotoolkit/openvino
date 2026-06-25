@@ -92,7 +92,8 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 
 set(BENCHMARK_TARGET_NAME ov_file_load_benchmark)
 add_executable(${BENCHMARK_TARGET_NAME} EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_uring_bench.cpp)
 target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
     common_test_utils
     openvino::util)
