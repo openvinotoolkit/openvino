@@ -3,6 +3,8 @@
 //
 
 #include "convolution_inst.h"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
@@ -99,6 +101,17 @@ struct ConvolutionImplementationManager : public ImplementationManager {
 
         if (!f16_conv && !bf16_conv && !f32_conv && !int8_conv) {
             return false;
+        }
+
+        // Avoid known NVIDIA crash paths for int8 oneDNN convolution with quantize post-ops.
+        // NVIDIA GPUs crash when running int8 convolution fused with quantize operations.
+        // Keep oneDNN available for int8 convolution without quantize, and all f16/f32 cases.
+        if (info.vendor_id == NVIDIA_VENDOR_ID && int8_conv) {
+            for (const auto& fused_prim : conv_node.get_fused_primitives()) {
+                if (fused_prim.is_type<quantize>()) {
+                    return false;
+                }
+            }
         }
 
         if (!is_supported_post_ops(conv_node)) {
