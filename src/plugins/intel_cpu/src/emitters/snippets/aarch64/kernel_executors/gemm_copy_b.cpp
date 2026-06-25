@@ -16,6 +16,8 @@
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_x16p32x1bx16_x16_x16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_x32p16x1bx32_x32_x32_neon.h"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -26,7 +28,8 @@ namespace ov::intel_cpu::aarch64 {
 
 bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) const {
     return m_N == rhs.m_N && m_K == rhs.m_K && m_copy_b_wei_stride == rhs.m_copy_b_wei_stride &&
-           m_copy_b_col_stride == rhs.m_copy_b_col_stride && m_hash == rhs.m_hash;
+           m_copy_b_col_stride == rhs.m_copy_b_col_stride && m_is_transposed == rhs.m_is_transposed &&
+           m_hash == rhs.m_hash;
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
@@ -44,12 +47,18 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
     PRINT(m_N);
     PRINT(m_K);
     PRINT(m_copy_b_wei_stride);
+    PRINT(m_copy_b_col_stride);
+    PRINT(m_is_transposed);
     return ss.str();
 }
 #    undef PRINT
 #endif
 
-void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t row_stride_bytes, size_t col_stride_bytes) {
+void GemmCopyBKernelKaiConfig::update(size_t N,
+                                      size_t K,
+                                      size_t row_stride_bytes,
+                                      size_t col_stride_bytes,
+                                      bool is_transposed) {
     // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (ov::snippets::utils::any_of(0UL, N, K)) {
@@ -57,11 +66,13 @@ void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t row_stride_byte
         m_K = 0;
         m_copy_b_wei_stride = 0;
         m_copy_b_col_stride = 0;
+        m_is_transposed = false;
     } else {
         m_N = N;
         m_K = K;
         m_copy_b_wei_stride = row_stride_bytes;
         m_copy_b_col_stride = col_stride_bytes;
+        m_is_transposed = is_transposed;
     }
     m_hash = compute_hash();
 }
@@ -72,6 +83,7 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
     seed = dnnl::impl::hash_combine(seed, m_K);
     seed = dnnl::impl::hash_combine(seed, m_copy_b_wei_stride);
     seed = dnnl::impl::hash_combine(seed, m_copy_b_col_stride);
+    seed = dnnl::impl::hash_combine(seed, m_is_transposed);
     return seed;
 }
 
@@ -85,7 +97,9 @@ void GemmCopyBKaiKernelExecutorBase::update_config_common(
     const auto& prc = expr->get_node()->get_input_element_type(0);
     const auto row_stride_bytes = snippets::utils::get_dim_stride(expr->get_input_port(0), 1) * prc.size();
     const auto col_stride_bytes = snippets::utils::get_dim_stride(expr->get_input_port(0), 0) * prc.size();
-    config.update(N, K, row_stride_bytes, col_stride_bytes);
+    const auto& layout = expr->get_input_port(0).get_descriptor_ptr()->get_layout();
+    const auto is_transposed = snippets::utils::get_input_dim_idx(layout, 0) != layout.size() - 1;
+    config.update(N, K, row_stride_bytes, col_stride_bytes, is_transposed);
 }
 
 template <typename CompiledKernelT>
@@ -95,7 +109,7 @@ void GemmCopyBKaiKernelExecutorBase::ensure_kernel(std::shared_ptr<CompiledKerne
     }
 }
 
-template <auto rhs_pack_kxn, typename UkernelT>
+template <auto rhs_pack_kxn, auto rhs_pack_nxk, typename UkernelT>
 static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config, const UkernelT& uk, void* in0, void* out0) {
     const auto K = config.get_K();
     const auto N = config.get_N();
@@ -114,7 +128,11 @@ static void execute_copy_b_common(const GemmCopyBKernelKaiConfig& config, const 
         auto* dst_base = static_cast<int8_t*>(out0);
         const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
         auto* dst_ptr = dst_base + packed_off;
-        rhs_pack_kxn(1, n_step, K, nr, kr, sr, copy_b_wei_stride, src_ptr, nullptr, nullptr, dst_ptr, 0, nullptr);
+        if (config.is_transposed()) {
+            rhs_pack_nxk(1, n_step, K, nr, kr, sr, copy_b_col_stride, src_ptr, nullptr, nullptr, dst_ptr, 0, nullptr);
+        } else {
+            rhs_pack_kxn(1, n_step, K, nr, kr, sr, copy_b_wei_stride, src_ptr, nullptr, nullptr, dst_ptr, 0, nullptr);
+        }
     }
 }
 
@@ -138,7 +156,11 @@ void GemmCopyBF32KaiKernelExecutor::execute(const GemmCopyBF32KaiKernelExecutor*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_common<kai_run_rhs_pack_kxn_x32p16x1b_x32_x32_neon>(config, *kernel->copy_b_ukernel, in0, out0);
+    execute_copy_b_common<kai_run_rhs_pack_kxn_x32p16x1b_x32_x32_neon, kai_run_rhs_pack_nxk_x32p16x1bx32_x32_x32_neon>(
+        config,
+        *kernel->copy_b_ukernel,
+        in0,
+        out0);
 }
 
 GemmCopyBF16KaiKernelExecutor::GemmCopyBF16KaiKernelExecutor(GemmCopyBKernelKaiConfig config)
@@ -161,7 +183,11 @@ void GemmCopyBF16KaiKernelExecutor::execute(const GemmCopyBF16KaiKernelExecutor*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    execute_copy_b_common<kai_run_rhs_pack_kxn_x16p32x1b_x16_x16_neon>(config, *kernel->copy_b_ukernel, in0, out0);
+    execute_copy_b_common<kai_run_rhs_pack_kxn_x16p32x1b_x16_x16_neon, kai_run_rhs_pack_nxk_x16p32x1bx16_x16_x16_neon>(
+        config,
+        *kernel->copy_b_ukernel,
+        in0,
+        out0);
 }
 
 }  // namespace ov::intel_cpu::aarch64
