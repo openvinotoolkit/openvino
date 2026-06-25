@@ -31,9 +31,6 @@ on:
       - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
-
-    branches:
-      - master
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -49,6 +46,9 @@ engine:
 network: defaults
 
 safe-outputs:
+  add-comment:
+    max: 1              # at most one remediation comment per investigation
+    target: "*"         # workflow_run trigger has no PR context; agent supplies the PR number
   jobs:
     notify-teams:
       description: "Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure."
@@ -616,6 +616,7 @@ ELSE:
 
 2. **Actionable Deliverables**:
    - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)
+   - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
    - Provide specific file locations and line numbers for fixes
    - Suggest code changes or configuration updates
 
@@ -673,6 +674,43 @@ MUST be passed as a JSON string, not a JSON number.** Wrap the value in quotes.
 Report the investigation as a Microsoft Teams notification by calling the `notify_teams` safe-output tool exactly once.
 
 Additionally, if Phase 5.5 determines the same failure has occurred 3 or more times in the last 12 hours, call the `notify_teams_recurring` safe-output tool exactly once with the escalation details.
+
+Additionally, **when the failure is associated with a PR in the merge queue**, post a remediation comment on that PR by calling the `add_comment` safe-output tool exactly once (see field guidance below). If no PR can be identified, skip the comment.
+
+### `add_comment` field guidance
+
+Post a concise, actionable remediation comment on the affected merge-queue PR so the author has the context and next steps. Call `add_comment` **at most once per investigation** and **only** when a PR can be identified.
+
+- **`item_number`** (required) — The number of the affected PR in the merge queue (the same value reported as `notify_teams.pr_number`). This is required because the `workflow_run` trigger carries no PR context; the comment cannot be posted without it.
+
+- **`body`** (required) — Markdown comment body. Keep it focused and short. GitHub renders standard Markdown here (headings, bold, inline code, fenced code blocks with backticks, lists, links). Use this structure:
+
+```markdown
+### CI Doctor — Merge Queue failure on this PR
+
+**Pipeline**: [<failed_workflow name>](<pipeline_url>)
+**Failure**: <one-line summary, same as notify_teams.title>
+
+#### Possible remedy
+
+<1–4 concrete, actionable steps to fix or work around the failure, based on the
+root-cause analysis. Reference specific files/lines from the logs when available.>
+
+#### What happened
+
+<1–2 sentence plain-language description of the failure: which job(s) failed and the key error.>
+
+<If repo-memory shows this is a known/recurring pattern, add one line noting how
+many times it has been seen and link the most recent prior failure run.>
+```
+
+Source the comment content directly from the investigation you already produced:
+  * **Pipeline name + link** come from `failed_workflow` and `pipeline_url`.
+  * **Failure summary** matches `notify_teams.title`.
+  * **What happened** is a condensed version of the Root Cause Analysis (Phase 4 / Phase 6).
+  * **Possible remedy** comes from your Recommended Actions, refined with any matching pattern data from repo-memory (`/tmp/gh-aw/repo-memory/default/mq/patterns/` and `/tmp/gh-aw/repo-memory/default/mq/investigations/`). If a prior pattern exists, prefer the remedy that resolved it before.
+
+Do not duplicate the full Teams description in the comment — keep it to the pipeline reference, a short possible remedy, and a failure description.
 
 ### `notify_teams` field guidance
 
@@ -812,12 +850,14 @@ You **MUST** always call at least one safe output tool before finishing:
 
 - **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once.
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
+- **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
 - **`noop`**: When no action is needed (e.g., CI was successful, not a merge-queue run, no failure to investigate).
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation.
 
 **Valid call combinations:**
-- `notify_teams` alone — standard investigation, fewer than 3 occurrences in the last 12 hours.
-- `notify_teams` + `notify_teams_recurring` — standard investigation AND 3+ occurrences in the last 12 hours.
+- `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
+- `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
+- `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.
 
