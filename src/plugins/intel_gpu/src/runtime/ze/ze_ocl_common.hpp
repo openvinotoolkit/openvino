@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/core/except.hpp"
+#include "ocl/ocl_wrapper.hpp"
 
-#include <CL/cl.h>
 #include <string>
 #include <exception>
 
