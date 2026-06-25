@@ -296,7 +296,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) 
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(strides.size() - 2); i >= 0; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM) {
             break;
         }

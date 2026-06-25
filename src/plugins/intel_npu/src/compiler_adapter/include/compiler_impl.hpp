@@ -85,21 +85,23 @@ public:
      */
     bool get_supported_options(std::vector<char>& options) const;
 
-    bool is_option_supported(std::string option, std::optional<std::string> optValue = std::nullopt) const;
-
-    std::shared_ptr<void> getLinkedLibrary() const;
+    bool is_option_supported(const std::string& option,
+                             const std::optional<std::string>& optValue = std::nullopt) const;
 
     /**
-     * @brief Validates the compatibility descriptor against the current device information.
-     * This function is used as a fallback check when the driver on the system does not support the required API
-     * @param compatibilityDescriptor The compatibility descriptor (string) to be validated
+     * @brief Checks whether the given option and value are supported by the compiler for the specified device.
+     * This overload is used when a device descriptor is available, allowing device-specific validation.
      * @param in_device_desc Pointer to a device descriptor containing the device ID, number of
-     * tiles and stepping information
-     * @return false if the platform does not meet the requirements specified in the compatibility descriptor,
-     * true if the platform is compatible
+     * tiles and stepping information used for device-specific checks
+     * @param option The option name to check
+     * @param optValue The option value to validate
+     * @return true if the option and value are supported for the given device, false otherwise
      */
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
-                                           vcl_device_desc_t* in_device_desc) const;
+    bool is_option_supported(vcl_device_desc_t* in_device_desc,
+                             const std::string& option,
+                             const std::optional<std::string>& optValue = std::nullopt) const;
+
+    std::shared_ptr<void> getLinkedLibrary() const;
 
 private:
     /**

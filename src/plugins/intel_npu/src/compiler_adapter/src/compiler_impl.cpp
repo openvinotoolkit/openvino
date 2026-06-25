@@ -521,13 +521,13 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::optional<std::string>& optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
         _logger.debug("is_option_supported start for option: %s, value: %s",
                       optname_ch,
-                      optValue ? optvalue_ch : "null");
+                      optvalue_ch ? optvalue_ch : "null");
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);
@@ -540,8 +540,9 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     return false;
 }
 
-bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
-                                                        vcl_device_desc_t* in_device_desc) const {
+bool VCLCompilerImpl::is_option_supported(vcl_device_desc_t* in_device_desc,
+                                          const std::string& option,
+                                          const std::optional<std::string>& optValue) const {
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
@@ -555,9 +556,11 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
                               vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
                               nullptr);
 
-        const char* optname_ch = ov::compatibility_check.name();
-        const char* optvalue_ch = compatibilityDescriptor.c_str();
-        _logger.debug("is_option_supported start for option: %s, value: %s", optname_ch, optvalue_ch);
+        const char* optname_ch = option.c_str();
+        const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
+        _logger.debug("is_option_supported start for option: %s, value: %s",
+                      optname_ch,
+                      optvalue_ch ? optvalue_ch : "null");
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
                               logHandle);
