@@ -23,12 +23,12 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "utils/precision_support.h"
+#include "utils/arm_isa_support.h"
 
 namespace ov::intel_cpu {
 
 static bool useDynamicQuantizationImpl(const MemoryDescPtr& weightDesc) {
-    if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
+    if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
         return false;
     }
     return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4;
