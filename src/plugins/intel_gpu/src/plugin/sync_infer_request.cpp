@@ -85,6 +85,33 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 namespace ov::intel_gpu {
 
 // ----------------------------------------------------------------------------------------------- //
+// -------------- ThreadSafeVariableStateWrapper (see issue #36458) ----------------------------- //
+// ----------------------------------------------------------------------------------------------- //
+
+ThreadSafeVariableStateWrapper::ThreadSafeVariableStateWrapper(
+    std::shared_ptr<ov::IVariableState> state,
+    std::shared_ptr<Graph> graph)
+    : ov::IVariableState(state->get_name())
+    , m_state(std::move(state))
+    , m_graph(std::move(graph)) {}
+
+void ThreadSafeVariableStateWrapper::reset() {
+    // Acquire the same mutex that infer() holds during shape inference
+    // to prevent concurrent modification of variable state layouts.
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    m_state->reset();
+}
+
+void ThreadSafeVariableStateWrapper::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    m_state->set_state(state);
+}
+
+ov::SoPtr<ov::ITensor> ThreadSafeVariableStateWrapper::get_state() const {
+    return m_state->get_state();
+}
+
+// ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
 // ----------------------------------------------------------------------------------------------- //
 
@@ -131,7 +158,13 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
     for (const auto& pair : m_variables) {
-        ret.emplace_back(pair.second, nullptr);
+        // Wrap each variable state with a thread-safe proxy that acquires the
+        // graph mutex before reset()/set_state(), preventing concurrent
+        // modification during shape inference on sibling InferRequests.
+        // See: https://github.com/openvinotoolkit/openvino/issues/36458
+        ret.emplace_back(
+            std::make_shared<ThreadSafeVariableStateWrapper>(pair.second, m_graph),
+            nullptr);
     }
     return ret;
 }
