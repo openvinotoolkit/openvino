@@ -43,7 +43,7 @@ class memory_restricter {
         // Insert into set2 (set1 is read-only)
         void insert(const Key& key) {
             auto it = std::lower_bound(ordered_keys_set1->begin(), ordered_keys_set1->end(), key);
-            if (it != ordered_keys_set1->end() && *it == key) {
+            if (it == ordered_keys_set1->end() || *it != key) {
                 auto it2 = std::lower_bound(ordered_keys_set2.begin(), ordered_keys_set2.end(), key);
                 if (it2 == ordered_keys_set2.end() || *it2 != key) {
                     ordered_keys_set2.insert(it2, key);
