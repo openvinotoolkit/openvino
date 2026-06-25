@@ -674,7 +674,10 @@ void prepare_quantization::run(program& p) {
         } else if (node->is_type<reorder>()) {
             remove_fake_reorders(p, node->as<reorder>());
         } else if (node->is_type<fully_connected>()) {
-            optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
+            auto& fc_node = node->as<fully_connected>();
+            auto weights_dtype = fc_node.get_input_layout(1).data_type;
+            if (weights_dtype != data_types::u2)
+                optimize_weights_decompression_parameters(fc_node, p);
         } else if (node->is_type<gather_matmul>()) {
             optimize_gather_matmul_decompression_parameters(node->as<gather_matmul>(), p);
         } else if (node->is_type<moe_gemm>()) {
