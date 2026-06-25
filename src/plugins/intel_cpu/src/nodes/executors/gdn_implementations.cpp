@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/gated_delta_net_config.hpp"
@@ -16,6 +15,7 @@
 #if defined(OPENVINO_ARCH_X86_64)
 #    include <cstddef>
 
+#    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/memory_arguments.hpp"
 #    include "nodes/executors/x64/gdn_jit_executor.hpp"
 #    include "openvino/core/type/element_type.hpp"
