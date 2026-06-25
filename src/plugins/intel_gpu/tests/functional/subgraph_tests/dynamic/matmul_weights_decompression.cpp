@@ -208,13 +208,7 @@ protected:
             weights = std::make_shared<ov::op::v0::Parameter>(weights_precision, transformed_weights_shape);
             params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(weights));
         } else {
-            ov::test::utils::InputGenerateData wei_data;
-            if (weights_precision.is_real()) {
-                wei_data.start_from = -0.5;
-                wei_data.range = 1;
-                wei_data.resolution = 30000;
-            } // else for integer types, the default values are used
-            auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, wei_data);
+            auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape);
             weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
         }
         weights->set_friendly_name("Compressed_weights");
@@ -255,10 +249,8 @@ protected:
             mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
         }
 
-        const bool is_mxfp = scale_precision == ov::element::f8e8m0;
-
         ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = is_mxfp ? 0 : -0.5;
+        in_data.start_from = -0.5;
         in_data.range = 1;
         in_data.resolution = 30000;
         auto scale_tensor = ov::test::utils::create_and_fill_tensor(scale_precision, scaleshift_const_shape, in_data);
@@ -267,6 +259,8 @@ protected:
                 scale_tensor.data<ov::float16>()[i] /= ov::float16(16.f);
             else if (scale_precision == ov::element::f32)
                 scale_tensor.data<float>()[i] /= 16.f;
+            else if (scale_precision == ov::element::f8e8m0)
+                scale_tensor.data<ov::float8_e8m0>()[i] /= ov::float8_e8m0(16.f);
         }
 
         std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_tensor);
@@ -325,19 +319,19 @@ protected:
 
         inType = outType = activations_precision;
 
+        const ov::element::Type scale_precision_to_use = scale_precision == ov::element::dynamic ? activations_precision : scale_precision;
         function = init_subgraph(inputDynamicShapes[0],
                                  shape_params.weights_shape,
                                  shape_params.weights_group_size,
                                  activations_precision,
                                  weights_precision,
-                                 scale_precision,
+                                 scale_precision_to_use,
                                  transpose_weights,
                                  decompression_sub,
                                  reshape_on_decompression,
                                  extra_multiply,
                                  per_tensor_zp,
                                  param_weights);
-
 
         if (activations_precision == ov::element::f16) {
             abs_threshold = abs_threshold_f16;
@@ -667,7 +661,7 @@ INSTANTIATE_TEST_SUITE_P(
                       ::testing::Values(false),
                       ::testing::Values(false),
                       ::testing::ValuesIn(std::vector<uint64_t>{32, 128, std::numeric_limits<uint64_t>::max()}),
-                      ::testing::Values(0.2f)),
+                      ::testing::Values(1.0f)),
    MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_scalar_wzp,

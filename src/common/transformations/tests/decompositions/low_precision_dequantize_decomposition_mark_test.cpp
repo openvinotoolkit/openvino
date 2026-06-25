@@ -306,7 +306,7 @@ TEST_F(TransformationTestsF, LowPrecisionDequantize_mxf8e4m3) {
         auto weights = op::v0::Constant::create(element::f8e4m3, weights_shape, {-2});
         auto scale = op::v0::Constant::create(element::f8e8m0, Shape{}, {0.2f});
 
-        auto out = decomposition::low_precision_dequantize(weights, scale);
+        auto out = decomposition::low_precision_dequantize(weights, scale, {}, {}, element::f16);
         model = std::make_shared<Model>(OutputVector{out}, ParameterVector{});
     }
 
@@ -339,7 +339,7 @@ TEST_F(TransformationTestsF, LowPrecisionDequantize_mxf8e5m2) {
         auto weights = op::v0::Constant::create(element::f8e5m2, weights_shape, {-2});
         auto scale = op::v0::Constant::create(element::f8e8m0, Shape{}, {0.2f});
 
-        auto out = decomposition::low_precision_dequantize(weights, scale);
+        auto out = decomposition::low_precision_dequantize(weights, scale, {}, {}, element::f16);
         model = std::make_shared<Model>(OutputVector{out}, ParameterVector{});
     }
 
