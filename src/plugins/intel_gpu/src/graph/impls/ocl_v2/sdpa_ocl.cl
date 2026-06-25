@@ -41,10 +41,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         const global half *msk,
 #endif
+#if WITH_SCALE
+        global SCALE_DATA_T *scale_ptr,
+#endif
         const int d,
         const int k,
-        const int q,
-        float scale)
+        const int q)
 {
     const size_t lane  = get_sub_group_local_id();
     const size_t sg_ij = get_local_id(1);
@@ -65,7 +67,31 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     const float LOG2E = 1.4426950408889634f;
 
-    float iscale = native_recip(scale);
+    #if WITH_SCALE
+        /* Load scale */
+        #if INVERT_SCALE
+            float iscale = convert_float(*scale_ptr);
+            float scale = native_recip(iscale);
+        #else
+            float scale = convert_float(*scale_ptr);
+            float iscale = native_recip(scale);
+        #endif
+    #else
+        #ifdef STATIC_SCALE_VALUE
+            #if INVERT_SCALE
+                float iscale = convert_float(STATIC_SCALE_VALUE);
+                float scale = convert_float(STATIC_SCALE_VALUE_INV);
+            #else
+                float scale = convert_float(STATIC_SCALE_VALUE);
+                float iscale = convert_float(STATIC_SCALE_VALUE_INV);
+            #endif
+        #else
+            float iscale = sqrt(convert_float(HEAD_SIZE));
+            float scale = native_recip(iscale);
+        #endif
+    #endif
+
+    // float iscale = native_recip(scale);
     scale *= LOG2E;
 
     K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
