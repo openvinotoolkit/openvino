@@ -466,6 +466,26 @@ TEST(PartitioningOptionsTest, FoldOnlyWithIsolatedTagsProducesExpectedSubgraphCo
     EXPECT_EQ(folded, N);
 }
 
+TEST(PartitioningOptionsTest, IsolatedRepeatedFamiliesIgnoreKeepBlockSizeThreshold) {
+    // Each isolated family is a single-node repeated block. These should still
+    // be preserved when an isolate tag is set, even if KEEP_BLOCK_SIZE expects
+    // a larger structural block.
+    constexpr std::size_t N = 30;
+    auto ext_cfg = abc_attn_base_cfg;
+    ext_cfg["NPUW_ONLINE_KEEP_BLOCK_SIZE"] = "2";
+    auto cfg = make_cfg(ext_cfg);
+    auto partitioning = ov::npuw::getPartitioning(build_abc_attn_model(N), cfg);
+
+    EXPECT_EQ(partitioning.subgraphs.size(), 3u * N);
+
+    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
+                                       partitioning.subgraphs.end(),
+                                       [](const ov::npuw::Subgraph& sg) {
+                                           return !sg._funcall.empty();
+                                       });
+    EXPECT_EQ(folded, N);
+}
+
 TEST(PartitioningOptionsTest, FuseUnfoldedMergesNonFoldOnlyRepeatedBlocks) {
     // With NPUW_FUSE_UNFOLDED, blockA (Relu) and blockB (Sigmoid) groups lose
     // their reptag and are merged by fuseRemnants (frozen attn blocks act as
