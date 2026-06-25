@@ -111,4 +111,17 @@ void vm_decommit(void* ptr, size_t size) noexcept;
  */
 void vm_release(void* ptr, size_t size) noexcept;
 
+/**
+ * @brief Pre-fetch a committed VM range into physical memory.
+ *
+ * Works with both anonymous (@ref vm_commit) and file-backed (mmap) regions.
+ *
+ * @param ptr         Base address of the range. Must be page-aligned.
+ * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
+ * @param num_threads Strategy selector:
+ *                    - @c 0 (default) → OS advisory hint (async, low overhead).
+ *                    - @c N >= 1      → parallel touch with N threads (synchronous).
+ */
+void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
+
 }  // namespace ov::util
