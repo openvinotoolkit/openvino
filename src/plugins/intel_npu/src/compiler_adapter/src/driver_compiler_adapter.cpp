@@ -315,4 +315,8 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
             (compilerVersion.minor >= minorCompilerOptSupportValue));
 }
 
+std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
+    return _zeGraphExt->fetchCompatibilityDescriptor(graphHandle);
+}
+
 }  // namespace intel_npu
