@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -26,6 +25,7 @@
 #ifdef __linux__
 #    include <fcntl.h>
 #    include <sys/mman.h>
+#    include <unistd.h>
 #endif
 
 #include "common_test_utils/common_utils.hpp"
@@ -34,7 +34,11 @@
 namespace ov::test {
 
 namespace {
+#ifdef __linux__
 const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
+#else
+const size_t page_size = 4096;  // Fallback for non-Linux platforms
+#endif
 
 struct TestFile {
     size_t size_mb;
@@ -68,6 +72,7 @@ long long measure_ms(const std::function<void()>& fn) {
 }
 
 void evict_cache(const std::filesystem::path& path, size_t file_size) {
+#ifdef __linux__
     // Prefer /proc/sys/vm/drop_caches (requires root / CAP_SYS_ADMIN, available when the container
     // is started with --privileged).  Writing "3" flushes the host page
     // cache, dentries, and inodes — the only fully reliable way to guarantee a cold-cache run.
@@ -93,6 +98,16 @@ void evict_cache(const std::filesystem::path& path, size_t file_size) {
         posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
         ::close(fd);
     }
+#else
+    static bool warned = false;
+    if (!warned) {
+        std::cout << "[WARNING] No cache eviction strategy available." << std::endl;
+        warned = true;
+    }
+    // Cache eviction not supported on non-Linux platforms; results may be unreliable.
+    (void)path;
+    (void)file_size;
+#endif
 }
 
 long long bench(const std::function<void()>& fn,
@@ -120,6 +135,7 @@ double throughput_mbs(size_t size_mb, long long ms) {
 
 namespace strategy {
 
+#ifdef __linux__
 // mlock forces every page resident before returning; munlock releases the pin without evicting.
 // Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
 void mlock_munlock(const std::shared_ptr<ov::MappedMemory>& mapped) {
@@ -143,6 +159,7 @@ void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     }
     mlock_munlock(mapped);  // should be near no-op and just lock/unlock resident pages
 }
+#endif
 
 void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
@@ -204,7 +221,7 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
 
 class FileLoadBenchmark : public ::testing::Test {};
 
-TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
+TEST_F(FileLoadBenchmark, strategies_read_memcpy) {        
     const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -277,6 +294,9 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
 }
 
 TEST_F(FileLoadBenchmark, strategies_mlock) {
+#ifndef __linux__
+    GTEST_SKIP() << "mlock/munlock not available on non-Linux platforms";
+#endif
     const std::vector<size_t> sizes_mb = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
