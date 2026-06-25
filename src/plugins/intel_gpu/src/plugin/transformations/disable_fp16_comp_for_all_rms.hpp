@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_gpu {
 
@@ -25,11 +25,10 @@ namespace ov::intel_gpu {
  * Performance impact is negligible: RMS is element-wise and memory-bound,
  * not compute-bound like MatMul.
  */
-class DisableFP16CompForAllRMS : public ov::pass::ModelPass {
+class DisableFP16CompForAllRMS : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("DisableFP16CompForAllRMS");
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompForAllRMS");
     DisableFP16CompForAllRMS();
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace ov::intel_gpu

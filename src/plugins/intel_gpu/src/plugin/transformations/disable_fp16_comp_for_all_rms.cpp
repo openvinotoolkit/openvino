@@ -4,33 +4,30 @@
 
 #include "disable_fp16_comp_for_all_rms.hpp"
 
-#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
+#include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_gpu {
 
-DisableFP16CompForAllRMS::DisableFP16CompForAllRMS() {}
+DisableFP16CompForAllRMS::DisableFP16CompForAllRMS() {
+    auto rms_pattern = ov::pass::pattern::wrap_type<ov::op::internal::RMS>();
 
-bool DisableFP16CompForAllRMS::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    bool is_changed = false;
-
-    for (const auto& node : model->get_ordered_ops()) {
-        auto rms = ov::as_type_ptr<ov::op::internal::RMS>(node);
-        if (!rms)
-            continue;
-
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        auto rms = m.get_match_root();
         if (transformation_callback(rms))
-            continue;
+            return false;
 
         if (ov::is_conversion_disabled(rms, ov::element::f16))
-            continue;
+            return false;
 
         ov::disable_conversion(rms, ov::element::f16);
-        is_changed = true;
-    }
+        return true;
+    };
 
-    return is_changed;
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(rms_pattern, "DisableFP16CompForAllRMS");
+    this->register_matcher(m, callback);
 }
 
 }  // namespace ov::intel_gpu
