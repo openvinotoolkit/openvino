@@ -18,11 +18,18 @@
     #define OV_GPU_WITH_SYCL 0
 #endif
 
+#ifdef OV_GPU_WITH_SYCL_RT
+#define OV_GPU_WITH_OCL 0
+#else
 #define OV_GPU_WITH_OCL 1
+#endif
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
 #define OV_GPU_WITH_CM 1
 
+#ifdef EXPAND
+#undef EXPAND
+#endif
 #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
 #define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
 #define CAT(a, b) a ## b
@@ -60,7 +67,7 @@
 #    define OV_GPU_CREATE_INSTANCE_ONEDNN(...)
 #endif
 
-#if OV_GPU_WITH_SYCL
+#ifdef OV_GPU_WITH_SYCL_RT
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #else
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...)
@@ -151,7 +158,9 @@ REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(paged_attention);
+REGISTER_IMPLS(paged_gated_delta_net);
 REGISTER_IMPLS(pa_kv_reorder);
+REGISTER_IMPLS(paged_causal_conv1d);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);
@@ -172,11 +181,13 @@ REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
 REGISTER_IMPLS(vl_sdpa);
 REGISTER_IMPLS(moe_3gemm_fused_compressed);
+REGISTER_IMPLS(moe_router_fused);
 REGISTER_IMPLS(moe_mask_gen);
 REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
+REGISTER_IMPLS(gather_matmul);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);

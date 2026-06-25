@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API OneHot : public util::OneHotBase {
 public:
-    OPENVINO_OP("OneHot", "opset1", op::Op);
+    OPENVINO_OP("OneHot", "opset1", util::OneHotBase);
 
     /// \brief Constructs a one-hot operation.
     OneHot() = default;
@@ -48,7 +48,7 @@ namespace v16 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API OneHot : public util::OneHotBase {
 public:
-    OPENVINO_OP("OneHot", "opset16", op::Op);
+    OPENVINO_OP("OneHot", "opset16", util::OneHotBase);
 
     /// \brief Lists the supported negative indices modes for this version of the operator.
     ///        See the specification for the description of how negative indices are handled.

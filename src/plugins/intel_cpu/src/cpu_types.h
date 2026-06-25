@@ -130,6 +130,7 @@ enum class Type : uint8_t {
     Ngram,
     ScaledDotProductAttention,
     PagedAttention,
+    PaKVReorder,
     RoPE,
     CausalMaskPreprocess,
     LLMMLP,
@@ -139,7 +140,9 @@ enum class Type : uint8_t {
     SegmentMax,
     LoRA,
     GatherMatmul,
-    GatedDeltaNet
+    GatedDeltaNet,
+    PagedGatedDeltaNet,
+    PagedCausalConv1D
 };
 
 enum class Algorithm : uint8_t {
@@ -225,6 +228,10 @@ enum class Algorithm : uint8_t {
     FullyConnectedCompressed,
     FullyConnectedQuantized,
     FullyConnectedQuantizedLegacy,
+
+    // GatherMatmul algorithms
+    GatherMatmulDefault,
+    GatherMatmulCompressed,
 
     // FakeQuantize algorithms
     FQCommon,

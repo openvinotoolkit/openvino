@@ -8,6 +8,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "openvino/core/graph_util.hpp"
 
 // run_replace_nonzero is file-local in llm_compiled_model.cpp.
 // We test the same graph-transformation logic directly by reproducing
