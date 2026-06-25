@@ -29,7 +29,7 @@ public:
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
 
     void setProperty(const ov::AnyMap& properties);
-    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
     const FilteredConfig& getConfig() const {

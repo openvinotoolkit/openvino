@@ -644,7 +644,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     }
 }
 
-ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::AnyMap& arguments) const {
+ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::AnyMap& arguments) {
     if (!arguments.empty() && name != ov::compatibility_check.name()) {
         auto pluginArguments = arguments;
         exclude_model_ptr_from_map(pluginArguments);
