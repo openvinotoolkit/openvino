@@ -555,6 +555,18 @@ if(ENABLE_SNAPPY_COMPRESSION)
 endif()
 
 #
+# liburing (io_uring)
+#
+
+if(LINUX)
+    add_subdirectory(thirdparty/liburing EXCLUDE_FROM_ALL)
+    set_property(TARGET openvino_liburing PROPERTY EXPORT_NAME liburing)
+    ov_developer_package_export_targets(TARGET openvino::liburing
+        INSTALL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::liburing,INTERFACE_INCLUDE_DIRECTORIES>/)
+    ov_install_static_lib(openvino_liburing ${OV_CPACK_COMP_CORE})
+endif()
+
+#
 # ONNX
 #
 
