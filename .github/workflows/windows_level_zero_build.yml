@@ -12,6 +12,10 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit

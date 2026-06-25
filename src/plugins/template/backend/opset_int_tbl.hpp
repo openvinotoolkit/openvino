@@ -188,6 +188,7 @@ _OPENVINO_OP_REG(OneHot, ov::op::v16)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
+_OPENVINO_OP_REG(GatedDeltaNet, ov::op::internal)
 _OPENVINO_OP_REG(RMS, ov::op::internal)
 _OPENVINO_OP_REG(RMSNorm, ov::op::internal)
 _OPENVINO_OP_REG(PagedAttentionExtension, ov::op)
