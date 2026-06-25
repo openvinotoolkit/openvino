@@ -31,8 +31,8 @@ int get_bindable_core_type_count(const std::vector<std::vector<int>>& proc_type_
 
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
-                         const std::vector<std::vector<int>> proc_type_table,
-                         const std::vector<std::vector<int>> streams_info_table,
+                         const std::vector<std::vector<int>>& proc_type_table,
+                         const std::vector<std::vector<int>>& streams_info_table,
                          StreamCreateType& stream_type,
                          int& concurrency,
                          std::vector<int>& core_types,

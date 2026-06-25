@@ -229,7 +229,7 @@ bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
 bool is_all_core_auto_case(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.ratio_mem_limited_adds > CONV_RATIO_LOW &&
-           tolerance.ratio_compute_convs > 0.33F && tolerance.total_gemms == 0.0F;
+           tolerance.ratio_compute_convs > 0.33F && tolerance.total_gemms == 0;
 }
 
 bool is_all_core_auto_case_small_conv_exclusion_profile(const ov::MemBandwidthPressure& tolerance,
