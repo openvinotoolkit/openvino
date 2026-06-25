@@ -12,13 +12,16 @@
 #include <vector>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -137,6 +140,27 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
     default:
         OPENVINO_THROW("Unsupported precision for const operation: ", const_node->get_friendly_name());
     }
+}
+
+bool fq_ranges_are_equal(const std::shared_ptr<const ov::Node>& fq) {
+    if (!ov::is_type<op::v0::FakeQuantize>(fq))
+        return false;
+
+    auto equal_with_threshold = [](const ov::Output<ov::Node>& val1, const ov::Output<ov::Node>& val2) {
+        auto diff = std::make_shared<op::v1::Subtract>(val1, val2);
+        auto abs_diff = std::make_shared<op::v0::Abs>(diff);
+        auto eps = op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
+        auto is_less = ov::util::get_constant_from_source(std::make_shared<op::v1::Less>(abs_diff, eps));
+        if (!is_less)
+            return false;
+        const auto v = is_less->get_vector<bool>();
+        return std::all_of(v.begin(), v.end(), [](bool b) {
+            return b;
+        });
+    };
+
+    return equal_with_threshold(fq->input_value(1), fq->input_value(3)) &&
+           equal_with_threshold(fq->input_value(2), fq->input_value(4));
 }
 
 std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::v0::Constant>& constant, const PartialShape& shape) {

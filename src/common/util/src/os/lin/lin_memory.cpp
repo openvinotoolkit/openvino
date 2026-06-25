@@ -15,6 +15,7 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -23,36 +24,33 @@ namespace ov::util {
 namespace {
 
 void madvise_hint(void* ptr, size_t size) noexcept {
-    ::madvise(ptr, size, MADV_SEQUENTIAL);
-    ::madvise(ptr, size, MADV_WILLNEED);
+    madvise(ptr, size, MADV_SEQUENTIAL);
+    madvise(ptr, size, MADV_WILLNEED);
 }
 
+struct PageToucher {
+    const uint8_t* m_begin;
+    const uint8_t* m_end;
+    const size_t m_page_size;
+
+    void operator()() const noexcept {
+        volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
+        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
+            local += *begin;
+        }
+    }
+};
+
 void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    const auto pages = util::align_size_up(size, page_size) / page_size;
+    // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    const auto chunk_size = std::max<size_t>(align_size_up(size / num_threads, page_size), 1024 * 1024);
 
-    const auto hw_threads = std::max<size_t>(1, std::thread::hardware_concurrency());
-    constexpr size_t min_chunk_size = 1024 * 1024;  // 1 MiB per thread minimum
-    constexpr size_t max_prefault_threads = 10;
-    const auto n_threads =
-        std::min({num_threads, hw_threads, pages, max_prefault_threads, std::max<size_t>(1, size / min_chunk_size)});
-
-    const auto base = reinterpret_cast<const uint8_t*>(ptr);
     std::vector<std::thread> threads;
-    threads.reserve(n_threads);
+    threads.reserve(ceil_div(size, chunk_size));
 
-    for (size_t tid = 0; tid < n_threads; ++tid) {
-        threads.emplace_back([&, tid] {
-            const size_t begin_page = pages * tid / n_threads;
-            const size_t end_page = pages * (tid + 1) / n_threads;
-            volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
-            for (size_t p = begin_page; p < end_page; ++p) {
-                const size_t off = p * page_size;
-                if (off < size) {
-                    local += base[off];
-                }
-            }
-        });
+    for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last; first += chunk_size) {
+        threads.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
     }
     for (auto& t : threads) {
         t.join();
@@ -73,13 +71,14 @@ void aligned_free(void* ptr) noexcept {
 }
 
 void* vm_reserve(size_t size, std::error_code& ec) noexcept {
-    const auto p = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (p == MAP_FAILED) {
+    void* result = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (result != MAP_FAILED) {
+        ec = {};
+    } else {
         ec = std::error_code(errno, std::system_category());
-        return nullptr;
+        result = nullptr;
     }
-    ec = {};
-    return p;
+    return result;
 }
 
 void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
@@ -110,13 +109,13 @@ void vm_release(void* ptr, size_t size) noexcept {
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
-    // assert if region is not mmap-baked.
+    // assert if region is not mmap-backed.
 
     if (num_threads == 0) {
         // Option 1: OS advisory hints — async, low overhead.
         madvise_hint(ptr, size);
     } else {
-        // Option 2: parallel synchronous touch — blocks until every page_size is resident.
+        // Option 2: parallel synchronous touch — blocks until every page is resident.
         populate_pages(ptr, size, num_threads);
     }
 }

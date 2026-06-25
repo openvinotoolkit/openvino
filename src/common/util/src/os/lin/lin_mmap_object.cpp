@@ -172,25 +172,12 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        if (m_data == nullptr || offset >= m_size) {
-            return;
-        }
-
-        const auto available = m_size - offset;
-        const auto len = (size == auto_size) ? available : std::min(size, available);
         constexpr size_t one_mb = 1024 * 1024;
-
         // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-        if (constexpr size_t prefault_threshold = 4 * one_mb; len >= prefault_threshold) {
-            const auto page_size = static_cast<size_t>(util::get_system_page_size());
-            const auto pages = util::align_size_up(len, page_size) / page_size;
-            const size_t hw_threads = std::thread::hardware_concurrency();
-            constexpr auto min_chunk_size = one_mb;
-            constexpr size_t max_prefault_threads = 10;
-            const auto num_threads =
-                std::min({hw_threads, pages, max_prefault_threads, std::max(1UL, len / min_chunk_size)});
-
-            util::vm_prefetch(static_cast<char*>(m_data) + offset, len, num_threads);
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
+            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
         }
     }
 };
