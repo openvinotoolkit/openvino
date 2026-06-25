@@ -2176,22 +2176,22 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                         nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<unsigned char>::max()));
                     }
                 }
-
+                auto out_compute_type = GetComputeDatatype(out_type);
                 if (desc.tensors.size() == 1) {
                     if (desc.tensors[0].GetDType() != out_type) {
-                        nl_m = ConvertToOutputType(GetDecodedInputVarName(0, false, "", vec_size), vec_size);
+                        nl_m = ConvertToType(GetDecodedInputVarName(0, false, "", vec_size), out_compute_type, vec_size);
                     } else {
                         nl_m = GetDecodedInputVarName(0, false, "", vec_size);
                     }
                 } else {
-                    nl_m = Broadcast(nl_m, out_type, vec_size);
+                    nl_m = Broadcast(nl_m, out_compute_type, vec_size);
                 }
 
-                nl_n = Broadcast(nl_n, out_type, vec_size);
+                nl_n = Broadcast(nl_n, out_compute_type, vec_size);
 
                 // Disable type casts in activation, since current jit generator for activation don't respect vector size of parameters.
                 // So conversion is explicitly done in params declaration
-                jit.Merge(MakeActivationJitConstants(activation_p.function, out_type, suffix, false, true));
+                jit.Merge(MakeActivationJitConstants(activation_p.function, out_compute_type, suffix, false, true));
                 std::string params = nl_m + ","+ nl_n;
                 op_decls += "\\\n\t" + out_var + " = " + ConvertToOutputType("ACTIVATION_FUNC" + suffix + "(" + DecodeComputeType(out_var, out_type, vec_size) + ", " + params + ")", vec_size) + ";";
             }

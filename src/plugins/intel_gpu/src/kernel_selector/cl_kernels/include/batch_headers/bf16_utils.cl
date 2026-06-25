@@ -183,7 +183,7 @@ inline float16 _convert_as_bfloat1616_float16(ushort16 source) {
 
 // ===================== Identity overloads (shared by both paths) =====================
 // Allow CONVERT_BFLOAT16_AS_USHORT to be called on values that are already ushort/ushortN.
-inline ushort __attribute__((overloadable)) _convert_bfloat16_as_ushort(ushort val)
+/*inline ushort __attribute__((overloadable)) _convert_bfloat16_as_ushort(ushort val)
 {
     return val;
 }
@@ -207,7 +207,7 @@ inline ushort16 __attribute__((overloadable)) _convert_bfloat1616_as_ushort16(us
 {
     return val;
 }
-
+*/
 // Scalar aliases so that size=1 concatenation resolves correctly.
 #define _convert_bfloat161_as_ushort1(val) _convert_bfloat16_as_ushort(val)
 #define _convert_as_bfloat161_float1(val)  _convert_as_bfloat16_float(val)
