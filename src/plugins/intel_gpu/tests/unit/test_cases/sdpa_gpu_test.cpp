@@ -356,7 +356,9 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         config.set_property(ov::intel_gpu::use_onednn(use_onednn));
         if (use_onednn) {
             config.set_property(ov::intel_gpu::optimize_data(true));
-            config.set_property(ov::intel_gpu::enable_onednn_sdpa_primitive(true));
+#ifdef ENABLE_DEBUG_CAPS
+            config.set_property(ov::intel_gpu::use_onednn_sdpa(true));
+#endif
         }
         if (!use_onednn) {
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
@@ -389,6 +391,9 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
     void execute() {
         const auto p = GetParam();
         auto& engine = get_test_engine();
+#ifndef ENABLE_DEBUG_CAPS
+        GTEST_SKIP() << "oneDNN SDPA debug option requires ENABLE_DEBUG_CAPS";
+#endif
         if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
             GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
         }
@@ -495,6 +500,9 @@ TEST_P(onednn_sdpa_gpu_test, selects_onednn_and_validates_output) {
 
 TEST(onednn_sdpa_gpu_validation_test, rejects_unsupported_runtime_scale_and_batch_broadcast) {
     auto& engine = get_test_engine();
+#ifndef ENABLE_DEBUG_CAPS
+    GTEST_SKIP() << "oneDNN SDPA debug option requires ENABLE_DEBUG_CAPS";
+#endif
     if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
         GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
     }

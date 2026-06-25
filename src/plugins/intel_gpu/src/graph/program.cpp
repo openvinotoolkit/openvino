@@ -1750,9 +1750,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         enable_onednn_for_tests) {
         if (engine.get_device_info().supports_immad) {
             lo.add_all_onednn_impls_optimization_attribute();
-            if (get_config().get_enable_onednn_sdpa_primitive()) {
+#ifdef ENABLE_DEBUG_CAPS
+            if (get_config().get_use_onednn_sdpa()) {
                 lo.enable_onednn_for<scaled_dot_product_attention>();
             }
+#endif
         } else {
             if (get_config().get_use_onednn()) {
                 lo.enable_onednn_for<lstm_seq>();
