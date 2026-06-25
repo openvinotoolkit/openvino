@@ -289,28 +289,9 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
     return compilerOpts;
 }
 
-bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
-    // This is a special case, as RUNTIME_REQUIREMENTS is a read-only runtime property
-    // used to signal that compiler can provide a compatibility string through a dedicated
-    // VCL compiler method. It is not a regular settable option.
-    // Therefore, we cannot rely on the compiler's usual option support checking method alone.
-    if (optName == RUNTIME_REQUIREMENTS::key()) {
-        if (optValue.has_value())
-            OPENVINO_THROW("The option '",
-                           RUNTIME_REQUIREMENTS::key(),
-                           "' is a read-only property and does not accept any value.");
-
-        return _zeroInitStruct->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
-    }
-
-    if (optName == COMPATIBILITY_CHECK::key()) {
-        if (optValue.has_value())
-            OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
-
-        return _zeroInitStruct->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
-    }
-
-    auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
+                                                const std::optional<std::string>& optValue) const {
+    auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     return isOptionSupported.value_or(false);
 }
 
@@ -332,17 +313,6 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
     return (compilerVersion.major > majorCompilerOptSupportValue) ||
            ((compilerVersion.major == majorCompilerOptSupportValue) &&
             (compilerVersion.minor >= minorCompilerOptSupportValue));
-}
-
-bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    return _zeGraphExt->validateCompatibilityDescriptor(compatibilityDescriptor);
-}
-
-std::optional<std::string> DriverCompilerAdapter::fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
-    if (graphHandle == nullptr || _zeGraphExt == nullptr) {
-        return std::nullopt;
-    }
-    return _zeGraphExt->fetchCompatibilityDescriptor(graphHandle);
 }
 
 }  // namespace intel_npu

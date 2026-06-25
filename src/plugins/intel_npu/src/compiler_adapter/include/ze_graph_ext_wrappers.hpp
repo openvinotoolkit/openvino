@@ -63,8 +63,8 @@ public:
      * @return `true` if the option is supported, `false` if it is not supported,
      *         and `std::nullopt` if the option-support query itself is not supported.
      */
-    std::optional<bool> isOptionSupported(std::string optName,
-                                          std::optional<std::string> optValue = std::nullopt) const;
+    std::optional<bool> isOptionSupported(const std::string& optName,
+                                          const std::optional<std::string>& optValue = std::nullopt) const;
 
     /**
      * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
