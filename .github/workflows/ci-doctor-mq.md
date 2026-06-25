@@ -17,10 +17,23 @@ on:
   workflow_run:
     workflows:
       - "Linux (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 24.04, Python 3.12)"
+      - "Android"
+      - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)"
+      - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
+      - "Linux RISC-V (Ubuntu 22.04, Python 3.10)"
       - "Windows (VS 2022, Python 3.11, Release)"
+      - "Windows (VS 2022, Python 3.11, Debug)"
+      - "Windows Conditional Compilation (VS 2022, Python 3.11)"
+      - "Webassembly"
+      - "Manylinux 2_28"
+      - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
 
+    branches:
+      - master
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -194,7 +207,7 @@ safe-outputs:
 
         - name: Upload statistics artifact
           if: always()
-          uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
           with:
             name: ci-doctor-mq-statistics
             path: ${{ runner.temp }}/ci-doctor-mq-stats
@@ -322,7 +335,7 @@ tools:
 post-steps:
   - name: Upload CI Doctor MQ investigations and patterns
     if: always()
-    uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+    uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
     with:
       name: ci-doctor-mq-investigations
       path: |

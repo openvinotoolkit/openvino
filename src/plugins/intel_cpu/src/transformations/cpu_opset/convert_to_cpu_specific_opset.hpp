@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <cstddef>
 #include <memory>
 
@@ -52,6 +54,19 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_X64(
+        manager,
+        ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
+        [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
+            size_t IC,
+            size_t OC,
+            size_t G) {
+            return ov::intel_cpu::node::GatherMatmul::isSupportedCompressedOperation(gather_matmul, IC, OC, G, config);
+        });
+    CPU_REGISTER_PASS_ARM64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
+    CPU_REGISTER_PASS_ARM64(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_ARM64(
         manager,
         ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
