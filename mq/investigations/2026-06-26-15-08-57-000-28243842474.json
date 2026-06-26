@@ -1,0 +1,24 @@
+{
+  "run_id": 28243842474,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28243842474",
+  "head_sha": "ea31754b402c56a996f45c6dd2368af4c7cc3e87",
+  "timestamp": "2026-06-26T15:09:15Z",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "trigger": "merge_group",
+  "pr": {
+    "number": 36561,
+    "url": "https://github.com/openvinotoolkit/openvino/pull/36561",
+    "author": "dependabot[bot]",
+    "title": "Update pyright requirement from <=1.1.410 to <=1.1.411 in /src/bindings/python"
+  },
+  "failed_jobs": [
+    "Build / Build"
+  ],
+  "failed_step": "Upload openvino-node NPM package (step 37)",
+  "category": "Infrastructure",
+  "signature": "44ca404e704638aa",
+  "root_cause": "The 'Pack openvino_node_npm_package' step (step 28) completed with success exit code but appears to not have created the openvino_node_npm_package.zip file. The subsequent upload step (step 37) using actions/upload-artifact@v7.0.1 with if-no-files-found: error failed immediately because the zip was not present. This is likely due to the PowerShell Compress-Archive command silently failing without propagating a non-zero exit code.",
+  "confidence": "Medium",
+  "pr_changes": "Only modified src/bindings/python/requirements_test.txt (pyright version update) - unrelated to JS API",
+  "investigation_notes": "Despite the PR only changing a Python requirements file, JS_API component was in affected_components, causing JS-related steps to run. Step 28 (Pack npm package) shows success but file not found at upload. Steps 26 (CMake JS), 27 (Pack JS), 36 (Upload JS package) all succeeded."
+}

@@ -1,0 +1,17 @@
+{
+  "signature": "No files were found with the provided path openvino_node_npm_package.zip No artifacts will be uploaded|Build / Build|Infrastructure",
+  "title": "openvino-node NPM package upload fails - zip not created by Pack step",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-06-26T15:08:57Z",
+  "last_seen": "2026-06-26T15:08:57Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28243842474"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36561"
+  ],
+  "recent_timestamps": [
+    "2026-06-26T15:08:57Z"
+  ]
+}
