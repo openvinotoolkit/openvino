@@ -158,6 +158,8 @@
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
+#include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
