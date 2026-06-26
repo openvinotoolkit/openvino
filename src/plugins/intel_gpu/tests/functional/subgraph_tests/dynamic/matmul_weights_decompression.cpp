@@ -541,4 +541,93 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_input_4d,
                                             ::testing::Values(0),
                                             ::testing::Values(1.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
+
+/*
+ * Regression for the intel_gpu DynamicQuantize fanout assert (dynamic_quantize.cpp).
+ *
+ * A single activation feeding several FullyConnected nodes (e.g. VAE mid-block
+ * self-attention to_q / to_k / to_v in FLUX.2-klein) yields, after
+ * DynamicQuantizeFullyConnected + SharedOpOptimization, one shared DynamicQuantize
+ * with multiple FC users (get_users().size() > get_outputs_count()). For a
+ * dynamically-shaped activation this used to trip
+ * OPENVINO_ASSERT(get_users().size() == get_outputs_count()) at the first infer.
+ * This verifies compile + inference succeeds with dynamic quantization enabled.
+ *
+ *      Data (dynamic [-1,-1,512])
+ *        /        |        \
+ *    MatMul_q  MatMul_k  MatMul_v   (each with decompressed int8 weights)
+ *
+ * The three projections use distinct output channel counts so GPU horizontal FC
+ * fusion keeps them separate, guaranteeing the shared DynamicQuantize retains
+ * multiple FC users (which is what triggered the assert).
+ */
+class MatmulSharedDynQuantMultipleFC : public testing::WithParamInterface<uint64_t>,
+                                       virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string get_test_case_name(testing::TestParamInfo<uint64_t> obj) {
+        std::ostringstream result;
+        result << "dyn_quan_group_size=" << obj.param;
+        return result.str();
+    }
+
+protected:
+    std::shared_ptr<ov::Node> make_compressed_weights(size_t input_channels,
+                                                      size_t output_channels,
+                                                      const ov::element::Type& data_precision) {
+        auto weights_tensor = ov::test::utils::create_and_fill_tensor(ov::element::u8, ov::Shape{input_channels, output_channels});
+        auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+        weights->set_friendly_name("Compressed_weights");
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, data_precision);
+
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -0.5;
+        in_data.range = 1;
+        in_data.resolution = 30000;
+        auto scale_tensor = ov::test::utils::create_and_fill_tensor(data_precision, ov::Shape{1, output_channels}, in_data);
+        for (size_t i = 0; i < scale_tensor.get_size(); i++) {
+            if (data_precision == ov::element::f16)
+                scale_tensor.data<ov::float16>()[i] /= ov::float16(16.f);
+            else if (data_precision == ov::element::f32)
+                scale_tensor.data<float>()[i] /= 16.f;
+        }
+        auto scale_const = std::make_shared<ov::op::v0::Constant>(scale_tensor);
+        return std::make_shared<ov::op::v1::Multiply>(weights_convert, scale_const);
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const uint64_t dyn_quan_group_size = GetParam();
+        const size_t hidden = 512;
+
+        // Dynamic 3D activation, matching the VAE mid-block attention input [-1, -1, 512].
+        InputShape data_shape = {{-1, -1, static_cast<ov::Dimension::value_type>(hidden)},
+                                 {{1, 64, hidden}, {1, 256, hidden}}};
+        init_input_shapes({data_shape});
+        inType = outType = ov::element::f16;
+
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputDynamicShapes[0]);
+        // Distinct output sizes for to_q / to_k / to_v so horizontal FC fusion keeps them
+        // separate, while they still share one DynamicQuantize on the common activation.
+        const std::vector<size_t> output_channels = {hidden, hidden - 128, hidden - 256};
+        ov::OutputVector matmuls;
+        for (auto out_ch : output_channels) {
+            auto weights = make_compressed_weights(hidden, out_ch, ov::element::f16);
+            matmuls.push_back(std::make_shared<ov::op::v0::MatMul>(param, weights));
+        }
+        function = std::make_shared<ov::Model>(matmuls, ov::ParameterVector{param}, "SharedDynQuantMultipleFC");
+
+        abs_threshold = 2.0f;  // dynamic quantization accuracy tolerance (see other dyn_quan cases)
+        configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
+    }
+};
+
+TEST_P(MatmulSharedDynQuantMultipleFC, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulSharedDynQuantMultipleFC,
+                         MatmulSharedDynQuantMultipleFC,
+                         ::testing::Values<uint64_t>(32, 128, std::numeric_limits<uint64_t>::max()),
+                         MatmulSharedDynQuantMultipleFC::get_test_case_name);
 } // namespace

@@ -174,10 +174,31 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
     if (!node.is_runtime_skippable() || !act_layout.is_static())
         return false;
 
+    // The 2nd-token skip optimization assumes a single fully-connected consumer that
+    // takes all dynamic-quantize outputs via duplicated connections
+    // (get_users().size() == get_outputs_count()). A dynamic-quantize that is shared
+    // across several fully-connected nodes (e.g. VAE mid-block attention to_q/to_k/to_v,
+    // where SharedOpOptimization dedups the identical per-FC quantizers into one) has more
+    // user connections than outputs. That pattern does not match the skip heuristic, so
+    // execute dynamic quantization normally instead of asserting. This mismatch only
+    // surfaces at runtime for dynamically-shaped activations, since statically-shaped
+    // shared quantizers get their outputs reconciled at compile time.
+    if (node.get_users().size() != node.get_outputs_count())
+        return false;
+
+    // The 2nd-token skip optimization assumes a single fully-connected consumer that
+    // takes all dynamic-quantize outputs via duplicated connections
+    // (get_users().size() == get_outputs_count()). A dynamic-quantize that is shared
+    // across several fully-connected nodes (e.g. VAE mid-block attention to_q/to_k/to_v,
+    // where SharedOpOptimization dedups the identical per-FC quantizers into one) has more
+    // user connections than outputs. That pattern does not match the skip heuristic, so
+    // execute dynamic quantization normally instead of asserting. This mismatch only
+    // surfaces at runtime for dynamically-shaped activations, since statically-shaped
+    // shared quantizers get their outputs reconciled at compile time.
+    if (node.get_users().size() != node.get_outputs_count())
+        return false;
+
     // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
-    OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(),
-                    "Dynamic quantization is supposed to have only one user-node with duplicated connection: ",
-                    node.id());
     if (!(*node.get_users().begin())->is_type<fully_connected>())
         return false;
 
