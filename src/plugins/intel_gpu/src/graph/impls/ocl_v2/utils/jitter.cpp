@@ -320,6 +320,42 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "4";
         is_fp = true;
         break;
+    case ov::element::f8e4m3:
+        type = "fp8e4m3_t";
+        max_val = "(fp8e4m3_t){as_char((char)0x7E)}";  // 448.0
+        min_val = "(fp8e4m3_t){as_char((char)0xFE)}";  // -448.0
+        val_one = "(fp8e4m3_t){as_char((char)0x38)}";
+        val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
+        to_type = "_convert_fp8e4m3_t(v)";
+        to_type_sat = "_convert_fp8e4m3_t_sat(v)";
+        as_type = "as_fp8e4m3_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::f8e5m2:
+        type = "fp8e5m2_t";
+        max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}";  // 57344.0
+        min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}";  // -57344.0
+        val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
+        val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
+        to_type = "_convert_fp8e5m2_t(v)";
+        to_type_sat = "_convert_fp8e5m2_t_sat(v)";
+        as_type = "as_fp8e5m2_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::f8e8m0:
+        type = "fp8e8m0_t";
+        max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}";  // 2^127
+        min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}";  // 2^(-127)
+        val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
+        val_zero = "";  // There is no representation of zero in FP8E8M0
+        to_type = "_convert_fp8e8m0_t(v)";
+        to_type_sat = "_convert_fp8e8m0_t_sat(v)";
+        as_type = "as_fp8e8m0_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
     case ov::element::dynamic:
         type = "uchar";
         max_val = "UCHAR_MAX";
