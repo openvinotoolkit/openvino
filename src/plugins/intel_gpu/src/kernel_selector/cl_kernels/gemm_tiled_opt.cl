@@ -583,15 +583,27 @@ KERNEL(gemm_tiled_opt)(
                 {
                 b_ptr = b_ptr + (input1_offset * sglid);
                 #if B_VEC_SIZE == 1
-                    unroll_for (uint b_load_id = 0; b_load_id < SIMD_WIDTH; b_load_id++) {
-                        b_tile[b_load_id] = ((N > b_raw_global_id) && ((K_FULL_ITERATIONS * TILE_K + b_load_id) < K)) ? b_ptr[b_load_id] : 0;
+                    if (N > b_raw_global_id + 1) {
+                        b_tile = VLOAD(0, b_ptr);
+                    } else if (N > b_raw_global_id) {
+                        unroll_for (uint b_load_id = 0; b_load_id < SIMD_WIDTH; b_load_id++) {
+                            b_tile[b_load_id] = ((K_FULL_ITERATIONS * TILE_K + b_load_id) < K) ? b_ptr[b_load_id] : 0;
+                        }
+                    } else {
+                        b_tile = 0;
                     }
                 #else
                     const __global INPUT1_TYPE* b_ptr_tmp = b_ptr;
                     unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
-                        unroll_for (uint b_load_id = 0; b_load_id < SIMD_WIDTH; b_load_id++) {
-                            b_tile[b_elem][b_load_id] = ((N > b_raw_global_id + SIMD_WIDTH * b_elem) && ((K_FULL_ITERATIONS * TILE_K + b_load_id) < K))
-                                                            ? b_ptr_tmp[input1_offset * SIMD_WIDTH * b_elem + b_load_id] : 0;
+                        if (N > b_raw_global_id + SIMD_WIDTH * b_elem + 1) {
+                            b_tile[b_elem] = VLOAD(0, b_ptr_tmp + input1_offset * SIMD_WIDTH * b_elem);
+                        } else if (N > b_raw_global_id + SIMD_WIDTH * b_elem) {
+                            unroll_for (uint b_load_id = 0; b_load_id < SIMD_WIDTH; b_load_id++) {
+                                b_tile[b_elem][b_load_id] = ((K_FULL_ITERATIONS * TILE_K + b_load_id) < K)
+                                                                ? b_ptr_tmp[input1_offset * SIMD_WIDTH * b_elem + b_load_id] : 0;
+                            }
+                        } else {
+                            b_tile[b_elem] = 0;
                         }
                     }
                 #endif
