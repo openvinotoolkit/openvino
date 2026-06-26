@@ -6,7 +6,7 @@ FROM ${REGISTRY}/library/ubuntu:26.04
 
 USER root
 
-# APT configuration
+# APT configuration.
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
