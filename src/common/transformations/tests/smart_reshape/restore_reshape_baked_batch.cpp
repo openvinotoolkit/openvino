@@ -36,13 +36,13 @@ std::shared_ptr<v0::Constant> dim_const(int64_t value) {
 TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_direct_positive) {
     constexpr int64_t WS = 8, C = 16;
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32,
-                                                    PartialShape{Dimension::dynamic(), WS, WS, C});
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
         // Dynamic spatial split (H//ws, W//ws) -- non-constant shape elements.
         auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
         auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto shape = std::make_shared<v0::Concat>(
-            OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
+        auto shape =
+            std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)},
+                                         0);
         auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
         model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, h, w});
 
@@ -52,12 +52,12 @@ TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_direct_positive) {
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32,
-                                                    PartialShape{Dimension::dynamic(), WS, WS, C});
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
         auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
         auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto shape = std::make_shared<v0::Concat>(
-            OutputVector{dim_const(-1), h, w, dim_const(WS), dim_const(WS), dim_const(C)}, 0);
+        auto shape =
+            std::make_shared<v0::Concat>(OutputVector{dim_const(-1), h, w, dim_const(WS), dim_const(WS), dim_const(C)},
+                                         0);
         auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
         model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, h, w});
     }
@@ -74,8 +74,8 @@ TEST(SmartReshapeTests, RestoreReshapeBakedBatch_reshape) {
     auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{4, WS, WS, C});
     auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
     auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-    auto shape = std::make_shared<v0::Concat>(
-        OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
+    auto shape =
+        std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
     auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
     auto model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, h, w});
 
@@ -100,12 +100,12 @@ TEST(SmartReshapeTests, RestoreReshapeBakedBatch_reshape) {
 TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_special_zero) {
     constexpr int64_t WS = 8, C = 16;
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32,
-                                                    PartialShape{Dimension::dynamic(), WS, WS, C});
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
         auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
         auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto shape = std::make_shared<v0::Concat>(
-            OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
+        auto shape =
+            std::make_shared<v0::Concat>(OutputVector{dim_const(1), h, w, dim_const(WS), dim_const(WS), dim_const(-1)},
+                                         0);
         auto reshape = std::make_shared<v1::Reshape>(data, shape, /*special_zero=*/true);
         model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, h, w});
 
@@ -118,13 +118,12 @@ TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_special_zero) {
 TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_dynamic_leading) {
     constexpr int64_t WS = 8, C = 16;
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32,
-                                                    PartialShape{Dimension::dynamic(), WS, WS, C});
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
         auto batch = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // dynamic leading
         auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
         auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
-        auto shape = std::make_shared<v0::Concat>(
-            OutputVector{batch, h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
+        auto shape =
+            std::make_shared<v0::Concat>(OutputVector{batch, h, w, dim_const(WS), dim_const(WS), dim_const(-1)}, 0);
         auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
         model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, batch, h, w});
 
@@ -137,8 +136,7 @@ TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_dynamic_leading) {
 TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_no_dynamic_interior) {
     constexpr int64_t WS = 8, C = 16;
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32,
-                                                    PartialShape{Dimension::dynamic(), WS, WS, C});
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, C});
         auto shape = std::make_shared<v0::Concat>(
             OutputVector{dim_const(1), dim_const(2), dim_const(2), dim_const(WS), dim_const(WS), dim_const(-1)},
             0);
@@ -154,7 +152,7 @@ TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_no_dynamic_interior) {
 TEST_F(TransformationTestsF, RestoreReshapeBakedBatch_neg_spatial_flatten) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{2, 3, 4, 5});  // last dim 5
-        auto c = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});               // dynamic C slot
+        auto c = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});              // dynamic C slot
         auto shape = std::make_shared<v0::Concat>(OutputVector{dim_const(1), c, dim_const(-1)}, 0);
         auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
         model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data, c});
