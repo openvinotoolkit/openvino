@@ -93,6 +93,21 @@ public:
 #define CASE_ACTIVATION_3D_F16_4 { 1, 17, 7, 7, 7 }, data_types::f16, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F16_5 { 1, 17, 7, 7, 7 }, data_types::f16, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
 
+#define CASE_ACTIVATION_BF16_0 { 7, 32, 5, 5 }, data_types::bf16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_1 { 1, 16, 8, 8 }, data_types::bf16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_2 { 7, 16, 7, 7 }, data_types::bf16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_3 { 1, 14, 8, 8 }, data_types::bf16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_4 { 1, 17, 31, 29 }, data_types::bf16, format::yxfb, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_5 { 1, 17, 31, 29 }, data_types::bf16, format::b_fs_yx_fsv4, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_6 { 1, 17, 31, 29 }, data_types::bf16, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_BF16_7 { 1, 17, 31, 29 }, data_types::bf16, format::fyxb, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_BF16_0 { 3, 16, 13, 13, 13 }, data_types::bf16, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_BF16_1 { 2, 16, 8, 8, 8 }, data_types::bf16, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_BF16_2 { 1, 16, 7, 7, 7 }, data_types::bf16, format::b_fs_zyx_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_BF16_3 { 1, 17, 7, 7, 7 }, data_types::bf16, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_BF16_4 { 1, 17, 7, 7, 7 }, data_types::bf16, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_BF16_5 { 1, 17, 7, 7, 7 }, data_types::bf16, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
+
 #define CASE_ACTIVATION_U8_1 { 1, 16, 8, 8 }, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_U8_2 { 1, 12, 8, 8 }, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_I8_1 { 1, 16, 8, 8 }, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -319,6 +334,26 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation, ::testing::
     activation_test_params{ CASE_ACTIVATION_3D_F16_2, 3, 4, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_3D_F16_3, 3, 4, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_3D_F16_4, 3, 4, "activation_ref" },
+
+    // InputDataType = BF16
+    //activation_test_params{ CASE_ACTIVATION_BF16_0, 3, 4, "activation_opt" },
+    //activation_test_params{ CASE_ACTIVATION_BF16_1, 3, 4, "activation_opt" },
+    //activation_test_params{ CASE_ACTIVATION_3D_BF16_0, 3, 4, "activation_opt" },
+    //activation_test_params{ CASE_ACTIVATION_3D_BF16_1, 3, 4, "activation_opt" },
+
+    activation_test_params{ CASE_ACTIVATION_BF16_0, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_2, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_3, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_4, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_5, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_6, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_BF16_7, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_0, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_2, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_3, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_4, 3, 4, "activation_ref" },
 
     // InputDataType = UINT8
     activation_test_params{ CASE_ACTIVATION_U8_1, 3, 4, "activation_ref" },

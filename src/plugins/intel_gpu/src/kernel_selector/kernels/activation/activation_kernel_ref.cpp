@@ -35,7 +35,7 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
 
 JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData dispatchData) const {
     auto jit = ActivationKernelBase::GetJitConstants(params, dispatchData);
-    auto input_dt = GetComputeDatatype(params.inputs[0].GetDType());
+    auto input_dt = params.inputs[0].GetDType();
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
@@ -48,7 +48,7 @@ JitConstants ActivationKernelRef::GetJitConstants(const activation_params& param
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, input_dt, "_KERNEL"));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(input_dt), "_KERNEL"));
     return jit;
 }
 

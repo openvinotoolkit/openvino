@@ -125,22 +125,22 @@ KERNEL(activation)(
     #endif
     #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
 
-    INPUT0_COMPUTE_TYPE dst = ACTIVATION_KERNEL(DECODE_INPUT0_COMPUTE_TYPE(input[src_index]), PARAMETERIZED_ACTIVATION_PARAMS);
+    INPUT0_COMPUTE_TYPE dst_compute = ACTIVATION_KERNEL(DECODE_INPUT0_COMPUTE_TYPE(input[src_index]), PARAMETERIZED_ACTIVATION_PARAMS);
     #if HAS_FUSED_OPS
+		INPUT0_TYPE dst = TO_INPUT0_TYPE(dst_compute);
         FUSED_OPS;
-		OUTPUT_COMPUTE_TYPE out = FUSED_OPS_RESULT;
-        output[dst_index] = TO_OUTPUT_TYPE(out);
+        output[dst_index] = FUSED_OPS_RESULT;
     #else
-        output[dst_index] = TO_OUTPUT_TYPE(dst);
+        output[dst_index] = TO_OUTPUT_TYPE(dst_compute);
     #endif
 #else
-    INPUT0_COMPUTE_TYPE dst = ACTIVATION_KERNEL(DECODE_INPUT0_COMPUTE_TYPE(input[src_index]), ACTIVATION_PARAMS);
+    INPUT0_COMPUTE_TYPE dst_compute = ACTIVATION_KERNEL(DECODE_INPUT0_COMPUTE_TYPE(input[src_index]), ACTIVATION_PARAMS);
     #if HAS_FUSED_OPS
+		INPUT0_TYPE dst = TO_INPUT0_TYPE(dst_compute);
         FUSED_OPS;
-        OUTPUT_COMPUTE_TYPE out = FUSED_OPS_RESULT;
-        output[dst_index] = TO_OUTPUT_TYPE(out);
+        output[dst_index] = FUSED_OPS_RESULT;
     #else
-        output[dst_index] = TO_OUTPUT_TYPE(dst);
+        output[dst_index] = TO_OUTPUT_TYPE(dst_compute);
     #endif
 #endif
 }
