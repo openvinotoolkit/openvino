@@ -269,15 +269,26 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     } else {
         dim = concat_list_construct(context.get_input(2));
     }
-    // default norm for matrix is frobenius norm, for vector - L2, for other ranks are not determined
+    // When ord is not specified (None), torch.linalg.norm computes:
+    //  - the matrix Frobenius norm when reducing over exactly two dims (an explicit
+    //    2-element dim, or dim=None on a rank-2 input), and
+    //  - the vector 2-norm (L2) otherwise (any other dim, or dim=None on any other rank).
+    // Both reduce to sqrt(sum(abs(x)^2)) over the selected axes, so this is rank-agnostic.
     if (context.input_is_none(1)) {
-        auto input_rank = x.get_partial_shape().rank();
-        if (input_rank.is_static() && input_rank.get_length() == 2) {
-            result = frobenius_norm(context, x, dim, keep_dim);
-        } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
-            result = norm_vector(context, x, dim, 2, keep_dim);
+        bool is_matrix_norm = false;
+        if (!context.input_is_none(2)) {
+            // explicit dim provided: matrix norm iff it lists exactly two axes
+            auto const_dim = context.const_input<std::vector<int64_t>>(2);
+            is_matrix_norm = const_dim.size() == 2;
         } else {
-            PYTORCH_OP_CONVERSION_CHECK(false, "linalg norm for tensor rank > 2 without ord specification unsupported");
+            // dim=None: matrix norm only for a statically rank-2 input
+            auto input_rank = x.get_partial_shape().rank();
+            is_matrix_norm = input_rank.is_static() && input_rank.get_length() == 2;
+        }
+        if (is_matrix_norm) {
+            result = frobenius_norm(context, x, dim, keep_dim);
+        } else {
+            result = norm_vector(context, x, dim, 2, keep_dim);
         }
     } else {
         // ord defines the  norm that is computed can be string or number
