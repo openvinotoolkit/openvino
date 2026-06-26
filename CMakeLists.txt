@@ -36,6 +36,16 @@ if(POLICY CMP0194)
     set(CMAKE_POLICY_DEFAULT_CMP194 OLD)
 endif()
 
+if(POLICY CMP0074)
+    # Use <PackageName>_ROOT in find_package()
+    cmake_policy(SET CMP0074 NEW)
+endif()
+
+if(POLICY CMP0144)
+    # Use <PACKAGENAME>_ROOT in find_package()
+    cmake_policy(SET CMP0144 NEW)
+endif()
+
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
         HOMEPAGE_URL "https://docs.openvino.ai/2026/index.html"
