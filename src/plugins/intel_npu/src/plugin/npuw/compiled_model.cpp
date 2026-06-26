@@ -348,8 +348,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     pre_load_transform(model, properties);
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
-    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
-    ::intel_npu::registerNPUWKokoroOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
     split_properties(properties, m_non_npuw_props, npuw_props);

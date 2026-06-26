@@ -1005,13 +1005,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
         }
     }
-    const bool quantize_q_enabled = m_cfg.get<::intel_npu::NPUW_QUANTIZE_Q>();
-    LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
+    const bool quantize_q_enabled = m_cfg.get<::intel_npu::NPUW_LLM_QUANTIZE_Q>();
+    LOG_DEBUG("Converting KV-cache in generate model to: " << kv_kache_storage_type << ", Q-tensor: " << (quantize_q_enabled ? "quantized" : "not quantized"));
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
         ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, quantize_q_enabled)
             .run_on_model(generate_model_variants[i]);
     }
-    LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
+    LOG_DEBUG("Converting KV-cache in prefill model to: " << kv_kache_storage_type << ", Q-tensor: " << (quantize_q_enabled ? "quantized" : "not quantized"));
     ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, quantize_q_enabled).run_on_model(prefill_model);
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
@@ -1627,7 +1627,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
-                          BIND(npuw::llm::quantize_q, NPUW_QUANTIZE_Q, get),
+                          BIND(npuw::llm::quantize_q, NPUW_LLM_QUANTIZE_Q, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
