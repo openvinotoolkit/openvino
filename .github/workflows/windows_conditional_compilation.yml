@@ -127,7 +127,7 @@ jobs:
       - name: Install certifi
         run: |
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install  certifi
+          python3 -m pip install --no-cache-dir certifi
 
       #
       # Build
