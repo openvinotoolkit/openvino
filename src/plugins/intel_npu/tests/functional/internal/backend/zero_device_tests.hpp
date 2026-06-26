@@ -22,11 +22,11 @@ namespace ov::test::behavior {
 
 using namespace ::intel_npu;
 
-using CompatStringParams = std::tuple<std::string, ov::AnyMap>;
+using ZeroDeviceTestParams = std::tuple<std::string, ov::AnyMap>;
 
-class DriverCompatStringTest : public ::testing::TestWithParam<CompatStringParams> {
+class ZeroDeviceTest : public ::testing::TestWithParam<ZeroDeviceTestParams> {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CompatStringParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ZeroDeviceTestParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -63,9 +63,9 @@ protected:
     std::unique_ptr<ZeroDevice> device;
 };
 
-// a E2E test fails earlier (metadata parse), so this narrow unit test is the only coverage for the L0 driver validation
-// branch.
-TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
+// E2E tests fail earlier (at metadata parse), so this narrow unit test provides
+// the only coverage for the L0 driver validation branch with invalid descriptors.
+TEST_P(ZeroDeviceTest, ValidateRejectsGarbageString) {
     if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
         ASSERT_ANY_THROW(device->validateCompatibilityDescriptor("not_a_valid_compat_string"));
     } else {
@@ -73,13 +73,6 @@ TEST_P(DriverCompatStringTest, ValidateRejectsGarbageString) {
         OV_ASSERT_NO_THROW(isCompatible = device->validateCompatibilityDescriptor("not_a_valid_compat_string"));
         EXPECT_FALSE(isCompatible);
     }
-}
-
-// no E2E test reaches this branch because compilation never produces an empty descriptor.
-TEST_P(DriverCompatStringTest, ValidateAcceptsEmptyString) {
-    bool isCompatible = false;
-    OV_ASSERT_NO_THROW(isCompatible = device->validateCompatibilityDescriptor(""));
-    EXPECT_TRUE(isCompatible);
 }
 
 }  // namespace ov::test::behavior

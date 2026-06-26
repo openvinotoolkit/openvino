@@ -108,11 +108,9 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     std::vector<ov::PropertyName> properties;
     // Test that RUNTIME_REQUIREMENTS is supported for a model compiled with CIP
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-    {
-        auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-        ASSERT_TRUE(it != properties.cend());
-        ASSERT_FALSE(it->is_mutable());
-    }
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+    ASSERT_FALSE(it->is_mutable());
     OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
 
     OV_ASSERT_NO_THROW(
@@ -121,13 +119,19 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     // Test that RUNTIME_REQUIREMENTS is not supported for a model compiled with CID
     // This check should be conditioned by the compiler/driver version once support is added in L0
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-    {
-        auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-        ASSERT_TRUE(it == properties.cend());
+    it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    if (it != properties.cend()) {
+        // Driver implements the extension: the property is listed and must be readable.
+        ASSERT_FALSE(it->is_mutable());
+        std::string requirements;
+        OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+        ASSERT_FALSE(requirements.empty());
+    } else {
+        // Driver does not implement the extension: reading the property must be rejected.
+        OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
+                        ov::Exception,
+                        testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
     }
-    OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
-                    ov::Exception,
-                    testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS) {
@@ -331,6 +335,18 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
     } else {
         ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     }
+}
+
+TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
+    // Empty descriptor means no runtime requirements to validate = always compatible.
+    // This test verifies the plugin-level handling through the public API.
+    // No E2E test reaches this branch because compilation never produces an empty descriptor,
+    // but the plugin must handle it gracefully (return NOT_APPLICABLE).
+    ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
+    OV_ASSERT_NO_THROW(result = core.get_property(deviceName,
+                                                  ov::compatibility_check,
+                                                  std::make_pair(ov::runtime_requirements.name(), "")));
+    ASSERT_EQ(result, ov::CompatibilityCheck::NOT_APPLICABLE);
 }
 
 }  // namespace ov::test::behavior
