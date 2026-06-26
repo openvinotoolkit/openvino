@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "utils/precision_support.h"
 #include "snippets/utils.hpp"
+#include "utils/arm_isa_support.h"
+#include "utils/precision_support.h"
 #if defined(OPENVINO_ARCH_RISCV64)
-#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 #include <string>
 #include <vector>
@@ -668,7 +670,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        if (!ov::intel_cpu::hasIntDotProductSupport()) {
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
         }
         if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
