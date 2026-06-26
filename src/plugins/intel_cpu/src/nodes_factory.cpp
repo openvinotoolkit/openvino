@@ -9,6 +9,7 @@
 #include "nodes/bin_conv.h"
 #include "nodes/broadcast.h"
 #include "nodes/bucketize.h"
+#include "nodes/bincount.h"
 #include "nodes/causal_mask_preprocess.h"
 #include "nodes/col2im.h"
 #include "nodes/color_convert.h"
@@ -183,6 +184,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(GatherElements, Type::GatherElements);
     INTEL_CPU_NODE(CTCGreedyDecoderSeqLen, Type::CTCGreedyDecoderSeqLen);
     INTEL_CPU_NODE(Bucketize, Type::Bucketize);
+INTEL_CPU_NODE(Bincount, Type::Bincount);
     INTEL_CPU_NODE(ExperimentalDetectronROIFeatureExtractor, Type::ExperimentalDetectronROIFeatureExtractor);
     INTEL_CPU_NODE(Math, Type::Math);
     INTEL_CPU_NODE(MultiClassNms, Type::MulticlassNms);

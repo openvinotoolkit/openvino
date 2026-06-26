@@ -292,5 +292,6 @@ class SparseFillEmptyRows;
 }  // namespace ov::op::v16
 
 namespace ov::op::v17 {
+class Bincount;
 class ErfInv;
 }  // namespace ov::op::v17
