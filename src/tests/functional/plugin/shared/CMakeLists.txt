@@ -65,6 +65,14 @@ ov_add_target(
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
+                # paged_attention_token_type.cpp pulls a non-inline ctor from openvino_reference
+                # (built STATIC, not re-exported from libopenvino.so). Without this explicit dep,
+                # GNU ld's single-pass static-archive scan hits libopenvino_reference.a before
+                # libfuncSharedTests.a and skips the ctor -> undefined symbol. Upstream CI doesn't
+                # see this because it builds funcSharedTests as a shared lib (BUILD_SHARED_LIBS=ON
+                # default), where reference is linked into the .so up front. Declaring the dep
+                # here fixes the ordering for the static-funcSharedTests setup.
+                openvino::reference
                 common_test_utils
                 func_test_utils
                 ov_lpt_models
