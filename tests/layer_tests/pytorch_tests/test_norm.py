@@ -367,6 +367,15 @@ class TestLinalgNorm(PytorchLayerTest):
         (float('inf'), 1,      [1, 3, 3]),   # numeric ord, scalar dim -> norm_vector(p=inf)
         ("fro",        (0, 1), [1, 3, 3]),   # string ord -> frobenius_norm
         (0,            1,      [1, 3, 3]),   # p==0 branch
+        # ord=None on rank>2 inputs (previously unsupported / raised in the FE).
+        # torch maps ord=None to the vector 2-norm over `dim` (Frobenius when dim
+        # lists two axes); this must be rank-agnostic.
+        (None,         -1,     [2, 4, 3]),         # ord=None, scalar dim, rank-3
+        (None,         1,      [1, 5, 5, 3]),      # ord=None, scalar dim, rank-4
+        (None,         (0, 1), [1, 3, 3]),         # ord=None, 2-elem dim -> frobenius
+        (None,         None,   [2, 3, 4]),         # ord=None, dim=None, rank-3 -> flat L2
+        (None,         (-2, -1), [2, 4, 3, 3]),    # ord=None, 2-elem dim, rank-4 -> frobenius
+        (None,         -1,     [1, 7, 7, 3, 3]),   # SAM-6D geo_embedding shape (rank-5)
     ])
     @pytest.mark.parametrize('keepdim', [True, False])
     @pytest.mark.parametrize("dtype", ["float32", None])
@@ -378,6 +387,37 @@ class TestLinalgNorm(PytorchLayerTest):
                    kwargs_to_prepare_input={
                        "out": out or prim_dtype,
                        "out_dtype": dtype if prim_dtype else None,
+                       "input_shape": input_shape,
+                       "dim": dim,
+                       "keepdim": keepdim
+        })
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('p,dim,input_shape', [
+        # torch.linalg.norm(x) with ord=None and a tensor of static rank > 2 used
+        # to raise in the frontend; torch maps ord=None to the vector 2-norm over
+        # `dim` (Frobenius when `dim` lists two axes). These cases pin the static-
+        # rank path (the harness default uses dynamic rank, which took a different
+        # branch), including the SAM-6D geo_embedding shape.
+        (None, -1,       [2, 4, 3]),
+        (None, 1,        [1, 5, 5, 3]),
+        (None, (0, 1),   [1, 3, 3]),
+        (None, None,     [2, 3, 4]),
+        (None, (-2, -1), [2, 4, 3, 3]),
+        (None, -1,       [1, 7, 7, 3, 3]),   # geo_embedding: linalg.norm(cross(...), dim=-1)
+    ])
+    @pytest.mark.parametrize('keepdim', [True, False])
+    def test_linalg_norm_ordNone_rank_gt2_static(self, p, dim, keepdim, input_shape,
+                                                 ie_device, precision, ir_version):
+        # Force static shapes so the input keeps a static rank > 2 (the condition
+        # under which the previous implementation raised "rank > 2 without ord").
+        self._test(*self.create_model(p, dim, keepdim, None, False, False),
+                   ie_device, precision, ir_version,
+                   dynamic_shapes=False,
+                   kwargs_to_prepare_input={
+                       "out": False,
+                       "out_dtype": None,
                        "input_shape": input_shape,
                        "dim": dim,
                        "keepdim": keepdim
