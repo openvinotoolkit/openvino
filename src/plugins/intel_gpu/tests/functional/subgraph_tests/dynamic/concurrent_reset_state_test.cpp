@@ -81,7 +81,11 @@ public:
         ireq1.infer();
         ireq2.infer();
 
-        // Stress test: concurrent infer() on one request and reset_state() on the other
+        // Stress test: concurrent infer() on one request and reset_state() on the other.
+        // Each iteration resets ireq1's state so the KV cache starts fresh, matching
+        // the pattern used in KVCacheIssueTests::conflicted_memory_for_two_inf_req.
+        // Without this reset, the KV cache grows across iterations while the attention
+        // mask stays fixed, causing a MatMul shape mismatch unrelated to concurrency.
         const size_t num_iterations = 50;
         std::atomic<bool> has_exception{false};
         std::string exception_message;
@@ -95,7 +99,10 @@ public:
         };
 
         for (size_t iter = 0; iter < num_iterations && !has_exception; iter++) {
-            // Thread 1: infer on request 1
+            // Reset request 1 so KV cache starts fresh (shapes will match inputs)
+            ireq1.reset_state();
+
+            // Thread 1: infer on request 1 (from clean state)
             std::thread t1([&]() {
                 try {
                     ireq1.infer();
@@ -105,6 +112,8 @@ public:
             });
 
             // Thread 2: reset_state on request 2 (shares CompiledModel with request 1)
+            // This exercises the race: reset_state() modifies shared network
+            // primitive state while infer() is doing shape inference.
             std::thread t2([&]() {
                 try {
                     ireq2.reset_state();
