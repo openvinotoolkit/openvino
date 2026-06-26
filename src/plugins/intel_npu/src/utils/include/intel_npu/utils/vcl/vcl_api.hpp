@@ -30,7 +30,6 @@ namespace intel_npu {
     vcl_symbol_statement(vclLogHandleGetString)             \
     vcl_symbol_statement(vclAllocatedExecutableCreate4)     \
     vcl_symbol_statement(vclExecutableGetCompatibilityString) \
-    vcl_symbol_statement(vclAllocatedExecutableCreate3)     \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
 
