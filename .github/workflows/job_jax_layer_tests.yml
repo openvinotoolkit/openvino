@@ -28,8 +28,6 @@ env:
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
   HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
-  PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-  PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
 jobs:
   JAX_Layer_Tests:
@@ -76,10 +74,13 @@ jobs:
           path: ${{ env.INSTALL_DIR }}
 
       - name: Setup Variables
+        if: runner.os != 'macOS'
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
+          echo "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/" >> "$GITHUB_ENV"
+          echo "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -100,7 +101,7 @@ jobs:
         with:
           version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
-          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          set-pip-install-path: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels

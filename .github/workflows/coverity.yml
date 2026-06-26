@@ -141,7 +141,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       #

@@ -181,7 +181,7 @@ jobs:
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -472,7 +472,7 @@ jobs:
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -664,7 +664,7 @@ jobs:
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -802,7 +802,7 @@ jobs:
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies

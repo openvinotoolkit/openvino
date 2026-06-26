@@ -28,13 +28,13 @@ Since `actions/setup-python` does not work on the Linux ARM64 machines,
     with:
       version: '3.11'
       pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-      should-setup-pip-paths: 'true'
+      set-pip-install-path: 'true'
       self-hosted-runner: 'true'
 ```
 where:
 * `version` - the Python version to install in the `MAJOR.MINOR` format
 * `pip-cache-path` - the path to the `pip` cache on the mounted share. Read more in the [shares and caches](./caches.md) documentation
-* `should-setup-pip-paths` - indicates whether the action should set up the `PIP_CACHE_DIR` and `PIP_INSTALL_PATH` environment variables for later usage
+* `set-pip-install-path` - indicates whether the action should set up the `PIP_CACHE_DIR` and `PIP_INSTALL_PATH` environment variables for later usage
 * `self-hosted-runner` - indicates whether the runner is self-hosted. Learn more about [available runners](./runners.md)
 
 ## System Info Print

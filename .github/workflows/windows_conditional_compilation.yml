@@ -122,7 +122,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: Install certifi
@@ -339,7 +339,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
       - name: CMake configure - CC ON

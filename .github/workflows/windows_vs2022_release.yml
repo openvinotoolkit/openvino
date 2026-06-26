@@ -141,7 +141,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'true'
 
       # Test with the short names of the arguments
@@ -338,7 +338,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
@@ -486,7 +486,7 @@ jobs:
         with:
           version: ${{ matrix.python-version }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
@@ -628,7 +628,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: 'true'
 
       - name: Install python dependencies

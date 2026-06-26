@@ -105,7 +105,7 @@ jobs:
         with:
           version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
-          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          set-pip-install-path: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels

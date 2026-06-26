@@ -88,7 +88,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Setup NodeJS
@@ -200,7 +200,7 @@ jobs:
         with:
           version: '3.10'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       # Setup additional Python versions for wheels building
@@ -210,7 +210,7 @@ jobs:
         with:
           version: '3.12'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       # Setup additional Python versions for wheels building
@@ -220,7 +220,7 @@ jobs:
         with:
           version: '3.13'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       # Setup additional Python versions for wheels building
@@ -230,7 +230,7 @@ jobs:
         with:
           version: '3.14'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Build additional Python wheels
@@ -276,7 +276,7 @@ jobs:
         with:
           version: '3.14t'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
 
@@ -350,7 +350,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: CMake configure, build and install - OpenVINO JS API

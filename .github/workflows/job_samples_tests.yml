@@ -82,7 +82,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         if: runner.os == 'Windows'

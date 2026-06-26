@@ -79,7 +79,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          should-setup-pip-paths: 'false'
+          set-pip-install-path: 'false'
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Install python dependencies for run_parallel.py
