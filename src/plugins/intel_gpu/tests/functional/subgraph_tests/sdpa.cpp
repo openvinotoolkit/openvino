@@ -19,6 +19,10 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include <cmath>
 #include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -277,6 +281,105 @@ protected:
 
 TEST_F(SDPA, smoke_Inference) {
     run();
+}
+
+// head_size is the QK^T contraction dim and the softmax@V inner dim. A stateless graph
+// feeds the SDPA K/V from a KV-cache that is sliced on the sequence axis with a runtime
+// bound. The source model keeps head_size static the whole way to the SDPA, but the GPU
+// plugin's StridedSlice shape inference used to drop every static dim after the first
+// dynamic (sequence) dim, so K/V reached the SDPA as [1,?,?,?] -- which decomposed the
+// SDPA or fell back to the slow sdpa_ref kernel. This test reproduces that exact chain
+// (Parameter with static head_size -> Slice on the seq axis with a runtime bound -> SDPA)
+// and asserts the executed graph keeps a single fused SDPA running an "opt" kernel.
+class SDPADynamicHeadSize : virtual public ov::test::SubgraphBaseTest {
+protected:
+    static constexpr int64_t num_heads = 32;
+    static constexpr int64_t head_size = 64;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        inType = ov::element::f16;
+
+        const size_t seq_full = 256;  // allocated KV length
+        const size_t seq_kv = 128;    // active (sliced) KV length
+        // Q: [1, num_heads, -1, head_size]. K/V come from a cache [1, num_heads, -1,
+        // head_size] sliced on the sequence axis (dim 2) with a runtime end bound taken
+        // from the mask's KV length (ShapeOf(mask)[3]), so all graph inputs are f16 and
+        // the slice bound is a genuine runtime value. head_size stays static throughout.
+        init_input_shapes({
+            {{1, num_heads, -1, head_size}, {{1, num_heads, 1, head_size}}},
+            {{1, num_heads, -1, head_size}, {{1, num_heads, seq_full, head_size}}},
+            {{1, num_heads, -1, head_size}, {{1, num_heads, seq_full, head_size}}},
+            {{1, 1, -1, -1}, {{1, 1, 1, seq_kv}}},
+        });
+
+        auto q = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+        auto k_cache = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
+        auto v_cache = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[2]);
+        auto mask = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[3]);
+        q->set_friendly_name("q");
+        k_cache->set_friendly_name("k");
+        v_cache->set_friendly_name("v");
+        mask->set_friendly_name("mask");
+
+        // Runtime slice end bound = mask KV length (dim 3). ShapeOf keeps it a runtime
+        // value (not constant-foldable), exercising the dynamic-bounds shape inference.
+        auto mask_shape = std::make_shared<ov::op::v3::ShapeOf>(mask, ov::element::i64);
+        auto kv_len = std::make_shared<ov::op::v8::Gather>(
+            mask_shape,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+
+        // Slice K/V on the sequence axis (dim 2) with that runtime end bound -- this is
+        // the op whose GPU shape inference must keep head_size (dim 3) static.
+        auto start = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto k = std::make_shared<ov::op::v8::Slice>(k_cache, start, kv_len, step, axes);
+        auto v = std::make_shared<ov::op::v8::Slice>(v_cache, start, kv_len, step, axes);
+
+        auto scale = ov::op::v0::Constant::create(
+            inType, ov::Shape{}, std::vector<float>{1.0f / std::sqrt(static_cast<float>(head_size))});
+        auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, k, v, mask, scale, false);
+        sdpa->set_friendly_name("sdpa");
+        auto result = std::make_shared<ov::op::v0::Result>(sdpa->output(0));
+        function = std::make_shared<ov::Model>(ov::OutputVector{result},
+                                               ov::ParameterVector{q, k_cache, v_cache, mask},
+                                               "sdpa_dynamic_head_size");
+
+        abs_threshold = 0.02;
+        rel_threshold = 0.02;
+
+        functionRefs = function->clone();
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+        manager.run_passes(functionRefs);
+    }
+
+    void check_results() {
+        auto exec_model = compiledModel.get_runtime_model();
+        int sdpa_found = 0;
+        std::string sdpa_impl;
+        for (const auto& n : exec_model->get_ordered_ops()) {
+            const auto& rt = n->get_rt_info();
+            if (rt.at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "scaled_dot_product_attention") {
+                sdpa_found++;
+                sdpa_impl = rt.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+            }
+        }
+        // SDPA stays fused (not decomposed into Gemm/Softmax) ...
+        ASSERT_EQ(sdpa_found, 1) << "SDPA was decomposed instead of kept as a fused op";
+        // ... and runs an optimized kernel rather than the reference fallback.
+        EXPECT_NE(sdpa_impl.find("opt"), std::string::npos)
+            << "expected an optimized SDPA kernel for dynamic K/V head_size, got: " << sdpa_impl;
+        EXPECT_EQ(sdpa_impl.find("ref"), std::string::npos)
+            << "SDPA fell back to the ref kernel for dynamic K/V head_size: " << sdpa_impl;
+    }
+};
+
+TEST_F(SDPADynamicHeadSize, smoke_Inference) {
+    run();
+    check_results();
 }
 
 TEST_P(SDPAFusion, Inference) {

@@ -87,12 +87,16 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
                     continue;
                 }
 
+                // Each output dim depends only on the corresponding input dim, so a
+                // dynamic input dim only makes its own output dim dynamic. Keep
+                // propagating instead of breaking at the first dynamic dim, so static
+                // dims that follow it are preserved.
                 if (input0_pshape[input_idx].is_static()) {
                     output_shape[output_idx++] = input0_pshape[input_idx];
-                    input_idx++;
                 } else {
-                    break;
+                    output_shape[output_idx++] = ov::Dimension::dynamic();
                 }
+                input_idx++;
             }
         }
 

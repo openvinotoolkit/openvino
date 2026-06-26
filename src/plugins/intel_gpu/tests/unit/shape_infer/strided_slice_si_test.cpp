@@ -156,4 +156,64 @@ INSTANTIATE_TEST_SUITE_P(smoke, strided_slice_test_four_inputs,
         },
     }));
 
+// When begin/end/strides are not available at shape-inference time (runtime bounds),
+// calc_output_layouts uses a fallback that previously stopped at the first dynamic
+// input dim, discarding every static dim after it. A slice that only touches the
+// sequence axis of an attention K/V tensor [1, -1(seq), num_heads, head_size] must
+// keep num_heads and head_size static. This guards that behavior.
+class strided_slice_test_dynamic_bounds : public testing::TestWithParam<strided_slice_test_params> { };
+
+TEST_P(strided_slice_test_dynamic_bounds, shape_infer) {
+    auto p = GetParam();
+    auto& engine = get_test_engine();
+
+    auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
+    auto begin_prim = std::make_shared<input_layout>("begin", p.begin_layout);
+    auto end_prim = std::make_shared<input_layout>("end", p.end_layout);
+    auto strides_prim = std::make_shared<input_layout>("strides", p.strides_layout);
+    // Empty begin/end/strides data => bounds are runtime values (not foldable).
+    auto strided_slice_prim = std::make_shared<strided_slice>("output",
+                                                              input_info("input"),
+                                                              input_info("begin"),
+                                                              input_info("end"),
+                                                              input_info("strides"),
+                                                              p.begin_mask,
+                                                              p.end_mask,
+                                                              p.new_axis_mask,
+                                                              p.shrink_axis_mask,
+                                                              p.ellipsis_mask,
+                                                              ov::Shape{});
+
+    cldnn::program prog(engine);
+    auto& input_node = prog.get_or_create(input_prim);
+    auto& begin_node = prog.get_or_create(begin_prim);
+    auto& end_node = prog.get_or_create(end_prim);
+    auto& strides_node = prog.get_or_create(strides_prim);
+    auto& strided_slice_node = prog.get_or_create(strided_slice_prim);
+    program_wrapper::add_connection(prog, input_node, strided_slice_node);
+    program_wrapper::add_connection(prog, begin_node, strided_slice_node);
+    program_wrapper::add_connection(prog, end_node, strided_slice_node);
+    program_wrapper::add_connection(prog, strides_node, strided_slice_node);
+    auto params = strided_slice_node.get_kernel_impl_params();
+    // No memory_deps: bounds are unavailable, exercising the dynamic-bounds fallback.
+    auto res = strided_slice_inst::calc_output_layouts<ov::PartialShape>(strided_slice_node, *params);
+
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_EQ(res[0], p.expected_layout);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, strided_slice_test_dynamic_bounds,
+    testing::ValuesIn(std::vector<strided_slice_test_params>{
+        // Attention K/V: slice the dynamic sequence axis (dim 1); num_heads (8) and
+        // head_size (64) after it must stay static.
+        {
+            layout{ov::PartialShape{1, ov::Dimension::dynamic(), 8, 64}, data_types::f16, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {},
+            layout{ov::PartialShape{1, ov::Dimension::dynamic(), 8, 64}, data_types::f16, format::bfyx}
+        },
+    }));
+
 }  // shape_infer_tests
