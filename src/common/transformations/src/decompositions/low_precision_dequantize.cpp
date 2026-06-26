@@ -43,14 +43,12 @@ ov::Output<ov::Node> low_precision_dequantize(ov::pass::NodeRegistry& reg,
                                               const ov::Output<ov::Node>& x,
                                               const ov::Output<ov::Node>& scale,
                                               const ov::Output<ov::Node>& zero_point,
-                                              const ov::Output<ov::Node>& output_shape,
-                                              const ov::element::Type& decompression_precision) {
+                                              const ov::Output<ov::Node>& output_shape) {
     // Decomposition shape (matches ov::pass::MarkDequantization):
     //   Multiply(Subtract(Convert(x), zp), scale) [-> Reshape]
     // or, when zero_point is empty:
     //   Multiply(Convert(x), scale) [-> Reshape]
-    const auto& dst_type =
-        decompression_precision == ov::element::dynamic ? scale.get_element_type() : decompression_precision;
+    const auto& dst_type = scale.get_element_type();
     ov::Output<ov::Node> result = reg.make<ov::op::v0::Convert>(x, dst_type);
 
     if (zero_point.get_node_shared_ptr()) {
@@ -61,11 +59,7 @@ ov::Output<ov::Node> low_precision_dequantize(ov::pass::NodeRegistry& reg,
         result = reg.make<ov::op::v1::Subtract>(result, zp);
     }
 
-    ov::Output<ov::Node> scale_convert = scale;
-    if (scale.get_element_type() != dst_type) {
-        scale_convert = reg.make<ov::op::v0::Convert>(scale, dst_type);
-    }
-    result = reg.make<ov::op::v1::Multiply>(result, scale_convert);
+    result = reg.make<ov::op::v1::Multiply>(result, scale);
 
     if (output_shape.get_node_shared_ptr() && !reshape_is_noop(result, output_shape)) {
         result = reg.make<ov::op::v1::Reshape>(result, output_shape, /*special_zero=*/false);
@@ -77,10 +71,9 @@ ov::Output<ov::Node> low_precision_dequantize(ov::pass::NodeRegistry& reg,
 ov::Output<ov::Node> low_precision_dequantize(const ov::Output<ov::Node>& x,
                                               const ov::Output<ov::Node>& scale,
                                               const ov::Output<ov::Node>& zero_point,
-                                              const ov::Output<ov::Node>& output_shape,
-                                              const ov::element::Type& decompression_precision) {
+                                              const ov::Output<ov::Node>& output_shape) {
     ov::pass::NodeRegistry reg;
-    return low_precision_dequantize(reg, x, scale, zero_point, output_shape, decompression_precision);
+    return low_precision_dequantize(reg, x, scale, zero_point, output_shape);
 }
 
 }  // namespace decomposition
