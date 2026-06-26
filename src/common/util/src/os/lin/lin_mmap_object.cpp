@@ -24,38 +24,6 @@ int64_t get_system_page_size() {
     static auto page_size = static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
     return page_size;
 }
-
-/**
- * @brief Creates a memory region for mmap operations.
- *
- * @param offset The offset within the mmap region.
- * @param size   The size of the region.
- * @return AlignedRegion The aligned memory region.
- */
-inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    return util::align_region(static_cast<uintptr_t>(offset), size, page_size);
-}
-
-/**
- * @brief Creates a memory region for madvise operations.
- *
- * @param data         The base address of the mapped memory region.
- * @param mapping_size The size of the mapped memory region.
- * @param offset       The offset within the mapped memory region.
- * @param size         The size of the region.
- * @return AlignedRegion The aligned memory region.
- */
-inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
-        return {};
-    } else {
-        const auto available = mapping_size - offset;
-        const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-        return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-    }
-}
 }  // namespace util
 
 class HandleHolder {
@@ -165,16 +133,15 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override {
         if (m_mapped_view != MAP_FAILED) {
-            if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
+            if (const auto region = util::make_hint_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
         }
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        constexpr size_t one_mb = 1024 * 1024;
         // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
+        if (const auto region = util::make_hint_region(m_data, m_size, offset, size); region.m_length > 4 * one_mib) {
             const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
             const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
             util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);

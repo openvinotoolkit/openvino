@@ -8,6 +8,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 #include "openvino/util/common_util.hpp"
@@ -302,7 +303,14 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t /*offset*/, size_t /*size*/) override {}
+    void hint_prefetch(size_t offset, size_t size) override {
+        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+        if (const auto region = util::make_hint_region(m_data, m_size, offset, size); region.m_length > 4 * one_mib) {
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
+            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+        }
+    }
 
 private:
     /**

@@ -1,0 +1,55 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "prefetch_pages.hpp"
+
+#include <algorithm>
+#include <cstdint>
+#include <thread>
+#include <vector>
+
+#include "openvino/util/common_util.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
+
+namespace ov::util {
+
+namespace {
+
+/**
+ * @brief Functor that touches one byte per page over [m_begin, m_end) to force the pages resident.
+ *
+ * The volatile accumulator prevents the compiler from optimizing the read loop away.
+ */
+struct PageToucher {
+    const uint8_t* m_begin;
+    const uint8_t* m_end;
+    const size_t m_page_size;
+
+    void operator()() const noexcept {
+        volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
+        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
+            local += *begin;
+        }
+    }
+};
+
+}  // namespace
+
+void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    const auto chunk_size = std::max<size_t>(align_size_up(size / num_threads, page_size), one_mib);
+
+    std::vector<std::thread> threads;
+    threads.reserve(ceil_div(size, chunk_size));
+
+    for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last; first += chunk_size) {
+        threads.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+}
+
+}  // namespace ov::util

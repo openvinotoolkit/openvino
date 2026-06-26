@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -16,6 +17,7 @@
 #include <string>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 
@@ -27,6 +29,48 @@ int64_t get_system_page_size();
  * @brief Generic constant to indicate automatic size calculation is required.
  */
 inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
+
+/**
+ * @brief Constant representing one mebibyte (1024 * 1024 bytes).
+ */
+inline constexpr auto one_mib = 1024 * 1024;
+
+namespace util {
+/**
+ * @brief Creates a page-aligned memory region for mmap operations.
+ *
+ * @param offset The offset within the mmap region.
+ * @param size   The size of the region.
+ * @return AlignedRegion The aligned memory region.
+ */
+inline AlignedRegion make_mmap_region(size_t offset, size_t size) {
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    return align_region(static_cast<uintptr_t>(offset), size, page_size);
+}
+
+/**
+ * @brief Creates a page-aligned sub-region of a mapping for evict/prefetch hint operations.
+ *
+ * Clamps [offset, offset + size) to the mapping bounds and page-aligns it. Returns an empty
+ * region (m_length == 0) when there is nothing to operate on (null/empty mapping, offset past
+ * the end, or a sub-page request).
+ *
+ * @param data         The base address of the mapped memory region.
+ * @param mapping_size The size of the mapped memory region.
+ * @param offset       The offset within the mapped memory region.
+ * @param size         The size of the region (auto_size for "rest of mapping").
+ * @return AlignedRegion The aligned memory region.
+ */
+inline AlignedRegion make_hint_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
+        return {};
+    }
+    const auto available = mapping_size - offset;
+    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+    return align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+}
+}  // namespace util
 
 /**
  * @brief This class represents a mapped memory.
