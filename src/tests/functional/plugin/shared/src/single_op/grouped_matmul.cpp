@@ -103,12 +103,12 @@ void GroupedMatMulLayerTest::generate_inputs(const std::vector<ov::Shape>& targe
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
     const bool is_2d_3d = (a_input_shape.first.rank().get_length() == 2);
+    const auto& a_static_shapes = a_input_shape.second;
     const size_t iter = [&]() -> size_t {
-        const auto& static_shapes = a_input_shape.second;
-        const auto it = std::find(static_shapes.begin(), static_shapes.end(),
+        const auto it = std::find(a_static_shapes.begin(), a_static_shapes.end(),
                                   targetInputStaticShapes[0]);
-        return (it != static_shapes.end())
-                   ? static_cast<size_t>(std::distance(static_shapes.begin(), it))
+        return (it != a_static_shapes.end())
+                   ? static_cast<size_t>(std::distance(a_static_shapes.begin(), it))
                    : 0;
     }();
 
@@ -270,12 +270,12 @@ void GroupedMatMulCompressedLayerTest::generate_inputs(
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
     const bool is_2d_3d = (a_input_shape.first.rank().get_length() == 2);
+    const auto& a_static_shapes = a_input_shape.second;
     const size_t iter = [&]() -> size_t {
-        const auto& static_shapes = a_input_shape.second;
-        const auto it = std::find(static_shapes.begin(), static_shapes.end(),
+        const auto it = std::find(a_static_shapes.begin(), a_static_shapes.end(),
                                   targetInputStaticShapes[0]);
-        return (it != static_shapes.end())
-                   ? static_cast<size_t>(std::distance(static_shapes.begin(), it))
+        return (it != a_static_shapes.end())
+                   ? static_cast<size_t>(std::distance(a_static_shapes.begin(), it))
                    : 0;
     }();
 
