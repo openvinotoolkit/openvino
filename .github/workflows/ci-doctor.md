@@ -16,15 +16,18 @@ on:
          required: false
   # workflow_run:
 
-rate-limit:
-  max: 5 # Maximum runs per window
-  window: 60 # Time window in minutes
+concurrency:
+  group: gh-aw-${{ github.workflow }}
 
 # Only trigger for failures on master or PRs targeting master
 # Allow workflow_dispatch for manual testing
 if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && (github.event.workflow_run.head_branch == 'master' || github.event.workflow_run.event == 'pull_request')) }}
 
 permissions: read-all
+
+engine:
+  id: copilot
+  model: gpt-5-mini
 
 network: defaults
 

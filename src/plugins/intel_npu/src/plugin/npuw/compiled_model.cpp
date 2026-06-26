@@ -11,6 +11,7 @@
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
@@ -294,6 +295,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_INFO("Choosing which NPUW CompiledModel to create");
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_gqa_key = ov::intel_npu::npuw::gqa::enabled.name();
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
 
@@ -303,7 +305,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
-    if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+    if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::GQACompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
+    } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
     } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
@@ -1761,8 +1766,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         std::string npu_device_str;
         std::string saved_strides;
         for (const auto& device : devices) {
-            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
-                !pyramid_attn->_attention_infos.empty()) {
+            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 && pyramid_attn->num_models() > 0) {
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
                 support_strides_for = std::find(supported_properties.begin(),
@@ -1771,19 +1775,13 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 if (support_strides_for) {
                     pyramid_attn->_can_use_tensor_view = true;
                     const auto& first_model = pyramid_attn_models[0];
-                    const auto& first_info = pyramid_attn->_attention_infos[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
                     const ov::Any existing_any =
                         ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
                     saved_strides = existing_any.as<std::string>();
                     std::string strided_inputs = saved_strides;
-                    for (const auto& param : first_info.params) {
-                        if (!strided_inputs.empty()) {
-                            strided_inputs += ",";
-                        }
-                        strided_inputs += first_model->inputs()[param.idx].get_any_name();
-                    }
+                    pyramid_attn->collect_strided_input_names(*first_model, strided_inputs);
                     m_meta_devices[npu_device_str][strides_key] = strided_inputs;
                     LOG_INFO("Enabled using tensor view for device: " << device
                                                                       << " for pyramid inputs: " << strided_inputs);

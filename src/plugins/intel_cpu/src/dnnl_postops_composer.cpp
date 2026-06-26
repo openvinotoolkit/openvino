@@ -500,7 +500,7 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     // convert will just copy in case of non-ARM
-    cpu_convert(data.data(), mem->getData(), ov::element::f32, binaryType, data.size());
+    cpu_parallel_convert(data.data(), mem->getData(), ov::element::f32, binaryType, data.size());
 
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();

@@ -794,7 +794,7 @@ struct MHAHelper {
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
             _alibi_lookup.resize<float>({kv_len * 2});
             for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++) {
-                _alibi_lookup.ptr<float>()[i] = -static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+                _alibi_lookup.ptr<float>()[i] = -static_cast<float>(_alibi_lookup.m_dims[0] - 1 - i);
             }
         }
 
@@ -2314,7 +2314,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         block_indices.assert_dims({0}, true);
         block_indices_begins.assert_dims({B_seq + 1});
         if (scale == 0.0F) {
-            scale = 1.0F / sqrt(S);
+            scale = 1.0F / std::sqrt(static_cast<float>(S));
         }
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});
