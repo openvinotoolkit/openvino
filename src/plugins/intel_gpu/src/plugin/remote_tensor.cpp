@@ -13,7 +13,7 @@
 #include <memory>
 
 namespace ov::intel_gpu {
-const size_t minimal_alignment_no_copy = 64;
+constexpr size_t minimal_alignment_no_copy = 64;
 
 namespace {
 static bool is_no_copy_aligned_ptr(const void* ptr) {
@@ -365,7 +365,7 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.share_usm(m_layout, m_mem);
         break;
     }
-    case TensorType::BT_CPU_MEMORY: {
+    case TensorType::BT_CPU_VA: {
         // definition: repo compute-runtime\opencl\source\mem_obj\buffer.cpp Buffer::checkMemory zero copy conditions
         OPENVINO_ASSERT(is_no_copy_aligned_ptr(m_mem),
                         "[GPU] shared buffer pointer must be ", minimal_alignment_no_copy, "-byte aligned");
@@ -374,7 +374,7 @@ void RemoteTensorImpl::allocate() {
 
         m_memory_object = engine.create_hostbuffer(m_mem,
                                         m_layout.bytes_count(),
-                                        cldnn::allocation_type::usm_host,
+                                        cldnn::allocation_type::cl_mem,
                                         m_layout);
         break;
     }
@@ -415,7 +415,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
-           m_mem_type == TensorType::BT_CPU_MEMORY ||
+           m_mem_type == TensorType::BT_CPU_VA ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
            m_mem_type == TensorType::BT_SURF_SHARED ||
@@ -502,9 +502,9 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
-    case TensorType::BT_CPU_MEMORY:
+    case TensorType::BT_CPU_VA:
         m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_POINTER),
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(m_mem),
         };

@@ -49,23 +49,21 @@ int main() {
 
 {
     //! [wrap_cpu_pointer]
-    // To be wrapped as a zero-copy remote tensor, the host buffer must be aligned
-    // to 64 bytes and its size in bytes must be a multiple of 64.
+    // optimal Allocation part - could be done without alignment, but for better performance(for OCL backend) it is recommended to align the address to 64 bytes
+    // and the allocation size must be a multiple of 64. Not caring about performance e.g std::vector::data() could be used to get pointer
+    const size_t size = input_size * in_element_type.size();
     constexpr size_t alignment = 64;
-    size_t shared_buffer_bytes = input_size * in_element_type.size();
-    // The zero-copy remote tensor requires the buffer size to be a multiple of the alignment.
-    if (shared_buffer_bytes % alignment == 0) {
-        void* cpu_pointer = ov::util::aligned_alloc(shared_buffer_bytes, alignment);
-        if (cpu_pointer != nullptr) {
-            {
-                auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
-                                                                               in_shape,
-                                                                               cpu_pointer,
-                                                                               ov::intel_gpu::MemType::CPU_POINTER);
-            }  // remote_tensor must be destroyed before freeing cpu_pointer
-            ov::util::aligned_free(cpu_pointer);
-        }
+    void* cpu_pointer = ov::util::aligned_alloc(size, alignment);
+    // end of optimal Allocation part
+    {
+        // real wrapping cpu pointer to remote tensor
+        auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
+                                                                        in_shape,
+                                                                        cpu_pointer,
+                                                                        ov::intel_gpu::MemType::CPU_VA);
     }
+    // delete cpu_pointer after remote_tensor destruction as everything allocated manually must be freed manually
+    ov::util::aligned_free(cpu_pointer); 
     //! [wrap_cpu_pointer]
 }
 

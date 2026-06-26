@@ -69,7 +69,7 @@ public:
                                  {{std::string(ov::intel_gpu::mem_handle.name()), {}},
                                   {std::string(ov::intel_gpu::shared_mem_type.name()),
                                    {ov::Any(ov::intel_gpu::SharedMemType::OCL_BUFFER).as<std::string>(),
-                                    ov::Any(ov::intel_gpu::SharedMemType::CPU_POINTER).as<std::string>(),
+                                    ov::Any(ov::intel_gpu::SharedMemType::CPU_VA).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::DX_BUFFER).as<std::string>()}}});
     }
@@ -350,16 +350,16 @@ public:
      * @param shape Tensor shape
      * @param cpu_ptr A pointer to an mmap region or an ov::util::aligned_alloc allocation that should be wrapped by a
      *                remote tensor
-     * @param memory_type Memory type to use; only MemType::CPU_POINTER is supported by this overload
+     * @param memory_type Memory type to use; only MemType::CPU_VA is supported by this overload
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor_from_cpu_pointer(const element::Type type,
                                                   const Shape& shape,
                                                   void* cpu_ptr,
                                                   const MemType memory_type) {
-        OPENVINO_ASSERT(memory_type == MemType::CPU_POINTER,
+        OPENVINO_ASSERT(memory_type == MemType::CPU_VA,
                         "Only CPU_POINTER memory type is supported for CPU pointer overload");
-        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_POINTER},
+        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
                          {ov::intel_gpu::mem_handle.name(), static_cast<gpu_handle_param>(cpu_ptr)}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
