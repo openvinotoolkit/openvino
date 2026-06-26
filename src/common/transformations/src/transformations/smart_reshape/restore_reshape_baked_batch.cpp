@@ -4,7 +4,6 @@
 
 #include "transformations/smart_reshape/restore_reshape_baked_batch.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -178,21 +177,34 @@ void rewrite_reshape(const std::shared_ptr<v1::Reshape>& reshape,
 bool ov::pass::RestoreReshapeBakedBatch::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RestoreReshapeBakedBatch);
 
-    // Cheap structural pre-scan: the structural gates inspect only the shape Concat's axis and constant
-    // elements — never an inferred PartialShape — so they need no shape inference. If no reshape carries
-    // the window-reverse signature (the common case) we return immediately.
-    const auto matches_signature = [](const std::shared_ptr<Node>& op) {
+    struct Candidate {
+        std::shared_ptr<v1::Reshape> reshape;
+        std::shared_ptr<v0::Concat> concat;
+    };
+
+    // Cheap structural scan (NO shape inference): the structural gates inspect only the shape Concat's
+    // axis and constant elements — never an inferred PartialShape — so they yield the same verdict before
+    // and after inference. We collect the candidates ONCE, here, in get_ordered_ops() topological order
+    // (producers before consumers — the walk-back below relies on it).
+    std::vector<Candidate> candidates;
+    for (const auto& op : model->get_ordered_ops()) {
         auto reshape = ov::as_type_ptr<v1::Reshape>(op);
         if (!reshape)
-            return false;
+            continue;
         auto concat = ov::as_type_ptr<v0::Concat>(reshape->input_value(1).get_node_shared_ptr());
-        return concat && passes_structural_gates(reshape, concat);
-    };
-    const auto& ordered_ops = model->get_ordered_ops();
-    if (std::none_of(ordered_ops.begin(), ordered_ops.end(), matches_signature))
+        if (!concat)
+            continue;
+        if (passes_structural_gates(reshape, concat))
+            candidates.push_back({reshape, concat});
+    }
+
+    // No reshape carries the window-reverse signature (the common case): return without re-inferring shapes.
+    if (candidates.empty())
         return false;
 
-    // A candidate exists: make sure the shapes the walk-back keys on are materialized before resolving.
+    // A candidate exists: materialize the shapes the walk-back keys on. validate_nodes_and_infer_types()
+    // only re-infers types/shapes — it adds/removes no nodes — so the captured pointers stay valid and the
+    // candidate vector stays in topological order.
     model->validate_nodes_and_infer_types();
 
     struct PendingRewrite {
@@ -204,15 +216,9 @@ bool ov::pass::RestoreReshapeBakedBatch::run_on_model(const std::shared_ptr<ov::
     std::unordered_map<const Node*, int64_t> pending_channel;
 
     // PHASE 1 — COLLECT (topological order: producers before consumers).
-    for (const auto& op : ordered_ops) {
-        auto reshape = ov::as_type_ptr<v1::Reshape>(op);
-        if (!reshape)
-            continue;
-        auto concat = ov::as_type_ptr<v0::Concat>(reshape->input_value(1).get_node_shared_ptr());
-        if (!concat)
-            continue;
-        if (!passes_structural_gates(reshape, concat))
-            continue;
+    for (const auto& candidate : candidates) {
+        const auto& reshape = candidate.reshape;
+        const auto& concat = candidate.concat;
 
         std::unordered_set<const Node*> visited;
         const auto channel = resolve_static_last_dim(reshape->input_value(0), pending_channel, visited);
