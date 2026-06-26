@@ -62,6 +62,7 @@ OP_CONVERTER(translate_bitwise_or);
 OP_CONVERTER(translate_bitwise_right_shift);
 OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_bucketize);
+OP_CONVERTER(translate_bincount);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_celu);
@@ -312,6 +313,7 @@ OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
 OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_copy_fx);
+OP_CONVERTER(translate_bincount_fx);
 OP_CONVERTER(translate_cumsum_fx);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
@@ -463,6 +465,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::broadcast_tensors - Supported in limited set of patterns
         {"aten::broadcast_to", op::translate_expand},
         {"aten::bucketize", op::translate_bucketize},
+        {"aten::bincount", op::translate_bincount},
         {"aten::cat", op::translate_cat},
         {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Ceiling>, 1>},
@@ -920,6 +923,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.bitwise_xor.Tensor", op::translate_bitwise_xor},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.bucketize.Tensor", op::translate_bucketize},
+        {"aten.bincount.default", op::translate_bincount_fx},
         {"aten.cat.default", op::translate_cat_fx},
         {"aten.ceil.default", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten.celu.default", op::translate_celu},

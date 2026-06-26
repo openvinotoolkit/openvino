@@ -29,6 +29,7 @@ Operation Specifications
    BatchNormInference-5 <operation-specs/normalization/batch-norm-inference-5>
    BatchToSpace-2 <operation-specs/movement/batch-to-space-2>
    BinaryConvolution-1 <operation-specs/convolution/binary-convolution-1>
+   Bincount-17 <operation-specs/condition/bincount-17>
    BitwiseAnd-13 <operation-specs/bitwise/bitwise-and-13>
    BitwiseLeftShift-15 <operation-specs/bitwise/bitwise-left-shift-15>
    BitwiseNot-13 <operation-specs/bitwise/bitwise-not-13>
