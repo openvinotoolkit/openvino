@@ -3,13 +3,12 @@
 //
 
 #include "ze_events.hpp"
+#include "ze_common.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <list>
-
-#include "ze_common.hpp"
+#include <algorithm>
 
 using namespace cldnn;
 using namespace ze;
@@ -107,14 +106,15 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
 
     using intervals_t = std::vector<ze_kernel_timestamp_data_t>;
     auto get_minmax = [](const intervals_t& timestamps) {
-        uint64_t min_val =
-            std::min_element(timestamps.begin(), timestamps.end(), [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
-                return lhs.kernelStart < rhs.kernelStart;
-            })->kernelStart;
-        uint64_t max_val =
-            std::max_element(timestamps.begin(), timestamps.end(), [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
+        uint64_t min_val = std::min_element(timestamps.begin(), timestamps.end(),
+            [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
+                return bool(lhs.kernelStart < rhs.kernelStart);
+        })->kernelStart;
+        uint64_t max_val = std::max_element(timestamps.begin(), timestamps.end(),
+            [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
                 return lhs.kernelEnd < rhs.kernelEnd;
-            })->kernelEnd;
+        })->kernelEnd;
+
         return ze_kernel_timestamp_data_t{min_val, max_val};
     };
 
