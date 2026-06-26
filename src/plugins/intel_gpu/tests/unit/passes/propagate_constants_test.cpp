@@ -192,3 +192,85 @@ TEST(propagate_constants, no_reselection_when_constants_are_static) {
     ASSERT_FALSE(impl_after->is_dynamic());
     ASSERT_EQ(impl_before, impl_after);
 }
+
+// Verifies that propagate_constants consistently reselects implementations
+// for ALL affected nodes after a dynamic→static constant transition, even
+// when processing earlier nodes causes side effects that mark later nodes'
+// output layouts as valid.
+//
+// Regression test for: processing node A in reselection_targets triggers
+// calc_output_layouts on its dependencies, which transitively calls
+// set_output_layout on node B (also in reselection_targets), setting
+// B's valid_output_layout = true. Without the fix, the
+// is_valid_output_layout() guard in try_reselect_impl_for_node causes
+// node B to skip reselection entirely — keeping its dynamic impl while
+// node A gets a static impl. This inconsistency leads to kernel cache
+// collisions and CL_INVALID_KERNEL_ARGS at runtime.
+//
+// Topology:
+//   input_layout("input_1", static) --> eltwise("eltwise_1", sum) --+
+//                                                                    |
+//   data("weights_a") ---+                                           +-- shared constant
+//                         eltwise("w_sum") --------------------------+
+//   data("weights_b") ---+                                           |
+//                                                                    |
+//   input_layout("input_2", static) --> eltwise("eltwise_2", sum) --+
+//
+// Both eltwises share the same dynamic constant (w_sum) and have static
+// inputs with identical layouts. After propagate_constants replaces w_sum
+// with static data, both nodes enter reselection_targets and both must
+// be reselected to static impl.
+TEST(propagate_constants, all_reselection_targets_get_consistent_static_impl) {
+    auto& engine = get_test_engine();
+
+    const auto static_layout = layout{{1, 3, 4, 4}, data_types::f32, format::bfyx};
+
+    topology topology(
+        input_layout("input_1", static_layout),
+        input_layout("input_2", static_layout),
+        data("weights_a", engine.allocate_memory(layout{{1, 3, 4, 4}, data_types::f32, format::bfyx})),
+        data("weights_b", engine.allocate_memory(layout{{1, 3, 4, 4}, data_types::f32, format::bfyx})),
+        eltwise("w_sum", input_info("weights_a"), input_info("weights_b"), eltwise_mode::sum),
+        eltwise("eltwise_1", input_info("input_1"), input_info("w_sum"), eltwise_mode::sum),
+        eltwise("eltwise_2", input_info("input_2"), input_info("w_sum"), eltwise_mode::sum)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    // Simulate unresolved dynamic shape on the constant computation node.
+    auto& w_sum_node = prog->get_node("w_sum");
+    auto dyn_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    w_sum_node.set_output_layout(dyn_layout, true);
+
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+
+    // After compile_graph both eltwises should have dynamic impl
+    // (one of their inputs — w_sum — has a dynamic layout).
+    auto& eltwise_1 = prog->get_node("eltwise_1");
+    auto& eltwise_2 = prog->get_node("eltwise_2");
+
+    ASSERT_TRUE(eltwise_1.get_selected_impl() == nullptr ||
+                eltwise_1.get_selected_impl()->is_dynamic());
+    ASSERT_TRUE(eltwise_2.get_selected_impl() == nullptr ||
+                eltwise_2.get_selected_impl()->is_dynamic());
+
+    // propagate_constants replaces w_sum with static data.
+    // Both eltwise_1 and eltwise_2 are in reselection_targets.
+    // The fix ensures both are checked for reselection regardless of
+    // stale is_valid_output_layout state caused by processing order.
+    program_wrapper::apply_opt_pass<propagate_constants>(*prog);
+
+    // Both eltwises must be consistently reselected to static impl.
+    auto impl_1 = eltwise_1.get_selected_impl();
+    auto impl_2 = eltwise_2.get_selected_impl();
+    ASSERT_NE(impl_1, nullptr);
+    ASSERT_NE(impl_2, nullptr);
+    ASSERT_FALSE(impl_1->is_dynamic())
+        << "eltwise_1 should have been reselected to static impl";
+    ASSERT_FALSE(impl_2->is_dynamic())
+        << "eltwise_2 should have been reselected to static impl";
+}

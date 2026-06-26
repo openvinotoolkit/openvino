@@ -7,8 +7,6 @@ set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-ov_try_use_gold_linker()
-
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 # For type relaxed types
@@ -24,7 +22,8 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
+                          ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
@@ -64,6 +63,12 @@ target_compile_definitions(${TARGET_NAME}
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         )
 
+if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    # GCC 15's lto1 emits false-positive -Wstringop-overflow/-Wstringop-overread warnings during the LTO link phase
+    # when openvino_xml_util objects are processed. Suppress at the linker level for this test binary only.
+    target_link_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+endif()
+
 if(RISCV64)
     # for std::atomic_bool
     target_link_libraries(${TARGET_NAME} PRIVATE atomic)
@@ -84,5 +89,13 @@ if(ENABLE_OV_IR_FRONTEND)
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+set(BENCHMARK_TARGET_NAME ov_file_load_benchmark)
+add_executable(${BENCHMARK_TARGET_NAME} EXCLUDE_FROM_ALL
+    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
+    common_test_utils
+    openvino::util)
+target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(frontend)

@@ -12,20 +12,37 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configsInferRequestRunTests = {{}};
+
 const std::vector<ov::AnyMap> configsBooleanPrecisionInferRequestRunTests = {
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)}},
+      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN),
+      // platform needed only for NPU_COMPILER_TYPE_PLUGIN
+      ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+          ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}},
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)}},
+      ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER),
+      // platform needed only for NPU_COMPILER_TYPE_PLUGIN
+      ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+          ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}},
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)}},
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)}}};
 
+const std::vector<ov::AnyMap> configsWithDifferentNumStreamsTest = {{{ov::num_streams(0)}},
+                                                                    {{ov::num_streams(2)}},
+                                                                    {{ov::num_streams(8)}}};
+
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
+                         InferRequestRunTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         NumStreamsTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configsWithDifferentNumStreamsTest)),
                          InferRequestRunTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
@@ -66,6 +83,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          CpuVaTensorsTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configsInferRequestRunTests)),
+                         InferRequestRunTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         DynamicBoundsTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);

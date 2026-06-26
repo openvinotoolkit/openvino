@@ -25,6 +25,36 @@ namespace {
 // uses ~100KB. If sizes change significantly, then investigation may be required.
 constexpr size_t SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY = 300000;
 constexpr size_t SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY = 200000;
+const std::function<bool(const std::string&, const std::optional<std::string>&)> TRUE_FUNCTION =
+    [](const std::string&, const std::optional<std::string>&) {
+        return true;
+    };
+
+std::function<bool(const std::string&, const std::optional<std::string>&)> makeCompilerSupportFunction(
+    const bool optionSupported,
+    const bool noWeightsCopySupported,
+    const bool allWeightsCopySupported) {
+    return [optionSupported, noWeightsCopySupported, allWeightsCopySupported](const std::string& optionName,
+                                                                              const std::optional<std::string>& value) {
+        if (optionName == ov::intel_npu::model_serializer_version.name() && !optionSupported) {
+            return false;
+        }
+        if (!value.has_value()) {
+            return true;
+        }
+
+        if (*value ==
+            ::intel_npu::MODEL_SERIALIZER_VERSION::toString(ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY)) {
+            return noWeightsCopySupported;
+
+        } else if (*value == ::intel_npu::MODEL_SERIALIZER_VERSION::toString(
+                                 ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)) {
+            return allWeightsCopySupported;
+        }
+
+        return false;
+    };
+}
 
 std::shared_ptr<ov::Model> createModelWithLargeWeights(const bool placeOneWeightlessCacheAttribute = false) {
     auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{100000});
@@ -125,7 +155,8 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
                         model,
                         dummyCompilerVersion,
                         11,
-                        ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY));
+                        ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                        TRUE_FUNCTION));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.size > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
     ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
@@ -136,11 +167,12 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
-                        model,
-                        dummyCompilerVersion,
-                        11,
-                        ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                                 TRUE_FUNCTION));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.size < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
     ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
@@ -159,7 +191,8 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelAutoSerializerVer
                         ::intel_npu::compiler_utils::serializeIR(model,
                                                                  dummyCompilerVersion,
                                                                  11,
-                                                                 ov::intel_npu::ModelSerializerVersion::AUTO));
+                                                                 ov::intel_npu::ModelSerializerVersion::AUTO,
+                                                                 TRUE_FUNCTION));
     // The serializer should decide which version to use. This value should not be "auto".
     ASSERT_TRUE(serializedModel.serializerVersion != ov::intel_npu::ModelSerializerVersion::AUTO);
 }
@@ -169,11 +202,12 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckHashPresence) {
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
-                        model,
-                        dummyCompilerVersion,
-                        11,
-                        ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                                 TRUE_FUNCTION));
     ASSERT_FALSE(serializedModel.hash.has_value());
 
     EXPECT_NO_THROW(serializedModel =
@@ -181,7 +215,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckHashPresence) {
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true));
     ASSERT_TRUE(serializedModel.hash.has_value());
 }
@@ -195,11 +229,12 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePr
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
-                        model->clone(),
-                        dummyCompilerVersion,
-                        11,
-                        ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model->clone(),
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                                 TRUE_FUNCTION));
     ASSERT_FALSE(model->has_rt_info("ws_bin_offset_1"));
 
     EXPECT_NO_THROW(serializedModel =
@@ -207,7 +242,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePr
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  false,
                                                                  true));
     // Follows the contract established with the driver-compiler adapter. Predefined prefix + a topological ID of the
@@ -228,7 +263,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributeCh
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  true));
     ASSERT_TRUE(serializedModel.hash.has_value());
@@ -240,7 +275,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributeCh
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  true));
 
@@ -260,7 +295,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckPluginHashIgnoresOnlyNonde
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  false));
     ASSERT_TRUE(serializedModel.hash.has_value());
@@ -273,7 +308,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckPluginHashIgnoresOnlyNonde
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  false));
     ASSERT_TRUE(hashNoAttribute == serializedModel.hash.value());
@@ -285,7 +320,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckPluginHashIgnoresOnlyNonde
                                                                  dummyCompilerVersion,
                                                                  11,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  false));
     ASSERT_FALSE(hashNoAttribute == serializedModel.hash.value());
@@ -304,7 +339,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckSameModelDifferentInstance
                                                                  dummyCompilerVersion,
                                                                  10,  // Triggers an additional pass
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  false));
     ASSERT_TRUE(serializedModel.hash.has_value());
@@ -316,7 +351,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckSameModelDifferentInstance
                                                                  dummyCompilerVersion,
                                                                  10,
                                                                  ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
-                                                                 nullptr,
+                                                                 TRUE_FUNCTION,
                                                                  true,
                                                                  false));
     ASSERT_TRUE(hashFirstInstance == serializedModel.hash.value());
@@ -325,6 +360,109 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckSameModelDifferentInstance
 const std::vector<ov::AnyMap> configs = {
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}},
 };
+
+TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestSelectionAlgorithm) {
+    // Use a smaller network to save some time
+    auto model = ov::test::utils::make_single_concat_with_constant();
+    const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
+    ::intel_npu::SerializedIR serializedModel;
+
+    // If the compiler-adapter supports everything, we expect "no-weights-copy" to be chosen automatically. If the
+    // version is chosen explicitly, that version should be used instead.
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::AUTO,
+                                                                 makeCompilerSupportFunction(true, true, true)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
+                        model,
+                        dummyCompilerVersion,
+                        11,
+                        ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                        makeCompilerSupportFunction(true, true, true)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                                 makeCompilerSupportFunction(true, true, true)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+
+    // Only "all-weights-copy" is supported. Check that the algorithm has chosen this verion
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::AUTO,
+                                                                 makeCompilerSupportFunction(true, false, true)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
+                        model,
+                        dummyCompilerVersion,
+                        11,
+                        ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                        makeCompilerSupportFunction(true, false, true)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    // Unsupported, should throw
+    EXPECT_THROW(serializedModel =
+                     ::intel_npu::compiler_utils::serializeIR(model,
+                                                              dummyCompilerVersion,
+                                                              11,
+                                                              ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                              makeCompilerSupportFunction(true, false, true)),
+                 ov::Exception);
+
+    // Some compiler-adapter versions may report that they do not support any value. However, we know that
+    // "all-weights-copy" is always supported. Check that this version has been chosen.
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::AUTO,
+                                                                 makeCompilerSupportFunction(true, false, false)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
+                        model,
+                        dummyCompilerVersion,
+                        11,
+                        ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                        makeCompilerSupportFunction(true, false, false)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    EXPECT_THROW(serializedModel =
+                     ::intel_npu::compiler_utils::serializeIR(model,
+                                                              dummyCompilerVersion,
+                                                              11,
+                                                              ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                              makeCompilerSupportFunction(true, false, true)),
+                 ov::Exception);
+
+    // "All-weights-copy" has been the default even mbefore "ModelSerializerVersion" has been introduced. Check that
+    // this version is chosen if the compiler doesn't support the config option.
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model,
+                                                                 dummyCompilerVersion,
+                                                                 11,
+                                                                 ov::intel_npu::ModelSerializerVersion::AUTO,
+                                                                 makeCompilerSupportFunction(false, false, false)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(
+                        model,
+                        dummyCompilerVersion,
+                        11,
+                        ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                        makeCompilerSupportFunction(true, false, false)));
+    ASSERT_TRUE(serializedModel.serializerVersion == ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
+    EXPECT_THROW(serializedModel =
+                     ::intel_npu::compiler_utils::serializeIR(model,
+                                                              dummyCompilerVersion,
+                                                              11,
+                                                              ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY,
+                                                              makeCompilerSupportFunction(true, false, true)),
+                 ov::Exception);
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          DriverCompilerAdapterCustomStreamTestNPU,

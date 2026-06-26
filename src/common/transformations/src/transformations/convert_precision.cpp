@@ -11,17 +11,19 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/util/common_util.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -175,6 +177,15 @@ bool node_is_replaced(const std::shared_ptr<Node>& node) {
     return has_consumers && !(is_type<op::v0::Result>(node) || is_type<op::Sink>(node));
 }
 
+static precisions_map filter_precisions_for_node(const std::shared_ptr<ov::Node>& node,
+                                                 const precisions_map& precisions) {
+    precisions_map result = precisions;
+    ov::util::erase_if(result, [&](const precisions_map::value_type& entry) {
+        return is_conversion_disabled(node, entry.first, entry.second);
+    });
+    return result;
+}
+
 bool convert_node_output_precision(
     const std::shared_ptr<ov::Node>& node,
     const precisions_map& precisions,
@@ -219,8 +230,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                 const type_to_fuse_map& type_to_extend,
                                 const precisions_map& precisions,
                                 std::unordered_map<const ov::Node*, std::vector<Input<Node>>>& const_to_internal_output,
-                                bool has_fp16_compression,
-                                bool skip_precision_sensitive,
+                                bool keep_sensitive_in_fp32,
                                 bool is_changed,
                                 bool is_subgraph,
                                 bool convert_input_output_precision,
@@ -228,7 +238,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                 bool names_compatibility_mode) {
     bool is_output_precision_changed = false;
 
-    if (skip_precision_sensitive && has_fp16_compression) {
+    if (keep_sensitive_in_fp32 && precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
         pass::Manager manager(pass.get_pass_config(), "KeepPrecisionSensitiveInFP32");
         // Mark subgraphs with disable_fp16_compression to keep them in FP32
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
@@ -250,15 +260,13 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // otherwise we insert Convert operation.
     auto ops = f->get_ordered_ops();
     for (auto& node : ops) {
-        if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
-            continue;
-        is_changed = convert_node_input_precision(node, precisions, type_to_extend) || is_changed;
+        auto node_precisions = filter_precisions_for_node(node, precisions);
+        is_changed = convert_node_input_precision(node, node_precisions, type_to_extend) || is_changed;
     }
 
     for (const auto& param : f->get_parameters()) {
-        if (skip_precision_sensitive && fp16_compression_is_disabled(param) && has_fp16_compression)
-            continue;
-        is_changed = fuse_type_to_parameter(param, precisions, convert_input_output_precision) || is_changed;
+        auto node_precisions = filter_precisions_for_node(param, precisions);
+        is_changed = fuse_type_to_parameter(param, node_precisions, convert_input_output_precision) || is_changed;
     }
 
     if (convert_input_output_precision || store_original_precision_as_rt_attribute) {
@@ -283,10 +291,21 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // Register internal constants only after fixing input type that could lead to nodes
     // replacement
     register_constants(ops);
-    for (auto& node : ops) {
-        // skip precision sensitive nodes
-        if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
+    // Move each shared_ptr out of `ops` as we iterate so that an old constant
+    // is destroyed as soon as fuse_type_to_constant has rewired its consumers
+    // to the freshly allocated replacement. Without the std::move the original
+    // constants stay alive until the loop ends, doubling the peak memory of
+    // the pass on constant-heavy models.
+
+    for (size_t i = 0; i < ops.size(); ++i) {
+        auto node = std::move(ops[i]);
+        auto node_precisions = filter_precisions_for_node(node, precisions);
+
+        // Skip nodes where all requested conversions are disabled (e.g. sensitive ops kept in FP32)
+        if (keep_sensitive_in_fp32 && node_precisions.empty()) {
             continue;
+        }
+
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
@@ -297,11 +316,10 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                                         type_to_extend,
                                                         precisions,
                                                         const_to_internal_output,
-                                                        has_fp16_compression,
-                                                        skip_precision_sensitive,
+                                                        keep_sensitive_in_fp32,
                                                         is_changed || is_output_precision_changed,
-                                                        true,
-                                                        true,
+                                                        true,  // is_changed
+                                                        true,  // is_subgraph
                                                         store_original_precision_as_rt_attribute,
                                                         names_compatibility_mode) ||
                              is_changed;
@@ -316,15 +334,19 @@ bool convert_function_precision(ov::pass::PassBase& pass,
             continue;
         }
         is_output_precision_changed = convert_node_output_precision(node,
-                                                                    precisions,
+                                                                    node_precisions,
                                                                     type_to_fuse,
                                                                     const_to_internal_output,
                                                                     is_changed || is_output_precision_changed) ||
                                       is_output_precision_changed;
     }
 
+    // The constant-replacement loop above moved every shared_ptr out of `ops`,
+    // so the vector is now full of nullptrs. Always refresh it before the
+    // downstream Convert-cleanup loop, otherwise that loop would silently skip
+    // every node and miss freshly inserted Convert ops.
+    ops = f->get_ordered_ops();
     if (is_output_precision_changed) {
-        ops = f->get_ordered_ops();
         is_changed = true;
     }
 
@@ -380,8 +402,7 @@ bool convert_precision(ov::pass::PassBase& pass,
                        const type_to_fuse_map& type_to_fuse,
                        const type_to_fuse_map& type_to_extend,
                        const precisions_map& precisions,
-                       bool has_fp16_compression,
-                       bool skip_precision_sensitive,
+                       bool keep_sensitive_in_fp32,
                        bool convert_input_output_precision,
                        bool store_original_precision_as_rt_attribute) {
     // As Constant operations can be shared between multiple ov::Models so before
@@ -396,8 +417,7 @@ bool convert_precision(ov::pass::PassBase& pass,
                                       type_to_extend,
                                       precisions,
                                       const_to_internal_output,
-                                      has_fp16_compression,
-                                      skip_precision_sensitive,
+                                      keep_sensitive_in_fp32,
                                       false,
                                       false,
                                       convert_input_output_precision,
@@ -440,8 +460,6 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
 
     if (used_precisions.empty())
         return false;
-
-    bool has_fp16_compression = m_precisions.count(element::f32) > 0 && m_precisions[element::f32] == element::f16;
 
     type_to_fuse_map type_to_fuse{
         {v0::Convert::get_type_info_static(), fuse_type_to_convert},
@@ -514,7 +532,6 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
                                         type_to_fuse,
                                         type_to_extend,
                                         used_precisions,
-                                        has_fp16_compression,
                                         m_keep_precision_sensitive_in_fp32,
                                         m_convert_input_output_precision,
                                         m_store_original_precision_as_rt_attribute);
@@ -599,7 +616,7 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ov::Node>& node, const precisio
         return false;
     const auto& to = it->second;
     if (auto range = ov::as_type_ptr<v4::Range>(node)) {
-        if ((to == ov::element::f16 && !fp16_compression_is_disabled(node)) || to.is_integral_number()) {
+        if (to.is_real() || to.is_integral_number()) {
             range->set_output_type(to);
             return true;
         }
@@ -643,11 +660,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             auto convert = std::make_shared<v0::Convert>(param, to);
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
-                if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer) ||
-                    // TODO: refactor after ngraph op defined
-                    // The fourth and fifth inputs are kvcache and should be directly connected to parameters
-                    (consumer->get_type_name() == std::string("PagedAttentionExtension") &&
-                     (input.get_index() == 3 || input.get_index() == 4))) {
+                if (ov::is_type<v0::Result>(consumer) || ov::is_type<v0::Convert>(consumer)) {
                     continue;
                 }
                 input.replace_source_output(convert);
@@ -1364,6 +1377,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
         ov::copy_weightless_cache_attr(constant, new_const);
+        ov::wsh::Extension::hint_evict(*constant);
         return true;
     }
     return false;

@@ -1,5 +1,5 @@
-// copyright (c) 2023 intel corporation
-// spdx-license-identifier: apache-2.0
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pass_manager.h"
@@ -80,7 +80,7 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
                                                            const tensor offsets,
                                                            size_t crop_axis,
                                                            bool is_runtime);
-    static void update_in_place_crop_padding_simple_data_format(layout& crop_layout,
+    static bool update_in_place_crop_padding_simple_data_format(layout& crop_layout,
                                                                 layout& pred_layout,
                                                                 std::pair<const program_node*, layout>& user_info,
                                                                 const tensor offsets,

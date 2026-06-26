@@ -16,10 +16,10 @@
 //   get_global_id(1) = segment index
 //
 // Inputs:
-//   data         – [num_rows x inner_dim_size] flattened
-//   segment_ids  – [num_rows] sorted non-decreasing
+//   data         - [num_rows x inner_dim_size] flattened
+//   segment_ids  - [num_rows] sorted non-decreasing
 // Output:
-//   output       – [num_segments x inner_dim_size]
+//   output       - [num_segments x inner_dim_size]
 
 // Binary search: find first index in [lo, hi) where segment_ids[index] >= target.
 inline int FUNC(lower_bound)(
@@ -75,7 +75,7 @@ KERNEL(segment_max_opt)(
     const int out_idx = seg * inner_dim_size + j;
 
     if (start >= end) {
-        // Empty segment — fill with the appropriate sentinel.
+        // Empty segment -- fill with the appropriate sentinel.
         output[out_idx] = EMPTY_SEGMENT_VALUE;
         return;
     }

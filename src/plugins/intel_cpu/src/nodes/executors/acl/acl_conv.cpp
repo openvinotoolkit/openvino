@@ -22,7 +22,6 @@
 #include "acl_utils.hpp"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
@@ -50,7 +49,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     Shape srcShape = srcMemPtr->getShape();
     Shape dstShape = dstMemPtr->getShape();
 
-    const auto with_groups = static_cast<const int>(weiShape.getRank() == srcShape.getRank() + 1);
+    const auto with_groups = static_cast<int>(weiShape.getRank() == srcShape.getRank() + 1);
     const int kh = weiShape.getDims()[with_groups + srcShape.getRank() - 2];
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
@@ -118,11 +117,12 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
-
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
     const auto& dstDesc = config.descs.at(ARG_DST);
+
+    VERIFY(aclSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     // ACL GemmConv2d supports 4D activations and 4D weight only
     VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
