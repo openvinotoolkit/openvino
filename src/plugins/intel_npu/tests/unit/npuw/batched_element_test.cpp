@@ -19,6 +19,11 @@
 #include <vector>
 
 #include "llm_test_helpers.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
@@ -30,6 +35,9 @@ namespace {
 
 using ov::test::npuw::build_reranker_test_model;
 using ov::test::npuw::NullPlugin;
+
+// Per-output value offset the mock applies so multi-output tests can tell stacked outputs apart.
+constexpr float kOutputChannelOffset = 1000.0f;
 
 // Ordered log of the lifecycle the element drives on the inner: "reset" before each row,
 // "infer" for each row. Mirrors the events-vector pattern in failsafe.cpp / accuracy_checked.cpp.
@@ -66,6 +74,20 @@ std::string error_message(const ov::Exception& ex) {
     return ex.what() == nullptr ? std::string{} : std::string(ex.what());
 }
 
+// Minimal two-output model (one input_ids input, two f32 outputs) for the multi-output test. The
+// mock fills the outputs itself, so only the I/O signature matters.
+std::shared_ptr<ov::Model> build_two_output_model() {
+    auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    ids->set_friendly_name("input_ids");
+    ids->output(0).set_names({"input_ids"});
+
+    auto as_f32 = std::make_shared<ov::op::v0::Convert>(ids, ov::element::f32);
+    auto two = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(as_f32, two);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{as_f32, scaled}, ov::ParameterVector{ids}, "two_output");
+}
+
 // Batch-1 inner stand-in: echoes the row's first input_ids token across its (generically
 // shaped) output. Pure in its input, so the same row always yields the same value -- which
 // is what lets callers check that batched scoring equals per-row scoring.
@@ -82,14 +104,21 @@ public:
         const auto ids = get_tensor(port_named(get_inputs(), "input_ids"));
         const float token = static_cast<float>(static_cast<const int64_t*>(ids->data())[0]);
 
-        const auto port = get_outputs()[0];
-        ov::Shape shape;
-        for (const auto& dim : port.get_partial_shape()) {
-            shape.push_back(dim.is_static() ? static_cast<std::size_t>(dim.get_length()) : std::size_t{1});
+        // Echo the row's token across every output; output k is offset by k so multi-output
+        // tests can tell the stacked outputs apart.
+        const auto& ports = get_outputs();
+        for (std::size_t k = 0; k < ports.size(); ++k) {
+            const auto& port = ports[k];
+            ov::Shape shape;
+            for (const auto& dim : port.get_partial_shape()) {
+                shape.push_back(dim.is_static() ? static_cast<std::size_t>(dim.get_length()) : std::size_t{1});
+            }
+            auto out = ov::get_tensor_impl(ov::Tensor(port.get_element_type(), shape));
+            std::fill_n(static_cast<float*>(out->data()),
+                        out->get_size(),
+                        token + static_cast<float>(k) * kOutputChannelOffset);
+            set_tensor(port, out);
         }
-        auto out = ov::get_tensor_impl(ov::Tensor(port.get_element_type(), shape));
-        std::fill_n(static_cast<float*>(out->data()), out->get_size(), token);
-        set_tensor(port, out);
     }
 
     void check_tensors() const override {}
@@ -150,32 +179,37 @@ protected:
         return ov::npuw::batched::CompiledModel::create(m_model, m_plugin, make_inner(), enabled);
     }
 
-    // Resize a named input on the request, in place, and return it.
-    static ov::SoPtr<ov::ITensor> resize_input(const std::shared_ptr<ov::IAsyncInferRequest>& req,
-                                               const ov::SoPtr<ov::ICompiledModel>& wrapped,
+    // Resize a named input in place and return it. Templated so it serves both the async wrapper
+    // and a bare sync request -- both expose get_inputs()/get_tensor().
+    template <class Req>
+    static ov::SoPtr<ov::ITensor> resize_input(const std::shared_ptr<Req>& req,
                                                const std::string& name,
                                                const ov::Shape& shape) {
-        const auto tensor = req->get_tensor(port_named(wrapped->inputs(), name));
+        const auto tensor = req->get_tensor(port_named(req->get_inputs(), name));
         tensor->set_shape(shape);
         return tensor;
     }
 
-    // Bind the reranker inputs at the batch/length implied by `ids`. Only input_ids carries
-    // values the mock reads; attention_mask, position_ids and beam_idx just need a matching
-    // batch dimension, so they are sized but left unset.
-    static void bind_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& req,
-                            const ov::SoPtr<ov::ICompiledModel>& wrapped,
-                            const std::vector<std::vector<int64_t>>& ids) {
+    // Set input_ids to [batch, len] and fill it row-major -- the only input the mock reads.
+    template <class Req>
+    static void set_input_ids(const std::shared_ptr<Req>& req, const std::vector<std::vector<int64_t>>& ids) {
         const std::size_t batch = ids.size();
         const std::size_t len = ids.empty() ? 0 : ids.front().size();
-
-        auto* tokens = static_cast<int64_t*>(resize_input(req, wrapped, "input_ids", {batch, len})->data());
+        auto* tokens = static_cast<int64_t*>(resize_input(req, "input_ids", {batch, len})->data());
         for (std::size_t r = 0; r < batch; ++r) {
             std::copy(ids[r].begin(), ids[r].end(), tokens + r * len);
         }
-        resize_input(req, wrapped, "attention_mask", {batch, len});
-        resize_input(req, wrapped, "position_ids", {batch, len});
-        resize_input(req, wrapped, "beam_idx", {batch});
+    }
+
+    // Bind the full reranker input set; the non-input_ids inputs just need a matching batch dim.
+    template <class Req>
+    static void bind_inputs(const std::shared_ptr<Req>& req, const std::vector<std::vector<int64_t>>& ids) {
+        const std::size_t batch = ids.size();
+        const std::size_t len = ids.empty() ? 0 : ids.front().size();
+        set_input_ids(req, ids);
+        resize_input(req, "attention_mask", {batch, len});
+        resize_input(req, "position_ids", {batch, len});
+        resize_input(req, "beam_idx", {batch});
     }
 
     // First element of output row r (the echoed token), independent of the output's rank.
@@ -208,7 +242,7 @@ TEST_F(NPUWBatchedElementTest, EachRowScoredIndependentlyAndStacked) {
 
     // Distinct first tokens so a misrouted row would surface as a wrong output value.
     const std::vector<std::vector<int64_t>> ids = {{11, 2, 3, 4}, {22, 5, 6, 7}, {33, 8, 9, 10}};
-    bind_inputs(req, wrapped, ids);
+    bind_inputs(req, ids);
 
     req->infer();
 
@@ -228,7 +262,7 @@ TEST_F(NPUWBatchedElementTest, SingleRowScored) {
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{42, 8, 9, 10}};
-    bind_inputs(req, wrapped, ids);
+    bind_inputs(req, ids);
 
     req->infer();
 
@@ -243,7 +277,7 @@ TEST_F(NPUWBatchedElementTest, ZeroBatchIsRejected) {
     auto wrapped = wrap(/*enabled=*/true);
     auto req = wrapped->create_infer_request();
 
-    resize_input(req, wrapped, "input_ids", {0, 4});
+    resize_input(req, "input_ids", {0, 4});
 
     try {
         req->infer();
@@ -260,8 +294,8 @@ TEST_F(NPUWBatchedElementTest, MismatchedBatchRejected) {
     auto wrapped = wrap(/*enabled=*/true);
     auto req = wrapped->create_infer_request();
 
-    bind_inputs(req, wrapped, {{1, 2}, {3, 4}, {5, 6}});
-    resize_input(req, wrapped, "attention_mask", {2, 2});
+    bind_inputs(req, {{1, 2}, {3, 4}, {5, 6}});
+    resize_input(req, "attention_mask", {2, 2});
 
     try {
         req->infer();
@@ -270,6 +304,97 @@ TEST_F(NPUWBatchedElementTest, MismatchedBatchRejected) {
         EXPECT_NE(error_message(ex).find("neither the inferred batch size"), std::string::npos);
     }
     EXPECT_TRUE(m_recorder->events.empty());
+}
+
+// The production LLM/rerank wiring builds the element from a *sync* inner request (driven on the
+// calling thread to dodge a nested-executor deadlock), bypassing batched::CompiledModel. Exercise
+// that constructor directly.
+TEST_F(NPUWBatchedElementTest, SyncInnerConstructorScoresEachRow) {
+    auto inner_compiled = std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder);
+    std::shared_ptr<ov::ISyncInferRequest> inner_sync = inner_compiled->create_sync_infer_request();
+    std::shared_ptr<const ov::ICompiledModel> compiled = inner_compiled;
+    auto req = std::make_shared<ov::npuw::batched::InferRequest>(compiled, std::move(inner_sync));
+
+    const std::vector<std::vector<int64_t>> ids = {{11, 2, 3, 4}, {22, 5, 6, 7}, {33, 8, 9, 10}};
+    bind_inputs(req, ids);
+
+    req->infer();
+
+    const auto out = req->get_tensor(req->get_outputs()[0]);
+    ASSERT_EQ(out->get_shape()[0], ids.size());
+    for (std::size_t r = 0; r < ids.size(); ++r) {
+        EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front())) << "output row " << r;
+    }
+    EXPECT_EQ(m_recorder->events,
+              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+}
+
+// A shared/broadcast input (batch 1) is fed to every row unsliced -- the slice guard only fires
+// when the leading dim equals the batch, so a [1, L] input is never sliced out of range.
+TEST_F(NPUWBatchedElementTest, BroadcastInputSharedAcrossRows) {
+    auto wrapped = wrap(/*enabled=*/true);
+    auto req = wrapped->create_infer_request();
+
+    const std::vector<std::vector<int64_t>> ids = {{11, 1, 1, 1}, {22, 1, 1, 1}, {33, 1, 1, 1}};
+    bind_inputs(req, ids);
+    resize_input(req, "attention_mask", {1, 4});  // shared across the 3 rows
+
+    req->infer();
+
+    const auto out = req->get_tensor(wrapped->outputs()[0]);
+    ASSERT_EQ(out->get_shape()[0], ids.size());
+    for (std::size_t r = 0; r < ids.size(); ++r) {
+        EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front())) << "output row " << r;
+    }
+    EXPECT_EQ(m_recorder->events,
+              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+}
+
+// Regression: a leading batch-1 input (here input_ids, shared) must not pin the batch to 1 when a
+// later input carries the real batch. The old "first input with a batch dim wins" logic set batch=1
+// and rejected attention_mask as a mismatch; detection now takes the largest leading dim.
+TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
+    auto wrapped = wrap(/*enabled=*/true);
+    auto req = wrapped->create_infer_request();
+
+    bind_inputs(req, {{7, 1, 1, 1}});             // input_ids = [1, 4], shared prompt (token 7)
+    resize_input(req, "attention_mask", {3, 4});  // real batch N = 3 on a non-leading input
+
+    req->infer();
+
+    const auto out = req->get_tensor(wrapped->outputs()[0]);
+    ASSERT_EQ(out->get_shape()[0], 3u);
+    for (std::size_t r = 0; r < 3; ++r) {
+        EXPECT_FLOAT_EQ(row_value(out, r), 7.0f) << "output row " << r;  // input_ids broadcast to every row
+    }
+    EXPECT_EQ(m_recorder->events,
+              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+}
+
+// Each model output is stacked into its own [N, ...] tensor. The mock offsets output k by k, so the
+// two outputs must differ per row.
+TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
+    auto model = build_two_output_model();
+    ov::SoPtr<ov::ICompiledModel> inner{std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder), {}};
+    auto wrapped = ov::npuw::batched::CompiledModel::create(model, m_plugin, inner, /*enabled=*/true);
+    auto req = wrapped->create_infer_request();
+
+    const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
+    set_input_ids(req, ids);  // the two-output model has only input_ids
+
+    req->infer();
+
+    ASSERT_EQ(wrapped->outputs().size(), 2u);
+    const auto score = req->get_tensor(wrapped->outputs()[0]);
+    const auto hidden = req->get_tensor(wrapped->outputs()[1]);
+    ASSERT_EQ(score->get_shape()[0], ids.size());
+    ASSERT_EQ(hidden->get_shape()[0], ids.size());
+    for (std::size_t r = 0; r < ids.size(); ++r) {
+        EXPECT_FLOAT_EQ(row_value(score, r), static_cast<float>(ids[r].front()));
+        EXPECT_FLOAT_EQ(row_value(hidden, r), static_cast<float>(ids[r].front()) + kOutputChannelOffset);
+    }
+    EXPECT_EQ(m_recorder->events,
+              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
 }  // namespace

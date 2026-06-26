@@ -71,12 +71,13 @@ private:
 // Sync infer request that unrolls a batched inference over a single-sequence
 // inner request.
 //
-// On each infer() call it determines the batch size N from the inputs, then for
-// each row 0..N-1: resets the inner request's variable state, binds the row's
-// [1, ...] slice of every input, runs the inner request, and copies the inner
-// [1, ...] output into row i of the wrapper's [N, ...] output tensors.  The
-// public input/output tensors are held by the ISyncInferRequest base; only the
-// inner request sees [1, ...] shapes.
+// On each infer() call it takes the batch size N as the largest leading dimension
+// across the inputs (so a shared [1, ...] input is broadcast, not mistaken for the
+// batch), then for each row 0..N-1: resets the inner request's variable state, binds
+// the row's [1, ...] slice of every per-row input, runs the inner request, and copies
+// the inner [1, ...] output into row i of the wrapper's [N, ...] output tensors.
+// N == 1 publishes the inner outputs directly.  The public input/output tensors are
+// held by the ISyncInferRequest base; only the inner request sees [1, ...] shapes.
 //
 // It is constructed from the compiled model whose I/O it exposes plus the inner
 // request to drive.  This lets it be produced both by Batched::CompiledModel
