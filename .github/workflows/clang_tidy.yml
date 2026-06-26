@@ -303,8 +303,7 @@ jobs:
           build-target: openvino_intel_gpu_plugin
           compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64
           cmake-extra-args: '-DENABLE_INTEL_GPU=ON'
-          # TODO(verify): temporarily verbose to confirm clang-tidy runs on intel_gpu sources; restore '--quiet -k 0' after.
-          build-extra-args: '-k 0'
+          build-extra-args: '--quiet -k 0'
           openvino-repo: ${{ env.OPENVINO_REPO }}
           build-dir: ${{ env.BUILD_DIR }}
 
