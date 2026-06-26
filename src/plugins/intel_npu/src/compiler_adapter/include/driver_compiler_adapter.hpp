@@ -28,11 +28,10 @@ public:
 
     std::optional<std::vector<std::string>> get_supported_options() const override;
 
-    bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const override;
+    bool is_option_supported(const std::string& optName,
+                             const std::optional<std::string>& optValue = std::nullopt) const override;
 
     uint32_t get_version() const override;
-
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const override;
 
 private:
     bool isCompilerOptionSupported(const FilteredConfig& config,
