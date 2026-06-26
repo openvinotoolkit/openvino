@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <cstdlib>
-#include <cstring>
 #include <deque>
 #include <limits>
 #include <memory>
@@ -96,8 +94,8 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
-#include "plugin/transformations/disable_fp16_comp_flux2_rope.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
+#include "plugin/transformations/disable_fp16_comp_flux2_rope.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
@@ -233,12 +231,6 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
 template <typename T>
 static typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T size, size_t align) {
     return static_cast<T>((size % align == 0) ? size : size - size % align + align);
-}
-
-// Set OV_GPU_FLUX2_ROPE_FP16_MARK=0 to skip pre-ConvertPrecision FLUX.2 RoPE FP32 marking (A/B testing).
-static bool flux2_rope_fp16_mark_enabled() {
-    const char* env = std::getenv("OV_GPU_FLUX2_ROPE_FP16_MARK");
-    return env == nullptr || env[0] == '\0' || std::strcmp(env, "0") != 0;
 }
 
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
@@ -677,9 +669,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return ov::is_conversion_disabled(node, ov::element::f16);
         });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
-        if (flux2_rope_fp16_mark_enabled()) {
-            manager.register_pass<DisableFP16CompFlux2RoPEPattern>();
-        }
+        manager.register_pass<DisableFP16CompFlux2RoPEPattern>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;

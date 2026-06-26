@@ -23,9 +23,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-void mark_path_from_output(ov::Node* root,
-                           std::unordered_set<ov::Node*>& visited,
-                           const std::function<bool(ov::Node*)>& skip_node_predicate) {
+void mark_path_from_output(ov::Node* root, std::unordered_set<ov::Node*>& visited, const std::function<bool(ov::Node*)>& skip_node_predicate) {
     if (!root || visited.count(root))
         return;
     auto visit_func = [](ov::Node* node) {
@@ -36,8 +34,7 @@ void mark_path_from_output(ov::Node* root,
 
 auto skip_node_predicate() {
     return [](ov::Node* node) -> bool {
-        return ov::is_type<v0::Constant>(node) || ov::is_type<v0::Parameter>(node) ||
-               ov::is_type<op_util::ShapeOfBase>(node);
+        return ov::is_type<v0::Constant>(node) || ov::is_type<v0::Parameter>(node) || ov::is_type<op_util::ShapeOfBase>(node);
     };
 }
 
