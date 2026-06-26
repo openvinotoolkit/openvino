@@ -43,7 +43,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     my_sum = work_group_reduce_add(my_sum);
     my_sum_squared = work_group_reduce_add(my_sum_squared);
-    
+
     float mean = my_sum / data_set_size;
 
 #if NORMALIZE_VARIANCE == 0
