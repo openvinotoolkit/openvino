@@ -28,8 +28,7 @@ namespace ov::pass {
 namespace {
 
 bool is_value_preserving(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
-           ov::is_type<op_util::SqueezeBase>(node) || ov::is_type<v0::Unsqueeze>(node);
+    return ov::is_type_any_of<v1::Reshape, v1::Transpose, op_util::SqueezeBase, v0::Unsqueeze>(node);
 }
 
 }  // namespace
