@@ -159,13 +159,27 @@ protected:
 
         return state;
     }
+
+    static std::string getCompatibilityString(vcl_executable_handle_t executable) {
+        uint64_t compatibilityStringSize = 0;
+        auto result = ::intel_npu::vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
+        EXPECT_EQ(result, VCL_RESULT_SUCCESS);
+        EXPECT_GT(compatibilityStringSize, 0);
+
+        std::vector<char> compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
+        result = ::intel_npu::vclExecutableGetCompatibilityString(executable,
+                                                                  compatibilityStringBuffer.data(),
+                                                                  &compatibilityStringSize);
+        EXPECT_EQ(result, VCL_RESULT_SUCCESS);
+
+        return std::string(compatibilityStringBuffer.data());
+    }
 };
 
 TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
     uint8_t* blobBuffer = nullptr;
     uint64_t blobSize = 0;
-    uint8_t* compatibilityReqBuffer = nullptr;
-    uint64_t compatibilityReqSize = 0;
+    vcl_executable_handle_t executable = nullptr;
 
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
@@ -175,21 +189,21 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
+    auto result = ::intel_npu::vclAllocatedExecutableCreate4(setup.compiler,
                                                              desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
-                                                             &compatibilityReqBuffer,
-                                                             &compatibilityReqSize);
+                                                             &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
     EXPECT_NE(blobBuffer, nullptr);
-    EXPECT_NE(compatibilityReqBuffer, nullptr);
+    ASSERT_NE(executable, nullptr);
+    auto compatibilityString = getCompatibilityString(executable);
+    EXPECT_FALSE(compatibilityString.empty());
 
-    // Verify it tracked exactly these two buffers
-    // 2 allocations: blob & compatibility string
-    EXPECT_EQ(allocator->m_info.size(), 2);
+    // Verify it tracked blob allocation.
+    EXPECT_EQ(allocator->m_info.size(), 1);
 
     auto blobIt = std::find_if(allocator->m_info.begin(),
                                allocator->m_info.end(),
@@ -198,19 +212,13 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
                                });
     EXPECT_NE(blobIt, allocator->m_info.end());
 
-    auto compatIt = std::find_if(allocator->m_info.begin(),
-                                 allocator->m_info.end(),
-                                 [compatibilityReqBuffer](const std::pair<uint8_t*, size_t>& item) {
-                                     return item.first == compatibilityReqBuffer;
-                                 });
-    EXPECT_NE(compatIt, allocator->m_info.end());
+    EXPECT_EQ(::intel_npu::vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 }
 
 TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
     uint8_t* blobBuffer = nullptr;
     uint64_t blobSize = 0;
-    uint8_t* compatibilityReqBuffer = nullptr;
-    uint64_t compatibilityReqSize = 0;
+    vcl_executable_handle_t executable = nullptr;
 
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
@@ -220,36 +228,39 @@ TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
+    auto result = ::intel_npu::vclAllocatedExecutableCreate4(setup.compiler,
                                                              desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
-                                                             &compatibilityReqBuffer,
-                                                             &compatibilityReqSize);
+                                                             &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
+    ASSERT_NE(executable, nullptr);
+    auto compatibilityString = getCompatibilityString(executable);
+    EXPECT_FALSE(compatibilityString.empty());
 
-    // Clean up compatibility string
-    if (compatibilityReqBuffer != nullptr) {
-        allocator->deallocate(allocator.get(), compatibilityReqBuffer);
+    // Clean up blob buffer tracked by allocator.
+    if (blobBuffer != nullptr) {
+        allocator->deallocate(allocator.get(), blobBuffer);
     }
 
-    // Verify compatibility buffer was erased from tracking vector
-    auto compatIt = std::find_if(allocator->m_info.begin(),
-                                 allocator->m_info.end(),
-                                 [compatibilityReqBuffer](const std::pair<uint8_t*, size_t>& item) {
-                                     return item.first == compatibilityReqBuffer;
-                                 });
-    EXPECT_EQ(compatIt, allocator->m_info.end());
-    EXPECT_EQ(allocator->m_info.size(), 1);
+    // Verify blob buffer was erased from tracking vector.
+    auto blobIt = std::find_if(allocator->m_info.begin(),
+                               allocator->m_info.end(),
+                               [blobBuffer](const std::pair<uint8_t*, size_t>& item) {
+                                   return item.first == blobBuffer;
+                               });
+    EXPECT_EQ(blobIt, allocator->m_info.end());
+    EXPECT_EQ(allocator->m_info.size(), 0);
+
+    EXPECT_EQ(::intel_npu::vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 }
 
 TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
     uint8_t* blobBuffer = nullptr;
     uint64_t blobSize = 0;
-    uint8_t* compatibilityReqBuffer = nullptr;
-    uint64_t compatibilityReqSize = 0;
+    vcl_executable_handle_t executable = nullptr;
 
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
@@ -259,15 +270,17 @@ TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
+    auto result = ::intel_npu::vclAllocatedExecutableCreate4(setup.compiler,
                                                              desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
-                                                             &compatibilityReqBuffer,
-                                                             &compatibilityReqSize);
+                                                             &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
+    ASSERT_NE(executable, nullptr);
+    auto compatibilityString = getCompatibilityString(executable);
+    EXPECT_FALSE(compatibilityString.empty());
 
     // Retrieve the real allocated size for the blob from the allocator (mirroring compiler_impl.cpp)
     auto it = std::find_if(allocator->m_info.begin(),
@@ -289,21 +302,17 @@ TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
         allocator->m_info.erase(it);
     }  // tensor goes out of scope here: custom deleter correctly handles the physical memory free
 
-    // Clean up compatibility string manually
-    if (compatibilityReqBuffer != nullptr) {
-        allocator->deallocate(allocator.get(), compatibilityReqBuffer);
-    }
-
-    // After erasing the blob and deallocating the compatibility string,
+    // After erasing the blob,
     // the tracking info in the allocator should be empty.
     EXPECT_EQ(allocator->m_info.size(), 0);
+
+    EXPECT_EQ(::intel_npu::vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 }
 
 TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
     uint8_t* blobBuffer = nullptr;
     uint64_t blobSize = 0;
-    uint8_t* compatibilityReqBuffer = nullptr;
-    uint64_t compatibilityReqSize = 0;
+    vcl_executable_handle_t executable = nullptr;
 
     auto setup = createCompilerAndDescriptor();
     ASSERT_NE(setup.compiler, nullptr);
@@ -313,16 +322,20 @@ TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result = ::intel_npu::vclAllocatedExecutableCreate3(setup.compiler,
+    auto result = ::intel_npu::vclAllocatedExecutableCreate4(setup.compiler,
                                                              desc,
                                                              allocator.get(),
                                                              &blobBuffer,
                                                              &blobSize,
-                                                             &compatibilityReqBuffer,
-                                                             &compatibilityReqSize);
+                                                             &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
-    EXPECT_EQ(allocator->m_info.size(), 2);  // 2 allocations: blob & compatibility string
+    ASSERT_NE(executable, nullptr);
+    auto compatibilityString = getCompatibilityString(executable);
+    EXPECT_FALSE(compatibilityString.empty());
+    EXPECT_EQ(allocator->m_info.size(), 1);  // 1 allocation: blob
+
+    EXPECT_EQ(::intel_npu::vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 
     // Purpose: Simulate VCL crash or early return where the memory is temporarily tracked as an orphan leak
     // When the allocator goes out of scope and gets destroyed, it should cleanly free all tracked memory

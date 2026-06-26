@@ -245,28 +245,29 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major > 7 || (usedVersion.Major == 7 && usedVersion.Minor >= 7)) {
+    if (usedVersion.Major > 7 || (usedVersion.Major == 7 && usedVersion.Minor >= 8)) {
         // Support only the lastest VCL api
         auto allocator = std::make_shared<vcl_allocator_3>();
         uint8_t* blob = nullptr;
-        size_t blobSize = 0;
-        uint8_t* compatibilityStringBuffer = nullptr;
-        size_t compatibilityStringSize = 0;
+        uint64_t blobSize = 0;
+        vcl_executable_handle_t executable = nullptr;
 
-        auto result = vclAllocatedExecutableCreate3(_compilerHandle,
+        auto result = vclAllocatedExecutableCreate4(_compilerHandle,
                                                     exeDesc,
                                                     allocator.get(),
                                                     &blob,
                                                     &blobSize,
-                                                    &compatibilityStringBuffer,
-                                                    &compatibilityStringSize);
+                                                    &executable);
         if (result != VCL_RESULT_SUCCESS) {
             // Check if allocations were performed before throwing exception
             auto tracked_allocations = allocator->m_info;
             for (const auto& [buffer, size] : tracked_allocations) {
                 allocator->deallocate(allocator.get(), buffer);
             }
-            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
+            if (executable != nullptr) {
+                vclExecutableDestroy(executable);
+            }
+            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate4 result: 0x",
                            std::hex,
                            uint64_t(result),
                            " - ",
@@ -294,16 +295,54 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         allocator->m_info.erase(it);
 
         std::optional<std::string> compatibilityString;
+        uint64_t compatibilityStringSize = 0;
+        result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
+        if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
+            auto tracked_allocations = allocator->m_info;
+            for (const auto& [buffer, size] : tracked_allocations) {
+                allocator->deallocate(allocator.get(), buffer);
+            }
+            if (executable != nullptr) {
+                vclExecutableDestroy(executable);
+            }
+            OPENVINO_THROW("Failed to get compatibility string size. vclExecutableGetCompatibilityString result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
+        }
 
-        // Populate compatibility string only when VCL provides a buffer.
-        if (compatibilityStringBuffer != nullptr) {
-            OPENVINO_ASSERT(compatibilityStringSize != 0,
-                            "Failed to create VCL executable, the compatibility descriptor size is zero");
-            compatibilityString =
-                std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
-            _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
+        OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
+                        "Compatibility string size is too large to allocate a local buffer");
+        std::string compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
+        result = vclExecutableGetCompatibilityString(executable,
+                                                     &compatibilityStringBuffer[0],
+                                                     &compatibilityStringSize);
+        if (result != VCL_RESULT_SUCCESS) {
+            auto tracked_allocations = allocator->m_info;
+            for (const auto& [buffer, size] : tracked_allocations) {
+                allocator->deallocate(allocator.get(), buffer);
+            }
+            if (executable != nullptr) {
+                vclExecutableDestroy(executable);
+            }
+            OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
+        }
 
-            allocator->deallocate(allocator.get(), compatibilityStringBuffer);
+        compatibilityString = std::string(compatibilityStringBuffer.c_str());
+        _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
+
+        result = vclExecutableDestroy(executable);
+        if (result != VCL_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to destroy VCL executable. vclExecutableDestroy result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
         }
 
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
@@ -313,7 +352,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                        _vclVersion.major,
                        ".",
                        _vclVersion.minor,
-                       ", please use VCL 7.7 or later");
+                       ", please use VCL 7.8 or later");
     }
 }
 
