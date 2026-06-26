@@ -83,6 +83,15 @@ jobs:
         with:
           version: '3.11'
           set-pip-install-path: 'false'
+          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
+          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
+
+      # Have to do it explicitly here, because `setup_python` is not executed for Linux
+      - name: Configure pip to use caching proxy
+        if: runner.os == 'Linux' && contains(inputs.runner, 'aks')
+        run: |
+          echo "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/" >> "$GITHUB_ENV"
+          echo "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local" >> "$GITHUB_ENV"
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         if: runner.os == 'Windows'

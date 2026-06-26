@@ -67,9 +67,6 @@ jobs:
         - /mount:/mount
     outputs:
       images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
-    env:
-      PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-      PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     steps:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}

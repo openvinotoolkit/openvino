@@ -23,9 +23,6 @@ on:
 
 permissions: read-all
 
-env:
-
-
 jobs:
   Python_Unit_Tests:
     name: Python unit tests
@@ -78,9 +75,9 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          use-pip-proxy: 'true'
           set-pip-install-path: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
+          use-pip-proxy: ${{ runner.os == 'Linux' }}          
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels

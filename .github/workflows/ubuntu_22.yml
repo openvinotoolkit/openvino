@@ -238,7 +238,8 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           set-pip-install-path: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
 
       - name: Install Dependencies
         run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt

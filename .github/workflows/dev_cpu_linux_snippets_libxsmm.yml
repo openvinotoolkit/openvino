@@ -334,6 +334,7 @@ jobs:
           version: '3.11'
           set-pip-install-path: 'false'
           self-hosted-runner: ${{ runner.os == 'Linux' }}
+          use-pip-proxy: ${{ runner.os == 'Linux' }}
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
