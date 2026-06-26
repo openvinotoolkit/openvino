@@ -67,6 +67,28 @@ jobs:
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
+  Check_Doc_Links:
+    needs: Smart_CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check relative links in Markdown files
+        uses: lycheeverse/lychee-action@82202e5e9c2f4ef1a55a3d02563e1cb6041e5332 # v2.4.1
+        with:
+          args: >-
+            --offline
+            --root-dir "${{ github.workspace }}"
+            --verbose
+            --no-progress
+            './**/*.md'
+          fail: true
+          jobSummary: true
+
   Build_Doc:
     needs: [ Docker, Smart_CI ]
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
