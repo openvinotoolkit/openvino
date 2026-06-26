@@ -725,6 +725,104 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed18_4dGroupedWith3dWeight) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
 }
+  
+TEST_F(TransformationTestsF, ConvertFCToCompressed19_mxfp8e4m3) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e4m3, ov::Shape{ 32, 32 }, { 1 });
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f8e8m0, ov::Shape{ 32, 1 }, { 1 });
+        auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, ov::element::f16);
+        auto deq_mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale_convert);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, deq_mul, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e4m3, ov::Shape{ 32, 32 }, { 1 });
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f8e8m0, ov::Shape{ 32, 1 }, { 1 });
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed20_mxfp8_e5m2) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e5m2, ov::Shape{ 32, 32 }, { 1 });
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f8e8m0, ov::Shape{ 32, 1 }, { 1 });
+        auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, ov::element::f16);
+        auto deq_mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale_convert);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, deq_mul, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e5m2, ov::Shape{ 32, 32 }, { 1 });
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f8e8m0, ov::Shape{ 32, 1 }, { 1 });
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed21_fp8e4m3) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e4m3, ov::Shape{ 32, 32 }, { 1 });
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
+        auto deq_mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, deq_mul, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e4m3, ov::Shape{ 32, 32 }, { 1 });
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed22_fp8_e5m2) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e5m2, ov::Shape{ 32, 32 }, { 1 });
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
+        auto deq_mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, deq_mul, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 32 });
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f8e5m2, ov::Shape{ 32, 32 }, { 1 });
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
 
 }  // namespace intel_gpu
 }  // namespace test
