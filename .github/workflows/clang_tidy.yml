@@ -117,7 +117,7 @@ jobs:
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
-  Build:
+  Build-x86_64:
     needs: [Docker, Smart_CI]
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
@@ -260,7 +260,7 @@ jobs:
           openvino-repo: ${{ env.OPENVINO_REPO }}
           build-dir: ${{ env.BUILD_DIR }}
 
-  Build-GPU:
+  Build-gpu:
     needs: [Docker, Smart_CI]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
@@ -303,13 +303,14 @@ jobs:
           build-target: openvino_intel_gpu_plugin
           compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64
           cmake-extra-args: '-DENABLE_INTEL_GPU=ON'
-          build-extra-args: '--quiet -k 0'
+          # TODO(verify): temporarily verbose to confirm clang-tidy runs on intel_gpu sources; restore '--quiet -k 0' after.
+          build-extra-args: '-k 0'
           openvino-repo: ${{ env.OPENVINO_REPO }}
           build-dir: ${{ env.BUILD_DIR }}
 
   Overall_Status:
     name: ci/gha_overall_status_clang_tidy
-    needs: [Smart_CI, Build, Build-aarch64, Build-riscv64, Build-GPU]
+    needs: [Smart_CI, Build-x86_64, Build-aarch64, Build-riscv64, Build-gpu]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
