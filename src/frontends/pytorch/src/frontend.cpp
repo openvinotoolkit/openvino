@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
@@ -228,6 +229,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
         manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
+        manager.register_pass<ov::pass::TransposeFuse>(); // Required for fusion of Transpose for grouped_mm 
         manager.register_pass<ov::pass::PushConstantToSubgraph>();
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
         manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();
