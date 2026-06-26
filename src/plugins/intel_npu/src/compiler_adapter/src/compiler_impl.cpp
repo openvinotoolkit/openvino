@@ -269,10 +269,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             vclExecutableDestroy(executable);
         }
         OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate4 result: 0x",
-                        std::hex,
-                        uint64_t(result),
-                        " - ",
-                        getLatestVCLLog(_logHandle));
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
     }
 
     OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
@@ -280,10 +280,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
     // Retrieve the real allocated size for the blob from the allocator
     auto it = std::find_if(allocator->m_info.begin(),
-                            allocator->m_info.end(),
-                            [blob](const std::pair<uint8_t*, size_t>& item) {
-                                return item.first == blob;
-                            });
+                           allocator->m_info.end(),
+                           [blob](const std::pair<uint8_t*, size_t>& item) {
+                               return item.first == blob;
+                           });
 
     OPENVINO_ASSERT(it != allocator->m_info.end(), "Failed to find the allocated blob in the allocator records");
     size_t alignedBlobSize = it->second;
@@ -307,17 +307,16 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             vclExecutableDestroy(executable);
         }
         OPENVINO_THROW("Failed to get compatibility string size. vclExecutableGetCompatibilityString result: 0x",
-                        std::hex,
-                        uint64_t(result),
-                        " - ",
-                        getLatestVCLLog(_logHandle));
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
     }
 
     OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
                     "Compatibility string size is too large to allocate a local buffer");
     std::string compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
-    result =
-        vclExecutableGetCompatibilityString(executable, &compatibilityStringBuffer[0], &compatibilityStringSize);
+    result = vclExecutableGetCompatibilityString(executable, &compatibilityStringBuffer[0], &compatibilityStringSize);
     if (result != VCL_RESULT_SUCCESS) {
         auto tracked_allocations = allocator->m_info;
         for (const auto& [buffer, size] : tracked_allocations) {
@@ -327,10 +326,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             vclExecutableDestroy(executable);
         }
         OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
-                        std::hex,
-                        uint64_t(result),
-                        " - ",
-                        getLatestVCLLog(_logHandle));
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
     }
 
     compatibilityString = std::string(compatibilityStringBuffer.c_str());
@@ -339,14 +338,14 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     result = vclExecutableDestroy(executable);
     if (result != VCL_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to destroy VCL executable. vclExecutableDestroy result: 0x",
-                        std::hex,
-                        uint64_t(result),
-                        " - ",
-                        getLatestVCLLog(_logHandle));
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
     }
 
     return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
-                                                                    std::move(compatibilityString));
+                                                                  std::move(compatibilityString));
 }
 
 std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<ov::Model>& model,
