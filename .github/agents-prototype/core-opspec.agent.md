@@ -44,7 +44,7 @@ SKILL.md lists all step files with their purpose and execution order.
 
 ## Code Quality
 
-Before writing any code, read [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+Before writing any code, read [`.github/copilot-instructions.md`](../copilot-instructions.md)
 and apply its conventions. Key points for this agent:
 - Op class in `ov::op::vN` namespace; registered in the matching opset header
 - Filenames: `snake_case`; class names: `CamelCase`

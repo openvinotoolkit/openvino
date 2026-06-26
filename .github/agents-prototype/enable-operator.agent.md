@@ -50,7 +50,7 @@ When calling sub-agents, use paths relative to ``:
 ## Code Quality Mandate
 
 **Every sub-agent MUST follow the project coding standards** defined in
-[`.github/copilot-instructions.md`](.github/copilot-instructions.md) before producing any patch or PR.
+[`.github/copilot-instructions.md`](../copilot-instructions.md) before producing any patch or PR.
 
 Pass this instruction explicitly when invoking each sub-agent:
 

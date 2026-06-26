@@ -116,7 +116,7 @@ SKILL.md lists all step files with their purpose and execution order.
 
 ## Code Quality
 
-Before writing any code, read [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+Before writing any code, read [`.github/copilot-instructions.md`](../copilot-instructions.md)
 and apply its conventions. Additional CPU-plugin specifics:
 
 - **clang-format**: Enforced via `src/.clang-format` (Google-based, 4-space indent,
