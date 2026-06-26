@@ -4,6 +4,7 @@
 
 #include "batched.hpp"
 
+#include <algorithm>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -168,29 +169,35 @@ void ov::npuw::batched::InferRequest::infer() {
     OPENVINO_ASSERT(wrapper_inputs.size() == in_ports.size() && wrapper_outputs.size() == out_ports.size(),
                     "Batched element: inner request I/O does not match the wrapped model");
 
-    // Batch size is taken from the first input that carries a batch dimension.
-    std::size_t batch = 1;
+    // Snapshot the public inputs once -- read repeatedly below.
+    std::vector<ov::SoPtr<ov::ITensor>> in_tensors;
+    in_tensors.reserve(wrapper_inputs.size());
     for (const auto& port : wrapper_inputs) {
-        const auto tensor = get_tensor(port);
-        if (has_batch_dim(tensor)) {
-            batch = tensor->get_shape()[0];
-            break;
-        }
+        in_tensors.push_back(get_tensor(port));
     }
-    // A zero-sized batch has no rows to score and would leave the outputs unpopulated
-    // (publishing null tensors). Reject it explicitly rather than silently no-op.
-    OPENVINO_ASSERT(batch > 0, "Batched element: batch size must be > 0, got an input with batch dimension 0.");
 
-    // Validate every batched input up front: each row-carrying input must have a batch
-    // dimension equal to `batch`, or exactly 1 (a shared/broadcast input passed to every row).
-    // Anything else (e.g. a [M, ...] input with M != batch and M != 1) cannot be sliced per row
-    // and would otherwise be fed whole into the batch-1 inner request -> wrong results.
-    for (std::size_t i = 0; i < wrapper_inputs.size(); ++i) {
-        const auto full = get_tensor(wrapper_inputs[i]);
-        if (!has_batch_dim(full)) {
+    // Batch is the largest leading dim across inputs, so a shared [1, ...] input is broadcast
+    // rather than mistaken for the batch. Stays 1 when nothing is batched.
+    std::size_t batch = 1;
+    bool any_batched = false;
+    for (const auto& tensor : in_tensors) {
+        if (!has_batch_dim(tensor)) {
             continue;
         }
-        const std::size_t in_batch = full->get_shape()[0];
+        const std::size_t in_batch = tensor->get_shape()[0];
+        batch = any_batched ? std::max(batch, in_batch) : in_batch;
+        any_batched = true;
+    }
+    // A zero-sized batch has no rows and would publish unpopulated outputs; reject it.
+    OPENVINO_ASSERT(batch > 0, "Batched element: batch size must be > 0, got an input with batch dimension 0.");
+
+    // Every batched input must match `batch` or be a broadcast (dim 0 == 1); anything else
+    // cannot be sliced per row.
+    for (std::size_t i = 0; i < wrapper_inputs.size(); ++i) {
+        if (!has_batch_dim(in_tensors[i])) {
+            continue;
+        }
+        const std::size_t in_batch = in_tensors[i]->get_shape()[0];
         OPENVINO_ASSERT(in_batch == batch || in_batch == 1,
                         "Batched element: input '",
                         wrapper_inputs[i].get_any_name(),
@@ -201,33 +208,38 @@ void ov::npuw::batched::InferRequest::infer() {
                         " nor 1 (broadcast).");
     }
 
-    // Aggregated [batch, ...] outputs, allocated lazily once the per-row output shape is known.
-    std::vector<ov::SoPtr<ov::ITensor>> aggregated_outputs(wrapper_outputs.size());
-
-    // The inner request's variable states are stable across rows, so query them once and reset
-    // them per row rather than re-querying (which may allocate) on every iteration.
+    // States are stable across rows: query once, reset per row so row i never sees row i-1.
     const auto inner_states = inner_query_state();
-
-    for (std::size_t row = 0; row < batch; ++row) {
-        // Rows are independent prompts: clear the inner request's variable state
-        // (KV-cache) so row i never sees row i-1.  Harmless for stateless inners.
+    const auto reset_inner_state = [&] {
         for (const auto& state : inner_states) {
             state->reset();
         }
+    };
 
-        // Bind the row's slice of every batched input; pass shared ([1, ...] or non-batched)
-        // inputs through unchanged.
+    // Slice per-row inputs out of [batch, ...]; pass broadcast/non-batched inputs through whole.
+    const auto bind_row = [&](std::size_t row) {
         for (std::size_t i = 0; i < wrapper_inputs.size(); ++i) {
-            const auto full = get_tensor(wrapper_inputs[i]);
+            const auto& full = in_tensors[i];
             const bool sliceable = batch > 1 && has_batch_dim(full) && full->get_shape()[0] == batch;
             inner_set_tensor(in_ports[i], sliceable ? row_slice(full, row) : full);
         }
+    };
 
+    // Per-row outputs stacked along axis 0. A single row has nothing to stack, so its output is
+    // published as-is (no aggregation buffer or copy); a non-batched output collapses to the last row.
+    std::vector<ov::SoPtr<ov::ITensor>> aggregated_outputs(wrapper_outputs.size());
+
+    for (std::size_t row = 0; row < batch; ++row) {
+        reset_inner_state();
+        bind_row(row);
         inner_infer();
 
-        // Stack each per-row output into row i of the aggregated [batch, ...] tensor.
         for (std::size_t i = 0; i < wrapper_outputs.size(); ++i) {
             const auto inner_out = inner_get_tensor(out_ports[i]);
+            if (batch == 1) {
+                aggregated_outputs[i] = inner_out;
+                continue;
+            }
             if (!aggregated_outputs[i]) {
                 ov::Shape out_shape = inner_out->get_shape();
                 if (!out_shape.empty()) {
@@ -235,22 +247,22 @@ void ov::npuw::batched::InferRequest::infer() {
                 }
                 aggregated_outputs[i] = ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), out_shape));
             }
-            if (batch > 1 && has_batch_dim(inner_out)) {
-                const auto slot = row_slice(aggregated_outputs[i], row);
-                inner_out->copy_to(slot._ptr);
+            if (has_batch_dim(inner_out)) {
+                inner_out->copy_to(row_slice(aggregated_outputs[i], row)._ptr);
             } else {
                 inner_out->copy_to(aggregated_outputs[i]._ptr);
             }
         }
     }
 
-    // Publish the aggregated outputs as this request's public output tensors.
     for (std::size_t i = 0; i < wrapper_outputs.size(); ++i) {
         set_tensor(wrapper_outputs[i], aggregated_outputs[i]);
     }
 }
 
-void ov::npuw::batched::InferRequest::check_tensors() const {}
+void ov::npuw::batched::InferRequest::check_tensors() const {
+    // No-op: batched tensors are unrolled and validated per row by the inner request.
+}
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::batched::InferRequest::query_state() const {
     // The batched element resets inner state between rows and exposes no
