@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <limits>
 #include <memory>
@@ -94,6 +96,7 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
+#include "plugin/transformations/disable_fp16_comp_flux2_rope.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
@@ -138,7 +141,6 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
-#include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -231,6 +233,12 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
 template <typename T>
 static typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T size, size_t align) {
     return static_cast<T>((size % align == 0) ? size : size - size % align + align);
+}
+
+// Set OV_GPU_FLUX2_ROPE_FP16_MARK=0 to skip pre-ConvertPrecision FLUX.2 RoPE FP32 marking (A/B testing).
+static bool flux2_rope_fp16_mark_enabled() {
+    const char* env = std::getenv("OV_GPU_FLUX2_ROPE_FP16_MARK");
+    return env == nullptr || env[0] == '\0' || std::strcmp(env, "0") != 0;
 }
 
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
@@ -669,6 +677,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return ov::is_conversion_disabled(node, ov::element::f16);
         });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
+        if (flux2_rope_fp16_mark_enabled()) {
+            manager.register_pass<DisableFP16CompFlux2RoPEPattern>();
+        }
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
@@ -1399,9 +1410,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
-
-        // Keep cos/sin table subgraphs in FP32 when f16 compression runs (FLUX.2 RoPE accuracy).
-        manager.register_pass<ov::pass::MarkRopeInputsToKeepInMixedPrecision>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
