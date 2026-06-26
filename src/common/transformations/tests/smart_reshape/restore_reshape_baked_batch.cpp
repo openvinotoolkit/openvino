@@ -210,7 +210,8 @@ std::shared_ptr<Model> build_neg_spatial_flatten() {
 // dynamic, so the rewrite cannot be proven to keep data's trailing block).
 std::shared_ptr<Model> build_neg_head_merge() {
     constexpr int64_t D = 8;
-    auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), D});
+    auto data =
+        std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), D});
     auto t = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});  // dynamic T//2
     auto shape = std::make_shared<v0::Concat>(OutputVector{dim_const(1), t, dim_const(-1)}, 0);
     auto reshape = std::make_shared<v1::Reshape>(data, shape, false);
@@ -235,8 +236,7 @@ std::shared_ptr<Model> build_neg_head_split() {
 std::shared_ptr<Model> build_neg_dyn_channel() {
     constexpr int64_t WS = 8;
     auto data =
-        std::make_shared<v0::Parameter>(element::f32,
-                                        PartialShape{Dimension::dynamic(), WS, WS, Dimension::dynamic()});
+        std::make_shared<v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), WS, WS, Dimension::dynamic()});
     auto h = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
     auto w = std::make_shared<v0::Parameter>(element::i64, PartialShape{1});
     auto shape =
@@ -276,19 +276,18 @@ TEST_P(RestoreReshapeBakedBatchNeg, PassDoesNotFire) {
     // so the test asserts the pass made no change.
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    SmartReshapeTests,
-    RestoreReshapeBakedBatchNeg,
-    testing::ValuesIn(std::vector<NegParams>{
-        {"special_zero", build_neg_special_zero},
-        {"dynamic_leading", build_neg_dynamic_leading},
-        {"no_dynamic_interior", build_neg_no_dynamic_interior},
-        {"spatial_flatten", build_neg_spatial_flatten},
-        {"head_merge", build_neg_head_merge},
-        {"head_split", build_neg_head_split},
-        {"dyn_channel", build_neg_dyn_channel},
-        {"already_rewritten", build_neg_already_rewritten},
-    }),
-    [](const testing::TestParamInfo<NegParams>& info) {
-        return info.param.name;
-    });
+INSTANTIATE_TEST_SUITE_P(SmartReshapeTests,
+                         RestoreReshapeBakedBatchNeg,
+                         testing::ValuesIn(std::vector<NegParams>{
+                             {"special_zero", build_neg_special_zero},
+                             {"dynamic_leading", build_neg_dynamic_leading},
+                             {"no_dynamic_interior", build_neg_no_dynamic_interior},
+                             {"spatial_flatten", build_neg_spatial_flatten},
+                             {"head_merge", build_neg_head_merge},
+                             {"head_split", build_neg_head_split},
+                             {"dyn_channel", build_neg_dyn_channel},
+                             {"already_rewritten", build_neg_already_rewritten},
+                         }),
+                         [](const testing::TestParamInfo<NegParams>& info) {
+                             return info.param.name;
+                         });
