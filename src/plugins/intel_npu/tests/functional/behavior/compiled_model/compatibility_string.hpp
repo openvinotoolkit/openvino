@@ -338,10 +338,8 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
-    // Empty descriptor means no runtime requirements to validate = always compatible.
-    // This test verifies the plugin-level handling through the public API.
-    // No E2E test reaches this branch because compilation never produces an empty descriptor,
-    // but the plugin must handle it gracefully (return NOT_APPLICABLE).
+    // Empty descriptor means that there are no runtime requirements
+    // No E2E test reaches this branch because compilation never produces an empty descriptor
     ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
     OV_ASSERT_NO_THROW(result = core.get_property(deviceName,
                                                   ov::compatibility_check,
