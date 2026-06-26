@@ -1,7 +1,5 @@
 # Run a Policy
 
-> **Preview:** `PolicyRuntime` and the CLI are planned APIs. The examples below document the target design.
-
 Use `PolicyRuntime` to run a trained policy on real hardware. The runtime handles the control loop: reading cameras, building observations, running inference, and sending actions to the robot.
 
 ```python
@@ -10,7 +8,7 @@ from physicalai.runtime import PolicyRuntime, SyncExecution
 from physicalai.robot import SO101
 from physicalai.capture import UVCCamera
 
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 robot = SO101(port="/dev/ttyACM0")
 cameras = {
     "wrist": UVCCamera(device="/dev/video0", width=640, height=480),
@@ -21,16 +19,19 @@ runtime = PolicyRuntime(
     robot=robot,
     model=model,
     cameras=cameras,
-    execution=SyncExecution(mode="chunk"),
+    execution=SyncExecution(),
 )
 
-runtime.run(duration_s=60)
+with runtime:
+    runtime.run(duration_s=60)
 ```
+
+> **Preview:** The config and CLI flows below are not yet implemented.
 
 The equivalent CLI command uses the same runtime configuration.
 
 ```bash
-physicalai run --config runtime.yaml --duration-s 60
+physicalai run --config runtime.yaml --run.duration_s=60
 ```
 
 The minimal runtime configuration looks like this.

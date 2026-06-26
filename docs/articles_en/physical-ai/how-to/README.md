@@ -14,7 +14,6 @@ config/write-runtime-config
 config/write-inference-config
 config/instantiate-components
 cli/run
-cli/infer
 ```
 
 This section contains task-oriented guides for common runtime workflows.
@@ -40,4 +39,3 @@ This section contains task-oriented guides for common runtime workflows.
 ## CLI
 
 - [Run](cli/run.md)
-- [Infer](cli/infer.md)

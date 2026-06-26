@@ -5,7 +5,7 @@ This tutorial shows the smallest useful inference flow: load an exported policy 
 ```python
 from physicalai.inference import InferenceModel
 
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 model.reset()
 
 action = model.select_action(observation)

@@ -51,7 +51,7 @@ hardware:
 To load the package, use the exported directory.
 
 ```python
-model = InferenceModel.load("./export")
+model = InferenceModel("./export")
 ```
 
 To inspect the metadata directly, load the manifest itself.

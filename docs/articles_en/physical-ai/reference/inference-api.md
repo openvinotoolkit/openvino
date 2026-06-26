@@ -21,8 +21,22 @@ The model can be constructed directly from an export directory or loaded from co
 ## Constructors
 
 ```python
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 ```
+
+### `from_pretrained`
+
+```python
+model = InferenceModel.from_pretrained(
+    "OpenVINO/act-fp16-ov",
+    revision="main",      # branch, tag, or commit SHA (optional)
+    cache_dir=None,        # download cache directory (optional)
+)
+```
+
+This downloads the policy package snapshot from the Hugging Face Hub and loads
+it like a local export. Additional keyword arguments are forwarded to the
+constructor (e.g. `backend`, `device`).
 
 > **Note:** `InferenceModel.from_config()` is a planned API.
 

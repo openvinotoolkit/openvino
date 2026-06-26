@@ -5,7 +5,7 @@ Load the exported package with auto-detection first.
 ```python
 from physicalai.inference import InferenceModel
 
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 ```
 
 Then compute one action.
@@ -15,10 +15,25 @@ model.reset()
 action = model.select_action(observation)
 ```
 
+Load directly from the Hugging Face Hub with a repo id.
+
+```python
+model = InferenceModel.from_pretrained("OpenVINO/act-fp16-ov")
+```
+
+Pin a revision (branch, tag, or commit SHA) for reproducible loads.
+
+```python
+model = InferenceModel.from_pretrained(
+    "OpenVINO/act-fp16-ov",
+    revision="main",
+)
+```
+
 If necessary, select the backend explicitly.
 
 ```python
-model = InferenceModel.load(
+model = InferenceModel(
     "./exports/act_policy",
     backend="openvino",
     device="CPU",

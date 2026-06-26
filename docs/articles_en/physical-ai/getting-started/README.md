@@ -9,7 +9,7 @@ quickstart
 run-a-policy
 ```
 
-This section contains short tutorials for the first successful Physical AI workflows.
+This section contains short tutorials for the first successful PhysicalAI workflows.
 
 ## Recommended Order
 
@@ -26,7 +26,7 @@ pip install physicalai
 ```python
 from physicalai.inference import InferenceModel
 
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 model.reset()
 action = model.select_action(observation)
 ```

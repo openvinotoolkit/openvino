@@ -1,6 +1,6 @@
 # Architecture
 
-The Physical AI runtime has a small set of layers with clear boundaries between exported packages, inference, runtime orchestration, and hardware IO.
+The PhysicalAI runtime has a small set of layers with clear boundaries between exported packages, inference, runtime orchestration, and hardware IO.
 
 ```text
 exported package
@@ -29,15 +29,14 @@ Training packages can add commands through CLI entry points when they need to ex
 
 ```text
 physicalai
-  infer
   run
-  serve
 
 training package
   fit
   validate
   test
   predict
+  benchmark
   export
 ```
 

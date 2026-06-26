@@ -1,18 +1,15 @@
 # Use Execution Modes
 
-> **Preview:** `PolicyRuntime` and execution modes are planned APIs. The examples below document the target design.
-
 The `Execution` component decides where inference runs and how requests are scheduled.
 
 ## Synchronous
 
 This mode runs inference in the runtime thread.
 
-```yaml
-execution:
-  class_path: physicalai.runtime.SyncExecution
-  init_args:
-    mode: chunk
+```python
+from physicalai.runtime import SyncExecution
+
+execution = SyncExecution()
 ```
 
 This mode is appropriate for simple deployments and debugging.
@@ -21,16 +18,17 @@ This mode is appropriate for simple deployments and debugging.
 
 This mode runs inference in a background thread.
 
-```yaml
-execution:
-  class_path: physicalai.runtime.AsyncExecution
-  init_args:
-    transport: thread
+```python
+from physicalai.runtime import AsyncExecution
+
+execution = AsyncExecution(fps=30)
 ```
 
 Use this mode when model latency should not block robot timing. Since inference backends typically release the GIL, thread-based execution works well for most use cases.
 
 ## Remote
+
+> **Preview:** `RemoteExecution` is not yet implemented.
 
 This mode sends inference requests to a policy server.
 

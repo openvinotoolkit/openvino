@@ -1,13 +1,6 @@
 # Configuration
 
-> **Preview:** The config system (`physicalai.config`, `PolicyRuntime.from_config`, and the CLI) are planned APIs. The content below documents the target design. Currently, `ComponentSpec` lives in `physicalai.inference.manifest`.
-
 The config system is intended to make Python, YAML, CLI, and Studio payloads use the same workflow shape.
-
-```python
-runtime = PolicyRuntime.from_config("runtime.yaml")
-runtime.run()
-```
 
 ```bash
 physicalai run --config runtime.yaml
