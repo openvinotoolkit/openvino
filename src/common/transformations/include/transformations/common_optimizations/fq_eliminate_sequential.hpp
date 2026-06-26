@@ -25,8 +25,8 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
  * commutes with such ops and the folding stays valid through the chain.
  *
  * FQ2 is removed (FQ1 kept) when it is identical to FQ1, i.e. it has the same levels, auto broadcast,
- * and input range constants. In that case FQ2 only re-applies the quantization already produced by
- * FQ1 and is redundant.
+ * and range constants (input_low/input_high/output_low/output_high). In that case FQ2 only re-applies
+ * the quantization already produced by FQ1 and is redundant.
  *
  * Before:
  *      ┌─────────┐
