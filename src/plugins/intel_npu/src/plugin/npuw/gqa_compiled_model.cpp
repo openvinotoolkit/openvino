@@ -98,21 +98,21 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
             // GQA decomposition uses ScatterUpdate in the KV path — the standard ATTN isolation
             // pattern (which expects Concat) will not match.  Apply FOLD without ATTN isolation
             // and let FOLD find the repeating [ffn+attn] blocks directly.
-            merge_config_with(
-                config,
-                {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"}, {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"}});
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"}});
             LOG_INFO("Detected prefill-style GQA model (managed); applying FOLD without ATTN isolation");
         } else {
             merge_config_with(config,
                               {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                               {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"},
+                               {"NPUW_FOLD_ONLY", "attn"},
                                {"NPUW_ONLINE_ISOLATE", "ATTN"},
-                               {std::string(::intel_npu::NPUW_ATTN::key()), "STATIC"}});
+                               {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"},  // Avoid applying attention policies here
+                               {"NPUW_ATTN", "STATIC"}});
             LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
         }
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+                           {"NPUW_FOLD_ONLY", "attn"},
                            {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
         LOG_INFO("Detected generate-style GQA model; applying FOLD with async funcall");
