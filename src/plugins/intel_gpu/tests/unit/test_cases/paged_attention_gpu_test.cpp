@@ -11,7 +11,35 @@ TEST_P(paged_attention_test, basic) {
     execute(p, p.run_reference);
 }
 
-class paged_attention_micro_sdpa_prefill_oob_sequence_test : public PagedAttentionTest<paged_attention_test_params> {};
+class paged_attention_micro_sdpa_prefill_oob_sequence_test : public PagedAttentionTest<paged_attention_test_params> {
+protected:
+    // These tests build their own params locally (warmup/repro) and run multiple
+    // parameterizations within a single test body, so they intentionally do not use
+    // GetParam(). Override SetUp() to skip the parameterized pam initialization and
+    // build pam from the local param via init_pam() inside each test instead.
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    void init_pam(const paged_attention_test_params& p) {
+        pam.emplace(rg,
+                    tests::get_test_engine(),
+                    tests::get_test_stream(),
+                    p.subsequences,
+                    p.num_heads,
+                    p.num_kv_heads,
+                    p.k_head_size,
+                    p.v_head_size,
+                    p.block_size,
+                    p.sliding_window_size,
+                    p.kv_cache_compression,
+                    p.key_cache_quant_mode,
+                    p.scores_mode == ScoresMode::SNAPKV,
+                    p.has_xattention,
+                    p.rotation_config,
+                    p.kv_cache_precision);
+    }
+};
 
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
@@ -116,11 +144,13 @@ TEST_F(paged_attention_micro_sdpa_prefill_oob_sequence_test, partial_kv_tile_unp
     auto warmup = make_pa_micro_prefill_oob_param(135, 16, 16, 256);
     auto repro = make_pa_micro_prefill_oob_param(129, 16, 16, 256);
 
+    init_pam(warmup);
     for (int iteration = 0; iteration < 16; iteration++) {
         SCOPED_TRACE("warmup_iteration=" + std::to_string(iteration));
         execute(warmup, warmup.run_reference);
     }
 
+    init_pam(repro);
     for (int iteration = 0; iteration < 16; iteration++) {
         SCOPED_TRACE("repro_iteration=" + std::to_string(iteration));
         execute(repro, repro.run_reference);
@@ -135,11 +165,13 @@ TEST_F(paged_attention_micro_sdpa_prefill_oob_sequence_test, partial_kv_tile_unp
     auto warmup = make_pa_micro_prefill_oob_param_multi({{256, 0}, {1, 0}}, 16, 16, 256);
     auto repro = make_pa_micro_prefill_oob_param_multi({{255, 0}, {1, 0}}, 16, 16, 256);
 
+    init_pam(warmup);
     for (int iteration = 0; iteration < 16; iteration++) {
         SCOPED_TRACE("warmup_iteration=" + std::to_string(iteration));
         execute(warmup, warmup.run_reference);
     }
 
+    init_pam(repro);
     for (int iteration = 0; iteration < 16; iteration++) {
         SCOPED_TRACE("repro_iteration=" + std::to_string(iteration));
         execute(repro, repro.run_reference);
