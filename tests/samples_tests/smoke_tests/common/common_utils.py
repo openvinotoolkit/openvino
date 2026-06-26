@@ -76,12 +76,17 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
     sys.stdout.write("Running command:\n" + " ".join(cmd) + "\n")
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
-        stdout, stderr = p.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        p.kill()
-        stdout, stderr = p.communicate()
-        stdout_str = stdout.decode("utf-8") if stdout else ""
-        return -1, stdout_str, f"Command timed out after {timeout} seconds"
+        try:
+            stdout, stderr = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            stdout, stderr = p.communicate()
+            stdout_str = stdout.decode("utf-8") if stdout else ""
+            return -1, stdout_str, f"Command timed out after {timeout} seconds"
+    finally:
+        if p.poll() is None:
+            p.kill()
+            p.wait()
     stdout = str(stdout.decode('utf-8'))
     stderr = str(stderr.decode('utf-8'))
     if out_format == "html":
