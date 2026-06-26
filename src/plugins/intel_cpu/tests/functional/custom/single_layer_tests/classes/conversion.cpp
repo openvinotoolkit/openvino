@@ -113,13 +113,30 @@ void ConvertCPULayerTest::SetUp() {
         primitive = "acl";
     }
 #endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    auto is_riscv_jit_precision = [](ov::element::Type prc) {
+        return prc == ov::element::f32 || prc == ov::element::u8 || prc == ov::element::i8;
+    };
+    if (selectedType.empty() && shapes.first.is_static() && is_riscv_jit_precision(inPrc) &&
+        is_riscv_jit_precision(outPrc)) {
+        primitive = "jit";
+    }
+#endif
     if (primitive != "jit" && !isInOutPrecisionSupported(inPrc, outPrc))
         primitive = "ref";
 
     validate_out_prc();
 
     auto exec_type_precision = inPrc != ov::element::u8 ? inPrc : ov::element::Type(ov::element::i8);
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (primitive == "jit" && inPrc == ov::element::u8) {
+        selectedType = primitive + "_I8";
+    } else {
+        selectedType = makeSelectedTypeStr(primitive, exec_type_precision);
+    }
+#else
     selectedType = makeSelectedTypeStr(primitive, exec_type_precision);
+#endif
 
     for (size_t i = 0; i < shapes.second.size(); i++) {
         targetStaticShapes.push_back(std::vector<ov::Shape>{shapes.second[i]});
