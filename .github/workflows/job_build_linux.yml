@@ -290,9 +290,9 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
-          # Ubuntu 24 does not allow using the system Python directly so
+          # Ubuntu 24+ does not allow using the system Python directly (PEP 668) so
           # we have to use Python from the virtual environment created in Docker
-          [[ "${OS}" == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          [[ "${OS}" == "ubuntu_24_04" || "${OS}" == "ubuntu_26_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
