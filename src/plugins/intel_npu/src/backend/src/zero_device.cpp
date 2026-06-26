@@ -221,6 +221,6 @@ bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilit
            output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
 }
 
-const ze_device_properties_t& ZeroDevice::getDeviceProperties() const {
-    return _device_properties;
+IDevice::DeviceProperties ZeroDevice::getDeviceProperties() const {
+    return {_device_properties.deviceId, _device_properties.subdeviceId, _device_properties.numSlices};
 }

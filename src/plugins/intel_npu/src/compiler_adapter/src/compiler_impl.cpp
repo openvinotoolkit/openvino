@@ -94,7 +94,8 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir, const ze_device_properties_t& deviceProperties)
+VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _logHandle(nullptr),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
@@ -126,21 +127,29 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir, const ze_device_
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
     vcl_device_desc_t vclDeviceDesc = {};
-    if (deviceProperties.stype != ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES) {
+    if (deviceProperties.has_value()) {
+        constexpr auto invalidRevision = std::numeric_limits<uint16_t>::max();
+        const auto revision = deviceProperties->subdeviceId >= invalidRevision
+                                  ? invalidRevision
+                                  : static_cast<uint16_t>(deviceProperties->subdeviceId);
+
+        if (revision == invalidRevision) {
+            _logger.warning("Device subdeviceId %u does not fit into VCL revision field; using invalid revision "
+                            "sentinel instead",
+                            deviceProperties->subdeviceId);
+        }
+
+        _logger.info("Device description is provided, using deviceID: 0x%X, subdeviceID: %u, maxTiles: %u",
+                     deviceProperties->deviceId,
+                     deviceProperties->subdeviceId,
+                     deviceProperties->numSlices);
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), deviceProperties->deviceId, revision, deviceProperties->numSlices};
+    } else {
         // This information cannot be determined during the initialization phase; set device desc default value, the
         // related info will be processed in compile phase if passed by user.
         _logger.info("Device description is not provided, using default values");
         uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
         vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
-    } else {
-        _logger.info("Device description is provided, using deviceID: 0x%X, subdeviceID: %u, maxTiles: %u",
-                     deviceProperties.deviceId,
-                     deviceProperties.subdeviceId,
-                     deviceProperties.numSlices);
-        vclDeviceDesc = {sizeof(vcl_device_desc_t),
-                         deviceProperties.deviceId,
-                         static_cast<uint16_t>(deviceProperties.subdeviceId),
-                         deviceProperties.numSlices};
     }
 
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",

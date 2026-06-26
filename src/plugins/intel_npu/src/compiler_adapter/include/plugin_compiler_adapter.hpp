@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include "compiler_impl.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
@@ -19,7 +21,7 @@ namespace intel_npu {
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                          const ze_device_properties_t& deviceProperties = {});
+                          const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const FilteredConfig& config) const override;

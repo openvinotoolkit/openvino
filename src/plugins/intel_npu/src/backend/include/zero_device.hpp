@@ -39,7 +39,7 @@ public:
 
     bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const override;
 
-    const ze_device_properties_t& getDeviceProperties() const override;
+    DeviceProperties getDeviceProperties() const override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;

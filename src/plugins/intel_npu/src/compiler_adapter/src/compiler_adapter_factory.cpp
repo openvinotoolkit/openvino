@@ -6,7 +6,6 @@
 
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "plugin_compiler_adapter.hpp"
 
 namespace intel_npu {

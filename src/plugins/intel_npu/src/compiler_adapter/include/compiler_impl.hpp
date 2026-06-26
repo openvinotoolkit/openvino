@@ -8,8 +8,8 @@
 #include <optional>
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
@@ -20,7 +20,8 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl(const std::string& libraryDir, const ze_device_properties_t& deviceProperties = {});
+    VCLCompilerImpl(const std::string& libraryDir,
+                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
     ~VCLCompilerImpl();
 
     /**
@@ -54,7 +55,7 @@ public:
      *                          Allocate W3 -> Init2
      *
      * This is why there is an additional parameter callNumber:
-     * Compiler should somehow understand wich Init(or Main) to return
+     * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
     ov::Tensor compileWsIterative(const std::shared_ptr<ov::Model>& model,
@@ -87,11 +88,10 @@ public:
     bool get_supported_options(std::vector<char>& options) const;
 
     /**
-     * @brief Checks whether the given option and value are supported by the compiler for the specified device.
-     * This overload is used when a device descriptor is available, allowing device-specific validation.
+     * @brief Checks whether the given option and value are supported by the compiler
      * @param option The option name to check
      * @param optValue The option value to validate
-     * @return true if the option and value are supported for the given device, false otherwise
+     * @return true if the option and value are supported, false otherwise
      */
     bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const;
