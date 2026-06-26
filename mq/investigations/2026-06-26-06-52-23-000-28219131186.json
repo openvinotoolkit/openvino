@@ -1,0 +1,22 @@
+{
+  "run_id": 28219131186,
+  "timestamp": "2026-06-26T06:52:23Z",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "trigger": "merge_group",
+  "head_sha": "724e46a168d8b7e751ee48286465e6a8b834bee0",
+  "pr_number": 36518,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36518",
+  "pr_author": "ShaojieZhuIntel",
+  "signature": "134f01149f41adcc",
+  "category": "Flaky Test",
+  "failed_jobs": [
+    {
+      "id": 83601267163,
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure"
+    }
+  ],
+  "summary": "Single TF2 Keras LSTM accuracy test failed on CPU due to numerical mismatch. The test uses LSTM with dropout=(0.1, 0.3) and relu activation which is non-deterministic. Max diff was 0.119 (threshold 1e-4). PR #36518 is an NPU VM runtime library rename and is unrelated to CPU LSTM computation.",
+  "root_cause": "Flaky test - LSTM with dropout produces non-deterministic outputs; numerical precision exceeds 1e-4 threshold intermittently",
+  "confidence": "High"
+}
