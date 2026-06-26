@@ -193,7 +193,6 @@ bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
         const auto &img2 = downcast<const ze::gpu_image2d>(mem2);
         return img1.get_resource().handle() == img2.get_resource().handle();
     }
-    OPENVINO_THROW("[GPU] Unsupported memory type for buffer comparison");
 }
 
 std::shared_ptr<kernel_builder> ze_engine::create_kernel_builder() const {

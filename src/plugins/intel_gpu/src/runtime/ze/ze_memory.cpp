@@ -34,9 +34,11 @@ bool check_allocation_range(ze_context_handle_t ctx, void *ptr, size_t expected_
     void *base = nullptr;
     size_t allocation_size = 0;
     OV_ZE_EXPECT(ze::zeMemGetAddressRange(ctx, ptr, &base, &allocation_size));
-    void *alloc_end = static_cast<char*>(base) + allocation_size;
-    void *ptr_end = static_cast<char*>(ptr) + expected_size;
-    return (ptr >= base) && (ptr_end <= alloc_end);
+    const auto base_u = reinterpret_cast<std::uintptr_t>(base);
+    const auto ptr_u = reinterpret_cast<std::uintptr_t>(ptr);
+    const auto alloc_end_u = base_u + allocation_size;
+    const auto ptr_end_u = ptr_u + expected_size;
+    return (ptr_u >= base_u) && (ptr_end_u >= ptr_u) && (ptr_end_u <= alloc_end_u);
 }
 
 std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& events) {
