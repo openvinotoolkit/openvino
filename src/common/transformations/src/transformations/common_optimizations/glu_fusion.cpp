@@ -50,7 +50,7 @@ GLUFusion::GLUFusion() {
 
     // Mul(Xw, Xv) = Swish(Xw) * Xv
     auto glu_m = std::make_shared<pattern::op::Or>(OutputVector{swish_m, gelu_m});
-    auto mul_m = pattern::wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)}); 
+    auto mul_m = pattern::wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
