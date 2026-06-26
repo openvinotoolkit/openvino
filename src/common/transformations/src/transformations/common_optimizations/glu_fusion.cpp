@@ -15,7 +15,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/glu.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
@@ -51,17 +50,15 @@ GLUFusion::GLUFusion() {
 
     // Mul(Xw, Xv) = Swish(Xw) * Xv
     auto glu_m = std::make_shared<pattern::op::Or>(OutputVector{swish_m, gelu_m});
-    auto mul_m = pattern::wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)});
-    auto mul_relaxed_m = pattern::wrap_type<ov::op::TypeRelaxed<v1::Multiply>>({glu_m, variadic_split_m->output(1)});
-    auto mul_or_m = std::make_shared<pattern::op::Or>(OutputVector{mul_m, mul_relaxed_m});
+    auto mul_m = pattern::wrap_type<v1::Multiply>({glu_m, variadic_split_m->output(1)}); 
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        OPENVINO_ASSERT(pattern_map.count(mul_or_m));
+        OPENVINO_ASSERT(pattern_map.count(mul_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
-        const auto mul_node = pattern_map.at(mul_or_m).get_node_shared_ptr();
+        const auto mul_node = pattern_map.at(mul_m).get_node_shared_ptr();
         if (!mul_node || transformation_callback(mul_node))
             return false;
 
@@ -137,7 +134,7 @@ GLUFusion::GLUFusion() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(mul_or_m, "GLUFusion");
+    auto m = std::make_shared<pattern::Matcher>(mul_m, "GLUFusion");
     this->register_matcher(m, callback);
 }
 
