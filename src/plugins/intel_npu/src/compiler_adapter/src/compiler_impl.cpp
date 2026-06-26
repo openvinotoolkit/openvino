@@ -252,12 +252,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         uint64_t blobSize = 0;
         vcl_executable_handle_t executable = nullptr;
 
-        auto result = vclAllocatedExecutableCreate4(_compilerHandle,
-                                                    exeDesc,
-                                                    allocator.get(),
-                                                    &blob,
-                                                    &blobSize,
-                                                    &executable);
+        auto result =
+            vclAllocatedExecutableCreate4(_compilerHandle, exeDesc, allocator.get(), &blob, &blobSize, &executable);
         if (result != VCL_RESULT_SUCCESS) {
             // Check if allocations were performed before throwing exception
             auto tracked_allocations = allocator->m_info;
@@ -315,9 +311,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
                         "Compatibility string size is too large to allocate a local buffer");
         std::string compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
-        result = vclExecutableGetCompatibilityString(executable,
-                                                     &compatibilityStringBuffer[0],
-                                                     &compatibilityStringSize);
+        result =
+            vclExecutableGetCompatibilityString(executable, &compatibilityStringBuffer[0], &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
             auto tracked_allocations = allocator->m_info;
             for (const auto& [buffer, size] : tracked_allocations) {
