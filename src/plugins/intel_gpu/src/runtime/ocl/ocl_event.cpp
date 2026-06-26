@@ -3,14 +3,13 @@
 //
 
 #include "ocl_event.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <cassert>
 #include <iostream>
+#include <vector>
 #include <list>
 #include <map>
-#include <vector>
-
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace cldnn;
 using namespace ocl;
@@ -29,7 +28,7 @@ bool is_event_profiled(const cl::Event& event) {
 instrumentation::profiling_interval get_profiling_interval(instrumentation::profiling_stage stage, cl_ulong start, cl_ulong end) {
     auto diff = std::chrono::nanoseconds(end - start);
     auto period = std::make_shared<instrumentation::profiling_period_basic>(diff);
-    return {stage, period, std::chrono::nanoseconds(start), true};
+    return { stage, period, std::chrono::nanoseconds(start), true };
 }
 
 }  // namespace
@@ -68,7 +67,7 @@ void ocl_event::wait_impl() {
     if (_event.get() != nullptr) {
         try {
             _event.wait();
-        } catch (const cl::Error& err) {
+        } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
     }
@@ -83,7 +82,7 @@ bool ocl_event::is_set_impl() {
         if (_event.get() != nullptr) {
             return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
         }
-    } catch (const cl::Error& err) {
+    } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
     return true;
@@ -95,9 +94,9 @@ bool ocl_event::add_event_handler_impl(event_handler, void*) {
 }
 
 static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
-    {instrumentation::profiling_stage::submission, CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT},
-    {instrumentation::profiling_stage::starting, CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START},
-    {instrumentation::profiling_stage::executing, CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END},
+    { instrumentation::profiling_stage::submission, CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT },
+    { instrumentation::profiling_stage::starting, CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START },
+    { instrumentation::profiling_stage::executing, CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END },
 };
 
 bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
@@ -111,7 +110,7 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
         try {
             _event.getProfilingInfo(period.start, &start);
             _event.getProfilingInfo(period.stop, &end);
-        } catch (const cl::Error& err) {
+        } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
 
@@ -125,7 +124,7 @@ void ocl_events::wait_impl() {
     if (_last_ocl_event.get() != nullptr) {
         try {
             _last_ocl_event.wait();
-        } catch (const cl::Error& err) {
+        } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
     }
@@ -140,7 +139,7 @@ bool ocl_events::is_set_impl() {
         if (_last_ocl_event.get() != nullptr) {
             return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
         }
-    } catch (const cl::Error& err) {
+    } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
     return true;
@@ -153,11 +152,11 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
     std::map<instrumentation::profiling_stage, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
-        ocl_event* be = nullptr;
+        ocl_event *be = nullptr;
 
         try {
             be = downcast<ocl_event>(_events[i].get());
-        } catch (const ov::Exception& err) {
+        } catch (const ov::Exception &err) {
             GPU_DEBUG_LOG << "WARNING: failed to downcast event to ocl_event - " << err.what() << std::endl;
             continue;
         }
@@ -171,10 +170,11 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
             try {
                 be->_event.getProfilingInfo(period.start, &ev_start);
                 be->_event.getProfilingInfo(period.stop, &ev_end);
-            } catch (const cl::Error& err) {
+            } catch (cl::Error const& err) {
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             }
-            auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start), static_cast<unsigned long long>(ev_end));
+            auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
+                                              static_cast<unsigned long long>(ev_end));
 
             auto& durations = all_durations[period.stage];
             bool ev_duration_merged = false;

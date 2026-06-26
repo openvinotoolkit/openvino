@@ -4,36 +4,34 @@
 
 #pragma once
 
-#include <atomic>
 #include <chrono>
-#include <fstream>
 #include <memory>
-#include <mutex>
-#include <string>
 #include <vector>
-
+#include <string>
+#include <fstream>
+#include <atomic>
+#include <mutex>
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "openvino/runtime/properties.hpp"
 
 #if defined(_WIN32)
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    ifndef NOGDI
-#        define NOGDI
-#    endif
-
-#    pragma comment(lib, "dxgi.lib")
-#    include <dxgi1_4.h>
-#    include <windows.h>
-#    include <wrl/client.h>
-
-#    include "psapi.h"
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef NOGDI
+#define NOGDI
 #endif
 
-#include "debug_configuration.hpp"
+#include <windows.h>
+#include "psapi.h"
+#include <dxgi1_4.h>
+#include <wrl/client.h>
+#pragma comment(lib, "dxgi.lib")
+#endif
+
 #include "layout.hpp"
 #include "utils.hpp"
+#include "debug_configuration.hpp"
 
 namespace cldnn {
 namespace instrumentation {
@@ -64,9 +62,7 @@ public:
     timer() : start_point(ClockTy::now()) {}
 
     /// @brief Returns time eapsed since construction.
-    val_type uptime() const {
-        return ClockTy::now() - start_point;
-    }
+    val_type uptime() const { return ClockTy::now() - start_point; }
 };
 
 /// @brief Abstract class to represent profiling period.
@@ -81,12 +77,11 @@ struct profiling_period {
 struct profiling_period_basic : profiling_period {
     /// @brief Constructs from @p std::chrono::duration.
     template <class _Rep, class _Period>
-    explicit profiling_period_basic(const std::chrono::duration<_Rep, _Period>& val) : _value(std::chrono::duration_cast<std::chrono::nanoseconds>(val)) {}
+    explicit profiling_period_basic(const std::chrono::duration<_Rep, _Period>& val)
+        : _value(std::chrono::duration_cast<std::chrono::nanoseconds>(val)) {}
 
     /// @brief Returns profiling period value passed in constructor.
-    std::chrono::nanoseconds value() const override {
-        return _value;
-    }
+    std::chrono::nanoseconds value() const override { return _value; }
 
 private:
     std::chrono::nanoseconds _value;
@@ -117,20 +112,13 @@ enum class pipeline_stage : uint8_t {
 
 inline std::ostream& operator<<(std::ostream& os, const pipeline_stage& stage) {
     switch (stage) {
-    case pipeline_stage::shape_inference:
-        return os << "shape_inference";
-    case pipeline_stage::update_implementation:
-        return os << "update_implementation";
-    case pipeline_stage::set_arguments:
-        return os << "set_arguments";
-    case pipeline_stage::update_weights:
-        return os << "update_weights";
-    case pipeline_stage::memory_allocation:
-        return os << "memory_allocation";
-    case pipeline_stage::inference:
-        return os << "inference";
-    default:
-        OPENVINO_ASSERT(false, "[GPU] Unexpected pipeline stage");
+        case pipeline_stage::shape_inference:       return os << "shape_inference";
+        case pipeline_stage::update_implementation: return os << "update_implementation";
+        case pipeline_stage::set_arguments:         return os << "set_arguments";
+        case pipeline_stage::update_weights:        return os << "update_weights";
+        case pipeline_stage::memory_allocation:     return os << "memory_allocation";
+        case pipeline_stage::inference:             return os << "inference";
+        default: OPENVINO_ASSERT(false, "[GPU] Unexpected pipeline stage");
     }
 }
 
@@ -170,13 +158,13 @@ struct perf_counter_hash {
     }
 };
 
-template <typename ProfiledObjectType>
+template<typename ProfiledObjectType>
 class profiled_stage {
 public:
     profiled_stage(bool profiling_enabled, ProfiledObjectType& obj, instrumentation::pipeline_stage stage)
-        : profiling_enabled(profiling_enabled),
-          _obj(obj),
-          _stage(stage) {
+        : profiling_enabled(profiling_enabled)
+        , _obj(obj)
+        , _stage(stage) {
         GPU_DEBUG_IF(profiling_enabled) {
             _per_iter_mode = GPU_DEBUG_VALUE_OR(ov::intel_gpu::ExecutionConfig::get_dump_profiling_data_per_iter(), false);
             _start = std::chrono::high_resolution_clock::now();
@@ -190,19 +178,14 @@ public:
             _finish = std::chrono::high_resolution_clock::now();
             auto stage_duration = std::chrono::duration_cast<us>(_finish - _start).count();
             auto custom_stage_duration = std::chrono::duration_cast<us>(custom_duration).count();
-            auto total_duration = custom_stage_duration == 0 ? stage_duration : custom_stage_duration;
+            auto total_duration = custom_stage_duration == 0 ? stage_duration
+                                                             : custom_stage_duration;
             _obj.add_profiling_data(_stage, cache_hit, memalloc_info, total_duration, _per_iter_mode);
         }
     }
-    void set_cache_hit(bool val = true) {
-        cache_hit = val;
-    }
-    void add_memalloc_info(std::string info = "") {
-        memalloc_info += info;
-    }
-    void set_custom_stage_duration(std::chrono::nanoseconds duration) {
-        custom_duration = duration;
-    }
+    void set_cache_hit(bool val = true) { cache_hit = val; }
+    void add_memalloc_info(std::string info = "") { memalloc_info += info; }
+    void set_custom_stage_duration(std::chrono::nanoseconds duration) { custom_duration = duration; }
 
 private:
     bool profiling_enabled = false;
@@ -226,9 +209,9 @@ public:
     };
 
     mem_usage_logger(const std::string& stage_name, bool lifetime_logging_mode = true, bool print_mem_usage = true)
-        : _stage_name(stage_name),
-          _lifetime_logging_mode(lifetime_logging_mode),
-          _print_mem_usage(print_mem_usage) {
+        : _stage_name(stage_name)
+        , _lifetime_logging_mode(lifetime_logging_mode)
+        , _print_mem_usage(print_mem_usage) {
         if (_lifetime_logging_mode)
             start_logging();
     }
@@ -250,7 +233,7 @@ public:
     }
 
     memory_footprint get_elapsed_mem_usage() {
-        return memory_footprint{_after.rss - _before.rss, _after.peak_rss - _before.peak_rss};
+        return memory_footprint{ _after.rss - _before.rss, _after.peak_rss - _before.peak_rss };
     }
 
 #if defined(_WIN32)
@@ -262,7 +245,8 @@ public:
 
     void print_mem_usage_info() {
         auto mem_usage = get_elapsed_mem_usage();
-        std::string log_msg = "Memory usage for " + _stage_name + ": " + std::to_string(mem_usage.rss) + " KB (current RSS: " + std::to_string(_after.rss) +
+        std::string log_msg = "Memory usage for " + _stage_name + ": " + std::to_string(mem_usage.rss) +
+                              " KB (current RSS: " + std::to_string(_after.rss) +
                               " KB; peak RSS: " + std::to_string(_after.peak_rss) + " KB)";
 
         int64_t gpu_vram_used = get_gpu_dedicated_vram_used_kb();
@@ -305,7 +289,7 @@ public:
                 return -1;
             }
 
-            IDXGIAdapter* adapter = nullptr;
+            IDXGIAdapter *adapter = nullptr;
             bool found_intel_adapter = false;
 
             for (UINT adapterIndex = 0; dxgi_factory->EnumAdapters(adapterIndex, &adapter) != DXGI_ERROR_NOT_FOUND; adapterIndex++) {
@@ -365,8 +349,7 @@ private:
 
     static bool is_luid_empty(const ov::device::LUID& luid) {
         for (auto b : luid.luid) {
-            if (b != 0)
-                return false;
+            if (b != 0) return false;
         }
         return true;
     }
@@ -382,8 +365,8 @@ private:
 #if defined(_WIN32)
         PROCESS_MEMORY_COUNTERS pmc;
         GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
-        footprint.rss = (int64_t)(pmc.WorkingSetSize / 1024);
-        footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize / 1024);
+        footprint.rss = (int64_t)(pmc.WorkingSetSize/1024);
+        footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize/1024);
 #elif !defined(__APPLE__)
         std::ifstream status("/proc/self/status");
         if (!status.is_open())
