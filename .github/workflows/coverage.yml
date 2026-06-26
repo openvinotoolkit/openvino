@@ -24,7 +24,6 @@ concurrency:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
   ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
@@ -180,7 +179,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          use-pip-proxy: 'true'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
@@ -471,7 +470,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          use-pip-proxy: 'true'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
@@ -663,7 +662,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          use-pip-proxy: 'true'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
@@ -801,7 +800,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          use-pip-proxy: 'true'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 

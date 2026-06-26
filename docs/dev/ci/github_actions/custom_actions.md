@@ -27,7 +27,7 @@ Since `actions/setup-python` does not work on the Linux ARM64 machines,
     uses: ./openvino/.github/actions/setup_python
     with:
       version: '3.11'
-      pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+      use-pip-proxy: 'true'
       set-pip-install-path: 'true'
       self-hosted-runner: 'true'
 ```
