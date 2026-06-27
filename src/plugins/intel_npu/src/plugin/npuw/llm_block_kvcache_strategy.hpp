@@ -19,8 +19,7 @@
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest;   // forward declaration — avoids circular include
-class LLMCompiledModel;  // forward declaration
+class LLMInferRequest;  // forward declaration — avoids circular include
 
 /// @brief Pair of key/value block managers for one transformer layer.
 struct LayerBlockManagers {
@@ -76,18 +75,6 @@ public:
     using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
     explicit LLMBlockKVCacheStrategy(LLMInferRequest& req) : LLMKVCacheStrategy(req) {}
-
-    // -------------------------------------------------------------------------
-    // Static configuration query — usable before construction
-    // -------------------------------------------------------------------------
-
-    /**
-     * @brief Returns true when block-based KV cache is configured in the compiled model.
-     *
-     * Used during LLMInferRequest construction to select the appropriate strategy before
-     * any strategy instance is constructed.
-     */
-    static bool is_configured(const std::shared_ptr<LLMCompiledModel>& compiled_model);
 
     // -------------------------------------------------------------------------
     // LLMKVCacheStrategy interface

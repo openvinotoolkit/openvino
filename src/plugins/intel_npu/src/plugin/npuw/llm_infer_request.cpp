@@ -190,7 +190,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // Instantiate the KV cache strategy and run one-time initialization.
     // on_initialize() requires prefill ports, m_generate_requests, and m_pre_alloc_device
     // to be fully populated, so both steps live here at the end of setup.
-    if (LLMBlockKVCacheStrategy::is_configured(compiled_model)) {
+    if (m_npuw_llm_compiled_model->m_is_block_kv_cache) {
         m_kvcache_strategy = std::make_unique<LLMBlockKVCacheStrategy>(*this);
     } else {
         m_kvcache_strategy = std::make_unique<LLMContinuousKVCacheStrategy>(*this);
@@ -824,6 +824,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                         attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
         });
     }
+
+    // Notify strategy that all prefill chunks are complete.
+    m_kvcache_strategy->on_prefill_done();
 
     LOG_DEBUG("Done.");
 

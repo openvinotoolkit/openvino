@@ -111,6 +111,10 @@ public:
      * Memory will be re-allocated on demand when blocks are next used.
      * Call this between conversations to prevent a long conversation from
      * permanently pinning peak device memory.
+     *
+     * Note: re-allocation happens lazily on the first allocate_block() call
+     * of the next conversation. For NPU-backed tensors this will add latency
+     * to the first prefill chunk of that conversation.
      */
     void clear_all();
 

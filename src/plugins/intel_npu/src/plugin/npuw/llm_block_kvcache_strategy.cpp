@@ -115,20 +115,10 @@ namespace ov {
 namespace npuw {
 
 // ============================================================================
-// Static configuration query
-// ============================================================================
-
-bool LLMBlockKVCacheStrategy::is_configured(const std::shared_ptr<LLMCompiledModel>& compiled_model) {
-    return compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>();
-}
-
-// ============================================================================
 // LLMKVCacheStrategy interface
 // ============================================================================
 
 void LLMBlockKVCacheStrategy::on_initialize() {
-    const auto& compiled_model = m_req.m_npuw_llm_compiled_model;
-
     LOG_INFO("=== Initializing Block-based KV Cache Managers ===");
 
     const auto& prefill_in_ports = m_req.m_prefill_in_ports;
@@ -179,6 +169,11 @@ void LLMBlockKVCacheStrategy::on_reset() {
 }
 
 void LLMBlockKVCacheStrategy::on_prefill_chunk_begin(uint32_t current_prompts_len) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty(),
+                    "Block-based KV cache is enabled but no block inputs were found. "
+                    "Ensure NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE is only set together with "
+                    "chunk prefill and a supported attention pattern (HFA or Pyramid).");
+
     load_past_kv_blocks_to_prefill(m_req.m_prefill_request, m_req.m_prefill_in_ports);
 
     const uint32_t block_size = get_block_size();
@@ -220,7 +215,15 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len
     }
 }
 
-void LLMBlockKVCacheStrategy::on_prefill_done() {}
+void LLMBlockKVCacheStrategy::on_prefill_done() {
+    if (m_zero_copy_last_chunk) {
+        // Restore prefill output tensors from block tensors back to their original buffers.
+        // Without this, the prefill request holds a reference to the block tensors, preventing
+        // clear_all() in on_reset() from actually releasing device memory between conversations.
+        restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
+        m_zero_copy_last_chunk = false;
+    }
+}
 
 void LLMBlockKVCacheStrategy::on_generate_kv_init() {
     if (m_kv_cache_block_managers.empty()) {
