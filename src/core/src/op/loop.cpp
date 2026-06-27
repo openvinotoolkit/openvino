@@ -172,7 +172,22 @@ void Loop::validate_and_infer_types() {
             const auto& input_partial_shape = input(index).get_partial_shape();
             const auto& input_type = input(index).get_element_type();
 
-            body_parameter->set_partial_shape(input_partial_shape);
+            // A merged (back-edged) input holds the outer initial value only on the first iteration;
+            // from the second iteration on it is overwritten by the body result. A statically-empty
+            // dimension (size 0, e.g. an empty KV cache) therefore describes just that initial value,
+            // not the loop-carried shape, so set it dynamic up front instead of clamping the body
+            // parameter at 0. A static 0 is "compatible" with the body's [0, ...] interval, so the
+            // back-edge reconciliation below could not relax it afterwards.
+            PartialShape body_parameter_shape = input_partial_shape;
+            if (body_parameter_shape.rank().is_static()) {
+                for (auto& dim : body_parameter_shape) {
+                    if (dim.is_static() && dim.get_length() == 0) {
+                        dim = Dimension::dynamic();
+                    }
+                }
+            }
+
+            body_parameter->set_partial_shape(body_parameter_shape);
             body_parameter->set_element_type(input_type);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
@@ -334,29 +349,31 @@ Output<Node> Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool Loop::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
-    EvaluationContext evaluation_context;
-    reference::loop(m_bodies[0],
-                    m_output_descriptions[0],
-                    m_input_descriptions[0],
-                    m_special_body_ports,
-                    outputs,
-                    inputs,
-                    evaluation_context);
-    return true;
+    return evaluate(outputs, inputs, {});
 }
 
 bool Loop::evaluate(TensorVector& outputs,
                     const TensorVector& inputs,
                     const EvaluationContext& evaluation_context) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
-    reference::loop(m_bodies[0],
-                    m_output_descriptions[0],
-                    m_input_descriptions[0],
-                    m_special_body_ports,
-                    outputs,
-                    inputs,
-                    evaluation_context);
-    return true;
+    const auto can_evaluate = [](const auto& ops) -> bool {
+        return std::all_of(ops.begin(), ops.end(), [](const auto& node) {
+            return is_type<op::v0::Parameter>(node) || node->has_evaluate();
+        });
+    };
+
+    if (auto body = get_function(); body && can_evaluate(body->get_ops())) {
+        reference::loop(body,
+                        m_output_descriptions[0],
+                        m_input_descriptions[0],
+                        m_special_body_ports,
+                        outputs,
+                        inputs,
+                        evaluation_context);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool Loop::has_evaluate() const {

@@ -17,7 +17,6 @@ from tests import (
     xfail_issue_38699,
     xfail_issue_38701,
     xfail_issue_38706,
-    xfail_issue_38710,
     xfail_issue_38713,
     xfail_issue_38724,
     xfail_issue_38734,
@@ -34,8 +33,6 @@ from tests import (
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
-    skip_segfault,
-    xfail_issue_82038,
     xfail_issue_82039,
     xfail_issue_90649,
     skip_bitwise_ui64,
@@ -44,7 +41,6 @@ from tests import (
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
-    xfail_issue_99970,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -153,9 +149,6 @@ tests_expected_to_fail = [
         xfail_issue_33596,
         "OnnxBackendSimpleModelTest.test_sequence_model1_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model3_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model6_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model8_cpu",
-        "OnnxBackendSimpleModelTest.test_sequence_model2_cpu",
         "OnnxBackendNodeModelTest.test_identity_sequence_cpu",
         "OnnxBackendNodeModelTest.test_if_seq_cpu",
         "OnnxBackendNodeModelTest.test_if_opt_cpu",  # Optional, SequenceConstruct
@@ -288,10 +281,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_simple_rnn_batchwise_cpu",
     ),
     (
-        xfail_issue_38710,
-        "OnnxBackendNodeModelTest.test_reshape_allowzero_reordered_cpu",
-    ),
-    (
         skip_dynamic_model,
         "OnnxBackendNodeModelTest.test_triu_one_row_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
@@ -322,33 +311,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_A_n0p5_exclude_outside_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_scales_cubic_A_n0p5_exclude_outside_cpu",
-    ),
-    (
-        skip_segfault,
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis0_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_2_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis0_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis1_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis2_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_1_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_2_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_3_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis0_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis2_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis3_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_2_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",  # ticket: 90649
-    ),
-    (
-        xfail_issue_82038,
-        "OnnxBackendNodeModelTest.test_scatternd_add_cpu",
-        "OnnxBackendNodeModelTest.test_scatternd_multiply_cpu",
     ),
     (
         xfail_issue_82039,
@@ -412,11 +374,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_axes_3_2_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_larger_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_smaller_cpu",
-    ),
-    (
-        xfail_issue_99970,
-        "OnnxBackendNodeModelTest.test_scatternd_max_cpu",
-        "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
     ),
     (
         xfail_issue_101965,
@@ -543,14 +500,6 @@ tests_expected_to_fail = [
     ),
     (
         skip_issue_125487,
-        "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_0_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_1_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_align_corners_0_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_align_corners_1_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_bilinear_align_corners_0_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_bilinear_align_corners_1_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_nearest_align_corners_0_cpu",

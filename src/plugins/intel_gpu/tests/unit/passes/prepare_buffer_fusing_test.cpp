@@ -2301,3 +2301,86 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_indivisible_padding_with_resha
             ASSERT_FLOAT_EQ(out2[f * crop2_last + y], input_data[f * total_last + offset2 + y])
                 << "output2 mismatch at f=" << f << " y=" << y;
 }
+
+// dyn-aware match() guard: crop with a static own layout but a dynamic predecessor
+// (reshape with concrete output_pattern fed by dynamic input). Without the guard,
+// build-time match took the static path and wrote padding that leaked into runtime.
+TEST(prepare_buffer_fusing, in_place_crop_static_output_with_dynamic_predecessor) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout = layout{ov::PartialShape{-1, 128}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({{1, 128}, data_types::f32, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+
+    const int64_t axis = 2;
+    auto input_data = rg.generate_random_1d<float>(input_mem->count(), -2.f, 2.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, {2, 2});
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    auto offset_q = cldnn::tensor(0);
+    auto offset_k = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(0, 2));
+    topology topology(
+        input_layout("input", in_layout),
+        // Dynamic input collapses to fully static [1,4,4,8] via a concrete output_pattern.
+        reshape("reshape", input_info("input"), true,
+                std::vector<int64_t>{1, 4, 4, 8}, ov::PartialShape{1, 4, 4, 8},
+                cldnn::reshape::reshape_mode::base),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        // Q branch: crop -> eltwise -> gemm(input0)
+        crop("crop_q", {input_info("reshape"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), offset_q, op_mode, 0, axis),
+        eltwise("scale_q", input_info("crop_q"), input_info("crop_q"), eltwise_mode::prod),
+        // K branch: crop -> gemm(input1)
+        crop("crop_k", {input_info("reshape"), input_info("axis"), input_info("splits_length")},
+             cldnn::tensor(1), offset_k, op_mode, 1, axis),
+        gemm("attn", {input_info("scale_q"), input_info("crop_k")},
+             data_types::f32, false, true),
+        reorder("output", input_info("attn"), format::bfyx, data_types::f32,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    // dyn-aware guards must reject in-place crop and leave no stale padding behind.
+    ASSERT_FALSE(network.get_primitive("crop_q")->can_be_optimized());
+    ASSERT_FALSE(network.get_primitive("crop_k")->can_be_optimized());
+    const auto& q_pad = network.get_primitive("crop_q")->get_impl_params()->get_output_layout().data_padding;
+    const auto& k_pad = network.get_primitive("crop_k")->get_impl_params()->get_output_layout().data_padding;
+    ASSERT_FALSE(static_cast<bool>(q_pad));
+    ASSERT_FALSE(static_cast<bool>(k_pad));
+
+    // End-to-end correctness: gemm output matches host reference.
+    const int64_t F = 4, Y = 4, X = 8;
+    auto host_gemm_output = std::vector<float>(F * 2 * 2);
+    for (int64_t f = 0; f < F; f++) {
+        for (int64_t qy = 0; qy < 2; qy++) {
+            for (int64_t ky = 0; ky < 2; ky++) {
+                float acc = 0.f;
+                for (int64_t x = 0; x < X; x++) {
+                    const float q = input_data[f * Y * X + qy * X + x];
+                    const float k = input_data[f * Y * X + (2 + ky) * X + x];
+                    acc += (q * q) * k;
+                }
+                host_gemm_output[f * 4 + qy * 2 + ky] = acc;
+            }
+        }
+    }
+
+    auto out_mem = outputs.at("output").get_memory();
+    cldnn::mem_lock<float> out(out_mem, get_test_stream());
+    ASSERT_EQ(out.size(), host_gemm_output.size());
+    for (size_t i = 0; i < host_gemm_output.size(); i++) {
+        ASSERT_NEAR(out[i], host_gemm_output[i], 1e-3f) << "mismatch at i=" << i;
+    }
+}
