@@ -7,10 +7,10 @@
 #include <memory>
 
 #include "base_sync_infer_request.hpp"
-#include "llm_block_kvcache_extension.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_eagle3_extension.hpp"
 #include "llm_infer_base_request.hpp"
+#include "llm_kvcache_strategy.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "llm_stored_tokens_state.hpp"
@@ -44,9 +44,6 @@ protected:
                        std::shared_ptr<ov::IAsyncInferRequest> to_request,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& to_ports);
-    // Create and initialize generate variant requests with memory sharing
-    void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
-
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -145,10 +142,12 @@ protected:
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_llm_profile;
 
-    // Support multi-block KV cache (all logic encapsulated in extension)
-    BlockKVCacheExtension m_block_kvcache_ext;
+    // KV cache management strategy (set once in the constructor, valid for the object's lifetime)
+    std::unique_ptr<LLMKVCacheStrategy> m_kvcache_strategy;
 
-    // Friend declarations for PrefixCachingHelper to access protected members
+    // Friend declarations: strategies and PrefixCachingHelper need access to protected members
+    friend class LLMContinuousKVCacheStrategy;
+    friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
 };
 
