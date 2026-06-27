@@ -144,7 +144,7 @@ private:
             paramsVec.push_back(sink);
         }
 
-        const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(inputs, params.isCausal);
+        const auto op = std::make_shared<op::v13::ScaledDotProductAttention>(inputs, false, params.isCausal);
 
         return std::make_shared<Model>(OutputVector{op}, paramsVec);
     }

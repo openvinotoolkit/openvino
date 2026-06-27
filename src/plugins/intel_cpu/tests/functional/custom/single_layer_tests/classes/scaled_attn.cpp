@@ -91,7 +91,7 @@ void ScaledAttnLayerCPUTest::SetUp() {
     for (auto& input : inputParams) {
         inputs.push_back(input);
     }
-    auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
+    auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, false, is_causal);
     sdp->set_friendly_name("mha");
     function = create_ov_model(inType, inputParams, sdp, "SDP");
 }

@@ -180,7 +180,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
         sink_const->set_friendly_name("sink");
         inputs.push_back(sink_const);
     }
-    auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
+    auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, false, is_causal);
     sdp->set_friendly_name("sdpa");
 
     auto output = std::make_shared<ov::op::v0::Result>(sdp->output(0));

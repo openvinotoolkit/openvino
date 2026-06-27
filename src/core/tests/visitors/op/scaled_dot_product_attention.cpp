@@ -18,12 +18,14 @@ TEST(attributes, scaled_dot_product_attention) {
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 32, 32});
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 32, 32});
     const auto casual = false;
+    const auto gqa_mode = false;
 
-    const auto op = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, casual);
+    const auto op = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, gqa_mode, casual);
     NodeBuilder builder(op, {query, key, value});
     auto g_sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(builder.create());
 
     constexpr auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(op->get_causal(), g_sdpa->get_causal());
+    EXPECT_EQ(op->get_gqa_mode(), g_sdpa->get_gqa_mode());
 }

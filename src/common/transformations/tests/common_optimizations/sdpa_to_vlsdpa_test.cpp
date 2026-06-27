@@ -39,9 +39,10 @@ std::shared_ptr<ov::Model> build_model(const string& mask_name) {
     mask->get_output_tensor(0).set_names({mask_name});
 
     const auto casual = false;
+    const auto gqa_mode = false;
 
     auto sdpa =
-        std::make_shared<opset13::ScaledDotProductAttention>(transpose_q, transpose_k, transpose_v, mask, casual);
+        std::make_shared<opset13::ScaledDotProductAttention>(transpose_q, transpose_k, transpose_v, mask, gqa_mode, casual);
     sdpa->set_friendly_name("sdpa");
 
     auto transpose_o = std::make_shared<Transpose>(sdpa, Constant::create(element::i64, Shape{3}, {1, 0, 2}));

@@ -417,7 +417,7 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
         qk_debug_output = results[1];
     } else {
         // SDPA path (primary fast path)
-        Y = build_sdpa(Q, K, V, has_key_padding_mask, attn_mask, scale_attr, false);
+        Y = build_sdpa(Q, K, V, has_key_padding_mask, attn_mask, scale_attr, false, false);
     }
 
     Y = detail::reshape_4d_to_3d(Y);

@@ -185,6 +185,7 @@ public:
                         cross_attn_node->input(1).get_source_output(),
                         cross_attn_node->input(2).get_source_output(),
                         unsq2->output(0),
+                        false,
                         false);
                     ov::replace_node(cross_attn_node, sdpa);
                 } else {

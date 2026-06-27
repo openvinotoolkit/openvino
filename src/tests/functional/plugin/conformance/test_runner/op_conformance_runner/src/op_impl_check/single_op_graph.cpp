@@ -1141,9 +1141,10 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::ScaledDot
     const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 5});
     const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     auto causal = false;
+    auto gqa_mode = false;
 
     const auto op =
-        std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, gqa_mode, causal);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, attention_mask, scale}, "ScaledDotProductAttentionGraph");
 }

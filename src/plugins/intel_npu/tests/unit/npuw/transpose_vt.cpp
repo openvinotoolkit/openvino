@@ -339,6 +339,7 @@ protected:
                                                                                 mask_input_1,
                                                                                 scale_node,
                                                                                 sink,
+                                                                                false,
                                                                                 false);
             } else {
                 sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_input,
@@ -346,6 +347,7 @@ protected:
                                                                                 concat_or_reshape,
                                                                                 mask_input_1,
                                                                                 scale_node,
+                                                                                false,
                                                                                 false);
             }
 

@@ -33,7 +33,9 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, dynamic_shapes) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{-1, -1, -1});
     const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{-1});
     auto causal = false;
-    op = make_op(query, key, value, attention_mask, scale, causal);
+    auto gqa_mode = false;
+
+    op = make_op(query, key, value, attention_mask, scale, gqa_mode, causal);
 
     input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -48,7 +50,9 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, static_shapes) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, ov::Shape{1, 3, 5});
     const auto scale = std::make_shared<opset13::Parameter>(element::f32, ov::Shape{1});
     auto causal = false;
-    op = make_op(query, key, value, attention_mask, scale, causal);
+    auto gqa_mode = false;
+
+    op = make_op(query, key, value, attention_mask, scale, gqa_mode, causal);
 
     input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {1}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -63,7 +67,9 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, mixed_shapes) {
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1, {3, 5}, 5});
     const auto scale = std::make_shared<opset13::Parameter>(element::f32, ov::Shape{});
     auto causal = false;
-    op = make_op(query, key, value, attention_mask, scale, causal);
+    auto gqa_mode = false;
+
+    op = make_op(query, key, value, attention_mask, scale, gqa_mode, causal);
 
     input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -78,8 +84,9 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, attention_L_broadca
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
     const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
     auto causal = false;
+    auto gqa_mode = false;
 
-    op = make_op(query, key, value, attention_mask, scale, causal);
+    op = make_op(query, key, value, attention_mask, scale, gqa_mode, causal);
 
     input_shapes = StaticShapeVector{{2, 8, 16, 32}, {2, 8, 24, 32}, {2, 8, 24, 48}, {1, 1, 24}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -94,8 +101,9 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, attention_S_broadca
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
     const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
     auto causal = false;
+    auto gqa_mode = false;
 
-    op = make_op(query, key, value, attention_mask, scale, causal);
+    op = make_op(query, key, value, attention_mask, scale, gqa_mode, causal);
 
     input_shapes = StaticShapeVector{{2, 8, 16, 32}, {2, 8, 24, 32}, {2, 8, 24, 48}, {1, 16, 1}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -110,8 +118,9 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_correct_
     const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
     const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
     auto causal = true;
+    auto gqa_mode = false;
 
-    op = make_op(query, key, value, attention_mask, scale, causal);
+    op = make_op(query, key, value, attention_mask, scale, gqa_mode, causal);
     input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {}, {}, {2, 3, 1}};
     output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);

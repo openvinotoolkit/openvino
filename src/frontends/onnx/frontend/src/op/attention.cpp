@@ -88,6 +88,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
 
     // Attributes
     bool is_causal = static_cast<bool>(node.get_attribute_value<int64_t>("is_causal", 0));
+    bool is_gqa = false;
     float scale_attr = node.get_attribute_value<float>("scale", 0.0f);
     float softcap = node.get_attribute_value<float>("softcap", 0.0f);
     int64_t qk_matmul_output_mode = node.get_attribute_value<int64_t>("qk_matmul_output_mode", 0);
@@ -166,6 +167,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         int64_t n_rep = q_num_heads / kv_num_heads;
         K = detail::repeat_kv(K, n_rep);
         V = detail::repeat_kv(V, n_rep);
+        is_gqa = true;
     }
     // Case 2: head counts from shapes (4D inputs without attributes)
     else {
@@ -185,6 +187,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
                 int64_t n_rep = static_cast<int64_t>(q_heads / kv_heads);
                 K = detail::repeat_kv(K, n_rep);
                 V = detail::repeat_kv(V, n_rep);
+                is_gqa = true;
             }
         }
     }
@@ -238,7 +241,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         }
     } else {
         // SDPA path (primary fast path)
-        Y = build_sdpa(Q, K, V, has_attn_mask, attn_mask, scale_attr, is_causal);
+        Y = build_sdpa(Q, K, V, has_attn_mask, attn_mask, scale_attr, is_gqa, is_causal);
     }
 
     // Reshape output back to 3D if Q was 3D

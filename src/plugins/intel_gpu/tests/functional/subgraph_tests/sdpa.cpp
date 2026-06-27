@@ -52,7 +52,7 @@ protected:
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(split->output(0), constant1, false);
         auto reshape2 = std::make_shared<ov::op::v1::Reshape>(split->output(1), constant2, false);
         auto reshape3 = std::make_shared<ov::op::v1::Reshape>(split->output(2), constant3, false);
-        auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(reshape1, reshape2, reshape3, false);
+        auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(reshape1, reshape2, reshape3, false, false);
         sdpa->set_friendly_name("sdpa");
 
         auto output = std::make_shared<ov::op::v0::Result>(sdpa->output(0));

@@ -139,7 +139,7 @@ public:
         std::shared_ptr<ov::Node> v_in = concatV;
         k_in = std::make_shared<ov::op::v1::Transpose>(k_in, preOrder);
         v_in = std::make_shared<ov::op::v1::Transpose>(v_in, preOrder);
-        auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in, k_in, v_in, atten_mask, scale, sink, false);
+        auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_in, k_in, v_in, atten_mask, scale, sink, false, false);
         sdp->set_friendly_name("mha");
         auto pastk_assign = std::make_shared<ov::op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<ov::op::v6::Assign>(concatV, var_v);

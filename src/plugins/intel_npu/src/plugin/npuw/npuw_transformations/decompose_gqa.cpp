@@ -112,7 +112,7 @@ public:
 
         const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
         const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
-
+        bool gqa_mode = false;
         // Broadcast KV if grouped query attention
         const size_t kv_num_heads_factor = num_heads / kv_num_heads;
         if (kv_num_heads_factor > 1) {
@@ -129,6 +129,7 @@ public:
             auto extended_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
             K = register_new_node<v1::Reshape>(K, extended_kv_shape, false);
             V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
+            gqa_mode = true;
         }
 
         // Make attention mask
@@ -174,9 +175,9 @@ public:
         std::shared_ptr<ov::Node> qga_output;
         if (scale != 0.0f) {
             auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, gqa_mode, false);
         } else {
-            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, gqa_mode, false);
         }
 
         // transpose the result from (batch_size, num_heads, sequence_length, head_size)

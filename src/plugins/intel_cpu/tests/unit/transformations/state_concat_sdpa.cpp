@@ -66,7 +66,7 @@ namespace {
         auto g_v = std::make_shared<ov::op::v8::Gather>(rv_v, beam_idx, axis);
         auto c_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{g_k, k_cur}, 2);
         auto c_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{g_v, v_cur}, 2);
-        auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, c_k, c_v, false);
+        auto sdp = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, c_k, c_v, false,false);
         return {sdp, c_k, c_v};
     }
 
@@ -160,9 +160,9 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
                 }
                 return reshape_Reshape;
             };
-            sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, make_multi_query(concatK), make_multi_query(concatV), false);
+            sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, make_multi_query(concatK), make_multi_query(concatV), false, false);
         } else {
-            sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concatK, concatV, false);
+            sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concatK, concatV, false, false);
         }
     }
     if (hasConvert) {
@@ -307,7 +307,7 @@ static std::shared_ptr<ov::Model> makeSharedKVModel(const ov::PartialShape& inpu
         pastv, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
     auto concat_k1 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_k1, k1}, 2);
     auto concat_v1 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_v1, v1}, 2);
-    auto sdpa1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q1, concat_k1, concat_v1, false);
+    auto sdpa1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q1, concat_k1, concat_v1, false, false);
     auto add1 = std::make_shared<op::v1::Add>(sdpa1, op::v0::Constant::create(element::f32, {1}, {1.0f}));
 
     // Path 2 (fans out from the same ReadValue as path 1)
@@ -317,7 +317,7 @@ static std::shared_ptr<ov::Model> makeSharedKVModel(const ov::PartialShape& inpu
         pastv, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
     auto concat_k2 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_k2, k2}, 2);
     auto concat_v2 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_v2, v2}, 2);
-    auto sdpa2 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q2, concat_k2, concat_v2, false);
+    auto sdpa2 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q2, concat_k2, concat_v2, false, false);
     auto add2 = std::make_shared<op::v1::Add>(sdpa2, op::v0::Constant::create(element::f32, {1}, {1.0f}));
 
     // Single pair of Assigns for the shared Variables (from path 1's Concat).
@@ -376,14 +376,14 @@ static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::P
     auto g_vs1 = std::make_shared<ov::op::v8::Gather>(rv_vs, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
     auto c_ks1 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ks1, k_s1}, 2);
     auto c_vs1 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_vs1, v_s1}, 2);
-    auto sdpa_s1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_s1, c_ks1, c_vs1, false);
+    auto sdpa_s1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_s1, c_ks1, c_vs1, false, false);
     auto add_s1 = std::make_shared<op::v1::Add>(sdpa_s1, op::v0::Constant::create(element::f32, {1}, {1.0f}));
 
     auto g_ks2 = std::make_shared<ov::op::v8::Gather>(rv_ks, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
     auto g_vs2 = std::make_shared<ov::op::v8::Gather>(rv_vs, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
     auto c_ks2 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ks2, k_s2}, 2);
     auto c_vs2 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_vs2, v_s2}, 2);
-    auto sdpa_s2 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_s2, c_ks2, c_vs2, false);
+    auto sdpa_s2 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_s2, c_ks2, c_vs2, false, false);
     auto add_s2 = std::make_shared<op::v1::Add>(sdpa_s2, op::v0::Constant::create(element::f32, {1}, {1.0f}));
 
     auto assign_ks = std::make_shared<op::v6::Assign>(c_ks1, var_ks);
@@ -417,7 +417,7 @@ static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::P
             std::make_shared<ov::op::v8::Gather>(rv_ve, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
         concat_ke = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ke, k_e}, 2);
         concat_ve = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ve, v_e}, 2);
-        sdp_e = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_e, concat_ke, concat_ve, false);
+        sdp_e = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_e, concat_ke, concat_ve, false, false);
     }
     auto add_e = std::make_shared<op::v1::Add>(sdp_e, op::v0::Constant::create(element::f32, {1}, {1.0f}));
     auto assign_ke = std::make_shared<op::v6::Assign>(concat_ke, var_ke);
@@ -498,7 +498,7 @@ makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
     auto mask0 = std::make_shared<ov::op::v1::Add>(mask0_param, pos_bcast);
     auto mask1 = std::make_shared<ov::op::v1::Add>(mask1_param, pos_bcast);
 
-    auto sdp0 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q0, c_k0, c_v0, mask0, false);
+    auto sdp0 = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q0, c_k0, c_v0, mask0, false, false);
     auto add0 = std::make_shared<ov::op::v1::Add>(sdp0,
                                                   ov::op::v0::Constant::create(ov::element::f32, {1}, {1.0f}));
     auto assign_k0 = std::make_shared<ov::op::v6::Assign>(c_k0, var_k0);
@@ -520,6 +520,7 @@ makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
                                                                          branch1.concat_k,
                                                                          branch1.concat_v,
                                                                          mask1,
+                                                                         false,
                                                                          false);
     auto add1 = std::make_shared<ov::op::v1::Add>(sdp1,
                                                   ov::op::v0::Constant::create(ov::element::f32, {1}, {1.0f}));
