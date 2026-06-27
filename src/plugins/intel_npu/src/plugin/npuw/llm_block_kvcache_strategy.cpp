@@ -126,9 +126,10 @@ void LLMBlockKVCacheStrategy::on_initialize() {
 
     auto block_shapes = find_block_shapes(prefill_in_ports);
     if (block_shapes.found_key) {
-        // Dummy tensor optimization: share one dummy tensor per shape across all block inputs
-        auto dummy_tensors = allocate_dummy_block_tensors(block_shapes);
-        set_dummy_tensors_to_all_requests(dummy_tensors,
+        // Dummy tensor optimization: share one dummy tensor per shape across all block inputs.
+        // Store in m_dummy_tensors so on_reset() can restore ports to release block tensor refs.
+        m_dummy_tensors = allocate_dummy_block_tensors(block_shapes);
+        set_dummy_tensors_to_all_requests(m_dummy_tensors,
                                           m_req.m_prefill_request,
                                           m_req.m_generate_requests,
                                           prefill_in_ports,
@@ -162,6 +163,17 @@ void LLMBlockKVCacheStrategy::on_initialize() {
 }
 
 void LLMBlockKVCacheStrategy::on_reset() {
+    if (!m_kv_cache_block_managers.empty()) {
+        // Restore dummy tensors on all numbered block input ports (prefill + every generate
+        // variant) so that no port retains a stale reference to a specific block tensor from
+        // the previous conversation.  on_generate_kv_init() and load_past_kv_blocks_to_prefill()
+        // will re-bind the correct tensors before the next round's inference begins.
+        set_dummy_tensors_to_all_requests(m_dummy_tensors,
+                                          m_req.m_prefill_request,
+                                          m_req.m_generate_requests,
+                                          m_req.m_prefill_in_ports,
+                                          m_req.m_generate_variant_in_ports);
+    }
     for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
         layer_managers.key_manager->clear_all();
         layer_managers.value_manager->clear_all();

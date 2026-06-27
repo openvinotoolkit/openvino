@@ -148,8 +148,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     };
     const size_t num_variants = compiled_model->m_generate_compiled_variants.size();
     m_generate_requests.reserve(num_variants);
+    m_generate_base_requests.reserve(num_variants);
     for (size_t i = 0; i < num_variants; ++i) {
-        register_generate_request(compiled_model->m_generate_compiled_variants[i]->create_infer_request());
+        auto base_req = compiled_model->m_generate_compiled_variants[i]->create_base_infer_request();
+        m_generate_base_requests.push_back(base_req);
+        register_generate_request(compiled_model->m_generate_compiled_variants[i]->wrap_async_infer_request(base_req));
     }
     // Set default to the largest variant for backward compatibility
     m_kvcache_request = m_generate_requests.back();
@@ -441,6 +444,21 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     }
 
     m_kvcache_strategy->on_reset();
+
+    // With NPUW_UNFOLD_IREQS=YES (the performance default), each function-call sub-request
+    // holds its own shared_ptr to block tensors.  on_reset() sets dummy tensors on the outer
+    // (IAsyncInferRequest) level for all variants, but sub-requests only update their tensors
+    // the next time infer() runs their function_prologue.  Variants that are not selected for
+    // the upcoming conversation (e.g. V8K when switching to V1K) may never run infer() again,
+    // so their sub-requests would hold block tensor refs indefinitely.
+    // Calling propagate_params_to_subrequests() now re-runs bind_global_params on all
+    // sub-requests, pushing the dummies that on_reset() placed in the outer m_port_to_tensor
+    // down into sub-requests, and immediately dropping all remaining block tensor refs.
+    if (m_npuw_llm_compiled_model->m_is_block_kv_cache) {
+        for (auto& base_req : m_generate_base_requests) {
+            base_req->propagate_params_to_subrequests();
+        }
+    }
 
     for (const auto& input_name : m_lincache_past_names) {
         if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {

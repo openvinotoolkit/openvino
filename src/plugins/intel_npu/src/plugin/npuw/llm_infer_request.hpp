@@ -86,6 +86,10 @@ protected:
     // NOTE: This is just a casted pointer for convenience. In fact it points to the
     // same object as m_prefill_request.
     std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
+    // Base infer requests for all generate variants, parallel to m_generate_requests.
+    // Used to propagate dummy tensors to sub-requests on conversation reset, ensuring that
+    // sub-requests also release stale block tensor refs.
+    std::vector<std::shared_ptr<ov::npuw::IBaseInferRequest>> m_generate_base_requests;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;

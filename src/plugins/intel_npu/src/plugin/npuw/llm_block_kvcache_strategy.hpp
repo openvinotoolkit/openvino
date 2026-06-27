@@ -187,6 +187,11 @@ private:
     // Snapshotted original prefill output tensors for restore_prefill_output_buffers()
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_prefill_original_output_tensors;
 
+    // Dummy tensors shared across all numbered block input ports.
+    // Stored here so on_reset() can restore all ports to dummy tensors before clear_all(),
+    // releasing any live shared_ptr references held by inference requests.
+    DummyTensors m_dummy_tensors;
+
     // Whether the most recent on_prefill_chunk_begin() chose the zero-copy path.
     bool m_zero_copy_last_chunk = false;
 };

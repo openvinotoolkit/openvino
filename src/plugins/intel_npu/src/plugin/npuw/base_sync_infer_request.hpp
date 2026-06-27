@@ -54,6 +54,12 @@ public:
 
     void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
 
+    // After set_tensor() has replaced block tensors with dummies on the outer (LLM-level)
+    // request, call this to push those updated tensors into sub-requests via bind_global_params.
+    // This ensures that unfolded sub-requests (NPUW_UNFOLD_IREQS=YES) also release their
+    // stale shared_ptr refs to block tensors, allowing NPU memory to be freed immediately.
+    void propagate_params_to_subrequests();
+
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
