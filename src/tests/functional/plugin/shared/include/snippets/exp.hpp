@@ -32,6 +32,16 @@ protected:
     void SetUp() override;
 };
 
+class HSigmoid : public Exp {
+protected:
+    void SetUp() override;
+};
+
+class SoftSign : public Exp {
+protected:
+    void SetUp() override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

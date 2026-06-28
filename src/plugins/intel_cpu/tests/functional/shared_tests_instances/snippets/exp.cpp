@@ -35,6 +35,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExpReciprocal, ExpReciprocal,
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Exp::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_HSigmoid, HSigmoid,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inShapes),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(1), // HSigmoid
+                                 ::testing::Values(1),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         Exp::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SoftSign, SoftSign,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inShapes),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(1), // SoftSign
+                                 ::testing::Values(1),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         Exp::getTestCaseName);
+
 } // namespace
 } // namespace snippets
 } // namespace test

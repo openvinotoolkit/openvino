@@ -53,6 +53,30 @@ void ExpReciprocal::SetUp() {
     setIgnoreCallbackMode();
 }
 
+void HSigmoid::SetUp() {
+    const auto& [inputShape0, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
+    init_input_shapes({inputShape0});
+    auto f = ov::test::snippets::HSigmoidFunction(inputDynamicShapes);
+    function = f.getOriginal();
+    setInferenceType(type);
+    setIgnoreCallbackMode();
+}
+
+void SoftSign::SetUp() {
+    const auto& [inputShape0, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
+    init_input_shapes({inputShape0});
+    auto f = ov::test::snippets::SoftSignFunction(inputDynamicShapes);
+    function = f.getOriginal();
+    setInferenceType(type);
+    setIgnoreCallbackMode();
+}
+
 
 TEST_P(Exp, CompareWithRefImpl) {
     run();
@@ -60,6 +84,16 @@ TEST_P(Exp, CompareWithRefImpl) {
 }
 
 TEST_P(ExpReciprocal, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(HSigmoid, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(SoftSign, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }
