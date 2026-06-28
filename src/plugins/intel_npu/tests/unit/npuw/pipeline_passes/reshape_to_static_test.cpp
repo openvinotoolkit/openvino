@@ -329,7 +329,7 @@ static std::shared_ptr<ov::Model> build_vlm_inputs_model() {
 }
 
 // --- Test 6 -------------------------------------------------------------------
-// visual_pos_masks must be reshaped to {2, input_size}.
+// visual_pos_masks must be reshaped to {1, input_size}.
 // The Whisper kvcache override (lhs_seq_size && kvcache_size > 4) must NOT
 // affect visual_pos_masks — even when lhs_seq_size is non-zero.
 TEST(ReshapeToStaticVLMTest, VisualPosMasksShapeIsRowsByInputSize) {
@@ -351,8 +351,8 @@ TEST(ReshapeToStaticVLMTest, VisualPosMasksShapeIsRowsByInputSize) {
             found = true;
             const auto& shape = input.get_partial_shape();
             ASSERT_TRUE(shape.is_static()) << "visual_pos_masks must be static after ReshapeToStatic";
-            EXPECT_EQ(shape.to_shape(), (ov::Shape{2, input_size}))
-                << "visual_pos_masks must have shape {2, input_size}";
+            EXPECT_EQ(shape.to_shape(), (ov::Shape{1, input_size}))
+                << "visual_pos_masks must have shape {1, input_size}";
         }
     }
     EXPECT_TRUE(found) << "visual_pos_masks input not found in model";

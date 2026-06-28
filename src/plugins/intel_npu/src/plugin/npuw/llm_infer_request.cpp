@@ -4,8 +4,12 @@
 
 #include "llm_infer_request.hpp"
 
+#include <atomic>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
 #include <regex>
+#include <sstream>
 
 #include "infer_request_utils.hpp"
 #include "llm_compiled_model.hpp"
@@ -46,54 +50,83 @@ void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITe
     }
 }
 
-void copy_deepstack_visual_embeds_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    OPENVINO_ASSERT(src && dst);
-    auto* dst_ptr = static_cast<uint8_t*>(dst->data());
-    std::fill_n(dst_ptr, dst->get_byte_size(), 0);
-
-
-    if (src->get_element_type() != dst->get_element_type()) {
+// Dumps the ORIGINAL (incoming) deepstack_visual_embeds tensor passed by GenAI
+// to the NPUW plugin, to verify whether it is actually zero or carries real
+// values. Gated by env var NPUW_DUMP_DEEPSTACK (set to any non-empty value).
+// Writes, into the current working directory:
+//   npuw_deepstack_src_{N}.txt  -- "<dtype> [d0,d1,...] nonzero=<k> absmax=<v>"
+//   npuw_deepstack_src_{N}.bin  -- raw little-endian source bytes
+// {N} increments per call so chunked-prefill calls don't overwrite each other.
+void dump_deepstack_src_if_requested(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+    const char* env = std::getenv("NPUW_DUMP_DEEPSTACK");
+    if (!env || env[0] == '\0') {
         return;
     }
+    static std::atomic<size_t> counter{0};
+    const size_t idx = counter.fetch_add(1);
 
     const auto& src_shape = src->get_shape();
-    const auto& dst_shape = dst->get_shape();
-    const size_t elem_size = src->get_element_type().size();
-    const auto* src_ptr = static_cast<const uint8_t*>(src->data());
+    const auto et = src->get_element_type();
 
-    if (src_shape == dst_shape && src->get_byte_size() == dst->get_byte_size()) {
-        std::copy_n(src_ptr, src->get_byte_size(), dst_ptr);
-        return;
-    }
-
-    if (src_shape.size() == 2u && dst_shape.size() == 3u && dst_shape[0] == 1u && src_shape[1] == dst_shape[2] &&
-        src_shape[0] <= dst_shape[1]) {
-        const size_t src_seq = src_shape[0];
-        const size_t dst_seq = dst_shape[1];
-        const size_t emb = src_shape[1];
-        const size_t seq_bytes = emb * elem_size;
-        const size_t seq_offset = (dst_seq - src_seq) * seq_bytes;
-        std::copy_n(src_ptr, src_seq * seq_bytes, dst_ptr + seq_offset);
-        return;
-    }
-
-    if (src_shape.size() == 3u && dst_shape.size() == 3u && src_shape[2] == dst_shape[2] && src_shape[1] <= dst_shape[1] &&
-        src_shape[0] == dst_shape[0]) {
-        const size_t batch = src_shape[0];
-        const size_t src_seq = src_shape[1];
-        const size_t dst_seq = dst_shape[1];
-        const size_t emb = src_shape[2];
-        const size_t seq_bytes = emb * elem_size;
-        const size_t src_batch_stride = src_seq * seq_bytes;
-        const size_t dst_batch_stride = dst_seq * seq_bytes;
-        const size_t seq_offset = (dst_seq - src_seq) * seq_bytes;
-        for (size_t b = 0; b < batch; ++b) {
-            const auto* src_b = src_ptr + b * src_batch_stride;
-            auto* dst_b = dst_ptr + b * dst_batch_stride + seq_offset;
-            std::copy_n(src_b, src_batch_stride, dst_b);
+    // Compute simple stats (nonzero count + max abs) for f32/f16; raw byte scan otherwise.
+    size_t nonzero = 0;
+    double absmax = 0.0;
+    const size_t n = src->get_size();
+    if (et == ov::element::f32) {
+        const auto* p = static_cast<const float*>(src->data());
+        for (size_t i = 0; i < n; ++i) {
+            const double v = std::fabs(static_cast<double>(p[i]));
+            if (v > 0.0) {
+                ++nonzero;
+            }
+            absmax = std::max(absmax, v);
         }
-        return;
+    } else if (et == ov::element::f16) {
+        const auto* p = static_cast<const ov::float16*>(src->data());
+        for (size_t i = 0; i < n; ++i) {
+            const double v = std::fabs(static_cast<double>(static_cast<float>(p[i])));
+            if (v > 0.0) {
+                ++nonzero;
+            }
+            absmax = std::max(absmax, v);
+        }
+    } else {
+        const auto* p = static_cast<const uint8_t*>(src->data());
+        for (size_t i = 0; i < src->get_byte_size(); ++i) {
+            if (p[i] != 0) {
+                ++nonzero;
+            }
+        }
     }
+
+    std::ostringstream shape_ss;
+    shape_ss << "[";
+    for (size_t i = 0; i < src_shape.size(); ++i) {
+        shape_ss << (i ? "," : "") << src_shape[i];
+    }
+    shape_ss << "]";
+
+    std::ostringstream dst_shape_ss;
+    dst_shape_ss << "[";
+    const auto& d_shape = dst->get_shape();
+    for (size_t i = 0; i < d_shape.size(); ++i) {
+        dst_shape_ss << (i ? "," : "") << d_shape[i];
+    }
+    dst_shape_ss << "]";
+
+    const std::string base = "npuw_deepstack_src_" + std::to_string(idx);
+    {
+        std::ofstream meta(base + ".txt");
+        meta << et.get_type_name() << " " << shape_ss.str() << " nonzero=" << nonzero << " absmax=" << absmax
+             << " dst_shape=" << dst_shape_ss.str() << "\n";
+    }
+    {
+        std::ofstream raw(base + ".bin", std::ios::binary);
+        raw.write(static_cast<const char*>(src->data()), static_cast<std::streamsize>(src->get_byte_size()));
+    }
+    LOG_INFO("[NPUW_DUMP_DEEPSTACK] wrote " << base << ".bin/.txt: dtype=" << et.get_type_name()
+                                            << " shape=" << shape_ss.str() << " nonzero=" << nonzero
+                                            << " absmax=" << absmax << " dst_shape=" << dst_shape_ss.str());
 }
 
 void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
@@ -170,124 +203,105 @@ size_t count_nonzero_entries(const ov::SoPtr<ov::ITensor>& tensor) {
     return count;
 }
 
-void encode_visual_pos_masks_as_nonzero_indices(const ov::SoPtr<ov::ITensor>& src_mask,
-                                                const ov::SoPtr<ov::ITensor>& dst_indices) {
-    OPENVINO_ASSERT(src_mask);
-    OPENVINO_ASSERT(dst_indices);
-    OPENVINO_ASSERT(dst_indices->get_shape().size() == 2u,
-                    "Expected visual_pos_masks replacement input shape rank 2, got ",
-                    dst_indices->get_shape().size());
-    OPENVINO_ASSERT(dst_indices->get_element_type() == ov::element::i64,
-                    "Expected visual_pos_masks replacement input type i64, got ",
-                    dst_indices->get_element_type());
-
-    const auto& src_shape = src_mask->get_shape();
-    const auto& dst_shape = dst_indices->get_shape();
-    const size_t src_rank = src_shape.size();
-    const size_t dst_rows = dst_shape[0];
-    const size_t dst_cols = dst_shape[1];
-
-    OPENVINO_ASSERT(src_rank == dst_rows,
-                    "visual_pos_masks rank mismatch: src rank ",
-                    src_rank,
-                    ", dst rows ",
-                    dst_rows);
-
-    OPENVINO_ASSERT(src_shape.back() <= dst_cols,
-                    "visual_pos_masks sequence size ",
-                    src_shape.back(),
-                    " exceeds destination capacity ",
-                    dst_cols);
-
-    // Prefill tensors are right-padded to static length. Shift sequence coordinates so
-    // NonZero indices address the right-aligned region, matching input_ids/attention_mask.
-    const int64_t seq_right_pad = static_cast<int64_t>(dst_cols - src_shape.back());
-
-    std::fill_n(dst_indices->data<int64_t>(), dst_indices->get_size(), 0);
-
-    std::vector<size_t> strides(src_rank, 1);
-    for (size_t i = src_rank; i > 1; --i) {
-        strides[i - 2] = strides[i - 1] * src_shape[i - 1];
+// Counts visual tokens (non-zero mask entries) located strictly before sequence position
+// `seq_limit`. Used by chunked prefill to compute the deepstack row offset of a chunk: the
+// deepstack rows of a chunk follow those of all earlier chunks (visual-token order).
+size_t count_visual_tokens_before(const ov::SoPtr<ov::ITensor>& mask, size_t seq_limit) {
+    if (!mask || seq_limit == 0) {
+        return 0;
     }
-
-    const size_t nonzero_count = count_nonzero_entries(src_mask);
-    if (nonzero_count > dst_cols) {
-        OPENVINO_THROW("visual_pos_masks has more non-zero entries than destination capacity: ",
-                       nonzero_count,
-                       " > ",
-                       dst_cols);
-    }
-
-    // Right-align encoded indices to keep padding-induced fake entries in front,
-    // where deepstack_visual_embeds is zero-padded.
-    size_t out_col = dst_cols - nonzero_count;
-    for (size_t linear_idx = 0; linear_idx < src_mask->get_size(); ++linear_idx) {
-        if (!is_nonzero_value(src_mask, linear_idx)) {
-            continue;
+    const size_t seq_len = mask->get_shape().back();
+    size_t count = 0;
+    for (size_t i = 0; i < mask->get_size(); ++i) {
+        if ((i % seq_len) < seq_limit && is_nonzero_value(mask, i)) {
+            ++count;
         }
-
-        size_t rem = linear_idx;
-        for (size_t dim = 0; dim < src_rank; ++dim) {
-            size_t coord = rem / strides[dim];
-            rem %= strides[dim];
-            if (dim + 1 == src_rank) {
-                coord = static_cast<size_t>(static_cast<int64_t>(coord) + seq_right_pad);
-            }
-            dst_indices->data<int64_t>()[dim * dst_cols + out_col] = static_cast<int64_t>(coord);
-        }
-        ++out_col;
     }
+    return count;
 }
 
-void set_visual_pos_masks_input(const ov::SoPtr<ov::ITensor>& src_mask, const ov::SoPtr<ov::ITensor>& dst_tensor) {
-    OPENVINO_ASSERT(dst_tensor);
-    std::fill_n(reinterpret_cast<uint8_t*>(dst_tensor->data()), dst_tensor->get_byte_size(), 0);
+// Scatters the compact deepstack_visual_embeds tensor (one row per visual token, in
+// visual-token order) into the right-aligned static destination at the actual
+// visual-token sequence positions described by visual_pos_masks.
+//
+// After the DeepStack gather/scatter cluster is replaced in the graph by a plain
+// dense residual add (see densify_deepstack_visual_embeds in llm_compiled_model.cpp),
+// the destination tensor must hold deepstack values at the visual positions and zeros
+// everywhere else, so that "hidden + deepstack" reproduces the original per-position
+// injection.
+//
+//   src  : [num_layers, N, emb]   (N visual tokens, k-th row = k-th visual token)
+//   mask : [batch, real_len]      (non-zero at visual-token positions, ascending)
+//   dst  : [num_layers, seq, emb] (right-aligned static window)
+//
+// `src_row_offset` skips the first deepstack rows (visual tokens already handled by earlier
+// chunks in chunked prefill); it is 0 for whole prefill. Returns the number of visual tokens
+// (deepstack rows) actually scattered, so the caller can advance `src_row_offset` for the next
+// chunk.
+//
+// Real tokens are right-aligned, so a visual token at real-sequence coordinate `c`
+// lands at static position `c + (seq - real_len)`.
+size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
+                                       const ov::SoPtr<ov::ITensor>& mask,
+                                       const ov::SoPtr<ov::ITensor>& dst,
+                                       size_t src_row_offset = 0) {
+    OPENVINO_ASSERT(dst);
+    std::fill_n(reinterpret_cast<uint8_t*>(dst->data()), dst->get_byte_size(), 0);
 
-    if (!src_mask) {
-        return;
+    // Debug ablation: NPUW_ZERO_DEEPSTACK=1 keeps deepstack all-zero (skip scatter)
+    // to isolate the deepstack contribution from the chunked-vs-whole comparison.
+    static const bool zero_deepstack = (std::getenv("NPUW_ZERO_DEEPSTACK") != nullptr);
+    if (zero_deepstack) {
+        return 0;
     }
 
-    if (dst_tensor->get_element_type() == ov::element::i64) {
-        encode_visual_pos_masks_as_nonzero_indices(src_mask, dst_tensor);
-        return;
+    if (!src || !mask) {
+        return 0;
+    }
+    dump_deepstack_src_if_requested(src, dst);
+    if (src->get_element_type() != dst->get_element_type()) {
+        return 0;
     }
 
-    OPENVINO_ASSERT(src_mask->get_element_type() == dst_tensor->get_element_type(),
-                    "visual_pos_masks type mismatch: src ",
-                    src_mask->get_element_type(),
-                    ", dst ",
-                    dst_tensor->get_element_type());
-
-    const auto& src_shape = src_mask->get_shape();
-    const auto& dst_shape = dst_tensor->get_shape();
-    OPENVINO_ASSERT(src_shape.size() == 2u && dst_shape.size() == 2u,
-                    "visual_pos_masks expects rank-2 tensor in non-replacement path");
-    OPENVINO_ASSERT(src_shape[0] == dst_shape[0],
-                    "visual_pos_masks batch mismatch: src ",
-                    src_shape,
-                    ", dst ",
-                    dst_shape);
-    OPENVINO_ASSERT(src_shape[1] <= dst_shape[1],
-                    "visual_pos_masks sequence exceeds destination capacity: src ",
-                    src_shape,
-                    ", dst ",
-                    dst_shape);
-
-    const size_t elem_size = src_mask->get_element_type().size();
-    const size_t src_w = src_shape[1];
-    const size_t dst_w = dst_shape[1];
-    const auto& src_strides = src_mask->get_strides();
-    const auto& dst_strides = dst_tensor->get_strides();
-    const auto* src_ptr = static_cast<const uint8_t*>(src_mask->data());
-    auto* dst_ptr = static_cast<uint8_t*>(dst_tensor->data());
-
-    const size_t row_bytes = src_w * elem_size;
-    const size_t col_offset_bytes = (dst_w - src_w) * elem_size;
-    for (size_t r = 0; r < src_shape[0]; ++r) {
-        const auto* src_row = src_ptr + r * src_strides[0];
-        auto* dst_row = dst_ptr + r * dst_strides[0] + col_offset_bytes;
-        std::copy_n(src_row, row_bytes, dst_row);
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    if (src_shape.size() != 3u || dst_shape.size() != 3u) {
+        return 0;
     }
+
+    const size_t num_layers = src_shape[0];
+    const size_t src_seq = src_shape[1];
+    const size_t emb = src_shape[2];
+    const size_t dst_seq = dst_shape[1];
+    if (dst_shape[0] != num_layers || dst_shape[2] != emb) {
+        return 0;
+    }
+
+    const size_t mask_total = mask->get_size();
+    OPENVINO_ASSERT(mask_total <= dst_seq);
+    const size_t seq_right_pad = dst_seq - mask_total;
+
+    const size_t elem_size = src->get_element_type().size();
+    const size_t row_bytes = emb * elem_size;
+    const auto* src_ptr = static_cast<const uint8_t*>(src->data());
+    auto* dst_ptr = static_cast<uint8_t*>(dst->data());
+
+    // Iterate visual-token positions in ascending order; the k-th non-zero mask entry
+    // corresponds to deepstack row (src_row_offset + k).
+    size_t k = 0;
+    for (size_t linear_idx = 0; linear_idx < mask_total; ++linear_idx) {
+        if (!is_nonzero_value(mask, linear_idx)) {
+            continue;
+        }
+        const size_t dst_pos = linear_idx + seq_right_pad;
+        for (size_t l = 0; l < num_layers; ++l) {
+            const auto* src_row = src_ptr + (l * src_seq + src_row_offset + k) * row_bytes;
+            auto* dst_row = dst_ptr + (l * dst_seq + dst_pos) * row_bytes;
+            std::copy_n(src_row, row_bytes, dst_row);
+        }
+        ++k;
+    }
+    return k;
 }
 
 void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
@@ -724,8 +738,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     m_kvcache_request = select_generate_request(prompt_length);
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
-
-    m_visual_pos_masks_nonzero_cache.clear();
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -942,14 +954,13 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
 
-    if (const auto deepstack_it = m_prefill_in_ports.find("deepstack_visual_embeds");
-        deepstack_it != m_prefill_in_ports.end()) {
-        auto deepstack_local = m_prefill_request->get_tensor(deepstack_it->second);
-        if (deepstack_visual_embeds) {
-            copy_deepstack_visual_embeds_to_right(deepstack_visual_embeds, deepstack_local);
-        } else {
-            std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
-        }
+    // DeepStack (Qwen3-VL): the deepstack injection is scattered per chunk inside the loop
+    // below, the same way attention_mask / input_ids are sliced for the current chunk.
+    const auto deepstack_it = m_prefill_in_ports.find("deepstack_visual_embeds");
+    const bool has_deepstack = deepstack_it != m_prefill_in_ports.end();
+    if (has_deepstack) {
+        OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
+                        "deepstack_visual_embeds and visual_pos_masks must be provided for DeepStack VLM prefill.");
     }
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
@@ -970,6 +981,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.reset_chunked_prefill_state();
     }
+
+    // DeepStack rows are consumed in visual-token order across chunks; track how many have
+    // already been scattered so each chunk continues where the previous one left off.
+    size_t visual_tokens_scattered =
+        has_deepstack ? count_visual_tokens_before(visual_pos_masks, kvcache_desc.num_stored_tokens) : 0u;
 
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
@@ -1032,22 +1048,21 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Copy with proper stride handling
             actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
-            // NB: visual_pos_masks is a Qwen3-VL specific input [2, seq_len].
-            // In chunk prefill mode, slice the current chunk's portion and set it.
-            if (const auto vpm_it = m_prefill_in_ports.find("visual_pos_masks");
-                vpm_it != m_prefill_in_ports.end()) {
-                auto visual_pos_masks_local = m_prefill_request->get_tensor(vpm_it->second);
-                if (visual_pos_masks) {
-                    auto chunk_slice = ov::npuw::util::make_tensor_slice(
-                        visual_pos_masks,
-                        1u,  // slice along seq_len dim
-                        static_cast<uint32_t>(kvcache_desc.num_stored_tokens),
-                        static_cast<uint32_t>(kvcache_desc.num_stored_tokens + current_prompts_len));
-                    set_visual_pos_masks_input(chunk_slice._ptr, visual_pos_masks_local);
-                } else {
-                    set_visual_pos_masks_input(ov::npuw::util::TensorPtr(), visual_pos_masks_local);
-                }
-                m_visual_pos_masks_nonzero_cache.clear();
+            // DeepStack (Qwen3-VL): scatter only the visual tokens that fall into the current
+            // chunk. The chunk's visual_pos_masks slice gives their chunk-local positions, and
+            // the deepstack rows for those tokens follow the visual tokens of earlier chunks.
+            if (has_deepstack) {
+                auto deepstack_local = m_prefill_request->get_tensor(deepstack_it->second);
+                const uint32_t seq_dim = static_cast<uint32_t>(visual_pos_masks->get_shape().size() - 1);
+                auto chunk_mask = ov::npuw::util::make_tensor_slice(
+                    visual_pos_masks,
+                    seq_dim,
+                    static_cast<uint32_t>(kvcache_desc.num_stored_tokens),
+                    static_cast<uint32_t>(kvcache_desc.num_stored_tokens + current_prompts_len));
+                visual_tokens_scattered += scatter_deepstack_visual_embeds(deepstack_visual_embeds,
+                                                                           chunk_mask._ptr,
+                                                                           deepstack_local,
+                                                                           visual_tokens_scattered);
             }
 
             if (m_eagle3_ext.is_eagle3_model()) {
@@ -1140,14 +1155,12 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     m_llm_profile["1/prefill:3a.prepare"].record([&]() {
         // NB: padded_input can be either fp32(VLM) or i64(LLM)
         auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-        ov::npuw::util::fill_tensor_bytes(padded_input, 0u);
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
                     input_ids->get_byte_size(),
                     reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
                         input_ids->get_byte_size());
 
         auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
-        ov::npuw::util::fill_tensor<int64_t>(padded_attention_mask, 0);
         std::copy_n(
             attention_mask->data<int64_t>(),
             attention_mask->get_size(),
@@ -1166,12 +1179,10 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
 
         if (const auto deepstack_it = m_prefill_in_ports.find("deepstack_visual_embeds");
             deepstack_it != m_prefill_in_ports.end()) {
+            OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
+                            "deepstack_visual_embeds and visual_pos_masks must be provided for DeepStack VLM prefill.");
             auto deepstack_local = m_prefill_request->get_tensor(deepstack_it->second);
-            if (deepstack_visual_embeds) {
-                copy_deepstack_visual_embeds_to_right(deepstack_visual_embeds, deepstack_local);
-            } else {
-                std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
-            }
+            scatter_deepstack_visual_embeds(deepstack_visual_embeds, visual_pos_masks, deepstack_local);
         }
 
         if (m_eagle3_ext.is_eagle3_model()) {
@@ -1183,13 +1194,6 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         if (per_layer_inputs) {
             auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
-        }
-
-        const auto visual_pos_masks_it = m_prefill_in_ports.find("visual_pos_masks");
-        if (visual_pos_masks_it != m_prefill_in_ports.end()) {
-            auto visual_pos_masks_local = m_prefill_request->get_tensor(visual_pos_masks_it->second);
-            set_visual_pos_masks_input(visual_pos_masks, visual_pos_masks_local);
-            m_visual_pos_masks_nonzero_cache.clear();
         }
     });
 
@@ -1323,20 +1327,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             OPENVINO_THROW("KV-Cache is full.");
         }
 
-        const auto visual_pos_masks_it = m_kvcache_in_ports.find("visual_pos_masks");
-        if (visual_pos_masks_it != m_kvcache_in_ports.end()) {
-            auto visual_pos_masks_local = m_kvcache_request->get_tensor(visual_pos_masks_it->second);
-            set_visual_pos_masks_input(visual_pos_masks, visual_pos_masks_local);
-        }
-
         if (const auto deepstack_it = m_kvcache_in_ports.find("deepstack_visual_embeds");
             deepstack_it != m_kvcache_in_ports.end()) {
             auto deepstack_local = m_kvcache_request->get_tensor(deepstack_it->second);
-            if (deepstack_visual_embeds && visual_pos_masks && count_nonzero_entries(visual_pos_masks) > 0) {
-                copy_deepstack_visual_embeds_to_right(deepstack_visual_embeds, deepstack_local);
-            } else {
-                std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
-            }
+            // No visual tokens are generated during the generate stage
+            std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
 
         process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);

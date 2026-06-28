@@ -128,10 +128,6 @@ protected:
 
     uint64_t m_tokens_in_present_chunk = 0;
 
-    // Cache converted visual_pos_masks (NonZero-style indices) prepared during prefill.
-    // Reused during generate to preserve visual conditioning across decoding steps.
-    std::vector<int64_t> m_visual_pos_masks_nonzero_cache;
-
     // Support Eagle3 speculative decoding
     Eagle3Extension m_eagle3_ext;
 
