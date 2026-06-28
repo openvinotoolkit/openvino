@@ -22,20 +22,23 @@ public:
                              const ov::Output<Node>& a_decompression_scale,
                              const ov::Output<Node>& a_decompression_zero_point,
                              const ov::Output<Node>& a_precomputed_reduction,
-                             const ov::element::Type output_type = ov::element::dynamic);
+                             const ov::element::Type output_type = ov::element::dynamic,
+                             const bool transpose_b = true);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
                              const ov::Output<Node>& bias,
                              const ov::Output<Node>& w_decompression_scale,
                              const ov::Output<Node>& w_decompression_zero_point,
-                             const ov::element::Type output_type = ov::element::dynamic);
+                             const ov::element::Type output_type = ov::element::dynamic,
+                             const bool transpose_b = true);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
                              const ov::Output<Node>& bias,
                              const ov::Output<Node>& w_decompression_scale,
-                             const ov::element::Type output_type = ov::element::dynamic);
+                             const ov::element::Type output_type = ov::element::dynamic,
+                             const bool transpose_b = true);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
