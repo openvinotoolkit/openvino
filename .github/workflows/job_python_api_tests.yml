@@ -23,9 +23,6 @@ on:
 
 permissions: read-all
 
-env:
-
-
 jobs:
   Python_Unit_Tests:
     name: Python API tests
