@@ -1507,3 +1507,60 @@ TEST(type_prop, loop_merged_state_only_input_zero_dim_widened_dynamic_step) {
     EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{Dimension::dynamic(), 4}));
     EXPECT_EQ(loop->get_output_partial_shape(0), PartialShape{Dimension::dynamic()});
 }
+
+// Verify that a static seed dimension grown to dynamic by the body is relaxed correctly.
+//
+// Outer seed shape: [1, 4] (static)
+// Body: Concat along axis 0 → result shape [-1, 4]  (first dim widened)
+//
+// Back-edge reconciliation must widen dim[0] from 1 to dynamic and converge.
+// The loop output (scan of the concat result, 3 iterations) must be [-1, 4].
+TEST(type_prop, loop_merged_static_seed_dim_grown_by_body) {
+    const auto body_param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 4});
+    const auto extra = ov::op::v0::Constant::create(element::f32, Shape{1, 4}, {0});
+    const auto concat = std::make_shared<ov::op::v0::Concat>(NodeVector{body_param, extra}, 0);
+    const auto true_const = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+    auto body = std::make_shared<Model>(OutputVector{concat, true_const}, ParameterVector{body_param});
+
+    const auto seed = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 4});
+    const auto trip_count = ov::op::v0::Constant::create(element::i64, {1}, {3});
+    const auto exec_cond = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+    const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+    loop->set_function(body);
+    loop->set_merged_input(body_param, seed, concat);
+    loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 1});
+
+    auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(concat, -1));
+    auto outer = std::make_shared<Model>(ResultVector{result}, ParameterVector{seed});
+
+    EXPECT_EQ(result->get_output_partial_shape(0), (PartialShape{-1, 4}));
+}
+
+// Verify that back-edge reconciliation converges when the param is already dynamic.
+//
+// This is the regression test for the infinite-loop bug introduced when
+// compatible() was replaced by same_scheme(): same_scheme(static, dynamic)==false
+// would set shape_changed=true even when new_ps==input_param_ps (both already
+// dynamic), spinning the loop INT_MAX times with an unknown trip count.
+TEST(type_prop, loop_back_edge_reconciliation_converges_when_param_already_dynamic) {
+    const auto body_param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+    const auto extra = ov::op::v0::Constant::create(element::f32, Shape{1}, {0});
+    const auto concat = std::make_shared<ov::op::v0::Concat>(NodeVector{body_param, extra}, 0);
+    const auto true_const = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+    auto body = std::make_shared<Model>(OutputVector{concat, true_const}, ParameterVector{body_param});
+
+    const auto seed = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+    // Unknown trip count → max_num_of_iterations = INT_MAX; must still converge quickly.
+    const auto trip_count = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{1});
+    const auto exec_cond = ov::op::v0::Constant::create(element::boolean, {1}, {1});
+    const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+    loop->set_function(body);
+    loop->set_merged_input(body_param, seed, concat);
+    loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 1});
+
+    auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(concat, -1));
+    // This must complete in a fraction of a second; if it hangs the fix regressed.
+    auto outer = std::make_shared<Model>(ResultVector{result}, ParameterVector{seed, trip_count});
+
+    EXPECT_TRUE(result->get_output_partial_shape(0).is_dynamic());
+}

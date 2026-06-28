@@ -234,19 +234,17 @@ void Loop::validate_and_infer_types() {
                             const auto body_rank_len = body_value_shape.rank().get_length();
                             const auto input_rank_len = input_param_ps.rank().get_length();
                             PartialShape new_ps;
-                            bool shape_changed = false;
                             if (body_rank_len == input_rank_len) {
-                                new_ps = body_value_shape;
+                                new_ps = input_param_ps;
                                 for (auto j = 0; j < body_rank_len; j++) {
-                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
+                                    if (!body_value_shape[j].same_scheme(input_param_ps[j])) {
                                         new_ps[j] = Dimension::dynamic();
-                                        shape_changed = true;
                                     }
                                 }
                             } else {
                                 new_ps = PartialShape::dynamic();
-                                shape_changed = true;
                             }
+                            const bool shape_changed = (new_ps != input_param_ps);
                             // reset sub model input shape
                             if (shape_changed) {
                                 need_reinvalidate = true;
