@@ -93,7 +93,7 @@ private:
         //            pre-allocation time (SequenceEmpty source); must be rebuilt from the
         //            resolved back-edge slot shapes in finalize so the merged Parameter
         //            gets the correct rank.
-        enum class SeedKind { Known, Deferred, Synthetic };
+        enum class SeedKind { KNOWN, DEFERRED, SYNTHETIC };
 
         std::shared_ptr<ov::op::v5::Loop> loop;
         std::shared_ptr<ov::Model> body;
@@ -101,8 +101,8 @@ private:
         int outer_input{-1};
         std::shared_ptr<ov::op::v0::Parameter> old_param;
         std::vector<std::shared_ptr<ov::op::v0::Parameter>> new_params;
-        Slots outer_seed_slots;  // pre-resolved seed slots when SeedKind::Known/Synthetic
-        SeedKind seed_kind{SeedKind::Known};
+        Slots outer_seed_slots;  // pre-resolved seed slots when SeedKind::KNOWN/SYNTHETIC
+        SeedKind seed_kind{SeedKind::KNOWN};
     };
 
     void build_maps(const std::shared_ptr<ov::Model>& m);

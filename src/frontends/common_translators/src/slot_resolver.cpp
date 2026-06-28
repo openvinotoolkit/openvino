@@ -309,19 +309,19 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
 
             std::vector<ov::Output<ov::Node>> slot_templates;
             Slots outer_seed_slots;
-            PendingMerged::SeedKind seed_kind = PendingMerged::SeedKind::Deferred;
+            PendingMerged::SeedKind seed_kind = PendingMerged::SeedKind::DEFERRED;
 
             if (outer_mark && outer_mark->get_input_size() > 0) {
                 for (size_t k = 0; k < outer_mark->get_input_size(); ++k) {
                     slot_templates.push_back(outer_mark->input_value(k));
                     outer_seed_slots.push_back(outer_mark->input_value(k));
                 }
-                seed_kind = PendingMerged::SeedKind::Known;
+                seed_kind = PendingMerged::SeedKind::KNOWN;
             } else if (auto os = slots_of(outer_src); os && !os->empty()) {
                 // Outer source has priority for slot count (inner back-edge may undercount).
                 slot_templates.assign(os->begin(), os->end());
                 outer_seed_slots = *os;
-                seed_kind = PendingMerged::SeedKind::Known;
+                seed_kind = PendingMerged::SeedKind::KNOWN;
             } else {
                 auto back_value = body->get_results()[back_idx]->input_value(0);
 
@@ -336,7 +336,7 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
                     for (const auto& t : slot_templates) {
                         outer_seed_slots.push_back(make_growable_seed(t.get_partial_shape(), t.get_element_type()));
                     }
-                    seed_kind = PendingMerged::SeedKind::Synthetic;
+                    seed_kind = PendingMerged::SeedKind::SYNTHETIC;
                 }
             }
 
@@ -371,7 +371,7 @@ void SlotResolver::preallocate_loop_merged_params(const std::shared_ptr<ov::Mode
                 auto np = std::make_shared<v0::Parameter>(et, pshape);
                 body->add_parameters({np});
                 param_to_model_[np.get()] = body;
-                if (seed_kind == PendingMerged::SeedKind::Synthetic) {
+                if (seed_kind == PendingMerged::SeedKind::SYNTHETIC) {
                     // Mark as empty-seed so SequenceLength lowers to runtime ShapeOf.
                     np->get_rt_info()["sal_empty_seed_slot"] = true;
                 }
@@ -401,7 +401,7 @@ void SlotResolver::finalize_pending_wiring() {
             continue;
         }
         // Resolve outer seed slots deferred from pre-allocation time.
-        if (pm.seed_kind == PendingMerged::SeedKind::Deferred) {
+        if (pm.seed_kind == PendingMerged::SeedKind::DEFERRED) {
             auto outer_src = pm.loop->input_value(pm.outer_input);
             auto src_slots = slots_of(outer_src);
             OPENVINO_ASSERT(src_slots && src_slots->size() == N,
@@ -409,7 +409,7 @@ void SlotResolver::finalize_pending_wiring() {
                             N,
                             " slots; the loop-carried sequence pattern is not supported.");
             pm.outer_seed_slots = *src_slots;
-            pm.seed_kind = PendingMerged::SeedKind::Known;
+            pm.seed_kind = PendingMerged::SeedKind::KNOWN;
         }
         auto back_value = pm.body->get_results()[pm.back_edge_result_idx]->input_value(0);
         auto back_slots = slots_of(back_value);
@@ -419,7 +419,7 @@ void SlotResolver::finalize_pending_wiring() {
                         " slots; the loop-carried sequence pattern is not supported.");
         // Synthetic seed was built from pre-lowering templates (may be scalar);
         // rebuild from resolved back-edge shape so the carried tensor keeps its true rank.
-        if (pm.seed_kind == PendingMerged::SeedKind::Synthetic) {
+        if (pm.seed_kind == PendingMerged::SeedKind::SYNTHETIC) {
             for (size_t k = 0; k < N; ++k) {
                 const auto& resolved = (*back_slots)[k];
                 if (resolved.get_partial_shape().rank().is_dynamic()) {
