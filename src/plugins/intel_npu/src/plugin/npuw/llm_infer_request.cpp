@@ -5,12 +5,7 @@
 #include "llm_infer_request.hpp"
 
 #include <algorithm>
-#include <atomic>
-#include <cmath>
-#include <cstdlib>
-#include <fstream>
 #include <regex>
-#include <sstream>
 
 #include "infer_request_utils.hpp"
 #include "llm_compiled_model.hpp"
@@ -49,85 +44,6 @@ void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITe
         const size_t dst_offset = i * OS_H;
         std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
     }
-}
-
-// Dumps the ORIGINAL (incoming) deepstack_visual_embeds tensor passed by GenAI
-// to the NPUW plugin, to verify whether it is actually zero or carries real
-// values. Gated by env var NPUW_DUMP_DEEPSTACK (set to any non-empty value).
-// Writes, into the current working directory:
-//   npuw_deepstack_src_{N}.txt  -- "<dtype> [d0,d1,...] nonzero=<k> absmax=<v>"
-//   npuw_deepstack_src_{N}.bin  -- raw little-endian source bytes
-// {N} increments per call so chunked-prefill calls don't overwrite each other.
-void dump_deepstack_src_if_requested(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    const char* env = std::getenv("NPUW_DUMP_DEEPSTACK");
-    if (!env || env[0] == '\0') {
-        return;
-    }
-    static std::atomic<size_t> counter{0};
-    const size_t idx = counter.fetch_add(1);
-
-    const auto& src_shape = src->get_shape();
-    const auto et = src->get_element_type();
-
-    // Compute simple stats (nonzero count + max abs) for f32/f16; raw byte scan otherwise.
-    size_t nonzero = 0;
-    double absmax = 0.0;
-    const size_t n = src->get_size();
-    if (et == ov::element::f32) {
-        const auto* p = static_cast<const float*>(src->data());
-        for (size_t i = 0; i < n; ++i) {
-            const double v = std::fabs(static_cast<double>(p[i]));
-            if (v > 0.0) {
-                ++nonzero;
-            }
-            absmax = std::max(absmax, v);
-        }
-    } else if (et == ov::element::f16) {
-        const auto* p = static_cast<const ov::float16*>(src->data());
-        for (size_t i = 0; i < n; ++i) {
-            const double v = std::fabs(static_cast<double>(static_cast<float>(p[i])));
-            if (v > 0.0) {
-                ++nonzero;
-            }
-            absmax = std::max(absmax, v);
-        }
-    } else {
-        const auto* p = static_cast<const uint8_t*>(src->data());
-        for (size_t i = 0; i < src->get_byte_size(); ++i) {
-            if (p[i] != 0) {
-                ++nonzero;
-            }
-        }
-    }
-
-    std::ostringstream shape_ss;
-    shape_ss << "[";
-    for (size_t i = 0; i < src_shape.size(); ++i) {
-        shape_ss << (i ? "," : "") << src_shape[i];
-    }
-    shape_ss << "]";
-
-    std::ostringstream dst_shape_ss;
-    dst_shape_ss << "[";
-    const auto& d_shape = dst->get_shape();
-    for (size_t i = 0; i < d_shape.size(); ++i) {
-        dst_shape_ss << (i ? "," : "") << d_shape[i];
-    }
-    dst_shape_ss << "]";
-
-    const std::string base = "npuw_deepstack_src_" + std::to_string(idx);
-    {
-        std::ofstream meta(base + ".txt");
-        meta << et.get_type_name() << " " << shape_ss.str() << " nonzero=" << nonzero << " absmax=" << absmax
-             << " dst_shape=" << dst_shape_ss.str() << "\n";
-    }
-    {
-        std::ofstream raw(base + ".bin", std::ios::binary);
-        raw.write(static_cast<const char*>(src->data()), static_cast<std::streamsize>(src->get_byte_size()));
-    }
-    LOG_INFO("[NPUW_DUMP_DEEPSTACK] wrote " << base << ".bin/.txt: dtype=" << et.get_type_name()
-                                            << " shape=" << shape_ss.str() << " nonzero=" << nonzero
-                                            << " absmax=" << absmax << " dst_shape=" << dst_shape_ss.str());
 }
 
 void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
@@ -238,17 +154,9 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
     OPENVINO_ASSERT(dst);
     std::fill_n(reinterpret_cast<uint8_t*>(dst->data()), dst->get_byte_size(), 0);
 
-    // Debug ablation: NPUW_ZERO_DEEPSTACK=1 keeps deepstack all-zero (skip scatter)
-    // to isolate the deepstack contribution from the chunked-vs-whole comparison.
-    static const bool zero_deepstack = (std::getenv("NPUW_ZERO_DEEPSTACK") != nullptr);
-    if (zero_deepstack) {
-        return 0;
-    }
-
     if (!src || !mask) {
         return 0;
     }
-    dump_deepstack_src_if_requested(src, dst);
     if (src->get_element_type() != dst->get_element_type()) {
         return 0;
     }
