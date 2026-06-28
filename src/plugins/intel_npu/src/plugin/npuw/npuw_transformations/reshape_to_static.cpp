@@ -21,11 +21,6 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
-        // const auto& input_names = input.get_names();
-        // if (input_names.empty()) {
-        //     continue;
-        // }
-        // const auto& input_name = *input_names.begin();
         const auto& input_name = input.get_any_name();
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {

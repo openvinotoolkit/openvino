@@ -11,9 +11,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "npuw_transformations/reshape_to_static.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 
 namespace {
 
