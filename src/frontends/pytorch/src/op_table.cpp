@@ -263,7 +263,6 @@ OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
-OP_CONVERTER(translate_str);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
@@ -762,7 +761,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
         {"aten::stft", op::translate_stft},
-        {"aten::str", op::translate_str},
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},

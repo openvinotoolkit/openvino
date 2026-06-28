@@ -20,14 +20,11 @@ class TestDelete(PytorchLayerTest):
                 self.idx = idx
 
             def forward(self, x):
-                # build a list (tensor stacked along dim 0), delete one element,
-                # then reduce the remaining list so the result depends on removal.
+                # Build a list of tensors, delete one element, then index the
+                # remaining three explicitly so the result depends on the removal.
                 lst = [x[0], x[1], x[2], x[3]]
                 del lst[self.idx]
-                out = lst[0]
-                for i in range(1, len(lst)):
-                    out = out + lst[i]
-                return out
+                return lst[0] + lst[1] + lst[2]
 
         return aten_delete(idx), "aten::Delete"
 
