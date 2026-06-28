@@ -773,10 +773,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                                      kvcache_desc.num_stored_tokens,
                                                                      static_cast<uint32_t>(current_prompts_len));
             }
-        });
 
-        // Prepare KV blocks or bind memory for this chunk via strategy.
-        m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
+            // Prepare KV blocks or bind memory for this chunk via strategy.
+            m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
+        });
 
         m_llm_profile["1/prefill:3b.infer"].record([&]() {
             m_prefill_request->infer();
@@ -798,34 +798,32 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             }
         });
 
-        // Finalise KV state after inference via strategy.
-        // kv_position is num_stored_tokens already incremented by current_prompts_len.
-        // Both strategies receive the same post-infer value; block strategy computes
-        // the write start position internally as (kv_position - current_prompts_len).
         const bool is_last_chunk = (remaining_prompts - current_prompts_len) <= 0;
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
-        m_kvcache_strategy->on_prefill_chunk_done(static_cast<uint32_t>(current_prompts_len),
-                                                  kvcache_desc.num_stored_tokens,
-                                                  is_last_chunk);
+        m_llm_profile["1/prefill:3d.update_kvcache"].record([&]() {
+            // Finalise KV state after inference via strategy.
+            m_kvcache_strategy->on_prefill_chunk_done(static_cast<uint32_t>(current_prompts_len),
+                                                      kvcache_desc.num_stored_tokens,
+                                                      is_last_chunk);
+            // Do not copy last computed chunk and preserve it in present k/v layer.
+            if (!is_last_chunk) {
+                // Attention mask and lincache update for intermediate chunks.
+                copy_lincache(m_prefill_request, m_prefill_request, m_prefill_out_ports, m_prefill_in_ports);
 
-        // Do not copy last computed chunk and preserve it in present k/v layer
+                std::copy_n(
+                    attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
+                    current_prompts_len,
+                    attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
+            }
+        });
+
         if (is_last_chunk) {
             LOG_DEBUG("All prompts have been prefilled in chunks");
             m_tokens_in_present_chunk = current_prompts_len;
             break;
         }
-
-        m_llm_profile["1/prefill:3d.update_kvcache"].record([&]() {
-            // Attention mask and lincache update for intermediate chunks.
-            copy_lincache(m_prefill_request, m_prefill_request, m_prefill_out_ports, m_prefill_in_ports);
-
-            // Update attention mask for the next iteration
-            std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
-                        current_prompts_len,
-                        attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
-        });
     }
 
     // Notify strategy that all prefill chunks are complete.
