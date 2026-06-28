@@ -40,8 +40,7 @@ bool is_named(const std::shared_ptr<ov::Node>& node, const std::string& needle) 
 
 // Returns the unique consumer of `node` whose op type name matches `type_name`,
 // or nullptr if there is none or more than one.
-std::shared_ptr<ov::Node> single_consumer_of_type(const std::shared_ptr<ov::Node>& node,
-                                                   const std::string& type_name) {
+std::shared_ptr<ov::Node> single_consumer_of_type(const std::shared_ptr<ov::Node>& node, const std::string& type_name) {
     std::shared_ptr<ov::Node> found;
     for (const auto& target : node->output(0).get_target_inputs()) {
         auto* consumer = target.get_node();
@@ -98,7 +97,8 @@ public:
         auto deepstack = opp::wrap_type<ov::op::v0::Parameter>();
         auto select = opp::wrap_type<ov::op::v8::Gather, ov::op::v7::Gather, ov::op::v1::Gather>(
             {deepstack, opp::any_input(), opp::any_input()});
-        auto gathered = opp::wrap_type<ov::op::v8::GatherND, ov::op::v5::GatherND>({opp::any_input(), opp::any_input()});
+        auto gathered =
+            opp::wrap_type<ov::op::v8::GatherND, ov::op::v5::GatherND>({opp::any_input(), opp::any_input()});
         auto add = opp::wrap_type<ov::op::v1::Add>({gathered, select});
         auto scatter = opp::wrap_type<ov::op::v3::ScatterNDUpdate, ov::op::v15::ScatterNDUpdate>(
             {opp::any_input(), opp::any_input(), add});

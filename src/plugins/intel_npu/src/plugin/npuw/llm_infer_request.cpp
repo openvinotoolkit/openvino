@@ -1142,9 +1142,20 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             OPENVINO_ASSERT(!token_type_ids,
                             "Chunking is not implemented for Gemma model family yet. "
                             "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
-            infer_chunked_prefill(input_ids, attention_mask, position_ids, per_layer_inputs, visual_pos_masks, deepstack_visual_embeds);
+            infer_chunked_prefill(input_ids,
+                                  attention_mask,
+                                  position_ids,
+                                  per_layer_inputs,
+                                  visual_pos_masks,
+                                  deepstack_visual_embeds);
         } else {
-            infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs, visual_pos_masks, deepstack_visual_embeds);
+            infer_whole_prefill(input_ids,
+                                attention_mask,
+                                position_ids,
+                                token_type_ids,
+                                per_layer_inputs,
+                                visual_pos_masks,
+                                deepstack_visual_embeds);
         }
     });
 
@@ -1435,7 +1446,13 @@ void ov::npuw::LLMInferRequest::infer() {
     //    both main and draft models for most of LLMs.
     if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
         position_ids->data<int64_t>()[0] == m_first_position_id) {
-        infer_prefill(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs, visual_pos_masks, deepstack_visual_embeds);
+        infer_prefill(input_ids,
+                      attention_mask,
+                      position_ids,
+                      token_type_ids,
+                      per_layer_inputs,
+                      visual_pos_masks,
+                      deepstack_visual_embeds);
     } else {
         // FIXME: Need to make the solution smarter.
         // Qwen2.5VL uses 3D position_ids but current `trim_kvcache_for_speculative_decoding`
