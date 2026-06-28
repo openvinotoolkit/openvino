@@ -74,6 +74,15 @@ public:
     // PortsMap matches the alias used by LLMInferRequest for consistency.
     using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
+    // layer_idx → {key_block_names, value_block_names}
+    using LayerBlockNames = std::unordered_map<uint32_t, std::pair<std::vector<std::string>, std::vector<std::string>>>;
+
+    // Dummy tensors shared across all numbered block input ports (key + value).
+    struct DummyTensors {
+        ov::SoPtr<ov::ITensor> key_tensor;
+        ov::SoPtr<ov::ITensor> value_tensor;
+    };
+
     explicit LLMBlockKVCacheStrategy(LLMInferRequest& req) : LLMKVCacheStrategy(req) {}
 
     // -------------------------------------------------------------------------
@@ -93,22 +102,6 @@ private:
     // Private helper structs (used only during initialize())
     // -------------------------------------------------------------------------
 
-    struct BlockShapeInfo {
-        ov::Shape key_shape;
-        ov::Shape value_shape;
-        ov::element::Type elem_type;
-        bool found_key = false;
-        bool found_value = false;
-    };
-
-    struct DummyTensors {
-        ov::SoPtr<ov::ITensor> key_tensor;
-        ov::SoPtr<ov::ITensor> value_tensor;
-    };
-
-    // layer_idx → {key_block_names, value_block_names}
-    using LayerBlockNames = std::unordered_map<uint32_t, std::pair<std::vector<std::string>, std::vector<std::string>>>;
-
     // Pre-computed binding helpers for one layer (key + value)
     struct LayerBlockBindingHelpers {
         BlockBindingHelper key_helper;
@@ -125,15 +118,6 @@ private:
     // Initialization helpers
     // -------------------------------------------------------------------------
 
-    BlockShapeInfo find_block_shapes(const PortsMap& prefill_in_ports) const;
-    DummyTensors allocate_dummy_block_tensors(const BlockShapeInfo& shapes) const;
-    void set_dummy_tensors_to_all_requests(
-        const DummyTensors& dummies,
-        const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
-        const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
-        const PortsMap& prefill_in_ports,
-        const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports);
-    LayerBlockNames parse_block_inputs_structure(const PortsMap& prefill_in_ports) const;
     void create_block_managers_and_helpers(
         const LayerBlockNames& layer_blocks,
         const PortsMap& prefill_in_ports,
@@ -157,8 +141,6 @@ private:
     // -------------------------------------------------------------------------
     // Prefill path primitives
     // -------------------------------------------------------------------------
-
-    uint32_t get_block_size() const;
 
     void load_past_kv_blocks_to_prefill(const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
                                         const PortsMap& prefill_in_ports);
@@ -194,6 +176,10 @@ private:
 
     // Whether the most recent on_prefill_chunk_begin() chose the zero-copy path.
     bool m_zero_copy_last_chunk = false;
+
+    // Block size in tokens — fixed at on_initialize() time, equal to m_prefill_chunk_size.
+    // Cached here to avoid repeated map lookups into m_kv_cache_block_managers.
+    uint32_t m_block_size = 0;
 };
 
 }  // namespace npuw

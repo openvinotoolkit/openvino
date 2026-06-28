@@ -109,6 +109,102 @@ void copy_block_to_tail_input(const ov::SoPtr<ov::ITensor>& block_tensor,
     uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
 }
 
+// Shapes and element type of one key/value block pair — derived from the first
+// numbered block port found during initialization.
+struct BlockShapeInfo {
+    ov::Shape key_shape;
+    ov::Shape value_shape;
+    ov::element::Type elem_type;
+    bool found_key = false;
+    bool found_value = false;
+};
+
+// Scan prefill input ports to discover the shape and element type of block tensors.
+BlockShapeInfo find_block_shapes(const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& prefill_in_ports) {
+    BlockShapeInfo shapes;
+    for (const auto& [name, port] : prefill_in_ports) {
+        const auto kv_type = classify_numbered_block_param(name);
+        if (!kv_type.has_value()) {
+            continue;
+        }
+        const bool is_key = kv_type.value();
+        if (!shapes.found_key && is_key) {
+            shapes.key_shape = port.get_shape();
+            shapes.elem_type = port.get_element_type();
+            shapes.found_key = true;
+            LOG_DEBUG("Detected key block shape: " << shapes.key_shape << ", type: " << shapes.elem_type);
+        }
+        if (!shapes.found_value && !is_key) {
+            shapes.value_shape = port.get_shape();
+            shapes.found_value = true;
+            LOG_DEBUG("Detected value block shape: " << shapes.value_shape);
+        }
+        if (shapes.found_key && shapes.found_value) {
+            break;
+        }
+    }
+    return shapes;
+}
+
+// Set dummy tensors on all numbered block input ports for every inference request.
+void set_dummy_tensors_to_all_requests(
+    const ov::npuw::LLMBlockKVCacheStrategy::DummyTensors& dummies,
+    const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
+    const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
+    const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& prefill_in_ports,
+    const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, ov::npuw::LLMBlockKVCacheStrategy::PortsMap>&
+        gen_variant_in_ports) {
+    size_t prefill_block_count = set_dummy_block_tensors(
+        prefill_in_ports,
+        [&prefill_request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+            prefill_request->set_tensor(port, tensor);
+        },
+        dummies.key_tensor,
+        dummies.value_tensor);
+    LOG_INFO("Set " << prefill_block_count << " prefill numbered block inputs to shared dummy tensors");
+
+    size_t generate_block_count = 0;
+    for (auto& generate_request : generate_requests) {
+        generate_block_count += set_dummy_block_tensors(
+            gen_variant_in_ports.at(generate_request),
+            [&generate_request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+                generate_request->set_tensor(port, tensor);
+            },
+            dummies.key_tensor,
+            dummies.value_tensor);
+    }
+    LOG_INFO("Set " << generate_block_count << " generate numbered block inputs to shared dummy tensors");
+}
+
+// layer_idx → {key_block_names, value_block_names}
+using LayerBlockNames = ov::npuw::LLMBlockKVCacheStrategy::LayerBlockNames;
+
+// Parse block input port names to build a map of layer_idx → {key_names, value_names}.
+LayerBlockNames parse_block_inputs_structure(const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& prefill_in_ports) {
+    LayerBlockNames layer_blocks;
+    for (const auto& [name, port] : prefill_in_ports) {
+        const bool is_key = ov::npuw::util::isPastKeyParam(name);
+        const bool is_value = ov::npuw::util::isPastValueParam(name);
+        if (!is_key && !is_value) {
+            continue;
+        }
+        static const std::regex layer_regex(R"(past_key_values\.(\d+\.))");
+        std::smatch match;
+        uint32_t layer_idx = 0;
+        if (std::regex_search(name, match, layer_regex) && match.size() > 1) {
+            layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
+        } else {
+            LOG_DEBUG("WARNING: Could not parse layer index from " << name << ", using default 0");
+        }
+        if (is_key) {
+            layer_blocks[layer_idx].first.push_back(name);
+        } else {
+            layer_blocks[layer_idx].second.push_back(name);
+        }
+    }
+    return layer_blocks;
+}
+
 }  // anonymous namespace
 
 namespace ov {
@@ -128,7 +224,21 @@ void LLMBlockKVCacheStrategy::on_initialize() {
     if (block_shapes.found_key) {
         // Dummy tensor optimization: share one dummy tensor per shape across all block inputs.
         // Store in m_dummy_tensors so on_reset() can restore ports to release block tensor refs.
-        m_dummy_tensors = allocate_dummy_block_tensors(block_shapes);
+        const auto& plugin = m_req.m_npuw_llm_compiled_model->get_plugin();
+        m_dummy_tensors.key_tensor =
+            ov::npuw::util::allocMem(block_shapes.elem_type, block_shapes.key_shape, m_req.m_pre_alloc_device, plugin);
+        LOG_INFO("Allocated shared dummy key tensor: " << block_shapes.key_shape << " ("
+                                                       << m_dummy_tensors.key_tensor->get_byte_size() << " bytes)");
+        if (block_shapes.found_value && block_shapes.value_shape != block_shapes.key_shape) {
+            m_dummy_tensors.value_tensor = ov::npuw::util::allocMem(block_shapes.elem_type,
+                                                                    block_shapes.value_shape,
+                                                                    m_req.m_pre_alloc_device,
+                                                                    plugin);
+            LOG_INFO("Allocated shared dummy value tensor: "
+                     << block_shapes.value_shape << " (" << m_dummy_tensors.value_tensor->get_byte_size() << " bytes)");
+        } else {
+            m_dummy_tensors.value_tensor = m_dummy_tensors.key_tensor;
+        }
         set_dummy_tensors_to_all_requests(m_dummy_tensors,
                                           m_req.m_prefill_request,
                                           m_req.m_generate_requests,
@@ -196,8 +306,7 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_begin(uint32_t current_prompts_le
 
     load_past_kv_blocks_to_prefill(m_req.m_prefill_request, m_req.m_prefill_in_ports);
 
-    const uint32_t block_size = get_block_size();
-    if (current_prompts_len % block_size == 0) {
+    if (current_prompts_len % m_block_size == 0) {
         m_zero_copy_last_chunk = redirect_prefill_outputs_to_new_blocks(m_req.m_prefill_request,
                                                                         m_req.m_prefill_out_ports,
                                                                         current_prompts_len);
@@ -205,7 +314,7 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_begin(uint32_t current_prompts_le
         m_zero_copy_last_chunk = false;
     }
     if (!m_zero_copy_last_chunk) {
-        LOG_DEBUG("Chunk not block-aligned (" << current_prompts_len << " % " << block_size
+        LOG_DEBUG("Chunk not block-aligned (" << current_prompts_len << " % " << m_block_size
                                               << " != 0), falling back to copy path");
         // Restore original output buffers so the model does not write into blocks that were
         // redirected by a previous zero-copy chunk.
@@ -323,11 +432,6 @@ void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t tokens_before,
 // Private: prefill path primitives
 // ============================================================================
 
-uint32_t LLMBlockKVCacheStrategy::get_block_size() const {
-    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty());
-    return m_kv_cache_block_managers.begin()->second.key_manager->get_block_size();
-}
-
 void LLMBlockKVCacheStrategy::load_past_kv_blocks_to_prefill(
     const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
     const PortsMap& prefill_in_ports) {
@@ -366,8 +470,7 @@ bool LLMBlockKVCacheStrategy::redirect_prefill_outputs_to_new_blocks(
     }
     auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     uint32_t current_position = kvcache_desc.num_stored_tokens;
-    uint32_t first_block_size = m_kv_cache_block_managers.begin()->second.key_manager->get_block_size();
-    if (current_position % first_block_size != 0) {
+    if (current_position % m_block_size != 0) {
         return false;
     }
 
@@ -383,19 +486,18 @@ bool LLMBlockKVCacheStrategy::redirect_prefill_outputs_to_new_blocks(
     size_t total_outputs_bound = 0;
 
     auto process_kv_blocks = [&](uint32_t layer_idx, KVCacheBlockManager* manager, const char* kv_type_name) -> bool {
-        uint32_t block_size = manager->get_block_size();
         uint32_t start_pos = current_position;
         uint32_t end_pos = current_position + num_new_tokens;
-        uint32_t start_block_idx = start_pos / block_size;
-        uint32_t end_block_idx = (end_pos - 1) / block_size;
+        uint32_t start_block_idx = start_pos / m_block_size;
+        uint32_t end_block_idx = (end_pos - 1) / m_block_size;
 
         // Alignment postconditions for zero-copy
-        OPENVINO_ASSERT(start_pos % block_size == 0,
+        OPENVINO_ASSERT(start_pos % m_block_size == 0,
                         "Zero-copy prefill requires block-aligned position. ",
                         "current_position=",
                         start_pos,
                         ", block_size=",
-                        block_size);
+                        m_block_size);
         OPENVINO_ASSERT(start_block_idx == end_block_idx,
                         "Zero-copy prefill requires writing to a single block. ",
                         "start_block=",
@@ -405,15 +507,15 @@ bool LLMBlockKVCacheStrategy::redirect_prefill_outputs_to_new_blocks(
                         ", num_new_tokens=",
                         num_new_tokens,
                         ", block_size=",
-                        block_size);
+                        m_block_size);
 
-        uint32_t tokens_in_block = end_pos - (start_block_idx * block_size);
-        OPENVINO_ASSERT(tokens_in_block == block_size || tokens_in_block == num_new_tokens,
+        uint32_t tokens_in_block = end_pos - (start_block_idx * m_block_size);
+        OPENVINO_ASSERT(tokens_in_block == m_block_size || tokens_in_block == num_new_tokens,
                         "Zero-copy prefill requires writing full blocks. ",
                         "tokens_in_block=",
                         tokens_in_block,
                         ", block_size=",
-                        block_size,
+                        m_block_size,
                         ", num_new_tokens=",
                         num_new_tokens);
 
@@ -437,7 +539,7 @@ bool LLMBlockKVCacheStrategy::redirect_prefill_outputs_to_new_blocks(
             auto target_block_tensor = manager->get_block_tensor(target_block_id);
             prefill_request->set_tensor(port_it->second, target_block_tensor);
             // Update metadata immediately — we know how many tokens will be written
-            uint32_t block_start_pos = start_block_idx * block_size;
+            uint32_t block_start_pos = start_block_idx * m_block_size;
             manager->update_block_tokens(target_block_id, end_pos - block_start_pos);
             total_outputs_bound++;
             LOG_VERB("Bound " << kv_type_name << " output layer " << layer_idx << " to block_" << start_block_idx
@@ -615,7 +717,6 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
             continue;
         }
         const bool is_key = info_it->second.is_key;
-        const bool is_value = !is_key;
         const uint32_t layer_idx = info_it->second.layer_idx;
 
         auto it = m_kv_cache_block_managers.find(layer_idx);
@@ -625,7 +726,7 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 
         auto& layer_managers = it->second;
         auto& block_manager = is_key ? layer_managers.key_manager : layer_managers.value_manager;
-        const uint32_t kv_dim = (is_value && v_transposed) ? 3u : kvcache_desc.dim;
+        const uint32_t kv_dim = (!is_key && v_transposed) ? 3u : kvcache_desc.dim;
 
         auto src_tensor = request->get_tensor(src_ports.at(output_name));
         uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
@@ -636,11 +737,10 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
             src_to_copy = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
         }
 
-        const uint32_t block_size = block_manager->get_block_size();
         const uint32_t start_pos = current_kv_position;
         const uint32_t end_pos = current_kv_position + num_tokens;
-        const uint32_t start_block_idx = start_pos / block_size;
-        const uint32_t end_block_idx = (end_pos - 1) / block_size;
+        const uint32_t start_block_idx = start_pos / m_block_size;
+        const uint32_t end_block_idx = (end_pos - 1) / m_block_size;
 
         // Allocate any blocks that do not yet exist, then fetch the final list once.
         auto allocated_blocks = block_manager->get_allocated_blocks();
@@ -657,8 +757,8 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
         for (uint32_t block_idx = start_block_idx; block_idx <= end_block_idx; ++block_idx) {
             const uint32_t block_id = allocated_blocks[block_idx];
             const auto block_tensor = block_manager->get_block_tensor(block_id);
-            const uint32_t write_start = (block_idx == start_block_idx) ? (start_pos % block_size) : 0u;
-            const uint32_t write_end = std::min(end_pos - block_idx * block_size, block_size);
+            const uint32_t write_start = (block_idx == start_block_idx) ? (start_pos % m_block_size) : 0u;
+            const uint32_t write_end = std::min(end_pos - block_idx * m_block_size, m_block_size);
             const uint32_t count = write_end - write_start;
             const auto dst_slice = uu::make_tensor_slice(block_tensor, kv_dim, write_start, write_end);
             const auto src_slice = uu::make_tensor_slice(src_to_copy, kv_dim, tokens_written, tokens_written + count);
@@ -674,110 +774,6 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 // Private: initialization helpers
 // ============================================================================
 
-LLMBlockKVCacheStrategy::BlockShapeInfo LLMBlockKVCacheStrategy::find_block_shapes(
-    const PortsMap& prefill_in_ports) const {
-    BlockShapeInfo shapes;
-    for (const auto& [name, port] : prefill_in_ports) {
-        const auto kv_type = classify_numbered_block_param(name);
-        if (!kv_type.has_value()) {
-            continue;
-        }
-        const bool is_key = kv_type.value();
-        if (!shapes.found_key && is_key) {
-            shapes.key_shape = port.get_shape();
-            shapes.elem_type = port.get_element_type();
-            shapes.found_key = true;
-            LOG_DEBUG("Detected key block shape: " << shapes.key_shape << ", type: " << shapes.elem_type);
-        }
-        if (!shapes.found_value && !is_key) {
-            shapes.value_shape = port.get_shape();
-            shapes.found_value = true;
-            LOG_DEBUG("Detected value block shape: " << shapes.value_shape);
-        }
-        if (shapes.found_key && shapes.found_value) {
-            break;
-        }
-    }
-    return shapes;
-}
-
-LLMBlockKVCacheStrategy::DummyTensors LLMBlockKVCacheStrategy::allocate_dummy_block_tensors(
-    const BlockShapeInfo& shapes) const {
-    const auto& compiled_model = m_req.m_npuw_llm_compiled_model;
-    DummyTensors dummies;
-    dummies.key_tensor = ov::npuw::util::allocMem(shapes.elem_type,
-                                                  shapes.key_shape,
-                                                  m_req.m_pre_alloc_device,
-                                                  compiled_model->get_plugin());
-    LOG_INFO("Allocated shared dummy key tensor: " << shapes.key_shape << " (" << dummies.key_tensor->get_byte_size()
-                                                   << " bytes)");
-    if (shapes.found_value && shapes.value_shape != shapes.key_shape) {
-        dummies.value_tensor = ov::npuw::util::allocMem(shapes.elem_type,
-                                                        shapes.value_shape,
-                                                        m_req.m_pre_alloc_device,
-                                                        compiled_model->get_plugin());
-        LOG_INFO("Allocated shared dummy value tensor: " << shapes.value_shape << " ("
-                                                         << dummies.value_tensor->get_byte_size() << " bytes)");
-    } else {
-        dummies.value_tensor = dummies.key_tensor;
-    }
-    return dummies;
-}
-
-void LLMBlockKVCacheStrategy::set_dummy_tensors_to_all_requests(
-    const DummyTensors& dummies,
-    const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
-    const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
-    const PortsMap& prefill_in_ports,
-    const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports) {
-    size_t prefill_block_count = set_dummy_block_tensors(
-        prefill_in_ports,
-        [&prefill_request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-            prefill_request->set_tensor(port, tensor);
-        },
-        dummies.key_tensor,
-        dummies.value_tensor);
-    LOG_INFO("Set " << prefill_block_count << " prefill numbered block inputs to shared dummy tensors");
-
-    size_t generate_block_count = 0;
-    for (auto& generate_request : generate_requests) {
-        generate_block_count += set_dummy_block_tensors(
-            gen_variant_in_ports.at(generate_request),
-            [&generate_request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-                generate_request->set_tensor(port, tensor);
-            },
-            dummies.key_tensor,
-            dummies.value_tensor);
-    }
-    LOG_INFO("Set " << generate_block_count << " generate numbered block inputs to shared dummy tensors");
-}
-
-LLMBlockKVCacheStrategy::LayerBlockNames LLMBlockKVCacheStrategy::parse_block_inputs_structure(
-    const PortsMap& prefill_in_ports) const {
-    LayerBlockNames layer_blocks;
-    for (const auto& [name, port] : prefill_in_ports) {
-        const bool is_key = ov::npuw::util::isPastKeyParam(name);
-        const bool is_value = ov::npuw::util::isPastValueParam(name);
-        if (!is_key && !is_value) {
-            continue;
-        }
-        static const std::regex layer_regex(R"(past_key_values\.(\d+)\.)");
-        std::smatch match;
-        uint32_t layer_idx = 0;
-        if (std::regex_search(name, match, layer_regex) && match.size() > 1) {
-            layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
-        } else {
-            LOG_DEBUG("WARNING: Could not parse layer index from " << name << ", using default 0");
-        }
-        if (is_key) {
-            layer_blocks[layer_idx].first.push_back(name);
-        } else {
-            layer_blocks[layer_idx].second.push_back(name);
-        }
-    }
-    return layer_blocks;
-}
-
 void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
     const LayerBlockNames& layer_blocks,
     const PortsMap& prefill_in_ports,
@@ -785,6 +781,7 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
     const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports) {
     const auto& compiled_model = m_req.m_npuw_llm_compiled_model;
     const uint32_t block_size = static_cast<uint32_t>(compiled_model->m_prefill_chunk_size);
+    m_block_size = block_size;
     const uint32_t max_blocks = (compiled_model->m_kvcache_desc.total_size + block_size - 1) / block_size;
 
     LOG_INFO("Block configuration: size=" << block_size << " tokens, max_blocks=" << max_blocks);
@@ -797,10 +794,10 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
         }
 
         LayerBlockManagers layer_managers;
-        const std::string layer_idx_str_local = std::to_string(layer_idx);
+        const std::string layer_idx_str = std::to_string(layer_idx);
 
         if (!key_block_names.empty()) {
-            const std::string key_block0_name = make_numbered_block_input_name("key", layer_idx_str_local, 0);
+            const std::string key_block0_name = make_numbered_block_input_name("key", layer_idx_str, 0);
             auto first_key_port = prefill_in_ports.at(key_block0_name);
             layer_managers.key_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                max_blocks,
@@ -810,7 +807,7 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
                                                                                compiled_model->get_plugin());
         }
         if (!value_block_names.empty()) {
-            const std::string value_block0_name = make_numbered_block_input_name("value", layer_idx_str_local, 0);
+            const std::string value_block0_name = make_numbered_block_input_name("value", layer_idx_str, 0);
             auto first_value_port = prefill_in_ports.at(value_block0_name);
             layer_managers.value_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                  max_blocks,
@@ -822,7 +819,6 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
 
         m_kv_cache_block_managers[layer_idx] = std::move(layer_managers);
 
-        const std::string layer_idx_str = std::to_string(layer_idx);
         const auto& layer_managers_ref = m_kv_cache_block_managers.at(layer_idx);
 
         for (const auto& generate_request : generate_requests) {
@@ -833,19 +829,17 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
             if (layer_managers_ref.key_manager) {
                 uint32_t max_blocks_key = layer_managers_ref.key_manager->get_max_blocks();
                 auto key_ports = partition_layer_block_ports("key", layer_idx_str, variant_in_ports, max_blocks_key);
-                layer_helpers.key_helper =
-                    BlockBindingHelper::from_ports(std::move(key_ports.numbered),
-                                                   std::move(key_ports.tail),
-                                                   layer_managers_ref.key_manager->get_block_size());
+                layer_helpers.key_helper = BlockBindingHelper::from_ports(std::move(key_ports.numbered),
+                                                                          std::move(key_ports.tail),
+                                                                          block_size);
             }
             if (layer_managers_ref.value_manager) {
                 uint32_t max_blocks_value = layer_managers_ref.value_manager->get_max_blocks();
                 auto value_ports =
                     partition_layer_block_ports("value", layer_idx_str, variant_in_ports, max_blocks_value);
-                layer_helpers.value_helper =
-                    BlockBindingHelper::from_ports(std::move(value_ports.numbered),
-                                                   std::move(value_ports.tail),
-                                                   layer_managers_ref.value_manager->get_block_size());
+                layer_helpers.value_helper = BlockBindingHelper::from_ports(std::move(value_ports.numbered),
+                                                                            std::move(value_ports.tail),
+                                                                            block_size);
             }
             variant_layer_helpers[layer_idx] = std::move(layer_helpers);
         }
