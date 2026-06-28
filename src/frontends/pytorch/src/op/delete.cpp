@@ -4,7 +4,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
-#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -18,7 +17,8 @@ OutputVector translate_delete(const NodeContext& context) {
     // list is rebuilt without that element and propagated back via mutate_input, so
     // subsequent aten::len / aten::__getitem__ observe the removal. A no-op would be
     // wrong. Only a constant index is supported (the form TorchScript emits for
-    // `del lst[i]`); a non-constant index falls back to a framework node.
+    // `del lst[i]`); a non-constant index is rejected (aten::Delete has no output,
+    // so a framework-node fallback cannot be represented).
     num_inputs_check(context, 2, 2);
     auto idx_const = ov::as_type_ptr<ov::op::v0::Constant>(context.get_input(1).get_node_shared_ptr());
     if (idx_const) {
@@ -36,7 +36,7 @@ OutputVector translate_delete(const NodeContext& context) {
         context.mutate_input(0, new_list);
         return {};
     }
-    return {context.mark_node(std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs()))};
+    PYTORCH_OP_CONVERSION_CHECK(false, "aten::Delete is only supported with a constant index.");
 }
 
 }  // namespace op
