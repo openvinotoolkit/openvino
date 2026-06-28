@@ -445,21 +445,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 
     m_kvcache_strategy->on_reset();
 
-    // With NPUW_UNFOLD_IREQS=YES (the performance default), each function-call sub-request
-    // holds its own shared_ptr to block tensors.  on_reset() sets dummy tensors on the outer
-    // (IAsyncInferRequest) level for all variants, but sub-requests only update their tensors
-    // the next time infer() runs their function_prologue.  Variants that are not selected for
-    // the upcoming conversation (e.g. V8K when switching to V1K) may never run infer() again,
-    // so their sub-requests would hold block tensor refs indefinitely.
-    // Calling propagate_params_to_subrequests() now re-runs bind_global_params on all
-    // sub-requests, pushing the dummies that on_reset() placed in the outer m_port_to_tensor
-    // down into sub-requests, and immediately dropping all remaining block tensor refs.
-    if (m_npuw_llm_compiled_model->m_is_block_kv_cache) {
-        for (auto& base_req : m_generate_base_requests) {
-            base_req->propagate_params_to_subrequests();
-        }
-    }
-
     for (const auto& input_name : m_lincache_past_names) {
         if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {
             uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name)), 0u);

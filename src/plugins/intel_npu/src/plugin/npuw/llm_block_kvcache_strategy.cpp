@@ -174,6 +174,14 @@ void LLMBlockKVCacheStrategy::on_reset() {
                                           m_req.m_prefill_in_ports,
                                           m_req.m_generate_variant_in_ports);
     }
+    // Each sub-request holds its own shared_ptr to block tensors and only picks up
+    // new tensors the next time infer() runs their function_prologue.  Variants not
+    // selected in the next conversation may never run infer() again, leaving stale
+    // block tensor refs indefinitely.  Push the dummies set above into every
+    // sub-request now so block memory is freed immediately on conversation reset.
+    for (auto& base_req : m_req.m_generate_base_requests) {
+        base_req->propagate_params_to_subrequests();
+    }
     for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
         layer_managers.key_manager->clear_all();
         layer_managers.value_manager->clear_all();

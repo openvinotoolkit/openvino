@@ -81,7 +81,9 @@ void LLMContinuousKVCacheStrategy::on_prefill_chunk_begin(uint32_t /*current_pro
 
 // on_prefill_chunk_done:
 //   is_last=false: persist just-inferred KV outputs into past inputs for the next chunk.
-//   is_last=true:  the present KV output is left in-place and consumed by on_prefill_done().
+//   is_last=true:  leave the KV output in-place in the prefill model's output tensors;
+//                  it will be copied into the generate model by on_generate_kv_init()
+//                  via copy_kvcache() at the start of the first generate step.
 void LLMContinuousKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len,
                                                          uint32_t /*kv_position*/,
                                                          bool is_last) {

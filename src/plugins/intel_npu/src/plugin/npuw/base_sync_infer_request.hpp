@@ -54,12 +54,6 @@ public:
 
     void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
 
-    // After set_tensor() has replaced block tensors with dummies on the outer (LLM-level)
-    // request, call this to push those updated tensors into sub-requests via bind_global_params.
-    // This ensures that unfolded sub-requests (NPUW_UNFOLD_IREQS=YES) also release their
-    // stale shared_ptr refs to block tensors, allowing NPU memory to be freed immediately.
-    void propagate_params_to_subrequests();
-
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
@@ -95,6 +89,19 @@ public:
 
 protected:
     int64_t m_history_size = 0;
+
+    // After set_tensor() has replaced block tensors with dummies on the outer (LLM-level)
+    // request, call this to push those updated tensors into sub-requests via bind_global_params.
+    // Sub-requests hold their own shared_ptr to block tensors and only pick up new tensors
+    // the next time infer() runs their function_prologue.  For variants that are not selected
+    // in the next conversation, infer() may never run again, so this call drops all remaining
+    // block tensor refs immediately on conversation reset.
+    // Only LLMBlockKVCacheStrategy should call this (via friend declaration below).
+    void propagate_params_to_subrequests();
+
+    // LLMBlockKVCacheStrategy calls propagate_params_to_subrequests() from on_reset() to drop
+    // stale block tensor refs from sub-requests before block memory is freed.
+    friend class LLMBlockKVCacheStrategy;
 
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
