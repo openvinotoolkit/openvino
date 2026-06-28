@@ -1159,6 +1159,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_DEBUG("Applying SplitKVCacheIntoBlocks (block_size=" << block_size << ")");
             LOG_BLOCK();
 
+            bool all_transformed = true;
             auto apply_block_kv_transform =
                 [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
                     ov::pass::Manager mgr(tag);
@@ -1167,6 +1168,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                         LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
                     } else {
                         LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                        all_transformed = false;
                     }
                 };
 
@@ -1178,6 +1180,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                          "generate_" + std::to_string(i));
             }
 
+            if (!all_transformed) {
+                OPENVINO_THROW("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES: "
+                               "SplitKVCacheIntoBlocks had no effect on one or more models. "
+                               "Ensure the model uses HFA or Pyramid attention pattern.");
+            }
             m_is_block_kv_cache = true;
         } else {
             LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "

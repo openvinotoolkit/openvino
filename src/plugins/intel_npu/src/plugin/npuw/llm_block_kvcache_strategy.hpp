@@ -74,9 +74,6 @@ public:
     // PortsMap matches the alias used by LLMInferRequest for consistency.
     using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
-    // layer_idx → {key_block_names, value_block_names}
-    using LayerBlockNames = std::unordered_map<uint32_t, std::pair<std::vector<std::string>, std::vector<std::string>>>;
-
     // Dummy tensors shared across all numbered block input ports (key + value).
     struct DummyTensors {
         ov::SoPtr<ov::ITensor> key_tensor;
@@ -119,7 +116,6 @@ private:
     // -------------------------------------------------------------------------
 
     void create_block_managers_and_helpers(
-        const LayerBlockNames& layer_blocks,
         const PortsMap& prefill_in_ports,
         const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
         const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports);

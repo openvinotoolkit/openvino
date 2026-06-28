@@ -176,35 +176,6 @@ void set_dummy_tensors_to_all_requests(
     LOG_INFO("Set " << generate_block_count << " generate numbered block inputs to shared dummy tensors");
 }
 
-// layer_idx → {key_block_names, value_block_names}
-using LayerBlockNames = ov::npuw::LLMBlockKVCacheStrategy::LayerBlockNames;
-
-// Parse block input port names to build a map of layer_idx → {key_names, value_names}.
-LayerBlockNames parse_block_inputs_structure(const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& prefill_in_ports) {
-    LayerBlockNames layer_blocks;
-    for (const auto& [name, port] : prefill_in_ports) {
-        const bool is_key = ov::npuw::util::isPastKeyParam(name);
-        const bool is_value = ov::npuw::util::isPastValueParam(name);
-        if (!is_key && !is_value) {
-            continue;
-        }
-        static const std::regex layer_regex(R"(past_key_values\.(\d+\.))");
-        std::smatch match;
-        uint32_t layer_idx = 0;
-        if (std::regex_search(name, match, layer_regex) && match.size() > 1) {
-            layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
-        } else {
-            LOG_DEBUG("WARNING: Could not parse layer index from " << name << ", using default 0");
-        }
-        if (is_key) {
-            layer_blocks[layer_idx].first.push_back(name);
-        } else {
-            layer_blocks[layer_idx].second.push_back(name);
-        }
-    }
-    return layer_blocks;
-}
-
 }  // anonymous namespace
 
 namespace ov {
@@ -246,13 +217,8 @@ void LLMBlockKVCacheStrategy::on_initialize() {
                                           m_req.m_generate_variant_in_ports);
     }
 
-    // Parse block input structure
-    auto layer_blocks = parse_block_inputs_structure(prefill_in_ports);
     // Create block managers and pre-compute per-variant binding helpers
-    create_block_managers_and_helpers(layer_blocks,
-                                      prefill_in_ports,
-                                      m_req.m_generate_requests,
-                                      m_req.m_generate_variant_in_ports);
+    create_block_managers_and_helpers(prefill_in_ports, m_req.m_generate_requests, m_req.m_generate_variant_in_ports);
 
     // Snapshot original prefill output tensors (for restore_prefill_output_buffers()) and
     // build m_output_kv_info (output_name → layer/kv) to avoid per-call regex.
@@ -293,8 +259,12 @@ void LLMBlockKVCacheStrategy::on_reset() {
         base_req->propagate_params_to_subrequests();
     }
     for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
-        layer_managers.key_manager->clear_all();
-        layer_managers.value_manager->clear_all();
+        if (layer_managers.key_manager) {
+            layer_managers.key_manager->clear_all();
+        }
+        if (layer_managers.value_manager) {
+            layer_managers.value_manager->clear_all();
+        }
     }
 }
 
@@ -775,7 +745,6 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 // ============================================================================
 
 void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
-    const LayerBlockNames& layer_blocks,
     const PortsMap& prefill_in_ports,
     const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
     const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap>& gen_variant_in_ports) {
@@ -786,18 +755,80 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
 
     LOG_INFO("Block configuration: size=" << block_size << " tokens, max_blocks=" << max_blocks);
 
-    for (const auto& [layer_idx, block_names_pair] : layer_blocks) {
-        const auto& key_block_names = block_names_pair.first;
-        const auto& value_block_names = block_names_pair.second;
-        if (key_block_names.empty() && value_block_names.empty()) {
+    // -------------------------------------------------------------------------
+    // Phase 1: Single scan — discover which layers have key/value block ports.
+    // Records both numbered blocks and tail ports so Phase 2 can cross-validate.
+    // -------------------------------------------------------------------------
+    struct LayerKVPresence {
+        bool has_key_numbered_block = false;    // at least one key_block_N found
+        bool has_value_numbered_block = false;  // at least one value_block_N found
+        bool has_key_tail_block = false;        // key_block_tail found
+        bool has_value_tail_block = false;      // value_block_tail found
+    };
+    std::map<uint32_t, LayerKVPresence> layer_presence;
+
+    static const std::regex layer_regex(R"(past_key_values\.(\d+)\.)");
+    for (const auto& [name, port] : prefill_in_ports) {
+        namespace uu = ov::npuw::util;
+        if (!uu::isPastKeyParam(name) && !uu::isPastValueParam(name)) {
             continue;
         }
+        std::smatch match;
+        if (!std::regex_search(name, match, layer_regex) || match.size() <= 1) {
+            OPENVINO_THROW("NPUW block KV cache: could not parse layer index from port name: ", name);
+        }
+        const uint32_t layer_idx = static_cast<uint32_t>(std::stoi(match[1].str()));
+        auto& presence = layer_presence[layer_idx];
 
-        LayerBlockManagers layer_managers;
+        const bool is_tail = name.find("block_tail") != std::string::npos;
+        const bool is_key = uu::isPastKeyParam(name);
+        if (is_tail) {
+            if (is_key)
+                presence.has_key_tail_block = true;
+            else
+                presence.has_value_tail_block = true;
+        } else if (classify_numbered_block_param(name).has_value()) {
+            if (is_key)
+                presence.has_key_numbered_block = true;
+            else
+                presence.has_value_numbered_block = true;
+        }
+        // else: contiguous param — skip
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 2: For each layer, validate invariants, create block managers,
+    //          and pre-compute per-generate-variant binding helpers.
+    //
+    // Invariants (broken SplitKVCacheIntoBlocks would violate these):
+    //   A. tail-only layer: has_key_tail without has_key (or same for value)
+    //   B. missing block_0: has_key/has_value but key/value_block_0 is absent
+    // -------------------------------------------------------------------------
+    for (const auto& [layer_idx, presence] : layer_presence) {
         const std::string layer_idx_str = std::to_string(layer_idx);
 
-        if (!key_block_names.empty()) {
+        // Invariant A: tail must not exist without numbered blocks
+        OPENVINO_ASSERT(!presence.has_key_tail_block || presence.has_key_numbered_block,
+                        "NPUW block KV cache: layer ",
+                        layer_idx,
+                        " has key_block_tail but no key numbered blocks. "
+                        "SplitKVCacheIntoBlocks transformation may be broken.");
+        OPENVINO_ASSERT(!presence.has_value_tail_block || presence.has_value_numbered_block,
+                        "NPUW block KV cache: layer ",
+                        layer_idx,
+                        " has value_block_tail but no value numbered blocks. "
+                        "SplitKVCacheIntoBlocks transformation may be broken.");
+
+        LayerBlockManagers layer_managers;
+
+        if (presence.has_key_numbered_block) {
+            // Invariant B: numbered blocks must start at block_0
             const std::string key_block0_name = make_numbered_block_input_name("key", layer_idx_str, 0);
+            OPENVINO_ASSERT(prefill_in_ports.count(key_block0_name),
+                            "NPUW block KV cache: layer ",
+                            layer_idx,
+                            " has key blocks but no key_block_0. "
+                            "SplitKVCacheIntoBlocks transformation may be broken.");
             auto first_key_port = prefill_in_ports.at(key_block0_name);
             layer_managers.key_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                max_blocks,
@@ -806,8 +837,13 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
                                                                                m_req.m_pre_alloc_device,
                                                                                compiled_model->get_plugin());
         }
-        if (!value_block_names.empty()) {
+        if (presence.has_value_numbered_block) {
             const std::string value_block0_name = make_numbered_block_input_name("value", layer_idx_str, 0);
+            OPENVINO_ASSERT(prefill_in_ports.count(value_block0_name),
+                            "NPUW block KV cache: layer ",
+                            layer_idx,
+                            " has value blocks but no value_block_0. "
+                            "SplitKVCacheIntoBlocks transformation may be broken.");
             auto first_value_port = prefill_in_ports.at(value_block0_name);
             layer_managers.value_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                  max_blocks,
@@ -818,7 +854,6 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers(
         }
 
         m_kv_cache_block_managers[layer_idx] = std::move(layer_managers);
-
         const auto& layer_managers_ref = m_kv_cache_block_managers.at(layer_idx);
 
         for (const auto& generate_request : generate_requests) {
