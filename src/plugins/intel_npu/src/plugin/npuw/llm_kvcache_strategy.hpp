@@ -60,10 +60,9 @@ public:
     virtual void on_prefill_chunk_begin(uint32_t current_prompts_len) = 0;
 
     // Called after each prefill chunk's infer().
-    // kv_position is the post-infer num_stored_tokens (already incremented by current_prompts_len).
     // is_last=false: intermediate chunk — KV outputs must be persisted for the next chunk.
     // is_last=true:  final chunk — block mode stores outputs into blocks; continuous is no-op.
-    virtual void on_prefill_chunk_done(uint32_t current_prompts_len, uint32_t kv_position, bool is_last) = 0;
+    virtual void on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) = 0;
     // Called once after all prefill chunks: transfer KV from prefill model to generate model
     virtual void on_prefill_done() = 0;
 
@@ -72,7 +71,7 @@ public:
     virtual void on_generate_kv_init() = 0;
 
     // Called after each generate step's infer(): persist new token KV and update bindings
-    virtual void on_generate_step_done(uint32_t tokens_before, uint32_t tokens_after, uint32_t input_tokens_len) = 0;
+    virtual void on_generate_step_done(uint32_t input_tokens_len) = 0;
 
 protected:
     LLMInferRequest& m_req;

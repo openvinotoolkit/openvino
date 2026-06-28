@@ -322,20 +322,19 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_begin(uint32_t current_prompts_le
     }
 }
 
-void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len,
-                                                    uint32_t kv_position,
-                                                    bool /*is_last*/) {
+void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len, bool /*is_last*/) {
     if (m_zero_copy_last_chunk) {
         // Zero-copy: model wrote directly into blocks; redirect_prefill_outputs_to_new_blocks()
         // already updated metadata — nothing to do.
         LOG_DEBUG("Zero-copy prefill complete - no post-inference work needed");
     } else {
         // Copy path: copy from the model's output buffer into blocks.
-        // kv_position is post-increment; the write start is kv_position - current_prompts_len.
-        const uint32_t write_start = kv_position - current_prompts_len;
+        // write start = num_stored_tokens (already incremented) - current_prompts_len.
+        const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+        const uint32_t write_start = kvcache_desc.num_stored_tokens - current_prompts_len;
         LOG_DEBUG("Copying prefill outputs to blocks: num_tokens=" << current_prompts_len
                                                                    << " kv_position=" << write_start);
-        const bool v_transposed = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.v_tensors_transposed_pre;
+        const bool v_transposed = kvcache_desc.v_tensors_transposed_pre;
         copy_outputs_to_blocks(m_req.m_prefill_request,
                                m_req.m_prefill_out_ports,
                                current_prompts_len,
@@ -417,13 +416,14 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
     LOG_DEBUG("Initial binding complete.");
 }
 
-void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t tokens_before,
-                                                    uint32_t tokens_after,
-                                                    uint32_t input_tokens_len) {
+void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+    const uint32_t tokens_after = kvcache_desc.num_stored_tokens;
+    const uint32_t tokens_before = tokens_after - input_tokens_len;
     copy_outputs_to_blocks(m_req.m_kvcache_request,
                            m_req.m_kvcache_out_ports,
                            input_tokens_len,
-                           m_req.m_npuw_llm_compiled_model->m_kvcache_desc.v_tensors_transposed_gen,
+                           kvcache_desc.v_tensors_transposed_gen,
                            tokens_before);
     update_generate_bindings(tokens_before, tokens_after, m_req.m_kvcache_request);
 }

@@ -28,10 +28,10 @@ public:
     void on_initialize() override;
     void on_reset() override;
     void on_prefill_chunk_begin(uint32_t current_prompts_len) override;
-    void on_prefill_chunk_done(uint32_t current_prompts_len, uint32_t kv_position, bool is_last) override;
+    void on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) override;
     void on_prefill_done() override;
     void on_generate_kv_init() override;
-    void on_generate_step_done(uint32_t tokens_before, uint32_t tokens_after, uint32_t input_tokens_len) override;
+    void on_generate_step_done(uint32_t input_tokens_len) override;
 };
 
 }  // namespace npuw

@@ -84,9 +84,7 @@ void LLMContinuousKVCacheStrategy::on_prefill_chunk_begin(uint32_t /*current_pro
 //   is_last=true:  leave the KV output in-place in the prefill model's output tensors;
 //                  it will be copied into the generate model by on_generate_kv_init()
 //                  via copy_kvcache() at the start of the first generate step.
-void LLMContinuousKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len,
-                                                         uint32_t /*kv_position*/,
-                                                         bool is_last) {
+void LLMContinuousKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) {
     if (is_last) {
         return;
     }
@@ -111,9 +109,7 @@ void LLMContinuousKVCacheStrategy::on_generate_kv_init() {
 
 // on_generate_step_done: persist the new token's KV output into the past KV input buffer
 // so the next generate step sees the updated context.
-void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t /*tokens_before*/,
-                                                         uint32_t /*tokens_after*/,
-                                                         uint32_t input_tokens_len) {
+void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
     const bool v_transposed = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.v_tensors_transposed_gen;
     m_req.update_kvcache_for(m_req.m_kvcache_request,
                              m_req.m_kvcache_in_ports,

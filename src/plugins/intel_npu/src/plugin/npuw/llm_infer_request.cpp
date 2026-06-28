@@ -804,9 +804,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         m_llm_profile["1/prefill:3d.update_kvcache"].record([&]() {
             // Finalise KV state after inference via strategy.
-            m_kvcache_strategy->on_prefill_chunk_done(static_cast<uint32_t>(current_prompts_len),
-                                                      kvcache_desc.num_stored_tokens,
-                                                      is_last_chunk);
+            m_kvcache_strategy->on_prefill_chunk_done(static_cast<uint32_t>(current_prompts_len), is_last_chunk);
             // Do not copy last computed chunk and preserve it in present k/v layer.
             if (!is_last_chunk) {
                 // Attention mask and lincache update for intermediate chunks.
@@ -1056,8 +1054,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    uint32_t tokens_before_infer = kvcache_desc.num_stored_tokens;
-
     m_llm_profile["N/generate:2.infer"].record([&]() {
         m_kvcache_request->infer();
     });
@@ -1067,9 +1063,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     auto do_update_kvcache = [&]() {
         m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-                m_kvcache_strategy->on_generate_step_done(tokens_before_infer,
-                                                          kvcache_desc.num_stored_tokens,
-                                                          input_tokens_len);
+                m_kvcache_strategy->on_generate_step_done(input_tokens_len);
             }
         });
     };
