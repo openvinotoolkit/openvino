@@ -255,6 +255,25 @@ static _ov_dnnl_cpu_isa getHostIsa() {
 #endif
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+static impl_desc_type getImplType(dnnl::impl::cpu::aarch64::cpu_isa_t isa) {
+    using namespace dnnl::impl::cpu::aarch64;
+
+    switch (isa) {
+    case sve_512:
+        return impl_desc_type::jit_sve512;
+    case sve_256:
+        return impl_desc_type::jit_sve256;
+    case sve_128:
+        return impl_desc_type::jit_sve128;
+    case asimd:
+        return impl_desc_type::jit_asimd;
+    default:
+        return impl_desc_type::unknown;
+    }
+}
+#endif
+
 Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, SnippetShapeInferFactory(op)),
       host_isa(getHostIsa()),
@@ -421,9 +440,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
         impl_desc_type impl_type = impl_desc_type::unknown;
 #if defined(OPENVINO_ARCH_ARM64)
-        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
-            impl_type = impl_desc_type::jit_asimd;
-        }
+        impl_type = getImplType(host_isa);
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
             impl_type = impl_desc_type::jit_gv;
@@ -904,45 +921,10 @@ void Subgraph::optimizeIR() {
 #if defined(OPENVINO_ARCH_ARM64)
     const auto target_machine =
         std::dynamic_pointer_cast<const aarch64::CPUTargetMachine>(subgraph->get_generator()->get_target_machine());
-    if (target_machine) {
-        const auto current_isa = target_machine->get_isa();
-        if (current_isa != dnnl::impl::cpu::aarch64::asimd) {
-            bool all_support_sve = true;
-            for (const auto& op : subgraph->body_ptr()->get_ordered_ops()) {
-                const auto& type_info = op->get_type_info();
-                if (target_machine->has(type_info)) {
-                    const bool op_supports_sve = ov::is_type_any_of<ov::op::v0::Parameter,
-                                                                    snippets::op::Result,
-                                                                    snippets::op::Buffer,
-                                                                    snippets::op::VectorBuffer,
-                                                                    snippets::op::RankNormalization,
-                                                                    snippets::op::Reshape,
-                                                                    snippets::op::Reorder,
-                                                                    snippets::op::LoopBegin,
-                                                                    snippets::op::LoopEnd,
-                                                                    snippets::op::KernelStatic,
-                                                                    snippets::op::KernelDynamic,
-                                                                    snippets::op::RegSpillBegin,
-                                                                    snippets::op::RegSpillEnd,
-                                                                    ov::op::v1::Add,
-                                                                    snippets::op::Load,
-                                                                    snippets::op::LoadReorder,
-                                                                    snippets::op::Store,
-                                                                    ov::intel_cpu::LoadConvertSaturation,
-                                                                    ov::intel_cpu::LoadConvertTruncation,
-                                                                    ov::intel_cpu::StoreConvertSaturation,
-                                                                    ov::intel_cpu::StoreConvertTruncation>(op);
-                    if (!op_supports_sve) {
-                        all_support_sve = false;
-                        break;
-                    }
-                }
-            }
-            if (!all_support_sve) {
-                subgraph->set_generator(std::make_shared<aarch64::CPUGenerator>(dnnl::impl::cpu::aarch64::asimd,
-                                                                                context->getSnippetsParamsCache()));
-            }
-        }
+    if (target_machine && !target_machine->supports_current_isa(subgraph->body_ptr())) {
+        host_isa = dnnl::impl::cpu::aarch64::asimd;
+        subgraph->set_generator(std::make_shared<aarch64::CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
+        getSelectedPrimitiveDescriptor()->setImplementationType(getImplType(host_isa));
     }
 #endif
 

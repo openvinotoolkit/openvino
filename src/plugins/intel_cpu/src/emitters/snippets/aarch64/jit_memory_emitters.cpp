@@ -170,37 +170,64 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
 }
 
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    // TODO: gate
-    emit_isa<dnnl::impl::cpu::aarch64::asimd>(in, out);
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in, out);
+    } else if (dnnl::impl::cpu::aarch64::is_superset(host_isa_, dnnl::impl::cpu::aarch64::sve_128)) {
+        emit_isa<dnnl::impl::cpu::aarch64::sve_128>(in, out);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported isa ", host_isa_);
+    }
 }
 
 template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in[0]);
-    auto dst = TReg(out[0]);
+    const auto dst = TReg(out[0]);
 
-    auto load_broadcast = [&](auto reg_view) {
-        if (compiled_byte_offset == 0) {
-            h->ld1r(reg_view, ptr(src));
-        } else {
-            h->add_imm(h->X_DEFAULT_ADDR, src, compiled_byte_offset, h->X_TMP_0);
-            h->ld1r(reg_view, ptr(h->X_DEFAULT_ADDR));
+    if constexpr (isa == dnnl::impl::cpu::aarch64::asimd) {
+        auto load_broadcast = [&](auto reg_view) {
+            if (compiled_byte_offset == 0) {
+                h->ld1r(reg_view, ptr(src));
+            } else {
+                h->add_imm(h->X_DEFAULT_ADDR, src, compiled_byte_offset, h->X_TMP_0);
+                h->ld1r(reg_view, ptr(h->X_DEFAULT_ADDR));
+            }
+        };
+
+        switch (byte_size) {
+        case 1:
+            load_broadcast(dst.b);
+            break;
+        case 2:
+            load_broadcast(dst.h);
+            break;
+        case 4:
+            h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
         }
-    };
+    } else {
+        auto eff_src = src;
+        if (compiled_byte_offset != 0) {
+            h->add_imm(h->X_DEFAULT_ADDR, src, compiled_byte_offset, h->X_TMP_0);
+            eff_src = h->X_DEFAULT_ADDR;
+        }
 
-    switch (byte_size) {
-    case 1:
-        load_broadcast(dst.b);
-        break;
-    case 2:
-        load_broadcast(dst.h);
-        break;
-    case 4:
-        h->uni_ld1rw(dst.s, src, compiled_byte_offset);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
+        switch (byte_size) {
+        case 1:
+            h->ld1rb(ZRegB(out[0]), h->P_ALL_ONE, ptr(eff_src));
+            break;
+        case 2:
+            h->ld1rh(ZRegH(out[0]), h->P_ALL_ONE, ptr(eff_src));
+            break;
+        case 4:
+            h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
+        }
     }
 }
 

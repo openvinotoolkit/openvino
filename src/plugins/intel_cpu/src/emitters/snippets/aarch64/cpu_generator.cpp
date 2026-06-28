@@ -30,6 +30,7 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
@@ -139,35 +140,37 @@ static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* 
 
 #endif
 
-#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         const auto& n = expr->get_node();                                                        \
-         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
-         if (round == nullptr) {                                                                  \
-             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
-         }                                                                                        \
-         const auto roundingMode = round->get_mode();                                             \
-         if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
-             return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
-         }                                                                                        \
-         if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                        \
-             return std::make_shared<e_type_even>(h.get(), isa, n);                               \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Round mode");                                                \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
-         if (round == nullptr) {                                                                  \
-             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
-         }                                                                                        \
-         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {            \
-             return e_type_from_zero::get_supported_precisions(n);                                \
-         }                                                                                        \
-         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                   \
-             return e_type_even::get_supported_precisions(n);                                     \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Round mode");                                                \
-     }}
+#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                       \
+    {                                                                                                \
+        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            const auto& n = expr->get_node();                                                        \
+            const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+            if (round == nullptr) {                                                                  \
+                OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+            }                                                                                        \
+            const auto roundingMode = round->get_mode();                                             \
+            if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
+                return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
+            }                                                                                        \
+            if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                        \
+                return std::make_shared<e_type_even>(h.get(), isa, n);                               \
+            }                                                                                        \
+            OPENVINO_THROW("Unsupported Round mode");                                                \
+        },                                                                                           \
+            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                           \
+                if (round == nullptr) {                                                              \
+                    OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
+                }                                                                                    \
+                if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {        \
+                    return e_type_from_zero::get_supported_precisions(n);                            \
+                }                                                                                    \
+                if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {               \
+                    return e_type_even::get_supported_precisions(n);                                 \
+                }                                                                                    \
+                OPENVINO_THROW("Unsupported Round mode");                                            \
+            }                                                                                        \
+    }
 
 class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator_t {
 public:
@@ -181,6 +184,42 @@ public:
 };
 
 namespace intel_cpu::aarch64 {
+
+namespace {
+
+bool has_no_isa_specific_emitter(const std::shared_ptr<ov::Node>& op) {
+    return ov::is_type_any_of<op::v0::Parameter,
+                              snippets::op::Result,
+                              snippets::op::Buffer,
+                              snippets::op::VectorBuffer,
+                              snippets::op::RankNormalization,
+                              snippets::op::Reshape,
+                              snippets::op::Reorder>(op);
+}
+
+bool has_sve_emitter(const std::shared_ptr<ov::Node>& op) {
+    return ov::is_type_any_of<snippets::op::LoopBegin,
+                              snippets::op::LoopEnd,
+                              snippets::op::KernelStatic,
+                              snippets::op::KernelDynamic,
+                              snippets::op::RegSpillBegin,
+                              snippets::op::RegSpillEnd,
+                              op::v1::Add,
+                              snippets::op::Load,
+                              snippets::op::LoadReorder,
+                              snippets::op::BroadcastLoad,
+                              snippets::op::Store,
+                              intel_cpu::LoadConvertSaturation,
+                              intel_cpu::LoadConvertTruncation,
+                              intel_cpu::StoreConvertSaturation,
+                              intel_cpu::StoreConvertTruncation>(op);
+}
+
+bool is_sve_compatible(const std::shared_ptr<ov::Node>& op) {
+    return has_no_isa_specific_emitter(op) || has_sve_emitter(op);
+}
+
+}  // namespace
 
 CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
     : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
@@ -360,6 +399,22 @@ std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
 
 bool CPUTargetMachine::is_supported() const {
     return dnnl::impl::cpu::aarch64::mayiuse(isa);
+}
+
+bool CPUTargetMachine::supports_current_isa(const std::shared_ptr<ov::Model>& body) const {
+    OPENVINO_ASSERT(body, "Snippet body is empty");
+
+    namespace aarch64 = dnnl::impl::cpu::aarch64;
+    if (!aarch64::is_superset(isa, aarch64::sve_128)) {
+        return true;
+    }
+
+    for (const auto& op : body->get_ordered_ops()) {
+        if (has(op->get_type_info()) && !is_sve_compatible(op)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
