@@ -34,7 +34,7 @@ namespace {
 using sal_detail::unwrap_identity;
 
 // Try to extract the concrete sequence elements behind an Output.
-// Handles SequenceMark, SequenceMark->SequenceInsert chains, and Identity wrappers.
+// Handles SequenceMark and Identity-of-SequenceMark.
 bool try_extract_sequence(const ov::Output<ov::Node>& value, ov::OutputVector& out) {
     const auto unwrapped = unwrap_identity(value);
     auto node = unwrapped.get_node_shared_ptr();
@@ -46,18 +46,18 @@ bool try_extract_sequence(const ov::Output<ov::Node>& value, ov::OutputVector& o
 }
 
 bool try_resolve_via_sequence_mark(const std::shared_ptr<ov::Node>& helper) {
-    // Direct resolution when the input is a SequenceMark / Identity-of-SequenceMark.
+    ov::OutputVector seq;
+    if (!try_extract_sequence(helper->input_value(0), seq))
+        return false;
+    const auto length = static_cast<int64_t>(seq.size());
+
     if (auto at = ov::as_type_ptr<ov::frontend::SequenceAt>(helper)) {
-        ov::OutputVector seq;
-        if (!try_extract_sequence(at->input_value(0), seq))
-            return false;
         const auto pos_const = ov::util::get_constant_from_source(at->input_value(1));
         if (!pos_const)
             return false;
         const auto pv = pos_const->cast_vector<int64_t>();
         if (pv.size() != 1)
             return false;
-        const auto length = static_cast<int64_t>(seq.size());
         auto idx = pv[0];
         if (idx < 0)
             idx += length;
@@ -66,21 +66,14 @@ bool try_resolve_via_sequence_mark(const std::shared_ptr<ov::Node>& helper) {
         helper->output(0).replace(seq[idx]);
         return true;
     }
-    if (auto len = ov::as_type_ptr<ov::frontend::SequenceLength>(helper)) {
-        ov::OutputVector seq;
-        if (!try_extract_sequence(len->input_value(0), seq))
-            return false;
-        auto c = v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(seq.size())});
-        c->set_friendly_name(len->get_friendly_name());
-        ov::copy_runtime_info(len, c);
+    if (ov::is_type<ov::frontend::SequenceLength>(helper)) {
+        auto c = v0::Constant::create(ov::element::i64, ov::Shape{}, {length});
+        c->set_friendly_name(helper->get_friendly_name());
+        ov::copy_runtime_info(helper, c);
         helper->output(0).replace(c->output(0));
         return true;
     }
     if (auto er = ov::as_type_ptr<ov::frontend::SequenceErase>(helper)) {
-        ov::OutputVector seq;
-        if (!try_extract_sequence(er->input_value(0), seq))
-            return false;
-        const auto length = static_cast<int64_t>(seq.size());
         int64_t idx = length - 1;
         if (er->has_position()) {
             const auto pos_const = ov::util::get_constant_from_source(er->get_position());

@@ -87,22 +87,22 @@ public:
 
 private:
     struct PendingMerged {
+        // Known:     outer seed is already the correct tensors.
+        // Deferred:  outer seed will be resolved from the loop's outer input in finalize.
+        // Synthetic: outer seed is a zero-shape placeholder built from slot templates at
+        //            pre-allocation time (SequenceEmpty source); must be rebuilt from the
+        //            resolved back-edge slot shapes in finalize so the merged Parameter
+        //            gets the correct rank.
+        enum class SeedKind { Known, Deferred, Synthetic };
+
         std::shared_ptr<ov::op::v5::Loop> loop;
         std::shared_ptr<ov::Model> body;
         int back_edge_result_idx{-1};
         int outer_input{-1};
         std::shared_ptr<ov::op::v0::Parameter> old_param;
         std::vector<std::shared_ptr<ov::op::v0::Parameter>> new_params;
-        Slots outer_seed_slots;  // pre-resolved seed slots when known
-        bool outer_seed_resolved{false};
-        // True when the outer seed is a synthesized empty-sequence seed (built
-        // from a SequenceEmpty source). Such seeds are created from the slot
-        // templates available at pre-allocation time, which for an
-        // empty-initialized cache are shape-less (scalar). The seed shape
-        // directly fixes the back-edge body Parameter shape (a back-edge-only
-        // merged input is never reconciled against its loop-carried value), so
-        // it must be rebuilt from the resolved back-edge slot in finalize.
-        bool synthetic_seed{false};
+        Slots outer_seed_slots;  // pre-resolved seed slots when SeedKind::Known/Synthetic
+        SeedKind seed_kind{SeedKind::Known};
     };
 
     void build_maps(const std::shared_ptr<ov::Model>& m);
@@ -113,16 +113,21 @@ private:
                                   size_t back_value_idx);
     std::optional<Slots> slots_of_param(const std::shared_ptr<ov::op::v0::Parameter>& p);
     std::optional<Slots> slots_of_msg_output(const std::shared_ptr<ov::op::util::MultiSubGraphOp>& msg, size_t out_idx);
+    // Expand branch `b` of `msg` from its current slot count (0 or 1) up to N
+    // slots, mirroring invariant Parameters from the reference branch when
+    // possible. Returns false when the branch cannot be safely expanded (opaque-
+    // forward with no mirrorable Parameters).
+    bool expand_branch_to_n_slots(const std::shared_ptr<ov::op::util::MultiSubGraphOp>& msg,
+                                   size_t b,
+                                   size_t ref,
+                                   size_t N,
+                                   std::vector<Slots>& per_body_slots);
     std::optional<LengthTemplate> find_template_via_chain(const ov::Output<ov::Node>& root_value, ov::Node* exclude_p);
 
     std::shared_ptr<ov::Model> root_;
     std::vector<PendingMerged> pending_merged_;
     std::map<ov::Output<ov::Node>, Slots> cache_;
     std::set<ov::Output<ov::Node>> in_progress_;
-    // Body Parameters that carry the per-element slots of an empty-seeded Loop
-    // merged input (populated in preallocate_loop_merged_params). Used by
-    // is_loop_carried_empty_seed to detect runtime-length sequences.
-    std::set<ov::op::v0::Parameter*> empty_seed_slot_params_;
     std::map<ov::op::v0::Parameter*, std::shared_ptr<ov::Model>> param_to_model_;
     std::map<ov::Model*, std::pair<std::shared_ptr<ov::op::util::MultiSubGraphOp>, int>> body_owner_;
     bool changed_ = false;

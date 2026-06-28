@@ -4,15 +4,9 @@
 
 #include "sequence_array_lowering.hpp"
 
-#include <algorithm>
-#include <deque>
 #include <functional>
-#include <limits>
 #include <map>
 #include <numeric>
-#include <optional>
-#include <set>
-#include <unordered_set>
 #include <vector>
 
 #include "openvino/core/model.hpp"
@@ -75,9 +69,7 @@ void collect_helpers_recursive(const std::shared_ptr<ov::Model>& m, std::vector<
     }
 }
 
-// Returns true when the model (recursively) contains SequenceAt or SequenceLength.
-// Gate: sequences consumed only by ConcatFromSequence belong to
-// SequenceConcatReplacer; SAL must not mutate the graph in that case.
+// True if model (recursively) contains SequenceAt or SequenceLength.
 bool model_has_sequence_reader(const std::shared_ptr<ov::Model>& m) {
     if (!m) {
         return false;
@@ -104,23 +96,25 @@ bool produces_sequence_helper_value(const ov::Output<ov::Node>& value) {
            ov::is_type<ov::frontend::SequenceErase>(n);
 }
 
-// Sever every body Result whose input still points at a sequence-helper
-// chain. Each such Result is either part of a Loop merged back-edge or a
-// regular BodyOutput; in both cases we replace the source with a benign
-// value so the helper chain becomes unreachable from the body's roots.
-void disconnect_dead_sequence_back_edges(const std::shared_ptr<ov::Model>& root) {
-    std::function<void(const std::shared_ptr<ov::Model>&)> visit;
-    visit = [&](const std::shared_ptr<ov::Model>& m) {
-        if (!m) {
-            return;
-        }
-        for (const auto& n : m->get_ordered_ops()) {
-            if (auto msg = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(n)) {
-                for (size_t i = 0; i < msg->get_internal_subgraphs_size(); ++i) {
-                    visit(msg->get_function(i));
-                }
+// Apply fn(model) to every model in the subgraph tree, post-order (children before parent).
+template <typename Fn>
+void for_each_model_postorder(const std::shared_ptr<ov::Model>& m, Fn&& fn) {
+    if (!m) {
+        return;
+    }
+    for (const auto& n : m->get_ordered_ops()) {
+        if (auto msg = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(n)) {
+            for (size_t i = 0; i < msg->get_internal_subgraphs_size(); ++i) {
+                for_each_model_postorder(msg->get_function(i), fn);
             }
         }
+    }
+    fn(m);
+}
+
+// Disconnect body Results that still source sequence helpers from back-edges.
+void disconnect_dead_sequence_back_edges(const std::shared_ptr<ov::Model>& root) {
+    for_each_model_postorder(root, [&](const std::shared_ptr<ov::Model>& m) {
         for (const auto& n : m->get_ordered_ops()) {
             auto msg = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(n);
             if (!msg) {
@@ -150,11 +144,7 @@ void disconnect_dead_sequence_back_edges(const std::shared_ptr<ov::Model>& root)
                     }
                     auto merged_it = merged_result_to_param.find(r_idx);
                     if (merged_it != merged_result_to_param.end()) {
-                        // Keep the back-edge alive if the merged Parameter
-                        // still feeds a real consumer (any non-Result
-                        // target): severing a live state carrier erases the
-                        // runtime KV-cache update and yields degenerate
-                        // decoding (e.g. all-zero attention).
+                        // Skip if the merged Parameter still has live (non-Result) consumers.
                         const auto& param_out = merged_it->second->output(0);
                         size_t live_consumers = 0;
                         for (const auto& tgt : param_out.get_target_inputs()) {
@@ -210,8 +200,6 @@ void disconnect_dead_sequence_back_edges(const std::shared_ptr<ov::Model>& root)
                     ov::Output<ov::Node> dummy;
                     if (sibling_src.get_node_shared_ptr()) {
                         const auto& tps = sibling_src.get_partial_shape();
-                        // Resolve element type: prefer the disconnected Result's type,
-                        // then the MSG output's merged type, fallback to f32.
                         auto et = sibling_src.get_element_type();
                         if (et == ov::element::dynamic) {
                             et = src.get_element_type();
@@ -230,27 +218,12 @@ void disconnect_dead_sequence_back_edges(const std::shared_ptr<ov::Model>& root)
                 }
             }
         }
-    };
-    visit(root);
+    });
 }
 
-// Detach every dead sequence helper (no output consumers) from upstream
-// values by replacing each of its inputs with a fresh Constant. This makes
-// the helper unreachable from the Model's seed nodes (Results / Sinks /
-// Parameters) so it is excluded from `validate_nodes_and_infer_types`.
+// Detach dead sequence helpers by replacing their inputs with Constants.
 void disconnect_dead_sequence_helpers(const std::shared_ptr<ov::Model>& root) {
-    std::function<void(const std::shared_ptr<ov::Model>&)> visit;
-    visit = [&](const std::shared_ptr<ov::Model>& m) {
-        if (!m) {
-            return;
-        }
-        for (const auto& n : m->get_ordered_ops()) {
-            if (auto msg = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(n)) {
-                for (size_t i = 0; i < msg->get_internal_subgraphs_size(); ++i) {
-                    visit(msg->get_function(i));
-                }
-            }
-        }
+    for_each_model_postorder(root, [&](const std::shared_ptr<ov::Model>& m) {
         bool progress = true;
         while (progress) {
             progress = false;
@@ -279,26 +252,12 @@ void disconnect_dead_sequence_helpers(const std::shared_ptr<ov::Model>& root) {
                 }
             }
         }
-    };
-    visit(root);
+    });
 }
 
-// Align sibling If branch result ranks for each MSG output. Some ONNX models
-// return rank-0 scalars from one branch while the other returns rank-N tensors.
-// Replace rank-mismatched results with zero dummies matching the sibling's shape.
+// Fix If branches where one returns rank-0 and another returns rank-N for the same output.
 void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
-    std::function<void(const std::shared_ptr<ov::Model>&)> visit;
-    visit = [&](const std::shared_ptr<ov::Model>& m) {
-        if (!m) {
-            return;
-        }
-        for (const auto& n : m->get_ordered_ops()) {
-            if (auto msg = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(n)) {
-                for (size_t i = 0; i < msg->get_internal_subgraphs_size(); ++i) {
-                    visit(msg->get_function(i));
-                }
-            }
-        }
+    for_each_model_postorder(root, [&](const std::shared_ptr<ov::Model>& m) {
         for (const auto& n : m->get_ordered_ops()) {
             auto if_op = ov::as_type_ptr<v8::If>(n);
             if (!if_op) {
@@ -309,7 +268,6 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
             if (!then_body || !else_body) {
                 continue;
             }
-            // Group result sources per MSG output_index across branches.
             struct PerOut {
                 int then_r = -1;
                 int else_r = -1;
@@ -339,7 +297,6 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                 if (t_ps.rank().get_length() == e_ps.rank().get_length()) {
                     continue;
                 }
-                // The larger-rank side is the live template; the other is the placeholder.
                 bool then_is_smaller = t_ps.rank().get_length() < e_ps.rank().get_length();
                 auto& placeholder_res = then_is_smaller ? t_res : e_res;
                 auto placeholder_body = then_is_smaller ? then_body : else_body;
@@ -363,19 +320,12 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                         }
                         auto nd = v.get_node_shared_ptr();
                         if (auto p = ov::as_type_ptr<v0::Parameter>(nd)) {
-                            const auto& tps = template_body->get_parameters();
-                            size_t param_idx = static_cast<size_t>(-1);
-                            for (size_t i = 0; i < tps.size(); ++i) {
-                                if (tps[i].get() == p.get()) {
-                                    param_idx = i;
-                                    break;
-                                }
-                            }
-                            if (param_idx == static_cast<size_t>(-1)) {
+                            const int64_t param_idx = template_body->get_parameter_index(p);
+                            if (param_idx < 0) {
                                 return {};
                             }
                             for (const auto& d : if_op->get_input_descriptions(tmpl_branch_idx)) {
-                                if (d->m_body_parameter_index == param_idx) {
+                                if (d->m_body_parameter_index == static_cast<size_t>(param_idx)) {
                                     return if_op->input_value(static_cast<int>(d->m_input_index));
                                 }
                             }
@@ -411,11 +361,6 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                         std::shared_ptr<v0::Parameter> then_p = then_is_smaller ? new_param : nullptr;
                         std::shared_ptr<v0::Parameter> else_p = then_is_smaller ? nullptr : new_param;
                         if_op->set_input(hoisted, then_p, else_p);
-                        // If::set_input appends the new outer input through the
-                        // non-invalidating Node::set_argument path, so the cloned
-                        // `hoisted` nodes would not enter `m`'s cached order.
-                        // Re-assert the just-added input's source: replace_source_output
-                        // routes through the invalidating replace_output path.
                         if_op->input(if_op->get_input_size() - 1).replace_source_output(hoisted);
                         placeholder_res->input(0).replace_source_output(new_param->output(0));
                         continue;
@@ -450,8 +395,7 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                     }
                 }
                 if (!replacement.get_node_shared_ptr()) {
-                    // Last resort: zero constant matching template shape
-                    // (dynamic dims -> 1 to preserve dynamic axes in merged If output).
+                    // Zero constant matching template shape (dynamic dims -> 1).
                     if (tmpl_et.is_real() || tmpl_et.is_integral()) {
                         ov::Shape placeholder_shape;
                         placeholder_shape.reserve(tmpl_ps.size());
@@ -459,7 +403,6 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                             placeholder_shape.push_back(
                                 tmpl_ps[k].is_static() ? static_cast<size_t>(tmpl_ps[k].get_length()) : size_t{1});
                         }
-                        // Single-value literal broadcasts to fill the shape, avoiding an O(N) allocation.
                         replacement = v0::Constant::create(tmpl_et, placeholder_shape, {0.0f})->output(0);
                     } else {
                         replacement = make_zero_dummy(template_src);
@@ -468,8 +411,7 @@ void align_if_branch_result_ranks(const std::shared_ptr<ov::Model>& root) {
                 placeholder_res->input(0).replace_source_output(replacement);
             }
         }
-    };
-    visit(root);
+    });
 }
 
 // Lower SequenceAt to a value picked from the resolved per-slot tensors.
@@ -498,9 +440,7 @@ bool lower_sequence_at(const std::shared_ptr<ov::frontend::SequenceAt>& at, Slot
         at->output(0).replace((*slots)[static_cast<size_t>(k)]);
         return true;
     }
-    // Dynamic index: chain of shape-preserving If selects
-    // (avoids Concat+Gather which requires homogeneous shapes).
-    // out = slots[N-1]; for j = N-2..0: out = If(idx==j, slots[j], out)
+    // Dynamic index: out = slots[N-1]; for j=N-2..0: out = If(idx==j, slots[j], out)
     auto idx_in = at->input_value(1);
     auto idx_i64 = std::make_shared<v0::Convert>(idx_in, ov::element::i64)->output(0);
     if (idx_i64.get_partial_shape().rank().is_static() && idx_i64.get_partial_shape().rank().get_length() > 0) {
@@ -530,13 +470,8 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
     if (!slots) {
         return false;
     }
-    // Loop-carried sequence seeded from SequenceEmpty: the element count is a
-    // runtime property (0 until the cache is populated, then N). Emitting a
-    // static N would freeze a `SequenceLength(cache) > 0` populated-ness gate to
-    // always-true and leak the empty seed into the first iteration's attention
-    // (word_fluency_v2 cross-attention crash). Slots are not widened yet, so
-    // derive the count from emptiness instead of pinning an axis:
-    //   count = (ReduceProd(ShapeOf(s0)) == 0) ? 0 : N
+    // Loop-carried sequence from SequenceEmpty: count is a runtime property.
+    // Emit (ReduceProd(shape(s0)) == 0) ? 0 : N rather than static N.
     if (resolver.is_loop_carried_empty_seed(len->input_value(0)) && !slots->empty()) {
         const auto& s0 = (*slots)[0];
         const auto n = static_cast<int64_t>(slots->size());
@@ -551,20 +486,12 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
         return true;
     }
     ov::Output<ov::Node> length_value;
-    // True when multiple growable axes exist and none is unique;
-    // only then must the SequenceLength be left unresolved.
     bool axis_ambiguous = false;
     if (!slots->empty()) {
         const auto& s0 = (*slots)[0];
         const auto& ps = s0.get_partial_shape();
-        // Accumulation axis: dynamic after Loop Pass A widening, or static
-        // zero-length before widening (SequenceEmpty seed).
         int dyn_axis = -1;
-        // Only a static-rank slot whose growable axis cannot be pinned is
-        // ambiguous; a dynamic-rank slot keeps its compile-time count (slots->size()).
         if (ps.rank().is_static()) {
-            // Candidate accumulation axes: dynamic or static zero-length dims
-            // (SequenceEmpty sentinel before Loop Pass A widening).
             std::vector<int> candidates;
             for (size_t d = 0; d < ps.size(); ++d) {
                 const bool axis_growable = ps[d].is_dynamic() || (ps[d].is_static() && ps[d].get_length() == 0);
@@ -575,8 +502,7 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
             if (candidates.size() == 1) {
                 dyn_axis = candidates[0];
             } else if (candidates.size() > 1) {
-                // Prefer the unique non-batch candidate:
-                // KV-cache layout is [batch, heads, kv_len, head_dim].
+                // Prefer unique non-batch axis (KV-cache layout: [batch, heads, seq, dim]).
                 int non_batch = 0;
                 int picked = -1;
                 for (int c : candidates) {
@@ -613,12 +539,6 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
     return true;
 }
 
-// Post-lowering cleanup: sever dead sequence back-edges and helpers, repair If
-// branch result-rank mismatches, then revalidate. All structural edits go
-// through cache-invalidating APIs (add_parameters, replace_source_output), so
-// each mutated scope's topological-order cache resets automatically.
-// Loop merged-parameter broadening is handled by Loop::validate_and_infer_types
-// (Pass A in core/src/op/loop.cpp).
 void finalize_lowering(const std::shared_ptr<ov::Model>& model) {
     disconnect_dead_sequence_back_edges(model);
     disconnect_dead_sequence_helpers(model);
@@ -634,21 +554,19 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
     if (!model) {
         return false;
     }
-    // Bail out early: SAL pre-allocates Loop slots eagerly, which would corrupt
-    // append-only Insert->ConcatFromSequence patterns (SequenceConcatReplacer).
+    // Skip: ConcatFromSequence patterns don't use slot-based lowering.
     if (!sal_detail::model_has_sequence_reader(model)) {
         return false;
     }
     sal_detail::SlotResolver resolver(model);
 
     bool overall_changed = false;
-    constexpr int max_iterations = 32;
-    bool converged = false;
-    for (int iter = 0; iter < max_iterations; ++iter) {
+    bool iter_changed = true;
+    while (iter_changed) {
         std::vector<std::shared_ptr<ov::Node>> helpers;
         sal_detail::collect_helpers_recursive(model, helpers);
 
-        bool iter_changed = false;
+        iter_changed = false;
         for (const auto& h : helpers) {
             if (h->output(0).get_target_inputs().empty()) {
                 continue;
@@ -660,19 +578,6 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
             }
         }
         overall_changed |= iter_changed;
-        if (!iter_changed) {
-            converged = true;
-            break;
-        }
-    }
-    // Non-convergence within the iteration cap leaves a partially-lowered graph.
-    // SAL is conservative (unresolved readers are flagged by the unconverted-ops
-    // report, not a hard error), but surfacing it helps: a chain still mutating
-    // after max_iterations rounds points at an unhandled pattern.
-    if (!converged) {
-        OPENVINO_DEBUG("SequenceArrayLowering did not converge within ",
-                       max_iterations,
-                       " iterations; some SequenceAt/SequenceLength readers may be left unlowered.");
     }
 
     resolver.finalize_pending_wiring();
