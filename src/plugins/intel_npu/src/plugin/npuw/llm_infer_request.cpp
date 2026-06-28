@@ -5,6 +5,7 @@
 #include "llm_infer_request.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <regex>
 
 #include "infer_request_utils.hpp"
