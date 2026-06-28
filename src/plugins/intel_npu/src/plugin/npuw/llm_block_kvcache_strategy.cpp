@@ -228,13 +228,15 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len
 }
 
 void LLMBlockKVCacheStrategy::on_prefill_done() {
-    if (m_zero_copy_last_chunk) {
-        // Restore prefill output tensors from block tensors back to their original buffers.
-        // Without this, the prefill request holds a reference to the block tensors, preventing
-        // clear_all() in on_reset() from actually releasing device memory between conversations.
-        restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
-        m_zero_copy_last_chunk = false;
+    if (!m_zero_copy_last_chunk) {
+        return;
     }
+
+    // Restore prefill output tensors from block tensors back to their original buffers.
+    // Without this, the prefill request holds a reference to the block tensors, preventing
+    // clear_all() in on_reset() from actually releasing device memory between conversations.
+    restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
+    m_zero_copy_last_chunk = false;
 }
 
 void LLMBlockKVCacheStrategy::on_generate_kv_init() {
