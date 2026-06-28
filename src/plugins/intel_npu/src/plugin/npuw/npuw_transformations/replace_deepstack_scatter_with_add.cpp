@@ -81,6 +81,12 @@ bool is_reachable_from_outputs(const std::shared_ptr<ov::Model>& model, const ov
     return false;
 }
 
+// diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
 // Matches a single Qwen3-VL DeepStack injection
 //     ScatterNDUpdate(hidden, pos, Add(GatherND(hidden, pos), Gather(deepstack, L)))
 // and replaces it (plus the optional SliceAssign identity wrapper that follows) with a
@@ -139,6 +145,10 @@ public:
                          std::move(callback));
     }
 };
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 

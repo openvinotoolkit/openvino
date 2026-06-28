@@ -4,6 +4,7 @@
 
 #include "llm_infer_request.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
@@ -192,17 +193,6 @@ bool is_nonzero_value(const ov::SoPtr<ov::ITensor>& tensor, size_t idx) {
     }
 }
 
-size_t count_nonzero_entries(const ov::SoPtr<ov::ITensor>& tensor) {
-    OPENVINO_ASSERT(tensor);
-    size_t count = 0;
-    for (size_t i = 0; i < tensor->get_size(); ++i) {
-        if (is_nonzero_value(tensor, i)) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 // Counts visual tokens (non-zero mask entries) located strictly before sequence position
 // `seq_limit`. Used by chunked prefill to compute the deepstack row offset of a chunk: the
 // deepstack rows of a chunk follow those of all earlier chunks (visual-token order).
@@ -293,6 +283,7 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
         if (!is_nonzero_value(mask, linear_idx)) {
             continue;
         }
+        OPENVINO_ASSERT(src_row_offset + k < src_seq, "More visual tokens in mask than rows in deepstack source");
         const size_t dst_pos = linear_idx + seq_right_pad;
         for (size_t l = 0; l < num_layers; ++l) {
             const auto* src_row = src_ptr + (l * src_seq + src_row_offset + k) * row_bytes;
