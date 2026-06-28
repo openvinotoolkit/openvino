@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-import importlib.util
 import inspect
 from contextlib import contextmanager
 
@@ -637,10 +636,6 @@ class TestLLMModel(TestTorchConvertModel):
         return pkv, for_pkv["attention_mask"]
 
     def get_supported_precommit_models():
-        _needs_ct = pytest.mark.skipif(
-            importlib.util.find_spec("compressed_tensors") is None,
-            reason="compressed_tensors package is not installed",
-        )
         models = [
             ("gpt2", "openai-community/gpt2"),
         ]
@@ -649,11 +644,8 @@ class TestLLMModel(TestTorchConvertModel):
                 ("opt_gptq", "katuni4ka/opt-125m-gptq"),
                 ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
                 ("llama_awq", "casperhansen/tinyllama-1b-awq"),
-                pytest.param(
-                    "llama_compressed_tensors",
-                    "optimum-intel-internal-testing/tiny-random-llama-compressed-tensors",
-                    marks=_needs_ct,
-                ),
+                ("llama_compressed_tensors",
+                 "optimum-intel-internal-testing/tiny-random-llama-compressed-tensors"),
             ])
         return models
 
@@ -676,14 +668,8 @@ class TestLLMModel(TestTorchConvertModel):
         ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
         ("mbart_gptq", "Shivam098/opt-translation"),
         ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ"),
-        pytest.param(
-            "qwen3_compressed_tensors",
-            "cyankiwi/Qwen3.5-4B-AWQ-4bit",
-            marks=pytest.mark.skipif(
-                importlib.util.find_spec("compressed_tensors") is None,
-                reason="compressed_tensors package is not installed",
-            ),
-        ),  # repo name is misleading; config has quant_method=compressed-tensors
+        ("qwen3_compressed_tensors",
+         "cyankiwi/Qwen3.5-4B-AWQ-4bit"),  # repo name is misleading; config has quant_method=compressed-tensors
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
