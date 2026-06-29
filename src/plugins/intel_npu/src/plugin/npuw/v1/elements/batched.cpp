@@ -28,11 +28,10 @@ bool has_batch_dim(const ov::SoPtr<ov::ITensor>& tensor) {
 
 }  // namespace
 
-ov::SoPtr<ov::ICompiledModel> ov::npuw::batched::CompiledModel::create(
-    const std::shared_ptr<ov::Model>& model,
-    const std::shared_ptr<const ov::IPlugin>& plugin,
-    ov::SoPtr<ov::ICompiledModel> inner_compiled,
-    bool enabled) {
+ov::SoPtr<ov::ICompiledModel> ov::npuw::batched::CompiledModel::create(const std::shared_ptr<ov::Model>& model,
+                                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                       ov::SoPtr<ov::ICompiledModel> inner_compiled,
+                                                                       bool enabled) {
     OPENVINO_ASSERT(inner_compiled._ptr != nullptr, "Batched compiled model requires an inner compiled model");
 
     // No-op wrapper: hand back the inner model unchanged for the zero-overhead path.
