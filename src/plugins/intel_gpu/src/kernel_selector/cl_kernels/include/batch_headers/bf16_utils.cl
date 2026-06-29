@@ -22,9 +22,12 @@ inline float _convert_as_bfloat16_float(ushort source) {
 #endif
 
 #ifdef intel_convert_bfloat16_as_ushort
-#define _convert_bfloat16_as_ushort(val) intel_convert_bfloat16_as_ushort(val)
+inline ushort __attribute__((overloadable)) _convert_bfloat16_as_ushort(float val)
+{
+    return intel_convert_bfloat16_as_ushort(val);
+}
 #else
-inline ushort _convert_bfloat16_as_ushort(float source) {
+inline ushort __attribute__((overloadable)) _convert_bfloat16_as_ushort(float source) {
     uint* in = (uint*)&source;
     ushort u = 0;
     if ( (*in>>31) ) { 
@@ -37,45 +40,73 @@ inline ushort _convert_bfloat16_as_ushort(float source) {
     return u;
 }
 #endif
+inline ushort __attribute__((overloadable)) _convert_bfloat16_as_ushort(ushort val)
+{
+    return val;
+}
 
 // ===================== Vectorized bfloat16 <-> ushort helpers =====================
 
 // --- bfloat16_as_ushort (float -> ushort) vectorized ---
 
 #ifdef intel_convert_bfloat162_as_ushort2
-#define _convert_bfloat162_as_ushort2(val) intel_convert_bfloat162_as_ushort2(val)
+inline ushort2 __attribute__((overloadable)) _convert_bfloat162_as_ushort2(float2 val)
+{
+    return intel_convert_bfloat162_as_ushort2(val);
+}
 #else
-inline ushort2 _convert_bfloat162_as_ushort2(float2 source) {
+inline ushort2 __attribute__((overloadable)) _convert_bfloat162_as_ushort2(float2 source) {
     return (ushort2)(_convert_bfloat16_as_ushort(source.s0),
                      _convert_bfloat16_as_ushort(source.s1));
 }
 #endif
+inline ushort2 __attribute__((overloadable)) _convert_bfloat162_as_ushort2(ushort2 val)
+{
+    return val;
+}
 
 #ifdef intel_convert_bfloat163_as_ushort3
-#define _convert_bfloat163_as_ushort3(val) intel_convert_bfloat163_as_ushort3(val)
+inline ushort3 __attribute__((overloadable)) _convert_bfloat163_as_ushort3(float3 val)
+{
+    return intel_convert_bfloat163_as_ushort3(val);
+}
 #else
-inline ushort3 _convert_bfloat163_as_ushort3(float3 source) {
+inline ushort3 __attribute__((overloadable)) _convert_bfloat163_as_ushort3(float3 source) {
     return (ushort3)(_convert_bfloat16_as_ushort(source.s0),
                      _convert_bfloat16_as_ushort(source.s1),
                      _convert_bfloat16_as_ushort(source.s2));
 }
 #endif
+inline ushort3 __attribute__((overloadable)) _convert_bfloat163_as_ushort3(ushort3 val)
+{
+    return val;
+}
 
 #ifdef intel_convert_bfloat164_as_ushort4
-#define _convert_bfloat164_as_ushort4(val) intel_convert_bfloat164_as_ushort4(val)
+inline ushort4 __attribute__((overloadable)) _convert_bfloat164_as_ushort4(float4 val)
+{
+    return intel_convert_bfloat164_as_ushort4(val);
+}
 #else
-inline ushort4 _convert_bfloat164_as_ushort4(float4 source) {
+inline ushort4 __attribute__((overloadable)) _convert_bfloat164_as_ushort4(float4 source) {
     return (ushort4)(_convert_bfloat16_as_ushort(source.s0),
                      _convert_bfloat16_as_ushort(source.s1),
                      _convert_bfloat16_as_ushort(source.s2),
                      _convert_bfloat16_as_ushort(source.s3));
 }
 #endif
+inline ushort4 __attribute__((overloadable)) _convert_bfloat164_as_ushort4(ushort4 val)
+{
+    return val;
+}
 
 #ifdef intel_convert_bfloat168_as_ushort8
-#define _convert_bfloat168_as_ushort8(val) intel_convert_bfloat168_as_ushort8(val)
+inline ushort8 __attribute__((overloadable)) _convert_bfloat168_as_ushort8(float8 val)
+{
+    return intel_convert_bfloat168_as_ushort8(val);
+}
 #else
-inline ushort8 _convert_bfloat168_as_ushort8(float8 source) {
+inline ushort8 __attribute__((overloadable)) _convert_bfloat168_as_ushort8(float8 source) {
     return (ushort8)(_convert_bfloat16_as_ushort(source.s0),
                      _convert_bfloat16_as_ushort(source.s1),
                      _convert_bfloat16_as_ushort(source.s2),
@@ -86,11 +117,18 @@ inline ushort8 _convert_bfloat168_as_ushort8(float8 source) {
                      _convert_bfloat16_as_ushort(source.s7));
 }
 #endif
+inline ushort8 __attribute__((overloadable)) _convert_bfloat168_as_ushort8(ushort8 val)
+{
+    return val;
+}
 
 #ifdef intel_convert_bfloat1616_as_ushort16
-#define _convert_bfloat1616_as_ushort16(val) intel_convert_bfloat1616_as_ushort16(val)
+inline ushort16 __attribute__((overloadable)) _convert_bfloat1616_as_ushort16(float16 val)
+{
+    return intel_convert_bfloat1616_as_ushort16(val);
+}
 #else
-inline ushort16 _convert_bfloat1616_as_ushort16(float16 source) {
+inline ushort16 __attribute__((overloadable)) _convert_bfloat1616_as_ushort16(float16 source) {
     return (ushort16)(_convert_bfloat16_as_ushort(source.s0),
                       _convert_bfloat16_as_ushort(source.s1),
                       _convert_bfloat16_as_ushort(source.s2),
@@ -109,6 +147,10 @@ inline ushort16 _convert_bfloat1616_as_ushort16(float16 source) {
                       _convert_bfloat16_as_ushort(source.sf));
 }
 #endif
+inline ushort16 __attribute__((overloadable)) _convert_bfloat1616_as_ushort16(ushort16 val)
+{
+    return val;
+}
 
 // --- as_bfloat16_float (ushort -> float) vectorized ---
 
