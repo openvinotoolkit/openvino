@@ -91,10 +91,16 @@ void pa_lsc_u8(
 
     constexpr int num_P_tiles = REG_N / REG_M;
     matrix<half, process_head_size / REG_K, REG_K * REG_N> rQ;
+#if CMFLA_HEAD_SIZE == 256
+    // head_size=256: split rO into lo/hi halves to stay under the CM
+    // 16384-byte matrix-size limit.
     constexpr int rO_half_rows = process_head_size / 2 / REG_N * num_P_tiles;
     static_assert(process_head_size % (2 * REG_N) == 0, "process_head_size must be divisible by 2*REG_N for rO split");
     matrix<float, rO_half_rows, REG_M * REG_N> rO_lo;
     matrix<float, rO_half_rows, REG_M * REG_N> rO_hi;
+#else
+    matrix<float, process_head_size / REG_N * num_P_tiles, REG_M * REG_N> rO;
+#endif
     bool first_active = true;
 
     // clamp per-tile valid query tokens to [0, q_step]
@@ -400,6 +406,7 @@ void pa_lsc_u8(
                     // Each worker reads its chunk of V from SLM
                     uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
                     uint slm_V_worker_hi_offset = (worker_offset + process_head_size / 2) * REG_K * sizeof(half);
+#if CMFLA_HEAD_SIZE == 256
                     if (first_active) {
                         ugemm_PV0(slm_V, P, rO_lo, slm_offset + slm_V_worker_lo_offset);
                         ugemm_PV0(slm_V, P, rO_hi, slm_offset + slm_V_worker_hi_offset);
@@ -408,6 +415,14 @@ void pa_lsc_u8(
                         ugemm_PV1(slm_V, P, max_comp, rO_lo, slm_offset + slm_V_worker_lo_offset);
                         ugemm_PV1(slm_V, P, max_comp, rO_hi, slm_offset + slm_V_worker_hi_offset);
                     }
+#else
+                    if (first_active) {
+                        ugemm_PV0(slm_V, P, rO, slm_offset + slm_V_worker_lo_offset);
+                        first_active = false;
+                    } else {
+                        ugemm_PV1(slm_V, P, max_comp, rO, slm_offset + slm_V_worker_lo_offset);
+                    }
+#endif
                 }
             }
         }
@@ -625,6 +640,7 @@ void pa_lsc_u8(
             // Each worker reads its chunk of V from SLM
             uint slm_V_worker_lo_offset = worker_offset * REG_K * sizeof(half);
             uint slm_V_worker_hi_offset = (worker_offset + process_head_size / 2) * REG_K * sizeof(half);
+#if CMFLA_HEAD_SIZE == 256
             if (first_active) {
                 ugemm_PV0(slm_V, P, rO_lo, slm_offset + slm_V_worker_lo_offset);
                 ugemm_PV0(slm_V, P, rO_hi, slm_offset + slm_V_worker_hi_offset);
@@ -633,6 +649,14 @@ void pa_lsc_u8(
                 ugemm_PV1(slm_V, P, max_comp, rO_lo, slm_offset + slm_V_worker_lo_offset);
                 ugemm_PV1(slm_V, P, max_comp, rO_hi, slm_offset + slm_V_worker_hi_offset);
             }
+#else
+            if (first_active) {
+                ugemm_PV0(slm_V, P, rO, slm_offset + slm_V_worker_lo_offset);
+                first_active = false;
+            } else {
+                ugemm_PV1(slm_V, P, max_comp, rO, slm_offset + slm_V_worker_lo_offset);
+            }
+#endif
         }
     }
 #endif
@@ -660,6 +684,7 @@ void pa_lsc_u8(
         o_pitch - 1,
         0, 0);
 
+#if CMFLA_HEAD_SIZE == 256
     // Store lower half of worker's chunk from rO_lo
     #pragma unroll
     for (int k = 0, ri = 0; k < process_head_size / 2; k += REG_N, ri += num_P_tiles) {
@@ -703,6 +728,29 @@ void pa_lsc_u8(
         cm_store(b2dO.set_block_y(REG_M),
                  cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
     }
+#else
+    // Baseline single-loop over full process_head_size, storing from single rO.
+    #pragma unroll
+    for (int k = 0, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+
+        #pragma unroll
+        for (int p = 0; p < num_P_tiles; p++) {
+            auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+
+            #pragma unroll
+            for (int r = 0; r < cO.n_rows(); r++) {
+                cur_O_f16[r + p * REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p * REG_M]);
+            }
+        }
+
+        int o_offset = worker_offset + k;
+        b2dO.set_block_x(o_offset);
+        cm_store(b2dO.set_block_y(0),
+                 cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+        cm_store(b2dO.set_block_y(REG_M),
+                 cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+    }
+#endif
 }
 
 #else
@@ -751,12 +799,17 @@ void pa_kernel_lsc_prefetch_f16(
     cur_sum = 0;
     constexpr int num_P_tiles = REG_N / REG_M;
 
-    // Each worker only allocates 1/2 of head_size
     matrix<half, process_head_size/REG_K, REG_K*REG_N> rQ;
+#if CMFLA_HEAD_SIZE == 256
+    // head_size=256: each worker only allocates 1/2 of head_size; split rO into
+    // lo/hi halves to stay under the CM 16384-byte matrix-size limit.
     constexpr int rO_half_rows_f16 = process_head_size / 2 / REG_N * num_P_tiles;
     static_assert(process_head_size % (2 * REG_N) == 0, "process_head_size must be divisible by 2*REG_N for rO split");
     matrix<float, rO_half_rows_f16, REG_M * REG_N> rO_lo;
     matrix<float, rO_half_rows_f16, REG_M * REG_N> rO_hi;
+#else
+    matrix<float, process_head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+#endif
     bool first_active = true;
 
 #if SPARSE_BLOCK_SIZE > 1
@@ -925,6 +978,7 @@ void pa_kernel_lsc_prefetch_f16(
 
         b2dV.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+cur_block_id*blk_stride));
         b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
+#if CMFLA_HEAD_SIZE == 256
         if (first_active) {
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
@@ -1048,6 +1102,75 @@ void pa_kernel_lsc_prefetch_f16(
                 }
             }
         }
+#else
+        // Baseline single-loop over full process_head_size into single rO.
+        if (first_active) {
+            // ugemm_PV0(slm_V, P, rO, slm_offset);
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                }
+            }
+            first_active = false;
+        }
+        else {
+            //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri=0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                 // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                //# compensate cur_O
+                //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                }
+            }
+        }
+#endif
         }
     }
 #else
@@ -1159,6 +1282,7 @@ void pa_kernel_lsc_prefetch_f16(
 
         b2dV.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+cur_block_id*blk_stride));
         b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
+#if CMFLA_HEAD_SIZE == 256
         if (first_active) {
             // ugemm_PV0(slm_V, P, rO, slm_offset);
             auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
@@ -1282,6 +1406,75 @@ void pa_kernel_lsc_prefetch_f16(
                 }
             }
         }
+#else
+        // Baseline single-loop over full process_head_size into single rO.
+        if (first_active) {
+            // ugemm_PV0(slm_V, P, rO, slm_offset);
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri = 0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                }
+            }
+            first_active = false;
+        }
+        else {
+            //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri=0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+
+                int v_offset = worker_offset + k;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(v_offset));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(v_offset));
+                 // sometimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                if ((kv_pos + kv_step) > kv_stop) {
+                    uint valid_rows = kv_stop - kv_pos;
+                    uint valid_rows_vnni = (valid_rows+1)/2;
+                    for (int r = valid_rows_vnni; r < kv_step / 2; r++)
+                        Vmat.row(r) = 0.f;
+                    if (valid_rows % 2 == 1)
+                        Vmat.row(valid_rows_vnni-1).select<REG_N,2>(1) = 0.f;
+                }
+                //# compensate cur_O
+                //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                }
+            }
+        }
+#endif
     }
 #endif
 
@@ -1299,6 +1492,7 @@ void pa_kernel_lsc_prefetch_f16(
     if (q_tokens_in_tile > 0) {
         lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_in_tile - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
 
+#if CMFLA_HEAD_SIZE == 256
         // Each worker stores its 1/2 chunk of output
         // Store lower half of worker's chunk from rO_lo
         #pragma unroll
@@ -1333,6 +1527,24 @@ void pa_kernel_lsc_prefetch_f16(
             cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
             cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
         }
+#else
+        // Baseline single-loop over full process_head_size from single rO.
+        #pragma unroll
+        for(int k = 0, ri=0; k < process_head_size; k += REG_N, ri += num_P_tiles) {
+            #pragma unroll
+            for(int p = 0; p < num_P_tiles; p++) {
+                auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+                #pragma unroll
+                for(int r = 0; r < cO.n_rows(); r++) {
+                    cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+                }
+            }
+            int o_offset = worker_offset + k;
+            b2dO.set_block_x(o_offset);
+            cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+            cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+        }
+#endif
     }
 }
 

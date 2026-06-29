@@ -122,6 +122,9 @@ CM_INLINE void process_quantization_per_token(const half* in, uchar* out, uint i
 // [Step 6] Store the scales and zero points.
 // Note that [Step 2] and [Step 4] can be skipped for cases with no tail of past tokens.
 #if KV_CACHE_COMPRESSION == 2
+#if (K_HEAD_SIZE == 256) && !defined(CM_HAS_LSC_UNTYPED_2D)
+// HEAD_SIZE=256: split in_data into lo/hi halves to stay within the CM compiler's
+// 8192-byte matrix-size limit on Xe1.
 template <int HEAD_SIZE>
 CM_INLINE void process_quantization_per_channel(const half* in,
                                                 uchar* out,
@@ -131,8 +134,6 @@ CM_INLINE void process_quantization_per_channel(const half* in,
                                                 uint pitch,
                                                 uint dequant_size,
                                                 uint cur_sub_block_size) {
-    // CM compiler has matrix size limit < 8192 bytes.
-    // Split in_data into lo/hi halves to stay within the limit for HEAD_SIZE=256.
     constexpr int HALF_HEAD = HEAD_SIZE / 2;
     matrix<half, SUB_BLOCK_SIZE, HALF_HEAD> in_data_lo;
     matrix<half, SUB_BLOCK_SIZE, HALF_HEAD> in_data_hi;
@@ -235,7 +236,107 @@ CM_INLINE void process_quantization_per_channel(const half* in,
     store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + scale_offset), 0, scale_out);
     store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + zp_offset), 0, zp_out);
 }
+#else
+// HEAD_SIZE != 256 (typically <= 128): single-buffer in_data path, baseline 1e7e9bc.
+template <int HEAD_SIZE>
+CM_INLINE void process_quantization_per_channel(const half* in,
+                                                uchar* out,
+                                                uint in_offset,
+                                                uint data_offset,
+                                                uint scale_offset,
+                                                uint pitch,
+                                                uint dequant_size,
+                                                uint cur_sub_block_size) {
+    // NOTE: CM compiler has matrix size limit < 8192 bytes.
+    // With HEAD_SIZE=128 and SUB_BLOCK_SIZE=32: matrix size = 32*128*2 = 8192 bytes (hits limit).
+    // OpenVINO uses SUB_BLOCK_SIZE=16 which avoids this issue (16*128*2 = 4096 bytes).
+    // If testing with larger SUB_BLOCK_SIZE values, keep HEAD_SIZE < 128 or SUB_BLOCK_SIZE <= 16.
+    matrix<half, SUB_BLOCK_SIZE, HEAD_SIZE> in_data;
+    #pragma unroll
+    for (int i = 0; i < cur_sub_block_size; i++) {
+        load_kvcache<HEAD_SIZE>(in_data.row(dequant_size + i), in, (in_offset + i * pitch) * (int)sizeof(half));
+    }
+
+    vector<half, HEAD_SIZE> max_vals = in_data.row(dequant_size);
+    vector<half, HEAD_SIZE> min_vals = in_data.row(dequant_size);
+    #pragma unroll
+    for (int i = 1; i < cur_sub_block_size; i++) {
+        max_vals = cm_max<half>(max_vals, in_data.row(dequant_size + i));
+        min_vals = cm_min<half>(min_vals, in_data.row(dequant_size + i));
+    }
+
+    if (dequant_size) {
+        matrix<uchar, SUB_BLOCK_SIZE, HEAD_SIZE> update_data_u8;
+        uint zp_offset = scale_offset + BLOCK_SIZE / SUB_BLOCK_SIZE * HEAD_SIZE * sizeof(half);
+        uint update_offset = data_offset - dequant_size * HEAD_SIZE;
+        vector<half, HEAD_SIZE> scale_stale;
+        vector<half, HEAD_SIZE> zp_stale;
+        load_kvcache<HEAD_SIZE>(scale_stale, (half*)out, scale_offset);
+        load_kvcache<HEAD_SIZE>(zp_stale, (half*)out, zp_offset);
+        #pragma unroll
+        for (int i = 0; i < SUB_BLOCK_SIZE; i++) {
+            // Use SUB_BLOCK_SIZE in for-loop to avoid cm compiler bug regarding tail loop with data type conversion
+            if (i < dequant_size) {
+                load_kvcache<HEAD_SIZE>(update_data_u8.row(i), out, update_offset + i * HEAD_SIZE);
+                in_data.row(i) = cm_mul<half>(update_data_u8.row(i) - zp_stale, scale_stale);
+                max_vals = cm_max<half>(max_vals, in_data.row(i));
+                min_vals = cm_min<half>(min_vals, in_data.row(i));
+            }
+        }
+    }
+
+    vector<float, HEAD_SIZE> qrange = max_vals - min_vals;
+    vector<ushort, HEAD_SIZE> mask = (qrange == (half)0.0f);
+
+    // Apply small-range guard introduced by quantize_and_save_by_channel_block_with_requantize in ocl impl,
+    // to avoid INF(-INF) caused by scale/zp's out of range of fp16, which cause NaN in dequantization
+    vector<float, HEAD_SIZE> min_range = cm_abs<float>(max_vals) * 0.1f;
+    vector<float, HEAD_SIZE> adjust_val = cm_max<float>(min_range, 1.0f);
+    qrange.merge(qrange + adjust_val, qrange <= min_range);
+
+#ifdef CM_HAS_IEEE_DIV_SQRT
+    // scale_vals needs fp32 precision to perform cm_div_ieee (supported by Xe2+) to avoid accuracy loss caused
+    // by reciprocal approximation division ('/') instruction
+    vector<float, HEAD_SIZE> scale_vals = cm_div_ieee(255.0f, qrange);
+#else
+    vector<float, HEAD_SIZE> scale_vals = 255.0f / qrange;
 #endif
+    scale_vals.merge(1.0f, mask);
+    vector<half, HEAD_SIZE> zp_vals = cm_mul<half>((0.0f - min_vals), scale_vals);
+
+    if (dequant_size) {
+        uint update_offset = data_offset - dequant_size * HEAD_SIZE;
+        #pragma unroll
+        for (int i = 0; i < SUB_BLOCK_SIZE; i++) {
+            if (i < dequant_size) {
+                vector<half, HEAD_SIZE> quant_data = cm_mul<half>(in_data.row(i), scale_vals) + zp_vals;
+                quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0f), (half)255.0f);
+                vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(quant_data);
+                store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + update_offset + i * HEAD_SIZE), 0, data_u8);
+            }
+        }
+    }
+
+    #pragma unroll
+    for (int i = 0; i < cur_sub_block_size; i++) {
+        vector<half, HEAD_SIZE> quant_data = cm_mul<half>(in_data.row(dequant_size + i), scale_vals) + zp_vals;
+        quant_data = cm_min<half>(cm_max<half>(quant_data, (half)0.0f), (half)255.0f);
+        vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(quant_data);
+        store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + data_offset + i * HEAD_SIZE), 0, data_u8);
+    }
+
+#ifdef CM_HAS_IEEE_DIV_SQRT
+    vector<half, HEAD_SIZE> scale_out = cm_div_ieee(1.0f, scale_vals);
+#else
+    vector<half, HEAD_SIZE> scale_out = 1.0f / scale_vals;
+#endif
+    vector<half, HEAD_SIZE> zp_out = zp_vals;
+    uint zp_offset = scale_offset + BLOCK_SIZE / SUB_BLOCK_SIZE * HEAD_SIZE * sizeof(half);
+    store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + scale_offset), 0, scale_out);
+    store_kvcache<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + zp_offset), 0, zp_out);
+}
+#endif // (K_HEAD_SIZE == 256) && !defined(CM_HAS_LSC_UNTYPED_2D)
+#endif // KV_CACHE_COMPRESSION == 2
 
 #if KV_CACHE_COMPRESSION == 0
 template <int HEAD_SIZE>
