@@ -1,0 +1,20 @@
+{
+  "run_id": 28366156201,
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "timestamp": "2026-06-29T12:07:51Z",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28366156201",
+  "head_sha": "404fed1de1f4e4652dbf2a9d839b455b8082d8f8",
+  "pr_number": 36592,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36592",
+  "pr_title": "[GPU] Remove SharedOpOptimization after DynamicQuantizationFullyConnected",
+  "pr_author": "tkrupa-intel",
+  "signature": "0528d54ff68248cd",
+  "category": "Flaky Test",
+  "failed_jobs": ["C++ unit tests / C++ unit tests"],
+  "root_cause": "Race condition in CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache. The mock expectation for import_model expected 5 calls but received only 4. This is a timing-sensitive multi-threaded caching test unrelated to the GPU plugin changes in PR #36592.",
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))... Expected: to be called 5 times; Actual: called 4 times - unsatisfied and active",
+    "caching_test.cpp(312): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get()) Actual: false Expected: true"
+  ],
+  "confidence": "High - deterministic mock expectation failure in a known race-condition test variant; GPU-only PR cannot cause this caching behavior change"
+}
