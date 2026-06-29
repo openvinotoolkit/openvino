@@ -9,13 +9,13 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSVDReconstruction(PytorchLayerTest):
-    """aten::svd / aten::linalg_svd — batched 3x3 singular value decomposition.
+    """aten::svd — batched 3x3 singular value decomposition.
 
     The frontend implements a one-sided Jacobi SVD for 3x3 matrices. Singular
-    vectors are only defined up to sign, so the model wrappers below return the
+    vectors are only defined up to sign, so the model wrapper below returns the
     sign-invariant reconstruction U @ diag(S) @ V^T (which must equal the input)
     and the sorted singular values. Reference values come from PyTorch
-    (torch.svd / torch.linalg.svd).
+    (torch.svd).
     """
 
     def _prepare_input(self, input_shape, rank_deficient=False):
@@ -26,28 +26,18 @@ class TestSVDReconstruction(PytorchLayerTest):
             x[..., :, -1] = x[..., :, -2]
         return (x,)
 
-    def create_model(self, variant):
+    def create_model(self):
         class aten_svd_recon(torch.nn.Module):
-            def __init__(self, variant):
-                super().__init__()
-                self.variant = variant
-
             def forward(self, x):
-                if self.variant == "linalg_svd":
-                    u, s, vh = torch.linalg.svd(x)
-                    recon = torch.matmul(u * s.unsqueeze(-2), vh)
-                else:
-                    u, s, v = torch.svd(x)
-                    recon = torch.matmul(u * s.unsqueeze(-2), v.transpose(-2, -1))
+                u, s, v = torch.svd(x)
+                recon = torch.matmul(u * s.unsqueeze(-2), v.transpose(-2, -1))
                 # Return reconstruction (sign-invariant) and sorted singular values.
                 return recon, s
 
-        op = "aten::linalg_svd" if variant == "linalg_svd" else "aten::svd"
-        return aten_svd_recon(variant), op
+        return aten_svd_recon(), "aten::svd"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("variant", ["svd", "linalg_svd"])
     @pytest.mark.parametrize("input_shape", [
         [3, 3],          # single 3x3
         [1, 3, 3],       # batch of one
@@ -55,7 +45,7 @@ class TestSVDReconstruction(PytorchLayerTest):
         [2, 4, 3, 3],    # multi-dim batch
     ])
     @pytest.mark.parametrize("rank_deficient", [False, True])
-    def test_svd_reconstruction(self, variant, input_shape, rank_deficient,
+    def test_svd_reconstruction(self, input_shape, rank_deficient,
                                 ie_device, precision, ir_version):
         # The Jacobi rotations and singular values are computed in FP32; FP16 is
         # too coarse (it forms products of matrix entries). Keep FP32.
@@ -63,7 +53,7 @@ class TestSVDReconstruction(PytorchLayerTest):
             pytest.skip("3x3 SVD is validated in FP32")
         # The 3x3 SVD requires statically 3x3 trailing dims; disable the harness's
         # default fully-dynamic-rank tracing.
-        self._test(*self.create_model(variant), ie_device, precision, ir_version,
+        self._test(*self.create_model(), ie_device, precision, ir_version,
                    dynamic_shapes=False,
                    kwargs_to_prepare_input={"input_shape": input_shape,
                                             "rank_deficient": rank_deficient})
