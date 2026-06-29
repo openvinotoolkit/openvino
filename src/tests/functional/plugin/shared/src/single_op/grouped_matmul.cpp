@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_op/grouped_matmul.hpp"
 
 #include <algorithm>
-#include <numeric>
+#include <sstream>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
@@ -106,10 +106,11 @@ void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& target
             OPENVINO_ASSERT(tpe.size() == G,
                             "tokens_per_expert[", iter, "] must have G=", G,
                             " entries, got ", tpe.size());
-            // offsets[g] = tpe[0] + tpe[1] + ... + tpe[g]  (exclusive row-end for expert g)
-            std::partial_sum(tpe.begin(), tpe.end(), offsets.begin(), [](int32_t a, size_t b) {
-                return a + static_cast<int32_t>(b);
-            });
+            int32_t cum = 0;
+            for (size_t g = 0; g < G; ++g) {
+                cum += static_cast<int32_t>(tpe[g]);
+                offsets[g] = cum;
+            }
             OPENVINO_ASSERT(offsets[G - 1] == static_cast<int32_t>(T),
                             "tokens_per_expert[", iter, "] sums to ", offsets[G - 1],
                             " but T=", T);
