@@ -21,7 +21,12 @@ void GroupedMatMulTestBase::SetUp() {
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static(),
                     "GroupedMatMul test: mat_a PartialShape must have static rank");
-    const bool is_2d_3d = (a_input_shape.first.rank().get_length() == 2);
+    const auto a_rank = a_input_shape.first.rank().get_length();
+    OPENVINO_ASSERT(a_rank == 2 || a_rank == 3,
+                    "GroupedMatMul test: mat_a rank must be 2 or 3, got ", a_rank);
+    OPENVINO_ASSERT(b_shape.size() == 3,
+                    "GroupedMatMul test: b_shape must be 3D [G,N,K], got rank ", b_shape.size());
+    const bool is_2d_3d = (a_rank == 2);
     const size_t G = b_shape[0];
     const size_t num_iters = a_input_shape.second.size();
 
@@ -66,13 +71,11 @@ void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& target
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
     const bool is_2d_3d = (a_input_shape.first.rank().get_length() == 2);
     const auto& a_static_shapes = a_input_shape.second;
-    const size_t iter = [&]() -> size_t {
-        const auto it = std::find(a_static_shapes.begin(), a_static_shapes.end(),
-                                  targetInputStaticShapes[0]);
-        return (it != a_static_shapes.end())
-                   ? static_cast<size_t>(std::distance(a_static_shapes.begin(), it))
-                   : 0;
-    }();
+    const auto& target_shape = targetInputStaticShapes[0];
+    const auto it = std::find(a_static_shapes.begin(), a_static_shapes.end(), target_shape);
+    OPENVINO_ASSERT(it != a_static_shapes.end(),
+                    "GroupedMatMul test: target shape not found in a_static_shapes");
+    const size_t iter = static_cast<size_t>(std::distance(a_static_shapes.begin(), it));
 
     ov::test::utils::InputGenerateData gen_data;
     gen_data.range = 2;
@@ -124,7 +127,7 @@ std::string GroupedMatMulLayerTest::getTestCaseName(const testing::TestParamInfo
 
     std::ostringstream result;
     result << "A_shape=" << a_input_shape << "_";
-    result << "_B_shape=" << ov::test::utils::vec2str(b_shape) << "_";
+    result << "B_shape=" << ov::test::utils::vec2str(b_shape) << "_";
     result << "ET=" << elem_type << "_";
     result << "targetDevice=" << target_device;
     return result.str();
@@ -159,7 +162,7 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
 
     std::ostringstream result;
     result << "A_shape=" << a_input_shape << "_";
-    result << "_B_shape=" << ov::test::utils::vec2str(b_shape) << "_";
+    result << "B_shape=" << ov::test::utils::vec2str(b_shape) << "_";
     result << "ActET=" << act_type << "_";
     result << "WET=" << weights_prec << "_";
     result << "DecompPrec=" << decomp_prec << "_";

@@ -10,9 +10,9 @@ namespace ov {
 namespace test {
 TEST_P(GroupedMatMulLayerTest, Inference) {
     run();
-};
+}
 TEST_P(GroupedMatMulCompressedLayerTest, Inference) {
     run();
-};
+}
 }  // namespace test
 }  // namespace ov
