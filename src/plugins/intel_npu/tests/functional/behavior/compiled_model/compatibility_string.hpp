@@ -120,9 +120,14 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     // and unsupported for earlier driver versions. CIP always supports it.
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    if (it != properties.cend()) {
-        ASSERT_FALSE(it->is_mutable());
-    } else { // older driver version case
+    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const bool driverHandlesCompatibilityCheck =
+        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+    if (driverHandlesCompatibilityCheck) {
+        ASSERT_TRUE(it != properties.cend());
+        OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
+    } else {
+        ASSERT_TRUE(it == properties.cend());
         OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
                         ov::Exception,
                         testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
