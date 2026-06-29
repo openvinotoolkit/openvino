@@ -350,6 +350,43 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSuppo
     }
 }
 
+TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsNotSupported) {
+    std::string logs;
+    std::mutex logs_mutex;
+    bool isSupported = true;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
+        isSupported = propertiesManager->isPropertySupported("DUMMY_PROPERTY");
+    }
+
+    ASSERT_FALSE(isSupported);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
+        isSupported = propertiesManager->isPropertySupported("DUMMY_PROPERTY");
+    }
+
+    ASSERT_FALSE(isSupported);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
 
 TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported) {
@@ -376,32 +413,6 @@ TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
-using ExpectLoadingCompilerPropertyNotSupported = PropertiesManagerTests;
-
-TEST_P(ExpectLoadingCompilerPropertyNotSupported, ExpectCompilerPropertyIsNotSupported) {
-    std::string logs;
-    std::mutex logs_mutex;
-    bool isSupported = true;
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
-        isSupported = propertiesManager->isPropertySupported(configuration);
-    }
-
-    ASSERT_FALSE(isSupported);
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-}
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -412,7 +423,6 @@ const std::vector<std::string> supported_configs = {{ov::hint::performance_mode.
                                                     {ov::cache_dir.name()},
                                                     {ov::intel_npu::driver_version.name()}};
 const std::vector<std::string> supported_compiler_configs = {{ov::intel_npu::qdq_optimization.name()}};
-const std::vector<std::string> unsupported_compiler_configs = {{"DUMMY_PROPERTY"}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          PropertiesManagerTests,
@@ -430,12 +440,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ExpectLoadingCompilerPropertySupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(supported_compiler_configs)),
-                         PropertiesManagerTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         ExpectLoadingCompilerPropertyNotSupported,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(unsupported_compiler_configs)),
                          PropertiesManagerTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
