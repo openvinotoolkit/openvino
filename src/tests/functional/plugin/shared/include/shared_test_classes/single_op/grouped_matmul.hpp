@@ -29,10 +29,6 @@ struct GroupedMatMulShapeParams {
     TokensPerExpert      tokens_per_expert;  ///< Per-iter routing; empty = even
 };
 
-// Params:
-//   0 - shape bundle (a, b, routing)
-//   1 - element type for A and B
-//   2 - target device
 using GroupedMatMulParams = std::tuple<
     GroupedMatMulShapeParams,  // shape bundle
     ov::element::Type,         // element type
@@ -50,20 +46,6 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 
-// ---- Compressed-weights variant ----------------------------------------
-// B is produced by a decompression subgraph (i4/i8 constant + scales/zp).
-//
-// Params:
-//   0 - shape bundle (a, b, routing)
-//   1 - activation element type
-//   2 - weights (compressed) precision
-//   3 - decompression precision
-//   4 - scale precision
-//   5 - multiply decompression type (full/empty/scalar)
-//   6 - subtract (zero-point) type  (full/empty/scalar)
-//   7 - reshape_on_decompression
-//   8 - decompression_group_size (-1 = per-OC)
-//   9 - target device
 using GroupedMatMulCompressedParams = std::tuple<
     GroupedMatMulShapeParams,                // shape bundle
     ov::element::Type,                       // activation element type

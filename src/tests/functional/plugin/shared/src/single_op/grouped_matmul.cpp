@@ -22,20 +22,12 @@ std::string GroupedMatMulLayerTest::getTestCaseName(const testing::TestParamInfo
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static(),
                     "GroupedMatMul test: mat_a PartialShape must have static rank");
-    const bool is_2d_3d = (a_input_shape.first.rank().get_length() == 2);
 
     std::ostringstream result;
-    result << "Case=" << (is_2d_3d ? "2Dx3D" : "3Dx3D") << "_";
-    result << "A_dyn=" << a_input_shape.first << "_";
-    result << "A_static=";
-    for (size_t i = 0; i < a_input_shape.second.size(); ++i) {
-        result << ov::test::utils::vec2str(a_input_shape.second[i]);
-        if (i + 1 < a_input_shape.second.size())
-            result << ",";
-    }
-    result << "_B=" << ov::test::utils::vec2str(b_shape) << "_";
-    result << "ET=" << elem_type.to_string() << "_";
-    result << "Dev=" << target_device;
+    result << "A_shape=" << a_input_shape << "_";
+    result << "_B_shape=" << ov::test::utils::vec2str(b_shape) << "_";
+    result << "ET=" << elem_type << "_";
+    result << "targetDevice=" << target_device;
     return result.str();
 }
 
@@ -157,8 +149,6 @@ void GroupedMatMulLayerTest::generate_inputs(const std::vector<ov::Shape>& targe
     }
 }
 
-// ---- GroupedMatMulCompressedLayerTest -----------------------------------
-
 std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
@@ -167,26 +157,18 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params;
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
-    const bool is_2d_3d = (a_input_shape.first.rank().get_length() == 2);
 
     std::ostringstream result;
-    result << "Case=" << (is_2d_3d ? "2Dx3D" : "3Dx3D") << "_";
-    result << "A_dyn=" << a_input_shape.first << "_";
-    result << "A_static=";
-    for (size_t i = 0; i < a_input_shape.second.size(); ++i) {
-        result << ov::test::utils::vec2str(a_input_shape.second[i]);
-        if (i + 1 < a_input_shape.second.size())
-            result << ",";
-    }
-    result << "_B=" << ov::test::utils::vec2str(b_shape) << "_";
-    result << "ActET=" << act_type.to_string() << "_";
-    result << "WET=" << weights_prec.to_string() << "_";
-    result << "DecompPrec=" << decomp_prec.to_string() << "_";
-    result << "ScalePrec=" << scale_prec.to_string() << "_";
+    result << "A_shape=" << a_input_shape << "_";
+    result << "_B_shape=" << ov::test::utils::vec2str(b_shape) << "_";
+    result << "ActET=" << act_type << "_";
+    result << "WET=" << weights_prec << "_";
+    result << "DecompPrec=" << decomp_prec << "_";
+    result << "ScalePrec=" << scale_prec << "_";
     result << "Mul=" << multiply_type << "_Sub=" << subtract_type << "_";
     result << "Reshape=" << reshape_on_decomp << "_";
     result << "GrpSz=" << group_size << "_";
-    result << "Dev=" << target_device;
+    result << "targetDevice=" << target_device;
     return result.str();
 }
 
