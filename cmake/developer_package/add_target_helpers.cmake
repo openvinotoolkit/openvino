@@ -197,7 +197,7 @@ function(ov_add_test_target_per_source)
         get_filename_component(_stem "${_src}" NAME_WE)
         set(_target "${ARG_NAME}_${_stem}")
 
-        add_executable(${_target} ${_src})
+        add_executable(${_target} EXCLUDE_FROM_ALL ${_src})
 
         if(ARG_LINK_LIBRARIES)
             target_link_libraries(${_target} PRIVATE ${ARG_LINK_LIBRARIES})
