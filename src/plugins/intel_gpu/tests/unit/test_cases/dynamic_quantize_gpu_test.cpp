@@ -19,6 +19,7 @@
 #include "fully_connected_inst.h"
 
 #include <cmath>
+#include <chrono>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -166,7 +167,12 @@ public:
 
         network->set_input_data("input", input_mem);
 
+        auto t_start = std::chrono::high_resolution_clock::now();
         auto outputs = network->execute();
+        auto t_end = std::chrono::high_resolution_clock::now();
+        std::cout << "[timing] network.execute() took "
+                    << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
+                    << " us\n";
 
         std::vector<memory::ptr> output_buffers;
         for (const auto& output : outputs) {
