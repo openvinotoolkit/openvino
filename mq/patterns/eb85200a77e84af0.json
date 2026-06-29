@@ -1,0 +1,17 @@
+{
+  "signature": "json.decoder.JSONDecodeError: Unterminated string starting at: line column char|Build / Build|Network",
+  "title": "pip install fails - PyPI returns truncated JSON response for grpcio package index",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-06-29T21:12:18Z",
+  "last_seen": "2026-06-29T21:12:18Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28401943026"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36445"
+  ],
+  "recent_timestamps": [
+    "2026-06-29T21:12:18Z"
+  ]
+}

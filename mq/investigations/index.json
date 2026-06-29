@@ -119,6 +119,14 @@
       "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
       "category": "Infrastructure",
       "signature_hash": "3a6ca31c39b0147d"
+    },
+    {
+      "file": "2026-06-29-21-12-18-000-28401943026.json",
+      "run_id": 28401943026,
+      "signature": "eb85200a77e84af0",
+      "timestamp": "2026-06-29T21:12:18Z",
+      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+      "category": "Network"
     }
   ]
 }

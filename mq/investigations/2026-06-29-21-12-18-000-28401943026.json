@@ -1,0 +1,22 @@
+{
+  "run_id": 28401943026,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28401943026",
+  "timestamp": "2026-06-29T21:12:18Z",
+  "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+  "event": "merge_group",
+  "head_sha": "4a1870723b4b1f5ada619dae70fe1af2a7c04fee",
+  "head_branch": "gh-readonly-queue/master/pr-36445-ceedce643ff85e28af5aa74a343e2795ebe81acd",
+  "pr_number": 36445,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36445",
+  "pr_author": "mvafin",
+  "signature": "eb85200a77e84af0",
+  "category": "Network",
+  "title": "pip install fails - PyPI returns truncated JSON response for grpcio package index",
+  "failed_job": "Build / Build",
+  "failed_job_id": 84156427864,
+  "primary_error": "json.decoder.JSONDecodeError: Unterminated string starting at: line 1 column 79963 (char 79962)",
+  "context": "pip was installing tensorflow from src/frontends/tensorflow/tests/requirements.txt and trying to resolve grpcio<2.0,>=1.24.3 dependency. The PyPI Simple API returned a truncated JSON response causing the pip resolver to fail with JSONDecodeError.",
+  "root_cause": "Network-related: PyPI index returned a truncated/malformed JSON response when pip queried the grpcio package index page. This is transient and caused by a network error between the runner and PyPI CDN.",
+  "confidence": "High",
+  "resolution": "Re-run the workflow (already attempted as run_attempt 2). Consider adding retry logic for pip install steps or pinning grpcio version directly."
+}
