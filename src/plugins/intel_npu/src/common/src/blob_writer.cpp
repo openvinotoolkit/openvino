@@ -153,7 +153,6 @@ CRE BlobWriter::build_cre() const {
     m_logger.debug("Filling the CRE");
 
     CRE cre(m_logger.level());
-    cre.append_to_expression(PredefinedSectionType::CRE);
     m_logger.debug("Added the CRE_EVALUATION token to the CRE");
 
     // Go through all sections to find out the tokens that are needed
