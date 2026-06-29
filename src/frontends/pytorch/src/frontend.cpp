@@ -229,7 +229,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
         manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
-        manager.register_pass<ov::pass::TransposeFuse>(); // Required for fusion of Transpose for grouped_mm 
+        manager.register_pass<ov::pass::TransposeFuse>();  // Required for fusion of Transpose for grouped_mm
         manager.register_pass<ov::pass::PushConstantToSubgraph>();
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
         manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();

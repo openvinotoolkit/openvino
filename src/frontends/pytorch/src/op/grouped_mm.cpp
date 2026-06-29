@@ -41,7 +41,7 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
     PYTORCH_OP_CONVERSION_CHECK(!b_rank.is_static() || b_rank.get_length() != 2,
                                 "grouped_mm: 2D × 2D (weight gradient) case is not supported.");
     if (b_rank.is_static() && b_rank.get_length() == 3) {
-        // If the source graph already transposes the weights, 
+        // If the source graph already transposes the weights,
         // the resulting sequence of Transposes is removed
         // by the TransposeFuse pass during the frontend normalize stage.
         auto perm = context.mark_node(v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
