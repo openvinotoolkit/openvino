@@ -93,6 +93,7 @@ public:
     size_t bitwidth() const;
     // The name of this type, the enum name of this type
     std::string get_type_name() const;
+    Type get_compute_type() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
 
     static std::vector<const Type*> get_known_types();
