@@ -28,7 +28,7 @@ namespace ov::intel_cpu::kernel {
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp)
-    : GridSampleKernelBase(jit_name(), jcp, isa, x64::cpu_isa_traits_t<isa>::vlen) {
+    : GridSampleKernelBase(jit_name(), jcp, isa, static_cast<uint32_t>(x64::cpu_isa_traits_t<isa>::vlen)) {
     if (dataTypeSize == 2) {
         dataTypeShift = 1;
     } else if (dataTypeSize == 4) {
@@ -2122,7 +2122,7 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
 
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         auto rAux = getReg64();
-        static const float val = dataTypeSize;
+        static const auto val = static_cast<float>(dataTypeSize);
         static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
         mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
         uni_vmulps(vDst, vSrc, ptr[rAux]);
@@ -2162,7 +2162,7 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         if (dataTypeSize > 1) {
             auto rAux = getReg64();
-            const float val = dataTypeSize;
+            const auto val = static_cast<float>(dataTypeSize);
             static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
             mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
             uni_vmulps(vDst, vDst, ptr[rAux]);
