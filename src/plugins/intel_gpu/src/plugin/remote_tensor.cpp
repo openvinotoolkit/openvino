@@ -9,11 +9,24 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 
+#include <cstdint>
 #include <memory>
 
 namespace ov::intel_gpu {
+constexpr size_t minimal_alignment_no_copy = 64;
 
 namespace {
+static bool is_no_copy_aligned_ptr(const void* ptr) {
+    if (ptr == nullptr)
+        return false;
+
+    return (reinterpret_cast<std::uintptr_t>(ptr) % minimal_alignment_no_copy) == 0;
+}
+
+static bool is_no_copy_aligned_size(size_t size) {
+    return (size % minimal_alignment_no_copy) == 0;
+}
+
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
     if (element_type.bitwidth() < 8)
@@ -352,6 +365,19 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.share_usm(m_layout, m_mem);
         break;
     }
+    case TensorType::BT_CPU_VA: {
+        // definition: repo compute-runtime\opencl\source\mem_obj\buffer.cpp Buffer::checkMemory zero copy conditions
+        OPENVINO_ASSERT(is_no_copy_aligned_ptr(m_mem),
+                        "[GPU] shared buffer pointer must be ", minimal_alignment_no_copy, "-byte aligned");
+        OPENVINO_ASSERT(is_no_copy_aligned_size(m_layout.bytes_count()),
+                        "[GPU] shared buffer size must be a multiple of ", minimal_alignment_no_copy, " bytes");
+
+        m_memory_object = engine.create_hostbuffer(m_mem,
+                                        m_layout.bytes_count(),
+                                        cldnn::allocation_type::cl_mem,
+                                        m_layout);
+        break;
+    }
 #ifdef _WIN32
     case TensorType::BT_SURF_SHARED: {
         m_memory_object = engine.share_surface(m_layout, m_mem, m_plane);
@@ -389,6 +415,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
+           m_mem_type == TensorType::BT_CPU_VA ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
            m_mem_type == TensorType::BT_SURF_SHARED ||
@@ -473,6 +500,14 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_USER_BUFFER),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
+        };
+        break;
+    case TensorType::BT_CPU_VA:
+        m_properties = {
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
+            ov::intel_gpu::ocl_context(params.context),
+            ov::intel_gpu::mem_handle(params.mem),
+            ov::intel_gpu::cpu_va(m_mem),
         };
         break;
     case TensorType::BT_USM_HOST_INTERNAL:

@@ -2006,7 +2006,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     memory_ptr model_tensor_base_ptr = nullptr;
     if (can_use_mmap_zero_copy) {
         model_tensor_base_ptr =
-            ib.get_engine().create_mmap_hostbuffer(ib.get_mmap_tensor(),
+            ib.get_engine().create_hostbuffer(ib.get_mmap_tensor(),
                                                    ib.get_stream_size(),
                                                    allocation_type::usm_host,
                                                    layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));

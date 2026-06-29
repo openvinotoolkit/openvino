@@ -5,6 +5,7 @@
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+#include <openvino/util/memory.hpp>
 
 #ifdef WIN32
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
@@ -44,6 +45,25 @@ int main() {
     void* shared_buffer = allocate_usm_buffer(input_size);
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
     //! [wrap_usm_pointer]
+}
+
+{
+    //! [wrap_cpu_pointer]
+    // Allocation part - must be done with alignment(for OCL backend) - align the address to cache line size
+    // and the allocation size must be a multiple of cache line size.
+    const size_t size = input_size * in_element_type.size();
+    constexpr size_t alignment = 64;
+    void* cpu_pointer = ov::util::aligned_alloc(size, alignment);
+    // end of optimal Allocation part
+    {
+        // real wrapping cpu pointer to remote tensor
+        auto remote_tensor = gpu_context.create_tensor_from_cpu_pointer(in_element_type,
+                                                                        in_shape,
+                                                                        cpu_pointer,
+                                                                        ov::intel_gpu::MemType::CPU_VA);
+    }
+    ov::util::aligned_free(cpu_pointer); 
+    //! [wrap_cpu_pointer]
 }
 
 {
