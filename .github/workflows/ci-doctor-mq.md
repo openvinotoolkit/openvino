@@ -333,7 +333,7 @@ tools:
     max-file-count: 500
 
 steps:
-  - name: Download CI failure logs and artifacts
+  - name: Download CI failure logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
