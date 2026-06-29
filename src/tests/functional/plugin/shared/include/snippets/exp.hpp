@@ -5,6 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
+#include "snippets_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -16,30 +17,37 @@ typedef std::tuple<
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device
-> ExpParams;
+> UnaryActivationParams;
 
-class Exp : public testing::WithParamInterface<ov::test::snippets::ExpParams>,
-            virtual public SnippetsTestsCommon {
+class UnaryActivation : public testing::WithParamInterface<ov::test::snippets::UnaryActivationParams>,
+                        virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ExpParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::UnaryActivationParams>& obj);
 
 protected:
     void SetUp() override;
+
+    virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph(const std::vector<PartialShape>& inputShapes) const = 0;
 };
 
-class ExpReciprocal : public Exp {
+class Exp : public UnaryActivation {
 protected:
-    void SetUp() override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph(const std::vector<PartialShape>& inputShapes) const override;
 };
 
-class HSigmoid : public Exp {
+class ExpReciprocal : public UnaryActivation {
 protected:
-    void SetUp() override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph(const std::vector<PartialShape>& inputShapes) const override;
 };
 
-class SoftSign : public Exp {
+class HSigmoid : public UnaryActivation {
 protected:
-    void SetUp() override;
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph(const std::vector<PartialShape>& inputShapes) const override;
+};
+
+class SoftSign : public UnaryActivation {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph(const std::vector<PartialShape>& inputShapes) const override;
 };
 
 } // namespace snippets
