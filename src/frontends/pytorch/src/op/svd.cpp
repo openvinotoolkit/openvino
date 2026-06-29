@@ -14,10 +14,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -215,52 +212,14 @@ private:
     Output<Node> m_tiny;
 };
 
-// The Jacobi decomposition below is written for 3x3 matrices. When the trailing
-// matrix dimensions are statically known, reject anything that is not 3x3 with a
-// clear conversion-time message. When they are dynamic (on the TorchScript path the
-// decoder forces all dims dynamic, so this is the common case), the size cannot be
-// checked at conversion time; instead insert a runtime square-3x3 guard: reshape
-// the trailing two axes to a fixed [3, 3] while preserving the batch axes
-// (new_shape = concat(shape_of(x)[:-2], [3, 3])). For a genuine 3x3 input this is an
-// identity; any other size cannot match the element count and raises a runtime
-// Reshape error -- turning an otherwise silent wrong result into a loud failure. 3x3
-// is the supported / expected runtime size (e.g. the Kabsch rigid-transform block in
-// pose-estimation models). Returns the (possibly reshape-guarded) matrix to use.
-Output<Node> check_square_3x3(const NodeContext& context, const Output<Node>& x) {
-    const auto& ps = x.get_partial_shape();
-    const auto rank = ps.rank();
-    if (rank.is_static() && rank.get_length() >= 2) {
-        auto n = ps[rank.get_length() - 1];
-        auto m = ps[rank.get_length() - 2];
-        if (n.is_static() && m.is_static()) {
-            PYTORCH_OP_CONVERSION_CHECK(
-                n.get_length() == 3 && m.get_length() == 3,
-                "aten::svd is only supported for 3x3 matrices, got trailing dimensions ",
-                m.get_length(),
-                "x",
-                n.get_length(),
-                ".");
-            return x;
-        }
-    }
-    // Dynamic trailing dimension(s): guard the assumed 3x3 size at runtime.
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
-    auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
-    auto stop = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
-    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
-    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
-    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape, start, stop, step, axis));
-    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {3, 3}));
-    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
-    return context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
-}
-
 OutputVector svd_common(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    // Runtime/conversion-time 3x3 guard; on the dynamic path this returns x wrapped
-    // in a reshape-to-[...,3,3] so a non-3x3 input fails loudly at runtime.
-    x = check_square_3x3(context, x);
+    // The Jacobi decomposition below is written for 3x3 matrices. ensure_trailing_square
+    // validates the trailing axes are 3x3 (static shapes) or, on the dynamic path (the
+    // TorchScript decoder forces all dims dynamic), returns x wrapped in a reshape-to-[...,3,3]
+    // so a non-3x3 input fails loudly at runtime instead of silently producing a wrong result.
+    x = ensure_trailing_square(context, x, 3, "aten::svd");
 
     auto in_et = x.get_element_type();
     // Compute at least in f32 (f16/bf16 are too coarse for the Jacobi rotations).
