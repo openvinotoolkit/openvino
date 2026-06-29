@@ -23,14 +23,19 @@ OutputVector translate_delete(const NodeContext& context) {
     auto idx_const = ov::as_type_ptr<ov::op::v0::Constant>(context.get_input(1).get_node_shared_ptr());
     if (idx_const) {
         auto elems = get_list_as_outputs(context.get_input(0));
-        int64_t idx = idx_const->cast_vector<int64_t>()[0];
+        const auto idx_vec = idx_const->cast_vector<int64_t>();
+        PYTORCH_OP_CONVERSION_CHECK(idx_vec.size() == 1, "aten::Delete expects scalar constant index.");
+        int64_t idx = idx_vec[0];
         int64_t n = static_cast<int64_t>(elems.size());
-        if (idx < 0) {
+        if (idx < 0)
             idx += n;
-        }
-        if (idx >= 0 && idx < n) {
-            elems.erase(elems.begin() + idx);
-        }
+        PYTORCH_OP_CONVERSION_CHECK(idx >= 0 && idx < n,
+                                    "Index: ",
+                                    idx,
+                                    " is out of bounds of input list of len: ",
+                                    n);
+        elems.erase(elems.begin() + idx);
+    }
         ov::OutputVector remaining(elems.begin(), elems.end());
         auto new_list = context.mark_node(make_list_construct(remaining));
         context.mutate_input(0, new_list);
