@@ -27,9 +27,6 @@
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
 
-#define FLOAT_MAX 3.4028235e38f
-#define FLOAT_MIN (-3.4028235e38f)
-
 namespace ov::intel_cpu {
 
 using namespace executor;
@@ -61,6 +58,10 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 
 bool MatMulKleidiAIExecutor::isGroupQuantizationEnabled(const MemoryArgs& memory) {
     auto scales = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims();
+    OPENVINO_ASSERT(scales.size() > 1,
+                    "Scales tensor to have at least 2 dimensions. Got ",
+                    scales.size(),
+                    " dimension(s).");
     return (scales[1] > 1);
 }
 
@@ -122,11 +123,19 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         if (weightsMemory->getDescPtr()->getPrecision() == element::i4) {
             isTransposed = attrs.weightsNonTransposed;
             if (isGroupQuantizationEnabled(memory)) {
-                _kernel =
-                    std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
-                                                                                                       K,
-                                                                                                       lhsPackedMem,
-                                                                                                       memory);
+                if (hasInt8MMSupport()) {
+                    _kernel =
+                        std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
+                                                                                                           K,
+                                                                                                           lhsPackedMem,
+                                                                                                           memory);
+                } else {
+                    _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP>>(
+                        N,
+                        K,
+                        lhsPackedMem,
+                        memory);
+                }
             } else {
                 if (hasInt8MMSupport()) {
                     _kernel =

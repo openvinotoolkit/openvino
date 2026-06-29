@@ -31,9 +31,8 @@ public:
 
     void moveMemToNumaNode(int numaNodeID) override;
 
-    static bool isGroupQuantizationEnabled(const MemoryArgs& memory);
-
 private:
+    static bool isGroupQuantizationEnabled(const MemoryArgs& memory);
     DnnlScratchPadPtr scratchPad;
     ACLFCAttrs aclfcAttrs;
     MemoryPtr biasMem;

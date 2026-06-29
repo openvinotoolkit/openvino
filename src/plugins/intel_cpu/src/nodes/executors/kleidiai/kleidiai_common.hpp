@@ -51,6 +51,7 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi4cxp_qs4cxs1s0.h"
 
 // Headers for INT4 group symmetric KAI kernels
+#include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x8_qsi4c32p8x8_4x8x32_neon_i8mm.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp_qsi4c32p_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.h"
@@ -66,7 +67,8 @@ enum class KAIKernelTag : std::uint8_t {
     I8_NEON_IMM,
     I4_NEON_DOTPROD,
     I4_NEON_IMM,
-    I4_NEON_IMM_GROUP
+    I4_NEON_IMM_GROUP,
+    I4_NEON_DOTPROD_GROUP
 };
 
 using KernelInterface = std::variant<kai_matmul_clamp_f32_f32_f32p_ukernel,
@@ -611,7 +613,6 @@ public:
         const size_t dst_stride_col = sizeof(float);
 
         ParallelNestingContext nested_context;
-
         cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
             const size_t M_iter = std::min(M - m_blk * m_step, m_step);
             auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
@@ -800,7 +801,7 @@ public:
 template <>
 class uKernel<KAIKernelTag::I4_NEON_IMM_GROUP> : public uKernelBase {
 private:
-    kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel uKernelInterface{
+    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel uKernelInterface{
         kai_get_m_step_matmul_clamp_f32_qai8dxp4x8_qsi4c32p8x8_4x8x32_neon_i8mm,
         kai_get_n_step_matmul_clamp_f32_qai8dxp4x8_qsi4c32p8x8_4x8x32_neon_i8mm,
         kai_get_mr_matmul_clamp_f32_qai8dxp4x8_qsi4c32p8x8_4x8x32_neon_i8mm,
@@ -821,6 +822,10 @@ public:
         this->N = N;
         this->K = K;
         auto scales = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getDims();
+        OPENVINO_ASSERT(scales.size() > 1,
+                        "Group quantization requires the scales tensor to have at least 2 dimensions.Got ",
+                        scales.size(),
+                        " dimension(s).");
         group_size = K / scales[1];
         OPENVINO_ASSERT(group_size % 32 == 0, "Group_size must be a multiple of 32");
         this->BLOCK_SIZE = uKernelInterface.get_m_step();
@@ -982,4 +987,192 @@ public:
     }  // end of execute()...
 };
 
+template <>
+class uKernel<KAIKernelTag::I4_NEON_DOTPROD_GROUP> : public uKernelBase {
+private:
+    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel uKernelInterface{
+        kai_get_m_step_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_n_step_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_mr_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_nr_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_kr_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_sr_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_lhs_packed_offset_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_rhs_packed_offset_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_dst_offset_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_get_dst_size_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod,
+        kai_run_matmul_clamp_f32_qai8dxp4x4_qsi4c32p8x4_4x8_neon_dotprod};
+    MemoryPtr rhsPackedMem;
+    MemoryPtr& lhsPackedMem;
+    size_t group_size;
+
+public:
+    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem, const MemoryArgs& memory) : lhsPackedMem(lhsPackedMem) {
+        this->N = N;
+        this->K = K;
+        auto scales = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getDims();
+        OPENVINO_ASSERT(scales.size() > 1,
+                        "Group quantization requires the scales tensor to have at least 2 dimensions. Got ",
+                        scales.size(),
+                        " dimension(s).");
+        group_size = K / scales[1];
+        OPENVINO_ASSERT(group_size % 32 == 0, "Group_size must be a multiple of 32");
+        this->BLOCK_SIZE = uKernelInterface.get_m_step();
+        this->mr = uKernelInterface.get_mr();
+        this->nr = uKernelInterface.get_nr();
+        this->kr = uKernelInterface.get_kr();
+        this->sr = uKernelInterface.get_sr();
+    }
+
+    size_t get_rhsPackedSize() override {
+        return kai_get_rhs_packed_size_rhs_pack_nxk_qsi4c32p_qsu4c32s1s0(N, K, nr, kr, sr, group_size, kai_dt_bf16);
+    }
+
+    void packData(bool isTransposed,
+                  MemoryCPtr weightsMemory,
+                  MemoryPtr biasMem,
+                  bool hasBias,
+                  float* rhs_scales,
+                  MemoryPtr rhsPackedMemory) override {
+        rhsPackedMem = rhsPackedMemory;
+        auto* rhs_native_qs4cx = weightsMemory->getDataAs<uint8_t>();
+        auto* bias_ptr = (hasBias) ? biasMem->getDataAs<float>() : nullptr;
+        auto scale_stride = (K / group_size) * sizeof(uint16_t);
+        auto* rhs_packed = rhsPackedMem->getData();
+
+        // KAI packing kernel qsu4c32s1s0 - expects unsigned 4bit values, OpenVINO generates signed 2's complement,
+        // hence the conversion is requied
+        const size_t weightBytes = N * K / 2;
+        std::vector<uint8_t> convertedRhs(weightBytes);
+        for (size_t i = 0; i < weightBytes; i++) {
+            convertedRhs[i] = rhs_native_qs4cx[i] ^ 0x88U;
+        }
+
+        // Convert F32 scales to bf16 as KAI kernel accepts only BF16
+        const size_t numScales = N * (K / group_size);
+        std::vector<uint16_t> scalesBf16(numScales);
+        uint32_t bits = 0;
+        for (size_t i = 0; i < numScales; i++) {
+            std::memcpy(&bits, &rhs_scales[i], sizeof(float));
+            scalesBf16[i] = static_cast<uint16_t>(bits >> 16);
+        }
+
+        if (isTransposed) {
+            kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0_params params_kxn{};
+            params_kxn.lhs_zero_point = 1;
+            params_kxn.rhs_zero_point = 8;
+            params_kxn.scale_dt = kai_dt_bf16;
+            kai_run_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0(1,
+                                                      N,
+                                                      K,
+                                                      nr,
+                                                      kr,
+                                                      sr,
+                                                      group_size,
+                                                      convertedRhs.data(),
+                                                      N / 2,
+                                                      bias_ptr,
+                                                      scalesBf16.data(),
+                                                      scale_stride,
+                                                      rhs_packed,
+                                                      0,
+                                                      &params_kxn);
+        } else {
+            kai_rhs_pack_nxk_qsi4c32p_qsu4c32s1s0_params params_nxk{};
+            params_nxk.lhs_zero_point = 1;
+            params_nxk.rhs_zero_point = 8;
+            params_nxk.scale_dt = kai_dt_bf16;
+            kai_run_rhs_pack_nxk_qsi4c32p_qsu4c32s1s0(1,
+                                                      N,
+                                                      K,
+                                                      nr,
+                                                      kr,
+                                                      sr,
+                                                      group_size,
+                                                      convertedRhs.data(),
+                                                      K / 2,
+                                                      bias_ptr,
+                                                      scalesBf16.data(),
+                                                      scale_stride,
+                                                      rhs_packed,
+                                                      0,
+                                                      &params_nxk);
+        }
+    }
+
+    KernelInterface getuKernelInterface() override {
+        return uKernelInterface;
+    }
+
+    KAIKernelTag getKernelTag() override {
+        return KAIKernelTag::I4_NEON_IMM_GROUP;
+    }
+
+    size_t getLHSPackedSize(size_t m) override {
+        const size_t _m_blocks = (m + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        this->packedlhs_block_in_bytes = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(BLOCK_SIZE, K, mr, kr, sr);
+        const size_t lhsPackedSize = packedlhs_block_in_bytes * _m_blocks;
+        return lhsPackedSize;
+    }
+
+    void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
+                 ov::intel_cpu::Dim M,
+                 ov::intel_cpu::MemoryPtr dstMem,
+                 ov::intel_cpu::MemoryPtr srcMem) override {
+        kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel _ukernel =
+            std::get<kai_matmul_clamp_f32_qai8dxp_qsi4c32p_ukernel>(getuKernelInterface());
+
+        auto* lhs_packed_lowp = lhsPackedMem->getDataAs<int8_t>();
+        auto* rhs_packed_lowp = rhsPackedMem->getDataAs<int8_t>();
+        const size_t lhs_stride = K * sizeof(float);
+        const size_t dst_stride_row = N * sizeof(float);
+        const size_t dst_stride_col = sizeof(float);
+        auto* lhs = srcMem->getDataAs<float>();
+        auto* dst = dstMem->getDataAs<float>();
+        size_t m_step = BLOCK_SIZE;
+        size_t n_step = _ukernel.get_n_step();
+        const size_t M_BLOCKS = (M + m_step - 1) / m_step;
+        const size_t N_BLOCKS = (N + n_step - 1) / n_step;
+        const size_t lhs_packed_offset = _ukernel.get_lhs_packed_offset(0, K);
+
+        ParallelNestingContext nested_context;
+
+        cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
+            const size_t M_iter = std::min(M - m_blk * m_step, m_step);
+            auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
+
+            kai_run_lhs_quant_pack_qai8dxp_f32(M_iter,
+                                               K,
+                                               mr,
+                                               kr,
+                                               sr,
+                                               0,
+                                               lhs + m_blk * m_step * K,  // LHS (F32)
+                                               lhs_stride,
+                                               lhs_packed_block  // lhs packed output
+            );
+            cpu_parallel->parallel_for(N_BLOCKS, [&](size_t n_blk) {
+                //  matmul exec
+                const size_t rhs_packed_offset = _ukernel.get_rhs_packed_offset(n_blk * n_step, K, group_size);
+                const size_t dst_offset = _ukernel.get_dst_offset(m_blk * m_step, n_blk * n_step, dst_stride_row);
+                const auto* rhs_ptr = static_cast<const void*>(rhs_packed_lowp + rhs_packed_offset);
+                const auto* lhs_ptr = static_cast<const void*>(lhs_packed_block + lhs_packed_offset);
+                float* dst_ptr = (dst + dst_offset / sizeof(float));
+                const size_t N_iter = std::min(N - n_blk * n_step, n_step);
+
+                _ukernel.run_matmul(M_iter,
+                                    N_iter,
+                                    K,
+                                    group_size,
+                                    lhs_ptr,
+                                    rhs_ptr,
+                                    dst_ptr,
+                                    dst_stride_row,
+                                    dst_stride_col,
+                                    FLOAT_MIN,
+                                    FLOAT_MAX);
+            });
+        });
+    }  // end of execute()...
+};
 }  // namespace ov::intel_cpu::kai_common
