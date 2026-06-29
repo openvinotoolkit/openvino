@@ -196,3 +196,27 @@ void ZeroDevice::updateInfo(const ov::AnyMap& properties) {
         _log.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
 }
+
+bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const {
+    if (_initStructs->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
+        OPENVINO_THROW("Compatibility descriptor validation is not supported by this driver");
+    }
+
+    ze_validate_runtime_requirements_output_t output = {};
+    output.stype = ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_OUTPUT;
+    output.pNext = nullptr;
+
+    const ze_result_t result =
+        zeDeviceValidateRuntimeRequirements(_initStructs->getDevice(), compatibilityDescriptor.c_str(), &output);
+
+    if (result != ZE_RESULT_SUCCESS) {
+        _log.warning("zeDeviceValidateRuntimeRequirements returned error: 0x%x", static_cast<uint32_t>(result));
+        return false;
+    }
+
+    // Only REQUIREMENTS_MET and MET_RECOMPILATION_ADVISABLE are treated as compatible.
+    // NOT_APPLICABLE (the descriptor does not apply to this device) and REQUIREMENTS_NOT_MET are
+    // intentionally treated as incompatible, since neither guarantees the blob runs correctly here
+    return output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET ||
+           output.result == ZE_VALIDATE_RUNTIME_REQUIREMENTS_RESULT_REQUIREMENTS_MET_RECOMPILATION_ADVISABLE;
+}

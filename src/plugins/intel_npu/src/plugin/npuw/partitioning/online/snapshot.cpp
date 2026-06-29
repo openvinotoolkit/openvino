@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/gqa.hpp"
 #include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
@@ -768,6 +769,7 @@ void Snapshot::earlyRegroup() {
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(GQA);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
