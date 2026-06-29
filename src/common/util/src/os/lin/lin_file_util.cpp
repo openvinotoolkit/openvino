@@ -12,10 +12,10 @@ namespace ov::util {
 FileHandle open_file(const std::filesystem::path& path, FileMode mode) {
     // CVS-189123
     int flags = O_CLOEXEC;
-    if (has_flag(mode, FileMode::read)) {
+    if (has_flag(mode, FileMode::Read)) {
         flags |= O_RDONLY;
     }
-    if (has_flag(mode, FileMode::direct)) {
+    if (has_flag(mode, FileMode::Direct)) {
         flags |= O_DIRECT;
     }
     return ::open(path.c_str(), flags);
