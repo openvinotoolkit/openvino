@@ -6,18 +6,15 @@
 
 namespace intel_npu {
 
-BlobReaderInterface::BlobReaderInterface(
-    const ov::Tensor& source,
-    const size_t section_start,
-    const size_t section_length,
-    const size_t npu_region_size,
-    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const ov::log::Level log_level)
+BlobReaderInterface::BlobReaderInterface(const ov::Tensor& source,
+                                         const size_t section_start,
+                                         const size_t section_length,
+                                         const size_t npu_region_size,
+                                         const ov::log::Level log_level)
     : m_source(source),
       m_cursor(section_start),
       m_section_start(section_start),
       m_section_end(section_start + section_length),
-      m_section_type_evaluators(section_type_evaluators),
       m_logger("BlobReaderInterface", log_level) {
     OPENVINO_ASSERT(m_section_end <= npu_region_size,
                     "The end of a section surpasses the registered NPU region boundaries. Section end position: ",
@@ -73,11 +70,6 @@ void BlobReaderInterface::move_cursor_relative_to_npu_region(const size_t offset
 
 size_t BlobReaderInterface::get_section_length() const {
     return m_section_end - m_section_start;
-}
-
-std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>
-BlobReaderInterface::get_section_type_evaluators() const {
-    return m_section_type_evaluators;
 }
 
 ov::log::Level BlobReaderInterface::get_log_level() const {

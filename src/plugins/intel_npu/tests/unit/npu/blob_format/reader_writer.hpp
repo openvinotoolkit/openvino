@@ -113,7 +113,7 @@ using Reader = ::testing::Test;
 TEST_F(Reader, GetROITensor) {
     std::vector<uint8_t> data = {0xDE, 0xAD, 0xBE, 0xEF, 0xF0, 0x0D, 0xFA, 0xCE};
     ov::Tensor source(ov::element::u8, ov::Shape{data.size()}, data.data());
-    BlobReaderInterface reader(source, 0, source.get_byte_size(), source.get_byte_size(), {});
+    BlobReaderInterface reader(source, 0, source.get_byte_size(), source.get_byte_size());
 
     // skip first 2 bytes
     reader.move_cursor_relative_to_npu_region(2);

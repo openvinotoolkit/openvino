@@ -86,7 +86,6 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_sectio
                                    offsets_table.lookup_offset(section_id).value(),
                                    offsets_table.lookup_length(section_id).value(),
                                    npu_region_size,
-                                   m_section_type_evaluators,
                                    m_logger.level());
 
         // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
@@ -107,12 +106,7 @@ void BlobReader::parse_section(const SectionID section_id,
                                const size_t section_length,
                                const size_t npu_region_size,
                                const bool include_in_sections_order) {
-    BlobReaderInterface interface(source,
-                                  cursor,
-                                  section_length,
-                                  npu_region_size,
-                                  m_section_type_evaluators,
-                                  m_logger.level());
+    BlobReaderInterface interface(source, cursor, section_length, npu_region_size, m_logger.level());
 
     m_parsed_sections[section_id.type][section_id.type_instance] = m_readers.at(section_id.type)(interface);
     m_parsed_sections[section_id.type][section_id.type_instance]->set_section_type_instance(section_id.type_instance);

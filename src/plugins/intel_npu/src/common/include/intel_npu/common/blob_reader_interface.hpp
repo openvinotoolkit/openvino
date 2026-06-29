@@ -16,13 +16,11 @@ public:
     /**
      * @brief Constructs a BlobReader, associating it with the given compiled model source.
      */
-    BlobReaderInterface(
-        const ov::Tensor& source,
-        const size_t section_start,
-        const size_t section_length,
-        const size_t npu_region_size,
-        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const ov::log::Level log_level = ov::log::Level::WARNING);
+    BlobReaderInterface(const ov::Tensor& source,
+                        const size_t section_start,
+                        const size_t section_length,
+                        const size_t npu_region_size,
+                        const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
@@ -52,8 +50,6 @@ public:
 
     size_t get_section_length() const;
 
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> get_section_type_evaluators() const;
-
     ov::log::Level get_log_level() const;
 
 private:
@@ -66,8 +62,6 @@ private:
 
     size_t m_section_start;
     size_t m_section_end;
-
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
 
     Logger m_logger;
 };
