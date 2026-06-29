@@ -2,8 +2,8 @@
 
 ## ONNX Frontend testing places
 - [C++ gtest-based tests](../tests)
-- [Python frontend tests](../tests/tests_python)
-- [Python operators tests](../tests/tests_python)
+- [Python frontend tests](../tests/tests_python) (`test_frontend_*.py`)
+- [Python operators tests](../tests/tests_python) (`test_ops_*.py`, `test_onnx_*.py`)
 - [Python tests to confirm operator compliance with the ONNX standard](../tests/tests_python/test_backend.py)
 - [Python OpenModelZoo tests](../tests/tests_python/test_zoo_models.py)
 - [Tests for OpenVINO™ Execution Provider with ONNX Runtime](../../../../.ci/azure/linux_onnxruntime.yml)
