@@ -11,9 +11,9 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestDet(PytorchLayerTest):
     """aten::det / aten::linalg_det — batched matrix determinant.
 
-    The PyTorch frontend computes the determinant of small (1x1, 2x2, 3x3)
-    matrices in closed form (cofactor expansion). Reference values come from
-    PyTorch (torch.det / torch.linalg.det).
+    The PyTorch frontend computes the determinant of 3x3 matrices in closed
+    form (cofactor expansion) -- the rigid-transform / Kabsch use case.
+    Reference values come from PyTorch (torch.det / torch.linalg.det).
     """
 
     def _prepare_input(self, input_shape):
