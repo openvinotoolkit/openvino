@@ -33,7 +33,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul,
                          GroupedMatMulLayerTest,
                          ::testing::Combine(::testing::ValuesIn(shapes),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values("gather_matmul")),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
@@ -47,7 +48,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::ValuesIn(subtract_types),
                                             ::testing::Values(true),
                                             ::testing::Values(128),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values("gather_matmul")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
 }  // namespace

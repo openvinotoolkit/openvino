@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_op/grouped_matmul.hpp"
 
 #include <algorithm>
+#include <numeric>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
@@ -64,6 +65,13 @@ void GroupedMatMulTestBase::SetUp() {
     rel_threshold = 0.01f;
 }
 
+void GroupedMatMulTestBase::validate() {
+    SubgraphBaseTest::validate();
+    if (!expected_primitive_.empty()) {
+        CheckNumberOfNodesWithType(compiledModel, expected_primitive_, 1);
+    }
+}
+
 void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params_;
@@ -90,22 +98,26 @@ void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& target
         const size_t T = targetInputStaticShapes[0][0];
 
         std::vector<int32_t> offsets(G);
-        if (!tokens_per_expert.empty() && iter < tokens_per_expert.size()) {
+        if (!tokens_per_expert.empty()) {
+            OPENVINO_ASSERT(iter < tokens_per_expert.size(),
+                            "GroupedMatMul test: iter ", iter,
+                            " out of range for tokens_per_expert of size ", tokens_per_expert.size());
             const auto& tpe = tokens_per_expert[iter];
             OPENVINO_ASSERT(tpe.size() == G,
                             "tokens_per_expert[", iter, "] must have G=", G,
                             " entries, got ", tpe.size());
-            int32_t cum = 0;
-            for (size_t g = 0; g < G; ++g) {
-                cum += static_cast<int32_t>(tpe[g]);
-                offsets[g] = cum;
-            }
+            // offsets[g] = tpe[0] + tpe[1] + ... + tpe[g]  (exclusive row-end for expert g)
+            std::partial_sum(tpe.begin(), tpe.end(), offsets.begin(), [](int32_t a, size_t b) {
+                return a + static_cast<int32_t>(b);
+            });
             OPENVINO_ASSERT(offsets[G - 1] == static_cast<int32_t>(T),
                             "tokens_per_expert[", iter, "] sums to ", offsets[G - 1],
                             " but T=", T);
         } else {
-            for (size_t g = 0; g < G; ++g)
+            // Even distribution: offsets[g] = ceil(T*(g+1)/G), last clamped to T.
+            for (size_t g = 0; g < G; ++g) {
                 offsets[g] = static_cast<int32_t>((T * (g + 1) + G - 1) / G);
+            }
             offsets[G - 1] = static_cast<int32_t>(T);
         }
 
@@ -119,7 +131,7 @@ void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& target
 }
 
 std::string GroupedMatMulLayerTest::getTestCaseName(const testing::TestParamInfo<GroupedMatMulParams>& obj) {
-    const auto& [shape_params, elem_type, target_device] = obj.param;
+    const auto& [shape_params, elem_type, target_device, expected_primitive] = obj.param;
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params;
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static(),
@@ -134,10 +146,11 @@ std::string GroupedMatMulLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void GroupedMatMulLayerTest::SetUp() {
-    const auto& [shape_params, elem_type, _targetDevice] = GetParam();
+    const auto& [shape_params, elem_type, _targetDevice, expected_primitive] = GetParam();
     shape_params_ = shape_params;
     act_type_ = elem_type;
     model_name_ = "GroupedMatMul";
+    expected_primitive_ = expected_primitive;
     targetDevice = _targetDevice;
     GroupedMatMulTestBase::SetUp();
 }
@@ -155,7 +168,7 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 target_device] = obj.param;
+                 target_device, expected_primitive] = obj.param;
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params;
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
@@ -177,10 +190,11 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
 void GroupedMatMulCompressedLayerTest::SetUp() {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 _targetDevice] = GetParam();
+                 _targetDevice, expected_primitive] = GetParam();
     shape_params_ = shape_params;
     act_type_ = act_type;
     model_name_ = "GroupedMatMulCompressed";
+    expected_primitive_ = expected_primitive;
     weights_prec_ = weights_prec;
     decomp_prec_ = decomp_prec;
     scale_prec_ = scale_prec;

@@ -15,8 +15,12 @@ namespace ov {
 namespace test {
 
 // Per-iteration token allocation for the 2D×3D case.
-// tokens_per_expert[iter][g] = tokens routed to expert g in iteration iter.
-// Sum over g must equal T for that iteration. Empty vector → even distribution.
+// tokens_per_expert[iter][g] = number of rows (tokens) assigned to expert g in iteration iter.
+// The values are converted to cumulative end-offsets passed to GroupedMatMul:
+//   offsets[g] = sum(tokens_per_expert[iter][0..g])  (exclusive row end for expert g).
+// Sum over g must equal T (total token count) for that iteration.
+// Zeros mean the expert is inactive (gets no tokens) — exercises sparse MoE routing.
+// Empty vector → even distribution across experts.
 using TokensPerExpert = std::vector<std::vector<size_t>>;
 
 /// Bundles the shape-related parameters that are always specified together.
@@ -34,8 +38,10 @@ protected:
     GroupedMatMulShapeParams shape_params_;
     ov::element::Type act_type_;
     std::string model_name_;
+    std::string expected_primitive_;
 
     void SetUp() override;
+    void validate() override;
     virtual std::shared_ptr<ov::Node> build_weights() = 0;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
@@ -43,7 +49,8 @@ protected:
 using GroupedMatMulParams = std::tuple<
     GroupedMatMulShapeParams,  // shape bundle
     ov::element::Type,         // element type
-    std::string                // target device
+    std::string,               // target device
+    std::string                // expected primitive type (empty = skip check)
 >;
 
 class GroupedMatMulLayerTest : public testing::WithParamInterface<GroupedMatMulParams>,
@@ -66,7 +73,8 @@ using GroupedMatMulCompressedParams = std::tuple<
     ov::test::utils::DecompressionType,      // subtract type (full/empty/scalar)
     bool,                                    // reshape_on_decompression
     int,                                     // decompression_group_size (-1 = per-OC)
-    std::string                              // target device
+    std::string,                             // target device
+    std::string                              // expected primitive type (empty = skip check)
 >;
 
 class GroupedMatMulCompressedLayerTest

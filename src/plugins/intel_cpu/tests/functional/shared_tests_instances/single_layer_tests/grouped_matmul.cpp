@@ -33,7 +33,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul,
                          GroupedMatMulLayerTest,
                          ::testing::Combine(::testing::ValuesIn(shapes),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmul")),
                          GroupedMatMulLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
@@ -47,7 +48,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),
                                             ::testing::Values(16),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmul")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
 }  // namespace
