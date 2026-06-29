@@ -49,7 +49,7 @@ public:
 
     /**
      * @param handle        Open, readable file handle. Not owned; must outlive this object.
-     *                      Pass @c INVALID_HANDLE_VALUE only via the default constructor.
+     *                      Pass @c ov::invalid_handle only via the default constructor.
      * @param offset        Absolute file offset mapped to logical stream position 0. Must be >= 0.
      * @param size          Number of readable bytes starting at @p offset. Must be >= 0;
      *                      pass 0 to create an empty (EOF-only) region. Caller is responsible for

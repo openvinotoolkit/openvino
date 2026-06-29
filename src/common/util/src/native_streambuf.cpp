@@ -23,7 +23,7 @@ constexpr size_t max_window = 32UL * 1024 * 1024;
 
 NativeStreamBuf::NativeStreamBuf(NativeStreamBuf&& other) noexcept
     : std::streambuf(other),  // copies get/put area pointers — they point into other.m_window, which we steal below
-      m_handle(std::exchange(other.m_handle, INVALID_HANDLE_VALUE)),
+      m_handle(std::exchange(other.m_handle, ov::invalid_handle)),
       m_cursor(other.m_cursor),
       m_start(other.m_start),
       m_end(other.m_end),
@@ -51,7 +51,7 @@ void NativeStreamBuf::swap(NativeStreamBuf& other) noexcept {
     std::swap(m_window, other.m_window);
 }
 
-NativeStreamBuf::NativeStreamBuf() noexcept : NativeStreamBuf(INVALID_HANDLE_VALUE, 0, 0) {}
+NativeStreamBuf::NativeStreamBuf() noexcept : NativeStreamBuf(ov::invalid_handle, 0, 0) {}
 
 NativeStreamBuf::NativeStreamBuf(FileHandle handle,
                                  std::streamoff offset,

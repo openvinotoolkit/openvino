@@ -14,7 +14,7 @@ namespace ov::util {
 // Default constructor: stream not associated with any file; reads immediately return EOF.
 NativeIfstream::NativeIfstream() noexcept
     : std::istream(nullptr),
-      m_handle(INVALID_HANDLE_VALUE),
+      m_handle(ov::invalid_handle),
       m_owns_handle(false),
       m_buf() {
     this->init(&m_buf);
@@ -23,7 +23,7 @@ NativeIfstream::NativeIfstream() noexcept
 NativeIfstream::NativeIfstream(const std::filesystem::path& path)
     : std::istream(nullptr),
       m_handle(open_file(path, FileMode::READ | FileMode::DIRECT)),
-      m_owns_handle(m_handle != INVALID_HANDLE_VALUE),
+      m_owns_handle(m_handle != ov::invalid_handle),
       m_buf(m_handle, 0, m_owns_handle ? static_cast<std::streamoff>(ov::util::file_size(path)) : 0) {
     this->init(&m_buf);
     if (!m_owns_handle)
@@ -40,7 +40,7 @@ NativeIfstream::NativeIfstream(FileHandle handle, std::streamoff offset, std::st
 
 NativeIfstream::NativeIfstream(NativeIfstream&& other) noexcept
     : std::istream(std::move(other)),
-      m_handle(std::exchange(other.m_handle, INVALID_HANDLE_VALUE)),
+      m_handle(std::exchange(other.m_handle, ov::invalid_handle)),
       m_owns_handle(std::exchange(other.m_owns_handle, false)),
       m_buf(std::move(other.m_buf)) {
     this->set_rdbuf(&m_buf);

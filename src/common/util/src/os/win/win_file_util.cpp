@@ -18,10 +18,10 @@ FileHandle open_file(const std::filesystem::path& path, FileMode mode) {
     DWORD desired_access = 0;
     DWORD flags_and_attrs = FILE_ATTRIBUTE_NORMAL;
 
-    if (has_flag(mode, FileMode::read)){
+    if (has_flag(mode, FileMode::READ)){
         desired_access |= GENERIC_READ;
     }
-    if (has_flag(mode, FileMode::direct)){
+    if (has_flag(mode, FileMode::DIRECT)){
         flags_and_attrs |= FILE_FLAG_NO_BUFFERING;
     }
 

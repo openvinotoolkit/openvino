@@ -21,9 +21,13 @@ namespace ov {
 #ifdef _WIN32
 // Windows uses HANDLE (void*) for file handles
 using FileHandle = void*;
+// Value matches the Windows SDK: ((HANDLE)(ULONG_PTR)-1).
+// In C++20 can be constexpr if replaced with std::bit_cast<void*>(-1).
+inline const FileHandle invalid_handle = reinterpret_cast<void*>(static_cast<uintptr_t>(-1));
 #else
 // Linux/Unix uses int for file descriptors
 using FileHandle = int;
+inline constexpr FileHandle invalid_handle = -1;
 #endif
 }  // namespace ov
 
@@ -318,14 +322,14 @@ constexpr bool has_flag(FileMode flags, FileMode flag) noexcept {
  *
  * @param path  Path to the file.
  * @param mode  Access flags. Defaults to @c FileMode::read.
- * @return A valid @ref FileHandle on success, or @c INVALID_HANDLE_VALUE on failure.
+ * @return A valid @ref FileHandle on success, or @c ov::invalid_handle on failure.
  */
 FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode::READ);
 
 /**
  * @brief Close a file handle previously opened by @ref open_file.
  *
- * Safe to call with @c INVALID_HANDLE_VALUE (no-op).
+ * Safe to call with @c ov::invalid_handle (no-op).
  *
  * @param handle  The handle to close.
  */
