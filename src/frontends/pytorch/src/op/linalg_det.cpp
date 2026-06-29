@@ -7,6 +7,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
@@ -68,13 +71,34 @@ Output<Node> det_2x2(const NodeContext& context, const Output<Node>& x) {
     return context.mark_node(std::make_shared<v1::Subtract>(ad, bc));
 }
 
+// Reshape the trailing two axes of `x` to a fixed [n, n] while preserving all
+// batch axes: new_shape = concat(shape_of(x)[:-2], [n, n]). For a genuine n x n
+// input this is an identity, but if the matrix is some other size the element
+// counts cannot match and OpenVINO raises a runtime Reshape error -- turning an
+// otherwise silent wrong result into a loud failure. This is needed because on the
+// TorchScript path the frontend presents inputs with dynamic dims (static rank,
+// dynamic sizes), so a size mismatch cannot be detected at conversion time.
+Output<Node> assert_trailing_square(const NodeContext& context, const Output<Node>& x, int64_t n) {
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto stop = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape, start, stop, step, axis));
+    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {n, n}));
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
+    return context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
+}
+
 // Closed-form determinant for small matrices. When the trailing matrix dimension
 // is statically known, dispatch by size and decompose 1x1 / 2x2 / 3x3. When it is
-// dynamic (the PyTorch frontend often presents inputs with dynamic shapes at
-// conversion time, e.g. matrices produced by an internal reshape), the size cannot
-// be checked, so the dynamic-shape fallback assumes 3x3 -- the only size handled in
-// that case. 3x3 covers the rigid-transform / Kabsch use case in pose-estimation
-// models and is the value the op is expected to produce at runtime there.
+// dynamic (the PyTorch frontend frequently presents inputs with dynamic shapes at
+// conversion time -- on the TorchScript path the decoder forces all dims dynamic),
+// the size cannot be checked at conversion time, so we assume the supported 3x3
+// case and insert a runtime square-3x3 guard (assert_trailing_square): a genuine
+// 3x3 input passes through untouched, any other size raises at runtime instead of
+// silently producing a wrong determinant. 3x3 covers the rigid-transform / Kabsch
+// use case in pose-estimation models, which is the supported runtime size here.
 Output<Node> det_small(const NodeContext& context, const Output<Node>& x) {
     const auto& pshape = x.get_partial_shape();
     const auto rank = pshape.rank();
@@ -101,8 +125,9 @@ Output<Node> det_small(const NodeContext& context, const Output<Node>& x) {
             return det_3x3(context, x);
         }
     }
-    // Dynamic trailing dimension(s): assume the supported 3x3 case.
-    return det_3x3(context, x);
+    // Dynamic trailing dimension(s): assume the supported 3x3 case and guard it at
+    // runtime so a non-3x3 matrix fails loudly rather than returning a wrong value.
+    return det_3x3(context, assert_trailing_square(context, x, 3));
 }
 
 }  // namespace detail
