@@ -50,7 +50,7 @@ void ensure_memory_resident(const std::shared_ptr<ov::MappedMemory>& mapped) {
 }
 
 #else
-const size_t page_size = 4096;  // Fallback for non-Linux platforms
+const size_t page_size = static_cast<size_t>(util::get_system_page_size());
 
 // VirtualLock forces pages resident; VirtualUnlock releases the pin without evicting.
 // The lock is bounded by the working-set quota, so grow it to cover the region first.
