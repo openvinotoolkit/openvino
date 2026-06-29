@@ -23,7 +23,7 @@ public:
      * @details After evaluation, the
      * result is stored in "m_supported" for future use.
      */
-    bool check_support() const;
+    bool get_result() const;
 
     /**
      * @brief Tells whether or not the section type instance has already been evaluated.

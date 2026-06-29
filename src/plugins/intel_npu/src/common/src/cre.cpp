@@ -236,7 +236,7 @@ bool CRE::evaluate(
             if (!skip_all_evaluations && !skip_next_evaluation) {
                 const SectionType section_type = *expression_iterator;
                 bool operand = section_type_evaluators.count(section_type)
-                                   ? section_type_evaluators.at(section_type)->check_support()
+                                   ? section_type_evaluators.at(section_type)->get_result()
                                    : false;
 
                 m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
@@ -251,7 +251,7 @@ bool CRE::evaluate(
                         // supported
                         const SectionID section_id(section_type, *expression_iterator);
                         operand = section_type_evaluators.count(*expression_iterator)
-                                      ? section_type_instance_evaluators.at(section_id).check_support()
+                                      ? section_type_instance_evaluators.at(section_id).get_result()
                                       : true;
 
                         m_logger.trace("Section ID %s evaluated to %d", section_id, operand);

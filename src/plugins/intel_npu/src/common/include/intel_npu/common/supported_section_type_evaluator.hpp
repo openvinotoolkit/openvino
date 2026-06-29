@@ -10,9 +10,10 @@ namespace intel_npu {
 
 class SupportedSectionTypeEvaluator final : public ISectionTypeEvaluator {
 public:
-    SupportedSectionTypeEvaluator(const CREToken token);
+    SupportedSectionTypeEvaluator(const SectionType section_type);
 
-    bool lazy_check_support() const override;
+private:
+    bool evaluate() const override;
 };
 
 }  // namespace intel_npu

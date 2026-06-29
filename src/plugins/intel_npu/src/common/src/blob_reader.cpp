@@ -260,12 +260,12 @@ void BlobReader::read(const ov::Tensor& source) {
         const SectionInstanceEvaluator& type_instance_evaluator =
             section_type_instance_evaluators.at(section_id.value());
 
-        if (type_evaluator->evaluated() && type_evaluator->check_support()) {
-            if (type_instance_evaluator.evaluated() && type_instance_evaluator.check_support()) {
+        if (type_evaluator->evaluated() && type_evaluator->get_result()) {
+            if (type_instance_evaluator.evaluated() && type_instance_evaluator.get_result()) {
                 // Case 1
                 m_logger.trace("Parsing mandatory section ", section_id);
                 parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
-            } else if (type_instance_evaluator.evaluated() && !type_instance_evaluator.check_support()) {
+            } else if (type_instance_evaluator.evaluated() && !type_instance_evaluator.get_result()) {
                 // Case 2
                 m_logger.debug("The parsing of section ID ",
                                section_id,
@@ -285,7 +285,7 @@ void BlobReader::read(const ov::Tensor& source) {
                                      e.what());
                 }
             }
-        } else if (type_evaluator->evaluated() && !type_evaluator->check_support()) {
+        } else if (type_evaluator->evaluated() && !type_evaluator->get_result()) {
             // Case 4
             m_logger.debug("The parsing of section ID ",
                            section_id,

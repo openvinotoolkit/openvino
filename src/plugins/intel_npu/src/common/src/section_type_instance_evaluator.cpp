@@ -11,7 +11,7 @@ SectionInstanceEvaluator::SectionInstanceEvaluator(const std::function<bool(Blob
     : m_evaluate_fn(evaluate_fn),
       m_reader(std::move(reader)) {}
 
-bool SectionInstanceEvaluator::check_support() const {
+bool SectionInstanceEvaluator::get_result() const {
     if (m_supported.has_value()) {
         return m_supported.value();
     }

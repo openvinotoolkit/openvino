@@ -11,7 +11,7 @@
 namespace intel_npu {
 
 /**
- * @brief Interface that standardizes the evaluation of section types support.
+ * @brief Abstract class that standardizes the evaluation of section types support in a lazy manner.
  */
 class ISectionTypeEvaluator {
 public:
@@ -23,17 +23,10 @@ public:
 
     /**
      * @brief Checks whether or not the NPU plugin supports the section type.
-     * @details The evaluation depends on the implementation of the "lazy_check_support" method. After evaluation, the
+     * @details The evaluation depends on the implementation of the "evaluate" method. After evaluation, the
      * result is stored in "m_supported" for future use.
      */
-    bool check_support() const;
-
-    /**
-     * @brief Checks whether or not the NPU plugin supports the section type. This function will be called at most once
-     * during execution, in which case the result will be stored for future use.
-     * @note This method will typically be called only if the corresponding CRE token is found during CRE evaluation.
-     */
-    virtual bool lazy_check_support() const = 0;
+    bool get_result() const;
 
     /**
      * @brief Tells whether or not the section type has already been evaluated.
@@ -41,6 +34,13 @@ public:
     bool evaluated() const;
 
 private:
+    /**
+     * @brief Checks whether or not the NPU plugin supports the section type. This function will be called at most once
+     * during execution, in which case the result will be stored for future use.
+     * @note This method will typically be called only if the corresponding CRE token is found during CRE evaluation.
+     */
+    virtual bool evaluate() const = 0;
+
     SectionType m_section_type;
     /**
      * @brief If evaluation is performed, the result will be stored here for future use.

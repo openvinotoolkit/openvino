@@ -41,29 +41,29 @@ std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_
 
 TEST(MockCapability_1, ValidValue) {
     MockCapability_1 cap(std::make_shared<MockSection_1>(VALID_VALUE_1));
-    EXPECT_TRUE(cap.check_support());
+    EXPECT_TRUE(cap.get_result());
 }
 
 TEST(MockCapability_1, InvalidValue) {
     MockCapability_1 cap(std::make_shared<MockSection_1>(INVALID_VALUE_1));
-    EXPECT_FALSE(cap.check_support());
+    EXPECT_FALSE(cap.get_result());
 }
 
 TEST(MockCapability_2, ValidValues) {
     MockCapability_2 cap(
         std::make_shared<MockSection_2>(std::vector<double>{VALID_VALUE_1, VALID_VALUE_2, VALID_VALUE_3}));
-    EXPECT_TRUE(cap.check_support());
+    EXPECT_TRUE(cap.get_result());
 }
 
 TEST(MockCapability_2, EmptyVector) {
     MockCapability_2 cap(std::make_shared<MockSection_2>(std::vector<double>{}));
-    EXPECT_TRUE(cap.check_support());
+    EXPECT_TRUE(cap.get_result());
 }
 
 TEST(MockCapability_2, InvalidValues) {
     MockCapability_2 cap(
         std::make_shared<MockSection_2>(std::vector<double>{VALID_VALUE_1, INVALID_VALUE_1, INVALID_VALUE_2}));
-    EXPECT_FALSE(cap.check_support());
+    EXPECT_FALSE(cap.get_result());
 }
 
 TEST(MockCapability_3, BothSectionsValid) {
@@ -71,7 +71,7 @@ TEST(MockCapability_3, BothSectionsValid) {
         std::make_shared<MockSection_1>(VALID_VALUE_1),
         std::make_shared<MockSection_2>(std::vector<double>{VALID_VALUE_2, VALID_VALUE_3}));
     MockCapability_3 cap(section_3);
-    EXPECT_TRUE(cap.check_support());
+    EXPECT_TRUE(cap.get_result());
 }
 
 TEST(MockCapability_3, Section1Invalid) {
@@ -79,7 +79,7 @@ TEST(MockCapability_3, Section1Invalid) {
         std::make_shared<MockSection_3>(std::make_shared<MockSection_1>(INVALID_VALUE_1),
                                         std::make_shared<MockSection_2>(std::vector<double>{VALID_VALUE_2}));
     MockCapability_3 cap(section_3);
-    EXPECT_FALSE(cap.check_support());
+    EXPECT_FALSE(cap.get_result());
 }
 
 TEST(MockCapability_3, Section2Invalid) {
@@ -87,7 +87,7 @@ TEST(MockCapability_3, Section2Invalid) {
         std::make_shared<MockSection_3>(std::make_shared<MockSection_1>(VALID_VALUE_1),
                                         std::make_shared<MockSection_2>(std::vector<double>{INVALID_VALUE_1}));
     MockCapability_3 cap(section_3);
-    EXPECT_FALSE(cap.check_support());
+    EXPECT_FALSE(cap.get_result());
 }
 
 TEST(MockCapability_3, BothSectionsInvalid) {
@@ -95,22 +95,22 @@ TEST(MockCapability_3, BothSectionsInvalid) {
         std::make_shared<MockSection_3>(std::make_shared<MockSection_1>(INVALID_VALUE_1),
                                         std::make_shared<MockSection_2>(std::vector<double>{INVALID_VALUE_1}));
     MockCapability_3 cap(section_3);
-    EXPECT_FALSE(cap.check_support());
+    EXPECT_FALSE(cap.get_result());
 }
 
 TEST(CapabilityMemoization, CalledTwiceChecksSupportOnce) {
     auto cap = std::make_shared<MockCapability>(MockTypes::MOCK_1);
-    EXPECT_CALL(*cap, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_TRUE(cap->check_support());
-    // second call should return m_supported without calling lazy_check_support() again
-    EXPECT_TRUE(cap->check_support());
+    EXPECT_CALL(*cap, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_TRUE(cap->get_result());
+    // second call should return m_supported without calling evaluate() again
+    EXPECT_TRUE(cap->get_result());
 }
 
 TEST(CapabilityMemoization, StoresNegativeResult) {
     auto cap = std::make_shared<MockCapability>(MockTypes::MOCK_1);
-    EXPECT_CALL(*cap, lazy_check_support()).Times(1).WillOnce(::testing::Return(false));
-    EXPECT_FALSE(cap->check_support());
-    EXPECT_FALSE(cap->check_support());
+    EXPECT_CALL(*cap, evaluate()).Times(1).WillOnce(::testing::Return(false));
+    EXPECT_FALSE(cap->get_result());
+    EXPECT_FALSE(cap->get_result());
 }
 
 TEST(EvaluatorLazyCheck, ValidSections) {
@@ -169,7 +169,7 @@ TEST(EvaluatorLazyCheck, InvalidSection2) {
 
 TEST(EvaluatorLazyCheck, MemoizationPreventsRedundantQuerying) {
     auto cap = std::make_shared<MockCapability>(MockTypes::MOCK_1);
-    EXPECT_CALL(*cap, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap, evaluate()).Times(1).WillOnce(::testing::Return(true));
 
     CRE cre;
     cre.append_to_expression(MockTypes::MOCK_1);
@@ -191,9 +191,9 @@ TEST(EvaluatorLazyCheck, CapabilityAbsentFromSupportedMap) {
 
 TEST(EvaluatorLazyCheck, SupportedCapabilityMissingFromCREIsNotQueried) {
     auto cap_1 = std::make_shared<MockCapability>(MockTypes::MOCK_1);
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
     auto cap_2 = std::make_shared<MockCapability>(MockTypes::MOCK_2);
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_2, evaluate()).Times(0);
 
     CRE cre;
     cre.append_to_expression(MockTypes::MOCK_1);

@@ -19,9 +19,9 @@ public:
         : ISectionTypeEvaluator(MockTypes::MOCK_1),
           m_section(std::move(section)) {}
 
-    bool lazy_check_support() const override;
-
 private:
+    bool evaluate() const override;
+
     std::shared_ptr<MockSection_1> m_section;
 };
 
@@ -31,9 +31,9 @@ public:
         : ISectionTypeEvaluator(MockTypes::MOCK_2),
           m_section(std::move(section)) {}
 
-    bool lazy_check_support() const override;
-
 private:
+    bool evaluate() const override;
+
     std::shared_ptr<MockSection_2> m_section;
 };
 
@@ -43,9 +43,9 @@ public:
         : ISectionTypeEvaluator(MockTypes::MOCK_3),
           m_section(std::move(section)) {}
 
-    bool lazy_check_support() const override;
-
 private:
+    bool evaluate() const override;
+
     std::shared_ptr<MockSection_3> m_section;
 };
 
@@ -53,7 +53,7 @@ private:
 class MockCapability : public ISectionTypeEvaluator {
 public:
     explicit MockCapability(SectionType type) : ISectionTypeEvaluator(static_cast<CREToken>(type)) {}
-    MOCK_METHOD(bool, lazy_check_support, (), (const, override));
+    MOCK_METHOD(bool, evaluate, (), (const, override));
 };
 
 // mocking the potential driver query to verify if a capability is supported
@@ -75,9 +75,9 @@ public:
           m_driver(driver),
           m_type(type) {}
 
-    bool lazy_check_support() const override;
-
 private:
+    bool evaluate() const override;
+
     const IDriver& m_driver;
     SectionType m_type;
 };

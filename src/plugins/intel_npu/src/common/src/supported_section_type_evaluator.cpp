@@ -8,9 +8,10 @@
 
 namespace intel_npu {
 
-SupportedSectionTypeEvaluator::SupportedSectionTypeEvaluator(const CREToken token) : ISectionTypeEvaluator(token) {}
+SupportedSectionTypeEvaluator::SupportedSectionTypeEvaluator(const SectionType section_type)
+    : ISectionTypeEvaluator(section_type) {}
 
-bool SupportedSectionTypeEvaluator::lazy_check_support() const {
+bool SupportedSectionTypeEvaluator::evaluate() const {
     return true;
 }
 

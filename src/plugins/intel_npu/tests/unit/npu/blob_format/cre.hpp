@@ -291,8 +291,8 @@ protected:
 };
 
 TEST_F(CREOperandsEvaluation, Depth0ORs) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(0);
 
     CRE cre({MockTypes::MOCK_1, CRE::OR, MockTypes::MOCK_2, CRE::OR, MockTypes::MOCK_2});
 
@@ -300,8 +300,8 @@ TEST_F(CREOperandsEvaluation, Depth0ORs) {
 }
 
 TEST_F(CREOperandsEvaluation, Depth0ANDs) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(0);
 
     CRE cre({CRE::NOT, MockTypes::MOCK_1, CRE::AND, MockTypes::MOCK_2, CRE::AND, MockTypes::MOCK_2});
 
@@ -309,9 +309,9 @@ TEST_F(CREOperandsEvaluation, Depth0ANDs) {
 }
 
 TEST_F(CREOperandsEvaluation, Depth0AllEvaluate) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_3, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_3, evaluate()).Times(1).WillOnce(::testing::Return(true));
 
     CRE cre({CRE::NOT, MockTypes::MOCK_1, CRE::OR, MockTypes::MOCK_2, CRE::AND, MockTypes::MOCK_3});
 
@@ -319,8 +319,8 @@ TEST_F(CREOperandsEvaluation, Depth0AllEvaluate) {
 }
 
 TEST_F(CREOperandsEvaluation, ORFollowedByAND) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(0);
 
     CRE cre(
         {CRE::NOT, CRE::OPEN, MockTypes::MOCK_1, CRE::OR, MockTypes::MOCK_2, CRE::CLOSE, CRE::AND, MockTypes::MOCK_2});
@@ -329,9 +329,9 @@ TEST_F(CREOperandsEvaluation, ORFollowedByAND) {
 }
 
 TEST_F(CREOperandsEvaluation, Depth1NotEvaluated) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(0);
-    EXPECT_CALL(*cap_3, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(0);
+    EXPECT_CALL(*cap_3, evaluate()).Times(0);
 
     CRE cre({MockTypes::MOCK_1, CRE::OR, CRE::OPEN, MockTypes::MOCK_2, CRE::AND, MockTypes::MOCK_3, CRE::CLOSE});
 
@@ -339,9 +339,9 @@ TEST_F(CREOperandsEvaluation, Depth1NotEvaluated) {
 }
 
 TEST_F(CREOperandsEvaluation, Depth2NotEvaluated) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_3, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_3, evaluate()).Times(0);
 
     CRE cre({CRE::NOT,
              MockTypes::MOCK_1,
@@ -359,9 +359,9 @@ TEST_F(CREOperandsEvaluation, Depth2NotEvaluated) {
 }
 
 TEST_F(CREOperandsEvaluation, AllDepthNotEvaluated) {
-    EXPECT_CALL(*cap_1, lazy_check_support()).Times(1).WillOnce(::testing::Return(true));
-    EXPECT_CALL(*cap_2, lazy_check_support()).Times(0);
-    EXPECT_CALL(*cap_3, lazy_check_support()).Times(0);
+    EXPECT_CALL(*cap_1, evaluate()).Times(1).WillOnce(::testing::Return(true));
+    EXPECT_CALL(*cap_2, evaluate()).Times(0);
+    EXPECT_CALL(*cap_3, evaluate()).Times(0);
 
     CRE cre({CRE::NOT,
              MockTypes::MOCK_1,
