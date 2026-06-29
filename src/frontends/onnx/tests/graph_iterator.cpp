@@ -655,8 +655,10 @@ void check_constants_bitwise_identical(const std::shared_ptr<ov::Model>& ref,
         ASSERT_EQ(ref_c->get_shape(), test_c->get_shape()) << "shape mismatch for '" << name << "'";
         const auto ref_bytes = ref_c->get_byte_size();
         ASSERT_EQ(ref_bytes, test_c->get_byte_size()) << "byte size mismatch for '" << name << "'";
-        EXPECT_EQ(0, std::memcmp(ref_c->get_data_ptr(), test_c->get_data_ptr(), ref_bytes))
-            << "Constant data differs bitwise for '" << name << "'";
+        if (ref_bytes != 0) {
+            EXPECT_EQ(0, std::memcmp(ref_c->get_data_ptr(), test_c->get_data_ptr(), ref_bytes))
+                << "Constant data differs bitwise for '" << name << "'";
+        }
     }
 }
 
