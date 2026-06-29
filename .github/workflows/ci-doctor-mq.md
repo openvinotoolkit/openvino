@@ -344,7 +344,7 @@ steps:
       FILTERED_DIR="/tmp/gh-aw/agent/ci-doctor/filtered"
       mkdir -p "$LOG_DIR" "$FILTERED_DIR"
 
-      echo "=== CI Doctor: Pre-downloading logs for run 28161192347 ==="
+      echo "=== CI Doctor: Pre-downloading logs for run $RUN_ID ==="
 
       # Get failed jobs and their failed steps
       gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" \
