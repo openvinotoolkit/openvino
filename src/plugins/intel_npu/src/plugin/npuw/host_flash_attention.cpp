@@ -602,7 +602,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
 
     // Convert all inputs to f32
-    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype);
+    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, is_final_tile);
 
     FlashAttentionResults results;
 
