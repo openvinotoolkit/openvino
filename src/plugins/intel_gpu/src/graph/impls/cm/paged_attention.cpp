@@ -139,8 +139,6 @@ public:
         const auto past_lens = read_i32_input(params, PagedAttentionInputIdx::PAST_LENS);
         const auto block_indices_begins = read_i32_input(instance, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
 
-        const bool use_split_mixed = rt_params->stage == PagedAttentionStage::MIXED && m_mixed_route_mode == MixedRouteMode::SPLIT;
-
         size_t total_wg_count = 0;
         size_t max_q_block_pad = 0;
         size_t max_merged_q_blocks = 0;
@@ -168,15 +166,6 @@ public:
 
         for (size_t i = 0; i + 1 < subsequence_begins.size(); ++i) {
             const auto q_len = static_cast<size_t>(std::max<int32_t>(subsequence_begins[i + 1] - subsequence_begins[i], 0));
-            if (q_len == 0)
-                continue;
-
-            if (use_split_mixed) {
-                const auto past_len = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
-                const bool decode_subseq = (q_len == 1) && (past_len > 0);
-                if (decode_subseq)
-                    continue;
-            }
 
             const auto past_len_s = static_cast<size_t>(std::max<int32_t>(past_lens[i], 0));
             const size_t kv_len = past_len_s + q_len;
@@ -503,7 +492,9 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
-        res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        if (desc->write_kv_cache) {
+            res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        }
 
         const auto execute_multi_token_path = [&]() {
             if (rt_params->multi_token_wg_count == 0) {
@@ -666,7 +657,7 @@ public:
 
 #if FIND_DEBUG_ACC
                 auto count_elements_kq_sum = static_cast<int64_t>(rt_params->xattn_cumul_mask_elems);
-                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f16);  // 11: kq_sum
+                internal_buffers.emplace_back(std::max<int64_t>(1, count_elements_kq_sum), ov::element::f32);  // 11: kq_sum
 #endif
 
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4

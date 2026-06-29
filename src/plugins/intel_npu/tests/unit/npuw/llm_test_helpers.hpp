@@ -89,6 +89,17 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     return model;
 }
 
+inline LLMConfig make_test_model_config_gqa() {
+    auto cfg = make_test_model_config();
+    cfg.num_kv_heads = 2;  // num_heads=4 / num_kv_heads=2 -> n_rep=2
+    return cfg;
+}
+
+inline std::shared_ptr<ov::Model> build_llm_gqa_test_model() {
+    ModelBuilder mb;
+    return mb.build_llm(make_test_model_config_gqa());
+}
+
 inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
     auto model = build_llm_test_model();
     auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
@@ -144,6 +155,31 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
+                                                                  size_t sliding_to_full_ratio = 0,
+                                                                  const SlidingMaskFn& sliding_mask_fn = {},
+                                                                  size_t num_layers = 2) {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = num_layers;
+    cfg.sliding_window_size = window_size;
+    cfg.sliding_to_full_ratio = sliding_to_full_ratio;
+    cfg.sliding_mask_fn = sliding_mask_fn;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_token_type_ids_test_model(size_t window_size = 512,
+                                                                  size_t sliding_to_full_ratio = 1,
+                                                                  const SlidingMaskFn& sliding_mask_fn = {}) {
+    auto cfg = make_test_model_config();
+    cfg.sliding_window_size = window_size;
+    cfg.sliding_to_full_ratio = sliding_to_full_ratio;
+    cfg.sliding_mask_fn = sliding_mask_fn;
+    cfg.use_inputs_embeds = true;
+    cfg.use_token_type_ids = true;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
 
 class NullPlugin : public ov::IPlugin {
 public:

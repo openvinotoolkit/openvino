@@ -45,7 +45,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_state.h"
 #include "node.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/convert.h"
 #include "nodes/input.h"
@@ -2140,6 +2139,10 @@ void Graph::EnforceInferencePrecision() const {
 
                 // kvcache of PagedAttention should be written directly
                 if (node->getType() == Type::PagedAttention && any_of(inPort, 3U, 4U)) {
+                    return true;
+                }
+                // kv cache of PaKVReorder should be written directly
+                if (node->getType() == Type::PaKVReorder && any_of(inPort, 0U, 1U)) {
                     return true;
                 }
                 const auto& parent = node->getParentEdgeAt(inPort)->getParent();
