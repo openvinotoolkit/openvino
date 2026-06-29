@@ -298,9 +298,9 @@ inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset
  * @brief Flags controlling how a file is opened via @ref open_file.
  */
 enum class FileMode : unsigned {
-    Read = 1u << 0,  //!< Open for reading.
-    // Write = 1u << 1, //!< (reserved) Open for writing.
-    Direct = 1u << 2,  //!< Bypass the OS page cache.
+    READ = 1u << 0,  //!< Open for reading.
+    // WRITE = 1u << 1, //!< (reserved) Open for writing.
+    DIRECT = 1u << 2,  //!< Bypass the OS page cache.
 };
 
 /// @brief Combine two @ref FileMode values.
@@ -320,7 +320,7 @@ constexpr bool has_flag(FileMode flags, FileMode flag) noexcept {
  * @param mode  Access flags. Defaults to @c FileMode::read.
  * @return A valid @ref FileHandle on success, or @c INVALID_HANDLE_VALUE on failure.
  */
-FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode::Read);
+FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode::READ);
 
 /**
  * @brief Close a file handle previously opened by @ref open_file.

@@ -22,7 +22,7 @@ NativeIfstream::NativeIfstream() noexcept
 
 NativeIfstream::NativeIfstream(const std::filesystem::path& path)
     : std::istream(nullptr),
-      m_handle(open_file(path, FileMode::Read | FileMode::Direct)),
+      m_handle(open_file(path, FileMode::READ | FileMode::DIRECT)),
       m_owns_handle(m_handle != INVALID_HANDLE_VALUE),
       m_buf(m_handle, 0, m_owns_handle ? static_cast<std::streamoff>(ov::util::file_size(path)) : 0) {
     this->init(&m_buf);
