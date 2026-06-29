@@ -4,6 +4,7 @@
 
 #include "llm_block_kvcache_strategy.hpp"
 
+#include <cmath>
 #include <regex>
 
 #include "infer_request_utils.hpp"
@@ -277,11 +278,14 @@ void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
     // ── Step 4: release block tensors ────────────────────────────────────────────────
     // All SoPtr references to block tensors have been dropped above; calling release()
     // here will actually return device memory to the allocator.
-    // Keep floor(next_prompt_length / block_size) blocks warm to avoid re-allocating
+    // Keep ceil(next_prompt_length / block_size) blocks warm to avoid re-allocating
     // them on the next prefill.  Pass 0 when the next prompt length is unknown.
     {
         const uint32_t keep_warm_blocks =
-            (m_block_size > 0 && next_prompt_length > 0) ? (next_prompt_length / m_block_size) : 0u;
+            (m_block_size > 0 && next_prompt_length > 0)
+                ? static_cast<uint32_t>(
+                      std::ceil(static_cast<double>(next_prompt_length) / static_cast<double>(m_block_size)))
+                : 0u;
         for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
             if (layer_managers.key_manager) {
                 layer_managers.key_manager->release(keep_warm_blocks);
