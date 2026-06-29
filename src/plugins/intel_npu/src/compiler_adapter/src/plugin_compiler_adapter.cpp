@@ -283,24 +283,14 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
     return compilerOpts;
 }
 
-bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
-    const bool hasValue = optValue.has_value();
-    const std::string value = hasValue ? optValue.value() : "";
-    if (_compiler->is_option_supported(optname, std::move(optValue))) {
-        _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
-        return true;
-    } else {
-        _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
-        return false;
-    }
-}
+bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
+                                                const std::optional<std::string>& optValue) const {
+    if (optname == COMPATIBILITY_CHECK::key()) {
+        if (_zeroInitStruct == nullptr || _zeroInitStruct->getDevice() == nullptr) {
+            _logger.warning("No device is found, compatibility check is not available");
+            return false;
+        }
 
-bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
         ze_device_properties_t device_properties = {};
         device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
         auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
@@ -315,11 +305,38 @@ bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string&
                          vcl_desc.deviceID,
                          vcl_desc.tileCount);
 
-            return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
+            const bool hasValue = optValue.has_value();
+            const std::string value = hasValue ? optValue.value() : "";
+            if (_compiler->is_option_supported(&vcl_desc, optname, optValue)) {
+                _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
+                              optname.c_str(),
+                              hasValue ? value.c_str() : "null");
+                return true;
+            } else {
+                _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
+                              optname.c_str(),
+                              hasValue ? value.c_str() : "null");
+                return false;
+            }
+        } else {
+            _logger.warning("Can not get device properties, compatibility check is not available");
+            return false;
         }
     }
 
-    return false;
+    const bool hasValue = optValue.has_value();
+    const std::string value = hasValue ? optValue.value() : "";
+    if (_compiler->is_option_supported(optname, optValue)) {
+        _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
+                      optname.c_str(),
+                      hasValue ? value.c_str() : "null");
+        return true;
+    } else {
+        _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
+                      optname.c_str(),
+                      hasValue ? value.c_str() : "null");
+        return false;
+    }
 }
 
 }  // namespace intel_npu

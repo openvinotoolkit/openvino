@@ -32,7 +32,7 @@ namespace intel_npu {
 
 class NPUVMRuntimeApi {
 public:
-    NPUVMRuntimeApi(std::string_view libName = "npu_mlir_runtime");
+    NPUVMRuntimeApi(std::string_view libName = "openvino_intel_npu_mlir_runtime");
     NPUVMRuntimeApi(const NPUVMRuntimeApi& other) = delete;
     NPUVMRuntimeApi(NPUVMRuntimeApi&& other) = delete;
     void operator=(const NPUVMRuntimeApi&) = delete;
@@ -46,7 +46,8 @@ public:
     static void initialize(std::string_view libName);
 
     // Inspects the blob header to select the appropriate runtime library and calls initialize().
-    // Selects "npu_interpreter_runtime" for NPUByte blobs, "npu_mlir_runtime" otherwise.
+    // Selects "openvino_intel_npu_vm_runtime" for NPUByte blobs, "openvino_intel_npu_mlir_runtime" otherwise.
+    // Falls back to legacy runtime library names if the new names are not available.
     static void initializeFromBlob(const void* data, size_t size);
 
     static const std::shared_ptr<NPUVMRuntimeApi>& getInstance();
