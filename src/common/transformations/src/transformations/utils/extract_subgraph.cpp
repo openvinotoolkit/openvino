@@ -17,7 +17,8 @@
 namespace ov::util {
 
 namespace {
-ov::SinkVector collect_sinks(const ov::OutputVector& subgraph_outputs, const ov::ParameterVector& subgraph_parameters) {
+ov::SinkVector collect_sinks(const ov::OutputVector& subgraph_outputs,
+                             const ov::ParameterVector& subgraph_parameters) {
     std::unordered_set<ov::Node*> param_set;
     for (const auto& p : subgraph_parameters) {
         param_set.insert(p.get());
@@ -80,7 +81,8 @@ std::shared_ptr<ov::Model> extract_subgraph(const std::vector<ov::Input<ov::Node
                     "extract_subgraph: number of subgraph_parameters is not equal to the number of replaced_outputs");
 
     auto sinks = collect_sinks(subgraph_outputs, subgraph_parameters);
-    auto subgraph = std::make_shared<ov::Model>(subgraph_outputs, sinks, subgraph_parameters)->clone();
+    auto subgraph =
+        std::make_shared<ov::Model>(subgraph_outputs, sinks, subgraph_parameters)->clone();
 
     for (size_t i = 0; i < subgraph_parameters.size(); ++i) {
         subgraph_parameters[i]->output(0).replace(replaced_outputs[i]);
