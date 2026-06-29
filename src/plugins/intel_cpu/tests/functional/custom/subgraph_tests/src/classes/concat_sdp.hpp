@@ -1,12 +1,10 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#pragma once
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -30,35 +28,36 @@ namespace test {
  *                                |
  *                              Result
  */
-template<typename IT, typename T>
-void strided_iota(IT first, size_t n, T value, T stride);
-
+// (inType, inputShapes, cacheCfg, hasShapeOf, head_num_q, head_num_kv)
+// cacheCfg carries KEY_CACHE_* / VALUE_CACHE_* / KV_CACHE_* properties; empty = default.
 typedef std::tuple<ElementType,
                    std::vector<InputShape>,
-                   std::string,  // K cache precision: "none", "u8", "u4"
-                   std::string,  // V cache precision: "none", "u8", "u4"
-                   bool,         // hasShapeOf
-                   bool>         // isDiffKVHeadSize
+                   ov::AnyMap,
+                   bool,
+                   int64_t,
+                   int64_t>
     ConcatSDPTestParams;
 
-class ConcatSDPTest :
-        public testing::WithParamInterface<ConcatSDPTestParams>,
-        virtual public ov::test::SubgraphBaseTest,
-        public CPUTestsBase {
+class ConcatSDPTest : public testing::WithParamInterface<ConcatSDPTestParams>,
+                      virtual public ov::test::SubgraphBaseTest,
+                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj);
-    void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes);
-    void prepare();
-    void reset();
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model);
-    std::string m_kCachePrec;
-    std::string m_vCachePrec;
-    bool m_hasShapeOf;
-    bool m_isDiffKVHeadSize;
+
 protected:
     void SetUp() override;
+    void run() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    // Compile+run all iters. Updates `compiledModel` so post-checks see last run.
+    std::vector<std::vector<ov::Tensor>>
+    run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& cfg);
 
-    static constexpr size_t m_diffKVHeadSize = 16;
+    ov::AnyMap m_cacheCfg;
+    bool m_hasShapeOf = false;
+    int64_t m_headNumQ = 8;
+    int64_t m_headNumKV = 8;
+    int m_iter = 0;
+    size_t m_accum_L_q = 0;
 };
 
 }  // namespace test

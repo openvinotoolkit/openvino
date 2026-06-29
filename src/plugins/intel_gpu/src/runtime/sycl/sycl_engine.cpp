@@ -79,20 +79,16 @@ const ::sycl::device& sycl_engine::get_sycl_device() const {
     return sycl_device->get_device();
 }
 
-// const ::sycl::UsmHelper& sycl_engine::get_usm_helper() const {
-//     auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
-//     OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
-//     return sycl_device->get_usm_helper();
-// }
-
 allocation_type sycl_engine::detect_usm_allocation_type(const void* memory) const {
     if (use_unified_shared_memory()) {
-        OPENVINO_NOT_IMPLEMENTED;
-        // TODO: implement
-        //::sycl::gpu_usm::detect_allocation_type(this, memory);
+        return sycl::gpu_usm::detect_allocation_type(this, memory);
     } else {
         return allocation_type::unknown;
     }
+}
+
+memory::ptr sycl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 memory::ptr sycl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
@@ -110,8 +106,7 @@ memory::ptr sycl_engine::allocate_memory(const layout& layout, allocation_type t
         } else if (type == allocation_type::cl_mem) {
             OPENVINO_THROW("[GPU] SYCL engine does not support allocation_type::cl_mem");
         } else {
-            OPENVINO_NOT_IMPLEMENTED;
-            // res = std::make_shared<sycl::gpu_usm>(this, layout, type);
+            res = std::make_shared<sycl::gpu_usm>(this, layout, type);
         }
 
         if (reset || res->is_memory_reset_needed(layout)) {
@@ -133,7 +128,21 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-            OPENVINO_NOT_IMPLEMENTED;
+            const auto requested_mem_size = new_layout.bytes_count();
+            const auto parent_mem_size = memory.size();
+            OPENVINO_ASSERT(byte_offset <= parent_mem_size && byte_offset + requested_mem_size <= parent_mem_size,
+                            "[GPU] Sub-buffer size (", requested_mem_size,
+                            ") + offset (", byte_offset,
+                            ") exceeds parent buffer size (", parent_mem_size, ")");
+
+            auto& new_buf = downcast<const sycl::gpu_usm>(memory);
+            auto sub_buffer = sycl::UsmMemory(new_buf.get_buffer(), requested_mem_size, byte_offset);
+
+            return std::make_shared<sycl::gpu_usm>(this,
+                                                   new_layout,
+                                                   sub_buffer,
+                                                   memory.get_allocation_type(),
+                                                   memory.get_mem_tracker());
         } else {
             return downcast<const sycl::gpu_buffer>(memory).create_subbuffer(new_layout, byte_offset);
         }
@@ -141,6 +150,11 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         OPENVINO_THROW("[GPU] SYCL subbuffer creation failed: ", e.what());
     }
 }
+
+memory_ptr sycl_engine::create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
@@ -151,7 +165,17 @@ memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& 
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-            OPENVINO_NOT_IMPLEMENTED;
+            const auto requested_mem_size = new_layout.bytes_count();
+            const auto source_mem_size = memory.size();
+            OPENVINO_ASSERT(requested_mem_size <= source_mem_size,
+                            "[GPU] Reinterpret buffer size (", requested_mem_size,
+                            ") exceeds source buffer size (", source_mem_size, ")");
+
+            return std::make_shared<sycl::gpu_usm>(this,
+                                                   new_layout,
+                                                   downcast<const sycl::gpu_usm>(memory).get_buffer(),
+                                                   memory.get_allocation_type(),
+                                                   memory.get_mem_tracker());
         } else {
             return downcast<const sycl::gpu_buffer>(memory).reinterpret(new_layout);
         }
@@ -173,7 +197,17 @@ memory::ptr sycl_engine::reinterpret_handle(const layout& new_layout, shared_mem
         } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
-            OPENVINO_NOT_IMPLEMENTED;
+            auto alloc_type = gpu_usm::detect_allocation_type(this, params.mem);
+            OPENVINO_ASSERT(memory_capabilities::is_usm_type(alloc_type),
+                            "[GPU] Provided USM pointer is not a valid USM allocation in the current SYCL context");
+
+            // NOTE: Unlike OCL/ZE backends, SYCL standard does not provide an API to query
+            // the actual allocation size of an external USM pointer, so we trust the layout size.
+            // The caller is responsible for ensuring the USM allocation is at least as large as layout.bytes_count().
+            auto requested_mem_size = new_layout.bytes_count();
+            sycl::UsmMemory usm_buffer(get_sycl_context(), get_sycl_device(), params.mem, requested_mem_size);
+
+            return std::make_shared<sycl::gpu_usm>(this, new_layout, usm_buffer, alloc_type, nullptr);
         } else {
             OPENVINO_THROW("[GPU] unknown shared object format or type");
         }
@@ -195,9 +229,8 @@ bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
                downcast<const sycl::gpu_buffer>(mem2).get_buffer();
     }
     else
-        OPENVINO_NOT_IMPLEMENTED;
-        // return (downcast<const sycl::gpu_usm>(mem1).get_buffer() ==
-        //         downcast<const sycl::gpu_usm>(mem2).get_buffer());
+        return downcast<const sycl::gpu_usm>(mem1).get_buffer() ==
+               downcast<const sycl::gpu_usm>(mem2).get_buffer();
 }
 
 void* sycl_engine::get_user_context() const {
