@@ -234,17 +234,19 @@ void Loop::validate_and_infer_types() {
                             const auto body_rank_len = body_value_shape.rank().get_length();
                             const auto input_rank_len = input_param_ps.rank().get_length();
                             PartialShape new_ps;
+                            bool shape_changed = false;
                             if (body_rank_len == input_rank_len) {
                                 new_ps = input_param_ps;
                                 for (auto j = 0; j < body_rank_len; j++) {
-                                    if (!body_value_shape[j].same_scheme(input_param_ps[j])) {
+                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
                                         new_ps[j] = Dimension::dynamic();
+                                        shape_changed = true;
                                     }
                                 }
                             } else {
                                 new_ps = PartialShape::dynamic();
+                                shape_changed = true;
                             }
-                            const bool shape_changed = (new_ps != input_param_ps);
                             // reset sub model input shape
                             if (shape_changed) {
                                 need_reinvalidate = true;
@@ -302,7 +304,20 @@ void Loop::validate_and_infer_types() {
                      as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
             const auto& body_value_shape = body_value.get_partial_shape();
             if (body_value_shape.is_dynamic()) {
-                set_output_type(index, body_value.get_element_type(), body_value_shape);
+                // For back-edge outputs the body may produce a bounded-dynamic shape (e.g. {1..})
+                // because lower bounds from seed dimensions propagate through Concat/Add etc.
+                // Since the loop can run an unknown number of iterations the actual runtime
+                // value is unconstrained, so relax every dynamic dimension to fully dynamic.
+                if (back_edges.count(output_description->m_body_value_index) && body_value_shape.rank().is_static()) {
+                    PartialShape relaxed = body_value_shape;
+                    for (auto& dim : relaxed) {
+                        if (dim.is_dynamic())
+                            dim = Dimension::dynamic();
+                    }
+                    set_output_type(index, body_value.get_element_type(), relaxed);
+                } else {
+                    set_output_type(index, body_value.get_element_type(), body_value_shape);
+                }
             } else {
                 auto shape = body_value_shape.get_shape();
                 if (zero_number_of_iter) {
