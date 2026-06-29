@@ -12,7 +12,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -22,7 +21,6 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -91,11 +89,6 @@ public:
         return {U, S, V};
     }
 
-    // V (right singular vectors as columns) -> Vh = V^T (vectors as rows).
-    Output<Node> to_vh(const Output<Node>& V) {
-        return rowstack(col(V, 0), col(V, 1), col(V, 2));
-    }
-
 private:
     // --- constant helpers ---
     Output<Node> cf(float v) {
@@ -128,8 +121,8 @@ private:
         return m_ctx.mark_node(std::make_shared<v1::Select>(c, a, b));
     }
 
-    // Column k of a (...,3,3) matrix as a (...,3,1) keepdim vector (so trailing
-    // matmul/broadcast keep their last axis = vector component).
+    // Column k of a (...,3,3) matrix as a (...,3,1) keepdim vector (so the
+    // trailing reduce/broadcast ops keep their last axis = vector component).
     Output<Node> mcol(const Output<Node>& m, int64_t k) {
         return m_ctx.mark_node(std::make_shared<v8::Gather>(m, ci(k), ci_s(-1)));  // (...,3,1)
     }
@@ -212,21 +205,9 @@ private:
         return sel(m_ctx.mark_node(std::make_shared<v1::Less>(x, cf(0.0f))), cf(-1.0f), cf(1.0f));
     }
 
-    // Column k of a (...,3,3) matrix as a (...,3) vector (axes squeezed).
-    Output<Node> col(const Output<Node>& m, int64_t k) {
-        auto g = m_ctx.mark_node(std::make_shared<v8::Gather>(m, ci(k), ci_s(-1)));  // (...,3,1)
-        return m_ctx.mark_node(std::make_shared<v0::Squeeze>(g, ci_s(-1)));          // (...,3)
-    }
     // Stack three (...,3,1) column vectors into a (...,3,3) matrix (columns).
     Output<Node> colstack(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c) {
         return m_ctx.mark_node(std::make_shared<v0::Concat>(OutputVector{a, b, c}, -1));
-    }
-    // Stack three (...,3) vectors as the rows of a (...,3,3) matrix.
-    Output<Node> rowstack(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c) {
-        auto ua = m_ctx.mark_node(std::make_shared<v0::Unsqueeze>(a, ci_s(-2)));
-        auto ub = m_ctx.mark_node(std::make_shared<v0::Unsqueeze>(b, ci_s(-2)));
-        auto uc = m_ctx.mark_node(std::make_shared<v0::Unsqueeze>(c, ci_s(-2)));
-        return m_ctx.mark_node(std::make_shared<v0::Concat>(OutputVector{ua, ub, uc}, -2));
     }
 
     const NodeContext& m_ctx;
@@ -254,7 +235,7 @@ Output<Node> check_square_3x3(const NodeContext& context, const Output<Node>& x)
         if (n.is_static() && m.is_static()) {
             PYTORCH_OP_CONVERSION_CHECK(
                 n.get_length() == 3 && m.get_length() == 3,
-                "aten::svd/linalg_svd is only supported for 3x3 matrices, got trailing dimensions ",
+                "aten::svd is only supported for 3x3 matrices, got trailing dimensions ",
                 m.get_length(),
                 "x",
                 n.get_length(),
@@ -274,9 +255,7 @@ Output<Node> check_square_3x3(const NodeContext& context, const Output<Node>& x)
     return context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
 }
 
-// `return_vh` selects the linalg_svd convention (returns Vh = V^T) vs the
-// torch.svd convention (returns V).
-OutputVector svd_common(const NodeContext& context, bool return_vh) {
+OutputVector svd_common(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
     // Runtime/conversion-time 3x3 guard; on the dynamic path this returns x wrapped
@@ -296,9 +275,6 @@ OutputVector svd_common(const NodeContext& context, bool return_vh) {
     JacobiSvd3x3 builder(context, compute_et);
     Output<Node> U, S, V;
     std::tie(U, S, V) = builder.build(A);
-    if (return_vh) {
-        V = builder.to_vh(V);
-    }
 
     // Cast the outputs back to the input element type. ConvertLike resolves the
     // target type from `x` even when it is dynamic at conversion time (a direct
@@ -326,12 +302,7 @@ OutputVector translate_svd(const NodeContext& context) {
                                         "aten::svd with compute_uv=False is not supported.");
         }
     }
-    return svd_common(context, /*return_vh=*/false);
-};
-
-OutputVector translate_linalg_svd(const NodeContext& context) {
-    // aten::linalg_svd(Tensor A, bool full_matrices=True, *, str? driver=None) -> (Tensor U, Tensor S, Tensor Vh)
-    return svd_common(context, /*return_vh=*/true);
+    return svd_common(context);
 };
 
 }  // namespace op

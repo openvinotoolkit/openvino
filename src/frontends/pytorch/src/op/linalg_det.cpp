@@ -60,17 +60,6 @@ Output<Node> det_3x3(const NodeContext& context, const Output<Node>& x) {
     return context.mark_node(std::make_shared<v1::Add>(sub(t0, t1), t2));
 }
 
-// Closed-form 2x2 determinant.
-Output<Node> det_2x2(const NodeContext& context, const Output<Node>& x) {
-    auto a = matrix_element(context, x, 0, 0);
-    auto b = matrix_element(context, x, 0, 1);
-    auto c = matrix_element(context, x, 1, 0);
-    auto d = matrix_element(context, x, 1, 1);
-    auto ad = context.mark_node(std::make_shared<v1::Multiply>(a, d));
-    auto bc = context.mark_node(std::make_shared<v1::Multiply>(b, c));
-    return context.mark_node(std::make_shared<v1::Subtract>(ad, bc));
-}
-
 // Reshape the trailing two axes of `x` to a fixed [n, n] while preserving all
 // batch axes: new_shape = concat(shape_of(x)[:-2], [n, n]). For a genuine n x n
 // input this is an identity, but if the matrix is some other size the element
@@ -90,15 +79,16 @@ Output<Node> assert_trailing_square(const NodeContext& context, const Output<Nod
     return context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
 }
 
-// Closed-form determinant for small matrices. When the trailing matrix dimension
-// is statically known, dispatch by size and decompose 1x1 / 2x2 / 3x3. When it is
-// dynamic (the PyTorch frontend frequently presents inputs with dynamic shapes at
-// conversion time -- on the TorchScript path the decoder forces all dims dynamic),
-// the size cannot be checked at conversion time, so we assume the supported 3x3
-// case and insert a runtime square-3x3 guard (assert_trailing_square): a genuine
-// 3x3 input passes through untouched, any other size raises at runtime instead of
-// silently producing a wrong determinant. 3x3 covers the rigid-transform / Kabsch
-// use case in pose-estimation models, which is the supported runtime size here.
+// Closed-form determinant for 3x3 matrices. When the trailing matrix dimensions are
+// statically known, reject anything that is not 3x3 with a clear conversion-time
+// message. When they are dynamic (the PyTorch frontend frequently presents inputs
+// with dynamic shapes at conversion time -- on the TorchScript path the decoder
+// forces all dims dynamic), the size cannot be checked at conversion time, so we
+// assume the supported 3x3 case and insert a runtime square-3x3 guard
+// (assert_trailing_square): a genuine 3x3 input passes through untouched, any other
+// size raises at runtime instead of silently producing a wrong determinant. 3x3
+// covers the rigid-transform / Kabsch use case in pose-estimation models, which is
+// the supported size here.
 Output<Node> det_small(const NodeContext& context, const Output<Node>& x) {
     const auto& pshape = x.get_partial_shape();
     const auto rank = pshape.rank();
@@ -106,22 +96,13 @@ Output<Node> det_small(const NodeContext& context, const Output<Node>& x) {
         auto n_dim = pshape[rank.get_length() - 1];
         auto m_dim = pshape[rank.get_length() - 2];
         if (n_dim.is_static() && m_dim.is_static()) {
-            PYTORCH_OP_CONVERSION_CHECK(n_dim.get_length() == m_dim.get_length(),
-                                        "aten::det/linalg_det: trailing dimensions must be square.");
-            const auto n = n_dim.get_length();
             PYTORCH_OP_CONVERSION_CHECK(
-                n >= 1 && n <= 3,
-                "aten::det/linalg_det is only supported for matrices of size up to 3x3, got size ",
-                n,
+                n_dim.get_length() == 3 && m_dim.get_length() == 3,
+                "aten::det/linalg_det is only supported for 3x3 matrices, got trailing dimensions ",
+                m_dim.get_length(),
                 "x",
-                n,
+                n_dim.get_length(),
                 ".");
-            if (n == 1) {
-                return matrix_element(context, x, 0, 0);
-            }
-            if (n == 2) {
-                return det_2x2(context, x);
-            }
             return det_3x3(context, x);
         }
     }
