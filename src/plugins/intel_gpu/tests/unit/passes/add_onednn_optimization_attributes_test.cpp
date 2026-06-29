@@ -147,15 +147,18 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     if (!engine.get_device_info().supports_immad)
         return;
 
-    auto in_layout = layout{ ov::PartialShape({8, 16}), data_types::u8, format::bfyx };
-    auto weights_mem = engine.allocate_memory({ ov::PartialShape({16, 16}), data_types::u8, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape({32, 16}), data_types::u8, format::bfyx };
+    auto weights1_mem = engine.allocate_memory({ ov::PartialShape({16, 16}), data_types::u8, format::bfyx });
+    auto weights2_mem = engine.allocate_memory({ ov::PartialShape({16, 16}), data_types::u8, format::bfyx });
 
     topology topology;
-    topology.add(data("weights", weights_mem));
+    topology.add(data("weights1", weights1_mem));
+    topology.add(data("weights2", weights2_mem));
     topology.add(input_layout("input", in_layout));
 
-    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::u8));
-    topology.add(eltwise("sum", { input_info("fc"), input_info("input") }, eltwise_mode::sum));
+    topology.add(fully_connected("fc1", input_info("input"), { "weights1" }, "", data_types::u8));
+    topology.add(fully_connected("fc2", input_info("fc1"), { "weights2" }, "", data_types::u8));
+    topology.add(eltwise("sum", { input_info("fc2"), input_info("input") }, eltwise_mode::sum));
     topology.add(reorder("out", input_info("sum"), format::bfyx, data_types::u8));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -170,7 +173,7 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
 
-    auto& fc_node = prog->get_node("fc");
+    auto& fc_node = prog->get_node("fc2");
     auto& fused = fc_node.get_fused_primitives();
     ASSERT_EQ(fused.size(), 1);
 
