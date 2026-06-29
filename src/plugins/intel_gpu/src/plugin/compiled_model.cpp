@@ -86,17 +86,36 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
-    uint32_t requirements_version = 0;
-    ib >> requirements_version;
-    ib >> m_runtime_requirements;
-    if (requirements_version != runtime_requirements_version) {
-        // Descriptor was produced by a build using a different on-disk contract:
-        // its content cannot be trusted, so drop it (compatibility check -> NOT_APPLICABLE).
-        m_runtime_requirements.clear();
+    // The compatibility descriptor is persisted as an optional, magic-guarded block at the front
+    // of the post-cache_mode payload. Mirrors how the NPU plugin uses a magic marker to identify
+    // its blob metadata so that blobs produced by builds predating this field stay importable.
+    // We read one 64-bit word: if it equals the magic, a descriptor block follows; otherwise the
+    // word is the legacy input/parameter count and no descriptor is present.
+    uint64_t magic_or_num_params = 0;
+    ib >> magic_or_num_params;
+
+    bool num_params_consumed = false;
+    size_t num_params = 0;
+
+    if (magic_or_num_params == runtime_requirements_magic) {
+        uint32_t requirements_version = 0;
+        ib >> requirements_version;
+        ib >> m_runtime_requirements;
+        if (requirements_version != runtime_requirements_version) {
+            // Descriptor was produced by a build using a different on-disk contract:
+            // its content cannot be trusted, so drop it (compatibility check -> NOT_APPLICABLE).
+            m_runtime_requirements.clear();
+        }
+    } else {
+        // Legacy blob (no descriptor): the word we just read is the input/parameter count.
+        num_params = static_cast<size_t>(magic_or_num_params);
+        num_params_consumed = true;
     }
+
     {
-        size_t num_params;
-        ib >> num_params;
+        if (!num_params_consumed) {
+            ib >> num_params;
+        }
 
         for (size_t idx = 0; idx < num_params; ++idx) {
             std::string param_name;
@@ -184,9 +203,13 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     return async_infer_request;
 }
 
-// Cache blob format:
-//     [ is_dynamic flag ]
-//     [ ov::Node::Input/ ov::Node::Output ]
+// Cache blob format (ov::CacheMode is written here but consumed by Plugin::import_model):
+//     [ ov::CacheMode ]
+//     [ optional compatibility-descriptor block, present iff the next word equals
+//       runtime_requirements_magic:
+//           [ uint64 magic ][ uint32 descriptor layout version ][ descriptor string ] ]
+//     [ inputs:  count + per-input  records ]
+//     [ outputs: count + per-output records ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
@@ -203,6 +226,11 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
+    // Optional compatibility-descriptor block, identified by a magic word so that builds which
+    // predate this field (whose first post-cache_mode word is the input count) stay importable.
+    // Mirrors the NPU plugin's magic-marked blob metadata.
+    const uint64_t requirements_magic = runtime_requirements_magic;
+    ob << requirements_magic;
     const uint32_t requirements_version = runtime_requirements_version;
     ob << requirements_version;
     ob << m_runtime_requirements;

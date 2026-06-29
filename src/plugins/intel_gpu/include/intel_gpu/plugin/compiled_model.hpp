@@ -51,9 +51,16 @@ public:
     static std::string build_runtime_requirements(const cldnn::device_info& info);
 
     // Layout version of the runtime requirements descriptor persisted in the blob.
-    // Bump when the on-disk contract (the data following this field) changes so the
+    // Bump when the on-disk contract (the data following the magic marker) changes so the
     // importer can detect and reject descriptors produced by a future build.
     static constexpr uint32_t runtime_requirements_version = 1;
+
+    // Magic marker identifying the optional compatibility-descriptor block written right after
+    // ov::CacheMode in the exported blob. Mirrors how the NPU plugin uses a magic marker to
+    // identify its blob metadata. Chosen to be far larger than any realistic input count so the
+    // importer can distinguish a descriptor block from a legacy blob whose first post-cache_mode
+    // word is the input/parameter count ("OVEP_RRQ" in ASCII).
+    static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
     void set_property(const ov::AnyMap& properties) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. Set property "

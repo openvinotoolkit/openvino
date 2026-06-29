@@ -3,6 +3,8 @@
 //
 
 #include <algorithm>
+#include <cstring>
+#include <iostream>
 #include <sstream>
 
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
@@ -35,6 +37,7 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiled_model.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
+    std::cout << "[ INFO     ] GPU ov::runtime_requirements = " << requirements << std::endl;
 }
 
 // The plugin advertises compatibility_check among its supported properties.
@@ -106,6 +109,37 @@ TEST_F(CompatibilityStringGPU, ExportImportPreservesRequirements) {
     std::string imported_requirements;
     OV_ASSERT_NO_THROW(imported_requirements = imported.get_property(ov::runtime_requirements));
     ASSERT_EQ(requirements, imported_requirements);
+}
+
+// Locks the on-disk contract that keeps blobs from older builds importable: the optional
+// descriptor block is identified by a magic word written immediately after ov::CacheMode. A
+// pre-feature blob carries the input/parameter count at that position instead. Because the magic
+// is far larger than any realistic input count, the importer can always tell the two apart and
+// never misreads a legacy blob's bytes as a descriptor string length (which previously caused a
+// std::bad_alloc).
+//
+// NOTE: a full "import a real pre-feature blob" test is intentionally not added. The GPU graph is
+// serialized with absolute-offset page alignment (see program.cpp), so a valid legacy blob cannot
+// be synthesized by editing a current blob, and a golden artifact would embed device-specific
+// kernel binaries and would not be portable across CI machines.
+TEST_F(CompatibilityStringGPU, DescriptorBlockIsMagicGuardedInBlob) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    std::stringstream blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(blob));
+    const std::string data = blob.str();
+
+    // Must match CompiledModel::runtime_requirements_magic ("OVEP_RRQ").
+    constexpr uint64_t expected_magic = 0x4F5645505F525251ULL;
+    ASSERT_GE(data.size(), sizeof(ov::CacheMode) + sizeof(expected_magic));
+
+    uint64_t magic = 0;
+    std::memcpy(&magic, data.data() + sizeof(ov::CacheMode), sizeof(magic));
+    ASSERT_EQ(magic, expected_magic);
+    // The guard only works if the magic can never collide with a real input count.
+    ASSERT_GT(magic, static_cast<uint64_t>(1) << 32) << "magic must dwarf any realistic input count";
 }
 
 // Mirror of the ONNX Runtime OrtCompiledModelCompatibility states that the GPU plugin
