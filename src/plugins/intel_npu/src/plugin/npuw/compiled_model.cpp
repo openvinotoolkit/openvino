@@ -1766,8 +1766,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         std::string npu_device_str;
         std::string saved_strides;
         for (const auto& device : devices) {
-            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
-                !pyramid_attn->_attention_infos.empty()) {
+            if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 && pyramid_attn->num_models() > 0) {
                 const auto supported_properties =
                     get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
                 support_strides_for = std::find(supported_properties.begin(),
@@ -1776,19 +1775,13 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 if (support_strides_for) {
                     pyramid_attn->_can_use_tensor_view = true;
                     const auto& first_model = pyramid_attn_models[0];
-                    const auto& first_info = pyramid_attn->_attention_infos[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
                     const ov::Any existing_any =
                         ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
                     saved_strides = existing_any.as<std::string>();
                     std::string strided_inputs = saved_strides;
-                    for (const auto& param : first_info.params) {
-                        if (!strided_inputs.empty()) {
-                            strided_inputs += ",";
-                        }
-                        strided_inputs += first_model->inputs()[param.idx].get_any_name();
-                    }
+                    pyramid_attn->collect_strided_input_names(*first_model, strided_inputs);
                     m_meta_devices[npu_device_str][strides_key] = strided_inputs;
                     LOG_INFO("Enabled using tensor view for device: " << device
                                                                       << " for pyramid inputs: " << strided_inputs);

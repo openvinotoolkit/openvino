@@ -85,6 +85,7 @@ public:
                                                              const Config& config) = 0;
 
     virtual void updateInfo(const ov::AnyMap& properties) = 0;
+    virtual bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const = 0;
 
 protected:
     virtual ~IDevice() = default;
