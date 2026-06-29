@@ -1511,10 +1511,10 @@ TEST(type_prop, loop_merged_state_only_input_zero_dim_widened_dynamic_step) {
 // Verify that a static seed dimension grown to dynamic by the body is relaxed correctly.
 //
 // Outer seed shape: [1, 4] (static)
-// Body: Concat along axis 0 → result shape [-1, 4]  (first dim widened)
+// Body: Concat along axis 0 → result shape [1.., 4]  (first dim gets lower bound 1)
 //
 // Back-edge reconciliation must widen dim[0] from 1 to dynamic and converge.
-// The loop output (scan of the concat result, 3 iterations) must be [-1, 4].
+// The loop output (last iteration of the concat result) must be [1.., 4].
 TEST(type_prop, loop_merged_static_seed_dim_grown_by_body) {
     const auto body_param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 4});
     const auto extra = ov::op::v0::Constant::create(element::f32, Shape{1, 4}, {0});
@@ -1533,7 +1533,7 @@ TEST(type_prop, loop_merged_static_seed_dim_grown_by_body) {
     auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(concat, -1));
     auto outer = std::make_shared<Model>(ResultVector{result}, ParameterVector{seed});
 
-    EXPECT_EQ(result->get_output_partial_shape(0), (PartialShape{-1, 4}));
+    EXPECT_EQ(result->get_output_partial_shape(0), (PartialShape{Dimension(1, -1), 4}));
 }
 
 // Verify that back-edge reconciliation converges when the param is already dynamic.
