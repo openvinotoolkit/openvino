@@ -40,8 +40,30 @@ namespace ov::test {
 namespace {
 #ifdef __linux__
 const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
+
+// mlock forces every page resident before returning; munlock releases the pin without evicting.
+// Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
+void ensure_memory_resident(const std::shared_ptr<ov::MappedMemory>& mapped) {
+    ASSERT_EQ(::mlock(mapped->data(), mapped->size()), 0)
+        << "mlock failed (errno=" << errno << "); check RLIMIT_MEMLOCK";
+    ::munlock(mapped->data(), mapped->size());
+}
+
 #else
 const size_t page_size = 4096;  // Fallback for non-Linux platforms
+
+// VirtualLock forces pages resident; VirtualUnlock releases the pin without evicting.
+// The lock is bounded by the working-set quota, so grow it to cover the region first.
+void ensure_memory_resident(const std::shared_ptr<ov::MappedMemory>& mapped) {
+    const size_t need = mapped->size() + 64 * 1024 * 1024;  // headroom for code/stack
+    SIZE_T min_ws = 0, max_ws = 0;
+    if (GetProcessWorkingSetSize(GetCurrentProcess(), &min_ws, &max_ws) && max_ws < need) {
+        SetProcessWorkingSetSize(GetCurrentProcess(), need, need);
+    }
+    ASSERT_NE(VirtualLock(mapped->data(), mapped->size()), 0)
+        << "VirtualLock failed (GetLastError=" << GetLastError() << ")";
+    VirtualUnlock(mapped->data(), mapped->size());
+}
 #endif
 
 struct TestFile {
@@ -172,20 +194,11 @@ double throughput_mibs(size_t size_mib, long long ms) {
 
 namespace strategy {
 
-#ifdef __linux__
-// mlock forces every page resident before returning; munlock releases the pin without evicting.
-// Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
-void mlock_munlock(const std::shared_ptr<ov::MappedMemory>& mapped) {
-    ASSERT_EQ(::mlock(mapped->data(), mapped->size()), 0)
-        << "mlock failed (errno=" << errno << "); check RLIMIT_MEMLOCK";
-    ::munlock(mapped->data(), mapped->size());
-}
-
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void mmap_prefetch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch();  // synchronous for regions > 4 MiB (parallel touch + join)
-    mlock_munlock(mapped);    // should be near no-op and just lock/unlock resident pages
+    ensure_memory_resident(mapped);    // should be near no-op and just lock/unlock resident pages
 }
 
 void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
@@ -194,9 +207,8 @@ void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += page_size) {
         sink += *first;
     }
-    mlock_munlock(mapped);  // should be near no-op and just lock/unlock resident pages
+    ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
-#endif
 
 void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
@@ -330,7 +342,6 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     }
 }
 
-#ifdef __linux__
 TEST_F(FileLoadBenchmark, strategies_mlock) {
     const std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
     constexpr int warmup = 0;
@@ -392,8 +403,6 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
                throughput_mibs(r.mib, r.t_mlock));
     }
 }
-
-#endif
 
 TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
     constexpr size_t file_size_mib = 1200;
