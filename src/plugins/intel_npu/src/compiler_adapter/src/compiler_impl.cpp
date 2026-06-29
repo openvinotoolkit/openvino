@@ -202,12 +202,17 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
-    if (!(usedVersion.Major > 7) && !(usedVersion.Major == 7 && usedVersion.Minor >= 8)) {
+    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
+        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
         OPENVINO_THROW("Unsupported VCL version: ",
                        _vclVersion.major,
                        ".",
                        _vclVersion.minor,
-                       ", please use VCL 7.8 or later");
+                       ", please use VCL ",
+                       VCL_COMPILER_VERSION_MAJOR,
+                       ".",
+                       VCL_COMPILER_VERSION_MINOR,
+                       " or later");
     }
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
@@ -315,8 +320,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
     OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
                     "Compatibility string size is too large to allocate a local buffer");
-    std::string compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
-    result = vclExecutableGetCompatibilityString(executable, &compatibilityStringBuffer[0], &compatibilityStringSize);
+    compatibilityString.emplace(static_cast<size_t>(compatibilityStringSize), '\0');
+    result = vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
     if (result != VCL_RESULT_SUCCESS) {
         auto tracked_allocations = allocator->m_info;
         for (const auto& [buffer, size] : tracked_allocations) {
@@ -332,7 +337,12 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                        getLatestVCLLog(_logHandle));
     }
 
-    compatibilityString = std::string(compatibilityStringBuffer.c_str());
+    OPENVINO_ASSERT(compatibilityStringSize <= compatibilityString->size(),
+                    "Returned compatibility string size exceeds the allocated buffer size");
+    compatibilityString->resize(static_cast<size_t>(compatibilityStringSize));
+    if (!compatibilityString->empty() && compatibilityString->back() != '\0') {
+        compatibilityString->push_back('\0');
+    }
     _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
 
     result = vclExecutableDestroy(executable);
