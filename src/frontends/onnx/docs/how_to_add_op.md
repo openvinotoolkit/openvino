@@ -8,7 +8,7 @@ List of a currently available ops is available [in Supported Operations](support
 For example, we want to implement our new `org.openvinotoolkit.CustomAdd` operation in version `1`.
 The first step is to add `.cpp` file in [the ops folder](../../../../src/frontends/onnx/frontend/src/op). For this particular case, it should be [op/org.openvinotoolkit](../../../../src/frontends/onnx/frontend/src/op/org.openvinotoolkit) to be consistent with the op folder layout.
 
-The definition in `.cpp` contains an implementation of transformation from [ov::frontend::onnx::Node](../../../../src/frontends/onnx/frontend/include/onnx_import/core/node.hpp) to [ov::OutputVector](../../../../src/core/include/openvino/core/node_vector.hpp).
+The definition in `.cpp` contains an implementation of transformation from [ov::frontend::onnx::Node](../../../../src/frontends/onnx/frontend/src/core/node.hpp) to [ov::OutputVector](../../../../src/core/include/openvino/core/node_vector.hpp).
 
 Transformation must be implemented in a correct namespace, which is defined as ov::frontend::onnx::domain::opset_N. Domain is operation domain name (ai_onnx for ONNX standard), opset_N - defined operation opset.
 

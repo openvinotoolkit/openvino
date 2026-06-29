@@ -263,6 +263,6 @@ step-by-step workflow defined in the corresponding skill file.
 
 ## See also
 
-- Agent definitions: [`.github/agents-prototype/`](../agents-prototype/)
-- Skill prompts: [`.github/prompts/`](../prompts/)
+- Agent definitions: [`.github/agents-prototype/`](../../agents-prototype/)
+- Skill prompts: [`.github/prompts/`](../../prompts/)
 - Copilot CLI reference: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference

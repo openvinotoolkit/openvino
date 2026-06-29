@@ -26,4 +26,4 @@ They can be activated at runtime and are useful for analyzing transformation beh
 
 ## See also
 
-* [debug-matcher-pass skill](../../../../.claude/skills/debug-matcher-pass/SKILL.md) — automated diagnosis workflow for MatcherPass transformations that are not firing. Collects matcher logs, identifies root cause, and generates a reproducer test.
+* [debug-matcher-pass skill](../../../../.claude/skills/ov-debug-matcher-pass/SKILL.md) — automated diagnosis workflow for MatcherPass transformations that are not firing. Collects matcher logs, identifies root cause, and generates a reproducer test.
