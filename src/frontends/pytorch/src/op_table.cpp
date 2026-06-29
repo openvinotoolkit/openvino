@@ -154,7 +154,6 @@ OP_CONVERTER(translate_linalg_det);
 OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
-OP_CONVERTER(translate_linalg_svd);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
@@ -607,7 +606,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linalg_norm", op::translate_linalg_norm},
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
         {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
-        {"aten::linalg_svd", op::translate_linalg_svd},
         {"aten::linear", op::translate_linear},
         {"aten::linspace", op::translate_linspace},
         {"aten::log", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Log>, 1>},
@@ -1011,7 +1009,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.leaky_relu.default", op::translate_leaky_relu_fx},
         {"aten.leaky_relu_.default", op::inplace_op<op::translate_leaky_relu_fx>},
         {"aten.lift_fresh_copy.default", op::skip_node},
-        {"aten.linalg_det.default", op::translate_linalg_det},
         {"aten.linalg_vector_norm.default", op::translate_linalg_vector_norm},
         {"aten.linear.default", op::translate_linear},
         {"aten.linalg_cross.default", op::translate_linalg_cross},
