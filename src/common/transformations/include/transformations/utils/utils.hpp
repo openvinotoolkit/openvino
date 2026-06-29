@@ -107,8 +107,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
-    if (!is_scalar_or_single_elem) {
+    if (!is_scalar_or_single_elem_constant(constant)) {
         return false;
     }
 
@@ -156,6 +155,8 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<ov::op::v0::Constant>& const_node,
                                           float& value,
                                           bool check_value_range = true);
+
+TRANSFORMATIONS_API bool fq_ranges_are_equal(const std::shared_ptr<const ov::Node>& fq);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<ov::op::v0::Constant>& constant,
                                                              const PartialShape& shape);

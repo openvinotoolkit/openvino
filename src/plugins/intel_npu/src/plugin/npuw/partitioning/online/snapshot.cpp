@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/gqa.hpp"
 #include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
@@ -658,11 +659,10 @@ void Snapshot::earlyAvoids() {
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
             if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE" &&
-                avoid.pattern != "DownsampleInterpolate" && avoid.pattern != "FloorModFP32" &&
-                avoid.pattern != "CumSumSinGen" && avoid.pattern != "BoxMullerNoise" &&
-                avoid.pattern != "AngleComplex") {
+                avoid.pattern != "FloorModFP32" && avoid.pattern != "CumSumSinGen" &&
+                avoid.pattern != "BoxMullerNoise" && avoid.pattern != "AngleComplex") {
                 LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos, GemmaRoPE, "
-                         "DownsampleInterpolate, FloorModFP32, CumSumSinGen, BoxMullerNoise "
+                         "FloorModFP32, CumSumSinGen, BoxMullerNoise "
                          "and AngleComplex as patterns "
                          "(don't confuse with operations). "
                          "Avoid pattern "
@@ -676,8 +676,6 @@ void Snapshot::earlyAvoids() {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "GemmaRoPE") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
-            } else if (avoid.pattern == "DownsampleInterpolate") {
-                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "FloorModFP32") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::FloorModFP32>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "CumSumSinGen") {
@@ -765,10 +763,13 @@ void Snapshot::earlyRegroup() {
                 HNDL(VariadicSplit);
                 HNDL_MOE(GPTOSSExpert);
                 HNDL_MOE(GPTOSSRouter);
+                HNDL_MOE(Qwen3Expert);
+                HNDL_MOE(Qwen3Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(GQA);
 #undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE

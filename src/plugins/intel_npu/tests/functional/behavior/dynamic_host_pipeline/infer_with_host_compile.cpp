@@ -12,16 +12,23 @@
 const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
 
 const std::vector<ov::AnyMap> configs = {
-    {{"NPU_COMPILER_TYPE", "PLUGIN"},
-     {"NPU_COMPILATION_MODE", "HostCompile"},
-     {"NPU_CREATE_EXECUTOR", "0"},
-     // After HostCompile default params were changed to a more performant configuration, these tests fail
-     // under the new defaults and need investigation before they can be re-enabled with the new configuration
-     // Untill then set old defaults explicitly to keep the tests running.
-     // Track: E#218923
-     {"NPU_COMPILATION_MODE_PARAMS", "dynamic-dim-alignment=false enable-auto-unrolling=false"}}};
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+    },
+};
+
+// Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape in tests.
+const std::vector<std::string> modelNames = {"CustomNet", "MaxPool"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
-                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(configs)),
+                         ::testing::Combine(::testing::ValuesIn(devices),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(modelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileTests>);
