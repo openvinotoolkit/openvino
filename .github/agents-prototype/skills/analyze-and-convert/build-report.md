@@ -21,13 +21,13 @@ Run `build_report.py` to load artifacts and compute status:
 python build_report.py
 ```
 
-Script: [build_report.py](./build_report.py)
+Script: `build_report.py`
 
 ---
 
 ## Step 2 — Write conversion_report.md
 
-Script: [build_report.py](./build_report.py) — generates `conversion_report.md` with:
+Script: `build_report.py` — generates `conversion_report.md` with:
 
 - Model profile table
 - Conversion attempts summary
