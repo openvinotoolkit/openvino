@@ -27,7 +27,7 @@ Output<Node> matrix_element(const NodeContext& context, const Output<Node>& x, i
     auto col_idx = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {j}));
     auto axis_row = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-2}));
     auto axis_col = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-    auto row = context.mark_node(std::make_shared<v8::Gather>(x, row_idx, axis_row));  // (..., 1, n)
+    auto row = context.mark_node(std::make_shared<v8::Gather>(x, row_idx, axis_row));     // (..., 1, n)
     auto elem = context.mark_node(std::make_shared<v8::Gather>(row, col_idx, axis_col));  // (..., 1, 1)
     auto squeeze_axes = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-2, -1}));
     return context.mark_node(std::make_shared<v0::Squeeze>(elem, squeeze_axes));  // (...)

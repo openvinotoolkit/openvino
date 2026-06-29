@@ -46,10 +46,7 @@ constexpr int PAIRS[3][2] = {{0, 1}, {0, 2}, {1, 2}};
 // descending singular value to match torch's convention.
 class JacobiSvd3x3 {
 public:
-    JacobiSvd3x3(const NodeContext& context, element::Type et)
-        : m_ctx(context),
-          m_et(et),
-          m_tiny(cf(1e-30f)) {}
+    JacobiSvd3x3(const NodeContext& context, element::Type et) : m_ctx(context), m_et(et), m_tiny(cf(1e-30f)) {}
 
     // Returns {U, S, V} with shapes U:(...,3,3), S:(...,3) descending, V:(...,3,3).
     // Each column of U/V is a (...,3) singular vector; V holds the right singular
@@ -68,7 +65,7 @@ public:
         // Singular values = column norms; left singular vectors = normalized columns.
         Output<Node> sig[3], u[3];
         for (int k = 0; k < 3; ++k) {
-            sig[k] = sqrt(dot(a[k], a[k]));      // (...,1)
+            sig[k] = sqrt(dot(a[k], a[k]));  // (...,1)
             u[k] = div(a[k], add(sig[k], m_tiny));
         }
 
@@ -141,7 +138,7 @@ private:
     // One Jacobi rotation that orthogonalizes columns (ap, aq); the same rotation
     // is applied to (vp, vq). All operands are (...,3,1) vectors.
     void jacobi_rotate(Output<Node>& ap, Output<Node>& aq, Output<Node>& vp, Output<Node>& vq) {
-        auto alpha = dot(ap, ap);   // (...,1,1)
+        auto alpha = dot(ap, ap);  // (...,1,1)
         auto beta = dot(aq, aq);
         auto gamma = dot(ap, aq);
         auto denom = mul(cf(2.0f), gamma);
@@ -172,9 +169,12 @@ private:
 
     // Compare-exchange so that sig_p >= sig_q after the call, swapping the
     // associated U and V columns accordingly. sig_* are (...,1,1); cols are (...,3,1).
-    void cmp_exchange(Output<Node>& sp, Output<Node>& sq,
-                      Output<Node>& up, Output<Node>& uq,
-                      Output<Node>& vp, Output<Node>& vq) {
+    void cmp_exchange(Output<Node>& sp,
+                      Output<Node>& sq,
+                      Output<Node>& up,
+                      Output<Node>& uq,
+                      Output<Node>& vp,
+                      Output<Node>& vq) {
         auto swap = m_ctx.mark_node(std::make_shared<v1::Less>(sp, sq));  // swap if sp < sq
         // swap broadcast for (...,3,1) vectors uses the same (...,1,1) mask.
         auto nsp = sel(swap, sq, sp);
@@ -257,8 +257,7 @@ OutputVector translate_svd(const NodeContext& context) {
     if (context.get_input_size() > 2 && !context.input_is_none(2)) {
         if (const auto c = ov::util::get_constant_from_source(context.get_input(2))) {
             const auto vals = c->cast_vector<bool>();
-            PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0],
-                                        "aten::svd with compute_uv=False is not supported.");
+            PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0], "aten::svd with compute_uv=False is not supported.");
         }
     }
     return svd_common(context);
