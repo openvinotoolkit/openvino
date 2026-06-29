@@ -32,7 +32,8 @@ Or run a single test:
 2. Enable only the `FunctionsComparator::CmpValues` flags relevant to the transformation
 3. Build models in helper functions to eliminate duplication
 4. Parametrize when multiple input shapes / configs exercise the same structural pattern
-5. Use `node_builders/` helpers instead of directly instantiating ops when a builder exists
+5. Consider using `node_builders/` helpers instead of directly instantiating ops when a builder exists and improves test readability
+6. Avoid building `model_ref` when the transformation does not modify the `model`, since `model_ref` is initialized as a clone of `model` by default
 
 ## Test class setup
 
@@ -110,7 +111,7 @@ Do **not** explicitly enable flags already on by default in `TransformationTests
 
 ## Node builders
 
-Use `node_builders/` helpers instead of constructing ops directly when they exist.
+Use `node_builders/` helpers instead of constructing ops directly when a builder exists and improves test readability.
 Headers live in `src/tests/test_utils/common_test_utils/include/common_test_utils/node_builders/`.
 
 Import example:
@@ -202,7 +203,7 @@ Corner cases whose model structure significantly differs from the parametrized b
 
 ## Negative tests (transformation must NOT fire)
 
-When the transformation should leave the model unchanged, leave `model_ref` as `nullptr` — the TransformationTestsF class logic assigns a copy of `model` to `model_ref`. The cleanest pattern:
+When the transformation should leave the `model` unchanged, leave `model_ref` as `nullptr` — the TransformationTestsF class logic assigns a copy of `model` to `model_ref`. The cleanest pattern:
 
 ```cpp
 TEST_F(TransformationTestsF, MyTransform_Negative_SomeCondition) {
