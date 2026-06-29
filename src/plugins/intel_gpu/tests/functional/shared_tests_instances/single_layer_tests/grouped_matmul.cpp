@@ -17,16 +17,17 @@ using ov::test::utils::DecompressionType;
 
 const std::vector<GroupedMatMulShapeParams> shapes = {
     // 3D x 3D: A:[G,M,K] x B:[G,N,K] -> [G,M,N], dynamic M dim.
-    {{ov::PartialShape{4, -1, 32}, {{4, 8, 32}, {4, 1, 32}, {4, 16, 32}}}, {4, 16, 32}, {}},
-    {{ov::PartialShape{4, -1, 64}, {{4, 8, 64}, {4, 16, 64}}}, {4, 32, 64}, {}},
+    {{ov::PartialShape{4, -1, 128}, {{4, 8, 128}, {4, 1, 128}, {4, 16, 128}}}, {4, 256, 128}, {}},
+    {{ov::PartialShape{8, -1, 256}, {{8, 4, 256}, {8, 1, 256}}}, {8, 512, 256}, {}},
     // 2D x 3D: A:[T,K] x B:[G,N,K] -> [T,N], dynamic T dim.
-    {{ov::PartialShape{-1, 32}, {{16, 32}, {32, 32}, {8, 32}}}, {4, 16, 32}, TokensPerExpert{{8, 0, 8, 0}, {0, 16, 0, 16}, {4, 4, 0, 0}}},
-    {{ov::PartialShape{-1, 32}, {{12, 32}, {20, 32}}}, {4, 16, 32}, TokensPerExpert{{4, 5, 3, 0}, {0, 7, 6, 7}}},
-    {{ov::PartialShape{-1, 64}, {{16, 64}, {32, 64}}}, {4, 32, 64}, TokensPerExpert{{7, 3, 5, 1}, {2, 10, 8, 12}}},
+    {{ov::PartialShape{-1, 128}, {{16, 128}, {32, 128}, {8, 128}}}, {4, 256, 128}, TokensPerExpert{{8, 0, 8, 0}, {0, 16, 0, 16}, {4, 4, 0, 0}}},
+    {{ov::PartialShape{-1, 128}, {{12, 128}, {20, 128}}}, {4, 256, 128}, TokensPerExpert{{4, 5, 3, 0}, {0, 7, 6, 7}}},
+    {{ov::PartialShape{-1, 256}, {{16, 256}, {32, 256}}}, {8, 512, 256}, TokensPerExpert{{4, 2, 2, 2, 2, 2, 1, 1}, {2, 6, 4, 4, 4, 4, 4, 4}}},
 };
 
-const std::vector<ov::element::Type> weights_precisions = {ov::element::i8, ov::element::i4};
-const std::vector<ov::element::Type> decompression_precisions = {ov::element::f32};
+const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4};
+const std::vector<ov::element::Type> decompression_precisions = {ov::element::f16};
+const std::vector<DecompressionType> subtract_types = {DecompressionType::full, DecompressionType::empty};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul,
                          GroupedMatMulLayerTest,
@@ -43,9 +44,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(DecompressionType::full),
-                                            ::testing::Values(DecompressionType::empty),
-                                            ::testing::Values(false),
-                                            ::testing::Values(-1),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
