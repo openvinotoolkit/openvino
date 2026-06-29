@@ -76,8 +76,10 @@
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
-#include "nodes/common/cpu_convert.h"
 #include "utils/precision_support.h"
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/common/cpu_convert.h"
+#endif
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
@@ -861,7 +863,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                         const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
                         const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
                         const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
-                        cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                        cpu_parallel_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
                         alibi_row_ptr = alibi_row.data();
                     }
                     auto* sink = sink_ptr(m);
@@ -1024,7 +1026,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                         const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
                         const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
                         const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
-                        cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                        cpu_parallel_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
                         alibi_row_ptr = alibi_row.data();
                     }
                     auto* sink = sink_ptr(m);
@@ -1794,7 +1796,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
                                 const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
                                 const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
-                                cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                                cpu_parallel_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
                                 alibi_row_ptr = alibi_row.data();
                             }
                             auto* sink = sink_ptr(m);

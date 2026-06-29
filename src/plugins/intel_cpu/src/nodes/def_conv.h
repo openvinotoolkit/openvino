@@ -27,11 +27,11 @@ struct jit_def_conv_params {
     int dg;
     int ngroups, ic, oc, oc_padded;
     int id, ih, iw, od, oh, ow;
-    int f_pad, l_pad, t_pad;
+    size_t f_pad, l_pad, t_pad;
     int back_pad, r_pad, b_pad;
     int kd, kh, kw;
-    int stride_d, stride_h, stride_w;
-    int dilate_d, dilate_h, dilate_w;
+    size_t stride_d, stride_h, stride_w;
+    size_t dilate_d, dilate_h, dilate_w;
     int nthr;
     int nb_ic, ic_block;
     int nb_oc, oc_block;
