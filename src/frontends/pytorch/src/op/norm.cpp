@@ -273,7 +273,9 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     //  - the matrix Frobenius norm when reducing over exactly two dims (an explicit
     //    2-element dim, or dim=None on a rank-2 input), and
     //  - the vector 2-norm (L2) otherwise (any other dim, or dim=None on any other rank).
-    // Both reduce to sqrt(sum(abs(x)^2)) over the selected axes, so this is rank-agnostic.
+    // Both branches reduce to sqrt(sum(x^2)) over the selected axes (x^2 == |x|^2 for
+    // the real inputs supported here), so the computation itself is rank-agnostic; only
+    // the branch selection below needs the static rank, for the dim=None case.
     if (context.input_is_none(1)) {
         bool is_matrix_norm = false;
         if (!context.input_is_none(2)) {
