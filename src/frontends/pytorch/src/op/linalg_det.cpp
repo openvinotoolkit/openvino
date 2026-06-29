@@ -69,12 +69,12 @@ Output<Node> det_2x2(const NodeContext& context, const Output<Node>& x) {
 }
 
 // Closed-form determinant for small matrices. When the trailing matrix dimension
-// is statically known, dispatch by size (1x1 / 2x2 / 3x3). When it is dynamic
-// (the PyTorch frontend often presents inputs with dynamic shapes at conversion
-// time, e.g. matrices produced by an internal reshape), fall back to the 3x3
-// cofactor formula -- this is the only size aten::det/linalg_det is decomposed for
-// here (it covers the rigid-transform / Kabsch use case in pose-estimation models)
-// and is the value the op is expected to produce at runtime.
+// is statically known, dispatch by size and decompose 1x1 / 2x2 / 3x3. When it is
+// dynamic (the PyTorch frontend often presents inputs with dynamic shapes at
+// conversion time, e.g. matrices produced by an internal reshape), the size cannot
+// be checked, so the dynamic-shape fallback assumes 3x3 -- the only size handled in
+// that case. 3x3 covers the rigid-transform / Kabsch use case in pose-estimation
+// models and is the value the op is expected to produce at runtime there.
 Output<Node> det_small(const NodeContext& context, const Output<Node>& x) {
     const auto& pshape = x.get_partial_shape();
     const auto rank = pshape.rank();

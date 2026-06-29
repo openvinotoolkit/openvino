@@ -275,3 +275,85 @@ class TestPooling(PytorchLayerTest):
         self.input_tensor = self.random.randn(*input_shape)
         self._test(*self.create_model("max_pool3d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
+
+
+class TestMaxPoolDynamicKernel(PytorchLayerTest):
+    """max_pool with a kernel_size built from x.size(...).
+
+    Such a kernel is a runtime value in the traced TorchScript graph (a prim::ListConstruct of a
+    constant and a ShapeOf-derived value), which the OpenVINO MaxPool op cannot represent because
+    its kernel is a constructor attribute. When the dynamic window spans the full extent of a
+    spatial axis (global pooling, as in the SAM-6D pose-estimation model), the frontend decomposes
+    it into a ReduceMax over that axis. These tests exercise that path and compare against the
+    PyTorch reference. trace_model=True is required so the kernel stays a runtime value (a plain
+    integer literal would be const-folded and hit the static MaxPool path instead).
+    """
+
+    def _prepare_input(self):
+        return (self.input_tensor,)
+
+    def create_model(self, dims, axes):
+        # axes: spatial axis indices (within the rank-(dims+2) NCHW... tensor) whose kernel element
+        # is the full extent x.size(axis); all other spatial axes get a static window of 1.
+        class aten_max_pool_dynamic(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.dims = dims
+                self.axes = axes
+
+            def _kernel(self, x):
+                # first spatial axis is index 2 (after N, C); for the no-batch case the harness still
+                # feeds a rank (dims+1) tensor, handled by using sizes relative to the actual rank.
+                first_spatial = x.dim() - self.dims
+                ks = []
+                for i in range(self.dims):
+                    axis = first_spatial + i
+                    # full extent on requested axes (referenced as absolute axis on the rank-(dims+2)
+                    # tensor), window 1 otherwise
+                    if (axis - x.dim()) in self.axes or axis in self.axes:
+                        ks.append(x.size(axis))
+                    else:
+                        ks.append(1)
+                return ks
+
+            def forward(self, x):
+                ks = self._kernel(x)
+                if self.dims == 1:
+                    return torch.nn.functional.max_pool1d(x, kernel_size=ks)
+                if self.dims == 2:
+                    return torch.nn.functional.max_pool2d(x, kernel_size=ks)
+                return torch.nn.functional.max_pool3d(x, kernel_size=ks)
+
+        op_name = {1: "aten::max_pool1d", 2: "aten::max_pool2d", 3: "aten::max_pool3d"}[dims]
+        return aten_max_pool_dynamic(), op_name
+
+    @pytest.mark.parametrize("input_shape,dims,axes", [
+        ([1, 128, 40, 64], 2, [-1]),         # pool full last axis (SAM-6D PositionalEncoding)
+        ([2, 8, 5, 7], 2, [-1]),             # smaller, non-trivial npoint/nsample
+        ([1, 128, 40, 64], 2, [-2]),         # pool the other spatial axis
+        ([1, 128, 40, 64], 2, [-2, -1]),     # pool both spatial axes (global)
+        ([1, 16, 30], 1, [-1]),              # 1d full-extent pool
+        ([1, 8, 6, 6, 10], 3, [-1]),         # 3d full-extent pool over last axis
+        ([3, 40, 64], 2, [-1]),              # no batch dim
+    ])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel(self, input_shape, dims, axes, is_dynamic_shapes,
+                                     ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape).astype(np.float32)
+        self._test(*self.create_model(dims, axes), ie_device, precision, ir_version,
+                   trace_model=True, dynamic_shapes=is_dynamic_shapes)
+
+    @pytest.mark.nightly
+    def test_max_pool_dynamic_kernel_sliding_window_unsupported(self, ie_device, precision, ir_version):
+        # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool
+        # that a ReduceMax cannot represent: conversion must fail with a clear message.
+        class aten_max_pool_mixed(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[3, x.size(3)])
+
+        self.input_tensor = self.random.randn(1, 8, 15, 20).astype(np.float32)
+        with pytest.raises(Exception):
+            self._test(aten_max_pool_mixed(), "aten::max_pool2d", ie_device, precision, ir_version,
+                       trace_model=True, dynamic_shapes=False)
