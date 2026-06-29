@@ -1,0 +1,26 @@
+{
+  "run_id": 28260319677,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28260319677",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "timestamp": "2026-06-29T10:53:13Z",
+  "signature": "2fe5fca9503d7326",
+  "category": "Flaky Test",
+  "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION in async mode with -no_warmup on Windows",
+  "head_sha": "40bd59fdca30d8b0a8057e7f23a1b76830add379",
+  "trigger_event": "push",
+  "failed_jobs": [
+    {
+      "id": 83741303259,
+      "name": "Samples",
+      "conclusion": "failure"
+    }
+  ],
+  "primary_error": "subprocess.CalledProcessError: Command benchmark_app returned non-zero exit status 3221225477",
+  "failed_test": "tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
+  "exit_code": "3221225477 (0xC0000005 = STATUS_ACCESS_VIOLATION)",
+  "command": "benchmark_app -i dog-224x224.bmp -m bvlcalexnet-12.onnx -d CPU -niter 1 -nireq 1 -api async -no_warmup",
+  "root_cause": "benchmark_app crashes during Step 10/11 (Measuring performance with async API) after successfully completing all initialization steps. Exit code 3221225477 = 0xC0000005 = Windows STATUS_ACCESS_VIOLATION. The crash occurs in the async measurement loop when -no_warmup flag is used, suggesting a possible race condition or null pointer dereference in the Windows-specific code path for async infer requests without warmup iteration.",
+  "affected_prs": [],
+  "pr_url": null,
+  "occurrence_count": 1
+}
