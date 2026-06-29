@@ -702,7 +702,15 @@ KERNEL(gemm_tiled_opt)(
             #endif
          {
              b_ptr = b_ptr + (input1_offset * sglid);
-             b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
+             if (N > b_raw_global_id + 1) {
+                 b_tile = VLOAD(0, b_ptr);
+             } else if (N > b_raw_global_id) {
+                 unroll_for (uint b_load_id = 0; b_load_id < SIMD_WIDTH; b_load_id++) {
+                     b_tile[b_load_id] = ((K_FULL_ITERATIONS * TILE_K + b_load_id) < K) ? b_ptr[b_load_id] : 0;
+                 }
+             } else {
+                 b_tile = 0;
+             }
          }
         #endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
