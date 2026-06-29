@@ -103,7 +103,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("search_sorted").get_memory();
-        cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int64_t, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<int64_t> wanted_output_ptr(params.expectedOutput, get_test_stream());
 
         ASSERT_EQ(output->get_layout(), params.expectedOutput->get_layout());

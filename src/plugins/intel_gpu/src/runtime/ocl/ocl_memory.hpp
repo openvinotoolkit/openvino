@@ -19,15 +19,20 @@ namespace ocl {
 struct lockable_gpu_mem {
     lockable_gpu_mem() :
         _lock_count(0),
-        _mapped_ptr(nullptr) {}
+        _mapped_ptr(nullptr),
+        _copy_back_to_device(false),
+        _host_buffer_has_device_data(false) {}
 
     std::mutex _mutex;
     unsigned _lock_count;
     void* _mapped_ptr;
+    bool _copy_back_to_device;
+    bool _host_buffer_has_device_data;
 };
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
-    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer,
+               std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(ocl_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
@@ -51,10 +56,16 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
+    dnnl::memory get_onednn_grouped_memory(dnnl::memory::desc /* desc */, const memory& offsets) const override;
 #endif
 
 protected:
     cl::Buffer _buffer;
+};
+
+struct gpu_buffer_from_handle : public gpu_buffer {
+    using gpu_buffer::gpu_buffer; // constructor inheritance
+    ~gpu_buffer_from_handle() override;
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {
@@ -127,6 +138,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
+    dnnl::memory get_onednn_grouped_memory(dnnl::memory::desc /* desc */, const memory& offsets) const override;
 #endif
 
     static allocation_type detect_allocation_type(const ocl_engine* engine, const void* mem_ptr);
