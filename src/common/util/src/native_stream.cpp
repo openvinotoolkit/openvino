@@ -13,7 +13,7 @@ namespace ov::util {
 
 // Default constructor: stream not associated with any file; reads immediately return EOF.
 NativeIfstream::NativeIfstream() noexcept
-    : std::istream(),
+    : std::istream(nullptr),
       m_handle(INVALID_HANDLE_VALUE),
       m_owns_handle(false),
       m_buf() {
@@ -21,7 +21,7 @@ NativeIfstream::NativeIfstream() noexcept
 }
 
 NativeIfstream::NativeIfstream(const std::filesystem::path& path)
-    : std::istream(),
+    : std::istream(nullptr),
       m_handle(open_file(path, FileMode::read | FileMode::direct)),
       m_owns_handle(m_handle != INVALID_HANDLE_VALUE),
       m_buf(m_handle, 0, m_owns_handle ? static_cast<std::streamoff>(ov::util::file_size(path)) : 0) {
@@ -31,7 +31,7 @@ NativeIfstream::NativeIfstream(const std::filesystem::path& path)
 }
 
 NativeIfstream::NativeIfstream(FileHandle handle, std::streamoff offset, std::streamoff size)
-    : std::istream(),
+    : std::istream(nullptr),
       m_handle(handle),
       m_owns_handle(false),
       m_buf(handle, offset, size) {
