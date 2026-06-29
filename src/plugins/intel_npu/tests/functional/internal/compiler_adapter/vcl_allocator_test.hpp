@@ -163,14 +163,19 @@ protected:
     static std::string getCompatibilityString(vcl_executable_handle_t executable) {
         uint64_t compatibilityStringSize = 0;
         auto result = ::intel_npu::vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
-        EXPECT_EQ(result, VCL_RESULT_SUCCESS);
-        EXPECT_GT(compatibilityStringSize, 0);
+        if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
+            ADD_FAILURE() << "Failed to get compatibility string size";
+            return {};
+        }
 
         std::vector<char> compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
         result = ::intel_npu::vclExecutableGetCompatibilityString(executable,
                                                                   compatibilityStringBuffer.data(),
                                                                   &compatibilityStringSize);
-        EXPECT_EQ(result, VCL_RESULT_SUCCESS);
+        if (result != VCL_RESULT_SUCCESS) {
+            ADD_FAILURE() << "Failed to get compatibility string";
+            return {};
+        }
 
         return std::string(compatibilityStringBuffer.data());
     }

@@ -274,7 +274,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                        " - ",
                        getLatestVCLLog(_logHandle));
     }
-
+    OPENVINO_ASSERT(executable != nullptr, "Failed to create VCL executable, executable handle is null");
     OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
                     "Failed to create VCL executable, the blob size is zero or the blob is null");
 
@@ -289,7 +289,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     size_t alignedBlobSize = it->second;
 
     // The allocated size from VCL will be equal or smaller than the allocated size in allocator
-    _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
+    _logger.debug("Blob size from VCL: %zu ptr %p", static_cast<size_t>(blobSize), static_cast<void*>(blob));
     _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
 
     ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize, allocator);
