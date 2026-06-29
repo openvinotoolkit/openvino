@@ -1,0 +1,47 @@
+{
+  "run_id": 28161192347,
+  "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+  "timestamp": "2026-06-29T12:18:57Z",
+  "signature": "134f01149f41adcc",
+  "category": "Flaky Test",
+  "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
+  "failed_jobs": [
+    "TensorFlow Layer Tests / TensorFlow Layer Tests"
+  ],
+  "key_errors": [
+    "AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0.5581887, 1.0948796, 1.2370105], [ 1.7734753, -0.6729534, 1.4578235], [-0., 0., -0.], [ 0., -0., -0.]], dtype=float32)}",
+    "framework_res values differ: first element ie=-0.5581887, tf=-0.6103463",
+    "Max diff is 0.05215764045715332"
+  ],
+  "test_file": "layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py",
+  "test_method": "TestKerasLSTM::test_keras_lstm_flags_float32",
+  "test_params": {
+    "input_names": [
+      "x"
+    ],
+    "input_shapes": [
+      [
+        4,
+        8,
+        3
+      ]
+    ],
+    "input_type": "tf.float32",
+    "dropouts": [
+      0.1,
+      0.3
+    ],
+    "units": 3,
+    "activation": "relu",
+    "use_bias": false,
+    "recurrent_activation": "tanh",
+    "flags": true
+  },
+  "device": "CPU",
+  "compress_to_fp16": true,
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28161192347",
+  "head_sha": "6f75563f67efb6a2a9ad0a52cfee133a8d4b4ac5",
+  "pr_number": 36510,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36510",
+  "author": "praasz"
+}

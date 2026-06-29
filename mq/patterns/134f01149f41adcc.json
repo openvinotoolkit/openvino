@@ -2,16 +2,18 @@
   "signature": "AssertionError: Comparing with Framework failed ie_res framework_res|TensorFlow Layer Tests / TensorFlow Layer Tests|Flaky Test",
   "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
   "category": "Flaky Test",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-06-26T06:52:23Z",
-  "last_seen": "2026-06-26T06:52:23Z",
+  "last_seen": "2026-06-29T12:18:57Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28161192347",
     "https://github.com/openvinotoolkit/openvino/actions/runs/28219131186"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36510",
     "https://github.com/openvinotoolkit/openvino/pull/36518"
   ],
   "recent_timestamps": [
-    "2026-06-26T06:52:23Z"
+    "2026-06-29T12:18:57Z"
   ]
 }
