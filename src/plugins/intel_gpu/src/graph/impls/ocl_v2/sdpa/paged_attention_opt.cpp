@@ -11,9 +11,7 @@
 
 #include <array>
 #include <cstdint>
-#include <iostream>
 #include <memory>
-#include <mutex>
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
@@ -1366,13 +1364,8 @@ public:
         // Knob (OV_GPU_DISABLE_SDPA_MICRO=1): force PagedAttention onto the OCL sdpa_opt path
         // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
         if (params.get_program().get_config().get_disable_sdpa_micro()) {
-            // Print once — this is queried per PA layer per token, so unconditional logging
-            // floods the output with thousands of identical lines.
-            static std::once_flag once;
-            std::call_once(once, [] {
-                std::cout << "[GPU] PA micro SDPA kernel DISABLED via OV_GPU_DISABLE_SDPA_MICRO; "
-                             "falling back to OCL paged_attention/sdpa_opt kernel." << std::endl;
-            });
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] PA micro SDPA kernel DISABLED via OV_GPU_DISABLE_SDPA_MICRO; "
+                                      "falling back to OCL paged_attention/sdpa_opt kernel.\n";
             return false;
         }
 

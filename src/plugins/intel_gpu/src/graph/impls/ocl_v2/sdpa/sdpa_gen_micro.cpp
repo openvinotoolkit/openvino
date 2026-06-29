@@ -19,7 +19,6 @@
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 
-#include <iostream>
 #include <set>
 #include <sstream>
 #include <string>
@@ -854,6 +853,8 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
     //   hs<=512 : plain -> h512 ; 2nd -> h512_2nd ; quant|2nd / plain|quant
     //             (via {xe3p,512,fma|quant}) -> q_h512_2nd
     //   hs>512  : no xe3p row -> fall back to xe2
+	// xe3p tuning table is only for non-PA SDPA; PA uses the xe2 fallback below because
+	// xe3p-specific PA configs have not been validated yet.
 	if(!is_pa) {
     if (head_size <= 32) {
         if (thin_q)
@@ -1620,12 +1621,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     OPENVINO_ASSERT(config != nullptr);
 
-    // [choose_config args dump] all 7 inputs to choose_config_xe3p + the resolved 8-field config.
-    // Field order matches oneDNN fwd_config_t: {unroll_m_kq, unroll_n_kq, unroll_m_vs, unroll_n_vs, wg_m_kq, wg_n_kq, wg_m_vs, wg_n_vs}.
-    // Unconditional (no OV_GPU_Verbose needed) but DEDUPED to one line per distinct arg-tuple to avoid
-    // log spam (this is called per-layer-per-iteration). The whole fn runs under lock `m`, so the static
-    // seen-set needs no extra synchronization.
-    {
+    GPU_DEBUG_IF(ExecutionConfig::get_verbose() >= static_cast<std::underlying_type_t<LogLevel>>(LogLevel::TRACE_DETAIL)) {
         std::ostringstream oss;
         oss << "[choose_config arch=" << static_cast<int>(device_info.arch) << "] head_size=" << static_cast<int32_t>(k_head_size)
             << " seq=" << nkeys_v << " thin_q=" << thin_q << " quantized=" << is_quantized << " is_integrated=" << is_integrated
@@ -1635,7 +1631,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             << config->wg_n_vs << "}";
         static std::set<std::string> seen_choose_config;
         if (seen_choose_config.insert(oss.str()).second)
-            std::cout << oss.str() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << oss.str() << "\n";
     }
 
     /* Get device information */
@@ -1928,7 +1924,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     // xe3p_h128 {32,32,32,32,4,4,4,4} yet build DIFFERENT kernels because k_head_size/d_max/problem sizes
     // differ). This logs the per-GEMM selected strategy (Package settings) so we can see what really runs.
     // Deduped to one line per distinct tuple (called per-layer-per-iter); fn runs under lock `m`.
-    {
+    GPU_DEBUG_IF(ExecutionConfig::get_verbose() >= static_cast<std::underlying_type_t<LogLevel>>(LogLevel::TRACE_DETAIL)) {
         // getSetting() throws on an unknown key -- wrap it so a missing setting prints -1 instead of aborting.
         auto setting_or = [](const micro::Package& pkg, const char* name) -> int {
             try {
@@ -1961,7 +1957,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         oss << "}";
         static std::set<std::string> seen_micro_selected;
         if (seen_micro_selected.insert(oss.str()).second)
-            std::cout << oss.str() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << oss.str() << "\n";
     }
 
     if (!is_prefill && !is_gqa_single_token) {
