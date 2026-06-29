@@ -316,7 +316,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
-        if (user_config.find(ov::intel_gpu::config_file.name() != user_config.end())
+        if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end())
             config.set_user_property(user_config, OptionVisibility::ANY);
         else
             config.set_user_property(user_config, OptionVisibility::RELEASE);
