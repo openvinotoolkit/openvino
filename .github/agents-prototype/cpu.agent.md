@@ -135,7 +135,7 @@ CPU execution, load the debug skill before retrying:
 
 | Symptom | Skill |
 |---------|-------|
-| Wrong accuracy, inference crash, layer-output mismatch, memory issues | `.agents/skills/debug/SKILL.md` — load component `openvino_intel_cpu_plugin` |
+| Wrong accuracy, inference crash, layer-output mismatch, memory issues | [`.agents/skills/ov-debug/SKILL.md`](../../.agents/skills/ov-debug/SKILL.md) — load component `openvino_intel_cpu_plugin` |
 
 ## Constraints
 

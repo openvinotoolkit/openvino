@@ -84,7 +84,7 @@ The agent can be triggered in two ways:
 1.5. **(Conditional) Run Opset Init** skill (`core-opset-initialization`):
    - Check whether the target opset (e.g. `opset17`) already has
      `opsetX.hpp` in `./src/core/include/openvino/opsets/`.
-   - If the file is **absent** → run `skills/add-core-op/step0-opset-init.md`
+   - If the file is **absent** → run [`skills/add-core-op/step0-opset-init.md`](skills/add-core-op/step0-opset-init.md)
      to create all scaffolding files before proceeding.
    - If the file is **present** → skip this step entirely.
 

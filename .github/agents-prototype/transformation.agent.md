@@ -47,7 +47,7 @@ SKILL.md lists all step files with their purpose and execution order.
 
 | Skill file | Purpose |
 |---|---|
-| `.github/agents-prototype/skills/debug-matcher-pass/SKILL.md` | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
+| [`.agents/skills/ov-debug-matcher-pass/SKILL.md`](../../.agents/skills/ov-debug-matcher-pass/SKILL.md) | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
 
 ## Code Quality
 
@@ -75,7 +75,7 @@ The script reads `agent-results/core-opspec/core_opspec_result.json` and prints 
 If a `patch_type=transformation` patch is available in `agent-results/`, apply it with `git apply`
 and verify it compiles before proceeding.
 
-Follow `skills/add-fusion-transformation/SKILL.md` → step1-analysis:
+Follow [`skills/add-fusion-transformation/SKILL.md`](skills/add-fusion-transformation/SKILL.md) → step1-analysis:
 
 1. Read the op spec to understand the target op and its graph context.
 2. Identify the **sub-graph pattern** to fuse/rewrite:
@@ -97,7 +97,7 @@ Follow `skills/add-fusion-transformation/SKILL.md` → step1-analysis:
 
 ### Step 2: Implement the Transformation
 
-Follow `skills/add-fusion-transformation/SKILL.md` → step2-implementation.
+Follow [`skills/add-fusion-transformation/SKILL.md`](skills/add-fusion-transformation/SKILL.md) → step2-implementation.
 
 File layout:
 ```
@@ -138,7 +138,7 @@ Required test cases:
 3. **Type-propagation** — output shape/type correct after fusion
 
 Read the closest existing transformation test as your template. See
-`skills/add-fusion-transformation/workflow.md` → Step 6 for the test structure conventions.
+[`skills/add-fusion-transformation/workflow.md`](skills/add-fusion-transformation/workflow.md) → Step 6 for the test structure conventions.
 
 ### Step 5: Record Patch
 

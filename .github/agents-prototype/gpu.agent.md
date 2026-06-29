@@ -43,7 +43,7 @@ The agent executes a **sequential multi-step pipeline** via the `intel-gpu-kerne
 This agent follows the **[`skills/add-gpu-op/SKILL.md`](skills/add-gpu-op/SKILL.md)** workflow.
 SKILL.md lists all step files with their purpose and execution order.
 
-**Orchestrator:** `skills/add-gpu-op/orchestrator.md`
+**Orchestrator:** [`skills/add-gpu-op/orchestrator.md`](skills/add-gpu-op/orchestrator.md)
 
 ## Execution Model
 
@@ -126,7 +126,7 @@ load the debug skill before retrying:
 
 | Symptom | Skill |
 |---------|-------|
-| Wrong accuracy, inference crash, layer-output mismatch, kernel performance issues | `.agents/skills/debug/SKILL.md` — load component `openvino_intel_gpu_plugin` |
+| Wrong accuracy, inference crash, layer-output mismatch, kernel performance issues | [`.agents/skills/ov-debug/SKILL.md`](../../.agents/skills/ov-debug/SKILL.md) — load component `openvino_intel_gpu_plugin` |
 - Reference kernel must be straightforward (no HW-specific optimizations) to ensure clean correctness baseline.
 - Use Debug builds for correctness testing, Release builds for profiling.
 
