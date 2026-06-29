@@ -65,7 +65,7 @@ protected:
 
 // E2E tests fail earlier (at metadata parse), so this narrow unit test provides
 // the only coverage for the L0 driver validation branch with invalid descriptors.
-TEST_P(ZeroDeviceTest, ValidateRejectsGarbageString) {
+TEST_P(ZeroDeviceTest, ValidateRejectsInvalidString) {
     if (zeroInitStruct->getZeDrvApiVersion() < ZE_MAKE_VERSION(1, 16)) {
         ASSERT_ANY_THROW(device->validateCompatibilityDescriptor("not_a_valid_compat_string"));
     } else {
