@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -14,7 +15,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -198,8 +202,8 @@ private:
     }
 
     Output<Node> absval(const Output<Node>& x) {
-        // |x| without an extra include: sqrt(x*x) is fine for the guards here, but
-        // keep precision via Select to avoid the sqrt rounding.
+        // |x| via Select(x < 0, -x, x); avoids pulling in an Abs op and keeps full
+        // precision (no sqrt rounding).
         auto neg = mul(x, cf(-1.0f));
         return sel(m_ctx.mark_node(std::make_shared<v1::Less>(x, cf(0.0f))), neg, x);
     }
@@ -232,11 +236,16 @@ private:
 
 // The Jacobi decomposition below is written for 3x3 matrices. When the trailing
 // matrix dimensions are statically known, reject anything that is not 3x3 with a
-// clear message; when they are dynamic (the frontend frequently presents inputs
-// with dynamic shapes at conversion time), proceed and assume the 3x3 case, which
-// is the supported / expected runtime size (e.g. the Kabsch rigid-transform block
-// in pose-estimation models).
-void check_square_3x3(const NodeContext& context, const Output<Node>& x) {
+// clear conversion-time message. When they are dynamic (on the TorchScript path the
+// decoder forces all dims dynamic, so this is the common case), the size cannot be
+// checked at conversion time; instead insert a runtime square-3x3 guard: reshape
+// the trailing two axes to a fixed [3, 3] while preserving the batch axes
+// (new_shape = concat(shape_of(x)[:-2], [3, 3])). For a genuine 3x3 input this is an
+// identity; any other size cannot match the element count and raises a runtime
+// Reshape error -- turning an otherwise silent wrong result into a loud failure. 3x3
+// is the supported / expected runtime size (e.g. the Kabsch rigid-transform block in
+// pose-estimation models). Returns the (possibly reshape-guarded) matrix to use.
+Output<Node> check_square_3x3(const NodeContext& context, const Output<Node>& x) {
     const auto& ps = x.get_partial_shape();
     const auto rank = ps.rank();
     if (rank.is_static() && rank.get_length() >= 2) {
@@ -250,8 +259,19 @@ void check_square_3x3(const NodeContext& context, const Output<Node>& x) {
                 "x",
                 n.get_length(),
                 ".");
+            return x;
         }
     }
+    // Dynamic trailing dimension(s): guard the assumed 3x3 size at runtime.
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto stop = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape, start, stop, step, axis));
+    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {3, 3}));
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
+    return context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
 }
 
 // `return_vh` selects the linalg_svd convention (returns Vh = V^T) vs the
@@ -259,7 +279,9 @@ void check_square_3x3(const NodeContext& context, const Output<Node>& x) {
 OutputVector svd_common(const NodeContext& context, bool return_vh) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    check_square_3x3(context, x);
+    // Runtime/conversion-time 3x3 guard; on the dynamic path this returns x wrapped
+    // in a reshape-to-[...,3,3] so a non-3x3 input fails loudly at runtime.
+    x = check_square_3x3(context, x);
 
     auto in_et = x.get_element_type();
     // Compute at least in f32 (f16/bf16 are too coarse for the Jacobi rotations).
@@ -293,6 +315,17 @@ OutputVector svd_common(const NodeContext& context, bool return_vh) {
 
 OutputVector translate_svd(const NodeContext& context) {
     // aten::svd(Tensor self, bool some=True, bool compute_uv=True) -> (Tensor U, Tensor S, Tensor V)
+    // With compute_uv=False PyTorch returns zero-filled U and V (only S is meaningful); this
+    // translator always produces real U/V, so reject a statically-false compute_uv loudly rather
+    // than returning non-zero singular vectors a caller would treat as zeros. Probe without
+    // throwing so a (non-constant) runtime flag does not break conversion.
+    if (context.get_input_size() > 2 && !context.input_is_none(2)) {
+        if (const auto c = ov::util::get_constant_from_source(context.get_input(2))) {
+            const auto vals = c->cast_vector<bool>();
+            PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0],
+                                        "aten::svd with compute_uv=False is not supported.");
+        }
+    }
     return svd_common(context, /*return_vh=*/false);
 };
 

@@ -226,7 +226,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
     Output<Node> result;
 
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
-    // linalg.mtrix_norm(x.to(dtype))
+    // linalg.matrix_norm(x.to(dtype))
     if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
