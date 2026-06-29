@@ -5,6 +5,7 @@ import platform
 
 import pytest
 import torch
+import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
@@ -346,6 +347,7 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
                    trace_model=True, dynamic_shapes=is_dynamic_shapes)
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_max_pool_dynamic_kernel_sliding_window_unsupported(self, ie_device, precision, ir_version):
         # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool
         # that a ReduceMax cannot represent: conversion must fail with a clear message.
@@ -357,3 +359,24 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
         with pytest.raises(Exception):
             self._test(aten_max_pool_mixed(), "aten::max_pool2d", ie_device, precision, ir_version,
                        trace_model=True, dynamic_shapes=False)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_max_pool_dynamic_kernel_uses_reducemax(self, ie_device, precision, ir_version):
+        # Structurally prove the dynamic-kernel decomposition fired: the converted OpenVINO model
+        # must contain a ReduceMax and no MaxPool. The numeric tests above compare values only,
+        # which a static MaxPool would also satisfy for a full-extent pool -- so they cannot, on
+        # their own, distinguish the new ReduceMax branch from a const-folded static MaxPool.
+        # A dynamic input shape keeps x.size(3) a runtime value so the kernel cannot const-fold.
+        class aten_max_pool_dyn(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3)])
+
+        example = torch.randn(1, 128, 40, 64, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_dyn(), example)
+        # Dynamic last axis -> the kernel stays a runtime ShapeOf value at conversion time.
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([1, 128, 40, -1])])
+        op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
+        assert "ReduceMax" in op_types, f"expected the dynamic-kernel ReduceMax branch; ops: {op_types}"
+        assert "MaxPool" not in op_types, f"static MaxPool must not be present; ops: {op_types}"
