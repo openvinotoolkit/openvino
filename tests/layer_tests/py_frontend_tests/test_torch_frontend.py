@@ -2692,7 +2692,7 @@ def test_dynamo_auto_patches_gptq():
 #  compressed-tensors (NeuralMagic) export pipeline tests
 # ──────────────────────────────────────────────────────────────────────
 
-def _make_fake_ct_model(in_features=32, out_features=64, group_size=32):
+def _make_fake_ct_model(in_features=32, out_features=64, group_size=32, symmetric=True):
     """Return ``(model, x, FakeCompressedLinear)`` for compressed-tensors tests.
 
     The fake module exposes all attributes consumed by
@@ -2700,6 +2700,7 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32):
 
     * ``weight_packed``       – int32, shape ``[out, in//8]``
     * ``weight_scale``        – float32, shape ``[out, n_groups]``
+    * ``weight_zero_point``   – int32, shape ``[out//8, n_groups]`` (asymmetric only)
     * ``quantization_scheme`` – object with ``.weights.num_bits``,
                                 ``.weights.symmetric``, ``.weights.strategy``,
                                 ``.weights.group_size``
@@ -2713,10 +2714,11 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32):
     rng = torch.Generator().manual_seed(0)
     n_groups = in_features // group_size
     _group_size = group_size  # captured before class definition to avoid class-scope NameError
+    _symmetric = symmetric
 
     class FakeWeightArgs:
         num_bits = 4
-        symmetric = True
+        symmetric = _symmetric
         strategy = "group"
         group_size = _group_size
 
@@ -2749,6 +2751,16 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32):
                 "weight_scale",
                 torch.randn(out_features, n_groups, dtype=torch.float32, generator=rng),
             )
+            if not _symmetric:
+                self.register_buffer(
+                    "weight_zero_point",
+                    torch.randint(
+                        -(2 ** 31), 2 ** 31,
+                        (out_features // 8, n_groups),
+                        dtype=torch.int32,
+                        generator=rng,
+                    ),
+                )
             self.quantization_scheme = FakeScheme()
             self.bias = None
 
@@ -2900,5 +2912,31 @@ def test_dynamo_auto_patches_compressed_tensors():
             assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
 
         assert ov_model.output(0).get_partial_shape()[-1].get_length() == 64
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_convert_asym_keeps_u4():
+    """TorchScript conversion of an asymmetric compressed-tensors model must
+    keep u4 weight constants — the zero-point and packed weights must NOT be
+    decompressed to float.
+    """
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model(symmetric=False)
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(x,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        u4_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) == Type.u4
+        ]
+        assert u4_consts, \
+            "Expected u4 weight constants in the OV model for asymmetric CT gemm"
     finally:
         _restore_ct_modules(prior)

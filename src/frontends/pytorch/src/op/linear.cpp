@@ -463,25 +463,12 @@ OutputVector translate_linear_ct(const NodeContext& context) {
         {2},
         std::vector<int32_t>{static_cast<int32_t>(in_features), static_cast<int32_t>(out_features)});
 
-    Output<Node> weight;
-    if (sym) {
-        // No zero-point: Multiply(Convert(i4_weight), scale)
-        ov::pass::NodeRegistry reg;
-        weight = ov::decomposition::low_precision_dequantize(reg, new_weight, new_scales, {}, out_shape);
-        weight = reg.make<v1::ConvertLike>(weight, x);
-        context.mark_nodes(reg.get());
-    } else {
-        // Zero-point present: Multiply(Subtract(Convert(u4_weight), u4_zp), scale)
+    Output<Node> new_zp;
+    if (!sym) {
         FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(5), "CT asymmetric gemm requires weight_zero_point.");
-        auto zp_raw = context.get_input(5);
-        // unpack_ct_zp already outputs [n_groups, 1, out_features] — no further reshape needed
-        auto new_zp = unpack_ct_zp(zp_raw, out_features);
-
-        ov::pass::NodeRegistry reg;
-        weight = ov::decomposition::low_precision_dequantize(reg, new_weight, new_scales, new_zp, out_shape);
-        weight = reg.make<v1::ConvertLike>(weight, x);
-        context.mark_nodes(reg.get());
+        new_zp = unpack_ct_zp(context.get_input(5), out_features);
     }
+    auto weight = low_precision_subgraph(context, x, new_weight, new_zp, new_scales, out_shape);
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
     if (!context.input_is_none(6)) {
