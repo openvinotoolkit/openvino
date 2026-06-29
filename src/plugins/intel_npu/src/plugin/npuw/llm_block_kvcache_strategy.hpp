@@ -87,10 +87,9 @@ public:
     // -------------------------------------------------------------------------
 
     void on_initialize() override;
-    void on_reset() override;
+    void on_reset(uint32_t next_prompt_length = 0) override;
     void on_prefill_chunk_begin(uint32_t current_prompts_len) override;
     void on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) override;
-    void on_prefill_done() override;
     void on_generate_kv_init() override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
 
@@ -114,6 +113,11 @@ private:
     // -------------------------------------------------------------------------
     // Initialization helpers
     // -------------------------------------------------------------------------
+
+    // Set dummy tensors on all numbered block input ports of every generate variant and
+    // the prefill request.  Called once during on_initialize() so every port starts with
+    // a valid dummy before any real block tensor is bound.
+    void set_dummy_tensors_to_all_requests();
 
     void create_block_managers_and_helpers(
         const PortsMap& prefill_in_ports,

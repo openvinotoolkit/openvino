@@ -443,7 +443,7 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(per_layer_port->second), 0u);
     }
 
-    m_kvcache_strategy->on_reset();
+    m_kvcache_strategy->on_reset(prompt_length > 0 ? static_cast<uint32_t>(prompt_length) : 0u);
 
     for (const auto& input_name : m_lincache_past_names) {
         if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {
@@ -823,9 +823,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             break;
         }
     }
-
-    // Notify strategy that all prefill chunks are complete.
-    m_kvcache_strategy->on_prefill_done();
 
     LOG_DEBUG("Done.");
 

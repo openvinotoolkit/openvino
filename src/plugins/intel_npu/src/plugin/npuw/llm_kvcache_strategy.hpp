@@ -32,8 +32,7 @@ class LLMInferRequest;  // forward declaration — strategy always outlived by i
  *      c. on_prefill_chunk_done()         — after infer(); is_last distinguishes the two paths:
  *           is_last=false: intermediate chunk — persist KV outputs into past buffer
  *           is_last=true:  final chunk — store outputs into blocks (block mode) or no-op
- *   4. on_prefill_done()                  — after all chunks, transfer KV to generate model
- *   5. Per generate step:
+ *   4. Per generate step:
  *      a. on_generate_kv_init()           — first generate step: bind/copy prefill→generate KV
  *      b. infer() [called by LLMInferRequest]
  *      c. on_generate_step_done()         — after infer(), update KV for next step
@@ -53,8 +52,10 @@ public:
     // May also wire KV tensor sharing across generate variants (continuous mode).
     virtual void on_initialize() = 0;
 
-    // Conversation boundary: free/zero all KV state
-    virtual void on_reset() = 0;
+    // Conversation boundary: free/zero all KV state.
+    // next_prompt_length: expected prompt length for the upcoming conversation (0 = unknown).
+    // Block-based strategy uses it to decide how many block device tensors to keep warm.
+    virtual void on_reset(uint32_t next_prompt_length = 0) = 0;
 
     // Called before each prefill chunk's infer()
     virtual void on_prefill_chunk_begin(uint32_t current_prompts_len) = 0;
@@ -63,9 +64,6 @@ public:
     // is_last=false: intermediate chunk — KV outputs must be persisted for the next chunk.
     // is_last=true:  final chunk — block mode stores outputs into blocks; continuous is no-op.
     virtual void on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) = 0;
-    // Called once after all prefill chunks: transfer KV from prefill model to generate model
-    virtual void on_prefill_done() = 0;
-
     // Called once on the first generate step before infer():
     // bind/copy the accumulated prefill KV into the generate model's input ports.
     virtual void on_generate_kv_init() = 0;

@@ -67,7 +67,8 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
 }
 
 // on_reset: zero-fill all past KV input tensors in the prefill model.
-void LLMContinuousKVCacheStrategy::on_reset() {
+// next_prompt_length is ignored — continuous strategy has no warm-block concept.
+void LLMContinuousKVCacheStrategy::on_reset(uint32_t /*next_prompt_length*/) {
     namespace uu = ov::npuw::util;
     for (const auto& input_name : m_req.m_kvcache_past_names) {
         if (m_req.m_prefill_in_ports.find(input_name) != m_req.m_prefill_in_ports.end()) {
@@ -95,11 +96,6 @@ void LLMContinuousKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompt
                              current_prompts_len,
                              v_transposed);
 }
-
-// on_prefill_done: no-op — for continuous KV the copy into the generate model
-// is deferred to the first generate step (on_generate_kv_init), which happens
-// only when num_stored_tokens > 0, matching the original code's guard.
-void LLMContinuousKVCacheStrategy::on_prefill_done() {}
 
 // on_generate_kv_init: copy the full accumulated prefill KV into the generate
 // model's past input buffer so the first generate step sees the correct context.

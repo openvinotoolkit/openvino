@@ -146,34 +146,17 @@ BlockShapeInfo find_block_shapes(const ov::npuw::LLMBlockKVCacheStrategy::PortsM
     return shapes;
 }
 
-// Set dummy tensors on all numbered block input ports for every inference request.
-void set_dummy_tensors_to_all_requests(
-    const ov::npuw::LLMBlockKVCacheStrategy::DummyTensors& dummies,
-    const std::shared_ptr<ov::IAsyncInferRequest>& prefill_request,
-    const std::vector<std::shared_ptr<ov::IAsyncInferRequest>>& generate_requests,
-    const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& prefill_in_ports,
-    const std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, ov::npuw::LLMBlockKVCacheStrategy::PortsMap>&
-        gen_variant_in_ports) {
-    size_t prefill_block_count = set_dummy_block_tensors(
-        prefill_in_ports,
-        [&prefill_request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-            prefill_request->set_tensor(port, tensor);
+// Set dummy tensors on all numbered block input ports of a single inference request.
+size_t set_dummy_tensors_to_request(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                    const ov::npuw::LLMBlockKVCacheStrategy::PortsMap& ports_map,
+                                    const ov::npuw::LLMBlockKVCacheStrategy::DummyTensors& dummies) {
+    return set_dummy_block_tensors(
+        ports_map,
+        [&request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+            request->set_tensor(port, tensor);
         },
         dummies.key_tensor,
         dummies.value_tensor);
-    LOG_INFO("Set " << prefill_block_count << " prefill numbered block inputs to shared dummy tensors");
-
-    size_t generate_block_count = 0;
-    for (auto& generate_request : generate_requests) {
-        generate_block_count += set_dummy_block_tensors(
-            gen_variant_in_ports.at(generate_request),
-            [&generate_request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-                generate_request->set_tensor(port, tensor);
-            },
-            dummies.key_tensor,
-            dummies.value_tensor);
-    }
-    LOG_INFO("Set " << generate_block_count << " generate numbered block inputs to shared dummy tensors");
 }
 
 }  // anonymous namespace
@@ -210,11 +193,7 @@ void LLMBlockKVCacheStrategy::on_initialize() {
         } else {
             m_dummy_tensors.value_tensor = m_dummy_tensors.key_tensor;
         }
-        set_dummy_tensors_to_all_requests(m_dummy_tensors,
-                                          m_req.m_prefill_request,
-                                          m_req.m_generate_requests,
-                                          prefill_in_ports,
-                                          m_req.m_generate_variant_in_ports);
+        set_dummy_tensors_to_all_requests();
     }
 
     // Create block managers and pre-compute per-variant binding helpers
@@ -238,32 +217,78 @@ void LLMBlockKVCacheStrategy::on_initialize() {
     LOG_INFO("=== Block-based KV Cache Initialization Complete ===");
 }
 
-void LLMBlockKVCacheStrategy::on_reset() {
-    if (!m_kv_cache_block_managers.empty()) {
-        // Restore dummy tensors on all numbered block input ports (prefill + every generate
-        // variant) so that no port retains a stale reference to a specific block tensor from
-        // the previous conversation.  on_generate_kv_init() and load_past_kv_blocks_to_prefill()
-        // will re-bind the correct tensors before the next round's inference begins.
-        set_dummy_tensors_to_all_requests(m_dummy_tensors,
-                                          m_req.m_prefill_request,
-                                          m_req.m_generate_requests,
-                                          m_req.m_prefill_in_ports,
-                                          m_req.m_generate_variant_in_ports);
+void LLMBlockKVCacheStrategy::set_dummy_tensors_to_all_requests() {
+    size_t prefill_count =
+        set_dummy_tensors_to_request(m_req.m_prefill_request, m_req.m_prefill_in_ports, m_dummy_tensors);
+    LOG_INFO("Set " << prefill_count << " prefill numbered block inputs to shared dummy tensors");
+
+    size_t gen_count = 0;
+    for (const auto& generate_request : m_req.m_generate_requests) {
+        gen_count += set_dummy_tensors_to_request(generate_request,
+                                                  m_req.m_generate_variant_in_ports.at(generate_request),
+                                                  m_dummy_tensors);
     }
-    // Each sub-request holds its own shared_ptr to block tensors and only picks up
-    // new tensors the next time infer() runs their function_prologue.  Variants not
-    // selected in the next conversation may never run infer() again, leaving stale
-    // block tensor refs indefinitely.  Push the dummies set above into every
-    // sub-request now so block memory is freed immediately on conversation reset.
-    for (auto& base_req : m_req.m_generate_base_requests) {
-        base_req->propagate_params_to_subrequests();
+    LOG_INFO("Set " << gen_count << " generate numbered block inputs to shared dummy tensors");
+}
+
+void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
+    // When no block inputs were found during on_initialize() there are no block
+    // tensors to release and no dummy tensors to propagate — nothing to do.
+    if (m_kv_cache_block_managers.empty()) {
+        return;
     }
-    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
-        if (layer_managers.key_manager) {
-            layer_managers.key_manager->clear_all();
+
+    // ── Step 1: drop prefill OUTPUT port refs ────────────────────────────────────────
+    // Only needed when the last prefill chunk used the zero-copy path, which redirects
+    // prefill output ports directly to block tensors.  The copy path leaves output ports
+    // pointing to the original buffers, so no restore is needed in that case.
+    {
+        if (m_zero_copy_last_chunk) {
+            restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
+            m_zero_copy_last_chunk = false;
         }
-        if (layer_managers.value_manager) {
-            layer_managers.value_manager->clear_all();
+    }
+
+    // ── Step 2: drop prefill/generate INPUT port refs ────────────────────────────────
+    // Only the prefill request and the currently-selected generate variant were ever
+    // re-bound to live block tensors.  Other variants remain on dummy tensors from
+    // on_initialize() and need no action.
+    {
+        set_dummy_tensors_to_request(m_req.m_prefill_request, m_req.m_prefill_in_ports, m_dummy_tensors);
+        set_dummy_tensors_to_request(m_req.m_kvcache_request,
+                                     m_req.m_generate_variant_in_ports.at(m_req.m_kvcache_request),
+                                     m_dummy_tensors);
+    }
+
+    // ── Step 3: propagate dummies into sub-requests ──────────────────────────────────
+    // Sub-requests hold their own SoPtr to block tensors and only refresh them at the
+    // next infer() call.  Push the dummies set above into the current variant's
+    // sub-requests so device memory is freed immediately.  Other variants were never
+    // bound to live block tensors, so they do not need propagation.
+    {
+        auto it =
+            std::find(m_req.m_generate_requests.begin(), m_req.m_generate_requests.end(), m_req.m_kvcache_request);
+        if (it != m_req.m_generate_requests.end()) {
+            const size_t idx = static_cast<size_t>(std::distance(m_req.m_generate_requests.begin(), it));
+            m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+        }
+    }
+
+    // ── Step 4: release block tensors ────────────────────────────────────────────────
+    // All SoPtr references to block tensors have been dropped above; calling release()
+    // here will actually return device memory to the allocator.
+    // Keep floor(next_prompt_length / block_size) blocks warm to avoid re-allocating
+    // them on the next prefill.  Pass 0 when the next prompt length is unknown.
+    {
+        const uint32_t keep_warm_blocks =
+            (m_block_size > 0 && next_prompt_length > 0) ? (next_prompt_length / m_block_size) : 0u;
+        for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+            if (layer_managers.key_manager) {
+                layer_managers.key_manager->release(keep_warm_blocks);
+            }
+            if (layer_managers.value_manager) {
+                layer_managers.value_manager->release(keep_warm_blocks);
+            }
         }
     }
 }
@@ -311,18 +336,6 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len
                                v_transposed,
                                write_start);
     }
-}
-
-void LLMBlockKVCacheStrategy::on_prefill_done() {
-    if (!m_zero_copy_last_chunk) {
-        return;
-    }
-
-    // Restore prefill output tensors from block tensors back to their original buffers.
-    // Without this, the prefill request holds a reference to the block tensors, preventing
-    // clear_all() in on_reset() from actually releasing device memory between conversations.
-    restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
-    m_zero_copy_last_chunk = false;
 }
 
 void LLMBlockKVCacheStrategy::on_generate_kv_init() {
