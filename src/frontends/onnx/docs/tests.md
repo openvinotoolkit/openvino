@@ -2,10 +2,10 @@
 
 ## ONNX Frontend testing places
 - [C++ gtest-based tests](../tests)
-- [Python frontend tests](../../../../src/bindings/python/tests/test_frontend)
-- [Python operators tests](../../../../src/bindings/python/tests/test_onnx)
-- [Python tests to confirm operator compliance with the ONNX standard](../../../../src/bindings/python/tests/test_onnx/test_backend.py)
-- [Python OpenModelZoo tests](../../../../src/bindings/python/tests/test_onnx/test_zoo_models.py)
+- [Python frontend tests](../tests/tests_python)
+- [Python operators tests](../tests/tests_python)
+- [Python tests to confirm operator compliance with the ONNX standard](../tests/tests_python/test_backend.py)
+- [Python OpenModelZoo tests](../tests/tests_python/test_zoo_models.py)
 - [Tests for OpenVINO™ Execution Provider with ONNX Runtime](../../../../.ci/azure/linux_onnxruntime.yml)
 
 
@@ -80,7 +80,7 @@ pytest <OV_INSTALL_DIR>/tests/pyopenvino/tests/test_onnx/test_backend.py -sv -k 
 
 
 ## Python OpenModelZoo tests
-Preparation: Download [models](https://github.com/onnx/models). The current OpenVINO ONNX Frontend uses [this version](https://github.com/onnx/models/commit/d58213534f2a4d1c4b19ba62b3bb5f544353256e) or [the model_zoo_preprocess.sh script](../../../../src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh). The second approach is preferable, because some test data requires preprocessing.
+Preparation: Download [models](https://github.com/onnx/models). The current OpenVINO ONNX Frontend uses [this version](https://github.com/onnx/models/commit/d58213534f2a4d1c4b19ba62b3bb5f544353256e) or [the model_zoo_preprocess.sh script](../tests/tests_python/model_zoo_preprocess.sh). The second approach is preferable, because some test data requires preprocessing.
 ```
 model_zoo_preprocess.sh -d <ONNX_MODELS_DIR> -o
 ```
