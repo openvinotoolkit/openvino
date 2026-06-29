@@ -68,6 +68,11 @@ public:
 class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
+    struct DeviceProperties {
+        uint32_t deviceId;
+        uint32_t subdeviceId;
+        uint32_t numSlices;
+    };
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -86,6 +91,7 @@ public:
 
     virtual void updateInfo(const ov::AnyMap& properties) = 0;
     virtual bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const = 0;
+    virtual DeviceProperties getDeviceProperties() const = 0;
 
 protected:
     virtual ~IDevice() = default;

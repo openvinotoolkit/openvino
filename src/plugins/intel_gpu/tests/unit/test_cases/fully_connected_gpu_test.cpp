@@ -3997,18 +3997,20 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
 
-        // Large activation values [-20, 20] to simulate gate_proj-like outputs.
-        // After dynamic quantization (dq_scale = max_abs/127 ~ 0.16),
-        // INT8 values span [-127, 127]. Accumulating 128 products: |acc_tmp| up to ~4000.
-        // convert_half(4000) * ds(30) = 120,000 > 65,504 -> INF in old code.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -20.0f, 20.0f);
+        // Use positive gate-like activations to avoid cancellation while keeping the final
+        // dequantized value well inside the fp16 range.
+        // dq_scale ~= 0.75 / 127 = 0.0059, so the true result stays finite:
+        //   243840 (scales_group_size: 128 * int8: 127 * u4: 15) * 0.0059 * 20 ~= 28.8K < 65504.
+        // The old code still overflows because it first converts the large int accumulator to fp16.
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.75f);
         set_values(input_mem, input_data);
 
         auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
         set_values(weights_mem, weights_data);
 
-        // Moderate decompression scales. Combined with large activations, intermediate overflows.
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -30.0f, 30.0f);
+        // Large positive decompression scales keep the old fp16 intermediate path unstable
+        // without pushing the true fp32 result outside the fp16 output range.
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 12.0f, 20.0f);
         set_values(scale_mem, scale_data);
 
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
@@ -4104,10 +4106,10 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
     // INF appears at all, so any FP16 intermediate overflow is caught unconditionally.
     //
     // Parameter design:
-    //   input [0.25, 2]  -> dq_scale ~ 0.016  -> high positive int_acc (reduced cancellation)
-    //   ds [30, 60]      -> combined_scale ~ 0.7  -> TRUE result still far below 65504 (FP16 safe)
-    //   FP16 intermediate: convert_half(1400) * 60 = 84000 > 65504 → overflow in old code
-    //   FP32 path: float(1400) * 0.016 * 60 = 1344 → no overflow
+    //   input [0.25, 0.75] -> dq_scale ~ 0.0059 -> high positive int_acc (reduced cancellation)
+    //   ds [12, 20]        -> TRUE result still far below 65504 (FP16 safe)
+    //   FP16 intermediate: convert_half(243840) * 0.0059 * 20 -> INF in old code
+    //   FP32 path: 243840 * 0.0059 * 20 ~= 28.8K -> finite
     //
     // Covers empty-output failures caused by gate projection overflow.
     void test_compressed_int4_dyn_quan_large_activation_strict_no_inf(bool is_dynamic, long int batch_num) {
@@ -4127,17 +4129,16 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
 
-        // Positive activations [0.25, 2]: dq_scale ~ 0.016, high positive int_acc.
-        // True result (float) = 1400 * 0.016 * 60 ~ 1344 << 65504 — always FP16-safe.
-        // FP16 intermediate: convert_half(1400) * 60 = 84000 > 65504 — overflows in old code.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 2.0f);
+        // Positive activations keep int accumulators large while the final fp32 result stays finite.
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.75f);
         set_values(input_mem, input_data);
 
         auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
         set_values(weights_mem, weights_data);
 
-        // Large positive decompression scales [30, 60] to keep stress deterministic.
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 30.0f, 60.0f);
+        // Large positive decompression scales still trigger the old intermediate overflow path,
+        // while keeping the mathematically correct fp32 result finite.
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 12.0f, 20.0f);
         set_values(scale_mem, scale_data);
 
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
