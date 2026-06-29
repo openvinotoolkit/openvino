@@ -40,13 +40,13 @@ Script: [build_report.py](./build_report.py) — generates `conversion_report.md
 
 ## Step 3 — Post to GitHub Issue (if gh CLI available)
 
-Script: [build_report.py](./build_report.py) — posts `conversion_report.md` as a PR comment using `gh pr comment` if available.
+Script: `build_report.py` — posts `conversion_report.md` as a PR comment using `gh pr comment` if available.
 
 ---
 
 ## Step 4 — Record Result
 
-Script: [build_report.py](./build_report.py) — writes `analyze_and_convert_result.json` with:
+Script: `build_report.py` — writes `analyze_and_convert_result.json` with:
 
 - Agent name and status (success/partial/failed)
 - Model ID and entry type
@@ -56,7 +56,7 @@ Script: [build_report.py](./build_report.py) — writes `analyze_and_convert_res
 
 ## Step 5 — Write agent-complete Marker
 
-Script: [build_report.py](./build_report.py) — prints standard `<!-- agent-complete -->` marker (HTML comment) with:
+Script: `build_report.py` — prints standard `<!-- agent-complete -->` marker (HTML comment) with:
 
 - `agent`: "analyze-and-convert"
 - `status`: "success" | "partial" | "failed"

@@ -84,12 +84,15 @@ jobs:
           # '\{[^}]+\}' ignores template placeholders like {run_url} or
           # {workflow_name} that appear verbatim in markdown and are not
           # resolvable file paths (lychee would otherwise report them as errors).
+          # '%7B[^%]+%7D' covers the same placeholders when URL-encoded by lychee
+          # before matching (e.g. {run_url} becomes %7Brun_url%7D in the file: URI).
           args: >-
             --offline
             --root-dir "${{ github.workspace }}"
             --verbose
             --no-progress
             --exclude '\{[^}]+\}'
+            --exclude '%7B[^%]+%7D'
             './**/*.md'
           fail: true
           jobSummary: true
