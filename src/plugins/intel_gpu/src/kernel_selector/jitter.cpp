@@ -1457,6 +1457,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string compute_type;
     std::string to_compute_type;
     std::string decode_compute_type;
+    std::string decode_compute_vector_type;
+    std::string to_vector_type = "undefined";
     bool is_fp;
     switch (dataType) {
         case Datatype::INT8:
@@ -1467,6 +1469,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(char) 0";
             to_type = "convert_char(v)";
             to_type_sat = "convert_char_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(char, size))(v)";
             as_type = "as_char(v)";
             max_func = "max";
             min_func = "min";
@@ -1482,6 +1485,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(uchar) 0";
             to_type = "convert_uchar(v)";
             to_type_sat = "convert_uchar_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))(v)";
             as_type = "as_uchar(v)";
             max_func = "max";
             min_func = "min";
@@ -1497,6 +1501,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(short) 0";
             to_type = "convert_short(v)";
             to_type_sat = "convert_short_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(short, size))(v)";
             as_type = "as_short(v)";
             max_func = "max";
             min_func = "min";
@@ -1512,6 +1517,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(ushort) 0";
             to_type = "convert_ushort(v)";
             to_type_sat = "convert_ushort_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(ushort, size))(v)";
             as_type = "as_ushort(v)";
             max_func = "max";
             min_func = "min";
@@ -1527,6 +1533,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(int) 0";
             to_type = "convert_int(v)";
             to_type_sat = "convert_int_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(int, size))(v)";
             as_type = "as_int(v)";
             max_func = "max";
             min_func = "min";
@@ -1542,6 +1549,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(uint) 0";
             to_type = "convert_uint(v)";
             to_type_sat = "convert_uint_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(uint, size))(v)";
             as_type = "as_uint(v)";
             max_func = "max";
             min_func = "min";
@@ -1557,6 +1565,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(long) 0";
             to_type = "convert_long(v)";
             to_type_sat = "convert_long_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(long, size))(v)";
             as_type = "as_long(v)";
             max_func = "max";
             min_func = "min";
@@ -1572,6 +1581,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "0.0h";
             to_type = "convert_half(v)";
             to_type_sat = "convert_half(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v)";
             as_type = "as_half(v)";
             max_func = "fmax";
             min_func = "fmin";
@@ -1583,6 +1593,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type = "char";
             to_type = "convert_char(v)";
             to_type_sat = "convert_char_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(char, size))(v)";
             type_size = "0.5f";
             is_fp = false;
             break;
@@ -1590,6 +1601,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type = "uchar";
             to_type = "convert_uchar(v)";
             to_type_sat = "convert_uchar_sat(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))(v)";
             type_size = "0.5f";
             is_fp = false;
             break;
@@ -1601,9 +1613,11 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "0.0f";
             to_type = "_convert_bfloat16_as_ushort(v)";
             to_type_sat = "_convert_bfloat16_as_ushort(v)";
+            to_vector_type = "CONVERT_BFLOAT16_AS_USHORT(v, size)";
             compute_type = "float";
             to_compute_type = "convert_float(v)";
             decode_compute_type = "_convert_as_bfloat16_float(v)";
+            decode_compute_vector_type = "CONVERT_AS_BFLOAT16_FLOAT(v, size)";
             type_size = "2";
             is_fp = false;
             break;
@@ -1615,6 +1629,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "0.0f";
             to_type = "convert_float(v)";
             to_type_sat = "convert_float(v)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v)";
             as_type = "as_float(v)";
             max_func = "fmax";
             min_func = "fmin";
@@ -1630,6 +1645,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         to_compute_type = to_type;
     if (decode_compute_type.empty())
         decode_compute_type = "(v)";
+    if (decode_compute_vector_type.empty())
+        decode_compute_vector_type = "(v)";
 
     return JitConstants{
         MakeJitConstant(macroName + "_TYPE", type),
@@ -1639,6 +1656,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_VAL_ZERO", val_zero),
         MakeJitConstant("TO_" + macroName + "_TYPE(v)", to_type),
         MakeJitConstant("TO_" + macroName + "_TYPE_SAT(v)", to_type_sat),
+        MakeJitConstant("TO_" + macroName + "_VECTOR_TYPE(v, size)", to_vector_type),
         MakeJitConstant("AS_" + macroName + "_TYPE(v)", as_type),
         MakeJitConstant(macroName + "_MAX_FUNC", max_func),
         MakeJitConstant(macroName + "_MIN_FUNC", min_func),
@@ -1648,6 +1666,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_COMPUTE_TYPE", compute_type),
         MakeJitConstant("TO_" + macroName + "_COMPUTE_TYPE(v)", to_compute_type),
         MakeJitConstant("DECODE_" + macroName + "_COMPUTE_TYPE(v)", decode_compute_type),
+        MakeJitConstant("DECODE_" + macroName + "_COMPUTE_VECTOR_TYPE(v, size)", decode_compute_vector_type),
     };
 }
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName) {
@@ -1946,7 +1965,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         std::vector<Datatype> types_prioritized = { };
         if (floor_integer_div) {
             if (std::all_of(input_types.begin(), input_types.end(),
-                            [=](const Datatype& t) -> bool { return (t != Datatype::F32 && t != Datatype::F16); })) {
+                            [=](const Datatype& t) -> bool { return (t != Datatype::F32 && t != Datatype::F16 && t != Datatype::BF16); })) {
                 types_prioritized = { Datatype::INT64, Datatype::INT32, Datatype::UINT32, Datatype::INT16, Datatype::UINT16, Datatype::INT8, Datatype::UINT8 };
                 for (auto& type : types_prioritized) {
                     if (std::any_of(input_types.begin(), input_types.end(),
@@ -1956,8 +1975,12 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 }
             }
         }
-
         floor_integer_div = false;
+
+        // If at least one type is BF16, do calculations in F32
+        if (std::find(input_types.begin(), input_types.end(), Datatype::BF16) != input_types.end())
+            return Datatype::F32;
+
         types_prioritized.clear();
         types_prioritized = { Datatype::F32, Datatype::F16 };
         for (auto& type : types_prioritized) {
@@ -1975,6 +1998,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                             (dep.dep_type == kernel_selector::DepType::INTERNAL)? GetOutputVarName(in_var, dep.op_id)
                                 : GetInputVarName(dep.op_id, is_shuffled, shuffle_var);
         auto input_type = (dep.dep_type == kernel_selector::DepType::ORIGINAL)? in_type : dep.data_type;
+        // Decode bf16 inputs
+        input_name = DecodeComputeType(input_name, input_type, vec_size);
+        input_type = GetComputeDatatype(input_type);
         auto acc_t = get_acc_t();
 
         if (input_type != acc_t)
@@ -2026,6 +2052,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
             std::string in_converted = (first_fused_ops_idx < 0) ? in_var : GetOutputVarName(in_var, dep_data[first_fused_ops_idx].op_id);
             Datatype input_type = (first_fused_ops_idx < 0) ? in_type : dep_data[first_fused_ops_idx].data_type;
+            // Decode bf16 inputs
+            in_converted = DecodeComputeType(in_converted, input_type, vec_size);
+            input_type = GetComputeDatatype(input_type);
             Datatype tmp_type = Datatype::F32;
             std::string tmp_type_str = GetType(tmp_type, vec_size);
             std::string tmp_var = out_var + "_tmp";
@@ -2035,13 +2064,13 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             }
 
             auto post_scale = p->per_tensor_output_scale ? Broadcast(toCodeString(p->out_scale), tmp_type, vec_size)
-                                                         : ConvertToType(GetInputVarName(p->out_scale_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                                                         : ConvertToType(GetDecodedInputVarName(p->out_scale_idx, is_shuffled, shuffle_var, vec_size), tmp_type, vec_size);
             auto post_shift = p->per_tensor_output_shift ? Broadcast(toCodeString(p->out_shift), tmp_type, vec_size)
-                                                         : ConvertToType(GetInputVarName(p->out_shift_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                                  : ConvertToType(GetDecodedInputVarName(p->out_shift_idx, is_shuffled, shuffle_var, vec_size), tmp_type, vec_size);
             auto pre_scale = p->per_tensor_input_scale ? Broadcast(toCodeString(p->in_scale), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_scale_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                                 : ConvertToType(GetDecodedInputVarName(p->in_scale_idx, is_shuffled, shuffle_var, vec_size), tmp_type, vec_size);
             auto pre_shift = p->per_tensor_input_shift ? Broadcast(toCodeString(p->in_shift), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_shift_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                                 : ConvertToType(GetDecodedInputVarName(p->in_shift_idx, is_shuffled, shuffle_var, vec_size), tmp_type, vec_size);
 
             if (p->per_tensor_output_range && p->out_lo < p->out_hi) {
                 // Input scale
@@ -2084,9 +2113,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             } else {
                 // Input range
                 auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                                 : ConvertToType(GetDecodedInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var, vec_size), tmp_type, vec_size);
                 auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                                 : ConvertToType(GetDecodedInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var, vec_size), tmp_type, vec_size);
 
                 // Input clamp
                 if (p->has_clamp) {
@@ -2129,6 +2158,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;
             std::string new_in_var = (first_fused_ops_idx < 0) ? in_var : GetOutputVarName(in_var, dep_data[first_fused_ops_idx].op_id);
+            Datatype input_type = (first_fused_ops_idx < 0) ? in_type : dep_data[first_fused_ops_idx].data_type;
+            // Decode bf16 inputs
+            new_in_var = DecodeComputeType(new_in_var, input_type, vec_size);
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(new_in_var, vec_size) + ";";
             if (activation_p.function != ActivationFunction::NONE) {
                 auto suffix = "_FUSED_OP"+toCodeString(desc.op_id) + conf.suffix;
@@ -2147,9 +2179,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 if (desc.tensors.size() == 1) {
                     if (desc.tensors[0].GetDType() != out_type) {
-                        nl_m = ConvertToOutputType(GetInputVarName(0), vec_size);
+                        nl_m = ConvertToOutputType(GetDecodedInputVarName(0, false, "", vec_size), vec_size);
                     } else {
-                        nl_m = GetInputVarName(0);
+                        nl_m = GetDecodedInputVarName(0, false, "", vec_size);
                     }
                 } else {
                     nl_m = Broadcast(nl_m, out_type, vec_size);
@@ -2161,7 +2193,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 // So conversion is explicitly done in params declaration
                 jit.Merge(MakeActivationJitConstants(activation_p.function, out_type, suffix, false, true));
                 std::string params = nl_m + ","+ nl_n;
-                op_decls += "\\\n\t" + out_var + " = ACTIVATION_FUNC" + suffix + "(" + out_var + ", " + params + ");";
+                op_decls += "\\\n\t" + out_var + " = " + ConvertToOutputType("ACTIVATION_FUNC" + suffix + "(" + DecodeComputeType(out_var, out_type, vec_size) + ", " + params + ")", vec_size) + ";";
             }
             break;
         }
@@ -2301,7 +2333,7 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 block_read = CastToType(" _sub_group_block_read" + vs + "("
                                         + "(const __global uint*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
-            } else if (input_dt == Datatype::F16) {
+            } else if (input_dt == Datatype::F16 || input_dt == Datatype::BF16) {
                 block_read = CastToType(" _sub_group_block_read_us" + vs + "("
                                         + "(const __global ushort*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
@@ -2358,6 +2390,10 @@ std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id, bool is_shuf
     return GetTypeStr() + toCodeString(desc.op_id) + "_data" + toCodeString(input_id);
 }
 
+std::string FusedOpsCodeGenerator::GetDecodedInputVarName(size_t input_id, bool is_shuffled, std::string shuffle_var, size_t vec_size) const {
+    return "DECODE_" + GetInputTensorName(input_id) + "_COMPUTE_VECTOR_TYPE(" + GetInputVarName(input_id, is_shuffled, shuffle_var) + ", " + toCodeString(vec_size) + ")";
+}
+
 std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var, size_t op_id) const {
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
@@ -2378,7 +2414,10 @@ std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size) const {
 }
 
 std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) const {
-    return "convert_" + GetType(dt, vec_size) + "(" + var + ")";
+    if (dt == Datatype::BF16)
+        return "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
+    else
+        return "convert_" + GetType(dt, vec_size) + "(" + var + ")";
 }
 
 std::string FusedOpsCodeGenerator::CastToType(std::string var, Datatype dt, size_t vec_size) const {
@@ -2389,13 +2428,20 @@ std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t v
     return ConvertToType(var, desc.output_tensor.GetDType(), vec_size);
 }
 
+std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) const {
+    if (dt == Datatype::BF16)
+        return "CONVERT_AS_BFLOAT16_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
+    else
+        return var;
+}
+
 std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_t vec_size) const {
     return "(" + GetType(dt, vec_size) + ")(" + var + ")";
 }
 
 std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size) const {
-    if (desc.output_tensor.GetDType() == Datatype::F32 || desc.output_tensor.GetDType() == Datatype::F16)
-        return "convert_" + GetOutputType(vec_size) + "(" + var + ")";
+    if (desc.output_tensor.GetDType() == Datatype::F32 || desc.output_tensor.GetDType() == Datatype::F16 || desc.output_tensor.GetDType() == Datatype::BF16)
+        return ConvertToOutputType(var, vec_size);
     else
         return "convert_" + GetOutputType(vec_size) + "_sat_rte(" + var + ")";
 }
