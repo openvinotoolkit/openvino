@@ -16,7 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
 #include "config.h"
 #include "cpu_memory.h"
@@ -54,7 +53,7 @@
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
-#    include "utils/precision_support.h"
+#    include "utils/arm_isa_support.h"
 #endif
 
 using namespace dnnl;
@@ -190,7 +189,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         if (!isSupportedOperation(op, errorMessage)) {
             return false;
         }
-        if (!hasIntDotProductSupport()) {
+        if (!hasArmISASupport(ArmISA::DOTPROD)) {
             return false;
         }
         if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {

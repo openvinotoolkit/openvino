@@ -33,7 +33,6 @@ from tests import (
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
-    skip_segfault,
     xfail_issue_82039,
     xfail_issue_90649,
     skip_bitwise_ui64,
@@ -314,28 +313,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_upsample_scales_cubic_A_n0p5_exclude_outside_cpu",
     ),
     (
-        skip_segfault,
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis0_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_2_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis0_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis1_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis2_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_1_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_2_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_3_epsilon_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis0_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis2_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis3_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_1_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_2_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",  # ticket: 90649
-        "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",  # ticket: 90649
-    ),
-    (
         xfail_issue_82039,
         "OnnxBackendNodeModelTest.test_identity_opt_cpu",
     ),
@@ -523,14 +500,6 @@ tests_expected_to_fail = [
     ),
     (
         skip_issue_125487,
-        "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_0_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_1_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_align_corners_0_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_align_corners_1_additional_1_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_bilinear_align_corners_0_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_bilinear_align_corners_1_cpu",
         "OnnxBackendNodeModelTest.test_gridsample_volumetric_nearest_align_corners_0_cpu",

@@ -73,7 +73,7 @@ static void release_order_test(std::vector<std::size_t> order,
                                ov::AnyMap configuration) {
     ov::AnyVector objects;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, deviceName, configuration);
         auto request = compiled_model.create_infer_request();
 
@@ -105,7 +105,7 @@ TEST_P(OVHoldersTestNPU, Orders) {
 TEST_P(OVHoldersTestNPU, LoadedState) {
     std::vector<ov::VariableState> states;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         auto request = compiled_model.create_infer_request();
         try {
@@ -118,7 +118,7 @@ TEST_P(OVHoldersTestNPU, LoadedState) {
 TEST_P(OVHoldersTestNPU, LoadedInferRequest) {
     ov::InferRequest inferRequest;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         inferRequest = compiled_model.create_infer_request();
     }
@@ -127,7 +127,7 @@ TEST_P(OVHoldersTestNPU, LoadedInferRequest) {
 TEST_P(OVHoldersTestNPU, LoadedTensor) {
     ov::Tensor tensor;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         auto request = compiled_model.create_infer_request();
         tensor = request.get_input_tensor();
@@ -137,7 +137,7 @@ TEST_P(OVHoldersTestNPU, LoadedTensor) {
 TEST_P(OVHoldersTestNPU, LoadedAny) {
     ov::Any any;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         any = compiled_model.get_property(ov::supported_properties.name());
     }
@@ -148,7 +148,7 @@ TEST_P(OVHoldersTestNPU, LoadedRemoteContext) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device, configuration);
         try {
             ctx = compiled_model.get_context();
@@ -163,7 +163,7 @@ TEST_P(OVHoldersTestNPU, CompileModelWithEncryptionWorksAfterConfigDeallocate) {
         ov::AnyMap copy_configuration = configuration;
         copy_configuration.insert(
             ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         compiled_model = core.compile_model(function, target_device, copy_configuration);
     }
     std::stringstream str;
@@ -218,7 +218,7 @@ public:
 };
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, LoadedTensor) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device, configuration);
@@ -230,7 +230,7 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, LoadedTensor) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device, configuration);
@@ -242,7 +242,7 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterTensorIsDestroyed) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
 
     for (size_t i = 0; i < 2; ++i) {
         ov::CompiledModel compiled_model;
