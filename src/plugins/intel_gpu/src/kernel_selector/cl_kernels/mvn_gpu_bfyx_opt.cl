@@ -30,7 +30,9 @@ KERNEL (mvn_gpu_bfyx_opt)(
         ++iters_num;
 
     float my_sum = 0;
+#if NORMALIZE_VARIANCE == 1
     float my_sum_squared = 0;
+#   endif
     float tmp;
 
     //each WI reads items_num consecutive items from batch*feature, accumulating sum(x) and sum(x²)
@@ -38,11 +40,15 @@ KERNEL (mvn_gpu_bfyx_opt)(
     {
         tmp = (float)input[my_data_offset + i * workers_per_data_set];
         my_sum += tmp;
+#if     NORMALIZE_VARIANCE == 1
         my_sum_squared += tmp * tmp;
+#       endif
     }
 
     my_sum = work_group_reduce_add(my_sum);
+#if NORMALIZE_VARIANCE == 1
     my_sum_squared = work_group_reduce_add(my_sum_squared);
+#   endif
 
     float mean = my_sum / data_set_size;
 
