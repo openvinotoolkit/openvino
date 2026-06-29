@@ -4,14 +4,16 @@
 
 #pragma once
 
-#include <common_test_utils/subgraph_builders/conv_pool_relu.hpp>
 #include <filesystem>
-#include <openvino/runtime/core.hpp>
-#include <openvino/runtime/intel_npu/properties.hpp>
-#include <shared_test_classes/base/ov_behavior_test_utils.hpp>
 
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "npu_test_env_cfg.hpp"
+#include "openvino/core/log.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 std::string getBackendName(const ov::Core& core);
 
@@ -20,8 +22,6 @@ std::vector<std::string> getAvailableDevices(const ov::Core& core);
 std::string modelPriorityToString(const ov::hint::Priority priority);
 
 std::string removeDeviceNameOnlyID(const std::string& device_name_id);
-
-std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> props);
 
 std::shared_ptr<ov::Model> createModelWithStates(ov::element::Type type, const ov::Shape& shape);
 
@@ -65,10 +65,15 @@ struct GenericTestCaseNameClass {
     template <typename, typename = void>
     static constexpr bool hasGetTestCaseName = false;
 
+    template <typename, typename = void>
+    static constexpr bool has_get_test_case_name = false;
+
     template <typename T>
     static std::string getTestCaseName(const testing::TestParamInfo<typename T::ParamType>& obj) {
         if constexpr (hasGetTestCaseName<T>) {
             return T::getTestCaseName(obj);
+        } else if constexpr (has_get_test_case_name<T>) {
+            return T::get_test_case_name(obj);
         } else {
             std::ostringstream result;
             ::testing::PrintToStringParamName printToStringParamName;
@@ -79,11 +84,14 @@ struct GenericTestCaseNameClass {
 };
 
 template <typename T>
-constexpr bool
-    GenericTestCaseNameClass::hasGetTestCaseName<T,
-                                                 std::void_t<decltype(std::declval<T>().getTestCaseName(
-                                                     std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> =
-        true;
+constexpr bool GenericTestCaseNameClass::hasGetTestCaseName<
+    T,
+    std::void_t<decltype(T::getTestCaseName(std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
+
+template <typename T>
+constexpr bool GenericTestCaseNameClass::has_get_test_case_name<
+    T,
+    std::void_t<decltype(T::get_test_case_name(std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
 
 namespace ov::test::behavior {
 inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDeviceNPU(
@@ -134,12 +142,25 @@ public:
     void deallocate(void* handle, const size_t bytes, size_t alignment = 4096) noexcept {
         ::operator delete(static_cast<uint8_t*>(handle) - _offset, std::align_val_t(alignment));
     }
-    bool is_equal(const DefaultAllocatorNotAligned& other) const {
+    bool is_equal(const DefaultAllocatorNotAligned&) const {
         return false;
     }
 
 private:
     size_t _offset = 16;
+};
+
+class DefaultAllocatorAligned final {
+public:
+    void* allocate(const size_t bytes, const size_t) {
+        return ::operator new(bytes, std::align_val_t(4096));
+    }
+    void deallocate(void* handle, const size_t, size_t) noexcept {
+        ::operator delete(static_cast<uint8_t*>(handle), std::align_val_t(4096));
+    }
+    bool is_equal(const DefaultAllocatorAligned&) const {
+        return false;
+    }
 };
 
 std::tuple</* importMemoryBatched */ ov::Tensor,
@@ -182,6 +203,37 @@ void set_tensors_and_infer(const std::shared_ptr<T>& infer_request,
     if (withResetInferRequest) {
         reset_cb();
     }
+};
+
+class LogCallbackGuard {
+public:
+    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
+        ov::util::set_log_callback(callback);
+    }
+
+    ~LogCallbackGuard() {
+        ov::util::reset_log_callback();
+    }
+
+    LogCallbackGuard(const LogCallbackGuard&) = delete;
+    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
+};
+
+class LoggerLevelGuard {
+public:
+    explicit LoggerLevelGuard(ov::log::Level level) : _previousLevel(::intel_npu::Logger::global().level()) {
+        ::intel_npu::Logger::global().setLevel(level);
+    }
+
+    ~LoggerLevelGuard() {
+        ::intel_npu::Logger::global().setLevel(_previousLevel);
+    }
+
+    LoggerLevelGuard(const LoggerLevelGuard&) = delete;
+    LoggerLevelGuard& operator=(const LoggerLevelGuard&) = delete;
+
+private:
+    ov::log::Level _previousLevel;
 };
 
 }  // namespace utils

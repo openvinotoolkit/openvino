@@ -78,6 +78,77 @@ std::shared_ptr<v0::Constant> get_reversed_order_constant(const std::shared_ptr<
 
 }  // namespace
 
+ov::pass::TransposeFQ::TransposeFQ() {
+    MATCHER_SCOPE(TransposeFQ);
+
+    auto transpose_order_m = wrap_type<v0::Constant>();
+    auto transpose_label = wrap_type<v1::Transpose>({any_input(pattern::has_static_rank()), transpose_order_m});
+    auto fq_label = wrap_type<v0::FakeQuantize>({transpose_label,
+                                                 any_input(ov::pass::pattern::has_static_rank()),
+                                                 any_input(ov::pass::pattern::has_static_rank()),
+                                                 any_input(ov::pass::pattern::has_static_rank()),
+                                                 any_input(ov::pass::pattern::has_static_rank())},
+                                                consumers_count(1));
+
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
+
+        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
+        auto transpose_order =
+            ov::as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_order_m).get_node_shared_ptr());
+        if (!transpose_order || !fq)
+            return false;
+
+        ov::NodeVector new_ops;
+
+        const auto& reverse_order_constant = get_reversed_order_constant(transpose_order);
+        new_ops.push_back(reverse_order_constant);
+
+        const auto& input_rank = fq->get_input_partial_shape(0).rank().get_length();
+        ov::OutputVector fq_inputs = {transpose->input_value(0)};
+        for (size_t i = 1; i < fq->inputs().size(); ++i) {
+            auto input = fq->input_value(i);
+            if (ov::shape_size(input.get_shape()) == 1) {
+                fq_inputs.push_back(input);
+                continue;
+            }
+
+            const auto& range_rank = input.get_partial_shape().rank().get_length();
+            if (range_rank > input_rank)
+                return false;
+
+            const auto& ranks_diff = input_rank - range_rank;
+            if (ranks_diff > 0) {
+                std::vector<int64_t> axes(ranks_diff);
+                std::iota(axes.begin(), axes.end(), 0);
+                const auto& axes_const = v0::Constant::create(element::i64, Shape{axes.size()}, axes);
+                new_ops.push_back(axes_const);
+                const auto& unsqueezed_input = op_util::make_try_fold<v0::Unsqueeze>(input, axes_const);
+                new_ops.push_back(unsqueezed_input);
+                input = unsqueezed_input->output(0);
+            }
+            const auto& transposed_input = op_util::make_try_fold<v1::Transpose>(input, reverse_order_constant);
+            new_ops.push_back(transposed_input);
+            fq_inputs.push_back(transposed_input);
+        }
+
+        auto new_fq = fq->clone_with_new_inputs(fq_inputs);
+        new_ops.push_back(new_fq);
+
+        auto new_transpose = register_new_node<v1::Transpose>(new_fq, transpose_order);
+        new_ops.push_back(new_transpose);
+        new_transpose->set_friendly_name(fq->get_friendly_name());
+
+        ov::copy_runtime_info({fq, transpose}, new_ops);
+        ov::replace_node(fq, new_transpose);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(fq_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
 ov::pass::TransposeEltwise::TransposeEltwise() {
     MATCHER_SCOPE(TransposeEltwise);
 

@@ -28,9 +28,14 @@ def _build_dynamic_shapes(inputs, input_specs = None):
         result back into the original structure that torch.export expects.
         
     """
-def _export_torch_model(model, inputs, input_specs = None):
+def _is_pytorch_zip(path):
     """
-    Export a torch.nn.Module using torch.export.export with Dim.AUTO dynamic shapes.
+    Check if a file looks like a PyTorch archive (TorchScript or ExportedProgram).
+    
+        Both formats are ZIP archives with specific internal entries.
+        This lightweight check avoids expensive torch.jit.load / torch.export.load
+        calls (and their warnings/side effects) on non-PyTorch files.
+        
     """
 def extract_input_info_from_example(args, inputs):
     ...

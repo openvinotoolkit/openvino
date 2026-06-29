@@ -30,11 +30,11 @@ public:
 // The list of available kernels is usually specified in kernel_selector c-tor using `Attach` method whith creates instance of each type
 // and append it to implementations list.
 // In this case we have 3 available kernels for MVN operation. Kernels might have different priorities and support only subset of operation parameters
-// E.g. MVNKernel_b_fs_yx_fsv16_imad supports only `fsv16` blocked layouts and INT8/UINT8 input data types
+// E.g. MVNKernel_b_fs_yx_fsv16 supports `fsv16`/`fsv32` blocked layouts and F16/F32/INT8/UINT8 input data types
 mvn_kernel_selector::mvn_kernel_selector() {
     Attach<MVNKernelRef>();
     Attach<MVNKernelBfyxOpt>();
-    Attach<MVNKernel_b_fs_yx_fsv16_imad>();
+    Attach<MVNKernel_b_fs_yx_fsv16>();
 }
 
 // This method is used to get the optimal kernel for given parameters

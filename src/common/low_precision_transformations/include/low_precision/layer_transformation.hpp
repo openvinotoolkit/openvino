@@ -131,7 +131,7 @@ public:
             default:
                 OPENVINO_ASSERT(false, "unexpected precision ", precision);
         }
-        OPENVINO_ASSERT(false, "unexpected levels ", levels, " for precision ", precision);
+        OPENVINO_THROW("unexpected levels ", levels, " for precision ", precision);
     }
 
     static float getMaxValue(const element::Type precision, const size_t levels) {

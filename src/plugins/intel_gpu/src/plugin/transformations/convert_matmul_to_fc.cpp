@@ -54,6 +54,45 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
 
+        auto introduces_non_trivial_batch_broadcast = [](const ov::PartialShape& original_shape,
+                                                         const ov::PartialShape& broadcasted_shape) {
+            if (!original_shape.rank().is_static() || !broadcasted_shape.rank().is_static()) {
+                return false;
+            }
+
+            const auto original_rank = static_cast<size_t>(original_shape.rank().get_length());
+            const auto broadcasted_rank = static_cast<size_t>(broadcasted_shape.rank().get_length());
+            if (broadcasted_rank < 2 || original_rank > broadcasted_rank) {
+                return false;
+            }
+
+            ov::PartialShape aligned_original_shape = original_shape;
+            for (size_t i = 0, cnt = broadcasted_rank - original_rank; i < cnt; ++i) {
+                aligned_original_shape.insert(aligned_original_shape.begin(), 1);
+            }
+
+            for (size_t i = 0; i < broadcasted_rank - 2; ++i) {
+                const auto& original_dim = aligned_original_shape[i];
+                const auto& broadcasted_dim = broadcasted_shape[i];
+                if (original_dim == 1 && broadcasted_dim.is_static() && broadcasted_dim.get_length() != 1) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        auto mul2_it = pattern_map.find(mul2_m);
+        if (mul2_it != pattern_map.end() && mul2_it->second.get_node_shared_ptr() == fc_input_b.get_node_shared_ptr()) {
+            const auto reshape_output = pattern_map.at(reshape_m);
+            // Keep valid 3D compressed FC cases enabled. Only reject the extra post-reshape multiply when broadcasting changes the weights
+            // from a shared matrix into data with real batch dimensions. For example, reshape may first squeeze the weights to [16, 32],
+            // then an extra multiply with scale [8, 1, 32] broadcasts them to [8, 16, 32], which makes the weights effectively batched again.
+            if (introduces_non_trivial_batch_broadcast(reshape_output.get_partial_shape(), fc_input_b.get_partial_shape())) {
+                return false;
+            }
+        }
+
         // If 'fc_input_b' is shared with another matmul, transposing 'fc_input_b' is restricted.
         // If it is connected to the 'input_a' of another matmul, do not transpose
         // If it is connected to the 'input_b' of another matmul and the transpose option differs between the two matmuls, do not transpose.
@@ -88,6 +127,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
+
+        // The fully_connected primitive does not support this situation (rank_a < rank_b).
+        // So, we need to choose GEMM instead of fully_connected.
+        if (rank_a < rank_b) {
+            return false;
+        }
 
         /*
          *  get_aligned_shapes function align two input shapes to have the same size and
@@ -194,17 +239,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         }
 
         // Connect Convert to new input if needed
-        if (is_convert && transpose_node && !can_reuse_transpose) {
+        if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
             auto new_convert = convert->clone_with_new_inputs({fc_input_b});
             new_ops.push_back(new_convert);
             new_convert->validate_and_infer_types();
             fc_input_b = new_convert;
-        } else if (is_convert) {
-            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            convert->input(0).replace_source_output(fc_input_b);
-            convert->validate_and_infer_types();
-            fc_input_b = convert;
         }
 
         auto no_bias = std::make_shared<op::Placeholder>();

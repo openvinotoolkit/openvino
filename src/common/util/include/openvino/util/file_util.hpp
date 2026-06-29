@@ -5,12 +5,14 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <initializer_list>
 #include <string>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
@@ -91,10 +93,15 @@ inline auto path_to_string(const std::filesystem::path& path) -> decltype(path_t
     return path_to_string(path.native());
 }
 
-/// \brief Remove path components which would allow traversing up a directory tree.
-/// \param path A path to file
-/// \return A sanitized path
-std::string sanitize_path(const std::string& path);
+/**
+ * @brief Resolves and validates a path relative to a base directory to prevent path traversal.
+ *
+ * @param base          Base directory. If empty, the current working directory is used.
+ * @param relative_path Path relative to @p dir .
+ * @return              Absolute, normalized path within @p dir.
+ * @throw std::runtime_error if the resolved path escapes the base directory.
+ */
+std::filesystem::path sanitize_path(const std::filesystem::path& base, const std::filesystem::path& relative_path);
 
 /**
  * @brief Interface function to get absolute path of file
@@ -169,7 +176,6 @@ inline bool file_exists(const Path& path) noexcept {
 std::filesystem::path get_directory(const std::filesystem::path& path);
 
 std::filesystem::path path_join(std::initializer_list<std::filesystem::path>&& paths);
-std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 /**
  * @brief Iterates over files in given directory and applies provided function to each file found.
@@ -274,4 +280,7 @@ void save_binary(const std::filesystem::path& path, const void* binary, size_t b
  */
 const char* trim_file_name(const char* const fname);
 
+inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset, size_t size) {
+    return util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+}
 }  // namespace ov::util

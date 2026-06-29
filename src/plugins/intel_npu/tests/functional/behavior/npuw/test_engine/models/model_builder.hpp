@@ -9,183 +9,19 @@
 #include <string>
 #include <vector>
 
+#include "model_builder_attention.hpp"
+#include "model_builder_ffn.hpp"
+#include "model_builder_masks.hpp"
+#include "model_builder_norm.hpp"
+#include "model_builder_rope.hpp"
+#include "model_builder_types.hpp"
+#include "model_builder_weights.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
 
 namespace ov {
 namespace test {
 namespace npuw {
-
-struct KVCacheResult {
-    ov::Output<ov::Node> concatenated;
-    ov::Output<ov::Node> beam_gather;
-    std::shared_ptr<ov::Node> assign;
-};
-
-struct KVCacheReadState {
-    std::shared_ptr<ov::op::util::Variable> variable;
-    ov::Output<ov::Node> beam_gather;
-};
-
-using WeightFn = std::function<ov::Output<ov::Node>(const std::string&, const ov::Shape&, ov::element::Type)>;
-using NormFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
-using FFNFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
-using RoPEFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
-using LayerFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&, size_t)>;
-
-/// (projected_k, projected_v, layer_idx) -> (cached_k, cached_v). Empty = no cache.
-using KVCacheFn =
-    std::function<std::pair<ov::Output<ov::Node>,
-                            ov::Output<ov::Node>>(const ov::Output<ov::Node>&, const ov::Output<ov::Node>&, size_t)>;
-
-struct FloatWeight {
-    ov::element::Type storage_type;
-
-    FloatWeight(ov::element::Type st = ov::element::f32) : storage_type(st) {}
-
-    ov::Output<ov::Node> operator()(const std::string& name,
-                                    const ov::Shape& shape,
-                                    ov::element::Type compute_precision) const;
-};
-
-using FP32Weight = FloatWeight;
-struct FP16Weight : FloatWeight {
-    FP16Weight() : FloatWeight(ov::element::f16) {}
-};
-
-/// Decompression pattern for CompressedWeight, matching DCOFF recognition.
-///
-/// After NPUW partitioning, Constants become Parameters.  The patterns below
-/// describe the graph that DCOFF will see *before* partitioning transforms it.
-///
-///   Pattern         | Chain (f16/f32 = decomp type)             | DCOFF class matched
-///   ----------------+-------------------------------------------+------------------------------
-///   SYMM_NO_ZP      | Cvt(f16) → Mul(f16 scale) [→ Reshape]    | Reshape3 / Reshape4
-///   SYMM_NO_ZP_F32  | Cvt(f32) → Mul(f32 scale) [→ Reshape]    | SymmNoZP::MatMul / Reshape4
-///   SYMM_ZP         | Cvt(f16) → Sub(Const u4→Cvt f16) → Mul   | Reshape1 / Convert1
-///   GPTQ            | Cvt(f32) → Sub(Const f32) → Mul(f32)     | Reshape2
-///   ASYMM_ZP        | Cvt(f16) → Sub(varying u4→Cvt f16) → Mul | AsymmZP::Reshape
-enum class DCOffPattern {
-    SYMM_NO_ZP,      ///< f16 chain, no zero point.  i4/i8/u4 storage.
-    SYMM_NO_ZP_F32,  ///< f32 chain, no zero point.  i4/i8/nf4 storage.
-    SYMM_ZP,         ///< f16 chain, uniform u4 zero point (Constant after partitioning).  u4 storage.
-    GPTQ,            ///< f32 chain, uniform f32 zero point (no Convert on ZP).  u4 storage.
-    ASYMM_ZP,        ///< f16 chain, per-layer varying u4 zero point (Parameter after partitioning).  u4 storage.
-};
-
-/// Compressed (quantized) weight with configurable DCOFF decompression pattern.
-/// group_size > 0 = per-group scale (3D weight → decompress → Reshape 2D).
-/// group_size = 0 = per-channel scale (2D weight, no Reshape).
-/// Note: GPTQ and ASYMM_ZP require group_size > 0 (no per-channel DCOFF pass exists).
-struct CompressedWeight {
-    ov::element::Type storage_type;
-    size_t group_size;     ///< 0 = per-channel scale, >0 = per-group scale
-    DCOffPattern pattern;  ///< Decompression pattern to generate
-
-    explicit CompressedWeight(ov::element::Type st, size_t gs = 0, DCOffPattern pat = DCOffPattern::SYMM_NO_ZP)
-        : storage_type(st),
-          group_size(gs),
-          pattern(pat) {}
-
-    ov::Output<ov::Node> operator()(const std::string& name,
-                                    const ov::Shape& shape,
-                                    ov::element::Type compute_precision) const;
-};
-
-struct INT8Weight : CompressedWeight {
-    INT8Weight() : CompressedWeight(ov::element::i8) {}
-};
-
-struct INT4Weight : CompressedWeight {
-    INT4Weight() : CompressedWeight(ov::element::i4) {}
-};
-
-struct INT4GroupWeight : CompressedWeight {
-    explicit INT4GroupWeight(size_t gs = 128) : CompressedWeight(ov::element::i4, gs) {}
-};
-
-struct LayerNorm {
-    size_t hidden_size;
-    ov::element::Type precision;
-    float eps;
-
-    LayerNorm(size_t hs, ov::element::Type prec = ov::element::f32, float e = 1e-5f)
-        : hidden_size(hs),
-          precision(prec),
-          eps(e) {}
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
-};
-
-struct RMSNorm {
-    size_t hidden_size;
-    ov::element::Type precision;
-    float eps;
-
-    RMSNorm(size_t hs, ov::element::Type prec = ov::element::f32, float e = 1e-5f)
-        : hidden_size(hs),
-          precision(prec),
-          eps(e) {}
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
-};
-
-/// Position IDs baked in at construction, cos/sin shared across layers.
-struct HalfRotationRoPE {
-    size_t head_dim;
-    ov::Output<ov::Node> cos_freq, sin_freq;
-
-    HalfRotationRoPE(size_t head_dim, ov::element::Type precision, const ov::Output<ov::Node>& position_ids);
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
-};
-
-struct InterleavedRoPE {
-    size_t head_dim;
-    ov::Output<ov::Node> cos_freq, sin_freq;
-
-    InterleavedRoPE(size_t head_dim, ov::element::Type precision, const ov::Output<ov::Node>& position_ids);
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
-};
-
-/// [batch, seq] position_ids Parameter.
-ov::Output<ov::Node> make_position_ids_2d();
-
-/// [3, batch, seq] position_ids Parameter for m-rope. Returns [batch, seq] slice.
-ov::Output<ov::Node> make_position_ids_3d();
-
-struct SwiGLU {
-    size_t hidden_size;
-    size_t intermediate_size;
-    ov::element::Type precision;
-    WeightFn weight_fn;
-
-    SwiGLU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf)
-        : hidden_size(hs),
-          intermediate_size(is),
-          precision(prec),
-          weight_fn(std::move(wf)) {}
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
-};
-
-struct GELU {
-    size_t hidden_size;
-    size_t intermediate_size;
-    ov::element::Type precision;
-    WeightFn weight_fn;
-    WeightFn bias_fn;
-
-    GELU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, WeightFn bf = {})
-        : hidden_size(hs),
-          intermediate_size(is),
-          precision(prec),
-          weight_fn(std::move(wf)),
-          bias_fn(std::move(bf)) {}
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
-};
 
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t in_features,
@@ -194,50 +30,6 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  ov::element::Type precision = ov::element::f32,
                                  const WeightFn& weight_fn = FP32Weight{},
                                  const WeightFn& bias_fn = {});
-
-ov::Output<ov::Node> make_multihead_reshape(const ov::Output<ov::Node>& input,
-                                            size_t num_heads,
-                                            size_t head_dim,
-                                            const std::string& name);
-
-ov::Output<ov::Node> make_attention_transpose(const ov::Output<ov::Node>& input, const std::string& name);
-
-ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
-                                    size_t num_heads,
-                                    size_t num_kv_heads,
-                                    size_t head_dim,
-                                    const std::string& name,
-                                    const ov::Output<ov::Node>& shared_broadcast_shape = {});
-
-KVCacheReadState make_kv_cache_read(const ov::Output<ov::Node>& batch_source,
-                                    const ov::Output<ov::Node>& beam_idx,
-                                    size_t num_heads,
-                                    size_t head_dim,
-                                    const std::string& name,
-                                    ov::element::Type precision = ov::element::f32);
-
-KVCacheResult make_kv_cache_concat(const ov::Output<ov::Node>& current_kv,
-                                   const ov::Output<ov::Node>& batch_source,
-                                   const ov::Output<ov::Node>& beam_idx,
-                                   size_t num_heads,
-                                   size_t head_dim,
-                                   const std::string& name,
-                                   ov::element::Type precision = ov::element::f32);
-
-/// head_dim_for_scale > 0 creates 5-input SDPA (needed for ReConstructEmbeddingModel matching)
-ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
-                               const ov::Output<ov::Node>& k,
-                               const ov::Output<ov::Node>& v,
-                               const std::string& name,
-                               const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>(),
-                               size_t head_dim_for_scale = 0);
-
-ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
-                                           size_t hidden_size,
-                                           const std::string& name,
-                                           ov::element::Type precision,
-                                           const WeightFn& weight_fn,
-                                           const WeightFn& bias_fn = {});
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t vocab_size,
@@ -261,46 +53,10 @@ ov::Output<ov::Node> make_conv1d(const ov::Output<ov::Node>& input,
                                  const std::string& name,
                                  ov::element::Type precision = ov::element::f32);
 
-/// Store-only KV cache for cross-attention. No beam gather — encoder KV is identical across beams.
-KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
-                                    size_t num_heads,
-                                    size_t head_dim,
-                                    const std::string& name,
-                                    ov::element::Type precision = ov::element::f32);
-
 ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial,
                                              size_t num_layers,
                                              const std::string& prefix_base,
                                              const LayerFn& layer_fn);
-
-/// Takes pre-projected Q, K, V. Handles reshape, QK-norm, RoPE, KV cache, GQA, SDPA, O proj.
-struct Attention {
-    size_t hidden_size, num_heads, num_kv_heads, head_dim;
-    ov::element::Type precision;
-    WeightFn weight_fn;
-    WeightFn bias_fn;
-    NormFn qk_norm;
-    RoPEFn rope_fn;
-    KVCacheFn kv_cache_fn;
-
-    ov::Output<ov::Node> sdpa_mask;
-    ov::Output<ov::Node> shared_broadcast_shape;
-
-    std::string o_proj_name = "self_attn.o_proj";
-    std::string attn_prefix = "self_attn.";
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& q,
-                                    const ov::Output<ov::Node>& k,
-                                    const ov::Output<ov::Node>& v,
-                                    const std::string& prefix,
-                                    size_t layer_idx = 0) const;
-
-    /// Convenience: project Q/K/V from input (and optionally kv_input for K/V), then attend.
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
-                                    const ov::Output<ov::Node>& kv_input,
-                                    const std::string& prefix,
-                                    size_t layer_idx = 0) const;
-};
 
 template <typename Norm, typename SelfAttn, typename CrossAttn, typename FFN>
 ov::Output<ov::Node> make_cross_attn_decoder_layer(const ov::Output<ov::Node>& input,
@@ -388,6 +144,10 @@ struct BaseModelConfig {
     RoPEFn rope;                        ///< Empty = auto HalfRotationRoPE. Set identity lambda to disable.
     ov::Output<ov::Node> position_ids;  ///< Empty = auto-creates 2D Parameter + HalfRotationRoPE
     NormFn qk_norm;
+    /// Build the causal mask as boolean (true = attend) instead of float.
+    /// Exercises NPUW's boolean-mask handlers (SDPA decomposition for LLMs,
+    /// Whisper decoder model preparation).
+    bool boolean_causal_mask = false;
 
     BaseModelConfig() : lm_head_weight(weight) {}
 
@@ -398,29 +158,52 @@ struct BaseModelConfig {
     }
 };
 
+/// Sliding-window mask construction. Inputs: seq_source (input_ids/inputs_embeds),
+/// attention_mask, output element type, window size. Returns a 4D mask suitable
+/// for SDPA. Empty = default Gemma-4-style float construction; set to a builder
+/// like make_sliding_window_mask_phi3 to test the older boolean Phi3 pattern.
+/// Builder declarations live in model_builder_masks.hpp.
+using SlidingMaskFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&,
+                                                         const ov::Output<ov::Node>&,
+                                                         ov::element::Type,
+                                                         size_t)>;
+
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
-    bool internal_position_ids = false; ///< embedding model
+    bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
+    bool force_gqa_broadcast = false;  ///< force 5-input SDPA (needed for SDPA isolation pattern matching)
+
+    // MoE configuration (num_experts=0 means dense, no MoE)
+    size_t num_experts = 0;           ///< Total experts. 0 = dense model.
+    size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
+    size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+
+    size_t sliding_window_size = 0;      ///< 0 = no sliding window. >0 = window size (Phi-3, Gemma 2/3)
+    /// 0 = uniform: every layer gets the same mask (all sliding if sliding_window_size > 0,
+    /// else all full causal). N > 0 = N sliding layers per 1 full, alternating (Gemma 2: 1, Gemma 3: 5).
+    size_t sliding_to_full_ratio = 0;
+    bool use_token_type_ids = false;     ///< Gemma 3 VLM: token_type_ids param (0=text/causal, 1=image/bidir)
+    SlidingMaskFn sliding_mask_fn;       ///< Empty = default float SWA (matches no NPUW pass; set make_sliding_window_mask_phi3 for Phi-3/Gemma-2/Gemma-3).
 };
 
-struct WhisperEncoderConfig : public BaseModelConfig {
+struct WhisperConfig : public BaseModelConfig {
     size_t encoder_layers = 0;
+    size_t decoder_layers = 0;
     size_t num_mel_bins = 80;
     size_t max_source_positions = 1500;
+    size_t max_target_positions = 448;
 
     size_t get_encoder_layers() const {
         return encoder_layers == 0 ? num_layers : encoder_layers;
     }
-};
-
-struct WhisperDecoderConfig : public BaseModelConfig {
-    size_t decoder_layers = 0;
-    size_t max_target_positions = 448;
-
     size_t get_decoder_layers() const {
         return decoder_layers == 0 ? num_layers : decoder_layers;
+    }
+    /// Encoder output sequence length after Conv1D preprocessing (stride=2 on 2*max_source_positions).
+    size_t get_encoder_seq_len() const {
+        return max_source_positions;
     }
 };
 
@@ -446,6 +229,15 @@ public:
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks_and_parameters(
         std::size_t repetitions,
         const std::vector<std::size_t>& block_indices);
+    // Builds a model with N repeated blocks using a 4-op structure
+    // (Add→Relu→Multiply→Relu) where both Relu nodes share the same metadesc.
+    // "Head" blocks additionally expose their interior Relu via a cross-group MatMul.
+    // Because the interior and boundary Relu share the same metadesc, ALL blocks stay
+    // in one repeated-block family regardless of head/non-head status, allowing
+    // isRegularCrossGroupConsumerCase to detect the per-bank connectivity asymmetry.
+    std::shared_ptr<ov::Model> get_model_with_kv_sharing_repeated_blocks(
+        std::size_t repetitions,
+        const std::vector<std::size_t>& head_block_indices);
     std::shared_ptr<ov::Model> get_model_with_multi_output_repeating_blocks(std::size_t repetitions,
                                                                             bool last_block_has_direct_result);
 
@@ -454,8 +246,8 @@ public:
                                                      const std::string& name);
 
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperEncoderConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperDecoderConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
 
     void clear();

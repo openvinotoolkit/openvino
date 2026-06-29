@@ -305,8 +305,7 @@ describe("ov basic tests.", () => {
     });
   });
 
-  // Tests are skipped until CVS-180810 is fixed.
-  describe("Test exportModel()/importModel()", { skip: true }, () => {
+  describe("Test exportModel()/importModel()", () => {
     let tensor = null;
     let userStream = null;
     let res1 = null;
@@ -344,6 +343,13 @@ describe("ov basic tests.", () => {
       assert.throws(
         () => core.importModelSync(model, "CPU"),
         /'importModelSync' method called with incorrect parameters./,
+      );
+    });
+
+    it("importModelSync(stream, device) - C++ API error", () => {
+      assert.throws(
+        () => core.importModelSync(userStream, "DEVICE"),
+        /Device .* is not registered/,
       );
     });
 
@@ -405,6 +411,13 @@ describe("ov basic tests.", () => {
       );
     });
 
+    it("importModel(stream, device) - C++ API error", async () => {
+      await assert.rejects(
+        async () => await core.importModel(userStream, "DEVICE"),
+        /Device .* is not registered/,
+      );
+    });
+
     it("Test importModel(stream, device) throws", async () => {
       await assert.rejects(
         async () => await core.importModel(userStream, tensor),
@@ -456,6 +469,15 @@ describe("ov basic tests.", () => {
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
+    });
+
+    it("importModel(tensor, device) - C++ API error", async () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+      await assert.rejects(
+        async () => await core.importModel(tensorFromBuffer, "DEVICE"),
+        /Device .* is not registered/,
+      );
     });
 
     it("Test importModel from Tensor with config", async () => {

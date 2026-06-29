@@ -2,15 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "npuw_transformations/reshape_to_static.hpp"
+
 #include <gtest/gtest.h>
 
 #include "llm_pass_test_fixture.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace {
 
 using ov::test::npuw::RecordingFactory;
 
 class ReshapeToStaticPassTest : public ov::test::npuw::LLMPassTestFixture {};
+
+std::shared_ptr<ov::Model> build_model_with_per_layer_inputs_add() {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    input_ids->output(0).set_names({"input_ids"});
+
+    auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    attention_mask->output(0).set_names({"attention_mask"});
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    position_ids->output(0).set_names({"position_ids"});
+
+    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, -1});
+    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
+
+    auto sibling = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 42, 256}, {0.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(per_layer_inputs, sibling);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::ParameterVector{input_ids, attention_mask, position_ids, per_layer_inputs},
+                                       "per_layer_inputs_reshape_model");
+}
 
 // --- Test 1 -------------------------------------------------------------------------
 // Every input of the prefill sub-model must be fully static after ReshapeToStatic.
@@ -69,10 +97,10 @@ TEST_F(ReshapeToStaticPassTest, AllGenerateInputsAreStatic) {
     const auto kv_shape = input_shape(generate.model, "past_key_values");
     ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
-    EXPECT_EQ((*kv_shape)[0], 1u);   // batch
-    EXPECT_EQ((*kv_shape)[1], 4u);   // num_kv_heads
-    EXPECT_EQ((*kv_shape)[2], 191u); // kvcache_size(192) - input_size(1)
-    EXPECT_EQ((*kv_shape)[3], 16u);  // head_dim
+    EXPECT_EQ((*kv_shape)[0], 1u);    // batch
+    EXPECT_EQ((*kv_shape)[1], 4u);    // num_kv_heads
+    EXPECT_EQ((*kv_shape)[2], 191u);  // kvcache_size(192) - input_size(1)
+    EXPECT_EQ((*kv_shape)[3], 16u);   // head_dim
 }
 
 // --- Test 3 -------------------------------------------------------------------------
@@ -84,9 +112,9 @@ TEST_F(ReshapeToStaticPassTest, GenerateModelKVCacheShapeReflectsKVCacheSize) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_MAX_PROMPT_LEN", "256"},
-                                                      {"NPUW_LLM_MIN_RESPONSE_LEN", "128"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_MAX_PROMPT_LEN", "256"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "128"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     // kvcache_size = 256 + 128 = 384
@@ -138,10 +166,107 @@ TEST_F(ReshapeToStaticPassTest, MaxGenerationTokenLenDrivesGenerateInputShape) {
     const auto kv_shape = input_shape(generate.model, "past_key_values");
     ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
-    EXPECT_EQ((*kv_shape)[0], 1u);   // batch
-    EXPECT_EQ((*kv_shape)[1], 4u);   // num_kv_heads
-    EXPECT_EQ((*kv_shape)[2], 184u); // kvcache_size(192) - input_size(8)
-    EXPECT_EQ((*kv_shape)[3], 16u);  // head_dim
+    EXPECT_EQ((*kv_shape)[0], 1u);    // batch
+    EXPECT_EQ((*kv_shape)[1], 4u);    // num_kv_heads
+    EXPECT_EQ((*kv_shape)[2], 184u);  // kvcache_size(192) - input_size(8)
+    EXPECT_EQ((*kv_shape)[3], 16u);   // head_dim
 }
 
+// --- Test 5 -------------------------------------------------------------------------
+// per_layer_inputs is consumed by Add with a static sibling tensor. The pass should
+// resolve dynamic {num_layers, projection_dim} from that sibling and set seq_len=input_size.
+TEST_F(ReshapeToStaticPassTest, PerLayerInputsResolvedToStaticForPrefillAndGenerate) {
+    const ov::npuw::KVAxesPosition kv_axes_position{0u, 2u};
+
+    auto prefill_model = build_model_with_per_layer_inputs_add();
+    ASSERT_TRUE(ov::npuw::ReshapeToStatic(/*input_size=*/128,
+                                          /*kvcache_size=*/192,
+                                          kv_axes_position,
+                                          /*lora_rank=*/64)
+                    .run_on_model(prefill_model));
+    const auto prefill_per_layer_shape = input_shape(prefill_model, "per_layer_inputs");
+    ASSERT_TRUE(prefill_per_layer_shape.has_value()) << "per_layer_inputs not found in prefill model";
+    EXPECT_EQ(*prefill_per_layer_shape, (ov::Shape{1, 128, 42, 256}));
+
+    auto generate_model = build_model_with_per_layer_inputs_add();
+    ASSERT_TRUE(ov::npuw::ReshapeToStatic(/*input_size=*/1,
+                                          /*kvcache_size=*/192,
+                                          kv_axes_position,
+                                          /*lora_rank=*/64)
+                    .run_on_model(generate_model));
+    const auto generate_per_layer_shape = input_shape(generate_model, "per_layer_inputs");
+    ASSERT_TRUE(generate_per_layer_shape.has_value()) << "per_layer_inputs not found in generate model";
+    EXPECT_EQ(*generate_per_layer_shape, (ov::Shape{1, 1, 42, 256}));
+}
+
+// Builds a stateless model with standard LLM inputs plus linear cache inputs
+// (cache_params.past.conv.N, cache_params.past.ssm.N) to test the matchLinCacheString
+// branch of ReshapeToStatic independently.
+std::shared_ptr<ov::Model> build_model_with_lincache_inputs() {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    input_ids->output(0).set_names({"input_ids"});
+
+    auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    attention_mask->output(0).set_names({"attention_mask"});
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    position_ids->output(0).set_names({"position_ids"});
+
+    // Standard KV cache input
+    auto kv_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4, -1, 64});
+    kv_key->output(0).set_names({"past_key_values.0.key"});
+    auto kv_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4, -1, 64});
+    kv_value->output(0).set_names({"past_key_values.0.value"});
+
+    // Linear cache: conv (e.g. Gated Short Convolution in LFM2/Qwen3.5)
+    auto conv = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2048, 3});
+    conv->output(0).set_names({"cache_params.past.conv.0"});
+
+    // Linear cache: ssm (e.g. GatedDeltaNet in Qwen3.5)
+    auto ssm = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 128, 128});
+    ssm->output(0).set_names({"cache_params.past.ssm.0"});
+
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::ParameterVector{input_ids, attention_mask, position_ids,
+                                                           kv_key, kv_value, conv, ssm},
+                                       "lincache_reshape_model");
+}
+
+// --- Test 6 -------------------------------------------------------------------------
+// Linear cache inputs (cache_params.past.conv.N, cache_params.past.ssm.N) should only
+// have their batch dimension set to 1 — all other dimensions must be preserved as-is.
+// This contrasts with standard KV cache inputs where seq_len = kvcache_size - input_size.
+TEST_F(ReshapeToStaticPassTest, LinCacheInputsOnlyBatchIsReshaped) {
+    const ov::npuw::KVAxesPosition kv_axes_position{0u, 2u};
+
+    auto model = build_model_with_lincache_inputs();
+    ASSERT_TRUE(ov::npuw::ReshapeToStatic(/*input_size=*/1,
+                                          /*kvcache_size=*/192,
+                                          kv_axes_position,
+                                          /*lora_rank=*/0)
+                    .run_on_model(model));
+
+    EXPECT_TRUE(all_inputs_static(model))
+        << "At least one input still has a dynamic dimension after ReshapeToStatic";
+
+    // Conv linear cache: batch=1, other dims unchanged
+    const auto conv_shape = input_shape(model, "cache_params.past.conv.0");
+    ASSERT_TRUE(conv_shape.has_value()) << "cache_params.past.conv.0 not found";
+    EXPECT_EQ(*conv_shape, (ov::Shape{1, 2048, 3}));
+
+    // SSM linear cache: batch=1, other dims unchanged
+    const auto ssm_shape = input_shape(model, "cache_params.past.ssm.0");
+    ASSERT_TRUE(ssm_shape.has_value()) << "cache_params.past.ssm.0 not found";
+    EXPECT_EQ(*ssm_shape, (ov::Shape{1, 16, 128, 128}));
+
+    // Standard KV cache: batch=1, seq_len = kvcache_size(192) - input_size(1) = 191
+    const auto kv_key_shape = input_shape(model, "past_key_values.0.key");
+    ASSERT_TRUE(kv_key_shape.has_value()) << "past_key_values.0.key not found";
+    EXPECT_EQ(*kv_key_shape, (ov::Shape{1, 4, 191, 64}));
+
+    const auto kv_value_shape = input_shape(model, "past_key_values.0.value");
+    ASSERT_TRUE(kv_value_shape.has_value()) << "past_key_values.0.value not found";
+    EXPECT_EQ(*kv_value_shape, (ov::Shape{1, 4, 191, 64}));
+}
 }  // namespace
