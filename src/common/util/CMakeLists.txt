@@ -9,6 +9,7 @@ set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(WIN32_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/os.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/parallel_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_mmap_object.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_shared_object_loader.cpp
@@ -16,6 +17,7 @@ set(WIN32_SOURCES
 )
 
 set(UNIX_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_mmap_object.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp
@@ -41,6 +43,7 @@ target_sources(${TARGET_NAME}
         ${UTIL_INCLUDE_DIR}/openvino/util/env_util.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/file_path.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/file_util.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/io.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/log.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/memory.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/mmap_object.hpp
@@ -65,9 +68,9 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
         # Windows specific sources
-        $<$<BOOL:${WIN32}>:${WIN32_SOURCES}>
+        "$<$<BOOL:${WIN32}>:${WIN32_SOURCES}>"
          # Unix specific sources
-        $<$<BOOL:${UNIX}>:${UNIX_SOURCES}>
+        "$<$<BOOL:${UNIX}>:${UNIX_SOURCES}>"
 )
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
