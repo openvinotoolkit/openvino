@@ -126,7 +126,7 @@ private:
     bool sort_index = false;
     bool stable = false;
     bool mode_max = false;
-    int axis = 0;
+    size_t axis = 0;
     static const size_t TOPK_DATA = 0;
     static const size_t TOPK_K = 1;
     static const size_t TOPK_INDEX = 1;

@@ -21,6 +21,7 @@
 #define UNSUPPORTED_DST_STRIDES              " unsupported dst strides"
 #define UNSUPPORTED_PER_CHANNEL_QUANTIZATION " unsupported per-channel quantization"
 #define UNSUPPORTED_BY_EXECUTOR              " unsupported by executor"
+#define UNSUPPORTED_ACL_COMMON_PRECONDITION  " ACL common preconditions not met"
 #define HEURISTICS_MISMATCH                  " heuristics mismatch"
 #define MEMORY_FORMAT_MISMATCH               " memory format mismatch"
 
