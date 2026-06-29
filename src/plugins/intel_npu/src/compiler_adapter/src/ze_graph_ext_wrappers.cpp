@@ -623,8 +623,8 @@ std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() con
     return "";
 }
 
-std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
-                                                          std::optional<std::string> optValue) const {
+std::optional<bool> ZeGraphExtWrappers::isOptionSupported(const std::string& optName,
+                                                          const std::optional<std::string>& optValue) const {
     // Early exit if api is not supported
     if (!_isCompilerOptionQuerySupported) {
         _logger.debug("Compiler option query is not supported by the driver - skipping!");
