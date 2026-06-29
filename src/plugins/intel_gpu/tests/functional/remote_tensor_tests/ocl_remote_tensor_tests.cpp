@@ -2953,11 +2953,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorDataType, OVRemoteTensorDataType_Test
 
 TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::Core core;
-    const ov::Shape shape{16};
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    const uint float_size = size(float);
+    const ov::Shape shape{cacheline_size/float_size};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
-
-    std::string target_device = ov::test::utils::DEVICE_GPU;
+    
+    
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
     void* input_ptr = ov::util::aligned_alloc(byte_size, byte_size);
     void* output_ptr = ov::util::aligned_alloc(byte_size, byte_size);
