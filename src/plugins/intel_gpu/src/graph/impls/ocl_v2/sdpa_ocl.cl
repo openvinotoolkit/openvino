@@ -122,9 +122,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int q_block = tile / DKS;   // 0..q_blocks-1
         const int db      = tile % DKS;   // 0..DKS-1
         const int query = wg_j0 + q_block * SUBGROUP_SIZE + lane;
+        const int head_base = db * DPAS_K;
         ushort16 qv = (ushort16)0;
-        if (query < q)
-            qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + db * DPAS_K));
+        if (query < q) {
+            if (head_base + DPAS_K <= d) {
+                qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + head_base));
+            } else {
+                #pragma unroll
+                for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
+                    if (head_base + head_offset < d) {
+                        qv[head_offset] = as_ushort(Q[(size_t)query * QRY_S2 + head_base + head_offset]);
+                    }
+                }
+            }
+        }
         uint8 q_pack = as_uint8(as_short16(qv));
         intel_sub_group_block_write8(
             (local uint *)&Q_slm[((db * q_blocks + q_block) * Q_DWORDS) * SUBGROUP_SIZE], q_pack);
@@ -170,9 +181,24 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
 
             ushort8 k_raw[kq_key_blocks];
+#if USE_2D_BLOCK_IO
             intel_sub_group_2d_block_read_16b_16r16x1c(
                 (global void *)K, KD_w, KD_h, KD_p,
                 (int2)(db * DPAS_K, key_base), (private ushort *)&k_raw[0]);
+#else
+            const int head = db * DPAS_K + lane;
+            #pragma unroll
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
+                k_raw[mb] = (ushort8)0;
+                #pragma unroll
+                for (int key_offset = 0; key_offset < 8; ++key_offset) {
+                    const int key = key_base + mb * 8 + key_offset;
+                    if (head < d && key < k) {
+                        k_raw[mb][key_offset] = as_ushort(K[(size_t)key * KEY_S2 + head]);
+                    }
+                }
+            }
+#endif
 
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
@@ -262,6 +288,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane;
                     const int key = key_base + key_rel;
                     float s = S_tile[mb][qb][mm] + sub_group_broadcast(k_mask[mask_idx], mask_lane);
+#ifdef STATIC_SCALAR_ATTN_MASK_VALUE
+                    s += STATIC_SCALAR_ATTN_MASK_VALUE * iscale;
+#endif
                     #if WITH_ATTN_MASK
                         if (MASK_IS_PER_KEY) {
                             s += sub_group_broadcast(mask_tile_float[mask_idx], mask_lane);
@@ -273,6 +302,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             s += convert_float(msk[MSK_OFF(0, 0, mask_query, mask_key)]) * iscale;
                         }
                     #endif
+#if IS_CAUSAL
+                    if (key > query) {
+                        s = -INFINITY;
+                    }
+#endif
                     S_tile[mb][qb][mm] = s;
                     lmax = fmax(lmax, s);
                 }
@@ -355,9 +389,29 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             int8 vb[sv_value_blocks];
             #pragma unroll
             for (int cd = 0; cd < sv_value_blocks; ++cd) {
+#if USE_2D_BLOCK_IO
                 intel_sub_group_2d_block_read_transform_16b_16r16x1c(
                     (global void *)V, VD_w, VD_h, VD_p,
                     (int2)(sv_value0 + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
+#else
+                vb[cd] = (int8)0;
+                const int value = sv_value0 + cd * SUBGROUP_SIZE + lane;
+                if (value < d) {
+                    #pragma unroll
+                    for (int key_pair = 0; key_pair < 8; ++key_pair) {
+                        const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
+                        const int key1 = key0 + 1;
+                        half2 vv = (half2)0.0h;
+                        if (key0 < k) {
+                            vv[0] = V[(size_t)key0 * VAL_S2 + value];
+                        }
+                        if (key1 < k) {
+                            vv[1] = V[(size_t)key1 * VAL_S2 + value];
+                        }
+                        vb[cd][key_pair] = as_int(vv);
+                    }
+                }
+#endif
             }
 
             #pragma unroll
@@ -392,12 +446,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             half8 out = convert_half8(A_tile[r][cd]);
             const int col = sv_value0 + cd * SUBGROUP_SIZE;
             const int row = wg_j0 + sv_score0 + r * 8;
+#if USE_2D_BLOCK_IO
             if (row + 7 < q && col + SUBGROUP_SIZE <= d) {
                 intel_sub_group_2d_block_write_16b_8r16x1c(
                     (global void *)A, AD_w, AD_h, AD_p,
                     (int2)(col, row),
                     (private ushort *)&out);
             } else {
+#endif
                 #pragma unroll
                 for (int rr = 0; rr < 8; ++rr) {
                     const int out_row = row + rr;
@@ -405,7 +461,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     if (out_row < q && out_col < d)
                         A[(size_t)out_row * DST_S2 + out_col] = out[rr];
                 }
+#if USE_2D_BLOCK_IO
             }
+#endif
         }
     }
 }
