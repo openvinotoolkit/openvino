@@ -44,7 +44,7 @@ private:
     // Fetches the runtime requirements of a compiled graph from the
     // driver via zeDeviceGetRuntimeRequirements. Returns std::nullopt when the driver does not
     // implement the extension, the handle is null, or the query fails.
-    std::optional<std::string> fetch_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
+    std::optional<std::string> get_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

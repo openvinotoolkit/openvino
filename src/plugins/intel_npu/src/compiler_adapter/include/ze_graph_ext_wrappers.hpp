@@ -95,7 +95,7 @@ public:
      * @return The descriptor string if the driver supports the feature and the graph carries one,
      *         or `std::nullopt` otherwise.
      */
-    std::optional<std::string> fetchCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
+    std::optional<std::string> getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
