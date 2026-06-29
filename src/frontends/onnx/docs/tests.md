@@ -6,7 +6,7 @@
 - [Python operators tests](../tests/tests_python) (`test_ops_*.py`, `test_onnx_*.py`)
 - [Python tests to confirm operator compliance with the ONNX standard](../tests/tests_python/test_backend.py)
 - [Python OpenModelZoo tests](../tests/tests_python/test_zoo_models.py)
-- [Tests for OpenVINO™ Execution Provider with ONNX Runtime](../../../../.ci/azure/linux_onnxruntime.yml)
+- [Tests for OpenVINO™ Execution Provider with ONNX Runtime](../../../../.github/workflows/job_onnx_runtime.yml)
 
 
 ## How to run the tests locally
@@ -43,11 +43,11 @@ You can run ONNX Frontend Python tests using the following commands:
 
 - For the build layout:
 ```
-pytest <OV_REPO_DIR>/src/bindings/python/tests/test_frontend/test_frontend_onnx*
+pytest <OV_REPO_DIR>/src/frontends/onnx/tests/tests_python/test_frontend_onnx*
 ```
 - For the installation layout:
 ```
-pytest <OV_INSTALL_DIR>/tests/pyopenvino/tests/test_frontend/test_frontend_onnx*
+pytest <OV_INSTALL_DIR>/tests/onnx/tests/tests_python/test_frontend_onnx*
 ```
 
 
@@ -56,26 +56,26 @@ You can run ONNX operators Python tests using the following commands:
 
 - For the build layout:
 ```
-pytest <OV_REPO_DIR>/src/bindings/python/tests/test_onnx \
-    --ignore=<OV_REPO_DIR>/src/bindings/python/tests/test_onnx/test_zoo_models.py \
-    --ignore=<OV_REPO_DIR>/src/bindings/python/tests/test_onnx/test_backend.py
+pytest <OV_REPO_DIR>/src/frontends/onnx/tests/tests_python \
+    --ignore=<OV_REPO_DIR>/src/frontends/onnx/tests/tests_python/test_zoo_models.py \
+    --ignore=<OV_REPO_DIR>/src/frontends/onnx/tests/tests_python/test_backend.py
 ```
 - For the installation layout:
 ```
-pytest <OV_INSTALL_DIR>/tests/pyopenvino/tests/test_onnx \
-    --ignore=<OV_INSTALL_DIR>/tests/pyopenvino/tests/test_onnx/test_zoo_models.py \
-    --ignore=<OV_INSTALL_DIR>/tests/pyopenvino/tests/test_onnx/test_backend.py
+pytest <OV_INSTALL_DIR>/tests/onnx/tests/tests_python \
+    --ignore=<OV_INSTALL_DIR>/tests/onnx/tests/tests_python/test_zoo_models.py \
+    --ignore=<OV_INSTALL_DIR>/tests/onnx/tests/tests_python/test_backend.py
 ```
 
 
 ### Python tests to confirm operator compliance with the ONNX standard
 - For the build layout:
 ```
-pytest <OV_REPO_DIR>/src/bindings/python/tests/test_onnx/test_backend.py -sv -k 'not cuda'
+pytest <OV_REPO_DIR>/src/frontends/onnx/tests/tests_python/test_backend.py -sv -k 'not cuda'
 ```
 - For the installation layout:
 ```
-pytest <OV_INSTALL_DIR>/tests/pyopenvino/tests/test_onnx/test_backend.py -sv -k 'not cuda'
+pytest <OV_INSTALL_DIR>/tests/onnx/tests/tests_python/test_backend.py -sv -k 'not cuda'
 ```
 
 
@@ -90,16 +90,16 @@ Commands to run OpenModelZoo tests:
 
 - For the build layout:
 ```
-pytest --backend=CPU <OV_REPO_DIR>/src/bindings/python/tests/test_onnx/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_dir=<ONNX_MODELS_DIR>
+pytest --backend=CPU <OV_REPO_DIR>/src/frontends/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_dir=<ONNX_MODELS_DIR>
 ```
 
 Note that you can also run tests for a single model only, for example:
 ```
-pytest --backend=CPU <OV_REPO_DIR>/src/bindings/python/tests/test_onnx/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_dir=<ONNX_MODELS_DIR> -k test_onnx_model_zoo_vision_classification_alexnet_model_bvlcalexnet_9_bvlc_alexnet_model_cpu
+pytest --backend=CPU <OV_REPO_DIR>/src/frontends/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_dir=<ONNX_MODELS_DIR> -k test_onnx_model_zoo_vision_classification_alexnet_model_bvlcalexnet_9_bvlc_alexnet_model_cpu
 ```
 - For the installation layout:
 ```
-pytest --backend=CPU <OV_INSTALL_DIR>/tests/pyopenvino/tests/test_onnx/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_dir=<ONNX_MODELS_DIR>
+pytest --backend=CPU <OV_INSTALL_DIR>/tests/onnx/tests/tests_python/test_zoo_models.py -v -n 4 --forked -k 'not _cuda' --model_zoo_dir=<ONNX_MODELS_DIR>
 ```
 Be aware that each model is tested in two stages: importing (`OnnxBackendModelImportTest`) and inference (`OnnxBackendModelExecutionTest`).
 

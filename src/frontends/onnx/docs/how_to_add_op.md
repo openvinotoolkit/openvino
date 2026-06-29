@@ -70,7 +70,7 @@ The minimum requirement to receive an approval during the code review is the imp
 
 
 ## How to register a custom operation via extensions mechanism
-The complete tutorial about custom frontends extensions can be found in [frontend extensions](../../../../docs/Extensibility_UG/frontend_extensions.md). The section below will show you the most useful ways of adding extensions for the ONNX Frontend.
+The complete tutorial about custom frontends extensions can be found in [frontend extensions](../../../../docs/articles_en/documentation/openvino-extensibility/frontend-extensions.rst). The section below will show you the most useful ways of adding extensions for the ONNX Frontend.
 ### C++ based extensions
 To register your ONNX node-OV subgraph mapping, you can use `ConversionExtension` with syntax as below:
 ```cpp
