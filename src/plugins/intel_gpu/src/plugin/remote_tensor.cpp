@@ -506,7 +506,8 @@ void RemoteTensorImpl::update_properties() {
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
             ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(m_mem),
+            ov::intel_gpu::mem_handle(params.mem),
+            ov::intel_gpu::cpu_va(m_mem),
         };
         break;
     case TensorType::BT_USM_HOST_INTERNAL:

@@ -205,6 +205,12 @@ static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
 static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
 
 /**
+ * @brief This key identifies cpu pointer
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<void*> cpu_va{"CPU_VA"};
+
+/**
  * @brief This key identifies video decoder surface handle
  * in a shared memory blob parameter map
  * @ingroup ov_runtime_ocl_gpu_cpp_api

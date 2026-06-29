@@ -49,8 +49,8 @@ int main() {
 
 {
     //! [wrap_cpu_pointer]
-    // optimal Allocation part - could be done without alignment, but for better performance(for OCL backend) it is recommended to align the address to 64 bytes
-    // and the allocation size must be a multiple of 64. Not caring about performance e.g std::vector::data() could be used to get pointer
+    // Allocation part - must be done with alignment(for OCL backend) - align the address to cache line size
+    // and the allocation size must be a multiple of cache line size.
     const size_t size = input_size * in_element_type.size();
     constexpr size_t alignment = 64;
     void* cpu_pointer = ov::util::aligned_alloc(size, alignment);
@@ -62,7 +62,6 @@ int main() {
                                                                         cpu_pointer,
                                                                         ov::intel_gpu::MemType::CPU_VA);
     }
-    // delete cpu_pointer after remote_tensor destruction as everything allocated manually must be freed manually
     ov::util::aligned_free(cpu_pointer); 
     //! [wrap_cpu_pointer]
 }
