@@ -1,0 +1,30 @@
+{
+  "run_id": "28379764406",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28379764406",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36589",
+  "pr_number": "36589",
+  "author": "michalzx",
+  "head_sha": "c58eddde8dc6147cdd8d490fc561da09486b4b70",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "timestamp": "2026-06-29T15:59:13Z",
+  "trigger": "merge_group",
+  "signature_hash": "3a6ca31c39b0147d",
+  "category": "Infrastructure",
+  "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
+  "failed_jobs": [
+    {
+      "id": "84087518771",
+      "name": "OpenVINO Python API Tests (3.12)",
+      "conclusion": "failure",
+      "error": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
+    },
+    {
+      "id": "84087518926",
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "error": "Failed to CreateArtifact: Unable to make request: ECONNREFUSED"
+    }
+  ],
+  "root_cause": "Self-hosted Windows AKS runner (aks-win-8-cores-16gb-test-wdwfq-runner-r69ng) lost network connectivity to GitHub Actions artifact service. Both DOWNLOAD and UPLOAD operations returned ECONNREFUSED. This is a transient infrastructure failure unrelated to the PR changes (docs-only update).",
+  "confidence": "High"
+}

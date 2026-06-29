@@ -111,6 +111,14 @@
       "timestamp": "2026-06-29T12:18:57Z",
       "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
       "category": "Flaky Test"
+    },
+    {
+      "file": "2026-06-29-15-59-13-000-28379764406.json",
+      "run_id": "28379764406",
+      "timestamp": "2026-06-29T15:59:13Z",
+      "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
+      "category": "Infrastructure",
+      "signature_hash": "3a6ca31c39b0147d"
     }
   ]
 }

@@ -1,0 +1,17 @@
+{
+  "signature": "Failed to ListArtifacts Unable to make request ECONNREFUSED|OpenVINO Python API Tests (3.12)|Infrastructure",
+  "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-06-29T15:59:13Z",
+  "last_seen": "2026-06-29T15:59:13Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28379764406"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36589"
+  ],
+  "recent_timestamps": [
+    "2026-06-29T15:59:13Z"
+  ]
+}
