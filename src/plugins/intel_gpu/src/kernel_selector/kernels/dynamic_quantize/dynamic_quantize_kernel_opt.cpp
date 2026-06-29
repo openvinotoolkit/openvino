@@ -119,8 +119,9 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
         size_t total_block_num = bf_size.second / (simd * vec_size);
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+        size_t aligned_block_num = (block_num > 0) ? Align(total_block_num, block_num) : total_block_num;
 
-        dispatchData.gws = {simd, total_block_num, batch};
+        dispatchData.gws = {simd, aligned_block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
     } else if (mode == DynQuanMode::PER_TOKEN) {
         auto vec_size = get_match_vector_size(params);
@@ -134,6 +135,11 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     } else {
         OPENVINO_ASSERT(false);
     }
+    
+    std::cout << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
+        << dispatchData.gws[1] << ", " << dispatchData.gws[2]
+        << " | lws : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2]
+        << std::endl;
 
     return dispatchData;
 }
