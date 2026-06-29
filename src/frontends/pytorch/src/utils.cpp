@@ -160,6 +160,43 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
     return res;
 }
 
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label) {
+    const auto& pshape = x.get_partial_shape();
+    const auto rank = pshape.rank();
+    if (rank.is_static() && rank.get_length() >= 2) {
+        const auto& m_dim = pshape[rank.get_length() - 2];
+        const auto& n_dim = pshape[rank.get_length() - 1];
+        if (m_dim.is_static() && n_dim.is_static()) {
+            PYTORCH_OP_CONVERSION_CHECK(m_dim.get_length() == n && n_dim.get_length() == n,
+                                        op_label,
+                                        " is only supported for ",
+                                        n,
+                                        "x",
+                                        n,
+                                        " matrices, got trailing dimensions ",
+                                        m_dim.get_length(),
+                                        "x",
+                                        n_dim.get_length(),
+                                        ".");
+            return x;
+        }
+    }
+    // Dynamic trailing dimension(s): guard the assumed n x n size at runtime by reshaping the
+    // trailing two axes to a fixed [n, n] while preserving the batch axes.
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto stop = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape, start, stop, step, axis));
+    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {n, n}));
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
+    return context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
+}
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     return get_node_axes_range(context, x);

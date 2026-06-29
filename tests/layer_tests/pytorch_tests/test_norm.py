@@ -297,6 +297,20 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                            "dim": dim, "keepdim": keepdim})
 
 
+# ord=None on rank>2 inputs (previously unsupported / raised in the FE). torch maps
+# ord=None to the vector 2-norm over `dim` (Frobenius when `dim` lists two axes); this
+# must be rank-agnostic. Shared by the dynamic-rank test_linalg_norm cases and the
+# forced-static-rank test_linalg_norm_ordNone_rank_gt2_static cases below.
+_ORD_NONE_RANK_GT2_CASES = [
+    (None, -1,       [2, 4, 3]),         # ord=None, scalar dim, rank-3
+    (None, 1,        [1, 5, 5, 3]),      # ord=None, scalar dim, rank-4
+    (None, (0, 1),   [1, 3, 3]),         # ord=None, 2-elem dim -> frobenius
+    (None, None,     [2, 3, 4]),         # ord=None, dim=None, rank-3 -> flat L2
+    (None, (-2, -1), [2, 4, 3, 3]),      # ord=None, 2-elem dim, rank-4 -> frobenius
+    (None, -1,       [1, 7, 7, 3, 3]),   # SAM-6D geo_embedding shape (rank-5)
+]
+
+
 class TestLinalgNorm(PytorchLayerTest):
 
     def _prepare_input(self, out=False, out_dtype=None, input_shape=(3, 3), dim=None, keepdim=False):
@@ -367,16 +381,7 @@ class TestLinalgNorm(PytorchLayerTest):
         (float('inf'), 1,      [1, 3, 3]),   # numeric ord, scalar dim -> norm_vector(p=inf)
         ("fro",        (0, 1), [1, 3, 3]),   # string ord -> frobenius_norm
         (0,            1,      [1, 3, 3]),   # p==0 branch
-        # ord=None on rank>2 inputs (previously unsupported / raised in the FE).
-        # torch maps ord=None to the vector 2-norm over `dim` (Frobenius when dim
-        # lists two axes); this must be rank-agnostic.
-        (None,         -1,     [2, 4, 3]),         # ord=None, scalar dim, rank-3
-        (None,         1,      [1, 5, 5, 3]),      # ord=None, scalar dim, rank-4
-        (None,         (0, 1), [1, 3, 3]),         # ord=None, 2-elem dim -> frobenius
-        (None,         None,   [2, 3, 4]),         # ord=None, dim=None, rank-3 -> flat L2
-        (None,         (-2, -1), [2, 4, 3, 3]),    # ord=None, 2-elem dim, rank-4 -> frobenius
-        (None,         -1,     [1, 7, 7, 3, 3]),   # SAM-6D geo_embedding shape (rank-5)
-    ])
+    ] + _ORD_NONE_RANK_GT2_CASES)
     @pytest.mark.parametrize('keepdim', [True, False])
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
@@ -394,19 +399,10 @@ class TestLinalgNorm(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize('p,dim,input_shape', [
-        # torch.linalg.norm(x) with ord=None and a tensor of static rank > 2 used
-        # to raise in the frontend; torch maps ord=None to the vector 2-norm over
-        # `dim` (Frobenius when `dim` lists two axes). These cases pin the static-
-        # rank path (the harness default uses dynamic rank, which took a different
-        # branch), including the SAM-6D geo_embedding shape.
-        (None, -1,       [2, 4, 3]),
-        (None, 1,        [1, 5, 5, 3]),
-        (None, (0, 1),   [1, 3, 3]),
-        (None, None,     [2, 3, 4]),
-        (None, (-2, -1), [2, 4, 3, 3]),
-        (None, -1,       [1, 7, 7, 3, 3]),   # geo_embedding: linalg.norm(cross(...), dim=-1)
-    ])
+    # torch.linalg.norm(x) with ord=None and a tensor of static rank > 2 used to raise in
+    # the frontend. These cases (shared with test_linalg_norm) pin the static-rank path:
+    # the harness default uses dynamic rank, which takes a different branch.
+    @pytest.mark.parametrize('p,dim,input_shape', _ORD_NONE_RANK_GT2_CASES)
     @pytest.mark.parametrize('keepdim', [True, False])
     def test_linalg_norm_ordNone_rank_gt2_static(self, p, dim, keepdim, input_shape,
                                                  ie_device, precision, ir_version):
