@@ -1063,8 +1063,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
 
     // ========================================================================
     // Step 8: Build tile model parameter index mapping
+    // The first 6 input indices are identical in both models regular and final
+    // final_tile_model has mask_tile (index 6)
     // ========================================================================
-    build_tile_param_mapping(hfa, tile_model);
+    build_tile_param_mapping(hfa, final_tile_model);
 
     // ========================================================================
     // Step 9: Build tile model output index mapping
