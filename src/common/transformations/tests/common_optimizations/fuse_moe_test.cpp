@@ -196,14 +196,12 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
 
     auto axis0_const = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
 
-    auto unsqueeze_axis = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
     auto build_fused_weight = [&](ov::element::Type elem_type,
                                   const ov::Shape& single_expert_shape) -> std::shared_ptr<ov::Node> {
         ov::OutputVector expert_weights;
         for (int i = 0; i < expert_num; i++) {
             auto weight_const = makeConst(elem_type, single_expert_shape, {0});
-            auto weight_unsqueeze = std::make_shared<v0::Unsqueeze>(weight_const, unsqueeze_axis);
-            expert_weights.push_back(weight_unsqueeze);
+            expert_weights.push_back(weight_const);
         }
         auto concat = std::make_shared<v0::Concat>(expert_weights, 0);
         return concat;
@@ -211,21 +209,21 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
 
     auto fused_gate_weights_f16 =
         build_fused_weight(ov::element::f16,
-                           ov::Shape{static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)});
+                           ov::Shape{1, static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)});
     auto fused_gate_weights_convert = std::make_shared<v0::Convert>(fused_gate_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_gate_weights_convert);
     auto fused_gate_weights = fused_gate_weights_convert;
 
     auto fused_up_weights_f16 =
         build_fused_weight(ov::element::f16,
-                           ov::Shape{static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)});
+                           ov::Shape{1, static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)});
     auto fused_up_weights_convert = std::make_shared<v0::Convert>(fused_up_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_up_weights_convert);
     auto fused_up_weights = fused_up_weights_convert;
 
     auto fused_down_weights_f16 =
         build_fused_weight(ov::element::f16,
-                           ov::Shape{static_cast<size_t>(hidden_size), static_cast<size_t>(intermediate_size)});
+                           ov::Shape{1, static_cast<size_t>(hidden_size), static_cast<size_t>(intermediate_size)});
     auto fused_down_weights_convert = std::make_shared<v0::Convert>(fused_down_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_down_weights_convert);
     auto fused_down_weights = fused_down_weights_convert;

@@ -295,10 +295,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
-    REGISTER_PASS(manager, FuseMOE)
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
+    REGISTER_PASS(manager, FuseMOE)
     REGISTER_PASS(manager, VectorizedMOE2GEMMTransposeWeights)
     REGISTER_PASS(manager, Validate)
 

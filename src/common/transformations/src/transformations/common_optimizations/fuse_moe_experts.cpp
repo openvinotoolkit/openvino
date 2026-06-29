@@ -393,10 +393,10 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                         target_type = weight->get_output_element_type(0);
                     }
 
-                    inputs.emplace_back(std::make_shared<v0::Unsqueeze>(original_weight, const_0));
+                    inputs.emplace_back(op_util::make_try_fold<v0::Unsqueeze>(original_weight, const_0));
                 }
 
-                auto fused = std::make_shared<v0::Concat>(inputs, 0);
+                auto fused = op_util::make_try_fold<v0::Concat>(inputs, 0);
 
                 if (needs_decompress) {
                     auto convert = std::make_shared<v0::Convert>(fused, target_type);
