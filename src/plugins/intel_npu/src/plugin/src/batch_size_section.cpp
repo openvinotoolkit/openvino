@@ -28,7 +28,7 @@ void BatchSizeSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::write");
     m_logger.debug("Writting batch size %lu", m_batch_size);
 
-    writer.write(&m_batch_size, sizeof(m_batch_size));
+    writer.write_from(&m_batch_size, sizeof(m_batch_size));
 }
 
 int64_t BatchSizeSection::get_batch_size() const {

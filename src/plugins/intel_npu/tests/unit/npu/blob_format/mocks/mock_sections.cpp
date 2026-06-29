@@ -7,7 +7,7 @@
 MockSection_1::MockSection_1(double value) : ISection(MockTypes::MOCK_1), value(value) {}
 
 void MockSection_1::write(BlobWriterInterface& writer) {
-    writer.write(&value, sizeof(value));
+    writer.write_from(&value, sizeof(value));
 }
 
 double MockSection_1::get_value() const {
@@ -24,12 +24,12 @@ MockSection_2::MockSection_2(const std::vector<double>& values) : ISection(MockT
 
 void MockSection_2::write(BlobWriterInterface& writer) {
     uint64_t size = values.size();
-    writer.write(&size, sizeof(size));
+    writer.write_from(&size, sizeof(size));
     for (const double& value : values) {
         const uint64_t pos = static_cast<uint64_t>(writer.get_offset_relative_to_npu_region());
         const uint64_t padding_size = (ALIGNMENT - (pos % ALIGNMENT)) % ALIGNMENT;
         writer.add_padding(padding_size);
-        writer.write(&value, sizeof(value));
+        writer.write_from(&value, sizeof(value));
     }
 }
 
@@ -100,11 +100,11 @@ void MockSectionWithTable::write(BlobWriterInterface& writer) {
     // stream position + size of table location field + size of member field section_1
     const uint64_t table_location = payload_start + sizeof(uint64_t) + sizeof(double);
 
-    writer.write(&table_location, sizeof(table_location));
+    writer.write_from(&table_location, sizeof(table_location));
     section_1->write(writer);
 
     // reserve entries payload
-    writer.write(&number_of_entries, sizeof(number_of_entries));
+    writer.write_from(&number_of_entries, sizeof(number_of_entries));
     const auto table_entries_pos = writer.get_offset_relative_to_current_section();
     const uint64_t total_entry_bytes = number_of_entries * OffsetsTable::get_entry_size();
     writer.add_padding(total_entry_bytes);
@@ -125,10 +125,10 @@ void MockSectionWithTable::write(BlobWriterInterface& writer) {
     // go back to entries payload and write the actual entries
     writer.move_cursor_relative_to_current_section(table_entries_pos);
     for (const auto& e : entries) {
-        writer.write(&e.id.type, sizeof(e.id.type));
-        writer.write(&e.id.type_instance, sizeof(e.id.type_instance));
-        writer.write(&e.offset, sizeof(e.offset));
-        writer.write(&e.length, sizeof(e.length));
+        writer.write_from(&e.id.type, sizeof(e.id.type));
+        writer.write_from(&e.id.type_instance, sizeof(e.id.type_instance));
+        writer.write_from(&e.offset, sizeof(e.offset));
+        writer.write_from(&e.length, sizeof(e.length));
     }
     writer.seek_to_the_end();
 }

@@ -23,7 +23,7 @@ std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_
     BlobWriter writer;
     writer.register_section(std::make_shared<MockSectionWithTable>(std::move(section_1), std::move(reachables)));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, const_cast<char*>(buffer.data()));

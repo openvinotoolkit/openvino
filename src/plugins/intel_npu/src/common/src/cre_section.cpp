@@ -18,7 +18,7 @@ CRESection::CRESection(const CRE& cre, const ov::log::Level log_level)
 void CRESection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
 
-    writer.write(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CREToken));
+    writer.write_from(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CREToken));
 
     m_logger.debug("%lu tokens written", m_cre.get_expression_length());
 }

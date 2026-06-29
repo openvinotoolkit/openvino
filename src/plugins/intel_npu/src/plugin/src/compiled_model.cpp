@@ -107,8 +107,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
             std::string tmpBlobStr;
             {
                 std::stringstream tmpStringStream;
-                _blobWriter->write(tmpStringStream);  // +1x blob size
-                tmpBlobStr = tmpStringStream.str();   // +2x blob size
+                _blobWriter->write_to(tmpStringStream);  // +1x blob size
+                tmpBlobStr = tmpStringStream.str();      // +2x blob size
             }  // -1x blob size when deallocating temporary stringstream
             encryptedBlobStr =
                 _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
@@ -124,7 +124,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     }  // -1x blob size when deallocating encrypted blob string
     else {
         //  Write blob directly to user's output stream
-        _blobWriter->write(stream);
+        _blobWriter->write_to(stream);
     }
 }
 

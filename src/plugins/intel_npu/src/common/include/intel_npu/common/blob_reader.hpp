@@ -98,7 +98,7 @@ private:
      * a section type instance within the expression, the corresponding evaluator class should be retrieved and used for
      * evaluation.
      */
-    std::unordered_map<SectionID, SectionTypeInstanceEvaluator> build_section_type_instance_evaluators(
+    std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_type_instance_evaluators(
         const ov::Tensor& source,
         const OffsetsTable& offsets_table,
         const size_t npu_region_size) const;
@@ -129,7 +129,7 @@ private:
      */
     std::unordered_map<SectionType, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)>> m_readers;
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
-    std::unordered_map<SectionType, std::function<bool(BlobReaderInterface&)>> m_section_type_instance_evaluate_fn;
+    std::unordered_map<SectionType, std::function<bool(BlobReaderInterface&)>> m_section_instance_evaluate_fn;
 
     Logger m_logger;
 };

@@ -14,10 +14,9 @@ namespace intel_npu {
 /**
  * @brief Interface that standardizes the evaluation of section types support.
  */
-class SectionTypeInstanceEvaluator {
+class SectionInstanceEvaluator {
 public:
-    SectionTypeInstanceEvaluator(const std::function<bool(BlobReaderInterface&)>& evaluate_fn,
-                                 BlobReaderInterface reader);
+    SectionInstanceEvaluator(const std::function<bool(BlobReaderInterface&)>& evaluate_fn, BlobReaderInterface reader);
 
     /**
      * @brief Checks whether or not the NPU plugin supports the section type instance.

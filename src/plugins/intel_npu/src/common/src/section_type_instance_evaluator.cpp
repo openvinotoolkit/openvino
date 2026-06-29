@@ -6,12 +6,12 @@
 
 namespace intel_npu {
 
-SectionTypeInstanceEvaluator::SectionTypeInstanceEvaluator(const std::function<bool(BlobReaderInterface&)>& evaluate_fn,
-                                                           BlobReaderInterface reader)
+SectionInstanceEvaluator::SectionInstanceEvaluator(const std::function<bool(BlobReaderInterface&)>& evaluate_fn,
+                                                   BlobReaderInterface reader)
     : m_evaluate_fn(evaluate_fn),
       m_reader(std::move(reader)) {}
 
-bool SectionTypeInstanceEvaluator::check_support() const {
+bool SectionInstanceEvaluator::check_support() const {
     if (m_supported.has_value()) {
         return m_supported.value();
     }
@@ -20,7 +20,7 @@ bool SectionTypeInstanceEvaluator::check_support() const {
     return m_supported.value();
 }
 
-bool SectionTypeInstanceEvaluator::evaluated() const {
+bool SectionInstanceEvaluator::evaluated() const {
     return m_supported.has_value();
 }
 

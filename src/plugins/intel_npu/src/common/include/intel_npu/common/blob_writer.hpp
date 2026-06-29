@@ -23,7 +23,7 @@ public:
                         const std::streampos stream_npu_region_start,
                         const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    void write(const void* source, const size_t size);
+    void write_from(const void* source, const size_t size);
 
     void add_padding(const size_t size);
 
@@ -127,7 +127,7 @@ public:
      *
      * @param stream Where the blob will be stored.
      */
-    void write(std::ostream& stream) const;
+    void write_to(std::ostream& stream) const;
 
 private:
     std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,

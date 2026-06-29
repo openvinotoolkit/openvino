@@ -92,7 +92,7 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
 
     const uint64_t number_of_inits = m_weightless_graph->get_number_of_inits();
-    writer.write(&number_of_inits, sizeof(number_of_inits));
+    writer.write_from(&number_of_inits, sizeof(number_of_inits));
 
     m_logger.debug("Writting %lu init schedules", number_of_inits);
 
@@ -113,7 +113,7 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     // Go back and write the sizes of the init schedules
     writer.move_cursor_relative_to_current_section(will_get_to_this_later);
     for (const uint64_t init_size : init_sizes) {
-        writer.write(&init_size, sizeof(init_size));
+        writer.write_from(&init_size, sizeof(init_size));
         m_logger.debug("Init size %lu written", init_size);
     }
 }

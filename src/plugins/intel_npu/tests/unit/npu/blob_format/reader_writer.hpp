@@ -40,7 +40,7 @@ std::string make_simple_blob(int64_t batch_size, BlobReader& reader) {
     BlobWriter writer;
     writer.register_section(std::make_shared<BatchSizeSection>(batch_size));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
 
     reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
     reader.register_section_type_evaluator(
@@ -65,7 +65,7 @@ protected:
 
         writer = std::make_shared<BlobWriter>();
         prepare_writer(writer, {batch_section, io_section});
-        writer->write(stream);
+        writer->write_to(stream);
 
         buffer = stream.str();
         tensor = ov::Tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
@@ -155,7 +155,7 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     writer_1.register_section(std::make_shared<BatchSizeSection>(BATCH));
     writer_1.register_section(std::make_shared<IOLayoutsSection>(input_layouts, output_layouts));
     std::stringstream stream_1;
-    writer_1.write(stream_1);
+    writer_1.write_to(stream_1);
     std::string buffer_1 = stream_1.str();
 
     ov::Tensor tensor_1(ov::element::u8, ov::Shape{buffer_1.size()}, buffer_1.data());
@@ -170,7 +170,7 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
 
     BlobWriter writer_2(reader_1);
     std::stringstream stream_2;
-    writer_2.write(stream_2);
+    writer_2.write_to(stream_2);
     std::string buf2 = stream_2.str();
 
     ov::Tensor tensor_2(ov::element::u8, ov::Shape{buf2.size()}, buf2.data());
@@ -203,7 +203,7 @@ TEST_F(WriterReaderEdgeCases, MultipleSectionsSameType) {
     writer.register_section(std::make_shared<BatchSizeSection>(BATCH_A));
     writer.register_section(std::make_shared<BatchSizeSection>(BATCH_B));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
@@ -228,7 +228,7 @@ TEST_F(WriterReaderEdgeCases, UnknownSectionSkipped) {
     BlobWriter writer;
     writer.register_section(std::make_shared<IOLayoutsSection>(std::vector<ov::Layout>(), std::vector<ov::Layout>()));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
 
     BlobReader reader;
     reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
@@ -308,7 +308,7 @@ TEST_F(WriterReaderEdgeCases, RegisterSectionInstanceIDs) {
     EXPECT_EQ(io_id0, 0);
 
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     std::string buffer = stream.str();
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);

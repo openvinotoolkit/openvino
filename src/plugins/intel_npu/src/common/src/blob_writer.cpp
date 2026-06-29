@@ -31,7 +31,7 @@ BlobWriterInterface::BlobWriterInterface(std::ostream& stream,
     m_logger.debug("Created a new BlobWriterInterface. Section start: %lu", m_stream_current_section_start);
 }
 
-void BlobWriterInterface::write(const void* source, const size_t size) {
+void BlobWriterInterface::write_from(const void* source, const size_t size) {
     OPENVINO_ASSERT(m_stream.get().good(), "Invalid stream before \"write\" operation");
     m_logger.trace("Writing %lu bytes", size);
     m_stream.get().write(reinterpret_cast<const char*>(source), size);
@@ -188,7 +188,7 @@ void BlobWriter::write_section(std::ostream& stream,
     offsets_table.add_entry(section_id.value(), offset, length);
 }
 
-void BlobWriter::write(std::ostream& stream) const {
+void BlobWriter::write_to(std::ostream& stream) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobWriter::write");
     m_logger.debug("Starting to write to a stream");
 

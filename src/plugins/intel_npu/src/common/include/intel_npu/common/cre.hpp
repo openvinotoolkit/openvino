@@ -40,7 +40,7 @@ public:
 
     CRE(const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    CRE(const std::vector<CREToken>& expression, const ov::log::Level log_level = ov::log::Level::WARNING);
+    CRE(const std::vector<CREToken>& subexpression, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
@@ -52,7 +52,7 @@ public:
      * @brief Append a new CRE subexpression to the CRE, at depth-level 1. All tokens found at this depth-level are
      * bound by a logical "AND" operator.
      */
-    void append_to_expression(const std::vector<CREToken>& requirement_tokens);
+    void append_to_expression(const std::vector<CREToken>& subexpression);
 
     size_t get_expression_length() const;
 
@@ -69,7 +69,7 @@ public:
      */
     bool check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const std::unordered_map<SectionID, SectionTypeInstanceEvaluator>& section_type_instance_evaluators = {}) const;
+        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators = {}) const;
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE };
@@ -103,7 +103,7 @@ private:
         std::vector<CREToken>::const_iterator& expression_iterator,
         const std::vector<CREToken>::const_iterator& expression_end,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const std::unordered_map<SectionID, SectionTypeInstanceEvaluator>& section_type_instance_evaluators,
+        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators,
         const Delimiter end_delimiter,
         const bool skip_all_evaluations = false) const;
 

@@ -23,8 +23,8 @@ void IOLayoutsSection::write(BlobWriterInterface& writer) {
 
     const uint64_t number_of_input_layouts = m_input_layouts.size();
     const uint64_t number_of_output_layouts = m_output_layouts.size();
-    writer.write(&number_of_input_layouts, sizeof(number_of_input_layouts));
-    writer.write(&number_of_output_layouts, sizeof(number_of_output_layouts));
+    writer.write_from(&number_of_input_layouts, sizeof(number_of_input_layouts));
+    writer.write_from(&number_of_output_layouts, sizeof(number_of_output_layouts));
 
     m_logger.debug("Writting %lu input layouts and %lu output layouts",
                    number_of_input_layouts,
@@ -34,8 +34,8 @@ void IOLayoutsSection::write(BlobWriterInterface& writer) {
         for (const ov::Layout& layout : layouts) {
             const std::string layout_string = layout.to_string();
             const uint16_t string_length = static_cast<uint16_t>(layout_string.size());
-            writer.write(&string_length, sizeof(string_length));
-            writer.write(layout_string.c_str(), string_length);
+            writer.write_from(&string_length, sizeof(string_length));
+            writer.write_from(layout_string.c_str(), string_length);
 
             m_logger.trace("Layout %s written", layout_string);
         }

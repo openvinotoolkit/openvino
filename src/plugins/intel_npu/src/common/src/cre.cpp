@@ -40,9 +40,9 @@ void InvalidCRE::create(const char* file,
 
 CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
-CRE::CRE(const std::vector<CREToken>& expression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
-    if (!expression.empty()) {
-        m_subexpressions.push_back(expression);
+CRE::CRE(const std::vector<CREToken>& subexpression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
+    if (!subexpression.empty()) {
+        m_subexpressions.push_back(subexpression);
     }
 }
 
@@ -70,30 +70,29 @@ void CRE::append_to_expression(const CREToken requirement_token) {
     m_logger.trace("Appended token %u", requirement_token);
 }
 
-void CRE::append_to_expression(const std::vector<CREToken>& requirement_tokens) {
-    const size_t subexpression_size = requirement_tokens.size();
+void CRE::append_to_expression(const std::vector<CREToken>& subexpression) {
+    const size_t subexpression_size = subexpression.size();
     if (!subexpression_size) {
         return;
     }
 
-    OPENVINO_ASSERT(!BINARY_OPERATORS.count(requirement_tokens.at(0)),
-                    "Subexpressions cannot start with a binary operator");
-    const CREToken last_token = requirement_tokens.at(subexpression_size - 1);
+    OPENVINO_ASSERT(!BINARY_OPERATORS.count(subexpression.at(0)), "Subexpressions cannot start with a binary operator");
+    const CREToken last_token = subexpression.at(subexpression_size - 1);
     OPENVINO_ASSERT(!OPERATORS.count(last_token) && last_token != OPEN,
                     "The last token within a subexpression cannot be an operator nor open parrenthesis");
 
-    const bool subexpression_enclosed = requirement_tokens.at(0) == CRE::OPEN && last_token == CRE::CLOSE;
-    std::vector<CREToken> subexpression;
+    const bool subexpression_enclosed = subexpression.at(0) == CRE::OPEN && last_token == CRE::CLOSE;
+    std::vector<CREToken> maybe_enclosed_subexpression;
 
     // At least three tokens are required for a binary operator and its operands. In this case, parrenthesis are
     // required to ensure the correct operator precedence
     if (subexpression_size > 2 && !subexpression_enclosed) {
-        subexpression.push_back(CRE::OPEN);
+        maybe_enclosed_subexpression.push_back(CRE::OPEN);
     }
-    subexpression.insert(subexpression.end(), requirement_tokens.begin(), requirement_tokens.end());
+    maybe_enclosed_subexpression.insert(maybe_enclosed_subexpression.end(), subexpression.begin(), subexpression.end());
 
     if (subexpression_size > 2 && !subexpression_enclosed) {
-        subexpression.push_back(CRE::CLOSE);
+        maybe_enclosed_subexpression.push_back(CRE::CLOSE);
     }
 
     if (subexpression_already_registered(subexpression)) {
@@ -101,7 +100,7 @@ void CRE::append_to_expression(const std::vector<CREToken>& requirement_tokens) 
         return;
     }
 
-    m_subexpressions.push_back(subexpression);
+    m_subexpressions.push_back(maybe_enclosed_subexpression);
     m_logger.trace("Appended subexpression");
 }
 
@@ -166,7 +165,7 @@ bool CRE::evaluate(
     std::vector<CREToken>::const_iterator& expression_iterator,
     const std::vector<CREToken>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const std::unordered_map<SectionID, SectionTypeInstanceEvaluator>& section_type_instance_evaluators,
+    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations) const {
     std::function<bool(bool, bool)> logical_function = first_operand_function;
@@ -281,7 +280,7 @@ bool CRE::evaluate(
 
 bool CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const std::unordered_map<SectionID, SectionTypeInstanceEvaluator>& section_type_instance_evaluators) const {
+    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators) const {
     if (m_subexpressions.empty()) {
         return true;
     }

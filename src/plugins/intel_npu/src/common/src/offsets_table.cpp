@@ -84,10 +84,10 @@ void OffsetsTableSection::write(BlobWriterInterface& writer) {
 
     for (const auto& [key, value] : m_offsets_table.m_table) {
         // Section type ID, Section instanfce type ID, offset, length
-        writer.write(&key.type, sizeof(key.type));
-        writer.write(&key.type_instance, sizeof(key.type_instance));
-        writer.write(&value.first, sizeof(value.first));
-        writer.write(&value.second, sizeof(value.second));
+        writer.write_from(&key.type, sizeof(key.type));
+        writer.write_from(&key.type_instance, sizeof(key.type_instance));
+        writer.write_from(&value.first, sizeof(value.first));
+        writer.write_from(&value.second, sizeof(value.second));
 
         m_logger.trace("Entry written: section ID %s, offset %lu, length %lu",
                        key.to_string(),

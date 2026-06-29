@@ -46,7 +46,7 @@ void BlobReader::register_section_type_evaluator(const std::shared_ptr<ISectionT
 
 void BlobReader::register_section_type_instance_evaluate_fn(const SectionType type,
                                                             std::function<bool(BlobReaderInterface&)> function) {
-    m_section_type_instance_evaluate_fn[type] = function;
+    m_section_instance_evaluate_fn[type] = function;
     m_logger.debug("Registered a section type instance evaluation function for section type %lu", type);
 }
 
@@ -74,11 +74,11 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
     return std::nullopt;
 }
 
-std::unordered_map<SectionID, SectionTypeInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
+std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
     const ov::Tensor& source,
     const OffsetsTable& offsets_table,
     const size_t npu_region_size) const {
-    std::unordered_map<SectionID, SectionTypeInstanceEvaluator> instance_evaluators;
+    std::unordered_map<SectionID, SectionInstanceEvaluator> instance_evaluators;
     const std::unordered_set<SectionID> all_section_ids = offsets_table.get_all_registered_section_ids();
 
     for (const SectionID& section_id : all_section_ids) {
@@ -91,11 +91,10 @@ std::unordered_map<SectionID, SectionTypeInstanceEvaluator> BlobReader::build_se
 
         // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
         // by default
-        if (m_section_type_instance_evaluate_fn.count(section_id.type)) {
+        if (m_section_instance_evaluate_fn.count(section_id.type)) {
             instance_evaluators.emplace(
                 section_id,
-                SectionTypeInstanceEvaluator(m_section_type_instance_evaluate_fn.at(section_id.type),
-                                             std::move(reader)));
+                SectionInstanceEvaluator(m_section_instance_evaluate_fn.at(section_id.type), std::move(reader)));
         }
     }
 
@@ -182,7 +181,7 @@ void BlobReader::read(const ov::Tensor& source) {
     std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
 
-    std::unordered_map<SectionID, SectionTypeInstanceEvaluator> section_type_instance_evaluators =
+    std::unordered_map<SectionID, SectionInstanceEvaluator> section_type_instance_evaluators =
         build_section_type_instance_evaluators(source, offsets_table, npu_region_size);
 
     // TODO test the negative branch as well
@@ -258,7 +257,7 @@ void BlobReader::read(const ov::Tensor& source) {
         m_logger.trace("Found a reader for section ", section_id);
 
         const std::shared_ptr<ISectionTypeEvaluator> type_evaluator = m_section_type_evaluators.at(section_id->type);
-        const SectionTypeInstanceEvaluator& type_instance_evaluator =
+        const SectionInstanceEvaluator& type_instance_evaluator =
             section_type_instance_evaluators.at(section_id.value());
 
         if (type_evaluator->evaluated() && type_evaluator->check_support()) {

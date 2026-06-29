@@ -38,7 +38,7 @@ TEST(MockSection1, WriteRead) {
     BlobWriter writer;
     writer.register_section(std::make_shared<MockSection_1>(VALUE));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
@@ -56,7 +56,7 @@ TEST(MockSection2, WriteRead) {
     BlobWriter writer;
     writer.register_section(std::make_shared<MockSection_2>(VALUES));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     compare_aligned_elements(buffer, VALUES);
@@ -78,7 +78,7 @@ TEST(MockSection2, WriteReadEmpty) {
     BlobWriter writer;
     writer.register_section(std::make_shared<MockSection_2>(empty_values));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
@@ -97,7 +97,7 @@ TEST(MockSection3, WriteRead) {
     writer.register_section(std::make_shared<MockSection_3>(std::make_shared<MockSection_1>(VALUE),
                                                             std::make_shared<MockSection_2>(VALUES)));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     compare_aligned_elements(buffer, VALUES);
@@ -123,7 +123,7 @@ TEST(MockSections, GetROITensors) {
     writer.register_section(std::make_shared<MockSection_1>(VALUE));
     writer.register_section(std::make_shared<MockSection_2>(VALUES));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     std::vector<uint8_t> data(buffer.begin(), buffer.end());
@@ -190,7 +190,7 @@ TEST(MockSectionWithTable, WriteRead) {
                                                std::make_shared<MockSection_2>(VALUES_C)}));
     writer.register_section(std::make_shared<MockSection_2>(VALUES_D));
     std::stringstream stream;
-    writer.write(stream);
+    writer.write_to(stream);
     const std::string buffer = stream.str();
 
     compare_aligned_elements(buffer, VALUES);
