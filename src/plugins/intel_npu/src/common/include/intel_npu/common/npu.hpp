@@ -93,6 +93,8 @@ public:
     virtual bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const = 0;
     virtual DeviceProperties getDeviceProperties() const = 0;
 
+    virtual bool isCommandQueueExtSupported() const = 0;
+
 protected:
     virtual ~IDevice() = default;
 };

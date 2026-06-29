@@ -38,7 +38,8 @@ public:
     ov::device::PCIInfo GetPciInfo(const std::string& specifiedDeviceName) const;
     std::map<ov::element::Type, float> GetGops(const std::string& specifiedDeviceName) const;
     ov::device::Type GetDeviceType(const std::string& specifiedDeviceName) const;
-    bool IsCommandQueueExtSupported() const;
+    std::string getDeviceName(const std::string& specifiedDeviceName) const;
+    std::shared_ptr<intel_npu::IDevice> getDevice(const std::string& specifiedDeviceName) const;
 
     ~Metrics() = default;
 
@@ -56,9 +57,6 @@ private:
 
     // Metric to provide information about a range for streams.(bottom bound, upper bound)
     const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, _maxNumOfOptimalInferRequests};
-
-    std::string getDeviceName(const std::string& specifiedDeviceName) const;
-    std::shared_ptr<intel_npu::IDevice> getDevice(const std::string& specifiedDeviceName) const;
 };
 
 }  // namespace intel_npu

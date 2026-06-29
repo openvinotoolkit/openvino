@@ -43,6 +43,20 @@ using ConfigParams = std::tuple<std::string,   // Device name
 namespace ov {
 namespace test {
 namespace behavior {
+
+template <typename OptionType>
+void register_option(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
+    auto dummyopt = ::intel_npu::details::makeOptionModel<OptionType>();
+    std::string option_name = dummyopt.key().data();
+    options.add<OptionType>();
+    config.enable(std::move(option_name), false);
+}
+
+template <typename... OptionTypes>
+void register_options(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
+    (register_option<OptionTypes>(options, config), ...);
+}
+
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
@@ -83,74 +97,68 @@ public:
 
         options->reset();
 
-#define REGISTER_OPTION(OPT_TYPE)                             \
-    do {                                                      \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
-        std::string o_name = dummyopt.key().data();           \
-        options->add<OPT_TYPE>();                             \
-        npu_config.enable(std::move(o_name), false);          \
-    } while (0)
-        REGISTER_OPTION(LOG_LEVEL);
-        REGISTER_OPTION(CACHE_DIR);
-        REGISTER_OPTION(CACHE_MODE);
-        REGISTER_OPTION(COMPILED_BLOB);
-        REGISTER_OPTION(DEVICE_ID);
-        REGISTER_OPTION(NUM_STREAMS);
-        REGISTER_OPTION(PERF_COUNT);
-        REGISTER_OPTION(LOADED_FROM_CACHE);
-        REGISTER_OPTION(COMPILATION_NUM_THREADS);
-        REGISTER_OPTION(PERFORMANCE_HINT);
-        REGISTER_OPTION(EXECUTION_MODE_HINT);
-        REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
+        register_options<LOG_LEVEL,
+                         CACHE_DIR,
+                         CACHE_MODE,
+                         COMPILED_BLOB,
+                         DEVICE_ID,
+                         NUM_STREAMS,
+                         PERF_COUNT,
+                         LOADED_FROM_CACHE,
+                         COMPILATION_NUM_THREADS,
+                         PERFORMANCE_HINT,
+                         EXECUTION_MODE_HINT,
+                         PERFORMANCE_HINT_NUM_REQUESTS,
+                         INFERENCE_PRECISION_HINT,
+                         MODEL_PRIORITY,
+                         COMPILATION_MODE_PARAMS,
+                         DMA_ENGINES,
+                         TILES,
+                         COMPILATION_MODE,
+                         COMPILER_TYPE,
+                         COMPILER_VERSION,
+                         PLATFORM,
+                         CREATE_EXECUTOR,
+                         DYNAMIC_SHAPE_TO_STATIC,
+                         PROFILING_TYPE,
+                         BACKEND_COMPILATION_PARAMS,
+                         BATCH_MODE,
+                         BYPASS_UMD_CACHING,
+                         DEFER_WEIGHTS_LOAD,
+                         WEIGHTS_PATH,
+                         RUN_INFERENCES_SEQUENTIALLY,
+                         COMPILER_DYNAMIC_QUANTIZATION,
+                         QDQ_OPTIMIZATION,
+                         QDQ_OPTIMIZATION_AGGRESSIVE,
+                         STEPPING,
+                         DISABLE_VERSION_CHECK,
+                         EXPORT_RAW_BLOB,
+                         IMPORT_RAW_BLOB,
+                         BATCH_COMPILER_MODE_SETTINGS,
+                         TURBO,
+                         ENABLE_WEIGHTLESS,
+                         SEPARATE_WEIGHTS_VERSION,
+                         WS_COMPILE_CALL_NUMBER,
+                         MODEL_SERIALIZER_VERSION,
+                         ENABLE_STRIDES_FOR,
+                         SHARED_COMMON_QUEUE,
+                         CACHE_ENCRYPTION_CALLBACKS,
+                         RUNTIME_REQUIREMENTS,
+                         COMPATIBILITY_CHECK,
+                         MAX_TILES,
+                         WORKLOAD_TYPE,
+                         DISABLE_IDLE_MEMORY_PRUNING>(*options, npu_config);
+
         OPENVINO_SUPPRESS_DEPRECATED_START
-        REGISTER_OPTION(ENABLE_CPU_PINNING);
+        register_option<ENABLE_CPU_PINNING>(*options, npu_config);
         OPENVINO_SUPPRESS_DEPRECATED_END
-        REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-        REGISTER_OPTION(MODEL_PRIORITY);
-        REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-        REGISTER_OPTION(DMA_ENGINES);
-        REGISTER_OPTION(TILES);
-        REGISTER_OPTION(COMPILATION_MODE);
-        REGISTER_OPTION(COMPILER_TYPE);
-        REGISTER_OPTION(PLATFORM);
-        REGISTER_OPTION(CREATE_EXECUTOR);
-        REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-        REGISTER_OPTION(PROFILING_TYPE);
-        REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
-        REGISTER_OPTION(BATCH_MODE);
-        REGISTER_OPTION(BYPASS_UMD_CACHING);
-        REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
-        REGISTER_OPTION(WEIGHTS_PATH);
-        REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
-        REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
-        REGISTER_OPTION(QDQ_OPTIMIZATION);
-        REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
-        REGISTER_OPTION(STEPPING);
-        REGISTER_OPTION(DISABLE_VERSION_CHECK);
-        REGISTER_OPTION(EXPORT_RAW_BLOB);
-        REGISTER_OPTION(IMPORT_RAW_BLOB);
-        REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
-        REGISTER_OPTION(TURBO);
-        REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
-        REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-        REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-        REGISTER_OPTION(ENABLE_STRIDES_FOR);
-        REGISTER_OPTION(SHARED_COMMON_QUEUE);
 
-        if (backend) {
-            REGISTER_OPTION(MAX_TILES);
-
-            if (backend->isCommandQueueExtSupported()) {
-                REGISTER_OPTION(WORKLOAD_TYPE);
-            }
-            if (backend->isContextExtSupported()) {
-                REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-            }
-        }
+        // parse again env_variables to update registered configs which have env vars set
+        npu_config.parseEnvVars();
 
         for_each_exposed_npuw_option([&](auto tag) {
             using Opt = typename decltype(tag)::type;
-            REGISTER_OPTION(Opt);
+            register_option<Opt>(*options, npu_config);
         });
 
         npu_config.enableRuntimeOptions();
@@ -324,6 +332,43 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSuppo
     }
 }
 
+TEST_P(CompatibilityCheckTests, ExpectCompilerPropertyIsNotSupported) {
+    std::string logs;
+    std::mutex logs_mutex;
+    bool isSupported = true;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
+        isSupported = propertiesManager->isPropertySupported("DUMMY_PROPERTY");
+    }
+
+    ASSERT_FALSE(isSupported);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
+        isSupported = propertiesManager->isPropertySupported("DUMMY_PROPERTY");
+    }
+
+    ASSERT_FALSE(isSupported);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
 
 TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported) {
@@ -347,32 +392,6 @@ TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported
 
     ASSERT_TRUE(isSupported);
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-}
-
-using ExpectLoadingCompilerPropertyNotSupported = PropertiesManagerTests;
-
-TEST_P(ExpectLoadingCompilerPropertyNotSupported, ExpectCompilerPropertyIsNotSupported) {
-    std::string logs;
-    std::mutex logs_mutex;
-    bool isSupported = true;
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
-        isSupported = propertiesManager->isPropertySupported(configuration);
-    }
-
-    ASSERT_FALSE(isSupported);
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 

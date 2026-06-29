@@ -209,97 +209,99 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(ov::AnyMap& properties) 
     return nullptr;
 }
 
+template <typename OptionType>
+void register_option(OptionsDesc& options, FilteredConfig& config) {
+    auto dummyopt = details::makeOptionModel<OptionType>();
+    std::string option_name = dummyopt.key().data();
+    options.add<OptionType>();
+    config.enable(std::move(option_name), false);
+}
+
+template <typename... OptionTypes>
+void register_options(OptionsDesc& options, FilteredConfig& config) {
+    (register_option<OptionTypes>(options, config), ...);
+}
+
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
     options.reset();
 
-#define REGISTER_OPTION(OPT_TYPE)                             \
-    do {                                                      \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
-        std::string o_name = dummyopt.key().data();           \
-        options.add<OPT_TYPE>();                              \
-        config.enable(std::move(o_name), false);              \
-    } while (0)
+    register_options<LOG_LEVEL,
+                     CACHE_DIR,
+                     CACHE_MODE,
+                     COMPILED_BLOB,
+                     DEVICE_ID,
+                     NUM_STREAMS,
+                     PERF_COUNT,
+                     LOADED_FROM_CACHE,
+                     COMPILATION_NUM_THREADS,
+                     PERFORMANCE_HINT,
+                     EXECUTION_MODE_HINT,
+                     PERFORMANCE_HINT_NUM_REQUESTS,
+                     INFERENCE_PRECISION_HINT,
+                     MODEL_PRIORITY,
+                     COMPILATION_MODE_PARAMS,
+                     DMA_ENGINES,
+                     TILES,
+                     COMPILATION_MODE,
+                     COMPILER_TYPE,
+                     COMPILER_VERSION,
+                     PLATFORM,
+                     CREATE_EXECUTOR,
+                     DYNAMIC_SHAPE_TO_STATIC,
+                     PROFILING_TYPE,
+                     BACKEND_COMPILATION_PARAMS,
+                     BATCH_MODE,
+                     BYPASS_UMD_CACHING,
+                     DEFER_WEIGHTS_LOAD,
+                     WEIGHTS_PATH,
+                     RUN_INFERENCES_SEQUENTIALLY,
+                     COMPILER_DYNAMIC_QUANTIZATION,
+                     QDQ_OPTIMIZATION,
+                     QDQ_OPTIMIZATION_AGGRESSIVE,
+                     STEPPING,
+                     DISABLE_VERSION_CHECK,
+                     EXPORT_RAW_BLOB,
+                     IMPORT_RAW_BLOB,
+                     BATCH_COMPILER_MODE_SETTINGS,
+                     TURBO,
+                     ENABLE_WEIGHTLESS,
+                     SEPARATE_WEIGHTS_VERSION,
+                     WS_COMPILE_CALL_NUMBER,
+                     MODEL_SERIALIZER_VERSION,
+                     ENABLE_STRIDES_FOR,
+                     SHARED_COMMON_QUEUE,
+                     CACHE_ENCRYPTION_CALLBACKS,
+                     RUNTIME_REQUIREMENTS,
+                     COMPATIBILITY_CHECK,
+                     MAX_TILES,
+                     WORKLOAD_TYPE,
+                     DISABLE_IDLE_MEMORY_PRUNING>(options, config);
 
-    REGISTER_OPTION(LOG_LEVEL);
-    REGISTER_OPTION(CACHE_DIR);
-    REGISTER_OPTION(CACHE_MODE);
-    REGISTER_OPTION(COMPILED_BLOB);
-    REGISTER_OPTION(DEVICE_ID);
-    REGISTER_OPTION(NUM_STREAMS);
-    REGISTER_OPTION(PERF_COUNT);
-    REGISTER_OPTION(LOADED_FROM_CACHE);
-    REGISTER_OPTION(COMPILATION_NUM_THREADS);
-    REGISTER_OPTION(PERFORMANCE_HINT);
-    REGISTER_OPTION(EXECUTION_MODE_HINT);
-    REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
+    register_option<ENABLE_CPU_PINNING>(options, config);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-    REGISTER_OPTION(MODEL_PRIORITY);
-    REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-    REGISTER_OPTION(DMA_ENGINES);
-    REGISTER_OPTION(TILES);
-    REGISTER_OPTION(COMPILATION_MODE);
-    REGISTER_OPTION(COMPILER_TYPE);
-    REGISTER_OPTION(COMPILER_VERSION);
-    REGISTER_OPTION(PLATFORM);
-    REGISTER_OPTION(CREATE_EXECUTOR);
-    REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(PROFILING_TYPE);
-    REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
-    REGISTER_OPTION(BATCH_MODE);
-    REGISTER_OPTION(BYPASS_UMD_CACHING);
-    REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
-    REGISTER_OPTION(WEIGHTS_PATH);
-    REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
-    REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
-    REGISTER_OPTION(QDQ_OPTIMIZATION);
-    REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
-    REGISTER_OPTION(STEPPING);
-    REGISTER_OPTION(DISABLE_VERSION_CHECK);
-    REGISTER_OPTION(EXPORT_RAW_BLOB);
-    REGISTER_OPTION(IMPORT_RAW_BLOB);
-    REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
-    REGISTER_OPTION(TURBO);
-    REGISTER_OPTION(ENABLE_WEIGHTLESS);
-    REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
-    REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-    REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-    REGISTER_OPTION(ENABLE_STRIDES_FOR);
-    REGISTER_OPTION(SHARED_COMMON_QUEUE);
-    REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
-    REGISTER_OPTION(COMPATIBILITY_CHECK);
 
-    if (backend) {
-        // Options registered only if drivers is present and supports the corresponding extension
-        REGISTER_OPTION(MAX_TILES);
-
-        if (backend->isCommandQueueExtSupported()) {
-            REGISTER_OPTION(WORKLOAD_TYPE);
-        }
-        if (backend->isContextExtSupported()) {
-            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-        }
-    }
-
-    // parse again env_variables to update registered configs which have env vars set
+    // parse again env_variables to update registered configs which
+    // have env vars set
     config.parseEnvVars();
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
-    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and
+    // have no effect on the NPU plugin. But we still need to enable
+    // those for OV Core to query. Note: do this last to not filter
+    // them out. register npuw caching properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
-        REGISTER_OPTION(Opt);
+        register_option<Opt>(options, config);
     });
 
     config.enableRuntimeOptions();
 
-    // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
-    // support them, because they may be used by the plugin itself or by the driver.
-    // We still check compiler support to decide whether these options should be removed from the config string.
+    // Special cases - options with OptionMode::Both must be enabled
+    // for the plugin even if the compiler does not support them,
+    // because they may be used by the plugin itself or by the driver.
+    // We still check compiler support to decide whether these options
+    // should be removed from the config string.
 
     // NPU_TURBO might be supported by the driver
     if (backend && backend->isCommandQueueExtSupported()) {

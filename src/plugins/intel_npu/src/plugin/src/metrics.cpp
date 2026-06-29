@@ -180,11 +180,4 @@ ov::device::Type Metrics::GetDeviceType(const std::string& specifiedDeviceName) 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
-bool Metrics::IsCommandQueueExtSupported() const {
-    if (_backend == nullptr) {
-        OPENVINO_THROW("No available backend");
-    }
-    return _backend->isCommandQueueExtSupported();
-}
-
 }  // namespace intel_npu

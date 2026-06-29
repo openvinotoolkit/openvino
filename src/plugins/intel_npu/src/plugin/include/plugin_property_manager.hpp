@@ -29,15 +29,15 @@ public:
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
 
     void setProperty(const ov::AnyMap& properties);
-    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
-    bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
+    bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {});
 
-    const FilteredConfig& getConfig() const {
+    const FilteredConfig& getConfig() {
         return _config;
     }
 
-    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const;
-    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties, const ICompilerAdapter* compiler) const;
+    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties);
+    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties, const ICompilerAdapter* compiler);
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
@@ -51,7 +51,7 @@ private:
         ov::SoPtr<IEngineBackend> backend;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
-        ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
+        ov::intel_npu::CompilerType compilerForCompatibilityCheck;
         bool compatibilityCheckSupported;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
@@ -60,25 +60,24 @@ private:
 
     explicit PluginPropertyManager(CopyState&& state);
 
-    void registerProperties() const;
-    void initializeCompatibilityCheckSupportIfNeeded() const;
-    bool isPropertyRegistered(const std::string& propertyName) const;
+    void registerProperties();
+    void initializeCompatibilityCheckSupportIfNeeded();
+    bool isPropertyRegistered(const std::string& propertyName);
 
-    mutable FilteredConfig _config;
+    FilteredConfig _config;
 
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
     Logger& _logger;
 
-    mutable ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
-    mutable ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
-    mutable bool _compatibilityCheckSupported = false;
-    mutable std::string _currentlyUsedPlatform;
-    mutable bool _compilerConfigsFilteredByCompiler = false;
-    mutable bool _compatibilityCheckFiltered = false;
+    ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
+    bool _compatibilityCheckSupported = false;
+    std::string _currentlyUsedPlatform;
+    bool _compilerConfigsFilteredByCompiler = false;
+    bool _compatibilityCheckFiltered = false;
 
-    mutable std::map<std::string, PropertyDescriptor> _properties;
-    mutable std::vector<ov::PropertyName> _supportedProperties;
+    std::map<std::string, PropertyDescriptor> _properties;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
