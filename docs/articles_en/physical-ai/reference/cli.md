@@ -1,49 +1,43 @@
 # CLI Reference
 
-> **Preview:** The CLI is a planned API. The commands below document the target design.
-
 The runtime CLI commands use the same schemas as the Python APIs.
+
+The canonical command is `physicalai`. A shorthand alias `pai` is also
+installed and behaves identically.
 
 ## `physicalai run`
 
 ```bash
-physicalai run --config runtime.yaml [--duration-s 60]
+physicalai run --config runtime.yaml [--run.duration_s=60]
 ```
 
 Arguments:
 
-| Argument       | Required | Description                              |
-| -------------- | -------- | ---------------------------------------- |
-| `--config`     | yes      | Runtime config YAML                      |
-| `--duration-s` | no       | Stop after the given duration in seconds |
+| Argument           | Required | Description                              |
+| ------------------ | -------- | ---------------------------------------- |
+| `--config`         | yes      | Runtime config YAML                      |
+| `--run.duration_s` | no       | Stop after the given duration in seconds |
 
-The equivalent Python call is shown below.
+The same duration limit is available from the current Python API after you
+construct a runtime directly.
 
 ```python
-PolicyRuntime.from_config("runtime.yaml").run(duration_s=60)
+runtime = PolicyRuntime(...)
+
+with runtime:
+    runtime.run(duration_s=60)
 ```
 
-## `physicalai infer`
+## Shell Completion
 
-_(Planned API — interface may change.)_
+Shell completion scripts can be printed directly from the CLI and sourced in
+your shell. Completion includes any installed plugin subcommands, such as the
+studio training commands.
 
 ```bash
-physicalai infer --config inference.yaml
+source <(physicalai completion zsh)
+source <(pai completion bash)
 ```
-
-Arguments:
-
-| Argument   | Required | Description           |
-| ---------- | -------- | --------------------- |
-| `--config` | yes      | Inference config YAML |
-
-## `physicalai serve`
-
-```bash
-physicalai serve --config server.yaml --host 0.0.0.0 --port 8080
-```
-
-Use this command when inference should run remotely instead of on the robot host.
 
 ## Plugin Commands
 
@@ -51,9 +45,10 @@ Training packages can add commands through entry points.
 
 ```toml
 [project.entry-points."physicalai.cli.subcommands"]
-fit = "physicalai.train.cli:register_fit"
-validate = "physicalai.train.cli:register_validate"
-test = "physicalai.train.cli:register_test"
-predict = "physicalai.train.cli:register_predict"
-export = "physicalai.train.cli:register_export"
+fit = "physicalai.cli.fit:register"
+validate = "physicalai.cli.validate:register"
+test = "physicalai.cli.test:register"
+predict = "physicalai.cli.predict:register"
+benchmark = "physicalai.cli.benchmark:register"
+export = "physicalai.cli.export:register"
 ```

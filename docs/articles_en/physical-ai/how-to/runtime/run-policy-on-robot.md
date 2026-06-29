@@ -1,7 +1,5 @@
 # Run a Policy on a Robot
 
-> **Preview:** `PolicyRuntime` and the CLI are planned APIs. The examples below document the target design.
-
 ## Python API
 
 ```python
@@ -13,14 +11,15 @@ from physicalai.capture import UVCCamera
 runtime = PolicyRuntime(
     fps=30,
     robot=SO101(port="/dev/ttyACM0"),
-    model=InferenceModel.load("./exports/act_policy"),
+    model=InferenceModel("./exports/act_policy"),
     cameras={
         "wrist": UVCCamera(device="/dev/video0", width=640, height=480),
     },
-    execution=SyncExecution(mode="chunk"),
+    execution=SyncExecution(),
 )
 
-runtime.run(duration_s=60)
+with runtime:
+    runtime.run(duration_s=60)
 ```
 
 ## From Config
@@ -54,19 +53,10 @@ runtime:
         mode: chunk
 ```
 
-Load and run from Python.
-
-```python
-from physicalai.runtime import PolicyRuntime
-
-runtime = PolicyRuntime.from_config("runtime.yaml")
-runtime.run(duration_s=60)
-```
-
-Or run from the CLI.
+Run it from the CLI.
 
 ```bash
-physicalai run --config runtime.yaml --duration-s 60
+physicalai run --config runtime.yaml --run.duration_s=60
 ```
 
 ## Component Responsibilities

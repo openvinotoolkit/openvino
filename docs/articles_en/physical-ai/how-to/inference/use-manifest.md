@@ -12,7 +12,7 @@ exports/act_policy/
 In most cases, you load the package through `InferenceModel`.
 
 ```python
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 ```
 
 If you need to inspect metadata directly, load the manifest itself.

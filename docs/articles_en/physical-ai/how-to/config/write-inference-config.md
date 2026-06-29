@@ -16,7 +16,7 @@ model:
 If the manifest already contains the required runner, artifacts, processors, and hardware metadata, prefer loading from the manifest instead.
 
 ```python
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 action = model.select_action(observation)
 ```
 

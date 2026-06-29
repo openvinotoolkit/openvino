@@ -1,12 +1,17 @@
 # Runtime
 
-> **Preview:** `PolicyRuntime` is a planned API. The content below documents the target design.
-
 `PolicyRuntime` runs a policy on robot hardware. It owns the control loop, the callback lifecycle, and the interaction between observations, inference requests, and actions.
 
 ```python
-runtime = PolicyRuntime.from_config("runtime.yaml")
-runtime.run(duration_s=60)
+runtime = PolicyRuntime(
+    fps=30,
+    robot=robot,
+    model=model,
+    execution=SyncExecution(),
+)
+
+with runtime:
+    runtime.run(duration_s=60)
 ```
 
 ## Responsibilities
@@ -36,12 +41,13 @@ The exact observation structure and merging strategy may change as the API stabi
 
 ## Execution Modes
 
-| Mode                                  | Where inference runs | Use                                      |
-| ------------------------------------- | -------------------- | ---------------------------------------- |
-| `SyncExecution(mode="single_action")` | runtime thread       | simple policies                          |
-| `SyncExecution(mode="chunk")`         | runtime thread       | chunk policies without background worker |
-| `AsyncExecution(transport="thread")`  | worker thread        | avoid blocking control loop              |
-| `RemoteExecution`                     | remote server        | robot host without policy weights        |
+> **Preview:** `RemoteExecution` is a planned API.
+
+| Mode                     | Where inference runs | Use                              |
+| ------------------------ | -------------------- | -------------------------------- |
+| `SyncExecution()`        | runtime thread       | simple deployments and debugging |
+| `AsyncExecution(fps=30)` | worker thread        | avoid blocking the control loop  |
+| `RemoteExecution`        | remote server        | planned API                      |
 
 ## Product Workflows
 

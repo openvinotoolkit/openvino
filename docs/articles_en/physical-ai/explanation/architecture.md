@@ -29,15 +29,14 @@ Training packages can add commands through CLI entry points when they need to ex
 
 ```text
 physicalai
-  infer
   run
-  serve
 
 training package
   fit
   validate
   test
   predict
+  benchmark
   export
 ```
 

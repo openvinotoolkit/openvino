@@ -57,7 +57,7 @@ from physicalai.runtime import PolicyRuntime, SyncExecution
 from physicalai.robot import SO101
 from physicalai.capture import UVCCamera
 
-model = InferenceModel.load("./exports/act_policy")
+model = InferenceModel("./exports/act_policy")
 robot = SO101(port="/dev/ttyACM0")
 cameras = {"wrist": UVCCamera(device="/dev/video0", width=640, height=480)}
 
@@ -66,16 +66,17 @@ runtime = PolicyRuntime(
     robot=robot,
     model=model,
     cameras=cameras,
-    execution=SyncExecution(mode="chunk"),
+    execution=SyncExecution(),
 )
 
-runtime.run(duration_s=60)
+with runtime:
+    runtime.run(duration_s=60)
 ```
+
+> **Preview:** The CLI remains a planned API. See [#121](https://github.com/openvinotoolkit/physicalai/issues/121) for status.
 
 CLI example:
 
 ```bash
-physicalai run --config runtime.yaml --duration-s 60
+physicalai run --config runtime.yaml --run.duration_s=60
 ```
-
-> **Note:** `PolicyRuntime` and the CLI are planned APIs. See [#121](https://github.com/openvinotoolkit/physicalai/issues/121) for status.

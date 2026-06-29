@@ -28,6 +28,32 @@ uv run pytest
 
 Training commands may be provided by a separate training distribution or by plugin entry points.
 
+When installed together with the coordinated `physicalai-train` release, the
+shared `physicalai` executable also exposes training and benchmark subcommands.
+
+## Intel GPU runtime (optional)
+
+To run OpenVINO inference on an Intel GPU (`device: GPU` or `AUTO` in your
+inference config), the host needs the OpenCL loader and Intel compute driver.
+This is the standard Intel GPU host setup on Linux, and these system packages
+cannot be installed via `pip`:
+
+```bash
+# Debian / Ubuntu
+sudo apt install ocl-icd-libopencl1 intel-opencl-icd
+
+# allow your user to access the GPU device (log out / back in after this)
+sudo usermod -aG render $USER
+
+# verify a GPU device is visible to OpenCL
+clinfo -l
+```
+
+Without these, loading the OpenVINO GPU plugin fails with either
+`libOpenCL.so.1: cannot open shared object file` (loader missing) or
+`[GPU] Can't get PERFORMANCE_HINT property as no supported devices found`
+(driver missing or device not accessible). CPU inference is unaffected.
+
 ## Check the Install
 
 ```python
