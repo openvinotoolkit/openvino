@@ -554,6 +554,19 @@ static KVNodes gen_KV(const CacheInfo& cache,
     return KVNodes{concat, assign};
 }
 
+// Number of inputs to use when wrapping Q/K/V into FakeConvert: 3-input (data, scale, shift)
+// or 2-input (data, scale). Toggled per parameterized test case to exercise dual-arity matching.
+static bool g_fake_convert_with_shift = true;
+
+static std::shared_ptr<Node> wrap_fake_convert(const std::shared_ptr<Node>& input) {
+    auto scale = makeConst(element::f32, {}, {1.0f});
+    if (g_fake_convert_with_shift) {
+        auto shift = makeConst(element::f32, {}, {0.0f});
+        return makeOP<v13::FakeConvert>({input, scale, shift}, {{"destination_type", "f8e4m3"}});
+    }
+    return makeOP<v13::FakeConvert>({input, scale}, {{"destination_type", "f8e4m3"}});
+}
+
 class Opt125mSDPA {
 public:
     static std::shared_ptr<Node> gen_embeddings(const std::shared_ptr<Node>& input_ids,
@@ -678,10 +691,11 @@ public:
         return Opt125mSDPA::gen_proj(input);
     }
 
-    // Q path: scale → Reshape[B,S,H,D] → Transpose[B,H,S,D] → PA-Transpose[B,S,H,D] → Reshape[0,-1]
+    // Q path: scale → Reshape[B,S,H,D] → Transpose[B,H,S,D] → FakeConvert → PA-Transpose[B,S,H,D] → Reshape[0,-1]
     static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& q_proj) {
         auto q = Opt125mSDPA::gen_Q(q_proj);
-        auto transpose_pa = makeOP<v1::Transpose>({q, {0, 2, 1, 3}});
+        auto fc = wrap_fake_convert(q);
+        auto transpose_pa = makeOP<v1::Transpose>({fc, {0, 2, 1, 3}});
         return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
     }
 
@@ -714,13 +728,10 @@ public:
     }
 };
 
-static std::shared_ptr<Node> wrap_fake_convert(const std::shared_ptr<Node>& input) {
-    auto scale = makeConst(element::f32, {}, {1.0f});
-    auto shift = makeConst(element::f32, {}, {0.0f});
-    return makeOP<v13::FakeConvert>({input, scale, shift}, {{"destination_type", "f8e4m3"}});
-}
+class SDPAToPAFakeConvertTest : public TransformationTestsF, public ::testing::WithParamInterface<bool> {};
 
-TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
+TEST_P(SDPAToPAFakeConvertTest, SDPAToPA_Opt125m_General) {
+    g_fake_convert_with_shift = GetParam();
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
         auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
@@ -809,10 +820,6 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
         std::shared_ptr<Node> head_size;
         auto V = Opt125mPA::gen_V(v_proj, head_size);
 
-        Q = wrap_fake_convert(Q);
-        K = wrap_fake_convert(K);
-        V = wrap_fake_convert(V);
-
         auto scale = makeConst(element::f32, {}, {1.0f});
         auto sliding_window = makeConst(element::i32, Shape{}, {0});
         auto alibi_slopes = makeConst(element::f32, Shape{0}, std::vector<float>{});
@@ -860,6 +867,13 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_rt_info_check();
 }
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion,
+                         SDPAToPAFakeConvertTest,
+                         ::testing::Values(true, false),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "with_shift" : "no_shift";
+                         });
 
 }  // namespace
 
