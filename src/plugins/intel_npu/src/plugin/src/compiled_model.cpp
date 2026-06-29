@@ -41,7 +41,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     FilteredConfig localConfig = config;
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
+    _propertiesManager =
+        std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _device, _batchSize, _logger);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));

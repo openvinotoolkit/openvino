@@ -41,6 +41,8 @@ public:
 
     DeviceProperties getDeviceProperties() const override;
 
+    bool isCommandQueueExtSupported() const override;
+
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
 
