@@ -35,10 +35,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
-    // empty descriptor means there are no runtime requirements
-    if (_compatibilityDescriptor.has_value() && _compatibilityDescriptor->empty()) {
-        _compatibilityDescriptor.reset();
-    }
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;

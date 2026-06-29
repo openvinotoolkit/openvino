@@ -591,6 +591,12 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
     }
 
     _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
+
+    // normalize empty string to nullopt at the system boundary
+    if (descriptor.empty()) {
+        return std::nullopt;
+    }
+
     return descriptor;
 }
 
