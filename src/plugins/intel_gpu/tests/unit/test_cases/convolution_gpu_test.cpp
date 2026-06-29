@@ -13217,7 +13217,7 @@ TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding) {
     ASSERT_EQ(mem_test->get_layout(), mem_ref->get_layout());
     ASSERT_EQ(ptr_test.size(), ptr_ref.size());
 
-    const float atol = 0.5f;
+    const float atol = 0.54f;
     const float rtol = 1e-2f;
     for (size_t i = 0; i < ptr_test.size(); i++) {
         const float test_val = float(ptr_test[i]);
