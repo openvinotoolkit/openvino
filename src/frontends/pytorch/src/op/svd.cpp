@@ -31,8 +31,8 @@ using namespace ov::op;
 namespace {
 
 // Number of Jacobi sweeps. One-sided Jacobi for 3x3 converges in ~5 sweeps; 6 adds
-// margin (verified vs torch.svd to ~1e-5 across many seeds incl. rank-deficient
-// matrices in WORK/repro/proto_jacobi_svd.py).
+// margin (matches torch.svd to ~1e-5 across many seeds, including rank-deficient
+// matrices).
 constexpr int SVD_SWEEPS = 6;
 // Column index pairs swept by one-sided Jacobi.
 constexpr int PAIRS[3][2] = {{0, 1}, {0, 2}, {1, 2}};
@@ -52,9 +52,9 @@ public:
           m_et(et),
           m_tiny(cf(1e-30f)) {}
 
-    // Returns {U, S, V}. Each column of U/V is a (..., 3) singular vector; S is
-    // (..., 3) descending. V holds the right singular vectors as columns (the
-    // torch.svd convention).
+    // Returns {U, S, V} with shapes U:(...,3,3), S:(...,3) descending, V:(...,3,3).
+    // Each column of U/V is a (...,3) singular vector; V holds the right singular
+    // vectors as columns (the torch.svd convention).
     std::tuple<Output<Node>, Output<Node>, Output<Node>> build(const Output<Node>& A_in) {
         // Working columns of A and of V (V starts as identity columns).
         Output<Node> a[3] = {mcol(A_in, 0), mcol(A_in, 1), mcol(A_in, 2)};
