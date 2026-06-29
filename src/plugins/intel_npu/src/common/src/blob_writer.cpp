@@ -109,10 +109,6 @@ SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>
     if (!m_next_type_instance_id.count(section_type)) {
         m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
     }
-    if (!m_section_types_representatives.count(section_type)) {
-        // The first instance of a new type is chosen as representative
-        m_section_types_representatives[section_type] = section;
-    }
 
     const SectionTypeInstance type_instance_id = m_next_type_instance_id[section_type]++;
     section->set_section_type_instance(type_instance_id);
@@ -133,10 +129,6 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
     const SectionType section_type = section->get_section_type();
     if (!m_next_type_instance_id.count(section_type)) {
         m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
-    }
-    if (!m_section_types_representatives.count(section_type)) {
-        // The first instance of a new type is chosen as representative
-        m_section_types_representatives[section_type] = section;
     }
 
     // Update the next instance ID to be used.
@@ -165,8 +157,10 @@ CRE BlobWriter::build_cre() const {
     m_logger.debug("Added the CRE_EVALUATION token to the CRE");
 
     // Go through all sections to find out the tokens that are needed
-    for (const auto& [section_type, section] : m_section_types_representatives) {
-        cre.append_to_expression(section->get_compatibility_requirements_subexpression(m_registered_sections));
+    for (const auto& [section_type, instance_map] : m_registered_sections) {
+        for (const auto& [section_instance, section] : instance_map) {
+            cre.append_to_expression(section->get_compatibility_requirements_subexpression(m_registered_sections));
+        }
     }
 
     return cre;
