@@ -437,6 +437,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("DKS", "(D_MAX / DPAS_K)");
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
     jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
+    jit.make("USE_2D_BLOCK_IO", (ldk % 16 == 0) && (ldv % 16 == 0) && (lda % 16 == 0));
     jit.make("INVERT_SCALE", false);
     jit.make("SCALE_DATA_T", "half");
     jit.make("HEAD_SIZE", k_head_size);
