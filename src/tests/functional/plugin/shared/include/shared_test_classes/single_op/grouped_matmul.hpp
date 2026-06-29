@@ -29,6 +29,17 @@ struct GroupedMatMulShapeParams {
     TokensPerExpert      tokens_per_expert;  ///< Per-iter routing; empty = even
 };
 
+class GroupedMatMulTestBase : virtual public ov::test::SubgraphBaseTest {
+protected:
+    GroupedMatMulShapeParams shape_params_;
+    ov::element::Type act_type_;
+    std::string model_name_;
+
+    void SetUp() override;
+    virtual std::shared_ptr<ov::Node> build_weights() = 0;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
+
 using GroupedMatMulParams = std::tuple<
     GroupedMatMulShapeParams,  // shape bundle
     ov::element::Type,         // element type
@@ -36,14 +47,13 @@ using GroupedMatMulParams = std::tuple<
 >;
 
 class GroupedMatMulLayerTest : public testing::WithParamInterface<GroupedMatMulParams>,
-                               virtual public ov::test::SubgraphBaseTest {
+                               virtual public GroupedMatMulTestBase {
 public:
-    using ParamType = GroupedMatMulParams;
     static std::string getTestCaseName(const testing::TestParamInfo<GroupedMatMulParams>& obj);
 
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    std::shared_ptr<ov::Node> build_weights() override;
 };
 
 using GroupedMatMulCompressedParams = std::tuple<
@@ -61,14 +71,22 @@ using GroupedMatMulCompressedParams = std::tuple<
 
 class GroupedMatMulCompressedLayerTest
     : public testing::WithParamInterface<GroupedMatMulCompressedParams>,
-      virtual public ov::test::SubgraphBaseTest {
+      virtual public GroupedMatMulTestBase {
 public:
-    using ParamType = GroupedMatMulCompressedParams;
     static std::string getTestCaseName(const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj);
 
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    std::shared_ptr<ov::Node> build_weights() override;
+
+private:
+    ov::element::Type weights_prec_;
+    ov::element::Type decomp_prec_;
+    ov::element::Type scale_prec_;
+    ov::test::utils::DecompressionType multiply_type_;
+    ov::test::utils::DecompressionType subtract_type_;
+    bool reshape_on_decomp_;
+    int group_size_;
 };
 
 }  // namespace test
