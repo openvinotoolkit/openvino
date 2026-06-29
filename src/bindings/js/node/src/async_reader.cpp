@@ -8,11 +8,17 @@
 #include "openvino/core/model_util.hpp"
 
 void ReaderWorker::Execute() {
-    if (_args->model_str.empty())
-        _model = _core.read_model(_args->model_path, _args->bin_path);
-    else
-        _model = _core.read_model(_args->model_str, _args->weight_tensor);
-    ov::util::set_tensors_names(ov::AUTO, *_model);
+    try {
+        if (_args->model_str.empty())
+            _model = _core.read_model(_args->model_path, _args->bin_path);
+        else
+            _model = _core.read_model(_args->model_str, _args->weight_tensor);
+        ov::util::set_tensors_names(ov::AUTO, *_model);
+    } catch (const std::exception& e) {
+        SetError(e.what());
+    } catch (...) {
+        SetError("Unknown error while reading model");
+    }
 }
 
 void ReaderWorker::OnOK() {
@@ -24,6 +30,7 @@ void ReaderWorker::OnOK() {
 }
 
 void ReaderWorker::OnError(const Napi::Error& error) {
+    delete _args;
     _deferred.Reject(error.Value());
 }
 
