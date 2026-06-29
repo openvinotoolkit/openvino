@@ -16,6 +16,7 @@
 
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
@@ -25,37 +26,16 @@ int64_t get_system_page_size() {
     return page_size;
 }
 
-/** @brief Represents a memory region aligned to system page boundaries. */
-struct PageAlignedRegion {
-    uintptr_t m_address = 0;  //!< Page-aligned base address (rounded down to page boundary)
-    size_t m_length = 0;      //!< Total length of the aligned region including the gap
-    size_t m_gap = 0;         //!< Gap from the aligned address to the original unaligned address
-};
-
-/**
- * @brief Aligns a memory region to system page boundaries.
- *
- * @param base      The base address of the memory region.
- * @param raw_len   The length of the memory region.
- * @param page_size The system page size.
- * @return The aligned memory region.
- */
-constexpr PageAlignedRegion align_to_page(uintptr_t base, size_t raw_len, size_t page_size) {
-    const auto aligned = (base / page_size) * page_size;
-    const auto gap = base - aligned;
-    return {aligned, raw_len + gap, gap};
-}
-
 /**
  * @brief Creates a memory region for mmap operations.
  *
  * @param offset The offset within the mmap region.
  * @param size   The size of the region.
- * @return PageAlignedRegion The aligned memory region.
+ * @return AlignedRegion The aligned memory region.
  */
-inline PageAlignedRegion make_mmap_region(size_t offset, size_t size) {
+inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    return align_to_page(static_cast<uintptr_t>(offset), size, page_size);
+    return util::align_region(static_cast<uintptr_t>(offset), size, page_size);
 }
 
 /**
@@ -65,16 +45,16 @@ inline PageAlignedRegion make_mmap_region(size_t offset, size_t size) {
  * @param mapping_size The size of the mapped memory region.
  * @param offset       The offset within the mapped memory region.
  * @param size         The size of the region.
- * @return PageAlignedRegion The aligned memory region.
+ * @return AlignedRegion The aligned memory region.
  */
-inline PageAlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
+inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
     if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
         return {};
     } else {
         const auto available = mapping_size - offset;
         const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-        return align_to_page(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+        return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
     }
 }
 }  // namespace util
@@ -193,7 +173,10 @@ public:
     }
 };
 
-std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path,
+                                               size_t offset,
+                                               size_t size,
+                                               bool /* no_placeholder */) {
     auto holder = std::make_shared<MapHolder>();
     holder->set(path, offset, size);
     return holder;

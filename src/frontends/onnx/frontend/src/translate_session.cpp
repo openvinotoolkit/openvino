@@ -126,7 +126,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         ov::OutputVector ov_outputs(out_size);
         const Operator* translator =
             m_translator_map->get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
-        ov::frontend::onnx::Node node_context(*decoder, this);
+        ov::frontend::onnx::Node node_context(decoder, this);
         std::string error_message{};
         try {
             if (translator == nullptr) {

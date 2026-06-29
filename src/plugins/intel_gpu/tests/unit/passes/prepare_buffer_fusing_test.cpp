@@ -1650,7 +1650,301 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
+
+// Verifies that feature-axis concat with static batch > 1 and non-uniform feature counts
+// can be optimized in-place by oneDNN
+TEST(prepare_buffer_fusing, in_place_onednn_concat_static_batch_gt1) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    // Three inputs with batch=3 and non-uniform feature counts [16, 32, 16] at spatial 2×3.
+    auto in_layout1 = layout{ ov::PartialShape{3, 16, 2, 3}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ ov::PartialShape{3, 32, 2, 3}, data_types::f32, format::bfyx };
+    auto in_layout3 = layout{ ov::PartialShape{3, 16, 2, 3}, data_types::f32, format::bfyx };
+
+    auto build_topology = [](bool use_block_format) {
+        auto fmt = use_block_format ? format::b_fs_yx_fsv16 : format::bfyx;
+        topology topo;
+        topo.add(input_layout("input1", layout{ ov::PartialShape{3, 16, 2, 3}, data_types::f32, format::bfyx }));
+        topo.add(input_layout("input2", layout{ ov::PartialShape{3, 32, 2, 3}, data_types::f32, format::bfyx }));
+        topo.add(input_layout("input3", layout{ ov::PartialShape{3, 16, 2, 3}, data_types::f32, format::bfyx }));
+        topo.add(reorder("reorder1", input_info("input1"), fmt, data_types::f16));
+        topo.add(reorder("reorder2", input_info("input2"), fmt, data_types::f16));
+        topo.add(reorder("reorder3", input_info("input3"), fmt, data_types::f16));
+        topo.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2"), input_info("reorder3") }, 1));
+        topo.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+        return topo;
+    };
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    auto input_memory3 = engine.allocate_memory(in_layout3);
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto vals1 = rg.generate_random_1d<float>(3 * 16 * 2 * 3, -1, 1);
+    auto vals2 = rg.generate_random_1d<float>(3 * 32 * 2 * 3, -1, 1);
+    auto vals3 = rg.generate_random_1d<float>(3 * 16 * 2 * 3, -1, 1);
+    set_values(input_memory1, vals1);
+    set_values(input_memory2, vals2);
+    set_values(input_memory3, vals3);
+
+    // implicit concat — runtime selects the preferred impl (onednn on immad devices) for the path
+    ExecutionConfig cfg_implicit = get_test_default_config(engine);
+    cfg_implicit.set_property(ov::intel_gpu::optimize_data(true));
+    cfg_implicit.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    network net_implicit(engine, build_topology(true), cfg_implicit);
+    net_implicit.set_input_data("input1", input_memory1);
+    net_implicit.set_input_data("input2", input_memory2);
+    net_implicit.set_input_data("input3", input_memory3);
+    auto out_implicit = net_implicit.execute();
+
+    const auto& concat_node = net_implicit.get_primitive("concat")->get_node();
+    ASSERT_TRUE(concat_node.can_be_optimized());
+
+    // explicit concat — reference without in-place optimisation (bfyx to avoid format aliasing)
+    ExecutionConfig cfg_explicit = get_test_default_config(engine);
+    cfg_explicit.set_property(ov::intel_gpu::optimize_data(false));
+    network net_explicit(engine, build_topology(false), cfg_explicit);
+    net_explicit.set_input_data("input1", input_memory1);
+    net_explicit.set_input_data("input2", input_memory2);
+    net_explicit.set_input_data("input3", input_memory3);
+    auto out_explicit = net_explicit.execute();
+
+    auto mem_implicit = out_implicit.at("output").get_memory();
+    auto mem_explicit = out_explicit.at("output").get_memory();
+    cldnn::mem_lock<float> ptr_implicit(mem_implicit, get_test_stream());
+    cldnn::mem_lock<float> ptr_explicit(mem_explicit, get_test_stream());
+
+    ASSERT_EQ(ptr_implicit.size(), ptr_explicit.size());
+    for (size_t i = 0; i < ptr_implicit.size(); i++)
+        ASSERT_NEAR(ptr_implicit[i], ptr_explicit[i], 1e-3f) << "mismatch at index " << i;
+}
+
+// Verifies that oneDNN in-place concat remains safe when a shared predecessor has multiple users.
+TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_safe_type) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_layout  = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("shared_in", in_layout));
+    topology.add(input_layout("other_in",  in_layout2));
+    // shared_r: the predecessor node that will have 3 users
+    topology.add(reorder("shared_r", input_info("shared_in"), format::bfyx, data_types::f16));
+    topology.add(reorder("other_r",  input_info("other_in"),  format::bfyx, data_types::f16));
+
+    // User 1 of shared_r: concat (the node we want to fuse) — other_r first so shared_r is in the second slot
+    topology.add(concatenation("concat", { input_info("other_r"), input_info("shared_r") }, 1));
+    // User 2 of shared_r: activation relu (safe type — in available_pred, never reads padding)
+    topology.add(activation("act1", input_info("shared_r"), activation_func::relu));
+    // User 3 of shared_r: activation abs (safe type — preserves full value range)
+    topology.add(activation("act2", input_info("shared_r"), activation_func::abs));
+
+    topology.add(reorder("out_concat", input_info("concat"), format::bfyx, data_types::f32));
+    topology.add(reorder("out_act1",   input_info("act1"),   format::bfyx, data_types::f32));
+    topology.add(reorder("out_act2",   input_info("act2"),   format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"shared_r", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
+        {"other_r",  ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
+    }));
+    network network(engine, topology, config);
+
+    auto input_memory  = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    const size_t N = 16 * 4 * 4;  // 256
+    std::vector<float> d1(N), d2(N);
+    for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(512 + i); }
+    set_values(input_memory,  d1);
+    set_values(input_memory2, d2);
+
+    network.set_input_data("shared_in", input_memory);
+    network.set_input_data("other_in",  input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = network.execute());
+
+    const auto& concat_node = network.get_primitive("concat")->get_node();
+    ASSERT_TRUE(concat_node.can_be_optimized());
+
+    auto out_concat_mem = output.at("out_concat").get_memory();
+    cldnn::mem_lock<float> concat_ptr(out_concat_mem, get_test_stream());
+    ASSERT_EQ(concat_ptr.size(), 2 * N);
+    for (size_t i = 0; i < N; i++)
+        ASSERT_NEAR(concat_ptr[i],     static_cast<float>(512 + i), 1e-3f) << "out_concat first half mismatch at index " << i;
+    for (size_t i = 0; i < N; i++)
+        ASSERT_NEAR(concat_ptr[N + i], static_cast<float>(i),       1e-3f) << "out_concat second half mismatch at index " << i;
+
+    // out_act1 = relu(shared_r) = relu(0..N-1) = 0..N-1 (all non-negative)
+    auto out_act1_mem = output.at("out_act1").get_memory();
+    cldnn::mem_lock<float> act1_ptr(out_act1_mem, get_test_stream());
+    for (size_t i = 0; i < act1_ptr.size(); i++)
+        ASSERT_NEAR(act1_ptr[i], static_cast<float>(i), 1e-3f) << "out_act1 mismatch at index " << i;
+
+    // out_act2 = abs(shared_r) = abs(0..N-1) = 0..N-1 (all non-negative, full range preserved)
+    auto out_act2_mem = output.at("out_act2").get_memory();
+    cldnn::mem_lock<float> act2_ptr(out_act2_mem, get_test_stream());
+    for (size_t i = 0; i < act2_ptr.size(); i++)
+        ASSERT_NEAR(act2_ptr[i], static_cast<float>(i), 1e-3f) << "out_act2 mismatch at index " << i;
+}
+
+// Verifies that in-place concat fuses when an oneDNN conv is among the shared predecessor's users.
+//
+//   shared_in → shared_r (b_fs_yx_fsv16, oneDNN) ─┬→ concat → out_concat
+//   other_in  → other_r  (b_fs_yx_fsv16)          ─┘
+//                                  └→ conv (oneDNN, b_fs_yx_fsv16) → out_conv
+//                                  └→ act1                         → out_act1
+TEST(prepare_buffer_fusing, in_place_onednn_concat_multi_user_conv_as_user) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_layout  = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ ov::PartialShape{1, 16, 4, 4}, data_types::f32, format::bfyx };
+
+    auto weights_layout = layout{ ov::PartialShape{16, 16, 1, 1}, data_types::f16, format::bfyx };
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    std::vector<ov::float16> wdata(16 * 16, ov::float16(0.f));
+    for (int i = 0; i < 16; ++i)
+        wdata[i * 16 + i] = ov::float16(1.f);
+    set_values(weights_mem, wdata);
+
+    topology topology;
+    topology.add(input_layout("shared_in", in_layout));
+    topology.add(input_layout("other_in",  in_layout2));
+    topology.add(data("conv_w", weights_mem));
+
+    // shared_r must match the conv preferred format so reorder_inputs does not
+    // insert an intermediate reorder that would break the fusing path.
+    topology.add(reorder("shared_r", input_info("shared_in"), format::b_fs_yx_fsv16, data_types::f16));
+    topology.add(reorder("other_r",  input_info("other_in"),  format::b_fs_yx_fsv16, data_types::f16));
+
+    topology.add(concatenation("concat", { input_info("other_r"), input_info("shared_r") }, 1));
+    topology.add(convolution("conv", input_info("shared_r"), "conv_w", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(activation("act1", input_info("shared_r"), activation_func::relu));
+
+    topology.add(reorder("out_concat", input_info("concat"), format::bfyx, data_types::f32));
+    topology.add(reorder("out_conv",   input_info("conv"),   format::bfyx, data_types::f32));
+    topology.add(reorder("out_act1",   input_info("act1"),   format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"shared_r", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn}},
+        {"conv",     ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn}},
+    }));
+    network network(engine, topology, config);
+
+    auto input_memory  = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    // Natural-number sequences — d1 starts at 0, d2 starts at 512 so the two halves of
+    // the concat output are unambiguously distinguishable
+    const size_t N = 16 * 4 * 4;  // 256
+    std::vector<float> d1(N), d2(N);
+    for (size_t i = 0; i < N; i++) { d1[i] = static_cast<float>(i); d2[i] = static_cast<float>(512 + i); }
+    set_values(input_memory,  d1);
+    set_values(input_memory2, d2);
+
+    network.set_input_data("shared_in", input_memory);
+    network.set_input_data("other_in",  input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = network.execute());
+
+    // Confirm concat was fused
+    const auto& concat_node = network.get_primitive("concat")->get_node();
+    ASSERT_TRUE(concat_node.can_be_optimized());
+
+    auto out_concat_mem = output.at("out_concat").get_memory();
+    cldnn::mem_lock<float> concat_ptr(out_concat_mem, get_test_stream());
+    ASSERT_EQ(concat_ptr.size(), 2 * N);
+    for (size_t i = 0; i < N; i++)
+        ASSERT_NEAR(concat_ptr[i],     static_cast<float>(512 + i), 1e-2f) << "out_concat first half mismatch at index " << i;
+    for (size_t i = 0; i < N; i++)
+        ASSERT_NEAR(concat_ptr[N + i], static_cast<float>(i),       1e-2f) << "out_concat second half mismatch at index " << i;
+
+    auto out_conv_mem = output.at("out_conv").get_memory();
+    cldnn::mem_lock<float> conv_ptr(out_conv_mem, get_test_stream());
+    for (size_t i = 0; i < conv_ptr.size(); i++)
+        ASSERT_NEAR(conv_ptr[i], static_cast<float>(i), 1e-2f) << "out_conv mismatch at index " << i;
+
+    auto out_act1_mem = output.at("out_act1").get_memory();
+    cldnn::mem_lock<float> act1_ptr(out_act1_mem, get_test_stream());
+    for (size_t i = 0; i < act1_ptr.size(); i++)
+        ASSERT_NEAR(act1_ptr[i], static_cast<float>(i), 1e-2f) << "out_act1 mismatch at index " << i;
+}
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regression) {
+    // Regression test for fsv32->fsv16 reorder + in-place concat path.
+    // Keep in-place enabled, then verify buffer sharing and output channel order.
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 32, 1, 1, 1}, data_types::f32, format::bfzyx};
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(reorder("input1_fsv16", input_info("input1"), format::b_fs_zyx_fsv16, data_types::f16));
+    topology.add(reorder("input2_fsv32", input_info("input2"), format::b_fs_zyx_fsv32, data_types::f16));
+    topology.add(reorder("input2_fsv16", input_info("input2_fsv32"), format::b_fs_zyx_fsv16, data_types::f16));
+    topology.add(concatenation("concat", {input_info("input1_fsv16"), input_info("input2_fsv16")}, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfzyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+
+    network network(engine, topology, config);
+
+    auto input_memory1 = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout);
+
+    std::vector<float> input1_vals(32);
+    std::vector<float> input2_vals(32);
+    for (size_t i = 0; i < 32; ++i) {
+        input1_vals[i] = static_cast<float>(i + 1);
+        input2_vals[i] = static_cast<float>(1000 + i + 1);
+    }
+
+    set_values<float>(input_memory1, input1_vals);
+    set_values<float>(input_memory2, input2_vals);
+
+    network.set_input_data("input1", input_memory1);
+    network.set_input_data("input2", input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = network.execute());
+
+    const auto& concat_inst = network.get_primitive("concat");
+    // This case is expected to be in-place after prepare_buffer_fusing.
+    ASSERT_TRUE(concat_inst->can_be_optimized());
+
+    auto concat_mem = concat_inst->output_memory_ptr();
+    auto input1_fsv16_mem = network.get_primitive("input1_fsv16")->output_memory_ptr();
+    auto input2_fsv16_mem = network.get_primitive("input2_fsv16")->output_memory_ptr();
+
+    // In-place concat means all these primitives point to the same underlying buffer.
+    ASSERT_EQ(concat_mem.get(), input1_fsv16_mem.get());
+    ASSERT_EQ(concat_mem.get(), input2_fsv16_mem.get());
+
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+
+    // Validate semantic correctness: first 32 channels from input1, next 32 from input2.
+    ASSERT_EQ(out_mem->count(), 64);
+    for (size_t i = 0; i < 32; ++i) {
+        ASSERT_EQ(output_ptr[i], input1_vals[i]);
+        ASSERT_EQ(output_ptr[i + 32], input2_vals[i]);
+    }
+}
 
 TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
     tests::random_generator rg(GET_SUITE_NAME);

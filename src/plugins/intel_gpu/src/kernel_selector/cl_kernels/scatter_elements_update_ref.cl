@@ -204,15 +204,15 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if REDUCE_MODE != 0
                    , __global INPUT1_TYPE* output_fp
+#if REDUCE_MODE == MEAN_MODE
+                   , __global INPUT1_TYPE* count_k
+#endif
 #if ITER >= 1
 #ifdef NO_LOCAL_MEMORY
                    , __global INPUT1_TYPE* reduction_v
 #else
                    , __local INPUT1_TYPE* reduction_v
                    , __local INPUT1_TYPE* reduction_thread
-#endif
-#if REDUCE_MODE == MEAN_MODE
-                   , __global INPUT1_TYPE* count_k
 #endif
 #endif
 #endif
@@ -253,8 +253,17 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
         #endif
     #else
-        INPUT1_TYPE val_fp = FUNC_CALL(to_fixed_point)(val);
-        output_fp[output_idx] = val_fp;
+        #if REDUCE_MODE == MEAN_MODE && USE_INIT_VAL == 0
+            // For MEAN with USE_INIT_VAL=0: init to neutral so only scattered updates
+            // contribute to the sum. Non-scattered positions restored in ITER=2.
+            output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
+        #else
+            INPUT1_TYPE val_fp = FUNC_CALL(to_fixed_point)(val);
+            output_fp[output_idx] = val_fp;
+        #endif
+        #if REDUCE_MODE == MEAN_MODE
+            count_k[output_idx] = INPUT1_VAL_ZERO;
+        #endif
     #endif
 
 #elif ITER == 1
@@ -292,21 +301,19 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         #endif
         reduction_v[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
 
-        #if REDUCE_MODE == MEAN_MODE
-            count_k[output_idx] = INPUT1_VAL_ZERO;
-        #endif
-
         barrier(CLK_LOCAL_MEM_FENCE);
 
         int val_fixed = FUNC_CALL(to_fixed_point)(val);
 
         #ifndef NO_LOCAL_MEMORY
             INPUT1_TYPE write_thread = FUNC_CALL(count_add_local)(&reduction_thread[output_idx], 1);
-            if (write_thread == 0) {
-                #if USE_INIT_VAL == 0
-                    output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
-                #endif
-            }
+            #if REDUCE_MODE != MEAN_MODE
+                if (write_thread == 0) {
+                    #if USE_INIT_VAL == 0
+                        output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
+                    #endif
+                }
+            #endif
             if (reduction_thread[output_idx] > 1) {
                 FUNC_CALL(atomic_reduce_local)(&reduction_v[output_idx], val_fixed);
             } else {
@@ -327,7 +334,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                 FUNC_CALL(count_add_global)(&count_k[output_idx], INPUT1_VAL_ONE);
             #endif
 
-            #if USE_INIT_VAL == 0
+            #if REDUCE_MODE != MEAN_MODE && USE_INIT_VAL == 0
                 output_fp[output_idx] = FUNC_CALL(to_fixed_point)(REDUCTION_NEUTRAL_VALUE);
             #endif
 
@@ -400,8 +407,15 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 
     #if REDUCE_MODE == MEAN_MODE
-        if (count_k[output_idx] != 0)
+        if (count_k[output_idx] != 0) {
             val /= (count_k[output_idx] + USE_INIT_VAL);
+        }
+        #if USE_INIT_VAL == 0
+        else {
+            // Position was not scattered to, keep original data
+            val = TO_OUTPUT_TYPE(data[input_idx]);
+        }
+        #endif
     #endif
 
     #if HAS_FUSED_OPS

@@ -10,7 +10,7 @@
 namespace cldnn {
 namespace ze {
 
-// L0 event. Can be either in signaled state or not signaled state.
+// ZE event. Can be either in signaled state or not signaled state.
 struct ze_event : public ze_base_event {
 public:
     // Take ownership of event handle

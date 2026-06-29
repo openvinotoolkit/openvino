@@ -354,10 +354,7 @@ std::tuple<bool, std::shared_ptr<Node>, std::shared_ptr<Node>> WeightableLayerTr
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
-    const auto precisions = precisionsAttribute.empty() ?
-        defaultPrecisions :
-        precisionsAttribute.as<PrecisionsAttribute>().value();
+    const auto precisions = getOutputPrecisionAttribute(fq->output(0)).value_or(defaultPrecisions);
 
     const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
     if (dataPrecision.empty()) {
@@ -428,10 +425,7 @@ DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(
         return DataPrecision();
     }
 
-    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
-    const auto precisions = precisionsAttribute.empty() ?
-        defaultPrecisions :
-        precisionsAttribute.as<PrecisionsAttribute>().value();
+    const auto precisions = getOutputPrecisionAttribute(fq->output(0)).value_or(defaultPrecisions);
 
     return getDataPrecision(fq, quantizationDetails, precisions);
 }

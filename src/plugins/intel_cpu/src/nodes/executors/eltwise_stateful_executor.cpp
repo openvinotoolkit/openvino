@@ -29,7 +29,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
-#include "utils/debug_capabilities.h"
 
 #ifndef OPENVINO_ARCH_ARM64
 #    include "nodes/executors/implementation_utils.hpp"

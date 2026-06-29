@@ -3494,7 +3494,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         std::unordered_set<NodePtr> visited;
         const NodePtr& cur = node;
         while (cur) {
-            if (!visited.insert(cur).second) {
+            if (!visited.insert(NodePtr(cur)).second) {
                 break;
             }
             size_t parentNum = cur->getParentEdges().size();
