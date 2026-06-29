@@ -204,8 +204,8 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             op = "const ACCUMULATOR_TYPE tmp" + op_num_str + " = ";
         }
 
-        input0_str = cast_type + "INPUT_" + op_num_str + "_0";
-        input1_str = cast_type + "INPUT_" + op_num_str + "_1";
+        input0_str = cast_type + "(INPUT_" + op_num_str + "_0)";
+        input1_str = cast_type + "(INPUT_" + op_num_str + "_1)";
 
         if (ew.mode == EltwiseMode::ADD) {
             std::vector<std::string> coeff_strings(ew.inputs.size(), "");
@@ -380,27 +380,40 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
             const auto &input = ew.inputs[input_idx];
             const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
             std::string idx_order = "INPUT" + toCodeString(input.index) + "_IDX_ORDER";
-
+            std::string bf16_cast_prefix = "";
+            std::string bf16_cast_suffix = "";
             switch (input.mode) {
                 case EltwiseInputMode::SCALAR:
                     jit.AddConstant(MakeJitConstant(name, input.scalar));
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
+                    if (params.inputs[input.index].GetDType() == Datatype::BF16) {
+                        bf16_cast_prefix = "CONVERT_AS_BFLOAT16_FLOAT(";
+                        bf16_cast_suffix = useVload8 ? ", 8)" : ", 1)";
+                    }
                     if (useVload8)
-                        jit.AddConstant(MakeJitConstant(name, "in" + toCodeString(input.index)));
+                        jit.AddConstant(MakeJitConstant(name, bf16_cast_prefix + "in" + toCodeString(input.index) + bf16_cast_suffix));
                     else
                         jit.AddConstant(MakeJitConstant(name,
-                                                        "input" + toCodeString(input.index) +
-                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) +
-                                                        "," + idx_order + ") " + (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]")));
+                                                        bf16_cast_prefix + "input" + toCodeString(input.index) +
+                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) + "," + idx_order + ") " +
+                                                            (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]") + bf16_cast_suffix));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
-                    jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]"));
+                    if (params.outputs[0].GetDType() == Datatype::BF16) {
+                        bf16_cast_prefix = "_convert_as_bfloat16_float(";
+                        bf16_cast_suffix = ")";
+                    }
+                    jit.AddConstant(MakeJitConstant(name, bf16_cast_prefix + "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]" + bf16_cast_suffix));
                     break;
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
-                    jit.AddConstant(MakeJitConstant(
-                            name,
-                            "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "]"));
+                    if (params.inputs[input.index].GetDType() == Datatype::BF16) {
+                        bf16_cast_prefix = "_convert_as_bfloat16_float(";
+                        bf16_cast_suffix = ")";
+                    }
+                    jit.AddConstant(MakeJitConstant(name,
+                                                    bf16_cast_prefix + "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) +
+                                                        "]" + bf16_cast_suffix));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
                     jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));

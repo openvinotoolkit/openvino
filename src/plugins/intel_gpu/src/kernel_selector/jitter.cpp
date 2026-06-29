@@ -136,6 +136,8 @@ std::string toCLType(WeightsType wType) {
             return GetTypeName<uint8_t>();
         case WeightsType::F16:
             return "half";
+        case WeightsType::BF16:
+            return GetTypeName<uint16_t>();
         case WeightsType::F32:
             return GetTypeName<float>();
         case WeightsType::INT32:
@@ -156,6 +158,7 @@ std::string toCLType(Datatype dType) {
         case Datatype::INT16:
             return GetTypeName<int16_t>();
         case Datatype::UINT16:
+        case Datatype::BF16:
             return GetTypeName<uint16_t>();
         case Datatype::INT32:
             return GetTypeName<int32_t>();
