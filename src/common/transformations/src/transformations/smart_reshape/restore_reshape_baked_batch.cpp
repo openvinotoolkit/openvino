@@ -20,25 +20,25 @@
 #include "openvino/pass/node_registry.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-using namespace ov::op;
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 
 namespace {
 
 // True if `out` is a Constant holding a single element equal to `value`.
-bool is_scalar_constant_with_value(const Output<Node>& out, int64_t value) {
+bool is_scalar_constant_with_value(const ov::Output<ov::Node>& out, int64_t value) {
     return ov::op::util::has_constant_value<int64_t>(out.get_node_shared_ptr(), value);
 }
 
 // True if `out` is a Constant holding a single positive integer.
-bool is_scalar_positive_constant(const Output<Node>& out) {
+bool is_scalar_positive_constant(const ov::Output<ov::Node>& out) {
     int64_t value = 0;
     return ov::op::util::get_constant_value<int64_t>(out.get_node_shared_ptr(), value) && value > 0;
 }
 
 // The statically-known last dimension of `ps`, or nullopt when the rank is dynamic, the shape is a
 // scalar, or the last dimension itself is dynamic.
-std::optional<int64_t> static_last_dim(const PartialShape& ps) {
+std::optional<int64_t> static_last_dim(const ov::PartialShape& ps) {
     if (ps.rank().is_dynamic() || ps.size() == 0)
         return std::nullopt;
     const auto& last = ps[static_cast<std::ptrdiff_t>(ps.size()) - 1];
@@ -77,10 +77,10 @@ bool passes_structural_gates(const std::shared_ptr<v1::Reshape>& reshape, const 
 }
 
 // Recover the statically-known last (channel) dimension of `data` by walking the graph deterministically.
-std::optional<int64_t> resolve_static_last_dim(const Output<Node>& data,
-                                               const std::unordered_map<const Node*, int64_t>& pending_channel,
-                                               std::unordered_set<const Node*>& visited) {
-    const Node* producer = data.get_node();
+std::optional<int64_t> resolve_static_last_dim(const ov::Output<ov::Node>& data,
+                                               const std::unordered_map<const ov::Node*, int64_t>& pending_channel,
+                                               std::unordered_set<const ov::Node*>& visited) {
+    const ov::Node* producer = data.get_node();
     if (producer && !visited.insert(producer).second)
         return std::nullopt;
 
@@ -152,15 +152,16 @@ void rewrite_reshape(const std::shared_ptr<v1::Reshape>& reshape,
     ov::pass::NodeRegistry rg;
 
     const auto& channel_et = concat->input_value(channel_idx).get_element_type();
-    const auto channel_out = rg.make<v0::Constant>(channel_et.is_static() ? channel_et : element::i64,
-                                                   Shape{1},
+    const auto channel_out = rg.make<v0::Constant>(channel_et.is_static() ? channel_et : ov::element::i64,
+                                                   ov::Shape{1},
                                                    std::vector<int64_t>{channel});
 
     const auto& batch_et = shape_inputs.front().get_element_type();
-    const auto minus_one =
-        rg.make<v0::Constant>(batch_et.is_static() ? batch_et : element::i64, Shape{1}, std::vector<int64_t>{-1});
+    const auto minus_one = rg.make<v0::Constant>(batch_et.is_static() ? batch_et : ov::element::i64,
+                                                 ov::Shape{1},
+                                                 std::vector<int64_t>{-1});
 
-    OutputVector new_shape_inputs;
+    ov::OutputVector new_shape_inputs;
     new_shape_inputs.reserve(shape_inputs.size());
     new_shape_inputs.push_back(minus_one);
     for (size_t i = 1; i < channel_idx; ++i)
@@ -169,7 +170,7 @@ void rewrite_reshape(const std::shared_ptr<v1::Reshape>& reshape,
 
     const auto new_concat = rg.make<v0::Concat>(new_shape_inputs, 0);
     reshape->input(1).replace_source_output(new_concat);
-    copy_runtime_info(concat, rg.get());
+    ov::copy_runtime_info(concat, rg.get());
 }
 
 }  // namespace
@@ -202,8 +203,12 @@ bool ov::pass::RestoreReshapeBakedBatch::run_on_model(const std::shared_ptr<ov::
     if (candidates.empty())
         return false;
 
-    // A candidate exists: materialize the shapes the walk-back keys on. validate_nodes_and_infer_types()
-    // only re-infers types/shapes — it adds/removes no nodes — so the captured pointers stay valid and the
+    // A candidate exists: materialize the shapes the walk-back keys on. This runs only on the rare model
+    // that actually carries the window-reverse signature (guarded by the early return above), so it adds no
+    // cost to ordinary models. Validating here keeps the pass self-contained — its channel recovery reads
+    // PartialShapes directly and must not depend on the caller's per-pass-validation policy (the sibling
+    // dynamic_manager in smart_reshape.cpp turns validation off). validate_nodes_and_infer_types() only
+    // re-infers types/shapes — it adds/removes no nodes — so the captured pointers stay valid and the
     // candidate vector stays in topological order.
     model->validate_nodes_and_infer_types();
 
@@ -213,14 +218,14 @@ bool ov::pass::RestoreReshapeBakedBatch::run_on_model(const std::shared_ptr<ov::
         int64_t channel;
     };
     std::vector<PendingRewrite> pending;
-    std::unordered_map<const Node*, int64_t> pending_channel;
+    std::unordered_map<const ov::Node*, int64_t> pending_channel;
 
     // PHASE 1 — COLLECT (topological order: producers before consumers).
     for (const auto& candidate : candidates) {
         const auto& reshape = candidate.reshape;
         const auto& concat = candidate.concat;
 
-        std::unordered_set<const Node*> visited;
+        std::unordered_set<const ov::Node*> visited;
         const auto channel = resolve_static_last_dim(reshape->input_value(0), pending_channel, visited);
         if (!channel)
             continue;
