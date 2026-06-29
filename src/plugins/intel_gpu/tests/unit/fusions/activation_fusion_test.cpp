@@ -75,7 +75,7 @@ public:
 #define CASE_ACTIVATION_3D_F32_1 { 2, 16, 8, 8, 8 }, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F32_2 { 1, 16, 7, 7, 7 }, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F32_3 { 1, 17, 7, 7, 7 }, data_types::f32, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
-#define CASE_ACTIVATION_3D_F32_4 { 1, 17, 7, 7, 7 }, data_types::f32, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_4 { 1, 17, 7, 7, 7 }, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F32_5 { 1, 17, 7, 7, 7 }, data_types::f32, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
 
 #define CASE_ACTIVATION_F16_0 { 7, 32, 5, 5 }, data_types::f16, format::bfyx, data_types::f32, format::bfyx
@@ -90,7 +90,7 @@ public:
 #define CASE_ACTIVATION_3D_F16_1 { 2, 16, 8, 8, 8 }, data_types::f16, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F16_2 { 1, 16, 7, 7, 7 }, data_types::f16, format::b_fs_zyx_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F16_3 { 1, 17, 7, 7, 7 }, data_types::f16, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
-#define CASE_ACTIVATION_3D_F16_4 { 1, 17, 7, 7, 7 }, data_types::f16, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_4 { 1, 17, 7, 7, 7 }, data_types::f16, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F16_5 { 1, 17, 7, 7, 7 }, data_types::f16, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
 
 #define CASE_ACTIVATION_BF16_0 { 7, 32, 5, 5 }, data_types::bf16, format::bfyx, data_types::f32, format::bfyx
@@ -105,7 +105,7 @@ public:
 #define CASE_ACTIVATION_3D_BF16_1 { 2, 16, 8, 8, 8 }, data_types::bf16, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_BF16_2 { 1, 16, 7, 7, 7 }, data_types::bf16, format::b_fs_zyx_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_BF16_3 { 1, 17, 7, 7, 7 }, data_types::bf16, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
-#define CASE_ACTIVATION_3D_BF16_4 { 1, 17, 7, 7, 7 }, data_types::bf16, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_BF16_4 { 1, 17, 7, 7, 7 }, data_types::bf16, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_BF16_5 { 1, 17, 7, 7, 7 }, data_types::bf16, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
 
 #define CASE_ACTIVATION_U8_1 { 1, 16, 8, 8 }, data_types::u8, format::bfyx, data_types::f32, format::bfyx
