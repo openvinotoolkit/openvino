@@ -69,8 +69,7 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     for (const auto& input : model->inputs()) {
         const auto& name = input.get_any_name();
         const auto& pshape = input.get_partial_shape();
-        if (name.find("input_ids") != std::string::npos ||
-            name.find("token_type_ids") != std::string::npos) {
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq};
         } else if (name.find("attention_mask") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq + kPast};
@@ -129,8 +128,7 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
         auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
             auto fake_convert_1 =
                 std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
-            auto fake_convert_2 =
-                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            auto fake_convert_2 = std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
             fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
             fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
             sdpa->input(input_idx).replace_source_output(fake_convert_2);
@@ -280,8 +278,8 @@ public:
 };
 
 struct CompileCall {
-    std::string                friendly_name;
-    ov::AnyMap                 props;
+    std::string friendly_name;
+    ov::AnyMap props;
     std::shared_ptr<ov::Model> model;
 };
 

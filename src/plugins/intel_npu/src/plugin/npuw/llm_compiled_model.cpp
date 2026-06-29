@@ -10,7 +10,6 @@
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
-#include "v1/elements/batched.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
@@ -45,6 +44,7 @@
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
+#include "v1/elements/batched.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 #include "whisper/whisper_infer_request.hpp"
 
@@ -1576,8 +1576,8 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
         return non_const_this->create_whisper_infer_request();
     }
 
-    auto inner = m_is_embedding ? non_const_this->create_embedding_infer_request()
-                                : non_const_this->create_llm_infer_request();
+    auto inner =
+        m_is_embedding ? non_const_this->create_embedding_infer_request() : non_const_this->create_llm_infer_request();
 
     // Batched scoring: wrap the single-sequence request with the batched element so a
     // [N, ...] input is unrolled into N independent [1, ...] inferences (rows are scored

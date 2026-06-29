@@ -60,8 +60,7 @@ private:
     std::shared_ptr<Recorder> m_rec;
 };
 
-ov::Output<const ov::Node> port_named(const std::vector<ov::Output<const ov::Node>>& ports,
-                                      const std::string& needle) {
+ov::Output<const ov::Node> port_named(const std::vector<ov::Output<const ov::Node>>& ports, const std::string& needle) {
     for (const auto& port : ports) {
         if (port.get_any_name().find(needle) != std::string::npos) {
             return port;
@@ -253,8 +252,7 @@ TEST_F(NPUWBatchedElementTest, EachRowScoredIndependentlyAndStacked) {
     }
 
     // One inner inference per row, each preceded by a state reset, in order.
-    EXPECT_EQ(m_recorder->events,
-              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
 TEST_F(NPUWBatchedElementTest, SingleRowScored) {
@@ -325,8 +323,7 @@ TEST_F(NPUWBatchedElementTest, SyncInnerConstructorScoresEachRow) {
     for (std::size_t r = 0; r < ids.size(); ++r) {
         EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front())) << "output row " << r;
     }
-    EXPECT_EQ(m_recorder->events,
-              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
 // A shared/broadcast input (batch 1) is fed to every row unsliced -- the slice guard only fires
@@ -346,8 +343,7 @@ TEST_F(NPUWBatchedElementTest, BroadcastInputSharedAcrossRows) {
     for (std::size_t r = 0; r < ids.size(); ++r) {
         EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front())) << "output row " << r;
     }
-    EXPECT_EQ(m_recorder->events,
-              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
 // Regression: a leading batch-1 input (here input_ids, shared) must not pin the batch to 1 when a
@@ -367,8 +363,7 @@ TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
     for (std::size_t r = 0; r < 3; ++r) {
         EXPECT_FLOAT_EQ(row_value(out, r), 7.0f) << "output row " << r;  // input_ids broadcast to every row
     }
-    EXPECT_EQ(m_recorder->events,
-              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
 // Each model output is stacked into its own [N, ...] tensor. The mock offsets output k by k, so the
@@ -393,8 +388,7 @@ TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
         EXPECT_FLOAT_EQ(row_value(score, r), static_cast<float>(ids[r].front()));
         EXPECT_FLOAT_EQ(row_value(hidden, r), static_cast<float>(ids[r].front()) + kOutputChannelOffset);
     }
-    EXPECT_EQ(m_recorder->events,
-              (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
 }
 
 }  // namespace
