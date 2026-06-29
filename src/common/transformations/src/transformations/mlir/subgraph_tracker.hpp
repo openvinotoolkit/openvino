@@ -17,6 +17,7 @@ struct Subgraph {
     ov::OutputVector inputs;
     ov::OutputVector outputs;
     std::vector<InputVector> output_consumers;
+    std::string function_name;
 
     // Consumes other subgraph
     void merge (Subgraph& other);
@@ -36,6 +37,7 @@ public:
     SubgraphTracker(Finalizer finalizer);
     void add_node (NodePtr node, bool belongs);
     void finalize();
+    SubgraphPtr get_current_subgraph(NodePtr node);
 
 private:
 

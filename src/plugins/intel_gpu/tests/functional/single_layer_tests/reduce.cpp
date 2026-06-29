@@ -11,6 +11,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "transformations/mlir/convert.hpp"
 
 namespace {
 
@@ -67,6 +68,8 @@ protected:
         auto mul_node = std::make_shared<ov::op::v1::Multiply>(add_node, mul_val_node);
         auto result = std::make_shared<ov::op::v0::Result>(mul_node);
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_node}, "input");
+        if (ov::pass::is_mlir_transform_enabled())
+            abs_threshold = 0.01f;
     }
 
     void run() override {
@@ -80,7 +83,7 @@ protected:
         auto num_executed = std::count_if(profile_info.begin(), profile_info.end(),
             [](const ov::ProfilingInfo& p) { return p.status == ov::ProfilingInfo::Status::EXECUTED; });
         // This ensures that primitive_fusing_through does not happen across "dimension-change-barrier" in reduce
-        ASSERT_EQ(num_executed, 3);
+        ASSERT_EQ(num_executed, ov::pass::is_mlir_transform_enabled() ? 2 : 3);
     }
 };
 

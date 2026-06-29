@@ -75,24 +75,32 @@ const std::string& subgraph_mark() {
     return mark;
 }
 
-void set_subgraph_mark(NodePtr node) {
-    node->get_rt_info()[subgraph_mark()];
+void set_subgraph_mark(NodePtr node, const std::string& name) {
+    node->get_rt_info()[subgraph_mark()] = name;
 }
 
-bool get_subgraph_mark(NodePtr node) {
+bool has_subgraph_mark(NodePtr node) {
     return node->get_rt_info().count(subgraph_mark());
 }
 
+std::string get_subgraph_mark(NodePtr node) {
+    const auto& rti = node->get_rt_info();
+    auto it = rti.find(subgraph_mark());
+    return it == rti.end() ? "" : it->second.as<std::string>();
+}
 
 MarkPattern::MarkPattern(NodePtr pattern, GraphConverter::Convertor convertor) {
     auto callback = [convertor](ov::pass::pattern::Matcher& m) {
-        // TODO: support multi-node patterns marking
         auto node = m.get_match_root();
         set_subgraph_mark(node);
         GraphConverter::set_convertor(node, convertor);
         return true;
     };
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, "MarkPattern");
+    register_matcher(m, callback);
+}
 
+MarkPattern::MarkPattern(NodePtr pattern, MarkPattern::Callback callback) {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, "MarkPattern");
     register_matcher(m, callback);
 }

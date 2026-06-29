@@ -8,6 +8,7 @@
 #include <openvino/op/concat.hpp>
 #include <openvino/op/divide.hpp>
 #include <openvino/op/floor.hpp>
+#include <openvino/op/power.hpp>
 #include <openvino/op/gather.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/multiply.hpp>
@@ -138,6 +139,7 @@ template class BinaryEltwisePattern<v1::Add, linalg::AddOp>;
 template class BinaryEltwisePattern<v1::Subtract, linalg::SubOp>;
 template class BinaryEltwisePattern<v1::Multiply, linalg::MulOp>;
 template class BinaryEltwisePattern<v1::Divide, linalg::DivOp>;
+template class BinaryEltwisePattern<v1::Power, linalg::PowFOp>;
 
 template <typename OVOp, typename LinalgOp>
 UnaryEltwisePattern<OVOp, LinalgOp>::UnaryEltwisePattern()

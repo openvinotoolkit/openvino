@@ -10,6 +10,7 @@
 #include <openvino/op/constant.hpp>
 #include <openvino/op/divide.hpp>
 #include <openvino/op/multiply.hpp>
+#include <openvino/op/power.hpp>
 #include <openvino/op/abs.hpp>
 #include <openvino/op/ceiling.hpp>
 #include <openvino/op/exp.hpp>
@@ -152,7 +153,8 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::OutputVector& inputs,
                                                  const ov::NodeVector& nodes,
                                                  const ov::OutputVector& outputs,
-                                                 SmallVector<size_t>& keptInputIndices) {
+                                                 SmallVector<size_t>& keptInputIndices,
+                                                 const std::string& function_name = "entry") {
     // Split inputs: splat constants are inlined, runtime inputs become function args.
     ov::OutputVector runtime_inputs;
     SmallVector<bool> is_constant(inputs.size(), false);
@@ -177,7 +179,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     auto memref_args = inputTypes;
     memref_args.append(outputTypes);
     const auto funcType = mlir::FunctionType::get(context, ArrayRef(memref_args), ArrayRef(SmallVector<mlir::Type>()));
-    auto func = moduleBuilder.create<mlir::func::FuncOp>(funcLoc, "entry", funcType);
+    auto func = moduleBuilder.create<mlir::func::FuncOp>(funcLoc, function_name, funcType);
     auto block_builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock() /* TODO: Add logger here */);
 
     // Affix target information attribute to the module to be used, at its discretion,
@@ -268,7 +270,8 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
                           std::shared_ptr<ov::EvaluationContext> loweringContext) {
     SmallVector<size_t> keptInputIndices;
     mlir::OwningOpRef<mlir::ModuleOp> module =
-        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices);
+        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices,
+                       subgraph->function_name);
 
     ov::OutputVector inputs;
     inputs.reserve(keptInputIndices.size());
@@ -357,7 +360,13 @@ public:
             }
         );
         for(auto node: model->get_ordered_ops()) {
-            tracker.add_node(node, get_subgraph_mark(node));
+            if (auto name = get_subgraph_mark(node); !name.empty()) {
+                tracker.add_node(node, true);
+                if (auto subgraph = tracker.get_current_subgraph(node))
+                    subgraph->function_name = name;
+            } else {
+                tracker.add_node(node, false);
+            }
         }
         tracker.finalize();
         return true;
@@ -378,6 +387,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>();
+    manager.register_pass<BinaryEltwisePattern<v1::Power, linalg::PowFOp>>();
     manager.register_pass<ReducePattern<v1::ReduceMax>>();
     manager.register_pass<ReducePattern<v1::ReduceMean>>();
     manager.register_pass<ReducePattern<v1::ReduceMin>>();

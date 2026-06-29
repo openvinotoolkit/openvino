@@ -36,9 +36,16 @@ void SubgraphTracker::add_node (NodePtr node, bool belongs) {
     }
 
     if(belongs) {
-        // Below we refuse to merge subgraphs if _all_ of them cannot merge to a single subgraph, this is rough because
-        // there are cases when a _part_ of the input subgraphs can be merged together and consume the new node and other (conflicting) subgraphs will come as inputs -- TODO.
-        // TODO: leave only those input subgraphs that are not conflicting with other subgraphs nor with any dependencies
+        // Remove input_subgraphs from input_dependencies: a subgraph depending on itself
+        // is not a cycle — it just means multiple paths converge inside the same subgraph.
+        for(auto id: input_subgraphs)
+            input_dependencies.erase(ov::symbol::ancestor_of(id));
+
+        // Below we refuse to merge subgraphs if all of them cannot merge to a single subgraph, this is rough because
+        // there are cases when a part of the input subgraphs can be merged together and consume the new node and other
+        // (conflicting) subgraphs will come as inputs
+        // TODO: leave only those input subgraphs that are not conflicting with other subgraphs nor with any
+        // dependencies
         if(input_subgraphs.empty() || intersected(input_subgraphs, input_dependencies)) {   // no input subgraphs || cannot merge all due to cycles
             try_terminate_subgraphs(input_subgraphs, node);
 
@@ -67,6 +74,11 @@ void SubgraphTracker::add_node (NodePtr node, bool belongs) {
         input_dependencies.insert(input_subgraphs.begin(), input_subgraphs.end());
     }
     set_dependencies(node, input_dependencies);
+}
+
+SubgraphPtr SubgraphTracker::get_current_subgraph(NodePtr node) {
+    auto id = get_subgraph_id(node);
+    return id ? get_subgraph(id) : nullptr;
 }
 
 void SubgraphTracker::finalize() {
