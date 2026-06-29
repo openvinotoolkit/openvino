@@ -116,21 +116,48 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     OV_ASSERT_NO_THROW(
         compiledModel =
             core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
-    // Test that RUNTIME_REQUIREMENTS is not supported for a model compiled with CID
-    // This check should be conditioned by the compiler/driver version once support is added in L0
+    // Test that RUNTIME_REQUIREMENTS is supported for CID when the L0 graph extension version >= 1.16,
+    // and unsupported for earlier driver versions. CIP always supports it.
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
     if (it != properties.cend()) {
-        // Driver implements the extension: the property is listed and must be readable.
         ASSERT_FALSE(it->is_mutable());
-        std::string requirements;
-        OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
-        ASSERT_FALSE(requirements.empty());
-    } else {
-        // Driver does not implement the extension: reading the property must be rejected.
+    } else { // older driver version case
         OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
                         ov::Exception,
                         testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
+    }
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhenSupported) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+    ov::CompiledModel compiledModel;
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+                           model,
+                           deviceName,
+                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                                ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
+
+    std::vector<ov::PropertyName> properties;
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+
+    std::string requirements;
+    OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(requirements.empty());
+
+    OV_ASSERT_NO_THROW(
+        compiledModel =
+            core.compile_model(model, deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
+
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    if (it != properties.cend()) {
+        OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+        ASSERT_FALSE(requirements.empty());
     }
 }
 
