@@ -26,6 +26,10 @@
 #    include <fcntl.h>
 #    include <sys/mman.h>
 #    include <unistd.h>
+#elif defined(_WIN32)
+#    define WIN32_LEAN_AND_MEAN
+#    define NOMINMAX
+#    include <windows.h>
 #endif
 
 #include "common_test_utils/common_utils.hpp"
@@ -73,6 +77,14 @@ long long measure_ms(const std::function<void()>& fn) {
 }
 
 void evict_cache(const std::filesystem::path& path, size_t file_size) {
+    static bool warned = false;
+    auto warn_once = [](const char* msg) {
+        if (!warned) {
+            std::cout << "[WARNING] " << msg << " Results may be unreliable." << std::endl;
+            warned = true;
+        }
+    };
+
 #ifdef __linux__
     // Prefer /proc/sys/vm/drop_caches (requires root / CAP_SYS_ADMIN, available when the container
     // is started with --privileged).  Writing "3" flushes the host page
@@ -85,13 +97,7 @@ void evict_cache(const std::filesystem::path& path, size_t file_size) {
         return;
     }
 
-    static bool warned = false;
-    if (!warned) {
-        std::cout << "[WARNING] No access to /proc/sys/vm/drop_caches, falling back to "
-                     "posix_fadvise(DONTNEED). Results may be unreliable (kernel can ignore the hint)."
-                  << std::endl;
-        warned = true;
-    }
+    warn_once("No access to /proc/sys/vm/drop_caches, falling back to posix_fadvise(DONTNEED).");
 
     // Fallback: best-effort fadvise.
     int fd = ::open(path.c_str(), O_RDONLY);
@@ -99,15 +105,45 @@ void evict_cache(const std::filesystem::path& path, size_t file_size) {
         posix_fadvise(fd, 0, static_cast<off_t>(file_size), POSIX_FADV_DONTNEED);
         ::close(fd);
     }
-#else
-    static bool warned = false;
-    if (!warned) {
-        std::cout << "[WARNING] No cache eviction strategy available." << std::endl;
-        warned = true;
-    }
-    // Cache eviction not supported on non-Linux platforms; results may be unreliable.
+#elif defined(_WIN32)
+    // Windows moves evicted file pages to the standby list ("Cached" in Task Manager). Purging it is
+    // the equivalent of `drop_caches 1`: NtSetSystemInformation(SystemMemoryListInformation,
+    // MemoryPurgeStandbyList) clears it. Requires SeProfileSingleProcessPrivilege (run elevated).
+    // Both mmap and read paths start cold once the standby list is empty.
     (void)path;
     (void)file_size;
+
+    enum SYSTEM_MEMORY_LIST_COMMAND { MemoryPurgeStandbyList = 4 };
+    constexpr int SystemMemoryListInformation = 80;
+    using NtSetSystemInformation_t = LONG(WINAPI*)(int, PVOID, ULONG);
+
+    // Acquire the privilege required to purge the standby list.
+    HANDLE token = nullptr;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &token)) {
+        TOKEN_PRIVILEGES tp{};
+        tp.PrivilegeCount = 1;
+        tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+        LookupPrivilegeValue(nullptr, SE_PROF_SINGLE_PROCESS_NAME, &tp.Privileges[0].Luid);
+        AdjustTokenPrivileges(token, FALSE, &tp, sizeof(tp), nullptr, nullptr);
+        CloseHandle(token);
+    }
+
+    auto ntdll = GetModuleHandleW(L"ntdll.dll");
+    auto nt_set = ntdll ? reinterpret_cast<NtSetSystemInformation_t>(
+                              GetProcAddress(ntdll, "NtSetSystemInformation"))
+                        : nullptr;
+    if (!nt_set) {
+        warn_once("NtSetSystemInformation unavailable; cannot purge standby list.");
+        return;
+    }
+    int command = MemoryPurgeStandbyList;
+    if (nt_set(SystemMemoryListInformation, &command, sizeof(command)) != 0) {
+        warn_once("Standby-list purge failed (run elevated for cold-cache benchmarking).");
+    }
+#else
+    (void)path;
+    (void)file_size;
+    warn_once("No cache eviction strategy available on this platform.");
 #endif
 }
 
