@@ -32,44 +32,22 @@ typedef struct {
 } ov_callback_t;
 
 /**
- * @enum ov_profiling_status_e
- * @ingroup ov_infer_request_c_api
- * @brief Defines the general execution status of a profiled node.
- */
-typedef enum {
-    NOT_RUN,        //!< A node is not executed.
-    OPTIMIZED_OUT,  //!< A node is optimized out during graph optimization phase.
-    EXECUTED        //!< A node is executed.
-} ov_profiling_status_e;
-
-/**
  * @struct ov_ProfilingInfo_t
  * @ingroup ov_infer_request_c_api
  * @brief Store profiling info data
  */
 typedef struct {
-    ov_profiling_status_e status;  //!< Defines the general status of a node.
-    int64_t real_time;             //!< The absolute time, in microseconds, that the node ran (in total).
-    int64_t cpu_time;              //!< The net host CPU time that the node ran.
-    const char* node_name;         //!< Name of a node.
-    const char* exec_type;         //!< Execution type of a unit.
-    const char* node_type;         //!< Node type.
+    enum Status {           //!< Defines the general status of a node.
+        NOT_RUN,            //!< A node is not executed.
+        OPTIMIZED_OUT,      //!< A node is optimized out during graph optimization phase.
+        EXECUTED            //!< A node is executed.
+    } status;               //!< status
+    int64_t real_time;      //!< The absolute time, in microseconds, that the node ran (in total).
+    int64_t cpu_time;       //!< The net host CPU time that the node ran.
+    const char* node_name;  //!< Name of a node.
+    const char* exec_type;  //!< Execution type of a unit.
+    const char* node_type;  //!< Node type.
 } ov_profiling_info_t;
-
-/**
- * @struct ov_ProfilingInfo_v2_t
- * @ingroup ov_infer_request_c_api
- * @brief Store profiling info data with backend-specific start timestamp.
- */
-typedef struct {
-    ov_profiling_status_e status;  //!< Defines the general status of a node.
-    int64_t real_time;             //!< The absolute time, in microseconds, that the node ran (in total).
-    int64_t cpu_time;              //!< The net host CPU time that the node ran.
-    const char* node_name;         //!< Name of a node.
-    const char* exec_type;         //!< Execution type of a unit.
-    const char* node_type;         //!< Node type.
-    int64_t start_time;            //!< The backend-specific timestamp, in microseconds, when the node started.
-} ov_profiling_info_v2_t;
 
 /**
  * @struct ov_profiling_info_list_t
@@ -80,16 +58,6 @@ typedef struct {
     ov_profiling_info_t* profiling_infos;  //!< The list of ov_profilling_info_t
     size_t size;                           //!< The list size
 } ov_profiling_info_list_t;
-
-/**
- * @struct ov_profiling_info_v2_list_t
- * @ingroup ov_infer_request_c_api
- * @brief A list of profiling info data with backend-specific start timestamps.
- */
-typedef struct {
-    ov_profiling_info_v2_t* profiling_infos;  //!< The list of ov_profiling_info_v2_t
-    size_t size;                              //!< The list size
-} ov_profiling_info_v2_list_t;
 
 /**
  * @brief Set an input/output tensor to infer on by the name of tensor.
@@ -340,28 +308,9 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos);
 
 /**
- * @brief Query performance measures per layer, including the backend-specific node start timestamp.
- * @ingroup ov_infer_request_c_api
- * @param infer_request A pointer to the ov_infer_request_t.
- * @param profiling_infos Vector of profiling information for operations in a model.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_profiling_info_v2(const ov_infer_request_t* infer_request,
-                                       ov_profiling_info_v2_list_t* profiling_infos);
-
-/**
  * @brief Release the memory allocated by ov_profiling_info_list_t.
  * @ingroup ov_infer_request_c_api
  * @param profiling_infos A pointer to the ov_profiling_info_list_t to free memory.
  */
 OPENVINO_C_API(void)
 ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos);
-
-/**
- * @brief Release the memory allocated by ov_profiling_info_v2_list_t.
- * @ingroup ov_infer_request_c_api
- * @param profiling_infos A pointer to the ov_profiling_info_v2_list_t to free memory.
- */
-OPENVINO_C_API(void)
-ov_profiling_info_v2_list_free(ov_profiling_info_v2_list_t* profiling_infos);

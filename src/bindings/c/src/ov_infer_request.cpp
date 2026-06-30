@@ -5,36 +5,6 @@
 
 #include "common.h"
 
-namespace {
-
-template <typename ProfilingInfo>
-void fill_common_profiling_info_fields(ProfilingInfo& dst, const ov::ProfilingInfo& src) {
-    dst.status = static_cast<ov_profiling_status_e>(src.status);
-    dst.real_time = src.real_time.count();
-    dst.cpu_time = src.cpu_time.count();
-    dst.node_name = str_to_char_array(src.node_name);
-    dst.exec_type = str_to_char_array(src.exec_type);
-    dst.node_type = str_to_char_array(src.node_type);
-}
-
-template <typename ProfilingInfo>
-void free_profiling_info_list_entries(ProfilingInfo* profiling_infos, size_t size) {
-    if (!profiling_infos) {
-        return;
-    }
-    for (size_t i = 0; i < size; i++) {
-        if (profiling_infos[i].node_name)
-            delete[] profiling_infos[i].node_name;
-        if (profiling_infos[i].exec_type)
-            delete[] profiling_infos[i].exec_type;
-        if (profiling_infos[i].node_type)
-            delete[] profiling_infos[i].node_type;
-    }
-    delete[] profiling_infos;
-}
-
-}  // namespace
-
 void ov_infer_request_free(ov_infer_request_t* infer_request) {
     if (infer_request)
         delete infer_request;
@@ -356,29 +326,13 @@ ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_
         profiling_infos->size = num;
         std::unique_ptr<ov_profiling_info_t[]> _profiling_info_arr(new ov_profiling_info_t[num]);
         for (size_t i = 0; i < num; i++) {
-            fill_common_profiling_info_fields(_profiling_info_arr[i], infos[i]);
-        }
-        profiling_infos->profiling_infos = _profiling_info_arr.release();
-    }
-    CATCH_OV_EXCEPTIONS
+            _profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
+            _profiling_info_arr[i].real_time = infos[i].real_time.count();
+            _profiling_info_arr[i].cpu_time = infos[i].cpu_time.count();
 
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_infer_request_get_profiling_info_v2(const ov_infer_request_t* infer_request,
-                                                   ov_profiling_info_v2_list_t* profiling_infos) {
-    if (!infer_request || !profiling_infos) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        auto infos = infer_request->object->get_profiling_info();
-        size_t num = infos.size();
-        profiling_infos->size = num;
-        std::unique_ptr<ov_profiling_info_v2_t[]> _profiling_info_arr(new ov_profiling_info_v2_t[num]);
-        for (size_t i = 0; i < num; i++) {
-            fill_common_profiling_info_fields(_profiling_info_arr[i], infos[i]);
-            _profiling_info_arr[i].start_time = infos[i].start_time.count();
+            _profiling_info_arr[i].node_name = str_to_char_array(infos[i].node_name);
+            _profiling_info_arr[i].exec_type = str_to_char_array(infos[i].exec_type);
+            _profiling_info_arr[i].node_type = str_to_char_array(infos[i].node_type);
         }
         profiling_infos->profiling_infos = _profiling_info_arr.release();
     }
@@ -391,16 +345,16 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
     if (!profiling_infos) {
         return;
     }
-    free_profiling_info_list_entries(profiling_infos->profiling_infos, profiling_infos->size);
-    profiling_infos->profiling_infos = nullptr;
-    profiling_infos->size = 0;
-}
-
-void ov_profiling_info_v2_list_free(ov_profiling_info_v2_list_t* profiling_infos) {
-    if (!profiling_infos) {
-        return;
+    for (size_t i = 0; i < profiling_infos->size; i++) {
+        if (profiling_infos->profiling_infos[i].node_name)
+            delete[] profiling_infos->profiling_infos[i].node_name;
+        if (profiling_infos->profiling_infos[i].exec_type)
+            delete[] profiling_infos->profiling_infos[i].exec_type;
+        if (profiling_infos->profiling_infos[i].node_type)
+            delete[] profiling_infos->profiling_infos[i].node_type;
     }
-    free_profiling_info_list_entries(profiling_infos->profiling_infos, profiling_infos->size);
+    if (profiling_infos->profiling_infos)
+        delete[] profiling_infos->profiling_infos;
     profiling_infos->profiling_infos = nullptr;
     profiling_infos->size = 0;
 }
