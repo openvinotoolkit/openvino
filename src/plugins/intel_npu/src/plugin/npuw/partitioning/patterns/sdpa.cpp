@@ -265,7 +265,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
 */
 
 SDPACompressed::SDPACompressed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                                   const std::string& isol_tag) {
+                               const std::string& isol_tag) {
     // Key path: opt:Convert → opt:Subtract(opt:Convert(any), any) → Multiply(any) → Concat(any)
     // Convert is optional to handle models where the past KV is already in the expected type.
     // Subtract is optional to handle both asymmetric (with zp) and symmetric (without zp) DQ.
