@@ -169,7 +169,8 @@ void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::st
     }
 }
 
-/// \brief Check whether the graph nodes are already in topological order (same dependency definition and seeding as topological_sort_graph()).
+/// \brief Check whether the graph nodes are already in topological order (same dependency definition and seeding as
+/// topological_sort_graph()).
 bool is_topologically_sorted(const GraphProto& graph) {
     std::unordered_set<std::string> known_tensors;
     for (const auto& input : graph.input()) {
