@@ -927,15 +927,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_concat) {
     test_case.run();
 }
 
-/// @brief Regression test for the Loop back-edge reconciliation convergence fix.
-///
-/// Outer seed: [1.0], shape [1]. Body: Concat(a_in, [2.0]) grows dim[0] by 1 each iteration.
-/// After back-edge reconciliation the body parameter must widen to dynamic and the loop
-/// must run to completion (3 iterations) without hanging.
-///
-/// Without the fix (same_scheme replacing compatible in the reconciliation guard) the loop
-/// would spin INT_MAX times when the trip count is unknown, or produce a growing lower-bound
-/// Dimension that never stabilised with a static trip count.
+/// @brief Body Concat(a_in, [2.0]) grows the merged-input dim each iteration; the body
+/// parameter must widen to dynamic and the loop run to completion without hanging.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_back_edge_growing_merged_dim) {
     const auto model = convert_model("controlflow/loop_concat_growing_merged_dim.onnx");
 

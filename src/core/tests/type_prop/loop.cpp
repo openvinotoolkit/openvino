@@ -1542,12 +1542,8 @@ TEST(type_prop, loop_merged_static_seed_dim_grown_by_body) {
     EXPECT_EQ(result->get_output_partial_shape(0), (PartialShape{Dimension(1, -1), 4}));
 }
 
-// Verify that back-edge reconciliation converges when the param is already dynamic.
-//
-// This is the regression test for the infinite-loop bug introduced when
-// compatible() was replaced by same_scheme(): same_scheme(static, dynamic)==false
-// would set shape_changed=true even when new_ps==input_param_ps (both already
-// dynamic), spinning the loop INT_MAX times with an unknown trip count.
+// Back-edge reconciliation must reach a fixed point when the parameter is already
+// dynamic, otherwise an unknown trip count spins the loop INT_MAX times.
 TEST(type_prop, loop_back_edge_reconciliation_converges_when_param_already_dynamic) {
     const auto body_param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
     const auto extra = ov::op::v0::Constant::create(element::f32, Shape{1}, {0});
