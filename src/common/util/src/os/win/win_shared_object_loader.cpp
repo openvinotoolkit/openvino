@@ -70,10 +70,15 @@
 #endif
 
 #include <windows.h>
+#include <psapi.h> 
 
 namespace ov::util {
 
 std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
+        // ── memory snapshot BEFORE ──────────────────────────────
+    PROCESS_MEMORY_COUNTERS pmc_before{};
+    GetProcessMemoryInfo(GetCurrentProcess(), &pmc_before, sizeof(pmc_before));
+    // ────────────────────────────────────────────────────────
     void* shared_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);
     static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
@@ -96,6 +101,8 @@ std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
         SetDllDirectoryW(&lpBuffer.front());
     }
 #    endif
+    PROCESS_MEMORY_COUNTERS pmc_after{};
+    GetProcessMemoryInfo(GetCurrentProcess(), &pmc_after, sizeof(pmc_after));
     if (!shared_object) {
         shared_object = LoadLibraryW(path.c_str());
     }
@@ -105,10 +112,51 @@ std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
            << " from cwd: " << path_to_string(std::filesystem::current_path());
         throw std::runtime_error(ss.str());
     }
+
+    SIZE_T delta = (pmc_after.WorkingSetSize > pmc_before.WorkingSetSize)
+                    ? (pmc_after.WorkingSetSize - pmc_before.WorkingSetSize)
+                    : 0;
+
+    printf("[MemTrack] %s\n"
+           "  WorkingSet before : %6zu KB\n"
+           "  WorkingSet after  : %6zu KB\n"
+           "  Delta             : %6zu KB\n"
+           "  PrivateBytes after: %6zu KB\n",
+           path.filename().string().c_str(),
+           pmc_before.WorkingSetSize  ,
+           pmc_after.WorkingSetSize   ,
+           delta                      ,
+           pmc_after.PagefileUsage    );
+    // ── memory snapshot AFTER ───────────────────────────────
+    // ────────────────────────────────────────────────────────
     return {shared_object, [](void* shared_object) {
-                FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
+        PROCESS_MEMORY_COUNTERS pmc_before_unload{};
+        GetProcessMemoryInfo(GetCurrentProcess(), 
+                             &pmc_before_unload, 
+                             sizeof(pmc_before_unload));
+
+        FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
+
+        PROCESS_MEMORY_COUNTERS pmc_after_unload{};
+        GetProcessMemoryInfo(GetCurrentProcess(), 
+                             &pmc_after_unload, 
+                             sizeof(pmc_after_unload));
+
+        SIZE_T freed = (pmc_before_unload.WorkingSetSize > pmc_after_unload.WorkingSetSize)
+                        ? (pmc_before_unload.WorkingSetSize - pmc_after_unload.WorkingSetSize)
+                        : 0;
+
+        printf("[MemTrack] FreeLibrary\n"
+               "  WorkingSet before : %6zu KB\n"
+               "  WorkingSet after  : %6zu KB\n"
+               "  Freed             : %6zu KB\n",
+               pmc_before_unload.WorkingSetSize / 1024,
+               pmc_after_unload.WorkingSetSize  / 1024,
+               freed                            / 1024);
+        // ──────────────────────────────────────────────────
             }};
 }
+
 
 void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_name) {
     if (!shared_object) {
