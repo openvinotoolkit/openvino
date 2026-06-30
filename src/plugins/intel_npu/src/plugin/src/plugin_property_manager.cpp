@@ -316,14 +316,15 @@ void PluginPropertyManager::registerProperties() {
     register_property<EXPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::export_raw_blob.name());
     register_property<IMPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::import_raw_blob.name());
     register_property<BATCH_COMPILER_MODE_SETTINGS>(_config, _properties, ov::intel_npu::batch_compiler_mode_settings.name());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    register_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
-    OPENVINO_SUPPRESS_DEPRECATED_END
     register_property<ENABLE_WEIGHTLESS>(_config, _properties, ov::enable_weightless.name());
     register_property<SEPARATE_WEIGHTS_VERSION>(_config, _properties, ov::intel_npu::separate_weights_version.name());
     register_property<MODEL_SERIALIZER_VERSION>(_config, _properties, ov::intel_npu::model_serializer_version.name());
     register_property<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for.name());
     register_property<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
+    register_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    register_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(), [&](const FilteredConfig& config) {
         if (!config.has<STEPPING>()) {
@@ -340,9 +341,7 @@ void PluginPropertyManager::registerProperties() {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
 
-    register_property_with_support<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name(), [&](const FilteredConfig&) {
-        return _backend != nullptr && _backend->isCommandQueueExtSupported();
-    });
+
     register_property_with_support<DISABLE_IDLE_MEMORY_PRUNING>(_config, _properties, ov::intel_npu::disable_idle_memory_prunning.name(), [&](const FilteredConfig&) {
         return _backend != nullptr && _backend->isContextExtSupported();
     });

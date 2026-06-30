@@ -224,7 +224,3 @@ bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilit
 IDevice::DeviceProperties ZeroDevice::getDeviceProperties() const {
     return {_device_properties.deviceId, _device_properties.subdeviceId, _device_properties.numSlices};
 }
-
-bool ZeroDevice::isCommandQueueExtSupported() const {
-    return _initStructs->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
-}

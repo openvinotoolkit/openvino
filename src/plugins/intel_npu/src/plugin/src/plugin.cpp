@@ -296,6 +296,8 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     });
 
     config.enableRuntimeOptions();
+    // Disable workload type in case driver is not present or it does not support the extension.
+    config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
 
     // Special cases - options with OptionMode::Both must be enabled
     // for the plugin even if the compiler does not support them,
