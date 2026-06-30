@@ -238,7 +238,13 @@ void Loop::validate_and_infer_types() {
                             if (body_rank_len == input_rank_len) {
                                 new_ps = input_param_ps;
                                 for (auto j = 0; j < body_rank_len; j++) {
-                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
+                                    // The merged-input parameter holds the body result from the second iteration on,
+                                    // so it must be able to hold any shape the body produces. Relax the parameter
+                                    // dimension when it does not already cover the body value dimension. This also
+                                    // catches a static parameter dimension (e.g. a seed length of 1) grown by the
+                                    // body into a dynamic dimension: 'compatible' would wrongly accept it because a
+                                    // dynamic body value is compatible with a static parameter.
+                                    if (!input_param_ps[j].relaxes(body_value_shape[j])) {
                                         new_ps[j] = Dimension::dynamic();
                                         shape_changed = true;
                                     }
