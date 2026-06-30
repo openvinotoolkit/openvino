@@ -30,6 +30,7 @@ Practical manual for NPU plugin properties
 - [Special cases](#special-cases)
   - [SC.1 Adding a new property which requires custom functions](#sc1-adding-a-new-property-which-requires-custom-functions)
   - [SC.2 Adding a new (metric-backed) property which requires customization](#sc2-adding-a-new-metric-backed-property-which-requires-customization)
+  - [SC.3 Filtering out options at registration phase](#sc3-filtering-out-options-at-registration-phase)
 - [Removing a public property](#removing-a-public-property)
 
 ## Glossary
@@ -241,7 +242,7 @@ struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::Exam
 Notes:  
 - key(): needs to return the string name of the property (the NPU_EXAMPLE_PROPERTY defined in the property at step 1)  
 - getTypeName: returns the type name as a human-readable string  
-- defaultValue: returns the option's default value (if there was no user-defined value set, config.get or get_property(EXAMPLE_PROPERTY) will call this function)  
+- defaultValue: returns the option's default value (if there was no user-defined value set, config.get or get_property(EXAMPLE_PROPERTY) will call this function)
 - compilerSupportVersion: the compiler version from which this key is supported by compiler  
 - isPublic: defines whether the option is a **public or a private** one  
 - mode: defines the OptionMode of this option. Can be:  
@@ -459,6 +460,20 @@ Example:
             return validateCompatibilityDescriptor(_backend, arguments);
         });
 ```
+
+## SC.3 Register all options, gate availability with enable flags
+Enable/disable options based on runtime/backend support.
+Do not skip registration for normal capability gating. Keep options known to the stack and control availability via config.enable(...).
+For WORKLOAD_TYPE, this is exactly how availability is gated when backend support is missing.
+Implementation point:
+openvino/src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)
+Example:
+```cpp
+    register_options</* base options..., */ WORKLOAD_TYPE>(options, config);
+
+    config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+```
+With this pattern, WORKLOAD_TYPE remains registered, but is disabled whenever backend is absent or command queue extension is not supported.
 
 <br><br>
 
