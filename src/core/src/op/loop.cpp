@@ -238,7 +238,6 @@ void Loop::validate_and_infer_types() {
                             if (body_rank_len == input_rank_len) {
                                 new_ps = input_param_ps;
                                 for (auto j = 0; j < body_rank_len; j++) {
-                                    // The parameter must cover any shape the body produces across iterations.
                                     if (!input_param_ps[j].relaxes(body_value_shape[j])) {
                                         new_ps[j] = Dimension::dynamic();
                                         shape_changed = true;

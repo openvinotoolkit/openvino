@@ -424,10 +424,7 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     auto result0 = make_shared<ov::op::v0::Result>(out0);
     auto result1 = make_shared<ov::op::v0::Result>(out1);
     auto result2 = make_shared<ov::op::v0::Result>(out2);
-    // The merged-input parameter M_body is seeded from M ([1]) but fed back from
-    // Zo, whose length is dynamic. Back-edge reconciliation therefore relaxes the
-    // parameter to a dynamic dimension, so the body condition (out0) and the body
-    // value (out1) become dynamic as well.
+    // M_body relaxes to dynamic (fed back from dynamic Zo), so out0 and out1 become dynamic.
     PartialShape out0_shape{Dimension::dynamic()};
     PartialShape out1_shape{Dimension::dynamic()};
     PartialShape out2_shape{Dimension::dynamic()};
@@ -1512,15 +1509,7 @@ TEST(type_prop, loop_merged_state_only_input_zero_dim_widened_dynamic_step) {
     EXPECT_EQ(loop->get_output_partial_shape(0), PartialShape{Dimension::dynamic()});
 }
 
-// Verify that a static seed dimension grown to dynamic by the body is relaxed correctly.
-//
-// Outer seed shape: [1, 4] (static)
-// Body: Concat along axis 0 → result shape [1.., 4]  (first dim gets lower bound 1)
-//
-// Back-edge reconciliation must widen the merged-input parameter dim[0] from the
-// static seed length 1 to dynamic so the parameter can hold the growing body
-// result on subsequent iterations. The loop output is the last concat result,
-// whose first dim keeps the lower bound 1 contributed by the concat: [1.., 4].
+// Static seed [1, 4] grown along axis 0 by the body: param dim[0] relaxes to dynamic, output [1.., 4].
 TEST(type_prop, loop_merged_static_seed_dim_grown_by_body) {
     const auto body_param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 4});
     const auto extra = ov::op::v0::Constant::create(element::f32, Shape{1, 4}, {0});
@@ -1552,7 +1541,7 @@ TEST(type_prop, loop_back_edge_reconciliation_converges_when_param_already_dynam
     auto body = std::make_shared<Model>(OutputVector{concat, true_const}, ParameterVector{body_param});
 
     const auto seed = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
-    // Unknown trip count → max_num_of_iterations = INT_MAX; must still converge quickly.
+    // Unknown trip count → INT_MAX iterations; must still converge.
     const auto trip_count = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{1});
     const auto exec_cond = ov::op::v0::Constant::create(element::boolean, {1}, {1});
     const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
@@ -1561,20 +1550,13 @@ TEST(type_prop, loop_back_edge_reconciliation_converges_when_param_already_dynam
     loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 1});
 
     auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(concat, -1));
-    // This must complete in a fraction of a second; if it hangs the fix regressed.
     auto outer = std::make_shared<Model>(ResultVector{result}, ParameterVector{seed, trip_count});
 
     EXPECT_TRUE(result->get_output_partial_shape(0).is_dynamic());
 }
 
-// Verify that a static merged-input seed dimension fed back from a DYNAMIC body
-// value is relaxed to dynamic. This is the discriminating case for the
-// relaxes()-vs-compatible() reconciliation guard: a dynamic body value is
-// compatible() with a static parameter dimension, so compatible() would wrongly
-// leave the parameter static. The parameter must instead relax() the body value,
-// otherwise a downstream consumer (e.g. the CPU plugin) allocates a static
-// back-edge buffer that cannot hold the growing body result. This mirrors the
-// autoregressive decoder_input_ids pattern (static seed [1, 1] grown each step).
+// Static seed dim fed back from a dynamic body value must relax() to dynamic;
+// compatible() would wrongly leave it static (autoregressive decoder pattern).
 TEST(type_prop, loop_merged_static_seed_relaxed_when_body_value_dynamic) {
     const auto body_carried = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 4});
     const auto body_step = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic()});
@@ -1595,9 +1577,6 @@ TEST(type_prop, loop_merged_static_seed_relaxed_when_body_value_dynamic) {
     auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(concat, -1));
     auto outer = std::make_shared<Model>(ResultVector{result}, ParameterVector{seed, step});
 
-    // The merged-input parameter must be relaxed on the grown axis so it can hold
-    // the dynamic-length body result on the second and subsequent iterations.
     EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{1, Dimension::dynamic()}));
-    // The loop output is the last concat result; its grown axis stays dynamic.
     EXPECT_TRUE(loop->get_output_partial_shape(0)[1].is_dynamic());
 }
