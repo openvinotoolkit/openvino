@@ -305,14 +305,13 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 // data input (the full KV cache). If dim[2] < dim[3] the cache is transposed;
                 // leave this output unstripped so the NPU model handles it natively.
                 const auto& data_ps = scatter->input_value(0).get_partial_shape();
-                const bool v_is_transposed_cache = !transposed && data_ps.rank().is_static() &&
-                                                   data_ps.rank().get_length() == 4 && data_ps[2].is_static() &&
-                                                   data_ps[3].is_static() &&
-                                                   data_ps[2].get_length() < data_ps[3].get_length();
-                if (v_is_transposed_cache) {
+                const bool cache_is_transposed = data_ps.rank().is_static() && data_ps.rank().get_length() == 4 &&
+                                                 data_ps[2].is_static() && data_ps[3].is_static() &&
+                                                 data_ps[2].get_length() < data_ps[3].get_length();
+                if (cache_is_transposed) {
                     LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] has transposed V cache layout " << data_ps
                                                          << "; skipping CPU scatter for this output");
-                    continue;  // leave Result → ScatterUpdate intact in the inner model
+                    continue;  // leave Result → ScatterUpdate (± Transpose) intact in the inner model
                 }
                 // Redirect result to carry only the current-token slice (scatter's "updates").
                 results[i]->input(0).replace_source_output(scatter->input_value(2));
