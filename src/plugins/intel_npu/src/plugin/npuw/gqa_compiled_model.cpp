@@ -612,13 +612,28 @@ void ov::npuw::GQAInferRequest::infer() {
             seqlens_k_val = *reinterpret_cast<const int64_t*>(sk->data());
     }
 
+    // Before running the inner request, pre-set managed KV output tensors to the
+    // inner model's (small) shape. The OV framework may otherwise propagate the
+    // full-cache-sized user tensor ({1,H,max_seq,head}) down to the NPU subgraph
+    // output port, which expects the current-token slice ({1,H,curr_seq,head}).
+    const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
+    if (m_compiled_model->m_kv_managed) {
+        for (size_t ki = 0; ki < m_compiled_model->m_kv_output_indices.size(); ++ki) {
+            const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
+            if (kv_idx >= inner_outputs.size())
+                continue;
+            const auto& inner_out = inner_outputs[kv_idx];
+            auto t = ov::make_tensor(inner_out.get_element_type(), inner_out.get_partial_shape().to_shape());
+            m_inner_request->set_tensor(inner_out, t);
+        }
+    }
+
     m_inner_request->infer();
 
     if (!m_compiled_model->m_kv_managed)
         return;
 
     // Scatter the small inner KV outputs into the right offset of the user's full KV tensors.
-    const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
     for (size_t ki = 0; ki < m_compiled_model->m_kv_output_indices.size(); ++ki) {
         const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
         auto it = m_user_kv_tensors.find(kv_idx);
