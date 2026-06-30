@@ -4,8 +4,6 @@
 
 #include "inference.hpp"
 
-#include "utils.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -19,6 +17,7 @@
 #include <vector>
 
 #include "samples/slog.hpp"
+#include "utils.hpp"
 
 namespace {
 
@@ -180,8 +179,8 @@ LatencyStatistics get_latency_statistics(std::vector<double> latencies) {
     }
 
     const auto middle = latencies.size() / 2;
-    const auto median = latencies.size() % 2 == 0 ? (latencies[middle - 1] + latencies[middle]) / 2.0
-                                                  : latencies[middle];
+    const auto median =
+        latencies.size() % 2 == 0 ? (latencies[middle - 1] + latencies[middle]) / 2.0 : latencies[middle];
 
     return {median, sum / static_cast<double>(latencies.size()), latencies.front(), latencies.back()};
 }
@@ -249,7 +248,7 @@ ov::Shape get_inference_tensor_shape(const ov::Output<const ov::Node>& input,
                        input.get_any_name(),
                        "' has dynamic shape ",
                        partial_shape,
-                       ". Please provide concrete dimensions using -shape or -data_shape before running infer.");
+                       ". Please provide concrete dimensions using -shape or -data_shape before running inference.");
     }
 
     return partial_shape.to_shape();

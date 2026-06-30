@@ -91,9 +91,9 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
         }
     }
 
-    const std::string fallback_device =
-        fallback_unmapped_ops && unmapped_hardware_devices.size() == 1 ? unmapped_hardware_devices.front()
-                                                                       : std::string{};
+    const std::string fallback_device = fallback_unmapped_ops && unmapped_hardware_devices.size() == 1
+                                            ? unmapped_hardware_devices.front()
+                                            : std::string{};
 
     size_t applied_count = 0;
     size_t fallback_count = 0;

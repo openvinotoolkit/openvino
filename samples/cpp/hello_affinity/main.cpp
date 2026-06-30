@@ -80,9 +80,11 @@ std::vector<std::string> parse_device_list(const std::string& device_name) {
 
 std::vector<std::string> get_hardware_devices(const std::string& device_name) {
     auto devices = parse_device_list(device_name);
-    devices.erase(std::remove_if(devices.begin(), devices.end(), [](const std::string& device) {
-                      return is_virtual_device_name(device);
-                  }),
+    devices.erase(std::remove_if(devices.begin(),
+                                 devices.end(),
+                                 [](const std::string& device) {
+                                     return is_virtual_device_name(device);
+                                 }),
                   devices.end());
     return devices;
 }
@@ -93,13 +95,11 @@ ov::Layout get_default_layout(const ov::PartialShape& shape) {
     }
 
     if (shape.size() == 3) {
-        return shape[2].get_max_length() <= 4 && shape[0].get_max_length() > 4 ? ov::Layout("HWC")
-                                                                               : ov::Layout("CHW");
+        return shape[2].get_max_length() <= 4 && shape[0].get_max_length() > 4 ? ov::Layout("HWC") : ov::Layout("CHW");
     }
 
     if (shape.size() == 4) {
-        return shape[3].get_max_length() <= 4 && shape[1].get_max_length() > 4 ? ov::Layout("NHWC")
-                                                                               : ov::Layout("NCHW");
+        return shape[3].get_max_length() <= 4 && shape[1].get_max_length() > 4 ? ov::Layout("NHWC") : ov::Layout("NCHW");
     }
 
     return {};
@@ -267,8 +267,8 @@ void assign_missing_affinities_to_device(const std::shared_ptr<ov::Model>& model
         assigned_ops++;
     }
 
-    slog::info << "Assigned fallback affinity \"" << device_name << "\" to " << assigned_ops
-               << " unmapped ops" << slog::endl;
+    slog::info << "Assigned fallback affinity \"" << device_name << "\" to " << assigned_ops << " unmapped ops"
+               << slog::endl;
 }
 
 void print_runtime_parameters(const ov::CompiledModel& compiled_model) {
@@ -417,8 +417,8 @@ int tmain(int argc, tchar* argv[]) {
             throw std::logic_error("The --fallback-device option requires -affinity. "
                                    "Please provide an affinity JSON file or remove --fallback-device.");
         }
-        if (!affinity_spec.empty() && parsed_devices.front() != "HETERO") {
-            throw std::logic_error("The -affinity option is supported only with the HETERO plugin. "
+        if (!affinity_spec.empty() && (parsed_devices.front() != "HETERO" || hardware_devices.empty())) {
+            throw std::logic_error("The -affinity option is supported only with the HETERO plugin and requires an explicit device list. "
                                    "Please use -d HETERO:<devices> or remove -affinity.");
         }
 

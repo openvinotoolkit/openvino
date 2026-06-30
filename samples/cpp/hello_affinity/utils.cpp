@@ -16,15 +16,17 @@ std::string trim(std::string value) {
     value.erase(value.begin(), std::find_if(value.begin(), value.end(), [](unsigned char ch) {
                     return !std::isspace(ch);
                 }));
-    value.erase(std::find_if(value.rbegin(), value.rend(), [](unsigned char ch) {
-                    return !std::isspace(ch);
-                }).base(),
+    value.erase(std::find_if(value.rbegin(),
+                             value.rend(),
+                             [](unsigned char ch) {
+                                 return !std::isspace(ch);
+                             })
+                    .base(),
                 value.end());
     return value;
 }
 
-std::string resolve_input_tensor_name(const std::string& name,
-                                      const std::vector<ov::Output<const ov::Node>>& inputs) {
+std::string resolve_input_tensor_name(const std::string& name, const std::vector<ov::Output<const ov::Node>>& inputs) {
     for (const auto& input : inputs) {
         if (input.get_any_name() == name || input.get_node_shared_ptr()->get_friendly_name() == name ||
             input.get_node_shared_ptr()->get_name() == name) {
