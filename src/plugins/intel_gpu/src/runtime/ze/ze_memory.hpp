@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ze_common.hpp"
+#include "ze_resource.hpp"
 #include "ze_engine.hpp"
 #include "ze_base_event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -19,124 +20,27 @@ struct lockable_gpu_mem {
     lockable_gpu_mem() :
         _lock_count(0),
         _mapped_ptr(nullptr),
-        _copy_back_to_device(false),
-        _host_buffer_has_device_data(false) {}
+        _copy_back_to_device(false) {}
 
     std::mutex _mutex;
     unsigned _lock_count;
     void* _mapped_ptr;
     bool _copy_back_to_device;
-    bool _host_buffer_has_device_data;
-};
-
-class UsmHolder {
-public:
-    UsmHolder(ze_context_handle_t context, void* ptr, bool shared_memory = false) : _context(context), _ptr(ptr), _shared_memory(shared_memory) {
-        if (ptr == nullptr)
-            OPENVINO_THROW("[GPU] Can not create UsmHolder with nullptr");
-    }
-    UsmHolder(const UsmHolder&) = delete;
-    UsmHolder& operator=(const UsmHolder&) = delete;
-
-    void* ptr() { return _ptr; }
-
-    ~UsmHolder() {
-        if (!_shared_memory) {
-            OV_ZE_WARN(ze::zeMemFree(_context, _ptr));
-        }
-    }
-private:
-    ze_context_handle_t _context;
-    void* _ptr;
-    bool _shared_memory = false;
-};
-
-class UsmMemory {
-public:
-    explicit UsmMemory(ze_context_handle_t context, ze_device_handle_t device)
-        : _context(context)
-        , _device(device) {}
-
-    UsmMemory(ze_context_handle_t context, ze_device_handle_t device, void* usm_ptr, size_t offset = 0)
-        : _context(context)
-        , _device(device)
-        , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {}
-
-    void* get() const {
-        if (is_empty()) {
-            return nullptr;
-        }
-        return _usm_pointer->ptr();
-    }
-
-    bool is_empty() const { return _usm_pointer.get() == nullptr; }
-
-    void allocateHost(size_t size) {
-        ze_host_mem_alloc_desc_t host_desc = {};
-        host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
-        host_desc.flags = 0;
-        host_desc.pNext = nullptr;
-
-        void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocHost(_context, &host_desc, size, 0, &memory));
-        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
-    }
-
-    void allocateShared(size_t size, uint32_t ordinal) {
-        ze_device_mem_alloc_desc_t device_desc = {};
-        device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
-        device_desc.flags = 0;
-        device_desc.ordinal = ordinal;
-        device_desc.pNext = nullptr;
-
-        ze_host_mem_alloc_desc_t host_desc = {};
-        host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
-        host_desc.flags = 0;
-        host_desc.pNext = nullptr;
-
-        void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocShared(_context, &device_desc, &host_desc, size, 0, _device, &memory));
-        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
-    }
-
-    void allocateDevice(size_t size, uint32_t ordinal) {
-        ze_device_mem_alloc_desc_t device_desc = {};
-        device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
-        device_desc.flags = 0;
-        device_desc.ordinal = ordinal;
-        device_desc.pNext = nullptr;
-
-        void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocDevice(_context, &device_desc, size, 0, _device, &memory));
-        _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
-    }
-
-    void freeMem() {
-        _usm_pointer.reset();
-    }
-
-    virtual ~UsmMemory() = default;
-
-protected:
-    ze_context_handle_t _context;
-    ze_device_handle_t _device;
-    std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
 };
 
 struct gpu_usm : public lockable_gpu_mem, public memory {
-    gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& usm_buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
-    gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ze_engine* engine, const layout& layout, allocation_type type);
 
     void* lock(const stream& stream, mem_lock_type type) override;
     void unlock(const stream& stream) override;
-    const ze::UsmMemory& get_buffer() const { return _buffer; }
-    ze::UsmMemory& get_buffer() { return _buffer; }
 
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
-    shared_mem_params get_internal_params() const override;
-    void* buffer_ptr() const override { return _buffer.get(); }
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
+    void* buffer_ptr() const override;
+    ze_usm_resource get_resource() const { return _buffer; }
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
     event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
@@ -147,52 +51,34 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 #endif
 
     static allocation_type detect_allocation_type(const ze_engine* engine, const void* mem_ptr);
-    static allocation_type detect_allocation_type(const ze_engine* engine, const ze::UsmMemory& buffer);
+    static allocation_type detect_allocation_type(const ze_engine* engine, ze_usm_resource buffer);
 
 protected:
-    ze::UsmMemory _buffer;
-    ze::UsmMemory _host_buffer;
-};
-
-struct image_holder {
-public:
-    image_holder(ze_image_handle_t buffer, bool is_shared = false) : _buffer(buffer), _is_shared(is_shared) {
-        OPENVINO_ASSERT(buffer != nullptr, "[GPU] Can not create image_holder with nullptr");
-    }
-    image_holder(const image_holder&) = delete;
-    image_holder& operator=(const image_holder&) = delete;
-    ~image_holder() {
-        if (!_is_shared) {
-            OV_ZE_WARN(ze::zeImageDestroy(_buffer));
-        }
-    }
-
-    ze_image_handle_t get_handle() const { return _buffer; }
-private:
-    ze_image_handle_t _buffer;
-    bool _is_shared;
+    mutable ze_usm_resource _buffer;
+    ze_usm_resource _host_buffer;
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {
-    gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_handle_t image, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ze_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
-    shared_mem_params get_internal_params() const override;
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
     ze_image_handle_t get_handle() const {
         OPENVINO_ASSERT(0 == _lock_count, "[GPU] Cannot get image handle when memory is locked");
-        return _image->get_handle();
+        return _image_holder.handle();
     }
+    ze_image_resource get_resource() const { return _image_holder; }
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) override;
     event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) override;
     event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) const override;
 
 protected:
-    std::shared_ptr<image_holder> _image;
-    ze::UsmMemory _host_buffer;
+    mutable ze_image_resource _image_holder;
+    ze_usm_resource _host_buffer;
     size_t _width;
     size_t _height;
     bool _needs_write_back;
