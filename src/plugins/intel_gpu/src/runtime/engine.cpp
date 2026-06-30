@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
 #include "ze/ze_engine_factory.hpp"
@@ -95,6 +96,30 @@ uint64_t engine::get_max_memory_size() const {
 
 uint64_t engine::get_host_memory_size() const {
     return static_cast<uint64_t>(get_cpu_ram_size());
+}
+
+bool engine::can_bind_host_buffer(const void* host_address) const {
+    const auto& info = get_device_info();
+
+    // Check hardware capabilities
+    if (info.dev_type != device_type::integrated_gpu)
+        return false;
+
+    if (info.arch < gpu_arch::xe2)
+        return false;
+
+    if (!supports_allocation(allocation_type::usm_host))
+        return false;
+
+    // Buffer address must be provided and page-aligned
+    if (host_address == nullptr)
+        return false;
+
+    const auto address = reinterpret_cast<std::uintptr_t>(host_address);
+    if (address % CACHE_PAGE_SIZE != 0)
+        return false;
+
+    return true;
 }
 
 bool engine::supports_allocation(allocation_type type) const {

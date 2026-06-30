@@ -117,13 +117,6 @@ public:
     std::streambuf* get_streambuf() const {
         return _stream.rdbuf();
     }
-    bool has_mmap_tensor() const {
-        return _tensor_base_ptr != nullptr;
-    }
-
-    bool is_mmap_tensor_4K_aligned() const {
-        return has_mmap_tensor() && (reinterpret_cast<std::uintptr_t>(_tensor_base_ptr) % CACHE_PAGE_SIZE == 0);
-    }
 
     const size_t* get_mmap_tensor() const {
         return _tensor_base_ptr;

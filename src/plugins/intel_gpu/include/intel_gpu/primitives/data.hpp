@@ -385,11 +385,11 @@ struct data : public primitive_base<data> {
 
         bool do_weightless_caching = cache_info->save(ob, data_size);
         if (!do_weightless_caching) {
+            if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
+                std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
+                ob << make_data(pad.data(), pad.size());
+            }
             if (is_alloc_host_accessible(_allocation_type)) {
-                if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
-                    std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
-                    ob << make_data(pad.data(), pad.size());
-                }
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
                 std::vector<uint8_t> _buf;
@@ -417,29 +417,24 @@ struct data : public primitive_base<data> {
 
         bool weightless_caching = false;
         ib >> weightless_caching;
-
-        bool enable_zero_copy_mode = ib.is_mmap_tensor_4K_aligned() && ib.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                                     ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu &&
-                                     _allocation_type == allocation_type::usm_host && !weightless_caching &&
-                                     model_tensor_base != nullptr;
-        if (!enable_zero_copy_mode) {
+        bool zero_copy_mode = !weightless_caching && ib.get_engine().can_bind_host_buffer(ib.get_mmap_tensor());
+        if (!zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
-        
+
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {
-            if (is_alloc_host_accessible(_allocation_type)) {
-                if (!ib.is_encrypted() && !ib.is_offset_sub_buffer_aligned()) {
-                    std::vector<uint8_t> pad(ib.get_bytes_to_sub_buffer_boundary(), 0);
-                    ib >> make_data(pad.data(), pad.size());
-                }
-                if (enable_zero_copy_mode) {
-                    mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
-                    ib.seek_current_ptr(data_size);
-                } else {
-                    ib >> make_data(std::move(mem->buffer_ptr()), data_size);
-                }
+            // Skip padding bytes (page alignment required for binding host-owned buffers)
+            if (!ib.is_encrypted() && !ib.is_offset_sub_buffer_aligned()) {
+                ib.seek_current_ptr(ib.get_bytes_to_sub_buffer_boundary());
+            }
+            // Zero-copy: create subbuffer referencing mmap'd cache without host-to-device transfer
+            if (zero_copy_mode) {
+                mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
+                ib.seek_current_ptr(data_size);
+            } else if (is_alloc_host_accessible(_allocation_type)) {
+                ib >> make_data(std::move(mem->buffer_ptr()), data_size);
             } else {
                 const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
                 auto& eng = ib.get_engine();
