@@ -32,6 +32,7 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/usm_host_tensor.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/common_utils.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/simple_math.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/ops/moe_legacy_xml_offset_resolver.cpp"
   )
 
 # Those tests have dependency on OpenCL runtime
