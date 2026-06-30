@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "acl_common_executor.hpp"
 #include "acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
@@ -39,6 +41,12 @@ private:
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
     std::vector<float> dequantizationScales;
+
+    // Requantization parameters captured from a fused per-tensor FakeQuantize post op.
+    // Populated only for the quantized destination path (i8/u8 dst); empty otherwise.
+    std::vector<float> fqInputScale;
+    std::vector<float> fqInputShift;
+    bool hasQuantizedDst = false;
 };
 
 using ACLLowpFullyConnectedExecutorPtr = std::shared_ptr<ACLLowpFullyConnectedExecutor>;

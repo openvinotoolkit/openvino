@@ -9,6 +9,7 @@
 #include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/core/TensorInfo.h>
 #include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/utils/quantization/AsymmHelpers.h>
 #include <arm_compute/function_info/GEMMInfo.h>
 
 #include <any>
@@ -31,6 +32,12 @@
 
 namespace ov::intel_cpu {
 
+// ACL destination requantization supports only per-tensor scale/shift, so the fused FakeQuantize
+// must carry single-element input scale/shift.
+static bool isPerTensorFakeQuantize(const FakeQuantizePostOp& fq) {
+    return fq.inputScale().size() == 1 && fq.inputShift().size() <= 1;
+}
+
 static bool checkPostOps(const PostOps& postOps) {
     if (postOps.empty()) {
         return true;
@@ -40,8 +47,12 @@ static bool checkPostOps(const PostOps& postOps) {
         return false;
     }
 
-    if (const auto& activation = std::any_cast<const ActivationPostOp>(postOps.data())) {
+    if (const auto* const activation = std::any_cast<const ActivationPostOp>(postOps.data())) {
         return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
+    }
+    if (const auto* const fq = std::any_cast<const FakeQuantizePostOp>(postOps.data())) {
+        // Per-tensor FakeQuantize is fused into the GEMM as a quantized output stage (i8/u8 dst).
+        return isPerTensorFakeQuantize(*fq);
     }
     return false;
 }
@@ -56,11 +67,13 @@ static void initFCAttrs(const FCAttrs& attrs,
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     if (!attrs.postOps.empty()) {
-        const auto& activation = std::any_cast<const ActivationPostOp&>(attrs.postOps[0]);
-        fullyConnectedLayerInfo.set_activation_info(getActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()),
-                                                                           activation.alpha(),
-                                                                           activation.beta(),
-                                                                           activation.gamma()));
+        if (const auto* const activation = std::any_cast<const ActivationPostOp>(attrs.postOps.data())) {
+            fullyConnectedLayerInfo.set_activation_info(
+                getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
+                                       activation->alpha(),
+                                       activation->beta(),
+                                       activation->gamma()));
+        }
     }
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
@@ -73,6 +86,17 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
                                                              const ExecutorContext::CPtr& context) {
     dequantizationScales = getDeQuantizedScales(memory);
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo);
+
+    // Capture a fused per-tensor FakeQuantize requantization for the quantized dst path. The output scale/shift are
+    // applied as the GEMMLowp output stage built in validateTensorsInfo(); see acl_conv.cpp for the conv analogue.
+    hasQuantizedDst = any_of(memory.at(ARG_DST)->getPrecision(), ov::element::i8, ov::element::u8);
+    if (hasQuantizedDst && !attrs.postOps.empty()) {
+        if (const auto* const fq = std::any_cast<const FakeQuantizePostOp>(attrs.postOps.data())) {
+            fqInputScale = fq->inputScale();
+            fqInputShift = fq->inputShift();
+        }
+    }
+
     packedWeights =
         acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, expectedWeightFormat, weiTensorInfo);
 }
@@ -82,8 +106,21 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
            UNSUPPORTED_ACL_COMMON_PRECONDITION);
     VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
-    VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);
+    // f32 dst keeps the dequantized-output path (no output stage). i8/u8 dst fuses a per-tensor FakeQuantize
+    // requantization into a GEMMLowp output stage. NEGEMMLowpMatrixMultiplyCore couples a quantized dst with an
+    // S32 bias (float dst requires F32 bias), so the bias precision is verified together with the dst type.
+    VERIFY(any_of(dstType(config), ov::element::f32, ov::element::i8, ov::element::u8), UNSUPPORTED_DST_PRECISIONS);
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
+    const bool isQuantizedDst = any_of(dstType(config), ov::element::i8, ov::element::u8);
+    if (isQuantizedDst) {
+        // The output stage requires a fused per-tensor FakeQuantize to derive the requantization multiplier.
+        const bool hasFakeQuantize = !config.attrs.postOps.empty() &&
+                                     std::any_cast<const FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
+        VERIFY(hasFakeQuantize, UNSUPPORTED_TYPE_OF_POSTOPS);
+        if (!config.descs.at(ARG_BIAS)->empty()) {
+            VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+        }
+    }
     VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
     VERIFY(any_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
     return true;
@@ -103,6 +140,41 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
 
     const auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
     tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.F));
+
+    // Quantized dst path: derive the destination quantization from the fused per-tensor FakeQuantize and build a
+    // GEMMLowp output stage so NEGEMMLowpMatrixMultiplyCore requantizes int32 accumulators back to i8/u8 in-kernel.
+    // NEGEMMLowpMatrixMultiplyCore couples this with an S32 bias (verified in supports()); the float dst path keeps
+    // the default NONE output stage. The requantization multiplier follows ACL's own conv pipeline
+    // (CpuGemmConv2d -> calculate_quantized_multipliers): multiplier = src_scale * wei_scale / dst_scale.
+    const auto& tensor_info_dst = aclMemoryInfos[ACLArgs::ACL_DST];
+    const bool quantizedDst =
+        any_of(tensor_info_dst->data_type(), arm_compute::DataType::QASYMM8, arm_compute::DataType::QASYMM8_SIGNED);
+    if (hasQuantizedDst && quantizedDst) {
+        const auto dstPrecision =
+            tensor_info_dst->data_type() == arm_compute::DataType::QASYMM8_SIGNED ? ov::element::i8 : ov::element::u8;
+        tensor_info_dst->set_quantization_info(getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
+
+        const auto oqinfo = tensor_info_dst->quantization_info().uniform();
+        const auto [type_min, type_max] =
+            arm_compute::quantization::get_min_max_values_from_quantized_data_type(tensor_info_dst->data_type());
+
+        arm_compute::GEMMLowpOutputStageInfo outputStage;
+        outputStage.type = arm_compute::GEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+        outputStage.gemmlowp_offset = oqinfo.offset;
+        outputStage.gemmlowp_min_bound = type_min;
+        outputStage.gemmlowp_max_bound = type_max;
+        outputStage.is_quantized_per_channel = false;
+        outputStage.output_data_type = tensor_info_dst->data_type();
+        const auto multipliersStatus =
+            arm_compute::quantization::calculate_quantized_multipliers(tensor_info->quantization_info(),
+                                                                       tensor_info_weights->quantization_info(),
+                                                                       tensor_info_dst->quantization_info(),
+                                                                       outputStage);
+        if (!multipliersStatus) {
+            return multipliersStatus;
+        }
+        gemmInfo.set_gemmlowp_output_stage(outputStage);
+    }
 
     auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                                            aclMemoryInfos[ACLArgs::ACL_WEI].get(),

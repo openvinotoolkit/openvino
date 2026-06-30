@@ -268,9 +268,22 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto parentNode = node->getParentEdgeAt(0)->getParent();
         auto scaleNode = node->getParentEdgeAt(1)->getParent();
+        // FullyConnected is included on ARM: the int8 ACL FC executor swaps bias before the dequantization Multiply
+        // (ConvertFullyConnectedBias), so the dequantization Multiply directly follows the FC and is folded as the
+        // FC dequantization scale, enabling a fused quantized output stage.
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (none_of(parentNode->getType(),
+                    Type::Convolution,
+                    Type::MatMul,
+                    Type::Deconvolution,
+                    Type::FullyConnected)) {
+            return false;
+        }
+#else
         if (none_of(parentNode->getType(), Type::Convolution, Type::MatMul, Type::Deconvolution)) {
             return false;
         }
+#endif
         if (!scaleNode->isConstant()) {
             return false;
         }
