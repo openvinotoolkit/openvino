@@ -73,14 +73,23 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     FilteredConfig effectiveConfig = config;
     if (!config.has<COMPILATION_MODE>()) {
         const auto isDynamic = [](const auto& port) {
-            return port.get_partial_shape().is_dynamic();
+            auto& shape = port.get_partial_shape();
+            // HostCompile_Interpreter does not support dynamic batch for now
+            // EISW-221309
+            return shape.is_dynamic() && (shape.rank().get_length() == 4) &&
+                !shape[0].is_dynamic() && !shape[1].is_dynamic();
         };
-        const bool inputsDynamic = std::any_of(model->inputs().begin(), model->inputs().end(), isDynamic);
-        const bool outputsDynamic = std::any_of(model->outputs().begin(), model->outputs().end(), isDynamic);
-        if (inputsDynamic && outputsDynamic) {
-            _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-                         "for fully-dynamic model (inputs and outputs both dynamic)");
-            effectiveConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+
+        if (model) {
+            auto& inputs = model->inputs();
+            auto& outputs = model->outputs();
+            const bool inputsDynamic = std::any_of(inputs.begin(), inputs.end(), isDynamic);
+            const bool outputsDynamic = std::any_of(outputs.begin(), outputs.end(), isDynamic);
+            if (inputsDynamic && outputsDynamic) {
+                _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+                             "for fully-dynamic model (inputs and outputs both dynamic)");
+                effectiveConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+            }
         }
     }
 
