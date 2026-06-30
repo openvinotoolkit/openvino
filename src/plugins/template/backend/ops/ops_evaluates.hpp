@@ -582,6 +582,10 @@ extern template bool evaluate_node<ov::op::v17::ErfInv>(std::shared_ptr<ov::Node
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v17::GroupedMatMul>(std::shared_ptr<ov::Node> node,
+                                                               ov::TensorVector& outputs,
+                                                               const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,
                                                           const ov::TensorVector& inputs);

@@ -15,5 +15,6 @@ _OPENVINO_OP_REG(ShapeOf, ov::op::v3)
 
 // New operations added in opset17
 _OPENVINO_OP_REG(ErfInv, ov::op::v17)
+_OPENVINO_OP_REG(GroupedMatMul, ov::op::v17)
 _OPENVINO_OP_REG(RGBtoNV12, ov::op::v17)
 _OPENVINO_OP_REG(BGRtoNV12, ov::op::v17)
