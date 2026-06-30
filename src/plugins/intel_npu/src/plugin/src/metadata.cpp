@@ -336,10 +336,7 @@ void Metadata<METADATA_VERSION_2_6>::read() {
     if (reqs_len > 0) {
         std::string reqs(reqs_len, '\0');
         read_data_from_source(reqs.data(), reqs_len);
-        // normalize empty string to nullopt at the deserialization boundary
-        if (!reqs.empty()) {
-            _compatibilityDescriptor = std::move(reqs);
-        }
+        _compatibilityDescriptor = std::move(reqs);
     }
 }
 
