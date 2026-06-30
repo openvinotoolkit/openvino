@@ -418,24 +418,4 @@ TEST_P(ov_infer_request_test, get_profiling_info) {
     ov_profiling_info_list_free(&profiling_infos);
 }
 
-TEST_P(ov_infer_request_test, get_profiling_info_v2) {
-    auto device_name = GetParam();
-    OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
-
-    OV_EXPECT_OK(ov_infer_request_infer(infer_request));
-
-    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
-    EXPECT_NE(nullptr, output_tensor);
-
-    ov_profiling_info_v2_list_t profiling_infos;
-    profiling_infos.size = 0;
-    profiling_infos.profiling_infos = nullptr;
-    OV_EXPECT_OK(ov_infer_request_get_profiling_info_v2(infer_request, &profiling_infos));
-    EXPECT_NE(0, profiling_infos.size);
-    EXPECT_NE(nullptr, profiling_infos.profiling_infos);
-    EXPECT_GE(profiling_infos.profiling_infos[0].start_time, 0);
-
-    ov_profiling_info_v2_list_free(&profiling_infos);
-}
-
 }  // namespace

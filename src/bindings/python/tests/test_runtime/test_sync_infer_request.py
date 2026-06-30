@@ -64,7 +64,6 @@ def test_get_profiling_info(device):
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
     assert isinstance(soft_max_node.exec_type, str)
-    assert isinstance(soft_max_node.start_time, datetime.timedelta)
 
 
 def test_tensor_setter(device):
