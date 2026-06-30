@@ -207,7 +207,7 @@ void ZeroDynamicInferRequest::infer_async() {
     _logger.debug("infer_async - started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
     // Detect shape updates made through get_tensor()/get_input_tensor() in-place API.
-    refresh_tensor_changed_flag_from_shapes();
+    sync_user_tensor_shape_cache(ShapeCacheStage::CompareAndMarkChanged);
     // Store the predicted output shapes
     std::vector<IDynamicGraph::MemRefType> outputPros;
     predict_shapes(outputPros);
@@ -365,74 +365,73 @@ void ZeroDynamicInferRequest::update_tensor(const std::vector<IDynamicGraph::Mem
         }
     }
     _isTensorChanged = false;
-    update_cached_user_tensor_shapes();
+    sync_user_tensor_shape_cache(ShapeCacheStage::UpdateCache);
 }
 
-void ZeroDynamicInferRequest::refresh_tensor_changed_flag_from_shapes() {
-    if (_isTensorChanged) {
-        _logger.debug("refresh_tensor_changed_flag_from_shapes - skip check because tensor change is already pending");
-        return;
-    }
-
+void ZeroDynamicInferRequest::sync_user_tensor_shape_cache(const ShapeCacheStage stage) {
     auto shape_to_log_string = [](const std::optional<ov::Shape>& shape) -> std::string {
         return shape.has_value() ? shape.value().to_string() : std::string("<null>");
     };
 
-    for (size_t i = 0; i < _metadata.inputs.size(); ++i) {
-        const auto& userTensors = get_user_inputs(i);
-        auto& cachedShapes = _cachedUserInputShapes.at(i);
-        // check size
-        if (cachedShapes.size() != userTensors.size()) {
-            _logger.debug("refresh_tensor_changed_flag_from_shapes - input[%zu] tensor count changed: %zu -> %zu",
-                          i,
-                          cachedShapes.size(),
-                          userTensors.size());
-            _isTensorChanged = true;
+    if (stage == ShapeCacheStage::CompareAndMarkChanged) {
+        if (_isTensorChanged) {
+            _logger.debug("sync_user_tensor_shape_cache(compare) - skip check because tensor change is already "
+                          "pending");
             return;
         }
-        // check each shape
-        for (size_t j = 0; j < userTensors.size(); ++j) {
-            const auto& userTensor = userTensors.at(j);
+
+        for (size_t i = 0; i < _metadata.inputs.size(); ++i) {
+            const auto& userTensors = get_user_inputs(i);
+            auto& cachedShapes = _cachedUserInputShapes.at(i);
+
+            if (cachedShapes.size() != userTensors.size()) {
+                _logger.debug("sync_user_tensor_shape_cache(compare) - input[%zu] tensor count changed: %zu -> %zu",
+                              i,
+                              cachedShapes.size(),
+                              userTensors.size());
+                _isTensorChanged = true;
+                return;
+            }
+
+            for (size_t j = 0; j < userTensors.size(); ++j) {
+                const auto& userTensor = userTensors.at(j);
+                const std::optional<ov::Shape> currentShape =
+                    userTensor != nullptr ? std::make_optional(userTensor->get_shape()) : std::nullopt;
+                if (cachedShapes.at(j) != currentShape) {
+                    _logger.debug("sync_user_tensor_shape_cache(compare) - input[%zu][%zu] shape changed: %s -> %s",
+                                  i,
+                                  j,
+                                  shape_to_log_string(cachedShapes.at(j)).c_str(),
+                                  shape_to_log_string(currentShape).c_str());
+                    _isTensorChanged = true;
+                    return;
+                }
+            }
+        }
+
+        for (size_t i = 0; i < _metadata.outputs.size(); ++i) {
+            const auto& userTensor = _userOutputTensors.at(i);
             const std::optional<ov::Shape> currentShape =
                 userTensor != nullptr ? std::make_optional(userTensor->get_shape()) : std::nullopt;
-            if (cachedShapes.at(j) != currentShape) {
-                _logger.debug("refresh_tensor_changed_flag_from_shapes - input[%zu][%zu] shape changed: %s -> %s",
+            if (_cachedUserOutputShapes.at(i) != currentShape) {
+                _logger.debug("sync_user_tensor_shape_cache(compare) - output[%zu] shape changed: %s -> %s",
                               i,
-                              j,
-                              shape_to_log_string(cachedShapes.at(j)).c_str(),
+                              shape_to_log_string(_cachedUserOutputShapes.at(i)).c_str(),
                               shape_to_log_string(currentShape).c_str());
                 _isTensorChanged = true;
                 return;
             }
         }
-    }
 
-    for (size_t i = 0; i < _metadata.outputs.size(); ++i) {
-        const auto& userTensor = _userOutputTensors.at(i);
-        const std::optional<ov::Shape> currentShape = userTensor != nullptr ? std::make_optional(userTensor->get_shape())
-                                                                             : std::nullopt;
-        if (_cachedUserOutputShapes.at(i) != currentShape) {
-            _logger.debug("refresh_tensor_changed_flag_from_shapes - output[%zu] shape changed: %s -> %s",
-                          i,
-                          shape_to_log_string(_cachedUserOutputShapes.at(i)).c_str(),
-                          shape_to_log_string(currentShape).c_str());
-            _isTensorChanged = true;
-            return;
-        }
+        return;
     }
-}
-
-void ZeroDynamicInferRequest::update_cached_user_tensor_shapes() {
-    auto shape_to_log_string = [](const std::optional<ov::Shape>& shape) -> std::string {
-        return shape.has_value() ? shape.value().to_string() : std::string("<null>");
-    };
 
     for (size_t i = 0; i < _metadata.inputs.size(); ++i) {
         const auto& userTensors = get_user_inputs(i);
         auto& cachedShapes = _cachedUserInputShapes.at(i);
 
         if (cachedShapes.size() != userTensors.size()) {
-            _logger.debug("update_cached_user_tensor_shapes - resize cached input[%zu] tensor count: %zu -> %zu",
+            _logger.debug("sync_user_tensor_shape_cache(update) - resize cached input[%zu] tensor count: %zu -> %zu",
                           i,
                           cachedShapes.size(),
                           userTensors.size());
@@ -445,7 +444,7 @@ void ZeroDynamicInferRequest::update_cached_user_tensor_shapes() {
                 userTensor != nullptr ? std::make_optional(userTensor->get_shape()) : std::nullopt;
 
             if (cachedShapes.at(j) != currentShape) {
-                _logger.debug("update_cached_user_tensor_shapes - cache input[%zu][%zu]: %s -> %s",
+                _logger.debug("sync_user_tensor_shape_cache(update) - cache input[%zu][%zu]: %s -> %s",
                               i,
                               j,
                               shape_to_log_string(cachedShapes.at(j)).c_str(),
@@ -462,7 +461,7 @@ void ZeroDynamicInferRequest::update_cached_user_tensor_shapes() {
                                                                              : std::nullopt;
 
         if (_cachedUserOutputShapes.at(i) != currentShape) {
-            _logger.debug("update_cached_user_tensor_shapes - cache output[%zu]: %s -> %s",
+            _logger.debug("sync_user_tensor_shape_cache(update) - cache output[%zu]: %s -> %s",
                           i,
                           shape_to_log_string(_cachedUserOutputShapes.at(i)).c_str(),
                           shape_to_log_string(currentShape).c_str());
