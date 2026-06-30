@@ -173,6 +173,20 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     // ZE returns drivers version in different format than OCL
     info.driver_version = std::to_string(driver_properties.driverVersion);
     info.dev_type = (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) ? device_type::integrated_gpu : device_type::discrete_gpu;
+    /////
+    ze_device_cache_line_size_ext_t devCacheLineSize = {};
+    devCacheLineSize.stype = ZE_STRUCTURE_TYPE_DEVICE_CACHELINE_SIZE_EXT;
+    devCacheLineSize.pNext = nullptr;
+    ze_device_cache_properties_t devCacheProps = {};
+    devCacheProps.stype = ZE_STRUCTURE_TYPE_DEVICE_CACHE_PROPERTIES;
+    devCacheProps.pNext = &devCacheLineSize; // Podpięcie rozszerzenia pod bazową strukturę
+
+    uint32_t count = 1; 
+
+    zeDeviceGetCacheProperties(device, &count, &devCacheProps);
+
+
+    info.cache_line_size = devCacheLineSize.cacheLineSize;
 
     info.execution_units_count = device_properties.numEUsPerSubslice * device_properties.numSubslicesPerSlice * device_properties.numSlices;
 
