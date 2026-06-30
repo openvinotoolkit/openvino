@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
 
@@ -56,6 +57,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
     const Attributes& get_attrs() const {
         return m_attrs;
     }
@@ -83,46 +86,35 @@ public:
     static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op,
                                                      const std::vector<ov::PartialShape>& input_shapes);
 
-    bool is_config_equal(const Attributes& attr) const {
-        bool is_equal =
-            m_attrs.quantization_type == attr.quantization_type &&
-            m_attrs.quantization_dt == attr.quantization_dt &&
-            m_attrs.scale_dt == attr.scale_dt &&
-            m_attrs.zp_dt == attr.zp_dt &&
-            m_attrs.precomputed_reduction_dt == attr.precomputed_reduction_dt &&
-            m_attrs.precomputed_reduction == attr.precomputed_reduction &&
-            m_attrs.group_sizes == attr.group_sizes &&
-            m_attrs.output_storage_type == attr.output_storage_type;
-
-        if (!is_equal) {
-            return false;
-        }
-
-        if (m_attrs.scales_zp_output_order == attr.scales_zp_output_order) {
-            return true;
-        }
-
-        // Edge case: if zp_output_order is empty, DynamicQuantize constructor generates it with std::iota().
-        // Check if this is the case here.
-        if (attr.scales_zp_output_order.empty()) {
-            for (size_t i = 0; i < m_attrs.scales_zp_output_order.size(); ++i) {
-                if (m_attrs.scales_zp_output_order[i] != i) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    bool operator==(const DynamicQuantize& rhs) const {
-        return is_config_equal(rhs.m_attrs);
-    }
-
 protected:
     Attributes m_attrs;
 };
 
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const ov::op::internal::DynamicQuantize::QuantizationType& quantization_type);
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type);
+
+template <>
+class OPENVINO_API AttributeAdapter<ov::op::internal::DynamicQuantize::QuantizationType>
+    : public EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::QuantizationType> {
+public:
+    AttributeAdapter(ov::op::internal::DynamicQuantize::QuantizationType& value)
+        : EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::QuantizationType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::DynamicQuantize::QuantizationType>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<ov::op::internal::DynamicQuantize::OutputStorageType>
+    : public EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::OutputStorageType> {
+public:
+    AttributeAdapter(ov::op::internal::DynamicQuantize::OutputStorageType& value)
+        : EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::OutputStorageType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::DynamicQuantize::OutputStorageType>");
+};
+
 }  // namespace ov

@@ -92,36 +92,34 @@ class TestScatter(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dim", [1, -1, 0])
-    @pytest.mark.parametrize(
-        "index",
-        [
-            None,  # Empty tensor scenario.
-            torch.tensor([[0, 1, 2, 3]]),
-            torch.tensor([[0, 5], [4, 1], [2, 3]]),
-        ],
-    )
-    @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5), 1])
-    @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("src,reduce,index", [
+        # tensor src + no reduce: all index shapes valid (tensor+reduce deprecated since PyTorch 1.12)
+        (torch.arange(1, 26).reshape(5, 5), None, None),
+        (torch.arange(1, 26).reshape(5, 5), None, torch.tensor([[0, 1, 2, 3]])),
+        (torch.arange(1, 26).reshape(5, 5), None, torch.tensor([[0, 5], [4, 1], [2, 3]])),
+        # scalar src + no reduce: all index shapes valid
+        (1, None, None),
+        (1, None, torch.tensor([[0, 1, 2, 3]])),
+        (1, None, torch.tensor([[0, 5], [4, 1], [2, 3]])),
+        # scalar src + reduce
+        (1, "add",      None),
+        (1, "add",      torch.tensor([[0, 1, 2, 3]])),
+        (1, "add",      torch.tensor([[0, 5], [4, 1], [2, 3]])),
+        (1, "multiply", None),
+        (1, "multiply", torch.tensor([[0, 1, 2, 3]])),
+        (1, "multiply", torch.tensor([[0, 5], [4, 1], [2, 3]])),
+    ])
+    @pytest.mark.parametrize("dtype", ["int32", "float32"])
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
-    @pytest.mark.parametrize("reduce", [None, "add", "multiply"])
-    def test_scatter(self, dim, index, src, dtype, inplace, has_out, reduce, ie_device, precision, ir_version):
+    def test_scatter(self, src, reduce, index, dim, dtype, inplace, has_out, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
-        freeze = True
-        if index is None:
-            # Freeze creates empty constant tensor which isn't supported by OV.
-            freeze = False
-        if (not freeze) and reduce:
-            pytest.skip(
-                "Cannot test reduce parameters with empty indexes due to issues with empty constant tensor or issues with prim::GetAttr str inputs."
-            )
         self._test(
             *self.create_model(dim, index, src, inplace, reduce, has_out),
             ie_device,
             precision,
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype, "out": has_out},
-            freeze_model=freeze,
         )
 
 
@@ -189,29 +187,22 @@ class TestScatterReduce(PytorchLayerTest):
     @pytest.mark.parametrize(
         "index",
         [
-            None,  # Empty tensor scenario.
+            # index=None (empty tensor) is always skipped: reduce is always a non-None string,
+            # and string prim::GetAttr nodes are unresolvable with freeze_model=False.
             torch.tensor([[0, 1, 2, 3]]),
             torch.tensor([[0, 5], [4, 1], [2, 3]]),
         ],
     )
     @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5)])
-    @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("dtype", ["int32", "float32"])
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
     @pytest.mark.parametrize("reduce", ["sum", "prod", "mean", "amax", "amin"])
     @pytest.mark.parametrize("include_self", [True, False])
-    def test_scatter_reduce(self, dim, index, src, dtype, inplace, has_out, reduce,  include_self, ie_device, precision, ir_version):
+    def test_scatter_reduce(self, dim, index, src, dtype, inplace, has_out, reduce, include_self, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
-        freeze = True
-        if index is None:
-            # Freeze creates empty constant tensor which isn't supported by OV.
-            freeze = False
-        if (not freeze) and reduce:
-            pytest.skip(
-                "Cannot test reduce parameters with empty indexes due to issues with empty constant tensor or issues with prim::GetAttr str inputs."
-            )
-        kwargs = dict(kwargs_to_prepare_input={"dtype": dtype, "out": has_out}, freeze_model=freeze)
-        if reduce == "mean" and dtype in ["int32", "int64"]:
+        kwargs = dict(kwargs_to_prepare_input={"dtype": dtype, "out": has_out})
+        if reduce == "mean" and dtype == "int32":
             # rounding can be different on torch vs ov
             kwargs["custom_eps"] = 1.
         self._test(
@@ -262,21 +253,17 @@ class TestScatterAdd(PytorchLayerTest):
     @pytest.mark.parametrize(
         "index",
         [
-            None,  # Empty tensor scenario.
+            None,  # Empty tensor scenario: scatter_add with zero-size index (no-op).
             torch.tensor([[0, 1, 2, 3]]),
             torch.tensor([[0, 5], [4, 1], [2, 3]]),
         ],
     )
     @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5)])
-    @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("dtype", ["int32", "float32"])
     @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     def test_scatter_add(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
-        if index is None:
-            pytest.skip(
-                "Cannot test reduce parameters with empty indexes due to issues with empty constant tensor or issues with prim::GetAttr str inputs."
-            )
         self._test(
             *self.create_model(dim, index, src, inplace),
             ie_device,

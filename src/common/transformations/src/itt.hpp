@@ -17,7 +17,7 @@ namespace ov {
 namespace pass {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(Transform);
+    OV_ITT_DOMAIN(Transform, "ov::transformations");
 }   // namespace domains
 }   // namespace itt
 }   // namespace pass

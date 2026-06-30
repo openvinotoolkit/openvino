@@ -13,7 +13,7 @@ class TestGather(PytorchLayerTest):
         inp = self.random.randn(m, n)
         if out:
             axis = int(max_val == n)
-            out = np.zeros_like(np.take(inp, index, axis))
+            out = np.zeros_like(inp)
             return (inp, index, out)
         return (inp, index)
 

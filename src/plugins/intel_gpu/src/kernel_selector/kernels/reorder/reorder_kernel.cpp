@@ -92,8 +92,10 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
 
     jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.inputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.inputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.inputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));
 
     return jit;
 }

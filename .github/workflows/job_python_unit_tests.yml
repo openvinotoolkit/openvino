@@ -104,7 +104,7 @@ jobs:
           ${{ env.PIP_INSTALL_COMMAND }} -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
 
           # layer test requirements
-          ${{ env.PIP_INSTALL_COMMAND }} -r ${INSTALL_TEST_DIR}/layer_tests/requirements.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/layer_tests/requirements.txt
 
       - name: Install ONNX tests dependencies
         run: |
@@ -168,7 +168,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
           name: test-results-python

@@ -6,8 +6,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8
-#include "include/batch_headers/common.cl"
-#include "include/batch_headers/f8_utils.cl"
+#include "include/f8_utils.cl"
 #endif
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
@@ -15,12 +14,12 @@
 #if IS_F8
     #define SCALE_TYPE float
     #define TO_SCALE_TYPE(x) _convert_float(x)
-    #define TO_SCALE_TYPE_8(x) _convert_float8(x)
+    #define TO_SCALE_TYPE_8(x) convert_float8(x)
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
 #else
     #define SCALE_TYPE half
-    #define TO_SCALE_TYPE(x) _convert_half(x)
-    #define TO_SCALE_TYPE_8(x) _convert_half8(x)
+    #define TO_SCALE_TYPE(x) convert_half(x)
+    #define TO_SCALE_TYPE_8(x) convert_half8(x)
     #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 #endif
 
@@ -148,7 +147,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
 #if IS_MXFP
-    SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / _convert_float(max_val)))));
+    SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / convert_float(max_val)))));
 #else
     SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_val;
 #endif // IS_FP8

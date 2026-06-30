@@ -107,7 +107,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::string& scale_string,
                                                        const std::string& mean_string,
                                                        const std::vector<ov::Output<const ov::Node>>& input_info,
-                                                       bool& reshape_required);
+                                                       bool& reshape_required,
+                                                       bool compile_only = false);
 
 /// <summary>
 /// Parses command line data and data obtained from the function and returns configuration of each input
@@ -132,7 +133,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::map<std::string, std::vector<std::string>>& fileNames,
                                                        const std::string& scale_string,
                                                        const std::string& mean_string,
-                                                       const std::vector<ov::Output<const ov::Node>>& input_info);
+                                                       const std::vector<ov::Output<const ov::Node>>& input_info,
+                                                       bool compile_only = false);
 
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config);
 void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config);

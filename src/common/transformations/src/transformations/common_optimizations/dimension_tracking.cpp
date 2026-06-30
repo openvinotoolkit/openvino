@@ -43,7 +43,7 @@ void ov::batch_util::mark_batch(const std::shared_ptr<v0::Parameter>& parameter,
         for (auto& dim : shape) {
             const auto& dim_symbol = dim.get_symbol();
             if (batches.count(dim_symbol) && mapped_batches.count(dim_symbol)) {
-                intersection_in_all_three_sources_of_batch.insert(dim_symbol);
+                intersection_in_all_three_sources_of_batch.insert(std::shared_ptr<Symbol>(dim_symbol));
             } else {
                 dim.set_symbol(nullptr);
             }
@@ -76,7 +76,9 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<v0::Par
     for (const auto& dim : parameter->get_partial_shape()) {
         if (const auto& symbol = dim.get_symbol()) {
             if (std::find(r_symbols.begin(), r_symbols.end(), symbol) != r_symbols.end()) {
-                mark_batch(parameter, map, {symbol});
+                std::unordered_set<std::shared_ptr<Symbol>> batches;
+                batches.insert(std::shared_ptr<Symbol>(symbol));
+                mark_batch(parameter, map, batches);
                 return;
             }
         }
@@ -126,8 +128,11 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
                 const auto& batch_dim_symbol = shape[batch_placement.second].get_symbol();
                 if (batch_dim_symbol == nullptr)
                     mark_no_batch(parameter, parameter_to_batch_symbols);
-                else
-                    mark_batch(parameter, parameter_to_batch_symbols, {batch_dim_symbol});
+                else {
+                    std::unordered_set<std::shared_ptr<Symbol>> batches;
+                    batches.insert(std::shared_ptr<Symbol>(batch_dim_symbol));
+                    mark_batch(parameter, parameter_to_batch_symbols, batches);
+                }
                 continue;  // batch was or was not found at this point -- there is no point in searching further }
             }
             // node is not layout obvious -- checking if dims were propagated through

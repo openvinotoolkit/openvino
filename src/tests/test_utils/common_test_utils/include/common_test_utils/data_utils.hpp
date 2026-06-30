@@ -372,11 +372,7 @@ void inline fill_data_ptr_normal_random_float(T* data,
     std::normal_distribution<> normal_d{mean, stddev};
     for (size_t i = 0; i < size; i++) {
         auto value = static_cast<float>(normal_d(random));
-        if (typeid(T) == typeid(typename ov::fundamental_type_for<ov::element::f16>)) {
-            data[i] = static_cast<T>(ov::float16(value).to_bits());
-        } else {
-            data[i] = static_cast<T>(value);
-        }
+        data[i] = static_cast<T>(value);
     }
 }
 
