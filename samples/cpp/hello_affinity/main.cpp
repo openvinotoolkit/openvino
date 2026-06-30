@@ -4,11 +4,14 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <limits>
 #include <map>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
