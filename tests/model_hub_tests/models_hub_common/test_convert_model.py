@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import gc
+import os
 
 import numpy as np
 # noinspection PyUnresolvedReferences
@@ -59,9 +60,23 @@ class TestConvertModel:
     def infer_fw_model(self, model_obj, inputs):
         raise "infer_fw_model is not implemented"
 
+    def get_compile_config(self, ie_device):
+        # NPU is validated in compile-only mode (offline compilation). The compiler-in-plugin
+        # is required to compile without a physical device
+        config = dict(self.ov_config)
+        if 'NPU' in (ie_device or ''):
+            config["NPU_COMPILER_TYPE"] = "PLUGIN"
+            npu_platform = os.environ.get("NPU_PLATFORM")
+            if npu_platform:
+                config["NPU_PLATFORM"] = npu_platform
+        return config
+
     def infer_ov_model(self, ov_model, inputs, ie_device):
         core = Core()
-        compiled = core.compile_model(ov_model, ie_device, self.ov_config)
+        compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
+        # Compile-only for NPU device
+        if 'NPU' in (ie_device or ''):
+            return None
         ov_outputs = compiled(inputs)
         return ov_outputs
 
@@ -99,6 +114,7 @@ class TestConvertModel:
 
     def _run(self, model_name, model_link, ie_device):
         self.model_name = model_name
+        self.ie_device = ie_device
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")
@@ -109,6 +125,11 @@ class TestConvertModel:
         ov_model = self.convert_model(fw_model)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
+
+        # Compile-only mode (e.g. NPU offline)
+        if ov_outputs is None:
+            print("Compile-only run on {}: skipping inference and accuracy comparison".format(ie_device))
+            return
 
         # Run original FW inference after OV inference, as original FW inference may change original FW model,
         # which results in corruption of shared memory.
