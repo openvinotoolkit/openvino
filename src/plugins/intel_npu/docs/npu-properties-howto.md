@@ -336,11 +336,16 @@ You need to register the new property and define a callback function in the owne
 For plugin: openvino/src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 For compiled-model: openvino/src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
-    register_property_with_custom_function(_properties, ov::intel_npu::example_property.name(), true, _metrics->GetDriverVersion());
+    register_property_with_custom_function(_properties,
+                                           ov::intel_npu::example_property.name(),
+                                           true,
+                                           [&](const FilteredConfig&) {
+                                               return _metrics->GetDriverVersion();
+                                           });
 ```
 **Explanation**
 this helper function will register a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which will be public and included in supported_properties (second parameter)  
-which will execute `_metrics->GetDriverVersion()` as its get_property callback.
+and will call `_metrics->GetDriverVersion()` each time get_property is queried.
 Note: the first argument is the property name string (`property.name()`), not the property object itself.
 
 ## Step 3. Python bindings
