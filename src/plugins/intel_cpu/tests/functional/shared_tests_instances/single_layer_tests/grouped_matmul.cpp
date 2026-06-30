@@ -18,6 +18,7 @@ using ov::test::utils::DecompressionType;
 const std::vector<GroupedMatMulShapeParams> shapes = {
     // 3D x 3D: A:[G,M,K] x B:[G,N,K] -> [G,M,N], dynamic M dim.
     {{ov::PartialShape{4, -1, 128}, {{4, 8, 128}, {4, 1, 128}, {4, 16, 128}}}, {4, 256, 128}, {}},
+    {{ov::PartialShape{4, -1, 77}, {{4, 8, 77}, {4, 1, 77}, {4, 8, 77}}}, {4, 123, 77}, {}},
     {{ov::PartialShape{8, -1, 256}, {{8, 4, 256}, {8, 1, 256}}}, {8, 512, 256}, {}},
     // 2D x 3D: A:[T,K] x B:[G,N,K] -> [T,N], dynamic T dim.
     {{ov::PartialShape{-1, 128}, {{16, 128}, {32, 128}, {8, 128}}}, {4, 256, 128}, TokensPerExpert{{8, 0, 8, 0}, {0, 16, 0, 16}, {4, 4, 0, 0}}},
