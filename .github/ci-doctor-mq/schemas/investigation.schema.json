@@ -94,7 +94,7 @@
         "signature": {
             "type": "string",
             "minLength": 1,
-            "description": "Stable failure signature string (normalized error | failed job | category) shared with the pattern record."
+            "description": "Stable, job-agnostic failure signature string formed as <normalized-error>|<category>, shared with the pattern record."
         },
         "signature_hash": {
             "type": "string",

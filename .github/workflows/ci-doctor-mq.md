@@ -93,7 +93,7 @@ safe-outputs:
           required: true
           type: string
         occurrence_count:
-          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (e.g., normalized error message, failed job name, failure category) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
+          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
           required: true
           type: string
         statistics:
@@ -503,13 +503,13 @@ Logs have been pre-downloaded before this session started:
 ### Phase 4: Root Cause Investigation
 
 1. **Categorize Failure Type**:
-   - **Code Issues**: Syntax errors, logic bugs, test failures
+   - **Code Issue**: Syntax errors, logic bugs, test failures
    - **Infrastructure**: Runner issues, network problems, resource constraints
    - **Dependencies**: Version conflicts, missing packages, outdated libraries
    - **Configuration**: Workflow configuration, environment variables
-   - **Flaky Tests**: Intermittent failures, timing issues
-   - **External Services**: Third-party API failures, downstream dependencies
-   - **Network-related**: unreachable network/services, exceeded max retries
+   - **Flaky Test**: Intermittent failures, timing issues
+   - **External Service**: Third-party API failures, downstream dependencies
+   - **Network**: unreachable network/services, exceeded max retries
 
 2. **Deep Dive Analysis**:
    - For test failures: Identify specific test methods and assertions
@@ -594,33 +594,18 @@ Rules that apply to both artefact types:
 
    Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
 
-   **Schema:** the authoritative definition is `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`. The record MUST validate against it (see the validation procedure in the "Artefact schemas" block above). Shape:
-
-   ~~~json
-   {
-     "schema_version": "1.0",
-     "signature": "<stable string>",
-     "signature_hash": "<hash matching the file name>",
-     "title": "<short human-readable title>",
-     "category": "<Code Issue | Infrastructure | Dependencies | Configuration | Flaky Test | External Service | Network>",
-     "count": 4,
-     "first_seen": "2026-05-10T08:00:00Z",
-     "last_seen": "2026-05-12T14:30:00Z",
-     "recent_run_urls": ["https://...run4", "https://...run3", "https://...run2", "https://...run1"],
-     "affected_prs": ["https://...pr4", "https://...pr3"],
-     "recent_timestamps": ["2026-05-12T14:30:00Z", "2026-05-12T10:15:00Z", "2026-05-11T22:00:00Z", "2026-05-10T08:00:00Z"]
-   }
-   ~~~
+   **Schema:** the authoritative definition is `${GITHUB_WORKSPACE}/.github/ci-doctor-mq/schemas/pattern.schema.json`. Read that file for the exact field list, types, and constraints, and validate the record against it (see the validation procedure in the "Artefact schemas" block above).
 
    **Step-by-step procedure (follow EXACTLY in this order):**
 
    **Step A — Compute signature hash:**
-   Derive a stable `<signature-hash>` from ONLY these inputs (which do NOT change between reruns of the same failure):
-   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs
-   - Failed job name (exact string from the workflow run)
-   - Failure category (one of the 7 categories above)
+   Derive a stable `<signature-hash>` from ONLY inputs that do NOT change between reruns of the same failure **and that do NOT depend on which job the error occurred in** — the same underlying error frequently surfaces in several different jobs (e.g., the same test failing on Linux and Windows, or across shards), and those MUST collapse into a single pattern:
+   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and any embedded job / runner / OS / shard names or indices
+   - Failure category — MUST be exactly one of the values from the `category` `enum` defined in `pattern.schema.json` (identical to the `category` enum in `investigation.schema.json`). Use the schema's spelling verbatim (e.g., `Code Issue`, `Flaky Test`, `External Service`, `Network`); do **not** invent a category or use the looser prose labels from Phase 4.
 
-   Concatenate these three strings with `|` separator, then compute a hash (e.g., first 16 chars of SHA-256). Two reruns of the same failure MUST produce the same hash.
+   Do **NOT** include the failed job name in the hash. Keying on the job name would split one underlying error into a separate pattern for every job that hits it, inflating the database and breaking recurrence counting. Treat the job name(s) as descriptive metadata only (record them in `title` / the investigation, not in the hash).
+
+   Concatenate the two inputs as `<normalized-error>|<category>`, then compute a hash (e.g., first 16 chars of SHA-256). The same normalized error in the same category MUST always produce the same hash regardless of which job(s) it occurred in, and two reruns of the same failure MUST produce the same hash.
 
    **Step B — Read existing file:**
    Attempt to read `/tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json`.
@@ -637,7 +622,7 @@ Rules that apply to both artefact types:
    IF existing != null:
        record.schema_version = "1.0"
        record.signature   = existing.signature
-       record.signature_hash = <signature-hash>
+       record.signature_hash = existing.signature-hash
        record.title       = title from investigation (refresh always)
        record.category    = category from investigation (refresh always)
        record.count       = existing.count + 1          ← MUST increment
@@ -651,7 +636,7 @@ Rules that apply to both artefact types:
            → keep only entries where timestamp >= (NOW - 24 hours)
    ELSE:
        record.schema_version = "1.0"
-       record.signature   = the computed signature string
+       record.signature   = the <normalized-error>|<category> signature string from Step A
        record.signature_hash = <signature-hash>
        record.title       = title from investigation
        record.category    = category from investigation

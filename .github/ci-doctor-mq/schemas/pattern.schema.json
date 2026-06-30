@@ -27,7 +27,7 @@
         "signature": {
             "type": "string",
             "minLength": 1,
-            "description": "Stable failure signature string (normalized error | failed job | category)."
+            "description": "Stable, job-agnostic failure signature string formed as <normalized-error>|<category>."
         },
         "signature_hash": {
             "type": "string",
