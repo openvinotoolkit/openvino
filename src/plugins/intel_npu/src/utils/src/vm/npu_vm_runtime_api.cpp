@@ -12,17 +12,37 @@
 namespace intel_npu {
 
 namespace {
-std::string g_libName{"npu_mlir_runtime"};
+constexpr std::string_view NEW_MLIR_RUNTIME_NAME = "openvino_intel_npu_mlir_runtime";
+constexpr std::string_view OLD_MLIR_RUNTIME_NAME = "npu_mlir_runtime";
+constexpr std::string_view NEW_VM_RUNTIME_NAME = "openvino_intel_npu_vm_runtime";
+constexpr std::string_view OLD_VM_RUNTIME_NAME = "npu_interpreter_runtime";
+
+std::string g_libName{NEW_MLIR_RUNTIME_NAME};
 bool g_instanceCreated{false};
 }  // namespace
 
 NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
-    const std::string baseName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
+    const std::string_view baseName = libName.empty() ? NEW_MLIR_RUNTIME_NAME : libName;
     try {
-        auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
+        auto libPath =
+            ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string(baseName) + OV_BUILD_POSTFIX);
         this->lib = ov::util::load_shared_object(libPath);
     } catch (const std::runtime_error& error) {
-        OPENVINO_THROW(error.what());
+        // Temporary compatibility for packages built before the runtime library rename.
+        const std::string_view fallbackName = baseName == NEW_MLIR_RUNTIME_NAME ? OLD_MLIR_RUNTIME_NAME
+                                              : baseName == NEW_VM_RUNTIME_NAME ? OLD_VM_RUNTIME_NAME
+                                                                                : std::string_view{};
+        if (fallbackName.empty()) {
+            OPENVINO_THROW(error.what());
+        }
+
+        try {
+            auto fallbackLibPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(),
+                                                                      std::string(fallbackName) + OV_BUILD_POSTFIX);
+            this->lib = ov::util::load_shared_object(fallbackLibPath);
+        } catch (const std::runtime_error& fallbackError) {
+            OPENVINO_THROW(error.what(), "; fallback failed: ", fallbackError.what());
+        }
     }
 
     try {
@@ -51,12 +71,12 @@ void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
     const size_t headerSize = std::min(size, size_t{20});
     const std::string_view header(static_cast<const char*>(data), headerSize);
     const std::string_view libName =
-        (header.find("NPUByte\x00") != std::string_view::npos) ? "npu_interpreter_runtime" : "npu_mlir_runtime";
+        (header.find("NPUByte\x00") != std::string_view::npos) ? NEW_VM_RUNTIME_NAME : NEW_MLIR_RUNTIME_NAME;
     initialize(libName);
 }
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
-    const std::string resolvedName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
+    const std::string resolvedName{libName.empty() ? NEW_MLIR_RUNTIME_NAME : libName};
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
