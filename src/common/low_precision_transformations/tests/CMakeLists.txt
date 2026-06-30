@@ -135,7 +135,21 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     gmock
 )
 
-add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+if(EMSCRIPTEN)
+    set(JS_BIN_NAME "${TARGET_NAME}.js")
+    set(JS_APP_NAME "${TARGET_NAME}_js.js")
+    set(JS_TEST_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${JS_APP_NAME}")
+    file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2026 Intel Corporation\n")
+    file(APPEND  ${JS_TEST_APP} "// SPDX-License-Identifier: Apache-2.0\n")
+    file(APPEND  ${JS_TEST_APP} "//\n")
+    file(APPEND  ${JS_TEST_APP} "// JS test app\n")
+    file(APPEND  ${JS_TEST_APP} "const createModule = require(\"./${JS_BIN_NAME}\");\n")
+    file(APPEND  ${JS_TEST_APP} "createModule().then(function(Module) {});\n")
+    file(APPEND  ${JS_TEST_APP} " ")
+    add_test(NAME ${TARGET_NAME} COMMAND node ${JS_TEST_APP})
+else()
+    add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+endif()
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS OV UNIT LP_TRANSFORMATIONS)
 
 install(TARGETS ${TARGET_NAME}
