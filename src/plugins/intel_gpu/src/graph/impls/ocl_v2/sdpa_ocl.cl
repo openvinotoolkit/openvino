@@ -34,9 +34,9 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, sg_per_wg, 1)))
 KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
-        const global half *K,
+        const global KEY_DATA_T *K,
         const global half *Q,
-        const global half *V,
+        const global VAL_DATA_T *V,
         global half *A,
 #if WITH_ATTN_MASK
         const global half *msk,
@@ -46,7 +46,18 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
         const int d,
         const int k,
-        const int q)
+        const int q
+    #ifdef KV_COMPRESSED
+        , const global KEY_ATTR_SCALES_DATA_T *K_scales
+    #if KEY_ZERO_POINTS
+        , const global KEY_ATTR_ZP_DATA_T *K_zp
+    #endif
+        , const global VAL_ATTR_SCALES_DATA_T *V_scales
+    #if VAL_ZERO_POINTS
+        , const global VAL_ATTR_ZP_DATA_T *V_zp
+    #endif
+    #endif
+        )
 {
     const size_t lane  = get_sub_group_local_id();
     const size_t sg_ij = get_local_id(1);
@@ -194,7 +205,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int key_offset = 0; key_offset < 8; ++key_offset) {
                     const int key = key_base + mb * 8 + key_offset;
                     if (head < d && key < k) {
+#ifdef KV_COMPRESSED
+                        // i8 compressed K: per-token (per-kv-head) asymmetric dequant.
+                        // Scale/zp are shared across the head dim, so they are indexed by
+                        // token only: KEY_COMP_OFF(b1, b0_kv, key, 0).
+                        const uint k_comp_off = KEY_COMP_OFF(b1, b0_kv, key, 0);
+#if KEY_ZERO_POINTS
+                        const float deq_k = (convert_float(K[(size_t)key * KEY_S2 + head]) - convert_float(K_zp[k_comp_off])) * convert_float(K_scales[k_comp_off]);
+#else
+                        const float deq_k = convert_float(K[(size_t)key * KEY_S2 + head]) * convert_float(K_scales[k_comp_off]);
+#endif
+                        k_raw[mb][key_offset] = as_ushort((half)deq_k);
+#else
                         k_raw[mb][key_offset] = as_ushort(K[(size_t)key * KEY_S2 + head]);
+#endif
                     }
                 }
             }
@@ -403,10 +427,31 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         const int key1 = key0 + 1;
                         half2 vv = (half2)0.0h;
                         if (key0 < k) {
+#ifdef KV_COMPRESSED
+                            // i8 compressed V: per-token (per-kv-head) asymmetric dequant.
+                            // Scale/zp vary per key (token), so they must be indexed by
+                            // key0/key1 here, not by the value (head-dim) index.
+                            const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
+#if VAL_ZERO_POINTS
+                            vv[0] = (half)((convert_float(V[(size_t)key0 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
+#else
+                            vv[0] = (half)(convert_float(V[(size_t)key0 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off0]));
+#endif
+#else
                             vv[0] = V[(size_t)key0 * VAL_S2 + value];
+#endif
                         }
                         if (key1 < k) {
+#ifdef KV_COMPRESSED
+                            const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
+#if VAL_ZERO_POINTS
+                            vv[1] = (half)((convert_float(V[(size_t)key1 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
+#else
+                            vv[1] = (half)(convert_float(V[(size_t)key1 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off1]));
+#endif
+#else
                             vv[1] = V[(size_t)key1 * VAL_S2 + value];
+#endif
                         }
                         vb[cd][key_pair] = as_int(vv);
                     }
