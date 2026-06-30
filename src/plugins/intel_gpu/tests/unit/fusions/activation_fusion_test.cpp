@@ -336,10 +336,10 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation, ::testing::
     activation_test_params{ CASE_ACTIVATION_3D_F16_4, 3, 4, "activation_ref" },
 
     // InputDataType = BF16
-    //activation_test_params{ CASE_ACTIVATION_BF16_0, 3, 4, "activation_opt" },
-    //activation_test_params{ CASE_ACTIVATION_BF16_1, 3, 4, "activation_opt" },
-    //activation_test_params{ CASE_ACTIVATION_3D_BF16_0, 3, 4, "activation_opt" },
-    //activation_test_params{ CASE_ACTIVATION_3D_BF16_1, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_BF16_0, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_BF16_1, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_0, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_BF16_1, 3, 4, "activation_opt" },
 
     activation_test_params{ CASE_ACTIVATION_BF16_0, 3, 4, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_BF16_1, 3, 4, "activation_ref" },
