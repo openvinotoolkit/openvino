@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <map>
@@ -78,6 +79,60 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
         return cldnn::data_types::u8;
     default: return t;
     }
+}
+
+// Returns true if a static input is large enough (in bytes) to be worth deferring
+// its host-tensor allocation (lazy-allocation path). The predicate is exactly
+//     ceil_div(element_count * bitwidth, 8) >= threshold_bytes
+// evaluated with overflow-safe arithmetic for arbitrary threshold_bytes and shapes
+// (including sub-byte element types). Dynamic shapes and string inputs are never
+// considered large here.
+bool exceeds_lazy_alloc_threshold(const ov::PartialShape& pshape,
+                                  const ov::element::Type& element_type,
+                                  size_t threshold_bytes) {
+    if (!pshape.is_static() || element_type == ov::element::string)
+        return false;
+
+    // Use bitwidth so sub-byte types (e.g. int4/uint4 weights from weight sharing) are
+    // sized correctly; element_type.size() would round sub-byte types to 0/1.
+    const size_t bitwidth = element_type.bitwidth();
+    if (bitwidth == 0)
+        return false;
+    if (threshold_bytes == 0)
+        return true;  // any static tensor meets a zero-byte threshold
+
+    constexpr size_t bits_per_byte = 8;
+    constexpr size_t max_size = std::numeric_limits<size_t>::max();
+
+    // ceil_div(element_count * bitwidth, 8) >= threshold_bytes
+    //   <=> element_count * bitwidth > 8 * (threshold_bytes - 1)   (= threshold_bits)
+    // Guard the bit-threshold multiply so the helper is safe for any threshold_bytes;
+    // a threshold beyond size_t can never be reached -> treat the input as "not large".
+    if (threshold_bytes - 1 > max_size / bits_per_byte)
+        return false;
+    const size_t threshold_bits = bits_per_byte * (threshold_bytes - 1);
+
+    // Smallest element count whose byte size reaches the threshold:
+    //   element_count * bitwidth > threshold_bits  <=>  element_count >= threshold_bits / bitwidth + 1.
+    // Comparing element counts avoids multiplying the full tensor size by bitwidth.
+    // (threshold_bits <= max_size - 7 from the guard above, so the + 1 cannot overflow.)
+    const size_t min_large_elements = threshold_bits / bitwidth + 1;
+
+    // Accumulate the element count dimension by dimension instead of calling shape_size(),
+    // which can overflow for very large shapes. Exit early as soon as the running product
+    // reaches the threshold, and treat any multiplication overflow as "large" (the true
+    // count would exceed size_t and is therefore >= min_large_elements).
+    size_t element_count = 1;
+    for (size_t dim : pshape.to_shape()) {
+        if (dim == 0)
+            return false;  // empty tensor: byte size is 0, never large
+        if (element_count > max_size / dim)
+            return true;  // product would overflow size_t -> definitely above the threshold
+        element_count *= dim;
+        if (element_count >= min_large_elements)
+            return true;
+    }
+    return element_count >= min_large_elements;
 }
 
 }  // namespace
@@ -209,17 +264,19 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     bool is_input = port_info.type == ov::ISyncInferRequest::FoundPort::Type::INPUT;
     size_t port_index = port_info.idx;
     if (is_input) {
-        OPENVINO_ASSERT(m_user_inputs.count(port_index) == 1, "[GPU] Input tensor with index ", port_index, " is not found");
+        auto it = m_user_inputs.find(port_index);
+        OPENVINO_ASSERT(it != m_user_inputs.end(), "[GPU] Input tensor with index ", port_index, " is not found");
         // Lazy allocation: the input slot was reserved with a null tensor in allocate_inputs().
         // Allocate the default host tensor now, on first access.
-        if (!m_user_inputs.at(port_index).ptr) {
-            auto& self = const_cast<SyncInferRequest&>(*this);
-            self.allocate_input(port, port_index);
+        if (!it->second.ptr) {
+            ensure_input_allocated(port, port_index);
             GPU_DEBUG_LOG << "[lazy alloc] input " << port_index
                           << " shape: " << port.get_partial_shape()
                           << " allocated at get_tensor" << std::endl;
+            // ensure_input_allocated() may rehash m_user_inputs, invalidating 'it'.
+            it = m_user_inputs.find(port_index);
         }
-        return { m_user_inputs.at(port_index).ptr, nullptr };
+        return { it->second.ptr, nullptr };
     } else {
         OPENVINO_ASSERT(m_user_outputs.count(port_index) == 1, "[GPU] Output tensor with index ", port_index, " is not found");
         return { m_user_outputs.at(port_index).ptr, nullptr };
@@ -287,7 +344,7 @@ void SyncInferRequest::enqueue() {
         // allocate the default host tensor now, before inference. Batched inputs provide their
         // own tensors and don't need the reserved slot allocated.
         if (!is_batched && m_user_inputs.count(port_idx) && !m_user_inputs.at(port_idx).ptr) {
-            allocate_input(port, port_idx);
+            ensure_input_allocated(port, port_idx);
             GPU_DEBUG_LOG << "[lazy alloc] input " << port_idx
                           << " shape: " << port.get_partial_shape()
                           << " allocated at enqueue" << std::endl;
@@ -678,6 +735,21 @@ cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, ov:
     }
 }
 
+void SyncInferRequest::ensure_input_allocated(const ov::Output<const ov::Node>& port, size_t input_idx) const {
+    // get_tensor() is const and may be called concurrently by applications that share a single
+    // InferRequest across threads (against guidance). Serialize the deferred allocation so two
+    // such calls cannot both observe a null slot and double-allocate / race on m_user_inputs.
+    std::lock_guard<std::mutex> lock(m_lazy_alloc_mutex);
+    auto it = m_user_inputs.find(input_idx);
+    if (it != m_user_inputs.end() && it->second.ptr)
+        return;  // already materialized (by set_tensor() or a prior lazy allocation)
+    // const_cast is required only because the base ISyncInferRequest::set_tensor() is
+    // non-const; the deferred allocation itself is a transparent, idempotent operation.
+    // allocate_input() inserts the slot if it is missing, so this is safe even for a
+    // not-yet-reserved index.
+    const_cast<SyncInferRequest&>(*this).allocate_input(port, input_idx);
+}
+
 void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx) {
     const auto& shape = port.get_partial_shape();
     auto element_type = port.get_element_type();
@@ -737,17 +809,12 @@ void SyncInferRequest::allocate_inputs() {
             // Only defer large static inputs (e.g. weights converted to inputs by weight sharing).
             // Dynamic inputs allocate to a near-zero placeholder anyway (dynamic dims -> 0), and
             // small static inputs are cheap, so keep both on the eager path to limit lazy-path risk.
+            // TODO: hard coded value for now, configurable param in progress
             constexpr size_t lazy_alloc_threshold_bytes = size_t(2) << 20;  // 2 MB
             const auto& pshape = port.get_partial_shape();
             const auto& element_type = port.get_element_type();
-            size_t static_bytes = 0;
-            if (pshape.is_static() && element_type != ov::element::string) {
-                // Use bitwidth so sub-byte types (e.g. int4/uint4 weights from weight sharing)
-                // are sized correctly; element_type.size() would round sub-byte types to 0/1.
-                static_bytes = cldnn::ceil_div(ov::shape_size(pshape.to_shape()) * element_type.bitwidth(), 8);
-            }
 
-            if (static_bytes >= lazy_alloc_threshold_bytes) {
+            if (exceeds_lazy_alloc_threshold(pshape, element_type, lazy_alloc_threshold_bytes)) {
                 // Defer actual allocation: reserve the slot with a null tensor. The tensor is
                 // allocated lazily on first get_tensor()/enqueue(), or replaced by set_tensor().
                 m_user_inputs[input_idx] = { nullptr, TensorOwner::PLUGIN };

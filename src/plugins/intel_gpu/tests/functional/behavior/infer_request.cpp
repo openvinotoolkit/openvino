@@ -91,6 +91,62 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
 
+// Builds a model with a single large (>= 2 MB) static input feeding a Relu, so that the
+// GPU plugin takes the deferred (lazy) host-tensor allocation path for that input.
+static std::shared_ptr<ov::Model> makeLargeStaticInputModel(ov::Shape& shape_out) {
+    // 524289 * 4 bytes (f32) = ~2.0 MB, just above the 2 MB lazy-allocation threshold.
+    const ov::Shape shape{1, 524289};
+    shape_out = shape;
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    param->set_friendly_name("big_input");
+    param->output(0).get_tensor().set_names({"big_input"});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+}
+
+// Regression test: a large static input must still be inferable when the user never calls
+// set_tensor(). The reserved (null) slot has to be allocated lazily inside enqueue(), and
+// check_tensors() must not fail for the reserved slot before that happens.
+TEST(TensorTest, smoke_lazyAllocLargeStaticInputInferWithoutSetTensor) {
+    ov::Shape shape;
+    auto model = makeLargeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    // Intentionally do NOT set any input tensor: the slot stays reserved (null) until
+    // enqueue() allocates it. infer() (which runs check_tensors internally) must not throw.
+    OV_ASSERT_NO_THROW(request.infer());
+
+    // After inference the lazily-allocated input tensor must be valid and correctly shaped.
+    ov::Tensor in;
+    OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
+    ASSERT_EQ(in.get_shape(), shape);
+    ASSERT_NE(in.data(), nullptr);
+    OV_ASSERT_NO_THROW(request.get_output_tensor(0));
+}
+
+// Regression test: accessing the large static input via get_tensor() before infer() must
+// trigger the lazy allocation on that path (const get_tensor()), and inference must still work.
+TEST(TensorTest, smoke_lazyAllocLargeStaticInputGetTensorBeforeInfer) {
+    ov::Shape shape;
+    auto model = makeLargeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    // First access via get_tensor() must materialize the reserved slot.
+    ov::Tensor in;
+    OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
+    ASSERT_EQ(in.get_shape(), shape);
+    ASSERT_NE(in.data(), nullptr);
+
+    OV_ASSERT_NO_THROW(request.infer());
+}
+
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto core = ov::Core();
     using namespace ov::preprocess;
