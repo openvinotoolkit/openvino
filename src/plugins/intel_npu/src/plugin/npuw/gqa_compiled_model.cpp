@@ -297,21 +297,17 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 }
             }
             if (scatter) {
-                // The GQA decomposition always scatters at axis=2. For standard KV layout
-                // {B,H,seq,head} this is the sequence dimension — correct. For transposed V
-                // layout {B,H,head_size,max_seq} axis=2 is the head_size dimension, not the
-                // sequence dimension, so scatter-based CPU management is not applicable.
-                // Detect the transposed case by comparing dim[2] vs dim[3] of the scatter's
-                // data input (the full KV cache). If dim[2] < dim[3] the cache is transposed;
-                // leave this output unstripped so the NPU model handles it natively.
-                const auto& data_ps = scatter->input_value(0).get_partial_shape();
-                const bool cache_is_transposed = data_ps.rank().is_static() && data_ps.rank().get_length() == 4 &&
-                                                 data_ps[2].is_static() && data_ps[3].is_static() &&
-                                                 data_ps[2].get_length() < data_ps[3].get_length();
-                if (cache_is_transposed) {
-                    LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] has transposed V cache layout " << data_ps
-                                                         << "; skipping CPU scatter for this output");
-                    continue;  // leave Result → ScatterUpdate (± Transpose) intact in the inner model
+                // The GQA decomposition always scatters at axis=2 which is the sequence
+                // dimension for standard layout {B,H,seq,head}. When the model uses transposed
+                // V cache {B,H,head_size,max_seq}, the app wraps the ScatterUpdate output with
+                // a Transpose op — the 'transposed' flag captures this pattern.
+                // In that case axis=2 operates on head_size (wrong dim), so CPU-managed scatter
+                // is not applicable. Leave this output untouched so the NPU handles it natively.
+                if (transposed) {
+                    LOG_INFO("NPUW_GQA_MANAGED: output[" << i
+                                                         << "] has Transpose wrapper on ScatterUpdate"
+                                                            "; skipping CPU scatter (NPU handles natively)");
+                    continue;  // leave Result → Transpose → ScatterUpdate intact in the inner model
                 }
                 // Redirect result to carry only the current-token slice (scatter's "updates").
                 results[i]->input(0).replace_source_output(scatter->input_value(2));
