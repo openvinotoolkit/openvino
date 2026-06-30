@@ -1,5 +1,9 @@
 # Transformations documentation
 
+## Writing tests
+
+ * [Writing transformation tests](./writing_tests.md)
+
 ## Debug capabilities
 
  * [Matcher logging README](./debug_capabilities/matcher_logging.md)

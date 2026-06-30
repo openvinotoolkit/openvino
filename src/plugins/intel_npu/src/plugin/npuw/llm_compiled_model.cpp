@@ -20,6 +20,7 @@
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -36,6 +37,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
@@ -208,7 +210,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (all_devices.empty()) {
         return std::nullopt;
     }
-
     NPUDesc desc;
     desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
@@ -249,8 +250,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-        // Flash attention tile is supported starting from compiler version 7.29 on NPU5010
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
+        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
         desc.support_flash_attention_tile = true;
     }
 
@@ -315,14 +316,52 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     } else {
         config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
     }
+    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
+        if (!npudesc.has_value()) {
+            return;
+        }
+        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
+                                                << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
+
+        // Platform parameter has a higher priority than deviceID
+        std::string npu_platform;
+        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
+            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
+        } else {
+            npu_platform = npudesc->arch;
+        }
+
+        bool set_npu_tiles = false;
+        std::string arch_added_compilation_param;
+        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+            // Keep baseline settings.
+        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+            set_npu_tiles = true;
+            arch_added_compilation_param = "optimization-level=3";
+        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
+                   npu_platform == ov::intel_npu::Platform::NPU5020) {
+            set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+            arch_added_compilation_param = "performance-hint-override=latency";
+        } else {
+            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
+        }
+
+        if (set_npu_tiles) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        }
+
+        if (!arch_added_compilation_param.empty()) {
+            config["NPU_COMPILATION_MODE_PARAMS"] =
+                config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>() + " " + arch_added_compilation_param;
+        }
+    };
+    set_max_tiles_based_on_arch();
     return config;
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_TILES", npudesc->max_tiles);
-    }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         if (is_cw_compressed(model)) {
@@ -407,6 +446,7 @@ void update_config_for_whisper(ov::AnyMap& config) {
 void disable_ws_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_FUNCALL_FOR_ALL");
     config.erase("NPUW_FOLD");
+    config.erase("NPUW_FOLD_ONLY");
     config.erase("NPUW_CWAI");
 }
 
@@ -516,6 +556,16 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
     }
 
     return lm_head_model;
+}
+
+bool has_phi_v5_longrope_pattern(const std::shared_ptr<ov::Model>& model) {
+    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
+    bool matched = false;
+    long_rope->transform_cb = [&]() {
+        matched = true;
+    };
+    long_rope->run_on_model(model);
+    return matched;
 }
 
 }  // namespace
@@ -945,6 +995,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
     ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
 
+    std::optional<std::string> user_compilation_mode_params = std::nullopt;
+    if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
+        user_compilation_mode_params = it->second.as<std::string>();
+    }
+
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
@@ -956,6 +1011,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
+    const std::optional<std::string> default_compilation_mode_params =
+        [&prefill_config]() -> std::optional<std::string> {
+        if (const auto it = prefill_config.find("NPU_COMPILATION_MODE_PARAMS"); it != prefill_config.end()) {
+            return it->second.as<std::string>();
+        }
+        return std::nullopt;
+    }();
+
     auto prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
     auto generate_config_addition_value =
@@ -965,6 +1028,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
+
+    if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
+        user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
+        LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
+                 << default_compilation_mode_params.value() << "\". User value: \""
+                 << user_compilation_mode_params.value() << "\".");
+    }
 
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
@@ -1011,13 +1081,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
         apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
 
-        // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
+        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
+        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
+        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        for (auto&& model_variant : generate_model_variants) {
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+        }
+
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            LOG_INFO("Applying DEVICE_ROUTED MoE transformations to " << generate_model_variants.size() << " variants");
+            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
+            // transformations)
             for (auto&& model_variant : generate_model_variants) {
                 ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
             }
-            LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
     }
 
@@ -1038,8 +1115,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
+        const bool force_rope_cache = has_phi_v5_longrope_pattern(prefill_model);
 
-        if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
+        if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
             ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
                 max_prompt_len,
@@ -1050,7 +1128,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Apply RoPE Cache to all generate variant models
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
             const uint32_t kv_size = m_kvcache_sizes[i];
-            if (!is_best || (kv_size >= CACHE_ROPE_START)) {
+            if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
                 ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
                     kv_size,
@@ -1200,6 +1278,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
+        // This cache is collected on the original LLM graph before BF16->FP16
+        // conversion and submodel splitting. Child CompiledModels must serialize
+        // this propagated view, not just their local post-transform snapshot.
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
 
         // Serialize all generate variants

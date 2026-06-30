@@ -401,8 +401,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
     }
     if (secureCompile) {
         if (_graphExtVersion < ZE_MAKE_VERSION(1, 17)) {
-            _logger.warning("Secure compilation was requested, but the current driver version does not support it. "
-                            "Ignoring the flag.");
+            OPENVINO_THROW("Secure compilation was requested, but the current driver version does not support it.");
         } else {
             _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_SECURE_COMPILE");
             flags |= ZE_GRAPH_FLAG_SECURE_COMPILE;
@@ -624,8 +623,8 @@ std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() con
     return "";
 }
 
-std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
-                                                          std::optional<std::string> optValue) const {
+std::optional<bool> ZeGraphExtWrappers::isOptionSupported(const std::string& optName,
+                                                          const std::optional<std::string>& optValue) const {
     // Early exit if api is not supported
     if (!_isCompilerOptionQuerySupported) {
         _logger.debug("Compiler option query is not supported by the driver - skipping!");

@@ -28,13 +28,13 @@ namespace ov::Extensions::Cpu::XARCH::simd {
 
 // Load: any source type (float, bf16, f16, u8) → vec<float, I>.
 template <typename V, isa I, typename SrcT>
-inline V load(const SrcT* ptr, active_lanes<I>) {
+inline V load(const SrcT* ptr, active_lanes<I> /*lanes*/) {
     return load(ptr, static_cast<V*>(nullptr));
 }
 
 // Store: vec<float, I> → any destination type (float, bf16, f16).
 template <typename V, typename DstT, isa I>
-inline void store(V v, DstT* ptr, active_lanes<I>) {
+inline void store(V v, DstT* ptr, active_lanes<I> /*lanes*/) {
     store(v, ptr);
 }
 
@@ -42,7 +42,7 @@ inline void store(V v, DstT* ptr, active_lanes<I>) {
 // For scalar ISA, just returns the value. For SIMD, reduces all lanes.
 // Future: SVE/RVV will reduce only predicated/active lanes.
 template <typename V, isa I>
-inline float reduce(V v, active_lanes<I>) {
+inline float reduce(V v, active_lanes<I> /*lanes*/) {
     return reduce(v);
 }
 
@@ -60,7 +60,7 @@ inline float reduce(V v, active_lanes<I>) {
 // ---------------------------------------------------------------------------
 
 template <isa I, typename Body>
-inline void for_each_chunk(int n, Body&& body) {
+inline void for_each_chunk(int n, Body& body) {
     if constexpr (I == isa::scalar) {
         for (int j = 0; j < n; j++) {
             body(j, active_lanes<isa::scalar>{});
@@ -82,8 +82,8 @@ inline void for_each_chunk(int n, Body&& body) {
 // ---------------------------------------------------------------------------
 
 template <typename Body>
-inline void simd_loop(int n, Body&& body) {
-    for_each_chunk<active_isa>(n, std::forward<Body>(body));
+inline void simd_loop(int n, Body body) {
+    for_each_chunk<active_isa>(n, body);
 }
 
 // ---------------------------------------------------------------------------
@@ -92,13 +92,13 @@ inline void simd_loop(int n, Body&& body) {
 // ---------------------------------------------------------------------------
 
 template <int N, typename Fn, int... Is>
-inline void unroll_impl(Fn&& fn, std::integer_sequence<int, Is...>) {
+inline void unroll_impl(Fn& fn, std::integer_sequence<int, Is...> /*seq*/) {
     (fn(std::integral_constant<int, Is>{}), ...);
 }
 
 template <int N, typename Fn>
-inline void unroll(Fn&& fn) {
-    unroll_impl<N>(std::forward<Fn>(fn), std::make_integer_sequence<int, N>{});
+inline void unroll(Fn fn) {
+    unroll_impl<N>(fn, std::make_integer_sequence<int, N>{});
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ inline void unroll(Fn&& fn) {
 // ---------------------------------------------------------------------------
 
 template <int Unroll = 4, typename MainBody, typename TailBody>
-inline float simd_loop_reduce(int n, MainBody&& main_body, TailBody&& tail_body) {
+inline float simd_loop_reduce(int n, MainBody main_body, TailBody tail_body) {
     constexpr int W = f32::width;
 
     f32 acc[Unroll]{};

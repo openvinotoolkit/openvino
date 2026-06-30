@@ -2374,6 +2374,43 @@ TEST_P(permute_f_y_axes_tile, combined) {
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
 }
 
+// permute_xy_swap kernel: optimized 4D X<->Y transpose ({0, 1, 3, 2}).
+// Constraints (see PermuteKernel_xy_swap::Validate):
+//   * 4D plain bfyx layout only.
+//   * Order must be {0, 1, 3, 2}.
+//   * Both X and Y must be divisible by one of the supported tile sizes (32 or 16).
+//   * No dynamic shapes; pitches must equal logical dims.
+// Sizes here use the test convention {B, F, Y, X}.
+class permute_xy_swap : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_permute_xy_swap,
+                         permute_xy_swap,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             // tile=32 path (both X and Y divisible by 32)
+                             {{1, 1, 32, 32}, format::bfyx},
+                             {{1, 4, 64, 32}, format::bfyx},
+                             {{2, 8, 32, 64}, format::bfyx},
+                             {{4, 4, 64, 64}, format::bfyx},
+                             // tile=16 path (X or Y not divisible by 32 but both by 16)
+                             {{1, 1, 16, 16}, format::bfyx},
+                             {{1, 8, 16, 32}, format::bfyx},
+                             {{2, 4, 48, 48}, format::bfyx},
+                             {{1, 16, 16, 64}, format::bfyx},
+                             // larger / batched
+                             {{1, 32, 128, 64}, format::bfyx},
+                             {{4, 16, 64, 128}, format::bfyx},
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_xy_swap, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+}
+
 struct TiledPerformancePermuteTest : TiledPermuteTest
 {
     static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
