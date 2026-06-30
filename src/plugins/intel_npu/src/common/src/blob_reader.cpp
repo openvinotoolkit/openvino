@@ -157,6 +157,7 @@ void BlobReader::read(const ov::Tensor& source) {
 
     cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
 
+    OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::OFFSETS_TABLE), "No reader found for the table of offsets");
     parse_section(SectionID(PredefinedSectionType::OFFSETS_TABLE, FIRST_INSTANCE_ID),
                   source,
                   cursor,
@@ -173,7 +174,6 @@ void BlobReader::read(const ov::Tensor& source) {
     // Step 2: Look for the CRE and evaluate it
     std::optional<uint64_t> cre_location = offsets_table.lookup_offset(CRE_SECTION_ID);
     std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
-    OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
 
     std::unordered_map<SectionID, SectionInstanceEvaluator> section_instance_evaluators =
         build_section_type_instance_evaluators(source, offsets_table, npu_region_size);
@@ -183,6 +183,7 @@ void BlobReader::read(const ov::Tensor& source) {
     if (cre_location.has_value()) {
         cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
 
+        OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::CRE), "No reader found for the table of offsets");
         parse_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID),
                       source,
                       cursor,
@@ -250,7 +251,8 @@ void BlobReader::read(const ov::Tensor& source) {
         m_logger.trace("Found a reader for section ", section_id);
 
         const std::shared_ptr<ISectionTypeEvaluator> type_evaluator = m_section_type_evaluators.at(section_id->type);
-        const SectionInstanceEvaluator& instance_evaluator = section_instance_evaluators.at(section_id.value());
+        const SectionInstanceEvaluator& instance_evaluator =
+            section_instance_evaluators.at(section_id.value());  // TODO fix this invalid "at"
 
         if (type_evaluator->evaluated() && type_evaluator->get_result()) {
             if (instance_evaluator.evaluated() && instance_evaluator.get_result()) {
