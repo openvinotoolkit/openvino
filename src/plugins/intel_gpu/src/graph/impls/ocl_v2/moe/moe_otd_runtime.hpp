@@ -204,8 +204,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
                                 const std::string& weights_path,
                                 cldnn::moe_weights& wei_mem,
                                 const std::vector<uint32_t>& experts_list,
-                                const std::vector<uint32_t>& lru_experts,
-                                size_t layer = 0) {
+                                const std::vector<uint32_t>& lru_experts) {
     struct tensor_fill_plan {
         size_t per_expert_size = 0;
         size_t src_offset = 0;

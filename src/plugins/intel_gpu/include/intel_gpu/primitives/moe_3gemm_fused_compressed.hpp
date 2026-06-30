@@ -35,25 +35,22 @@ struct moe_otd_descriptor {
     std::vector<size_t> weight_bin_offsets;
     std::string weights_path;
     size_t lru_expert_num = 0;
-    size_t layer_index = 0;
 
     bool operator==(const moe_otd_descriptor& rhs) const {
         return weight_bin_offsets == rhs.weight_bin_offsets && weights_path == rhs.weights_path &&
-               lru_expert_num == rhs.lru_expert_num && layer_index == rhs.layer_index;
+               lru_expert_num == rhs.lru_expert_num;
     }
 
     void save(BinaryOutputBuffer& ob) const {
         ob << weight_bin_offsets;
         ob << weights_path;
         ob << lru_expert_num;
-        ob << layer_index;
     }
 
     void load(BinaryInputBuffer& ib) {
         ib >> weight_bin_offsets;
         ib >> weights_path;
         ib >> lru_expert_num;
-        ib >> layer_index;
     }
 };
 
@@ -136,11 +133,10 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
                                const MOECompressed::Config& config,
                                const std::vector<size_t>& weight_bin_offsets = {},
                                const std::string& weights_path = "",
-                               size_t lru_expert_num = 0,
-                               size_t layer_index = 0)
+                               size_t lru_expert_num = 0)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
                     _config(config),
-                    _otd{weight_bin_offsets, weights_path, lru_expert_num, layer_index} {}
+                    _otd{weight_bin_offsets, weights_path, lru_expert_num} {}
 
     MOECompressed::Config _config;
         moe_otd_descriptor _otd;

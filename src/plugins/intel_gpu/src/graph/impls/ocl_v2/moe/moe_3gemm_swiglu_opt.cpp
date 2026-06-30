@@ -558,6 +558,18 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
+// Returns the byte count for `element_count` elements of the given layout's data type.
+// Handles sub-byte types (u4/i4) that pack two elements per byte.
+static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layout) {
+    switch (layout.data_type) {
+    case ov::element::u4:
+    case ov::element::i4:
+        return element_count / 2;
+    default:
+        return element_count * static_cast<int64_t>(ov::element::Type(layout.data_type).size());
+    }
+}
+
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -722,8 +734,7 @@ public:
             _weight_provider = std::make_shared<OffloadExpertWeightProvider>(lru_expert_num,
                                                                              otd_desc->_config,
                                                                              otd_desc->_otd.weight_bin_offsets,
-                                                                             otd_desc->_otd.weights_path,
-                                                                             otd_desc->_otd.layer_index);
+                                                                             otd_desc->_otd.weights_path);
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
@@ -731,6 +742,10 @@ public:
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, resident_slots="
                                    << resident_slot_count() << std::endl;
+        }
+        if (is_otd() && otd_desc->_config.num_shared_expert > 0) {
+            OPENVINO_THROW("OTD mode does not support shared experts. "
+                           "Please set MOE_OFFLOAD_RATIO to 0 for models with shared experts.");
         }
         // grouped_gemm is now supported in OTD mode — expert IDs are remapped to LRU slots
         // and the grouped matmul uses resident_slot_count() as the group dimension.
@@ -798,19 +813,6 @@ public:
         if (_dnnl_weights.size() == cur_moe->_config.num_expert)
             return;
         init(cur_moe);
-
-        auto get_bytes_count = [](int64_t size, const cldnn::layout& layout) {
-            ov::element::Type dt = layout.data_type;
-            switch (layout.data_type) {
-            case ov::element::u4:
-            case ov::element::i4:
-                return size / 2;
-                break;
-            default:
-                return size * static_cast<int64_t>(dt.size());
-                break;
-            }
-        };
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
         // Per-GEMM ic_group_size from scale shape; config.group_size can't represent gate/up vs down differing.
@@ -2036,9 +2038,11 @@ public:
                 auto& params = instance._weights;
 
 #    define CONVERT_DNNL(name, i)                                                                                                                      \
-        int64_t wei_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;                                                           \
-        int64_t scale_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;                         \
-        int64_t zp_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;                            \
+        int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());                \
+        int64_t scale_offset##i = lru_expert_no * get_bytes_count(                                                                                      \
+            dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());                                    \
+        int64_t zp_offset##i = lru_expert_no * get_bytes_count(                                                                                         \
+            dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_z->get_layout());                                    \
         dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
         dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
                                              {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \

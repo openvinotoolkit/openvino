@@ -24,7 +24,7 @@ void LRUCache::evict_one_unlocked() {
 
     m_filled_list[oldest.lru_expert_no] = false;
     m_to_filled_lru_expert_no = oldest.lru_expert_no;
-    Key key{oldest.layer, oldest.expert};
+    Key key{oldest.expert};
     m_map.erase(key);
     m_list.pop_front();
     --m_total_experts;
@@ -35,10 +35,10 @@ void LRUCache::evict_one() {
     evict_one_unlocked();
 }
 
-std::pair<size_t, bool> LRUCache::get_lru_item(size_t layer, size_t expert) {
+std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    Key key{layer, expert};
+    Key key{expert};
     auto it = m_map.find(key);
     if (it == m_map.end()) {
         size_t to_filled_no = 0;
@@ -48,7 +48,7 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t layer, size_t expert) {
         } else {
             to_filled_no = m_total_experts;
         }
-        m_list.push_back(Node{layer, expert, to_filled_no});
+        m_list.push_back(Node{expert, to_filled_no});
         auto new_it = std::prev(m_list.end());
         m_map[key] = new_it;
         ++m_total_experts;

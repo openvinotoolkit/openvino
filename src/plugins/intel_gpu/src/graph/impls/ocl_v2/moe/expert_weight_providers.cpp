@@ -24,13 +24,11 @@ std::vector<uint32_t> ResidentExpertWeightProvider::acquire(const std::vector<ui
 OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
                                                          const cldnn::MOECompressed::Config& config,
                                                          std::vector<size_t> weight_bin_offsets,
-                                                         std::string weights_path,
-                                                         size_t layer_index)
+                                                         std::string weights_path)
     : _capacity(capacity),
       _config(config),
       _weight_bin_offsets(std::move(weight_bin_offsets)),
       _weights_path(std::move(weights_path)),
-      _layer_index(layer_index),
       _cache(std::make_shared<LRUCache>(capacity)) {}
 
 void OffloadExpertWeightProvider::bind_resident_buffers(cldnn::moe_weights& resident) {
@@ -56,7 +54,7 @@ std::vector<uint32_t> OffloadExpertWeightProvider::acquire(const std::vector<uin
             continue;
         }
 
-        const auto item = _cache->get_lru_item(_layer_index, expert);
+        const auto item = _cache->get_lru_item(expert);
         OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()), "LRU slot index overflow: ", item.first);
         const auto slot = static_cast<uint32_t>(item.first);
 
@@ -67,7 +65,7 @@ std::vector<uint32_t> OffloadExpertWeightProvider::acquire(const std::vector<uin
             if (perf)
                 perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
             OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound before acquire()");
-            moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weights_path, *_resident, {expert}, {slot}, _layer_index);
+            moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weights_path, *_resident, {expert}, {slot});
             _cache->set_filled(slot);
         }
 

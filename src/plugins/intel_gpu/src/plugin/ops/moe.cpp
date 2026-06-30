@@ -123,14 +123,7 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         prepare_moe_otd_params(p, op, weight_bin_offsets, weights_path, lru_expert_num);
 
         const std::string layerName = layer_type_name_ID(op);
-        // Extract layer index from the friendly name (e.g. "moe_router_42" → 42).
-        size_t layer_index = 0;
-        const auto& friendly = op->get_friendly_name();
-        auto last_underscore = friendly.rfind('_');
-        if (last_underscore != std::string::npos && last_underscore + 1 < friendly.size()) {
-            layer_index = static_cast<size_t>(std::atoi(friendly.c_str() + last_underscore + 1));
-        }
-        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config, weight_bin_offsets, weights_path, lru_expert_num, layer_index);
+        const cldnn::moe_3gemm_fused_compressed moe(layerName, input_infos, config, weight_bin_offsets, weights_path, lru_expert_num);
         p.add_primitive(*op, moe);
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives

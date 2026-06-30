@@ -34,7 +34,7 @@ TEST(moe_lru_cache, initial_state) {
 TEST(moe_lru_cache, single_insert_is_miss) {
     LRUCache cache(4);
 
-    auto [slot, hit] = cache.get_lru_item(/*layer=*/0, /*expert=*/0);
+    auto [slot, hit] = cache.get_lru_item(/*expert=*/0);
     ASSERT_FALSE(hit);        // first access is a miss
     ASSERT_EQ(slot, 0U);     // first slot assigned
     ASSERT_EQ(cache.size(), 1U);
@@ -44,8 +44,8 @@ TEST(moe_lru_cache, second_access_without_fill_is_miss) {
     // get_lru_item returns is_hit based on m_filled_list, not just presence
     LRUCache cache(4);
 
-    cache.get_lru_item(0, 0);  // insert, slot 0
-    auto [slot, hit] = cache.get_lru_item(0, 0);  // access again
+    cache.get_lru_item(0);  // insert, slot 0
+    auto [slot, hit] = cache.get_lru_item(0);  // access again
 
     ASSERT_EQ(slot, 0U);
     ASSERT_FALSE(hit);  // filled_list[0] is still false
@@ -54,10 +54,10 @@ TEST(moe_lru_cache, second_access_without_fill_is_miss) {
 TEST(moe_lru_cache, access_after_set_filled_is_hit) {
     LRUCache cache(4);
 
-    auto [slot, miss] = cache.get_lru_item(0, 0);
+    auto [slot, miss] = cache.get_lru_item(0);
     cache.set_filled(slot);
 
-    auto [slot2, hit] = cache.get_lru_item(0, 0);
+    auto [slot2, hit] = cache.get_lru_item(0);
     ASSERT_EQ(slot2, slot);
     ASSERT_TRUE(hit);
 }
@@ -71,7 +71,7 @@ TEST(moe_lru_cache, slots_assigned_sequentially) {
     LRUCache cache(cap);
 
     for (size_t i = 0; i < cap; ++i) {
-        auto [slot, hit] = cache.get_lru_item(/*layer=*/0, /*expert=*/i);
+        auto [slot, hit] = cache.get_lru_item(/*expert=*/i);
         ASSERT_EQ(slot, i);
         ASSERT_FALSE(hit);
     }
@@ -86,13 +86,13 @@ TEST(moe_lru_cache, eviction_when_full) {
     LRUCache cache(3);
 
     // Fill cache: experts 0, 1, 2
-    cache.get_lru_item(0, 0);  // slot 0
-    cache.get_lru_item(0, 1);  // slot 1
-    cache.get_lru_item(0, 2);  // slot 2
+    cache.get_lru_item(0);  // slot 0
+    cache.get_lru_item(1);  // slot 1
+    cache.get_lru_item(2);  // slot 2
     ASSERT_EQ(cache.size(), 3U);
 
     // Insert expert 3 → evicts expert 0 (oldest), reuses slot 0
-    auto [slot, hit] = cache.get_lru_item(0, 3);
+    auto [slot, hit] = cache.get_lru_item(3);
     ASSERT_FALSE(hit);
     ASSERT_EQ(slot, 0U);   // expert 0's slot is recycled
     ASSERT_EQ(cache.size(), 3U);  // size stays at capacity
@@ -102,16 +102,16 @@ TEST(moe_lru_cache, evicted_entry_becomes_miss) {
     LRUCache cache(2);
 
     // Fill: expert 0 (slot 0), expert 1 (slot 1)
-    cache.get_lru_item(0, 0);
+    cache.get_lru_item(0);
     cache.set_filled(0);
-    cache.get_lru_item(0, 1);
+    cache.get_lru_item(1);
     cache.set_filled(1);
 
     // Insert expert 2 → evicts expert 0
-    cache.get_lru_item(0, 2);
+    cache.get_lru_item(2);
 
     // Access expert 0 again → should be a miss (it was evicted)
-    auto [slot, hit] = cache.get_lru_item(0, 0);
+    auto [slot, hit] = cache.get_lru_item(0);
     ASSERT_FALSE(hit);
 }
 
@@ -123,16 +123,16 @@ TEST(moe_lru_cache, lru_order_refresh_on_access) {
     LRUCache cache(3);
 
     // Insert experts 0, 1, 2 in order
-    cache.get_lru_item(0, 0);  // slot 0  (LRU order: 0)
-    cache.get_lru_item(0, 1);  // slot 1  (LRU order: 0, 1)
-    cache.get_lru_item(0, 2);  // slot 2  (LRU order: 0, 1, 2)
+    cache.get_lru_item(0);  // slot 0  (LRU order: 0)
+    cache.get_lru_item(1);  // slot 1  (LRU order: 0, 1)
+    cache.get_lru_item(2);  // slot 2  (LRU order: 0, 1, 2)
 
     // Access expert 0 → moves to most recent
     // (LRU order: 1, 2, 0)
-    cache.get_lru_item(0, 0);
+    cache.get_lru_item(0);
 
     // Insert expert 3 → should evict expert 1 (now the oldest)
-    auto [slot, hit] = cache.get_lru_item(0, 3);
+    auto [slot, hit] = cache.get_lru_item(3);
     ASSERT_FALSE(hit);
     ASSERT_EQ(slot, 1U);  // reuses expert 1's slot
 }
@@ -141,21 +141,21 @@ TEST(moe_lru_cache, double_refresh_changes_eviction_order) {
     LRUCache cache(3);
 
     // Insert 0, 1, 2
-    cache.get_lru_item(0, 0);  // slot 0
-    cache.get_lru_item(0, 1);  // slot 1
-    cache.get_lru_item(0, 2);  // slot 2
+    cache.get_lru_item(0);  // slot 0
+    cache.get_lru_item(1);  // slot 1
+    cache.get_lru_item(2);  // slot 2
 
     // Refresh 0, then refresh 1  → LRU order: 2, 0, 1
-    cache.get_lru_item(0, 0);
-    cache.get_lru_item(0, 1);
+    cache.get_lru_item(0);
+    cache.get_lru_item(1);
 
     // Insert 3 → evicts expert 2 (oldest)
-    auto [slot3, hit3] = cache.get_lru_item(0, 3);
+    auto [slot3, hit3] = cache.get_lru_item(3);
     ASSERT_FALSE(hit3);
     ASSERT_EQ(slot3, 2U);  // reuses expert 2's slot
 
     // Insert 4 → evicts expert 0 (now oldest)
-    auto [slot4, hit4] = cache.get_lru_item(0, 4);
+    auto [slot4, hit4] = cache.get_lru_item(4);
     ASSERT_FALSE(hit4);
     ASSERT_EQ(slot4, 0U);  // reuses expert 0's slot
 }
@@ -164,32 +164,31 @@ TEST(moe_lru_cache, double_refresh_changes_eviction_order) {
 // Multi-layer: (layer, expert) pairs are independent
 // ──────────────────────────────────────────────────
 
-TEST(moe_lru_cache, multi_layer_keys_are_independent) {
+// Since LRU cache is per-layer (each MoE layer has its own cache instance),
+// the layer dimension has been removed from the cache key. This test verifies
+// that distinct expert ids get independent slots.
+TEST(moe_lru_cache, distinct_experts_get_independent_slots) {
     LRUCache cache(4);
 
-    auto [s0, h0] = cache.get_lru_item(/*layer=*/0, /*expert=*/0);
-    auto [s1, h1] = cache.get_lru_item(/*layer=*/1, /*expert=*/0);
+    auto [s0, h0] = cache.get_lru_item(/*expert=*/0);
+    auto [s1, h1] = cache.get_lru_item(/*expert=*/1);
 
     ASSERT_FALSE(h0);
     ASSERT_FALSE(h1);
-    ASSERT_NE(s0, s1);  // different slots for different layers
+    ASSERT_NE(s0, s1);  // different slots for different experts
     ASSERT_EQ(cache.size(), 2U);
 }
 
-TEST(moe_lru_cache, same_expert_different_layers_both_cached) {
+TEST(moe_lru_cache, same_expert_gets_same_slot) {
     LRUCache cache(4);
 
-    cache.get_lru_item(0, 5);
+    cache.get_lru_item(5);
     cache.set_filled(0);
-    cache.get_lru_item(1, 5);
-    cache.set_filled(1);
 
-    auto [s0, h0] = cache.get_lru_item(0, 5);
-    auto [s1, h1] = cache.get_lru_item(1, 5);
+    auto [s0, h0] = cache.get_lru_item(5);
 
     ASSERT_TRUE(h0);
-    ASSERT_TRUE(h1);
-    ASSERT_NE(s0, s1);
+    ASSERT_EQ(s0, 0U);
 }
 
 // ──────────────────────────────────────────────────
@@ -200,19 +199,19 @@ TEST(moe_lru_cache, filled_cleared_on_eviction) {
     LRUCache cache(2);
 
     // Insert expert 0, mark filled
-    auto [s0, miss0] = cache.get_lru_item(0, 0);
+    auto [s0, miss0] = cache.get_lru_item(0);
     cache.set_filled(s0);
 
     // Insert expert 1
-    cache.get_lru_item(0, 1);
+    cache.get_lru_item(1);
 
     // Insert expert 2 → evicts expert 0, reuses slot s0
-    auto [s2, h2] = cache.get_lru_item(0, 2);
+    auto [s2, h2] = cache.get_lru_item(2);
     ASSERT_EQ(s2, s0);         // recycled slot
     ASSERT_FALSE(h2);          // filled was cleared during eviction
 
     // Even after re-inserting to the same slot, accessing it returns not-filled
-    auto [s2b, h2b] = cache.get_lru_item(0, 2);
+    auto [s2b, h2b] = cache.get_lru_item(2);
     ASSERT_FALSE(h2b);  // not filled until set_filled is called
 }
 
@@ -230,8 +229,8 @@ TEST(moe_lru_cache, set_filled_out_of_range_is_safe) {
 TEST(moe_lru_cache, explicit_evict_reduces_size) {
     LRUCache cache(4);
 
-    cache.get_lru_item(0, 0);
-    cache.get_lru_item(0, 1);
+    cache.get_lru_item(0);
+    cache.get_lru_item(1);
     ASSERT_EQ(cache.size(), 2U);
 
     cache.evict_one();
@@ -255,19 +254,19 @@ TEST(moe_lru_cache, evict_on_empty_is_safe) {
 TEST(moe_lru_cache, capacity_one) {
     LRUCache cache(1);
 
-    auto [s0, h0] = cache.get_lru_item(0, 0);
+    auto [s0, h0] = cache.get_lru_item(0);
     ASSERT_EQ(s0, 0U);
     ASSERT_FALSE(h0);
 
     cache.set_filled(s0);
 
     // Access same → hit
-    auto [s0b, h0b] = cache.get_lru_item(0, 0);
+    auto [s0b, h0b] = cache.get_lru_item(0);
     ASSERT_EQ(s0b, 0U);
     ASSERT_TRUE(h0b);
 
     // Insert new → evicts the only entry, reuses slot 0
-    auto [s1, h1] = cache.get_lru_item(0, 1);
+    auto [s1, h1] = cache.get_lru_item(1);
     ASSERT_EQ(s1, 0U);
     ASSERT_FALSE(h1);
     ASSERT_EQ(cache.size(), 1U);
@@ -283,7 +282,7 @@ TEST(moe_lru_cache, stress_many_experts) {
 
     // Insert 100 unique (layer=0, expert=i) entries into a cache with capacity 8
     for (size_t i = 0; i < 100; ++i) {
-        auto [slot, hit] = cache.get_lru_item(0, i);
+        auto [slot, hit] = cache.get_lru_item(i);
         ASSERT_LT(slot, cap);
         if (i < cap) {
             ASSERT_EQ(slot, i);
@@ -293,7 +292,7 @@ TEST(moe_lru_cache, stress_many_experts) {
 
     // The last `cap` experts should still be in the cache
     for (size_t i = 100 - cap; i < 100; ++i) {
-        auto [slot, hit] = cache.get_lru_item(0, i);
+        auto [slot, hit] = cache.get_lru_item(i);
         // They are in cache (though not filled)
         ASSERT_LT(slot, cap);
     }
@@ -316,9 +315,8 @@ TEST(moe_lru_cache, concurrent_access) {
         threads.emplace_back([&, t]() {
             while (!start.load()) {}  // spin until all threads are ready
             for (int i = 0; i < ops_per_thread; ++i) {
-                size_t layer = t;
-                size_t expert = i % 32;
-                auto [slot, hit] = cache.get_lru_item(layer, expert);
+                size_t expert = t * 32 + i % 32;
+                auto [slot, hit] = cache.get_lru_item(expert);
                 ASSERT_LT(slot, cap);
                 if (!hit) {
                     cache.set_filled(slot);
@@ -378,7 +376,6 @@ TEST(moe_offload_primitive_test, default_offload_fields) {
     ASSERT_TRUE(prim._otd.weight_bin_offsets.empty());
     ASSERT_TRUE(prim._otd.weights_path.empty());
     ASSERT_EQ(prim._otd.lru_expert_num, 0U);
-    ASSERT_EQ(prim._otd.layer_index, 0U);
 }
 
 TEST(moe_offload_primitive_test, construct_with_offload_params) {
@@ -480,7 +477,7 @@ TEST(moe_expert_weight_provider, resident_is_identity) {
 TEST(moe_expert_weight_provider, offload_construction_state) {
     MOECompressed::Config config{};
     std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
-    OffloadExpertWeightProvider provider(/*capacity=*/16, config, offsets, "/path/to/weights.bin", /*layer_index=*/3);
+    OffloadExpertWeightProvider provider(/*capacity=*/16, config, offsets, "/path/to/weights.bin");
 
     ASSERT_TRUE(provider.is_offloaded());
     ASSERT_EQ(provider.resident_capacity(), 16U);
@@ -491,7 +488,7 @@ TEST(moe_expert_weight_provider, offload_construction_state) {
 
 TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
     MOECompressed::Config config{};
-    OffloadExpertWeightProvider provider(/*capacity=*/8, config, {}, "/path/to/weights.bin", /*layer_index=*/0);
+    OffloadExpertWeightProvider provider(/*capacity=*/8, config, {}, "/path/to/weights.bin");
     ASSERT_FALSE(provider.is_bound());
 
     cldnn::moe_weights resident;  // null device pointers are fine; only the binding flag matters here

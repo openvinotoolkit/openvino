@@ -15,7 +15,7 @@ class LRUCache {
 public:
     explicit LRUCache(size_t max_total_experts);
 
-    std::pair<size_t, bool> get_lru_item(size_t layer, size_t expert);
+    std::pair<size_t, bool> get_lru_item(size_t expert);
 
     void evict_one();
 
@@ -36,21 +36,19 @@ public:
 
 private:
     struct Key {
-        size_t layer;
         size_t expert;
         bool operator==(const Key& other) const noexcept {
-            return layer == other.layer && expert == other.expert;
+            return expert == other.expert;
         }
     };
 
     struct KeyHash {
         std::size_t operator()(const Key& k) const noexcept {
-            return std::hash<size_t>()(k.layer * 131ULL + k.expert);
+            return std::hash<size_t>()(k.expert);
         }
     };
 
     struct Node {
-        size_t layer;
         size_t expert;
         size_t lru_expert_no;
     };
