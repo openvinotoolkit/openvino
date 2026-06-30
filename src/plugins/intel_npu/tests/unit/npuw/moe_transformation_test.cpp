@@ -6,12 +6,20 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <common_test_utils/test_common.hpp>
 
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
+#include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "moe_transformations/device_routed_moe_transform.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "partitioning/online/compiler.hpp"
+#include "partitioning/partitioning.hpp"
 
 /*
  * Test suite for MoE Expert Transformation
@@ -599,6 +607,151 @@ TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
     EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
     EXPECT_EQ(softmax_router_count, 2u) << "One router Softmax per layer";
     EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
+}
+
+// Qwen3 MoE topology: separate gate/up MatMuls (SwiGLU) and a Softmax->TopK router with
+// ReduceSum->Divide renormalization, matching NPUW's Qwen3Expert + Qwen3Router patterns.
+TEST_F(MoETransformationTest, BuildQwen3MoELLM_HasExpertAndRouterNodes) {
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_topk = false, has_softmax = false;
+    size_t topk_router_count = 0, softmax_router_count = 0, scatter_count = 0;
+    size_t router_reduce_count = 0, router_divide_count = 0, swish_count = 0;
+
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto& fname = op->get_friendly_name();
+        const bool is_router = fname.find("router") != std::string::npos;
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v4::Swish>(op))
+            swish_count++;
+        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(op)) {
+            has_topk = true;
+            if (is_router) {
+                EXPECT_EQ(topk->get_mode(), ov::op::v11::TopK::Mode::MAX);
+                topk_router_count++;
+            }
+        }
+        if (std::dynamic_pointer_cast<ov::op::v8::Softmax>(op)) {
+            has_softmax = true;
+            if (is_router)
+                softmax_router_count++;
+        }
+        if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(op) ||
+            std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(op))
+            scatter_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(op))
+            router_reduce_count++;
+        if (is_router && std::dynamic_pointer_cast<ov::op::v1::Divide>(op))
+            router_divide_count++;
+    }
+
+    EXPECT_TRUE(has_tile) << "Missing Tile (expert)";
+    EXPECT_TRUE(has_topk) << "Missing TopK (router)";
+    EXPECT_TRUE(has_softmax) << "Missing Softmax (router)";
+    // Two layers, separate gate/up -> one Swish per gate projection per layer.
+    EXPECT_EQ(swish_count, 2u) << "One expert Swish (gate activation) per layer";
+    EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
+    EXPECT_EQ(softmax_router_count, 2u) << "One router Softmax per layer";
+    EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
+    // Qwen3-specific renormalization: ReduceSum + Divide on the router scores per layer.
+    EXPECT_EQ(router_reduce_count, 2u) << "One router ReduceSum (renormalization) per layer";
+    EXPECT_EQ(router_divide_count, 2u) << "One router Divide (renormalization) per layer";
+}
+
+inline ::intel_npu::Config make_moe_isolate_cfg() {
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    ::intel_npu::Config cfg(opt_desc);
+    cfg.update({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "MOE"}});
+    return cfg;
+}
+
+inline size_t count_groups_with_tag(const ov::npuw::Ensemble& ens, const std::string& tag) {
+    return static_cast<size_t>(
+        std::count_if(ens.groups.begin(), ens.groups.end(), [&tag](const ov::npuw::Group& g) {
+            return g.gettag() == tag;
+        }));
+}
+
+// End-to-end: the real NPUW online partitioner, with the MOE isolation preset, must tag
+// expert and router groups in the builder's Qwen3 MoE model — i.e. the Qwen3Expert and
+// Qwen3Router pattern matchers actually fire on what the builder emits. This is the
+// validation that matters: structural op counts above don't prove the matchers bind.
+TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpertAndRouter) {
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    // The model is already stateless (no KV cache), so partitioning just needs static
+    // shapes — a plain reshape of the inputs, no StatefulToStateless pass required.
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        new_shapes[input.get_any_name()] = ov::PartialShape{1, 8};
+    }
+    model->reshape(new_shapes);
+
+    auto cfg = make_moe_isolate_cfg();
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    // The matchers binding is what we're proving — at least one expert and one router group
+    // must form. (Exact group counts depend on the partitioner's fusion heuristics, which
+    // may merge the per-layer routers, so we don't couple the assertion to layer count.)
+    EXPECT_GE(count_groups_with_tag(ens, "expert"), 1u) << "Qwen3Expert did not isolate any expert group";
+    EXPECT_GE(count_groups_with_tag(ens, "router"), 1u) << "Qwen3Router did not isolate any router group";
+}
+
+// End-to-end against the *production* MoE pipeline (not just the matchers): the full
+// ApplyMoEDeviceRoutedTransforms pass — DeviceRoutedMoETransform followed by GatherTo2DGather,
+// exactly what production runs — must accept the builder's Qwen3 MoE and rewrite it into the
+// gathered (K-active-expert) form. detect_router_by_topology requires the decoding stage
+// (TopK indices batch dim == 1), so the model is shaped to a single token. This proves the
+// builder output agrees with the hand-rolled create_qwen3_moe_graph that the transform's own
+// unit tests use.
+TEST_F(MoETransformationTest, Qwen3MoE_DeviceRoutedTransformRewritesBuilderOutput) {
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    // Decoding shape: single token so the router TopK indices have batch dim 1.
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        new_shapes[input.get_any_name()] = ov::PartialShape{1, 1};
+    }
+    model->reshape(new_shapes);
+
+    // Count expert-weight Gathers only (the MoE region), not the embedding Gather that any
+    // LLM has. The transform names its inserted gathers under the expert/mlp scope.
+    auto count_expert_gathers = [](const std::shared_ptr<ov::Model>& m) {
+        size_t n = 0;
+        for (const auto& op : m->get_ordered_ops()) {
+            if (ov::as_type_ptr<ov::op::v8::Gather>(op) &&
+                op->get_friendly_name().find("expert") != std::string::npos) {
+                ++n;
+            }
+        }
+        return n;
+    };
+    EXPECT_EQ(count_expert_gathers(model), 0u) << "No expert Gather before the device-routed transform";
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::npuw::ApplyMoEDeviceRoutedTransforms>();
+    manager.run_passes(model);
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    // The transform replaces the batched all-expert MatMuls with per-active-expert Gathers
+    // (weight + scale Gather for each of gate/up/down -> 6 per layer). If it fired at all,
+    // expert Gathers appear and every Tile's repeat[0] is rewritten from num_experts to k.
+    EXPECT_GT(count_expert_gathers(model), 0u)
+        << "ApplyMoEDeviceRoutedTransforms did not rewrite the builder's Qwen3 MoE";
+
+    constexpr int64_t kTopK = 2;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto tile = ov::as_type_ptr<ov::op::v0::Tile>(op)) {
+            auto rep = ov::as_type_ptr<ov::op::v0::Constant>(tile->input_value(1).get_node_shared_ptr());
+            ASSERT_NE(rep, nullptr);
+            EXPECT_EQ(rep->cast_vector<int64_t>()[0], kTopK) << "Tile repeat[0] should be rewritten to k";
+        }
+    }
 }
 
 

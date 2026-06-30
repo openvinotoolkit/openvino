@@ -48,10 +48,14 @@ struct GELU {
 };
 
 /// GPT-OSS style batched MoE FFN matching NPUW's GPTOSSExpert + GPTOSSRouter patterns.
-/// All experts compute on all tokens via Tile + 3D batched MatMul (no NonZero).
+/// All experts compute on all tokens via Tile + 3D batched MatMul (no NonZero): fused
+/// gate_up MatMul with Slice/Minimum/Swish + Clamp branches and a TopK→Softmax router.
 /// Weight function must produce a Multiply→Convert→MatMul chain (default: i4 CompressedWeight)
 /// for the isolation patterns to match. Shared constants across layers enable repeating
 /// block detection. Conforms to FFNFn for drop-in use in transformer layer templates.
+///
+/// To add another MoE topology, write a sibling functor (see Qwen3MoEFFN) and assign it to
+/// LLMConfig::ffn — no enum or central dispatch to extend.
 struct MoEFFN {
     size_t hidden_size, intermediate_size, num_experts, num_experts_per_tok;
     ov::element::Type precision;
@@ -69,6 +73,31 @@ private:
     std::shared_ptr<ov::Node> min_const, swish_beta, clamp_add_zero;
     std::shared_ptr<ov::Node> sl_start, sl_step_r, sl_axes, scatter_axis;
     std::shared_ptr<ov::Node> tp_order, unsq_axis, reduce_axis;
+};
+
+/// Qwen3 style batched MoE FFN matching NPUW's Qwen3Expert + Qwen3Router patterns
+/// (real Qwen3-30B-A3B). Differs from MoEFFN in two ways: the expert uses separate gate/up
+/// MatMuls (SwiGLU = Swish(gate) * up, single-input Swish) instead of a fused gate_up with
+/// Clamp/Minimum branches, and the router is Softmax→TopK with an explicit ReduceSum→Divide
+/// renormalization over the K selected experts (vs GPT-OSS's TopK→Softmax). The expert weight
+/// chain is the same Multiply→Convert→MatMul the matchers bind to. Note: the shipped model
+/// fuses gate_up via VariadicSplit; the matcher (and this builder) use the separate gate/up
+/// form the partitioning pass keys on. Conforms to FFNFn; assign to LLMConfig::ffn.
+struct Qwen3MoEFFN {
+    size_t hidden_size, intermediate_size, num_experts, num_experts_per_tok;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+
+    /// Default weight_fn: CompressedWeight{i4, 0, SYMM_NO_ZP}.
+    Qwen3MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf = {});
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+
+private:
+    // Shared across layers for matchRepeatedSubgraphs (created once in ctor)
+    std::shared_ptr<ov::Node> tile_repeats, topk_k_const, scatter_axis, tp_order, unsq_axis;
+    std::shared_ptr<ov::Node> reduce_axis;    ///< final expert reduction (over experts, axis 0)
+    std::shared_ptr<ov::Node> reduce_axis_k;  ///< router renormalization axis (over K)
 };
 
 }  // namespace npuw

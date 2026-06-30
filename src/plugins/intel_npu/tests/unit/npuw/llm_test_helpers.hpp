@@ -155,6 +155,28 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+/// Qwen3-style MoE: separate gate/up expert MatMuls (SwiGLU) and a Softmax->TopK router
+/// with ReduceSum->Divide renormalization, matching NPUW's Qwen3Expert + Qwen3Router
+/// patterns (real Qwen3-30B-A3B). Contrast build_moe_llm_test_model, which emits the
+/// GPT-OSS topology (fused gate_up, TopK->Softmax router).
+///
+/// The MoE matchers key on the FFN subgraph only, so this model has no KV cache: that
+/// keeps it stateless (no Assign/ReadValue) and lets the partitioner consume it after a
+/// plain static reshape — no StatefulToStateless dance needed.
+inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
+    ModelBuilder mb;
+    constexpr size_t kExperts = 8, kTopK = 2;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = kExperts;
+    cfg.num_experts_per_tok = kTopK;
+    // Select the Qwen3 MoE topology by plugging in its FFN functor (like cfg.norm = RMSNorm(...)).
+    // An empty WeightFn keeps Qwen3MoEFFN's i4 CompressedWeight default — the DQ chain the
+    // Qwen3 matchers bind to.
+    cfg.ffn = Qwen3MoEFFN(cfg.hidden_size, cfg.intermediate_size, kExperts, kTopK, cfg.precision);
+    cfg.use_kv_cache = false;  // stateless; MoE patterns don't touch attention/KV
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
                                                                   size_t sliding_to_full_ratio = 0,
                                                                   const SlidingMaskFn& sliding_mask_fn = {},
