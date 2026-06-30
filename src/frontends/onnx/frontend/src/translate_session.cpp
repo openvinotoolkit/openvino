@@ -465,6 +465,7 @@ void TranslateSession::translate_graph_from_iterator(const ov::frontend::InputMo
             if (name.empty()) {
                 continue;
             }
+            ov_outputs[i].add_names({name});
             m_tensor_values[name] = ov_outputs[i];
         }
     }

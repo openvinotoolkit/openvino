@@ -630,34 +630,52 @@ std::shared_ptr<ov::Model> convert_new_from_iterator(const std::filesystem::path
     return fe->convert(input_model);
 }
 
-// Collect Constant nodes keyed by friendly name for a per-tensor bitwise comparison.
-std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> constants_by_name(
-    const std::shared_ptr<ov::Model>& model) {
-    std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> out;
+// Collect all Constant nodes of a model.
+std::vector<std::shared_ptr<ov::op::v0::Constant>> collect_constants(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> out;
     for (const auto& op : model->get_ordered_ops()) {
         if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
-            out[c->get_friendly_name()] = c;
+            out.push_back(c);
         }
     }
     return out;
 }
 
+// Two Constants are equivalent when their element type, shape and raw bytes are identical.
+bool constants_bitwise_equal(const std::shared_ptr<ov::op::v0::Constant>& a,
+                             const std::shared_ptr<ov::op::v0::Constant>& b) {
+    if (a->get_element_type() != b->get_element_type() || a->get_shape() != b->get_shape() ||
+        a->get_byte_size() != b->get_byte_size()) {
+        return false;
+    }
+    return a->get_byte_size() == 0 || std::memcmp(a->get_data_ptr(), b->get_data_ptr(), a->get_byte_size()) == 0;
+}
+
+// Verify the two models carry the same multiset of Constant data, matched by value rather than by name.
+//
+// Friendly names cannot be used as the key here: translators synthesize anonymous internal Constants
+// (e.g. Gemm's alpha/beta, Split's axis, Gather's axis), which OV names "Constant_<instance_id>" from a
+// global counter that keeps advancing. The two reference/test conversions run sequentially, so the same
+// logical Constant gets a different id in each model. Matching by element type + shape + raw bytes is the
+// stable, name-independent expression of "bitwise-identical constant data".
 void check_constants_bitwise_identical(const std::shared_ptr<ov::Model>& ref, const std::shared_ptr<ov::Model>& test) {
-    const auto ref_consts = constants_by_name(ref);
-    const auto test_consts = constants_by_name(test);
+    auto ref_consts = collect_constants(ref);
+    auto test_consts = collect_constants(test);
     ASSERT_EQ(ref_consts.size(), test_consts.size()) << "Different number of Constant nodes";
-    for (const auto& [name, ref_c] : ref_consts) {
-        auto it = test_consts.find(name);
-        ASSERT_NE(it, test_consts.end()) << "Constant '" << name << "' missing in iterator-converted model";
-        const auto& test_c = it->second;
-        ASSERT_EQ(ref_c->get_element_type(), test_c->get_element_type()) << "type mismatch for '" << name << "'";
-        ASSERT_EQ(ref_c->get_shape(), test_c->get_shape()) << "shape mismatch for '" << name << "'";
-        const auto ref_bytes = ref_c->get_byte_size();
-        ASSERT_EQ(ref_bytes, test_c->get_byte_size()) << "byte size mismatch for '" << name << "'";
-        if (ref_bytes != 0) {
-            EXPECT_EQ(0, std::memcmp(ref_c->get_data_ptr(), test_c->get_data_ptr(), ref_bytes))
-                << "Constant data differs bitwise for '" << name << "'";
+
+    std::vector<bool> matched(test_consts.size(), false);
+    for (const auto& ref_c : ref_consts) {
+        bool found = false;
+        for (size_t i = 0; i < test_consts.size(); ++i) {
+            if (!matched[i] && constants_bitwise_equal(ref_c, test_consts[i])) {
+                matched[i] = true;
+                found = true;
+                break;
+            }
         }
+        EXPECT_TRUE(found) << "No bitwise-identical counterpart in the iterator-converted model for Constant '"
+                           << ref_c->get_friendly_name() << "' (" << ref_c->get_element_type() << " "
+                           << ref_c->get_shape() << ")";
     }
 }
 
