@@ -7,7 +7,6 @@ set(TARGET_NAME ov_snippets_func_tests)
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/linear_ir.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/loop_manager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/buffer_allocation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/compute_buffer_allocation_size.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/extracted_loop_invariants.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/init_loops.cpp
