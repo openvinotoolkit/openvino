@@ -98,6 +98,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     // Forcing CIP as the current compiler type
     auto model = ov::test::utils::make_conv_pool_relu();
     ov::CompiledModel compiledModel;
+
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
                            model,
                            deviceName,
@@ -127,12 +128,8 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
         initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
     if (driverHandlesCompatibilityCheck) {
         ASSERT_TRUE(it != properties.cend());
-        OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
     } else {
         ASSERT_TRUE(it == properties.cend());
-        OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
-                        ov::Exception,
-                        testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
     }
 }
 
@@ -164,9 +161,15 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
 
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    if (it != properties.cend()) {
-        OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
-        ASSERT_FALSE(requirements.empty());
+    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const bool driverHandlesCompatibilityCheck =
+        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+    if (driverHandlesCompatibilityCheck) {
+        OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
+    } else {
+        OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
+                        ov::Exception,
+                        testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
     }
 }
 
