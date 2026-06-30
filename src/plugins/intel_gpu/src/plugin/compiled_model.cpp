@@ -86,36 +86,28 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
-    // The compatibility descriptor is persisted as an optional, magic-guarded block at the front
-    // of the post-cache_mode payload. Mirrors how the NPU plugin uses a magic marker to identify
-    // its blob metadata so that blobs produced by builds predating this field stay importable.
-    // We read one 64-bit word: if it equals the magic, a descriptor block follows; otherwise the
-    // word is the legacy input/parameter count and no descriptor is present.
-    uint64_t magic_or_num_params = 0;
-    ib >> magic_or_num_params;
+    // After ov::CacheMode the blob must start with the magic-guarded compatibility-descriptor
+    // block written by export_model. A blob lacking the magic was produced by an OpenVINO build
+    // predating this feature; cross-version blob import is not supported, so fail fast.
+    uint64_t requirements_magic = 0;
+    ib >> requirements_magic;
+    OPENVINO_ASSERT(requirements_magic == runtime_requirements_magic,
+                    "[GPU] Cannot import compiled blob: missing compatibility descriptor "
+                    "(blob produced by an incompatible OpenVINO version).");
 
-    bool num_params_consumed = false;
-    size_t num_params = 0;
-
-    if (magic_or_num_params == runtime_requirements_magic) {
-        uint32_t requirements_version = 0;
-        ib >> requirements_version;
-        ib >> m_runtime_requirements;
-        if (requirements_version != runtime_requirements_version) {
-            // Descriptor was produced by a build using a different on-disk contract:
-            // its content cannot be trusted, so drop it (compatibility check -> NOT_APPLICABLE).
-            m_runtime_requirements.clear();
-        }
-    } else {
-        // Legacy blob (no descriptor): the word we just read is the input/parameter count.
-        num_params = static_cast<size_t>(magic_or_num_params);
-        num_params_consumed = true;
-    }
+    uint32_t requirements_version = 0;
+    ib >> requirements_version;
+    // An unrecognized version means the descriptor block follows an on-disk contract we don't
+    // understand, so the remainder of the blob cannot be parsed safely. Fail the import; the
+    // caching layer then falls back to recompiling the model.
+    OPENVINO_ASSERT(requirements_version == runtime_requirements_version,
+                    "[GPU] Unsupported compatibility descriptor version ", requirements_version,
+                    " in compiled blob (expected ", runtime_requirements_version, ").");
+    ib >> m_runtime_requirements;
 
     {
-        if (!num_params_consumed) {
-            ib >> num_params;
-        }
+        size_t num_params = 0;
+        ib >> num_params;
 
         for (size_t idx = 0; idx < num_params; ++idx) {
             std::string param_name;
@@ -205,8 +197,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 
 // Cache blob format (ov::CacheMode is written here but consumed by Plugin::import_model):
 //     [ ov::CacheMode ]
-//     [ optional compatibility-descriptor block, present iff the next word equals
-//       runtime_requirements_magic:
+//     [ compatibility-descriptor block:
 //           [ uint64 magic ][ uint32 descriptor layout version ][ descriptor string ] ]
 //     [ inputs:  count + per-input  records ]
 //     [ outputs: count + per-output records ]
@@ -226,9 +217,7 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
-    // Optional compatibility-descriptor block, identified by a magic word so that builds which
-    // predate this field (whose first post-cache_mode word is the input count) stay importable.
-    // Mirrors the NPU plugin's magic-marked blob metadata.
+    // Compatibility-descriptor block (see blob format above).
     const uint64_t requirements_magic = runtime_requirements_magic;
     ob << requirements_magic;
     const uint32_t requirements_version = runtime_requirements_version;
@@ -283,23 +272,9 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v1 simplified GPU compatibility descriptor.
-    //
-    // The "meta;ov" prefix mirrors the NPU compatibility-string structure (meta=<schema>;
-    // ov=<major.minor.patch>) so a future shared OpenVINO helper can parse every plugin
-    // uniformly. "meta" is the GPU compat-string schema version (independent of the blob
-    // layout guard runtime_requirements_version).
-    //
-    // The desc=[...] block is the GPU-specific device descriptor. It lists the device
-    // properties that, if changed, invalidate a previously compiled blob:
-    //   - driver: OpenCL/L0 driver that compiles and owns the kernel binaries
-    //   - ip:     GFX IP hardware version (gfx_ver major.minor.revision) read straight
-    //             from the device. This is the precise hardware identity; capabilities
-    //             such as SIMD width and IMMAD/DPAS support are deterministic
-    //             consequences of it and therefore not stored separately.
-    //   - eus:    execution units count (distinguishes SKUs within the same IP)
-    // These mirror the GPU model-cache fingerprint plus the driver/compiler version
-    // expected by the NPU format.
+    // v1 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
+    // The desc fields are the device properties that invalidate a compiled blob if changed:
+    //   driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
     std::ostringstream ss;
     ss << "meta=1.0"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH

@@ -20,13 +20,13 @@ public:
     std::shared_ptr<ov::Model> model;
 
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         model = ov::test::utils::make_conv_pool_relu();
     }
 };
 
 // The compiled model exposes a non-empty runtime requirements descriptor.
 TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
@@ -42,6 +42,7 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
 
 // The plugin advertises compatibility_check among its supported properties.
 TEST_F(CompatibilityStringGPU, CompatibilityCheckListedInSupportedProperties) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     auto supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::supported_properties);
     ASSERT_NE(std::find(supported.begin(), supported.end(), ov::compatibility_check.name()), supported.end());
@@ -49,6 +50,7 @@ TEST_F(CompatibilityStringGPU, CompatibilityCheckListedInSupportedProperties) {
 
 // A descriptor generated on this device is reported as SUPPORTED.
 TEST_F(CompatibilityStringGPU, GenerateAndCheckSupported) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
@@ -64,6 +66,7 @@ TEST_F(CompatibilityStringGPU, GenerateAndCheckSupported) {
 
 // A tampered descriptor is reported as UNSUPPORTED.
 TEST_F(CompatibilityStringGPU, TamperedRequirementsUnsupported) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
@@ -80,6 +83,7 @@ TEST_F(CompatibilityStringGPU, TamperedRequirementsUnsupported) {
 
 // An empty or missing requirements argument yields NOT_APPLICABLE.
 TEST_F(CompatibilityStringGPU, EmptyAndNoArgumentNotApplicable) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
 
     ov::CompatibilityCheck empty_result = ov::CompatibilityCheck::SUPPORTED;
@@ -95,6 +99,7 @@ TEST_F(CompatibilityStringGPU, EmptyAndNoArgumentNotApplicable) {
 
 // The descriptor survives an export/import round-trip of the compiled blob.
 TEST_F(CompatibilityStringGPU, ExportImportPreservesRequirements) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
@@ -111,18 +116,11 @@ TEST_F(CompatibilityStringGPU, ExportImportPreservesRequirements) {
     ASSERT_EQ(requirements, imported_requirements);
 }
 
-// Locks the on-disk contract that keeps blobs from older builds importable: the optional
-// descriptor block is identified by a magic word written immediately after ov::CacheMode. A
-// pre-feature blob carries the input/parameter count at that position instead. Because the magic
-// is far larger than any realistic input count, the importer can always tell the two apart and
-// never misreads a legacy blob's bytes as a descriptor string length (which previously caused a
-// std::bad_alloc).
-//
-// NOTE: a full "import a real pre-feature blob" test is intentionally not added. The GPU graph is
-// serialized with absolute-offset page alignment (see program.cpp), so a valid legacy blob cannot
-// be synthesized by editing a current blob, and a golden artifact would embed device-specific
-// kernel binaries and would not be portable across CI machines.
+// Locks the on-disk contract: the compiled blob must begin (after ov::CacheMode) with the
+// magic-guarded descriptor block. The magic is far larger than any realistic input count, so a
+// non-conforming blob is rejected cleanly instead of being misread as a descriptor length.
 TEST_F(CompatibilityStringGPU, DescriptorBlockIsMagicGuardedInBlob) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
@@ -140,6 +138,50 @@ TEST_F(CompatibilityStringGPU, DescriptorBlockIsMagicGuardedInBlob) {
     ASSERT_EQ(magic, expected_magic);
     // The guard only works if the magic can never collide with a real input count.
     ASSERT_GT(magic, static_cast<uint64_t>(1) << 32) << "magic must dwarf any realistic input count";
+}
+
+// A blob whose descriptor header is corrupted must be rejected by import rather than mis-parsed.
+// The corruption is byte-for-byte in place, so the blob size (and the graph's page alignment) is
+// unchanged and the failure comes purely from the magic/version guard. Covers both guard paths:
+//   - magic absent      -> "missing compatibility descriptor"
+//   - unrecognized version -> "unsupported compatibility descriptor version"
+TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    std::stringstream good_blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(good_blob));
+    const std::string original = good_blob.str();
+
+    constexpr size_t magic_offset = sizeof(ov::CacheMode);
+    constexpr size_t version_offset = magic_offset + sizeof(uint64_t);
+    ASSERT_GE(original.size(), version_offset + sizeof(uint32_t));
+
+    // Sanity: the untouched blob imports cleanly (guards the offsets used below).
+    {
+        std::stringstream blob(original);
+        ov::CompiledModel imported;
+        OV_ASSERT_NO_THROW(imported = core.import_model(blob, ov::test::utils::DEVICE_GPU));
+    }
+
+    // Corrupt the magic: the importer can no longer recognize the descriptor block and must fail.
+    {
+        std::string corrupted = original;
+        corrupted[magic_offset] ^= 0xFF;
+        std::stringstream blob(corrupted);
+        EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+    }
+
+    // Keep the magic but set an unrecognized descriptor version: import must fail.
+    {
+        std::string corrupted = original;
+        const uint32_t bad_version = 0xFFFFFFFFu;
+        std::memcpy(&corrupted[version_offset], &bad_version, sizeof(bad_version));
+        std::stringstream blob(corrupted);
+        EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+    }
 }
 
 // Mirror of the ONNX Runtime OrtCompiledModelCompatibility states that the GPU plugin
@@ -175,6 +217,7 @@ OrtCompatibility to_ort_compatibility(ov::CompatibilityCheck check) {
 //      fresh Core, WITHOUT importing or compiling anything, query
 //      ov::compatibility_check and map the result to ORT's 4-state enum.
 TEST_F(CompatibilityStringGPU, OrtFactoryValidationFlow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::string descriptor;
     {
         // Producer side: a separate Core, as if running in the compiling process.

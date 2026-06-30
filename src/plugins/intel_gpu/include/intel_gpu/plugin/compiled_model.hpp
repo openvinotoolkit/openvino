@@ -47,7 +47,7 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
     // Builds the simplified v1 GPU compatibility descriptor.
-    // Format mirrors NPU: meta=<ver>;ov=<ov>;desc=[<driver/hw features>]
+    // Format: meta=<ver>;ov=<ov>;desc=[<driver/hw features>]
     static std::string build_runtime_requirements(const cldnn::device_info& info);
 
     // Layout version of the runtime requirements descriptor persisted in the blob.
@@ -55,11 +55,10 @@ public:
     // importer can detect and reject descriptors produced by a future build.
     static constexpr uint32_t runtime_requirements_version = 1;
 
-    // Magic marker identifying the optional compatibility-descriptor block written right after
-    // ov::CacheMode in the exported blob. Mirrors how the NPU plugin uses a magic marker to
-    // identify its blob metadata. Chosen to be far larger than any realistic input count so the
-    // importer can distinguish a descriptor block from a legacy blob whose first post-cache_mode
-    // word is the input/parameter count ("OVEP_RRQ" in ASCII).
+    // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
+    // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this
+    // feature) instead of misreading their input count. Chosen far larger than any realistic input
+    // count so such a blob's first post-cache_mode word can never collide with it ("OVEP_RRQ" in ASCII).
     static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
     void set_property(const ov::AnyMap& properties) override {
