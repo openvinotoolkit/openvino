@@ -406,5 +406,12 @@ Example:
             <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_DynBatch.*</filter>
         </filters>
     </skip_config>
+    
+    <skip_config>
+        <message>The tests must be updated to create correct config</message>
+        <filters>
+            <filter>.*BooleanSetTensorSetTensorsWork.*</filter>
+        </filters>
+    </skip_config>
 
 </skip_configs>
