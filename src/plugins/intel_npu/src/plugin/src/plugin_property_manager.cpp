@@ -320,6 +320,7 @@ void PluginPropertyManager::registerProperties() {
     register_property<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for.name());
     register_property<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
     register_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name());
+    register_property<DISABLE_IDLE_MEMORY_PRUNING>(_config, _properties, ov::intel_npu::disable_idle_memory_prunning.name());
     OPENVINO_SUPPRESS_DEPRECATED_START
     register_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -339,17 +340,14 @@ void PluginPropertyManager::registerProperties() {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
 
-
-    register_property_with_support<DISABLE_IDLE_MEMORY_PRUNING>(_config, _properties, ov::intel_npu::disable_idle_memory_prunning.name(), [&](const FilteredConfig&) {
-        return _backend != nullptr && _backend->isContextExtSupported();
-    });
-
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::max_tiles.name(),
         [&](const FilteredConfig& config) {
-            if (_metrics == nullptr || _backend == nullptr) {
+            // If this is already disabled in the config, do not perform extra checks and return false.
+            if (config.isAvailable(ov::intel_npu::max_tiles.name()) == false || _metrics == nullptr) {
                 return false;
             }
 
+            // If enabled in the config, validate the configuration and check whether the expected device exists.
             try {
                 const auto specifiedDeviceName = get_specified_device_name(config);
                 const auto deviceName = _metrics->getDeviceName(specifiedDeviceName);
@@ -626,7 +624,8 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
     ov::AnyMap special_cfgs_to_set;
     for (auto&& value : properties) {
-        if (_properties.find(value.first) == _properties.end()) {
+        const auto propertyDescriptorIt = _properties.find(value.first);
+        if (propertyDescriptorIt == _properties.end()) {
             // property doesn't exist - checking as internal now
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
@@ -639,7 +638,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
         } else {
-            const auto& descriptor = _properties[value.first];
+            const auto& descriptor = propertyDescriptorIt->second;
             if (!descriptor.isSupported(_config)) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }

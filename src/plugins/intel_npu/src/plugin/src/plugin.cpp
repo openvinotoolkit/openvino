@@ -298,6 +298,11 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     config.enableRuntimeOptions();
     // Disable workload type in case driver is not present or it does not support the extension.
     config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+    // Disable max tiles in case we don't have a device.
+    config.enable(ov::intel_npu::max_tiles.name(), backend != nullptr && backend->getDevice() != nullptr);
+    // Disable idle memory pruning in case driver is not present or it does not support the extension.
+    config.enable(ov::intel_npu::disable_idle_memory_prunning.name(),
+                  backend != nullptr && backend->isContextExtSupported());
 
     // Special cases - options with OptionMode::Both must be enabled
     // for the plugin even if the compiler does not support them,
