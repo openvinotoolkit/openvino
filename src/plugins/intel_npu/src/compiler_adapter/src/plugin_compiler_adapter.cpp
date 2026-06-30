@@ -71,7 +71,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     // auto-select HostCompile_Interpreter on its own. Perform the selection here, where we
     // know we are on the PLUGIN path and have access to the ov::Model.
     FilteredConfig effectiveConfig = config;
-    if (!config.has<COMPILATION_MODE>()) {
+    if (!config.has<COMPILATION_MODE>() &&
+        !(config.has<DYNAMIC_SHAPE_TO_STATIC>() && config.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+         
         const auto isDynamic = [](const auto& port) {
             auto& shape = port.get_partial_shape();
             // HostCompile_Interpreter does not support dynamic batch for now
