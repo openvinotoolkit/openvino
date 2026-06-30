@@ -169,29 +169,37 @@ void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::st
     }
 }
 
-/// \brief Check whether the graph nodes are already in topological order.
-/// Mirrors editor.cpp's is_topologically_sorted: a single forward scan over
-/// node inputs against the set of already-known tensors (graph inputs, outputs,
-/// initializers, and outputs of previously-visited nodes).
+/// \brief Check whether the graph nodes are already in topological order (same dependency definition and seeding as topological_sort_graph()).
 bool is_topologically_sorted(const GraphProto& graph) {
     std::unordered_set<std::string> known_tensors;
     for (const auto& input : graph.input()) {
         known_tensors.insert(input.name());
-    }
-    for (const auto& output : graph.output()) {
-        known_tensors.insert(output.name());
     }
     for (const auto& init : graph.initializer()) {
         known_tensors.insert(init.name());
     }
 
     for (const auto& node : graph.node()) {
+        // Common case: allocation-free scan of direct inputs - the lazy fast path.
         for (const auto& input : node.input()) {
             if (input.empty()) {
                 continue;
             }
             if (known_tensors.count(input) == 0) {
                 return false;
+            }
+        }
+        // Only control-flow nodes pay extra: their subgraphs capture outer-scope tensors not in node.input().
+        for (const auto& attr : node.attribute()) {
+            if (!attr.has_g()) {
+                continue;
+            }
+            std::unordered_set<std::string> external_refs;
+            collect_subgraph_external_refs(attr.g(), external_refs);
+            for (const auto& ref : external_refs) {
+                if (known_tensors.count(ref) == 0) {
+                    return false;
+                }
             }
         }
         for (const auto& output_name : node.output()) {
