@@ -87,8 +87,13 @@ void fill_integer_tensor_value(ov::Tensor& tensor, int64_t value) {
         fill_integer_tensor_value_checked<uint32_t>(tensor, value);
     } else if (type == ov::element::u16) {
         fill_integer_tensor_value_checked<uint16_t>(tensor, value);
-    } else if (type == ov::element::u8 || type == ov::element::boolean) {
+    } else if (type == ov::element::u8) {
         fill_integer_tensor_value_checked<uint8_t>(tensor, value);
+    } else if (type == ov::element::boolean) {
+        if (value != 0 && value != 1) {
+            OPENVINO_THROW("Cannot fill boolean tensor with value ", value, ". Expected 0 or 1.");
+        }
+        fill_tensor_value<char>(tensor, static_cast<char>(value));
     } else {
         OPENVINO_THROW("Cannot fill tensor with integer value. Unsupported element type: ", type);
     }
