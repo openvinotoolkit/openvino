@@ -90,6 +90,9 @@ std::map<std::string, ov::PartialShape> parse_input_shapes(const std::string& sh
 
         remaining = remaining.substr(close_bracket + 1);
         if (!remaining.empty()) {
+            if (remaining.front() == '[') {
+                OPENVINO_THROW("Multiple shape groups for the same input are not supported: ", shapes_string);
+            }
             if (remaining.front() != ',') {
                 OPENVINO_THROW("Cannot parse shape string: ", shapes_string);
             }

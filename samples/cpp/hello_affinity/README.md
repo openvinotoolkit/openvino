@@ -35,6 +35,7 @@ the selected device choose its default mode.
 Use `--fallback-device <device>` together with `-affinity` to fill all operations not listed in the JSON file with an
 explicit device before compilation.
 
-Use `-shape <shapes>` and `-data_shape <shapes>` with the same shape string format as `benchmark_app` when
-reproducing a benchmark command. `-shape` reshapes the model before affinity assignment; `-data_shape` provides
-concrete dynamic input shapes for compilation and generated inference tensors.
+Use `-shape <shapes>` and `-data_shape <shapes>` with single-shape-group strings such as
+`input0[1,96],input1[1,96]`. `-shape` reshapes the model before affinity assignment; `-data_shape` provides concrete
+dynamic input shapes for compilation and generated inference tensors. Repeated benchmark_app data-shape groups such as
+`input0[1,96][1,128]` are not supported.
