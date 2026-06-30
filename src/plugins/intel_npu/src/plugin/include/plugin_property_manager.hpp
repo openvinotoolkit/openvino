@@ -52,7 +52,6 @@ private:
         std::shared_ptr<CompilerOptionSupportHelper> optionSupportHelper;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
-        ov::intel_npu::CompilerType compilerForCompatibilityCheck;
         bool compatibilityCheckSupported;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
@@ -72,7 +71,6 @@ private:
     Logger& _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
-    ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
     bool _compatibilityCheckSupported = false;
     std::string _currentlyUsedPlatform;
     bool _compilerConfigsFilteredByCompiler = false;
