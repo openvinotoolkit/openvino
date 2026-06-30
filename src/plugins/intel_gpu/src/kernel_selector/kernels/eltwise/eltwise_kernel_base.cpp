@@ -266,7 +266,13 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
                     // input_0 != int && input_1 != int
-                    op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                    if (ew.mode == EltwiseMode::MIN || ew.mode == EltwiseMode::MAX) {
+                        op += "select(select(f" + mode + "(" + input0_str + ", " + input1_str + "), "
+                              + input1_str + ", isnan(" + input1_str + ")), "
+                              + input0_str + ", isnan(" + input0_str + "))";
+                    } else {
+                        op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                    }
                 }
             } break;
             case EltwiseMode::POW:
