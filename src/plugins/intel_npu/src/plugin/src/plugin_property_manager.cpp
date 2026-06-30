@@ -833,7 +833,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     return it != _properties.end() && it->second.isPublic && it->second.isSupported(_config);
 }
 
-FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
+FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const {
     auto [updatedConfig, compilerConfigsFilteredByCompiler, logger] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
         return std::make_tuple(_config, _compilerConfigsFilteredByCompiler, _logger);
@@ -888,7 +888,7 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
     return std::move(updatedConfig);
 }
 
-FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties) {
+FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties) const {
     auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
         [&]() {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -986,7 +986,7 @@ ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerType(const o
     return _config.get<COMPILER_TYPE>();
 }
 
-bool PluginPropertyManager::isPropertyRegistered(const std::string& propertyName) {
+bool PluginPropertyManager::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
 }
 
