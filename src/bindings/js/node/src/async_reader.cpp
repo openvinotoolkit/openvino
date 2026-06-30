@@ -18,13 +18,10 @@ void ReaderWorker::Execute() {
 void ReaderWorker::OnOK() {
     auto model = cpp_to_js(Env(), _model);
 
-    delete _args;
-
     _deferred.Resolve(model);
 }
 
 void ReaderWorker::OnError(const Napi::Error& error) {
-    delete _args;
     _deferred.Reject(error.Value());
 }
 
