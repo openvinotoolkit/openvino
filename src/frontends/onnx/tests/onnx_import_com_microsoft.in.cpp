@@ -2545,6 +2545,77 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul_null_b
     test_case.run_with_tolerance_as_fp(0.0055f);
 }
 
+// Shared inputs used by both DynamicQuantizeLSTM tests.
+// Expected values are from ONNX Runtime (ORT uses dynamic activation quantization with integer
+// matmuls; our translator uses weight-only dequantization, so results differ by ~1.5e-3).
+static const std::vector<float> dql_input_X{0.25f, -0.5f, 1.0f, 1.5f, 0.75f, -1.25f};
+static const std::vector<float> dql_input_B{0.1f,
+                                            -0.2f,
+                                            0.05f,
+                                            0.3f,
+                                            -0.4f,
+                                            0.2f,
+                                            0.15f,
+                                            -0.25f,
+                                            -0.05f,
+                                            0.12f,
+                                            -0.18f,
+                                            0.22f,
+                                            -0.08f,
+                                            0.09f,
+                                            -0.11f,
+                                            0.07f};
+static const std::vector<int32_t> dql_input_sequence_lens{2};
+static const std::vector<float> dql_input_initial_h{0.2f, -0.1f};
+static const std::vector<float> dql_input_initial_c{0.05f, 0.15f};
+static const std::vector<float> dql_expected_Y{0.11440717f, -0.06565752f, -0.00265372f, -0.20275351f};
+static const std::vector<float> dql_expected_Y_h{-0.00265372f, -0.20275351f};
+static const std::vector<float> dql_expected_Y_c{-0.00976340f, -0.24270093f};
+
+// W/R/scale are runtime inputs: align_dequant_param uses Unsqueeze nodes (LPT does not fire).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_lstm_runtime_inputs) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_lstm.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 1, 3}, dql_input_X);
+    test_case.add_input<int8_t>(Shape{1, 3, 8}, {12, -7, 5,  9, -11, 3, 4,  -6, 8,  13,  -9, 2,
+                                                 7,  -5, 10, 1, -4,  6, 14, -8, 12, -10, 11, -3});
+    test_case.add_input<int8_t>(Shape{1, 2, 8}, {5, -3, 4, 7, -6, 2, 1, -4, 9, 8, -5, 3, 6, -7, 10, -2});
+    test_case.add_input<float>(Shape{1, 16}, dql_input_B);
+    test_case.add_input<int32_t>(Shape{1}, dql_input_sequence_lens);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_h);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_c);
+    test_case.add_input<float>(Shape{1}, {0.05f});
+    test_case.add_input<int8_t>(Shape{1}, {1});
+    test_case.add_input<float>(Shape{1}, {0.04f});
+    test_case.add_input<int8_t>(Shape{1}, {-2});
+
+    test_case.add_expected_output<float>(Shape{2, 1, 1, 2}, dql_expected_Y);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_c);
+
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
+// W/R/scale are graph Constants: align_dequant_param reshapes the Constant directly (no graph
+// node inserted), MarkDequantization matches, and the CPU quantized kernel fires.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_lstm_const_weights) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_lstm_const_weights.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{2, 1, 3}, dql_input_X);
+    test_case.add_input<float>(Shape{1, 16}, dql_input_B);
+    test_case.add_input<int32_t>(Shape{1}, dql_input_sequence_lens);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_h);
+    test_case.add_input<float>(Shape{1, 1, 2}, dql_input_initial_c);
+
+    test_case.add_expected_output<float>(Shape{2, 1, 1, 2}, dql_expected_Y);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, dql_expected_Y_c);
+
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
     const auto model = convert_model("com.microsoft/skip_simplified_layer_normalization.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
