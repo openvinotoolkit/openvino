@@ -472,6 +472,10 @@ int tmain(int argc, tchar* argv[]) {
                 "The -affinity option is supported only with the HETERO plugin and requires an explicit device list. "
                 "Please use -d HETERO:<devices> or remove -affinity.");
         }
+        if (!fallback_device.empty() &&
+            std::find(hardware_devices.begin(), hardware_devices.end(), fallback_device) == hardware_devices.end()) {
+            throw std::logic_error("--fallback-device must be one of the devices listed in -d HETERO:<devices>.");
+        }
 
         ov::Core core;
 

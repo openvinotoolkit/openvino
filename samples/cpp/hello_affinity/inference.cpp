@@ -248,7 +248,7 @@ void fill_tensor_with_random_data(ov::Tensor& tensor, std::mt19937& generator) {
     } else if (type == ov::element::u8) {
         fill_tensor_random<uint8_t, uint32_t>(tensor, generator);
     } else if (type == ov::element::boolean) {
-        fill_tensor_random<uint8_t, uint32_t>(tensor, generator, 0, 1);
+        fill_tensor_random<ov::fundamental_type_for<ov::element::boolean>, uint32_t>(tensor, generator, 0, 1);
     } else if (tensor.get_byte_size() != 0) {
         std::memset(tensor.data(), 0, tensor.get_byte_size());
     }
