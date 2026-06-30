@@ -78,8 +78,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
             auto& shape = port.get_partial_shape();
             // HostCompile_Interpreter does not support dynamic batch for now
             // EISW-221309
-            return shape.is_dynamic() && (shape.rank().get_length() == 4) &&
-                !shape[0].is_dynamic() && !shape[1].is_dynamic();
+            return shape.is_dynamic() && (shape.rank().get_length() == 4) && !shape[0].is_dynamic() &&
+                   !shape[1].is_dynamic();
         };
 
         if (model) {
@@ -103,8 +103,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         const size_t headerSize = std::min(tensor.get_byte_size(), size_t{20});
         const std::string_view header(static_cast<const char*>(tensor.data()), headerSize);
         if (header.find("llvm") != std::string_view::npos || header.find("NPUByte\x00") != std::string_view::npos) {
-            _logger.debug(
-                "HostCompile mode is detected based on blob header, use internal function to get metadata!");
+            _logger.debug("HostCompile mode is detected based on blob header, use internal function to get metadata!");
             return true;
         }
         return false;
