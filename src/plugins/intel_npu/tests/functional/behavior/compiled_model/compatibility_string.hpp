@@ -296,9 +296,11 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
     if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     }
 
     // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
@@ -334,9 +336,11 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
     if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     }
 
     // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
@@ -374,9 +378,11 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
     if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     }
 }
 

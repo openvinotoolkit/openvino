@@ -288,14 +288,14 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, optValue)) {
-        _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
+        _logger.info("Option %s with value `%s` is supported by PluginCompilerAdapter",
+                     optname.c_str(),
+                     hasValue ? value.c_str() : "null");
         return true;
     } else {
-        _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
+        _logger.info("Option %s with value `%s` is not supported by PluginCompilerAdapter",
+                     optname.c_str(),
+                     hasValue ? value.c_str() : "null");
         return false;
     }
 }
