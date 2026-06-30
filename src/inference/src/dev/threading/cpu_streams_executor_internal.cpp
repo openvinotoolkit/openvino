@@ -13,22 +13,6 @@
 namespace ov {
 namespace threading {
 
-void append_core_type(std::vector<int>& core_types, int core_type) {
-    if (std::find(core_types.begin(), core_types.end(), core_type) == core_types.end()) {
-        core_types.push_back(core_type);
-    }
-}
-
-int get_bindable_core_type_count(const std::vector<std::vector<int>>& proc_type_table) {
-    if (proc_type_table.empty()) {
-        return 0;
-    }
-
-    return static_cast<int>(proc_type_table[0][MAIN_CORE_PROC] > 0) +
-           static_cast<int>(proc_type_table[0][EFFICIENT_CORE_PROC] > 0) +
-           static_cast<int>(proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0);
-}
-
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
                          const std::vector<std::vector<int>>& proc_type_table,
@@ -39,6 +23,21 @@ void get_cur_stream_info(const int stream_id,
                          int& numa_node_id,
                          int& socket_id,
                          int& max_threads_per_core) {
+    const auto append_core_type = [](std::vector<int>& proc_core_types, int proc_core_type) {
+        if (std::find(proc_core_types.begin(), proc_core_types.end(), proc_core_type) == proc_core_types.end()) {
+            proc_core_types.push_back(proc_core_type);
+        }
+    };
+    const auto get_bindable_core_type_count = [](const std::vector<std::vector<int>>& available_proc_type_table) {
+        if (available_proc_type_table.empty()) {
+            return 0;
+        }
+
+        return static_cast<int>(available_proc_type_table[0][MAIN_CORE_PROC] > 0) +
+               static_cast<int>(available_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) +
+               static_cast<int>(available_proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0);
+    };
+
     int stream_total = 0;
     size_t stream_info_id = 0;
     bool pinning = cpu_pinning;
@@ -85,9 +84,10 @@ void get_cur_stream_info(const int stream_id,
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
         // Pcore only or Ecore only with no cpu binding in hybrid cores machine
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
+        if (!proc_type_table.empty() &&
+            (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0)) {
             const auto bindable_core_types = get_bindable_core_type_count(proc_type_table);
-            if (core_types.size() >= 1 && core_types.size() < bindable_core_types) {
+            if (!core_types.empty() && core_types.size() < static_cast<size_t>(bindable_core_types)) {
                 stream_type = STREAM_WITH_CORE_TYPE;
             }
         } else if (proc_type_table.size() > 1 && numa_node_id >= 0 &&

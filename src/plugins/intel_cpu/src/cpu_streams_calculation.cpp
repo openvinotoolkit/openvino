@@ -239,7 +239,7 @@ bool is_all_core_auto_case_small_conv_exclusion_profile(const ov::MemBandwidthPr
         tolerance.total_nodes > 0 && tolerance.total_convs > 0 &&
         tolerance.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN &&
         tolerance.ratio_compute_convs == 1.0F && tolerance.ratio_mem_limited_convs == 0.0F &&
-        tolerance.total_gemms == 0.0F && tolerance.ratio_mem_limited_adds > 0.7F &&
+        tolerance.total_gemms == 0 && tolerance.ratio_mem_limited_adds > 0.7F &&
         static_cast<float>(tolerance.total_convs) <=
             CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes) &&
         static_cast<float>(tolerance.total_heavy_convs) <=
@@ -249,7 +249,7 @@ bool is_all_core_auto_case_small_conv_exclusion_profile(const ov::MemBandwidthPr
 bool is_all_core_auto_case_high_lp_share_relaxed_profile(const ov::MemBandwidthPressure& tolerance,
                                  float lp_ecore_share) {
     using namespace ThreadPreferenceConstants;
-    return lp_ecore_share >= LP_ECORE_SHARE_HIGH && tolerance.total_convs > 0 && tolerance.total_gemms == 0.0F &&
+    return lp_ecore_share >= LP_ECORE_SHARE_HIGH && tolerance.total_convs > 0 && tolerance.total_gemms == 0 &&
         tolerance.max_mem_tolerance <= MEM_TOLERANCE_LOW &&
         tolerance.ratio_mem_limited_convs <= CONV_RATIO_VERY_LOW &&
         tolerance.ratio_mem_limited_adds > CONV_RATIO_AUTO_RELAXED &&
@@ -288,7 +288,7 @@ bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidt
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 && tolerance.max_mem_tolerance <= MEM_TOLERANCE_VERY_LOW &&
            tolerance.ratio_mem_limited_adds == 0.0F && tolerance.ratio_compute_convs == 0.0F &&
-           tolerance.ratio_mem_limited_convs <= CONV_RATIO_ULTRA_LOW && tolerance.total_gemms == 0.0F;
+           tolerance.ratio_mem_limited_convs <= CONV_RATIO_ULTRA_LOW && tolerance.total_gemms == 0;
 }
 
 void determine_tbb_partitioner_and_threads(Config& config,

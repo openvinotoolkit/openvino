@@ -32,6 +32,7 @@ enum StreamCreateType {
  * @param[out]  concurrency the number of threads created at the same time
  * @param[out]  core_types core types used for thread binding
  * @param[out]  numa_node_id numa node id
+ * @param[out]  socket_id socket id
  * @param[out]  max_threads_per_core the max number of threads per cpu core
  */
 void get_cur_stream_info(const int stream_id,
