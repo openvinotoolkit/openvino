@@ -39,7 +39,6 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
 
     const std::unordered_set<std::string> allowed_devices(hardware_devices.begin(), hardware_devices.end());
 
-    std::unordered_set<std::string> mapped_devices;
     for (const auto& item : affinity_json.items()) {
         if (!item.value().is_string()) {
             OPENVINO_THROW("Affinity file ",
@@ -67,8 +66,22 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
                            "', but it is not present in hardware devices list: ",
                            devices_oss.str());
         }
+    }
 
-        mapped_devices.insert(device);
+    auto find_node_mapping = [&](const std::shared_ptr<ov::Node>& node) {
+        auto it = affinity_json.find(node->get_friendly_name());
+        if (it == affinity_json.end()) {
+            it = affinity_json.find(node->get_name());
+        }
+        return it;
+    };
+
+    std::unordered_set<std::string> mapped_devices;
+    for (const auto& node : model->get_ops()) {
+        const auto it = find_node_mapping(node);
+        if (it != affinity_json.end()) {
+            mapped_devices.insert(it->get<std::string>());
+        }
     }
 
     std::vector<std::string> unmapped_hardware_devices;
@@ -86,12 +99,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
     size_t fallback_count = 0;
     bool has_unmapped_ops = false;
     for (auto&& node : model->get_ops()) {
-        const auto& friendly_name = node->get_friendly_name();
-        auto it = affinity_json.find(friendly_name);
-        if (it == affinity_json.end()) {
-            it = affinity_json.find(node->get_name());
-        }
-        if (it != affinity_json.end() && it->is_string()) {
+        const auto it = find_node_mapping(node);
+        if (it != affinity_json.end()) {
             node->get_rt_info()["affinity"] = it->get<std::string>();
             applied_count++;
         } else if (!fallback_device.empty()) {
