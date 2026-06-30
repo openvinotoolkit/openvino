@@ -1,0 +1,99 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/openvinotoolkit/openvino/.github/ci-doctor-mq/schemas/pattern.schema.json",
+    "title": "CI Doctor MQ Failure Pattern",
+    "description": "Canonical structure for an aggregated recurring-failure pattern record written by the CI Failure Doctor (Merge Queue) workflow to /tmp/gh-aw/repo-memory/default/mq/patterns/<signature-hash>.json. Exactly one file per failure signature, updated via read-modify-write.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "signature",
+        "signature_hash",
+        "title",
+        "category",
+        "count",
+        "first_seen",
+        "last_seen",
+        "recent_run_urls",
+        "affected_prs",
+        "recent_timestamps"
+    ],
+    "properties": {
+        "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "description": "Version of this pattern schema. Always \"1.0\"."
+        },
+        "signature": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable failure signature string (normalized error | failed job | category)."
+        },
+        "signature_hash": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Hash of the signature; matches the file name <signature-hash>.json."
+        },
+        "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Short, human-readable failure title."
+        },
+        "category": {
+            "type": "string",
+            "enum": [
+                "Code Issue",
+                "Infrastructure",
+                "Dependencies",
+                "Configuration",
+                "Flaky Test",
+                "External Service",
+                "Network"
+            ],
+            "description": "Failure category."
+        },
+        "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Total number of times this signature has been observed, including the current run."
+        },
+        "first_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 UTC time the signature was first recorded. Never changes after creation."
+        },
+        "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 UTC time of the most recent occurrence."
+        },
+        "recent_run_urls": {
+            "type": "array",
+            "maxItems": 10,
+            "uniqueItems": true,
+            "description": "Most recent workflow run URLs for this signature, newest first, capped at 10.",
+            "items": {
+                "type": "string",
+                "format": "uri"
+            }
+        },
+        "affected_prs": {
+            "type": "array",
+            "maxItems": 10,
+            "uniqueItems": true,
+            "description": "Most recent affected PR URLs for this signature, newest first, capped at 10.",
+            "items": {
+                "type": "string",
+                "format": "uri"
+            }
+        },
+        "recent_timestamps": {
+            "type": "array",
+            "description": "ISO 8601 UTC timestamps of recent occurrences (newest first), pruned to the last 24 hours. Must always include the current occurrence.",
+            "items": {
+                "type": "string",
+                "format": "date-time"
+            }
+        }
+    }
+}

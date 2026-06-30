@@ -1,0 +1,174 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/openvinotoolkit/openvino/.github/ci-doctor-mq/schemas/investigation.schema.json",
+    "title": "CI Doctor MQ Investigation",
+    "description": "Canonical structure for a single merge-queue CI failure investigation record written by the CI Failure Doctor (Merge Queue) workflow to /tmp/gh-aw/repo-memory/default/mq/investigations/<timestamp>-<run-id>.json. This schema does not apply to the investigations index.json aggregate file.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "investigation_id",
+        "timestamp",
+        "run_id",
+        "run_url",
+        "workflow_name",
+        "category",
+        "title",
+        "signature",
+        "signature_hash",
+        "confidence",
+        "failed_jobs",
+        "key_errors",
+        "root_cause"
+    ],
+    "properties": {
+        "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "description": "Version of this investigation schema. Always \"1.0\"."
+        },
+        "investigation_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Filesystem-safe identifier matching the file name without extension: <YYYY-MM-DD-HH-MM-SS-sss>-<run-id> (no colons)."
+        },
+        "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 UTC time the investigation was produced (e.g., 2026-05-12T14:30:00Z)."
+        },
+        "run_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "GitHub Actions run ID of the failed merge-queue workflow, encoded as a string."
+        },
+        "run_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of the failed GitHub Actions workflow run."
+        },
+        "workflow_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the failed workflow (e.g., \"Linux (Ubuntu 22.04, Python 3.11)\"). Never the CI Doctor MQ workflow itself."
+        },
+        "pr_number": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Affected merge-queue PR number as a string, or null when no PR can be identified."
+        },
+        "pr_url": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Affected merge-queue PR URL, or null when no PR can be identified."
+        },
+        "author": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "GitHub login of the PR/commit author, or null when unknown."
+        },
+        "category": {
+            "type": "string",
+            "enum": [
+                "Code Issue",
+                "Infrastructure",
+                "Dependencies",
+                "Configuration",
+                "Flaky Test",
+                "External Service",
+                "Network"
+            ],
+            "description": "Failure category. Must match the category used to compute the pattern signature."
+        },
+        "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Short, searchable failure description (no PR or run numbers)."
+        },
+        "signature": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable failure signature string (normalized error | failed job | category) shared with the pattern record."
+        },
+        "signature_hash": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Hash of the signature; matches the pattern file name <signature-hash>.json."
+        },
+        "confidence": {
+            "type": "string",
+            "enum": [
+                "High",
+                "Medium",
+                "Low"
+            ],
+            "description": "Confidence in the root-cause analysis."
+        },
+        "failed_jobs": {
+            "type": "array",
+            "minItems": 1,
+            "description": "List of jobs that failed in the run.",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "name",
+                    "symptom"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Exact job name from the workflow run."
+                    },
+                    "conclusion": {
+                        "type": "string",
+                        "description": "Job conclusion (e.g., failure, cancelled, timed_out)."
+                    },
+                    "symptom": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "One-line symptom for this job."
+                    }
+                }
+            }
+        },
+        "key_errors": {
+            "type": "array",
+            "description": "Most relevant raw log excerpts (trimmed) that evidence the failure.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "root_cause": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Explanation of why the failure occurred (the actual root cause, not a restatement of the symptom)."
+        },
+        "reproduction_steps": {
+            "type": "string",
+            "description": "Concrete steps to reproduce locally, or \"N/A\" if not reproducible outside CI."
+        },
+        "recommended_actions": {
+            "type": "array",
+            "description": "Specific, actionable steps to fix the issue.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "prevention_strategies": {
+            "type": "string",
+            "description": "How to prevent similar failures in the future."
+        },
+        "historical_context": {
+            "type": "string",
+            "description": "Similar past failures and their resolutions."
+        }
+    }
+}
