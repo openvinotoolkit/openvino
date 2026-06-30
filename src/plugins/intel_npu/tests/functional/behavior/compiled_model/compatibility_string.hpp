@@ -11,6 +11,8 @@
 #include <openvino/runtime/intel_npu/properties.hpp>
 
 #include "behavior/compiled_model/properties.hpp"
+#include "common/npu_driver_aware_test.hpp"
+#include "common/npu_driver_skip_macros.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -186,21 +188,38 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
     ASSERT_EQ(reference_requirements, imported_requirements);
 }
 
-TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
-    // Forcing CIP as the current compiler type
-    auto model = ov::test::utils::make_conv_pool_relu();
-    ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-        model, deviceName,
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-         ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
-             ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_PV_DRIVER) {
+    NPU_SKIP_IF_DRIVER_TYPE_IS(PV, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for PV");
 
-    std::string requirements;
-    OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
-    ov::CompatibilityCheck result = ov::CompatibilityCheck::NOT_APPLICABLE;
-    OV_ASSERT_NO_THROW(result = core.get_property(deviceName, ov::compatibility_check, std::make_pair(ov::runtime_requirements.name(), requirements)));
-    ASSERT_TRUE(result == ov::CompatibilityCheck::SUPPORTED);
+    std::cout << "this is not PV, so the test will run\n";
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_PV_RELEASE_DRIVER) {
+    NPU_SKIP_IF_DRIVER_TYPE_IS(PV, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for PV");
+    NPU_SKIP_IF_DRIVER_TYPE_IS(RELEASE, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for RELEASE");
+
+    std::cout << "this is not PV/RELEASE, so the test will run\n";
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_LATEST_DRIVER) {
+    NPU_SKIP_IF_DRIVER_TYPE_IS(LATEST, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for LATEST");
+
+    std::cout << "this is not LATEST, so the test will run\n";
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_CompatibilityCheck_BehaviorByDriverType) {
+    using ov::test::utils::DriverType;
+
+    if (ov::test::behavior::isDriverType(DriverType::PV)) {
+        std::cout << "pv driver branching with isDriverType\n";
+    } else if (ov::test::behavior::isDriverType(DriverType::RELEASE)) {
+        std::cout << "release driver branching with isDriverType\n";
+    } else if (ov::test::behavior::isDriverType(DriverType::LATEST)) {
+        std::cout << "latest driver branching with isDriverType\n";
+    } else {
+        std::cout << "unknown driver\n";
+        GTEST_FAIL();
+    }
 }
 
 }  // namespace

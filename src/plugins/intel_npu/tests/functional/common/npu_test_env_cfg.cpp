@@ -149,6 +149,31 @@ const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
     return instance;
 }
 
+std::optional<DriverType> g_driver_type;
+
+std::string driverTypeToString(std::optional<DriverType> type) {
+    if (!type.has_value()) {
+        return "";
+    }
+    switch (*type) {
+    case DriverType::PV:      return "PV";
+    case DriverType::RELEASE: return "RELEASE";
+    case DriverType::LATEST:  return "LATEST";
+    }
+    return "";
+}
+
+std::optional<DriverType> parseDriverType(const std::string& str) {
+    if (str == "pv" || str == "PV") {
+        return DriverType::PV;
+    } else if (str == "release" || str == "RELEASE") {
+        return DriverType::RELEASE;
+    } else if (str == "latest" || str == "LATEST") {
+        return DriverType::LATEST;
+    }
+    return std::nullopt;
+}
+
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead) {
     return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty())
                ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME

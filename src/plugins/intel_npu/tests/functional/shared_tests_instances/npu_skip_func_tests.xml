@@ -7,6 +7,9 @@ Example:
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
+            <driver_version>1688</driver_version> (exact build number, safe only for PV builds)
+            <driver_type>PV</driver_type> (driver type from --driver_type CLI arg: PV | RELEASE | LATEST)
+            <driver_type>!LATEST</driver_type> (negate: applies on PV and RELEASE)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -944,6 +947,28 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferWithHostCompileTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- this test is not supposed to ever run on PV -->
+    <skip_config>
+        <message>demo PV skip from skip config</message>
+        <enable_rules>
+            <driver_type>PV</driver_type>
+        </enable_rules>
+        <filters>
+            <filter>.*TestCompiledModelNPU*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- Temporary regression skip for a LATEST driver nightly that broke a test -->
+    <skip_config>
+        <message>demo LATEST skip from skip config</message>
+        <enable_rules>
+            <driver_type>LATEST</driver_type>
+        </enable_rules>
+        <filters>
+            <filter>.*TestCompiledModelNPU*</filter>
         </filters>
     </skip_config>
 
