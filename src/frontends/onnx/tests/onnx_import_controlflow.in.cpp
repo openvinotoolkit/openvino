@@ -927,6 +927,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_concat) {
     test_case.run();
 }
 
+/// @brief Regression test for the Loop back-edge reconciliation convergence fix.
+///
+/// Outer seed: [1.0], shape [1]. Body: Concat(a_in, [2.0]) grows dim[0] by 1 each iteration.
+/// After back-edge reconciliation the body parameter must widen to dynamic and the loop
+/// must run to completion (3 iterations) without hanging.
+///
+/// Without the fix (same_scheme replacing compatible in the reconciliation guard) the loop
+/// would spin INT_MAX times when the trip count is unknown, or produce a growing lower-bound
+/// Dimension that never stabilised with a static trip count.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_loop_back_edge_growing_merged_dim) {
+    const auto model = convert_model("controlflow/loop_concat_growing_merged_dim.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // seed = [1.0], trip_count = 3, step (body initializer) = [2.0]
+    // iter 0: concat([1.0], [2.0]) = [1.0, 2.0]
+    // iter 1: concat([1.0, 2.0], [2.0]) = [1.0, 2.0, 2.0]
+    // iter 2: concat([1.0, 2.0, 2.0], [2.0]) = [1.0, 2.0, 2.0, 2.0]
+    test_case.add_input<float>({1.f});  // a_init
+    test_case.add_expected_output<float>(Shape{4}, {1.f, 2.f, 2.f, 2.f});
+    test_case.run();
+}
+
 /// @brief Test SequenceEmpty -> SequenceInsert chain -> ConcatFromSequence with new_axis=1
 /// Exercises the same chain pattern starting from an empty sequence and stacking along a new axis.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_sequence_insert_chain_new_axis) {
