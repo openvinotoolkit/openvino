@@ -88,7 +88,7 @@ std::map<std::string, ov::PartialShape> parse_input_shapes(const std::string& sh
             shapes[resolve_input_tensor_name(name, inputs)] = ov::PartialShape(shape);
         }
 
-        remaining = remaining.substr(close_bracket + 1);
+        remaining = trim(remaining.substr(close_bracket + 1));
         if (!remaining.empty()) {
             if (remaining.front() == '[') {
                 OPENVINO_THROW("Multiple shape groups for the same input are not supported: ", shapes_string);
@@ -96,7 +96,7 @@ std::map<std::string, ov::PartialShape> parse_input_shapes(const std::string& sh
             if (remaining.front() != ',') {
                 OPENVINO_THROW("Cannot parse shape string: ", shapes_string);
             }
-            remaining = remaining.substr(1);
+            remaining = trim(remaining.substr(1));
         }
     }
 
