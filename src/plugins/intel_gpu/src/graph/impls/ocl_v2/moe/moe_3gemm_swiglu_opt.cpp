@@ -637,7 +637,6 @@ public:
         memory::ptr input_routing_weights;
         memory::ptr input_router_topk_idx;
         memory::ptr _expert_index_buffer;
-        bool _index_initialized = false;
     };
 
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;

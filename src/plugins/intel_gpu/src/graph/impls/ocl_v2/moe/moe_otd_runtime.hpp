@@ -66,15 +66,15 @@ inline OtdPerfCounters* get_perf_counters() {
     return &counters;
 }
 
-class parallel_weight_reader {
+class ParallelWeightReader {
 public:
-    explicit parallel_weight_reader(const std::string& weights_path) : _weights_path(weights_path) {
+    explicit ParallelWeightReader(const std::string& weights_path) : _weights_path(weights_path) {
         std::streamoff file_size = 0;
         ov::util::get_file_handle_and_size(std::filesystem::path(weights_path), 0, _shared_handle, file_size);
         _file_size = static_cast<size_t>(file_size);
     }
 
-    ~parallel_weight_reader() {
+    ~ParallelWeightReader() {
         ov::util::close_file_handle(_shared_handle);
     }
 
@@ -98,10 +98,10 @@ private:
     size_t _file_size = 0;
 };
 
-inline parallel_weight_reader& get_thread_local_weight_reader(const std::string& weights_path) {
-    thread_local std::unique_ptr<parallel_weight_reader> reader;
+inline ParallelWeightReader& get_thread_local_weight_reader(const std::string& weights_path) {
+    thread_local std::unique_ptr<ParallelWeightReader> reader;
     if (!reader || reader->path() != weights_path) {
-        reader = std::make_unique<parallel_weight_reader>(weights_path);
+        reader = std::make_unique<ParallelWeightReader>(weights_path);
     }
     return *reader;
 }

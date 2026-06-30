@@ -18,7 +18,7 @@
 
 namespace ov::intel_gpu::moe_offload {
 
-struct partial_upload_desc {
+struct PartialUploadDesc {
     bool enabled = false;
     cldnn::memory::ptr memory = nullptr;
     ov::Shape upload_shape;
@@ -36,7 +36,7 @@ inline bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>&
     return false;
 }
 
-class partial_upload_log_state {
+class PartialUploadLogState {
 public:
     static constexpr size_t max_detailed_logs = 3;
 
@@ -60,7 +60,7 @@ public:
         }
     }
 
-    ~partial_upload_log_state() {
+    ~PartialUploadLogState() {
         const size_t total = total_count.load(std::memory_order_relaxed);
         if (total > max_detailed_logs) {
             const size_t shown = max_detailed_logs;
@@ -78,18 +78,18 @@ private:
     std::atomic<uint64_t> total_target_bytes{0};
 };
 
-inline partial_upload_log_state& get_partial_upload_log_state() {
-    static partial_upload_log_state state;
+inline PartialUploadLogState& get_partial_upload_log_state() {
+    static PartialUploadLogState state;
     return state;
 }
 
-inline partial_upload_desc try_prepare_partial_upload(ProgramBuilder& p,
-                                                      const std::shared_ptr<ov::op::v0::Constant>& op,
-                                                      const ov::Shape& const_shape,
-                                                      cldnn::data_types out_dtype,
-                                                      const cldnn::format& const_format,
-                                                      const cldnn::layout& const_layout) {
-    partial_upload_desc desc;
+inline PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
+                                                    const std::shared_ptr<ov::op::v0::Constant>& op,
+                                                    const ov::Shape& const_shape,
+                                                    cldnn::data_types out_dtype,
+                                                    const cldnn::format& const_format,
+                                                    const cldnn::layout& const_layout) {
+    PartialUploadDesc desc;
 
     const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
     const bool partial_moe_const_upload = otd_ratio > 0 && is_moe_related_constant(op);
