@@ -14,9 +14,12 @@
  limitations under the License.
 """
 import functools
+import logging
 import subprocess
 import sys
 import time
+
+_log = logging.getLogger(__name__)
 
 
 def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backoff=False, backoff_multiplier=2, max_delay=None):
@@ -38,16 +41,16 @@ def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backof
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
+                    _log.warning("Attempt %d of %d failed: %s", attempt + 1, max_retries, e)
                     if attempt < max_retries - 1 and delay is not None:
                         if exponential_backoff:
                             backoff_delay = delay * (backoff_multiplier ** attempt)
                             if max_delay is not None:
                                 backoff_delay = min(backoff_delay, max_delay)
-                            print(f"Waiting {backoff_delay:.2f} seconds before retry")
+                            _log.debug("Waiting %.2f seconds before retry", backoff_delay)
                             time.sleep(backoff_delay)
                         else:
-                            print(f"Waiting {delay} seconds before retry")
+                            _log.debug("Waiting %s seconds before retry", delay)
                             time.sleep(delay)
                     else:
                         raise e
@@ -73,8 +76,9 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
     else:
         cmd = " ".join(cmd)
 
-    sys.stdout.write("Running command:\n" + " ".join(cmd) + "\n")
+    _log.debug("Running: %s", " ".join(cmd) if isinstance(cmd, list) else cmd)
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    _log.debug("PID %d started", p.pid)
     try:
         try:
             stdout, stderr = p.communicate(timeout=timeout)
@@ -82,13 +86,16 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
             p.kill()
             stdout, stderr = p.communicate()
             stdout_str = stdout.decode("utf-8") if stdout else ""
+            _log.warning("PID %d timed out after %s s; killed. stdout: %s", p.pid, timeout, stdout_str[:2000])
             return -1, stdout_str, f"Command timed out after {timeout} seconds"
     finally:
         if p.poll() is None:
+            _log.warning("PID %d still running after communicate(); killing (likely pytest-timeout)", p.pid)
             p.kill()
             p.wait()
     stdout = str(stdout.decode('utf-8'))
     stderr = str(stderr.decode('utf-8'))
+    _log.debug("PID %d exited %d\nstdout: %s\nstderr: %s", p.pid, p.returncode, stdout[:4000], stderr[:4000])
     if out_format == "html":
         stdout = "<br>\n".join(stdout.split('\n'))
         stderr = "<br>\n".join(stderr.split('\n'))
