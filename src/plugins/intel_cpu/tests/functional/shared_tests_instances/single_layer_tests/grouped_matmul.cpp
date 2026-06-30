@@ -18,7 +18,6 @@ using ov::test::utils::DecompressionType;
 const std::vector<GroupedMatMulShapeParams> shapes = {
     // 3D x 3D: A:[G,M,K] x B:[G,N,K] -> [G,M,N], dynamic M dim.
     {{ov::PartialShape{4, -1, 128}, {{4, 8, 128}, {4, 1, 128}, {4, 16, 128}}}, {4, 256, 128}, {}},
-    {{ov::PartialShape{4, -1, 77}, {{4, 8, 77}, {4, 1, 77}, {4, 8, 77}}}, {4, 123, 77}, {}},
     {{ov::PartialShape{8, -1, 256}, {{8, 4, 256}, {8, 1, 256}}}, {8, 512, 256}, {}},
     // 2D x 3D: A:[T,K] x B:[G,N,K] -> [T,N], dynamic T dim.
     {{ov::PartialShape{-1, 128}, {{16, 128}, {32, 128}, {8, 128}}}, {4, 256, 128}, TokensPerExpert{{8, 0, 8, 0}, {0, 16, 0, 16}, {4, 4, 0, 0}}},
@@ -48,7 +47,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::Values(DecompressionType::empty, DecompressionType::full),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),
-                                            ::testing::Values(16),
+                                            ::testing::Values(-1, 16),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmul")),
+                         GroupedMatMulCompressedLayerTest::getTestCaseName);
+
+
+// Corner cases: odd K, non-power-of-2 N
+const std::vector<GroupedMatMulShapeParams> shapes_corner_cases = {
+    {{ov::PartialShape{4, -1, 77}, {{4, 8, 77}, {4, 1, 77}, {4, 8, 77}}}, {4, 123, 77}, {}},
+    {{ov::PartialShape{-1, 77}, {{12, 77}, {20, 77}}}, {4, 123, 77}, TokensPerExpert{{4, 5, 3, 0}, {0, 7, 6, 7}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_CornerCases,
+                         GroupedMatMulLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_corner_cases),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmul")),
+                         GroupedMatMulLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_CornerCases,
+                         GroupedMatMulCompressedLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_corner_cases),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(DecompressionType::empty, DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(-1),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values("GatherMatmul")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);

@@ -47,9 +47,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed,
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::ValuesIn(subtract_types),
                                             ::testing::Values(true),
-                                            ::testing::Values(128),
+                                            ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values("gather_matmul")),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
-
 }  // namespace
