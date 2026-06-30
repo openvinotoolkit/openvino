@@ -81,8 +81,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         };
 
         if (model) {
-            auto& inputs = model->inputs();
-            auto& outputs = model->outputs();
+            const auto& inputs = model->inputs();
+            const auto& outputs = model->outputs();
             const bool inputsDynamic = std::any_of(inputs.begin(), inputs.end(), isDynamic);
             const bool outputsDynamic = std::any_of(outputs.begin(), outputs.end(), isDynamic);
             if (inputsDynamic && outputsDynamic) {
