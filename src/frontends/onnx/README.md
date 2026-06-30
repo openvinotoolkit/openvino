@@ -17,7 +17,6 @@ In case of any questions, review and merge requests, contact the [openvino-onnx-
 ## Components
 
 ONNX Frontend implements an interface common to all frontends defined in the [Frontends API](../common/include/openvino/frontend).
-For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. You can find it in the [ONNX Importer](./frontend/include/onnx_import/onnx.hpp).
 
 The API of ONNX Frontend can be called directly. It is also used internally by [OpenVINO Model Converter](../../../tools/ovc) during the conversion from ONNX to Intermediate Representation (IR). The capabilities of ONNX Frontend are used by the [ONNX Runtime via OpenVINO Execution Provider](https://onnxruntime.ai/docs/build/eps.html#openvino).
 
