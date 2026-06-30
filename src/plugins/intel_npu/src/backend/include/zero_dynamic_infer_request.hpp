@@ -40,7 +40,7 @@ protected:
     void update_tensor(const std::vector<IDynamicGraph::MemRefType>& outputProps);
 
     bool _isTensorChanged = false;
-    std::vector<std::optional<ov::Shape>> _cachedUserInputShapes;
+    std::vector<std::vector<std::optional<ov::Shape>>> _cachedUserInputShapes;
     std::vector<std::optional<ov::Shape>> _cachedUserOutputShapes;
 };
 
