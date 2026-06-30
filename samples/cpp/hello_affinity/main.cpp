@@ -53,6 +53,50 @@ std::vector<std::string> split_string(const std::string& value, char delim) {
     return result;
 }
 
+std::string format_any_value(const ov::Any& value);
+
+std::string format_any_map(const ov::AnyMap& values) {
+    std::stringstream stream;
+
+    stream << "{";
+    for (auto property = values.begin(); property != values.end(); ++property) {
+        if (property != values.begin()) {
+            stream << ", ";
+        }
+        stream << property->first << ": " << format_any_value(property->second);
+    }
+    stream << "}";
+
+    return stream.str();
+}
+
+std::string format_any_value(const ov::Any& value) {
+    if (value.empty()) {
+        return "EMPTY VALUE";
+    }
+
+    if (value.is<ov::AnyMap>()) {
+        return format_any_map(value.as<ov::AnyMap>());
+    }
+
+    std::stringstream stream;
+    try {
+        value.print(stream);
+    } catch (const std::exception& ex) {
+        return std::string("<error formatting value: ") + ex.what() + ">";
+    }
+
+    auto result = stream.str();
+    if (result.empty() && value.is<std::string>()) {
+        return "\"\"";
+    }
+    if (result.empty()) {
+        return "<value is not printable as text>";
+    }
+
+    return result;
+}
+
 std::vector<std::string> parse_device_list(const std::string& device_name) {
     std::string comma_separated_devices = device_name;
     auto colon = comma_separated_devices.find(':');
@@ -99,7 +143,8 @@ ov::Layout get_default_layout(const ov::PartialShape& shape) {
     }
 
     if (shape.size() == 4) {
-        return shape[3].get_max_length() <= 4 && shape[1].get_max_length() > 4 ? ov::Layout("NHWC") : ov::Layout("NCHW");
+        return shape[3].get_max_length() <= 4 && shape[1].get_max_length() > 4 ? ov::Layout("NHWC")
+                                                                               : ov::Layout("NCHW");
     }
 
     return {};
@@ -281,17 +326,21 @@ void print_runtime_parameters(const ov::CompiledModel& compiled_model) {
         }
 
         const auto property = compiled_model.get_property(property_name);
-        if (property_name == ov::device::properties) {
+        if (property_name == ov::device::properties && property.is<ov::AnyMap>()) {
             const auto devices_properties = property.as<ov::AnyMap>();
             for (const auto& device_properties : devices_properties) {
                 slog::info << "  " << device_properties.first << ":" << slog::endl;
-                for (const auto& device_property : device_properties.second.as<ov::AnyMap>()) {
-                    slog::info << "    " << device_property.first << ": " << device_property.second.as<std::string>()
-                               << slog::endl;
+                if (device_properties.second.is<ov::AnyMap>()) {
+                    for (const auto& device_property : device_properties.second.as<ov::AnyMap>()) {
+                        slog::info << "    " << device_property.first << ": " << format_any_value(device_property.second)
+                                   << slog::endl;
+                    }
+                } else {
+                    slog::info << "    " << format_any_value(device_properties.second) << slog::endl;
                 }
             }
         } else {
-            slog::info << "  " << property_name << ": " << property.as<std::string>() << slog::endl;
+            slog::info << "  " << property_name << ": " << format_any_value(property) << slog::endl;
         }
     }
 }
@@ -418,8 +467,9 @@ int tmain(int argc, tchar* argv[]) {
                                    "Please provide an affinity JSON file or remove --fallback-device.");
         }
         if (!affinity_spec.empty() && (parsed_devices.front() != "HETERO" || hardware_devices.empty())) {
-            throw std::logic_error("The -affinity option is supported only with the HETERO plugin and requires an explicit device list. "
-                                   "Please use -d HETERO:<devices> or remove -affinity.");
+            throw std::logic_error(
+                "The -affinity option is supported only with the HETERO plugin and requires an explicit device list. "
+                "Please use -d HETERO:<devices> or remove -affinity.");
         }
 
         ov::Core core;

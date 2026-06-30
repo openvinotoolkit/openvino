@@ -35,10 +35,10 @@ using UniformDistribution = typename std::conditional<std::is_floating_point<T>:
 
 template <typename T, typename DistributionType = T>
 void fill_tensor_random(ov::Tensor& tensor,
+                        std::mt19937& generator,
                         DistributionType min_value = std::numeric_limits<uint8_t>::min(),
                         DistributionType max_value = std::numeric_limits<uint8_t>::max()) {
     auto data = tensor.data<T>();
-    std::mt19937 generator(0);
     UniformDistribution<DistributionType> distribution(min_value, max_value);
     for (size_t index = 0; index < tensor.get_size(); index++) {
         data[index] = static_cast<T>(distribution(generator));
@@ -164,57 +164,91 @@ struct LatencyStatistics {
     double average = 0.0;
     double min = 0.0;
     double max = 0.0;
+    bool median_is_approximate = false;
 };
 
-LatencyStatistics get_latency_statistics(std::vector<double> latencies) {
-    if (latencies.empty()) {
-        return {};
+class LatencyStatisticsCollector {
+public:
+    explicit LatencyStatisticsCollector(size_t iterations) {
+        constexpr size_t max_median_samples = 10000;
+        m_sample_step = iterations <= max_median_samples ? 1 : iterations / max_median_samples;
+        if (iterations > max_median_samples && iterations % max_median_samples != 0) {
+            ++m_sample_step;
+        }
+
+        m_median_samples.reserve(std::min(iterations, max_median_samples));
     }
 
-    std::sort(latencies.begin(), latencies.end());
+    void add(double latency) {
+        if (m_count == 0) {
+            m_min = latency;
+            m_max = latency;
+        } else {
+            m_min = std::min(m_min, latency);
+            m_max = std::max(m_max, latency);
+        }
 
-    double sum = 0.0;
-    for (const auto latency : latencies) {
-        sum += latency;
+        m_sum += latency;
+        if (m_count % m_sample_step == 0) {
+            m_median_samples.push_back(latency);
+        }
+        ++m_count;
     }
 
-    const auto middle = latencies.size() / 2;
-    const auto median =
-        latencies.size() % 2 == 0 ? (latencies[middle - 1] + latencies[middle]) / 2.0 : latencies[middle];
+    LatencyStatistics get() {
+        if (m_count == 0) {
+            return {};
+        }
 
-    return {median, sum / static_cast<double>(latencies.size()), latencies.front(), latencies.back()};
-}
+        std::sort(m_median_samples.begin(), m_median_samples.end());
+        const auto middle = m_median_samples.size() / 2;
+        const auto median = m_median_samples.size() % 2 == 0
+                                ? (m_median_samples[middle - 1] + m_median_samples[middle]) / 2.0
+                                : m_median_samples[middle];
 
-void fill_tensor_with_random_data(ov::Tensor& tensor) {
+        return {median, m_sum / static_cast<double>(m_count), m_min, m_max, m_median_samples.size() != m_count};
+    }
+
+private:
+    size_t m_sample_step = 1;
+    size_t m_count = 0;
+    double m_sum = 0.0;
+    double m_min = 0.0;
+    double m_max = 0.0;
+    std::vector<double> m_median_samples;
+};
+
+void fill_tensor_with_random_data(ov::Tensor& tensor, std::mt19937& generator) {
     const auto type = tensor.get_element_type();
     if (type == ov::element::f32) {
-        fill_tensor_random<float, float>(tensor);
+        fill_tensor_random<float, float>(tensor, generator);
     } else if (type == ov::element::f64) {
-        fill_tensor_random<double, double>(tensor);
+        fill_tensor_random<double, double>(tensor, generator);
     } else if (type == ov::element::f16) {
-        fill_tensor_random<ov::float16, float>(tensor);
+        fill_tensor_random<ov::float16, float>(tensor, generator);
     } else if (type == ov::element::bf16) {
-        fill_tensor_random<ov::bfloat16, float>(tensor);
+        fill_tensor_random<ov::bfloat16, float>(tensor, generator);
     } else if (type == ov::element::i64) {
-        fill_tensor_random<int64_t, int64_t>(tensor);
+        fill_tensor_random<int64_t, int64_t>(tensor, generator);
     } else if (type == ov::element::i32) {
-        fill_tensor_random<int32_t, int32_t>(tensor);
+        fill_tensor_random<int32_t, int32_t>(tensor, generator);
     } else if (type == ov::element::i16) {
-        fill_tensor_random<int16_t, int16_t>(tensor);
+        fill_tensor_random<int16_t, int16_t>(tensor, generator);
     } else if (type == ov::element::i8) {
         fill_tensor_random<int8_t, int32_t>(tensor,
+                                            generator,
                                             std::numeric_limits<int8_t>::min(),
                                             std::numeric_limits<int8_t>::max());
     } else if (type == ov::element::u64) {
-        fill_tensor_random<uint64_t, uint64_t>(tensor);
+        fill_tensor_random<uint64_t, uint64_t>(tensor, generator);
     } else if (type == ov::element::u32) {
-        fill_tensor_random<uint32_t, uint32_t>(tensor);
+        fill_tensor_random<uint32_t, uint32_t>(tensor, generator);
     } else if (type == ov::element::u16) {
-        fill_tensor_random<uint16_t, uint16_t>(tensor);
+        fill_tensor_random<uint16_t, uint16_t>(tensor, generator);
     } else if (type == ov::element::u8) {
-        fill_tensor_random<uint8_t, uint32_t>(tensor);
+        fill_tensor_random<uint8_t, uint32_t>(tensor, generator);
     } else if (type == ov::element::boolean) {
-        fill_tensor_random<uint8_t, uint32_t>(tensor, 0, 1);
+        fill_tensor_random<uint8_t, uint32_t>(tensor, generator, 0, 1);
     } else if (tensor.get_byte_size() != 0) {
         std::memset(tensor.data(), 0, tensor.get_byte_size());
     }
@@ -256,7 +290,8 @@ ov::Shape get_inference_tensor_shape(const ov::Output<const ov::Node>& input,
 
 ov::Tensor create_input_tensor(const ov::Output<const ov::Node>& input,
                                size_t current_sequence_length,
-                               const std::map<std::string, ov::PartialShape>& data_shapes) {
+                               const std::map<std::string, ov::PartialShape>& data_shapes,
+                               std::mt19937& generator) {
     const auto tensor_shape = get_inference_tensor_shape(input, data_shapes);
 
     if (input.get_element_type() == ov::element::string) {
@@ -272,7 +307,7 @@ ov::Tensor create_input_tensor(const ov::Output<const ov::Node>& input,
     } else if (contains_substring(name, "total_seq_len")) {
         fill_integer_tensor_value(tensor, static_cast<int64_t>(current_sequence_length));
     } else {
-        fill_tensor_with_random_data(tensor);
+        fill_tensor_with_random_data(tensor, generator);
     }
 
     return tensor;
@@ -292,9 +327,10 @@ double run_inference(ov::CompiledModel& compiled_model,
     const auto data_shapes = data_shape_string.empty() ? std::map<std::string, ov::PartialShape>{}
                                                        : parse_input_shapes(data_shape_string, compiled_model.inputs());
     const auto current_sequence_length = get_current_sequence_length(compiled_model);
+    std::mt19937 generator(0);
     slog::info << "Current sequence length hint: " << current_sequence_length << slog::endl;
     for (const auto& input : compiled_model.inputs()) {
-        auto tensor = create_input_tensor(input, current_sequence_length, data_shapes);
+        auto tensor = create_input_tensor(input, current_sequence_length, data_shapes, generator);
         slog::info << "Setting input tensor " << input.get_any_name() << " : " << tensor.get_element_type() << " / "
                    << tensor.get_shape() << slog::endl;
         infer_request.set_tensor(input.get_any_name(), tensor);
@@ -312,19 +348,18 @@ double run_inference(ov::CompiledModel& compiled_model,
 
     slog::info << "Starting inference" << slog::endl;
     slog::info << "Inference iterations: " << iterations << slog::endl;
-    std::vector<double> latencies;
-    latencies.reserve(iterations);
+    LatencyStatisticsCollector latency_statistics_collector(iterations);
 
     const auto infer_start_time = Time::now();
     for (size_t iteration = 0; iteration < iterations; ++iteration) {
         const auto iteration_start_time = Time::now();
         infer_request.infer();
-        latencies.push_back(get_duration_ms(iteration_start_time));
+        latency_statistics_collector.add(get_duration_ms(iteration_start_time));
     }
     const auto total_infer_time_ms = get_duration_ms(infer_start_time);
     const auto batch_size = get_batch_size(compiled_model);
     const auto throughput = total_infer_time_ms == 0.0 ? 0.0 : 1000.0 * batch_size * iterations / total_infer_time_ms;
-    const auto latency_statistics = get_latency_statistics(std::move(latencies));
+    const auto latency_statistics = latency_statistics_collector.get();
 
     slog::info << "Inference completed successfully" << slog::endl;
 
@@ -337,10 +372,11 @@ double run_inference(ov::CompiledModel& compiled_model,
     slog::info << "Count:               " << iterations << " iterations" << slog::endl;
     slog::info << "Duration:            " << format_duration_ms(total_infer_time_ms) << " ms" << slog::endl;
     slog::info << "Latency:" << slog::endl;
-    slog::info << "   Median:           " << format_duration_ms(latency_statistics.median) << " ms" << slog::endl;
+    slog::info << "   Median" << (latency_statistics.median_is_approximate ? " (approx):  " : ":           ")
+               << format_duration_ms(latency_statistics.median) << " ms" << slog::endl;
     slog::info << "   Average:          " << format_duration_ms(latency_statistics.average) << " ms" << slog::endl;
     slog::info << "   Min:              " << format_duration_ms(latency_statistics.min) << " ms" << slog::endl;
     slog::info << "   Max:              " << format_duration_ms(latency_statistics.max) << " ms" << slog::endl;
-    slog::info << "Throughput:          " << format_duration_ms(throughput) << " FPS" << slog::endl;
+    slog::info << "Throughput:          " << format_double(throughput) << " FPS" << slog::endl;
     return total_infer_time_ms;
 }

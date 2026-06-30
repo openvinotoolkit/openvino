@@ -50,10 +50,14 @@ bool contains_substring(const std::string& value, const std::string& substring) 
     return to_lower(value).find(to_lower(substring)) != std::string::npos;
 }
 
-std::string format_duration_ms(double value) {
+std::string format_double(double value) {
     std::ostringstream stream;
     stream << std::fixed << std::setprecision(2) << value;
     return stream.str();
+}
+
+std::string format_duration_ms(double value) {
+    return format_double(value);
 }
 
 std::string partial_shapes_to_string(const std::map<std::string, ov::PartialShape>& shapes) {

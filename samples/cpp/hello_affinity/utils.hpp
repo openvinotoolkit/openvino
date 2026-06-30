@@ -14,6 +14,8 @@ std::string to_lower(std::string value);
 
 bool contains_substring(const std::string& value, const std::string& substring);
 
+std::string format_double(double value);
+
 std::string format_duration_ms(double value);
 
 std::string partial_shapes_to_string(const std::map<std::string, ov::PartialShape>& shapes);
