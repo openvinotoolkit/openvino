@@ -77,11 +77,33 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
     };
 
     std::unordered_set<std::string> mapped_devices;
+    std::unordered_set<std::string> matched_affinity_keys;
     for (const auto& node : model->get_ops()) {
         const auto it = find_node_mapping(node);
         if (it != affinity_json.end()) {
+            matched_affinity_keys.insert(it.key());
             mapped_devices.insert(it->get<std::string>());
         }
+    }
+
+    std::ostringstream unknown_nodes_oss;
+    size_t unknown_nodes_count = 0;
+    for (const auto& item : affinity_json.items()) {
+        if (matched_affinity_keys.find(item.key()) == matched_affinity_keys.end()) {
+            if (unknown_nodes_count != 0) {
+                unknown_nodes_oss << ", ";
+            }
+            unknown_nodes_oss << item.key();
+            unknown_nodes_count++;
+        }
+    }
+    if (unknown_nodes_count != 0) {
+        OPENVINO_THROW("Affinity file ",
+                       file_path,
+                       " contains mappings for unknown model node name",
+                       unknown_nodes_count == 1 ? "" : "s",
+                       ": ",
+                       unknown_nodes_oss.str());
     }
 
     std::vector<std::string> unmapped_hardware_devices;

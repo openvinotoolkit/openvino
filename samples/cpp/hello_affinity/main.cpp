@@ -106,8 +106,9 @@ std::vector<std::string> parse_device_list(const std::string& device_name) {
         if (is_virtual_device_name(target_device)) {
             devices.push_back(target_device);
         }
-        auto bracket = comma_separated_devices.find('(');
-        comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
+        const auto bracket = comma_separated_devices.find('(', colon + 1);
+        const auto devices_end = bracket == std::string::npos ? comma_separated_devices.size() : bracket;
+        comma_separated_devices = comma_separated_devices.substr(colon + 1, devices_end - colon - 1);
     }
 
     for (auto&& device : split_string(comma_separated_devices, ',')) {
@@ -332,8 +333,8 @@ void print_runtime_parameters(const ov::CompiledModel& compiled_model) {
                 slog::info << "  " << device_properties.first << ":" << slog::endl;
                 if (device_properties.second.is<ov::AnyMap>()) {
                     for (const auto& device_property : device_properties.second.as<ov::AnyMap>()) {
-                        slog::info << "    " << device_property.first << ": " << format_any_value(device_property.second)
-                                   << slog::endl;
+                        slog::info << "    " << device_property.first << ": "
+                                   << format_any_value(device_property.second) << slog::endl;
                     }
                 } else {
                     slog::info << "    " << format_any_value(device_properties.second) << slog::endl;

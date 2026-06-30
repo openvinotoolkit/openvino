@@ -13,7 +13,8 @@ hello_affinity -m <path_to_model> [-d <device_name>] [-affinity <affinity|path_t
 ```
 
 The optional `-affinity` argument accepts either a single device name such as `CPU` or `GPU`, or a JSON file with
-`{node_name: device_name}` mappings. If it is omitted, the selected device plugin assigns operations.
+`{node_name: device_name}` mappings. JSON files are detected by the `.json` or `.JSON` file extension. If it is
+omitted, the selected device plugin assigns operations.
 `-affinity` is supported only with `-d HETERO:<devices>`.
 
 When a virtual device such as `HETERO:CPU,GPU` is used, the sample validates affinity values against the hardware
