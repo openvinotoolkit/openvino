@@ -1787,7 +1787,9 @@ public:
 
     using lru_cache_hash = LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash>;
     lru_cache_hash _kernels = lru_cache_hash(1024);
-    std::shared_ptr<onednn_kernel> _otd_kernel_holder;
+    // OTD mode: cache kernel by n_token only (shape is expert-independent)
+    using otd_kernel_cache = LruCache<int, std::shared_ptr<onednn_kernel>>;
+    otd_kernel_cache _otd_kernels = otd_kernel_cache(128);
 
     // --- grouped GEMM kernel cache (one primitive set per total-token count) ---
     struct grouped_onednn_kernel {
@@ -1808,11 +1810,38 @@ public:
     using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        // OTD mode: cache by n_token only since all experts share the same shape.
+        // Only the weight/scale/zp memory handles differ per expert, and those are
+        // passed as execute arguments so the cached primitive can be reused.
+        if (is_otd()) {
+            if (!_otd_kernels.has(n_token)) {
+                auto kernel = create_kernel(n_token, expert_no, instance);
+                _otd_kernels.add(n_token, kernel);
+            }
+            auto& kernel = *_otd_kernels.get(n_token);
+            auto& dw = _dnnl_weights[expert_no];
+            kernel.gate.weight = dw[0].weight;
+            kernel.gate.scale = dw[0].scale;
+            kernel.gate.zp = dw[0].zp;
+            kernel.up.weight = dw[1].weight;
+            kernel.up.scale = dw[1].scale;
+            kernel.up.zp = dw[1].zp;
+            kernel.down.weight = dw[2].weight;
+            kernel.down.scale = dw[2].scale;
+            kernel.down.zp = dw[2].zp;
+            return kernel;
+        }
+
         auto key = std::make_pair(n_token, expert_no);
         if (_kernels.has(key)) {
             return *_kernels.get(key);
         }
+        auto kernel = create_kernel(n_token, expert_no, instance);
+        _kernels.add(key, kernel);
+        return *_kernels.get(key);
+    }
 
+    std::shared_ptr<onednn_kernel> create_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         auto& dnn_stream = stream.get_onednn_stream();
@@ -1867,14 +1896,7 @@ public:
                                              dnnl_weights[2].weight,
                                              dnnl_weights[2].scale,
                                              dnnl_weights[2].zp);
-        // each time dnnl_weights updated need refresh kernel cache in OTD mode, if not, the stream engine context and memory storage engine context will
-        // mismatch, dnnl kernel will report invalid_arguments and fail or compute wrong and output wrong tokens. if any perf concerns, need deep dive here.
-        if (is_otd()) {
-            _otd_kernel_holder = kernel;
-            return *_otd_kernel_holder;
-        }
-        _kernels.add(key, kernel);
-        return *_kernels.get(key);
+        return kernel;
     }
 
     // Build (and cache) three grouped dnnl::matmul primitives for gate/up/down.
