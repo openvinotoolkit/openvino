@@ -82,19 +82,19 @@ namespace pass {
 ///
 /// Channel recovery walk-back (the two chained window-reverse views):
 ///
-///        data [?,8,8,180]                          (static last dim = 180)
+///        data [?,8,8,180]   (static last dim = 180)
 ///              │
-///        ┌─────▼──────┐  Reshape_1 (1st view)   ── channel resolved DIRECTLY from data's
-///        │  Reshape   │  out [?,?,?,8,8,180]        static last dim ──────────────► 180
-///        └─────┬──────┘                                                              │
-///              │  out last dim 180 still static                                      │
-///        ┌─────▼──────┐  Transpose(order=[0,1,3,2,4,5])   last axis kept last        │
-///        │ Transpose  │  out [?,?,?,?,?,?] (fully dynamic — bounds collapse)         │
-///        └─────┬──────┘                                                              │
-///              │  data last dim now DYNAMIC                                          │
-///        ┌─────▼──────┐  Reshape_2 (2nd view)   ── channel resolved by WALK-BACK:    │
-///        │  Reshape   │  out [?,H,W,-1]            Transpose (last-axis-preserving)   │
-///        └─────┬──────┘                            then Reshape_1's recorded channel ┘
+///        ┌─────▼──────┐  Reshape_1 (1st view): channel resolved DIRECTLY from its data's
+///        │  Reshape   │  static last dim 180. Its OWN output last dim is DYNAMIC
+///        └─────┬──────┘  (out [?,?,?,8,8,?]) -- 180 is RECORDED, not read off this output.
+///              │
+///        ┌─────▼──────┐  Transpose(order=[0,1,3,2,4,5]): last axis kept last
+///        │ Transpose  │  out [?,?,?,?,?,?] (fully dynamic -- bounds collapse)
+///        └─────┬──────┘
+///              │  data last dim is now DYNAMIC
+///        ┌─────▼──────┐  Reshape_2 (2nd view): channel resolved by WALK-BACK through the
+///        │  Reshape   │  last-axis-preserving Transpose to Reshape_1's RECORDED channel 180
+///        └─────┬──────┘  (out [?,H,W,-1]).
 ///              ▼
 ///
 /// Reshape_1 takes the DIRECT path (its own data last dim is static) and the trailing-block guard
