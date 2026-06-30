@@ -1,0 +1,17 @@
+{
+  "run_id": "28425259819",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28425259819",
+  "pr_number": "36627",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36627",
+  "head_sha": "55a9032c760a565d97709479d98d8b4196959243",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+  "timestamp": "2026-06-30T06:54:51Z",
+  "failed_jobs": [
+    "Build / Build"
+  ],
+  "category": "Network",
+  "signature_hash": "b8b6bc5f75a07aea",
+  "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
+  "error_summary": "CMake failed to download oneapi-tbb-2021.13.2-win.zip from storage.openvinotoolkit.org with curl error 6 (COULDNT_RESOLVE_HOST). Build configuration was incomplete.",
+  "root_cause": "Network/DNS failure: storage.openvinotoolkit.org hostname could not be resolved on the Windows runner. This is a transient infrastructure issue unrelated to the PR changes."
+}

@@ -127,6 +127,18 @@
       "timestamp": "2026-06-29T21:12:18Z",
       "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
       "category": "Network"
+    },
+    {
+      "file": "2026-06-30-06-54-51-000-28425259819.json",
+      "run_id": "28425259819",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28425259819",
+      "pr_number": "36627",
+      "timestamp": "2026-06-30T06:54:51Z",
+      "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
+      "category": "Network",
+      "signature_hash": "b8b6bc5f75a07aea"
     }
-  ]
+  ],
+  "total": 17,
+  "last_updated": "2026-06-30T06:54:51Z"
 }

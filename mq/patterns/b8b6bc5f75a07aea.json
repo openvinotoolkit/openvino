@@ -1,0 +1,17 @@
+{
+  "signature": "file DOWNLOAD cannot compute hash on failed download status Could not resolve hostname|Build / Build|Network",
+  "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-06-30T06:54:51Z",
+  "last_seen": "2026-06-30T06:54:51Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28425259819"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36627"
+  ],
+  "recent_timestamps": [
+    "2026-06-30T06:54:51Z"
+  ]
+}
