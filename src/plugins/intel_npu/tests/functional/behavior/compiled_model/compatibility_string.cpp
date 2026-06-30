@@ -471,13 +471,17 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-
     if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     }
+
+    // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
+    // message is not present in the log
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompilerFallbackForOlderDriver) {
@@ -507,13 +511,17 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-
     if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     }
+
+    // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
+    // message is not present in the log
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertiesLoadsPluginCompiler) {
@@ -546,21 +554,22 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
     if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
+                  std::string::npos);
     }
-}
 
-TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
-    // Empty descriptor means that there are no runtime requirements
-    // No E2E test reaches this branch because compilation never produces an empty descriptor
-    ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
-    OV_ASSERT_NO_THROW(result = core.get_property(deviceName,
-                                                  ov::compatibility_check,
-                                                  std::make_pair(ov::runtime_requirements.name(), "")));
-    ASSERT_EQ(result, ov::CompatibilityCheck::NOT_APPLICABLE);
-}
+    TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
+        // Empty descriptor means that there are no runtime requirements
+        // No E2E test reaches this branch because compilation never produces an empty descriptor
+        ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
+        OV_ASSERT_NO_THROW(result = core.get_property(deviceName,
+                                                      ov::compatibility_check,
+                                                      std::make_pair(ov::runtime_requirements.name(), "")));
+        ASSERT_EQ(result, ov::CompatibilityCheck::NOT_APPLICABLE);
+    }
 
 }  // namespace ov::test::behavior
 
