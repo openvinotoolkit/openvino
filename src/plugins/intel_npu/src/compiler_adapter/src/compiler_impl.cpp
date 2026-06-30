@@ -257,7 +257,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     // Support only the lastest VCL api
-    auto allocator = std::make_shared<vcl_allocator_3>();
+    auto allocator = std::make_shared<vcl_allocator_2>();
     uint8_t* blob = nullptr;
     uint64_t blobSize = 0;
     vcl_executable_handle_t executable = nullptr;
@@ -304,10 +304,6 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     uint64_t compatibilityStringSize = 0;
     result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
     if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
-        auto tracked_allocations = allocator->m_info;
-        for (const auto& [buffer, size] : tracked_allocations) {
-            allocator->deallocate(allocator.get(), buffer);
-        }
         if (executable != nullptr) {
             vclExecutableDestroy(executable);
         }
@@ -323,10 +319,6 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     compatibilityString.emplace(static_cast<size_t>(compatibilityStringSize), '\0');
     result = vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
     if (result != VCL_RESULT_SUCCESS) {
-        auto tracked_allocations = allocator->m_info;
-        for (const auto& [buffer, size] : tracked_allocations) {
-            allocator->deallocate(allocator.get(), buffer);
-        }
         if (executable != nullptr) {
             vclExecutableDestroy(executable);
         }
@@ -409,7 +401,7 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    auto allocator = std::make_shared<vcl_allocator_3>();
+    auto allocator = std::make_shared<vcl_allocator_2>();
 
     THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
                           vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, allocator.get()),

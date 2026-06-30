@@ -38,12 +38,12 @@ public:
 protected:
     std::string targetDevice;
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<::intel_npu::vcl_allocator_3> allocator;
+    std::shared_ptr<::intel_npu::vcl_allocator_2> allocator;
 
     void SetUp() override {
         targetDevice = GetParam();
         model = ov::test::utils::make_conv_pool_relu();
-        allocator = std::make_shared<::intel_npu::vcl_allocator_3>();
+        allocator = std::make_shared<::intel_npu::vcl_allocator_2>();
 
         try {
             std::string ov_lib_dir = ov::test::utils::getOpenvinoLibDirectory();
