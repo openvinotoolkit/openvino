@@ -4,6 +4,9 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#    include <sys/fcntl.h>
+#endif
 
 #include "openvino/util/file_util.hpp"
 
@@ -15,15 +18,24 @@ FileHandle open_file(const std::filesystem::path& path, FileMode mode) {
     if (has_flag(mode, FileMode::READ)) {
         flags |= O_RDONLY;
     }
+#if defined(O_DIRECT)
     if (has_flag(mode, FileMode::DIRECT)) {
         flags |= O_DIRECT;
     }
-    return ::open(path.c_str(), flags);
+#endif
+    FileHandle fd = ::open(path.c_str(), flags);
+#if defined(__APPLE__) && defined(F_NOCACHE)
+    // macOS has no O_DIRECT; use F_NOCACHE to disable the unified buffer cache.
+    if (fd != invalid_handle && has_flag(mode, FileMode::DIRECT)) {
+        ::fcntl(fd, F_NOCACHE, 1);
+    }
+#endif
+    return fd;
 }
 
 void close_file(FileHandle handle) {
     // CVS-189123
-    if (handle != -1) {
+    if (handle != invalid_handle) {
         ::close(handle);
     }
 }
