@@ -202,17 +202,22 @@ bool get_imad_support(const cl::Device& device) {
 
 device_info init_device_info(const cl::Device& device, const cl::Context& context) {
     device_info info = {};
-    info.vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
-    info.dev_name = device.getInfo<CL_DEVICE_NAME>();
-    info.driver_version = device.getInfo<CL_DRIVER_VERSION>();
-    info.dev_type = get_device_type(device);
-    info.sub_device_idx = std::numeric_limits<uint32_t>::max();
-
-    info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
-
-    info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
-
-    info.max_work_group_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
+    try {
+        info.vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
+        info.dev_name = device.getInfo<CL_DEVICE_NAME>();
+        info.driver_version = device.getInfo<CL_DRIVER_VERSION>();
+        info.dev_type = get_device_type(device);
+        info.sub_device_idx = std::numeric_limits<uint32_t>::max();
+        info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
+        info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
+        info.max_work_group_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
+    } catch (const cl::Error& e) {
+        GPU_DEBUG_LOG << "OpenCL error in init_device_info (early init): " << e.what() << " (code: " << e.err() << ")" << std::endl;
+        throw;
+    } catch (const std::exception& e) {
+        GPU_DEBUG_LOG << "Exception in init_device_info (early init): " << e.what() << std::endl;
+        throw;
+    }
 
     // For some reason nvidia runtime throws an exception (CL_INVALID_KERNEL_ARGS) for WG as follows:
     // global: < 1 x 32 x 5184 >
