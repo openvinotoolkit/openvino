@@ -7,20 +7,31 @@
 #include <gtest/gtest.h>
 
 #include <openvino/runtime/device_id_parser.hpp>
+#include <optional>
 #include <string>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using namespace ov::test::behavior;
 
 namespace ov::test::utils {
 
+enum class DriverType { PV, RELEASE, LATEST };
+
+std::string driverTypeToString(DriverType type);
+
+std::optional<DriverType> parseDriverType(const std::string& str);
+
 /**
- * Reads configuration environment variables
+ * Reads configuration environment variables and CLI arguments
  */
 class NpuTestEnvConfig {
 public:
+    // CLI argument: --driver_type={pv|release|latest}
+    // Defaults to LATEST when not provided. Set in main.cpp before tests run
+    mutable DriverType driver_type = DriverType::LATEST;
+
     std::string IE_NPU_TESTS_DEVICE_NAME;
     std::string IE_NPU_TESTS_DUMP_PATH;
     std::string IE_NPU_TESTS_LOG_LEVEL;
