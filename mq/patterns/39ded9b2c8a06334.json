@@ -1,0 +1,17 @@
+{
+  "signature": "Inconsistency detected by ld.so dl-sort-maps.c _dl_sort_maps_dfs Assertion rpo_head == rpo failed|Samples / Samples|Infrastructure",
+  "title": "hello_classification_c crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-06-30T13:46:31Z",
+  "last_seen": "2026-06-30T13:46:31Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28446416608"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36427"
+  ],
+  "recent_timestamps": [
+    "2026-06-30T13:46:31Z"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "run_id": "28446416608",
+  "timestamp": "2026-06-30T13:46:31Z",
+  "workflow": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28446416608",
+  "head_sha": "b90dd6e8403da55b4dd6df75c84887e076a4a2e2",
+  "pr_number": 36427,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36427",
+  "author": "intelgaoxiong",
+  "trigger": "merge_group",
+  "failed_jobs": [
+    "Samples / Samples"
+  ],
+  "signature_hash": "39ded9b2c8a06334",
+  "category": "Infrastructure",
+  "title": "hello_classification_c crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+  "primary_error": "Inconsistency detected by ld.so: dl-sort-maps.c: 241: _dl_sort_maps_dfs: Assertion `rpo_head == rpo' failed!",
+  "failed_test": "test_hello_classification_fp32[param3]",
+  "exit_code": 127,
+  "platform": "Ubuntu 22.04 ARM64",
+  "runner_image": "ubuntu_22_04_arm64:pr-36464",
+  "root_cause": "glibc dynamic linker assertion failure during shared library unload on ARM64. The hello_classification_c binary ran successfully but the dynamic linker (ld.so) triggered an internal consistency check failure in _dl_sort_maps_dfs at process exit, resulting in exit code 127. This is an infrastructure/environment issue unrelated to the PR changes (NPUW MoE Router isolation removal).",
+  "confidence": "High"
+}

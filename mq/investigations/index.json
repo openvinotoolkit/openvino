@@ -1,152 +1,157 @@
-{
-  "investigations": [
-    {
-      "file": "2026-06-11-19-02-43-000-27365701077.json",
-      "run_id": 27365701077,
-      "signature": "1d50224c2286c0ac",
-      "timestamp": "2026-06-11T19:02:43Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Network"
-    },
-    {
-      "file": "2026-06-22-08-32-35-804-27831497569.json",
-      "run_id": 27831497569,
-      "signature": "6ba5e846ed808087",
-      "timestamp": "2026-06-22T08:32:35Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Code Issue"
-    },
-    {
-      "file": "2026-06-22-08-43-45-000-27831497569.json",
-      "run_id": 27831497569,
-      "signature": "6ba5e846ed808087",
-      "timestamp": "2026-06-22T08:43:45Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Code Issue"
-    },
-    {
-      "file": "2026-06-22-10-42-57-000-27941353934.json",
-      "run_id": 27941353934,
-      "signature": "98773c88c1ccab15",
-      "timestamp": "2026-06-22T10:42:57Z",
-      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-22-10-58-47-000-27941353861.json",
-      "run_id": 27941353861,
-      "signature": "4fba7cc92864f508",
-      "timestamp": "2026-06-22T10:58:47Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Infrastructure"
-    },
-    {
-      "file": "2026-06-22-11-22-00-000-27946523251.json",
-      "run_id": 27946523251,
-      "signature": "9c711e842f6485da",
-      "timestamp": "2026-06-22T11:22:00Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Network"
-    },
-    {
-      "file": "2026-06-22-11-37-47-000-27943348992.json",
-      "run_id": 27943348992,
-      "signature": "98773c88c1ccab15",
-      "timestamp": "2026-06-22T11:37:47Z",
-      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-22-12-08-00-000-27946517601.json",
-      "run_id": 27946517601,
-      "signature": "620d88024d1ca983",
-      "timestamp": "2026-06-22T12:08:00Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-22-12-21-02-404-27946518375.json",
-      "run_id": 27946518375,
-      "signature": "620d88024d1ca983",
-      "timestamp": "2026-06-22T12:21:02Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-26-06-52-23-000-28219131186.json",
-      "run_id": 28219131186,
-      "signature": "134f01149f41adcc",
-      "timestamp": "2026-06-26T06:52:23Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-26-15-08-57-000-28243842474.json",
-      "run_id": 28243842474,
-      "signature": "44ca404e704638aa",
-      "timestamp": "2026-06-26T15:09:15Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Infrastructure"
-    },
-    {
-      "file": "2026-06-29-10-53-13-000-28260319677.json",
-      "run_id": 28260319677,
-      "signature": "2fe5fca9503d7326",
-      "timestamp": "2026-06-29T10:53:13Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-29-12-07-51-000-28366156201.json",
-      "run_id": 28366156201,
-      "signature": "0528d54ff68248cd",
-      "timestamp": "2026-06-29T12:07:51Z",
-      "workflow": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-29-12-18-57-000-28161192347.json",
-      "run_id": 28161192347,
-      "signature": "134f01149f41adcc",
-      "timestamp": "2026-06-29T12:18:57Z",
-      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "Flaky Test"
-    },
-    {
-      "file": "2026-06-29-15-59-13-000-28379764406.json",
-      "run_id": "28379764406",
-      "timestamp": "2026-06-29T15:59:13Z",
-      "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
-      "category": "Infrastructure",
-      "signature_hash": "3a6ca31c39b0147d"
-    },
-    {
-      "file": "2026-06-29-21-12-18-000-28401943026.json",
-      "run_id": 28401943026,
-      "signature": "eb85200a77e84af0",
-      "timestamp": "2026-06-29T21:12:18Z",
-      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "Network"
-    },
-    {
-      "file": "2026-06-30-06-54-51-000-28425259819.json",
-      "run_id": "28425259819",
-      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28425259819",
-      "pr_number": "36627",
-      "timestamp": "2026-06-30T06:54:51Z",
-      "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
-      "category": "Network",
-      "signature_hash": "b8b6bc5f75a07aea"
-    },
-    {
-      "file": "2026-06-30-09-45-30-982-27757418260.json",
-      "run_id": 27757418260,
-      "signature": "7c78b84090c942b6",
-      "timestamp": "2026-06-30T09:45:30Z",
-      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "Code Issue"
-    }
-  ],
-  "total": 17,
-  "last_updated": "2026-06-30T06:54:51Z"
-}
+[
+  {
+    "file": "2026-06-11-19-02-43-000-27365701077.json",
+    "run_id": 27365701077,
+    "signature": "1d50224c2286c0ac",
+    "timestamp": "2026-06-11T19:02:43Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Network"
+  },
+  {
+    "file": "2026-06-22-08-32-35-804-27831497569.json",
+    "run_id": 27831497569,
+    "signature": "6ba5e846ed808087",
+    "timestamp": "2026-06-22T08:32:35Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Code Issue"
+  },
+  {
+    "file": "2026-06-22-08-43-45-000-27831497569.json",
+    "run_id": 27831497569,
+    "signature": "6ba5e846ed808087",
+    "timestamp": "2026-06-22T08:43:45Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Code Issue"
+  },
+  {
+    "file": "2026-06-22-10-42-57-000-27941353934.json",
+    "run_id": 27941353934,
+    "signature": "98773c88c1ccab15",
+    "timestamp": "2026-06-22T10:42:57Z",
+    "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-22-10-58-47-000-27941353861.json",
+    "run_id": 27941353861,
+    "signature": "4fba7cc92864f508",
+    "timestamp": "2026-06-22T10:58:47Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Infrastructure"
+  },
+  {
+    "file": "2026-06-22-11-22-00-000-27946523251.json",
+    "run_id": 27946523251,
+    "signature": "9c711e842f6485da",
+    "timestamp": "2026-06-22T11:22:00Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Network"
+  },
+  {
+    "file": "2026-06-22-11-37-47-000-27943348992.json",
+    "run_id": 27943348992,
+    "signature": "98773c88c1ccab15",
+    "timestamp": "2026-06-22T11:37:47Z",
+    "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-22-12-08-00-000-27946517601.json",
+    "run_id": 27946517601,
+    "signature": "620d88024d1ca983",
+    "timestamp": "2026-06-22T12:08:00Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-22-12-21-02-404-27946518375.json",
+    "run_id": 27946518375,
+    "signature": "620d88024d1ca983",
+    "timestamp": "2026-06-22T12:21:02Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-26-06-52-23-000-28219131186.json",
+    "run_id": 28219131186,
+    "signature": "134f01149f41adcc",
+    "timestamp": "2026-06-26T06:52:23Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-26-15-08-57-000-28243842474.json",
+    "run_id": 28243842474,
+    "signature": "44ca404e704638aa",
+    "timestamp": "2026-06-26T15:09:15Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Infrastructure"
+  },
+  {
+    "file": "2026-06-29-10-53-13-000-28260319677.json",
+    "run_id": 28260319677,
+    "signature": "2fe5fca9503d7326",
+    "timestamp": "2026-06-29T10:53:13Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-29-12-07-51-000-28366156201.json",
+    "run_id": 28366156201,
+    "signature": "0528d54ff68248cd",
+    "timestamp": "2026-06-29T12:07:51Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-29-12-18-57-000-28161192347.json",
+    "run_id": 28161192347,
+    "signature": "134f01149f41adcc",
+    "timestamp": "2026-06-29T12:18:57Z",
+    "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "Flaky Test"
+  },
+  {
+    "file": "2026-06-29-15-59-13-000-28379764406.json",
+    "run_id": "28379764406",
+    "timestamp": "2026-06-29T15:59:13Z",
+    "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
+    "category": "Infrastructure",
+    "signature_hash": "3a6ca31c39b0147d"
+  },
+  {
+    "file": "2026-06-29-21-12-18-000-28401943026.json",
+    "run_id": 28401943026,
+    "signature": "eb85200a77e84af0",
+    "timestamp": "2026-06-29T21:12:18Z",
+    "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "Network"
+  },
+  {
+    "file": "2026-06-30-06-54-51-000-28425259819.json",
+    "run_id": "28425259819",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28425259819",
+    "pr_number": "36627",
+    "timestamp": "2026-06-30T06:54:51Z",
+    "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
+    "category": "Network",
+    "signature_hash": "b8b6bc5f75a07aea"
+  },
+  {
+    "file": "2026-06-30-09-45-30-982-27757418260.json",
+    "run_id": 27757418260,
+    "signature": "7c78b84090c942b6",
+    "timestamp": "2026-06-30T09:45:30Z",
+    "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "Code Issue"
+  },
+  {
+    "run_id": "28446416608",
+    "timestamp": "2026-06-30T13:46:31Z",
+    "title": "hello_classification_c crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+    "category": "Infrastructure",
+    "signature_hash": "39ded9b2c8a06334",
+    "pr_number": 36427,
+    "file": "2026-06-30-13-46-31-000-28446416608.json"
+  }
+]
