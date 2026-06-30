@@ -34,10 +34,14 @@ protected:
 
     void predict_shapes(std::vector<IDynamicGraph::MemRefType>& outputProps);
     void check_tensor_and_predicted_shapes(const std::vector<IDynamicGraph::MemRefType>& outputProps);
+    void refresh_tensor_changed_flag_from_shapes();
+    void update_cached_user_tensor_shapes();
 
     void update_tensor(const std::vector<IDynamicGraph::MemRefType>& outputProps);
 
     bool _isTensorChanged = false;
+    std::vector<std::optional<ov::Shape>> _cachedUserInputShapes;
+    std::vector<std::optional<ov::Shape>> _cachedUserOutputShapes;
 };
 
 }  //  namespace intel_npu

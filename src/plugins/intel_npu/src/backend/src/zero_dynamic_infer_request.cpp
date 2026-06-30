@@ -16,6 +16,8 @@ ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitS
                                                  const Config& config)
     : ZeroInferRequest(initStructs, compiledModel, config) {
     _logger.setName("ZeroDynamicInferRequest");
+    _cachedUserInputShapes.resize(_metadata.inputs.size(), std::nullopt);
+    _cachedUserOutputShapes.resize(_metadata.outputs.size(), std::nullopt);
 }
 
 void ZeroDynamicInferRequest::create_pipeline_impl() {
@@ -201,6 +203,8 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(
 void ZeroDynamicInferRequest::infer_async() {
     _logger.debug("infer_async - started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+    // Detect shape updates made through get_tensor()/get_input_tensor() in-place API.
+    refresh_tensor_changed_flag_from_shapes();
     // Store the predicted output shapes
     std::vector<IDynamicGraph::MemRefType> outputPros;
     predict_shapes(outputPros);
@@ -358,4 +362,45 @@ void ZeroDynamicInferRequest::update_tensor(const std::vector<IDynamicGraph::Mem
         }
     }
     _isTensorChanged = false;
+    update_cached_user_tensor_shapes();
+}
+
+void ZeroDynamicInferRequest::refresh_tensor_changed_flag_from_shapes() {
+    for (size_t i = 0; i < _metadata.inputs.size(); ++i) {
+        const auto& userTensor = get_user_input(i);
+        const std::optional<ov::Shape> currentShape = userTensor != nullptr ? std::make_optional(userTensor->get_shape())
+                                                                             : std::nullopt;
+        if (_cachedUserInputShapes.at(i) != currentShape) {
+            _isTensorChanged = true;
+            break;
+        }
+    }
+
+    if (_isTensorChanged) {
+        return;
+    }
+
+    for (size_t i = 0; i < _metadata.outputs.size(); ++i) {
+        const auto& userTensor = _userOutputTensors.at(i);
+        const std::optional<ov::Shape> currentShape = userTensor != nullptr ? std::make_optional(userTensor->get_shape())
+                                                                             : std::nullopt;
+        if (_cachedUserOutputShapes.at(i) != currentShape) {
+            _isTensorChanged = true;
+            break;
+        }
+    }
+}
+
+void ZeroDynamicInferRequest::update_cached_user_tensor_shapes() {
+    for (size_t i = 0; i < _metadata.inputs.size(); ++i) {
+        const auto& userTensor = get_user_input(i);
+        _cachedUserInputShapes.at(i) = userTensor != nullptr ? std::make_optional(userTensor->get_shape())
+                                                              : std::nullopt;
+    }
+
+    for (size_t i = 0; i < _metadata.outputs.size(); ++i) {
+        const auto& userTensor = _userOutputTensors.at(i);
+        _cachedUserOutputShapes.at(i) = userTensor != nullptr ? std::make_optional(userTensor->get_shape())
+                                                               : std::nullopt;
+    }
 }
