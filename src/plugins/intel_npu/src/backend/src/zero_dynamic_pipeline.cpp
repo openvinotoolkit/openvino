@@ -46,7 +46,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                  const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                                 std::shared_ptr<IDynamicGraph::GraphArguments> graphArguments,
+                                 std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding,
                                  size_t batch_size)
     : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
@@ -79,7 +79,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     } else if (batch_size == 1) {
         _logger.debug("Batch size is 1, use the same graph arguments for all command lists");
         _command_lists.emplace_back(
-            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, graphArguments));
+            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, requestBinding));
     } else {
         OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
     }

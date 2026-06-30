@@ -40,7 +40,7 @@ protected:
     bool _isTensorChanged = false;
 
 private:
-    std::shared_ptr<IDynamicGraph::GraphArguments> _graphArguments;
+    std::shared_ptr<IDynamicGraph::GraphArguments> _binding;
 };
 
 }  //  namespace intel_npu

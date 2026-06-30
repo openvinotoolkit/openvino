@@ -19,7 +19,7 @@ class DynamicPipeline final : public IPipeline {
 
         PipelinedCommandLists(size_t numCommandLists,
                               const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              std::shared_ptr<IDynamicGraph::GraphArguments> graphArguments) {
+                              std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
@@ -28,8 +28,8 @@ class DynamicPipeline final : public IPipeline {
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandListHandles.push_back(_commandLists[i]->handle());
             }
-            if (graphArguments != nullptr) {
-                _binding = graphArguments;
+            if (requestBinding != nullptr) {
+                _binding = requestBinding;
             }
         }
 
@@ -88,7 +88,7 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    std::shared_ptr<IDynamicGraph::GraphArguments> graphArguments,
+                    std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
