@@ -33,12 +33,12 @@ public:
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {});
 
-    const FilteredConfig& getConfig() {
+    const FilteredConfig& getConfig() const {
         return _config;
     }
 
-    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties);
-    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties);
+    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const;
+    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties) const;
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
@@ -62,7 +62,7 @@ private:
 
     void registerProperties();
     void initializeCompatibilityCheckSupportIfNeeded();
-    bool isPropertyRegistered(const std::string& propertyName);
+    bool isPropertyRegistered(const std::string& propertyName) const;
 
     FilteredConfig _config;
 
