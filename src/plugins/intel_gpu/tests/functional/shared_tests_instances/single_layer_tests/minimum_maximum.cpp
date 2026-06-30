@@ -10,6 +10,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 
@@ -125,7 +126,7 @@ TEST(smoke_MinimumNaN, NanPropagation_f32) {
 TEST(smoke_MinimumNaN, NanPropagation_f16) {
     ov::Core core;
     const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
-    if (!caps.count(ov::device::capability::FP16)) {
+    if (std::find(caps.begin(), caps.end(), ov::device::capability::FP16) == caps.end()) {
         GTEST_SKIP() << "fp16 not supported on this device";
     }
     run_nan_propagation_test<ov::op::v1::Minimum>(ov::element::f16);
@@ -138,7 +139,7 @@ TEST(smoke_MaximumNaN, NanPropagation_f32) {
 TEST(smoke_MaximumNaN, NanPropagation_f16) {
     ov::Core core;
     const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
-    if (!caps.count(ov::device::capability::FP16)) {
+    if (std::find(caps.begin(), caps.end(), ov::device::capability::FP16) == caps.end()) {
         GTEST_SKIP() << "fp16 not supported on this device";
     }
     run_nan_propagation_test<ov::op::v1::Maximum>(ov::element::f16);

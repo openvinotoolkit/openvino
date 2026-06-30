@@ -267,9 +267,16 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 } else {
                     // input_0 != int && input_1 != int
                     if (ew.mode == EltwiseMode::MIN || ew.mode == EltwiseMode::MAX) {
-                        op += "select(select(f" + mode + "(" + input0_str + ", " + input1_str + "), "
-                              + input1_str + ", isnan(" + input1_str + ")), "
-                              + input0_str + ", isnan(" + input0_str + "))";
+                        // For scalar half: isnan(half) returns int (32-bit) but select(half,half,cond)
+                        // requires a 16-bit condition matching half's width. Cast to short.
+                        // For scalar float and all vector types, no cast is needed.
+                        const bool is_scalar = !useVload8 && blockSize <= 1;
+                        const auto acc_type = GetAccumulatorType(params);
+                        const std::string isnan_cast =
+                            (is_scalar && acc_type == kernel_selector::Datatype::F16) ? "(short)" : "";
+                        op += std::string("select(select(f") + mode + "(" + input0_str + ", " + input1_str + "), "
+                              + input1_str + ", " + isnan_cast + "isnan(" + input1_str + ")), "
+                              + input0_str + ", " + isnan_cast + "isnan(" + input0_str + "))";
                     } else {
                         op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
                     }
