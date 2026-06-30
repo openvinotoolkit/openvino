@@ -190,8 +190,8 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
     std::shared_ptr<ov::intel_npu::op::FlashAttentionTile> flash_attn_tile;
     if (is_last_tile) {
         // Use mask for final tile to ensure proper masking of the last KV block
-        flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(f32_nodes.q_f32,
-                                                                                  f32_nodes.k_tile_f32,
+        flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
+                                                                                  k_input,
                                                                                   v_transpose,
                                                                                   f32_nodes.past_acc_f32,
                                                                                   past_max_squeezed,
@@ -199,8 +199,8 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
                                                                                   f32_nodes.mask_tile_f32,
                                                                                   config);
     } else {
-        flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(f32_nodes.q_f32,
-                                                                                  f32_nodes.k_tile_f32,
+        flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
+                                                                                  k_input,
                                                                                   v_transpose,
                                                                                   f32_nodes.past_acc_f32,
                                                                                   past_max_squeezed,
@@ -601,8 +601,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // Create input parameters
     auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
 
-    // Convert all inputs to f32
-    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, is_final_tile);
+    // Convert all inputs to f32.
+    // For the fused operation only the final tile uses a mask (regular tiles skip mask for performance)
+    // For the non-fused operation all tiles require mask conversion
+    const bool use_mask = is_final_tile || !fused_flash_attention;
+    auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
 
     FlashAttentionResults results;
 
@@ -699,7 +702,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // Create model parameters
     ov::ParameterVector model_params =
         {inputs.past_acc, inputs.past_max, inputs.past_d, inputs.k_tile, inputs.v_tile, inputs.q};
-    if (is_final_tile) {
+    if (use_mask) {
         model_params.push_back(inputs.mask_tile);
     }
 

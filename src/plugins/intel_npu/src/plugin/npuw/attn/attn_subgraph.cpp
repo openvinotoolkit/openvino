@@ -1051,6 +1051,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t mask_tile_offset = 0;
                         int64_t past_kv_tiles = num_tiles - 1;  // tiles driven from past blocks
 
+                        // For the fused hfa, the regular tile model has no mask input (6 inputs)
+                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
+
                         // Iterate through KV blocks; each block contributes block_size/tile_size tiles.
                         for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0;
                              ++block_idx) {
@@ -1069,9 +1072,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                              t * tile_size,
                                              mask_tile_offset,
                                              tile_size,
-                                             false,
-                                             // do not use mask for regular tiles, tile will be masked in final tile
-                                             false);
+                                             false,       // async
+                                             uses_mask);  // process_with_mask
                                 mask_tile_offset += tile_size;
                                 past_kv_tiles--;
                             }
