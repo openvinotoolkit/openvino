@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
-#include "snippets/exp.hpp"
+#include "snippets/unary_activation.hpp"
 #include "subgraph_simple.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
