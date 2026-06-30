@@ -13,7 +13,6 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "property_registration.hpp"
 
@@ -23,7 +22,6 @@ class CompiledModelPropertyManager final {
 public:
     CompiledModelPropertyManager(const FilteredConfig& config,
                                  const std::shared_ptr<IGraph>& graph,
-                                 const std::shared_ptr<IDevice>& device,
                                  const std::optional<int64_t>& batchSize,
                                  Logger& logger);
 
@@ -40,8 +38,6 @@ private:
     FilteredConfig _config;
 
     std::shared_ptr<IGraph> _graph;
-    const std::shared_ptr<IDevice> _device;
-
     std::optional<int64_t> _batchSize;
     Logger& _logger;
 
