@@ -288,7 +288,7 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
             auto scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(direct_src);
             bool transposed = false;
             if (!scatter) {
-                // Check for Transpose ← ScatterUpdate (transpose_v case).
+                // Check for Transpose ← ScatterUpdate pattern.
                 auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
                 if (trans) {
                     scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(trans->input_value(0).get_node_shared_ptr());
@@ -297,8 +297,24 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 }
             }
             if (scatter) {
+                // The GQA decomposition always scatters at axis=2. For standard KV layout
+                // {B,H,seq,head} this is the sequence dimension — correct. For transposed V
+                // layout {B,H,head_size,max_seq} axis=2 is the head_size dimension, not the
+                // sequence dimension, so scatter-based CPU management is not applicable.
+                // Detect the transposed case by comparing dim[2] vs dim[3] of the scatter's
+                // data input (the full KV cache). If dim[2] < dim[3] the cache is transposed;
+                // leave this output unstripped so the NPU model handles it natively.
+                const auto& data_ps = scatter->input_value(0).get_partial_shape();
+                const bool v_is_transposed_cache = !transposed && data_ps.rank().is_static() &&
+                                                   data_ps.rank().get_length() == 4 && data_ps[2].is_static() &&
+                                                   data_ps[3].is_static() &&
+                                                   data_ps[2].get_length() < data_ps[3].get_length();
+                if (v_is_transposed_cache) {
+                    LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] has transposed V cache layout " << data_ps
+                                                         << "; skipping CPU scatter for this output");
+                    continue;  // leave Result → ScatterUpdate intact in the inner model
+                }
                 // Redirect result to carry only the current-token slice (scatter's "updates").
-                // For transposed V this is the V slice BEFORE transposing — shape [1,H,T,head_size].
                 results[i]->input(0).replace_source_output(scatter->input_value(2));
                 kv_indices.push_back(i);
                 kv_transposed_flags.push_back(transposed);
@@ -306,7 +322,7 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         }
 
         // Capture KV max_seq values from the outer (pre-strip) model.
-        // For standard K: sequence dim is [2]. For transposed V: sequence dim is [3].
+        // All managed outputs use standard layout — sequence dim is [2].
         std::vector<size_t> kv_max_seqs;
         const auto& outer_results = outer_model->get_results();
         for (size_t ki = 0; ki < kv_indices.size(); ++ki) {
