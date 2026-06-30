@@ -10,6 +10,7 @@
 
 #include "gather_shape_inference.hpp"
 #include "openvino/op/gather.hpp"
+#include <iostream>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
@@ -135,20 +136,43 @@ std::string gather_inst::to_string(gather_node const& node) {
 }
 
 void gather_inst::on_execute() {
+    const auto in_mem = input_memory_ptr();
+    const auto out_mem = output_memory_ptr();
+
+    std::cout << "[GPU][prepare_primitive][gather] on_execute begin: " << id()
+              << ", can_be_optimized=" << (can_be_optimized() ? 1 : 0)
+              << ", in_mem=" << (in_mem ? (in_mem->size() / (1024 * 1024)) : 0) << "MB"
+              << ", in_alloc=" << (in_mem ? static_cast<int>(in_mem->get_allocation_type()) : -1)
+              << ", out_mem=" << (out_mem ? (out_mem->size() / (1024 * 1024)) : 0) << "MB"
+              << ", out_alloc=" << (out_mem ? static_cast<int>(out_mem->get_allocation_type()) : -1)
+              << std::endl;
+
     update_output_memory();
+
+    const auto out_after = output_memory_ptr();
+    std::cout << "[GPU][prepare_primitive][gather] on_execute end: " << id()
+              << ", out_mem=" << (out_after ? (out_after->size() / (1024 * 1024)) : 0) << "MB"
+              << ", out_alloc=" << (out_after ? static_cast<int>(out_after->get_allocation_type()) : -1)
+              << std::endl;
 }
 
 void gather_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
+        std::cout << "[GPU][prepare_primitive][gather] update_output_memory skip(not optimized): " << id() << std::endl;
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
+        std::cout << "[GPU][prepare_primitive][gather] update_output_memory skip(null input): " << id() << std::endl;
         return;
+    }
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
+        std::cout << "[GPU][prepare_primitive][gather] update_output_memory skip(already aliased): " << id() << std::endl;
         return;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
@@ -160,6 +184,11 @@ void gather_inst::update_output_memory() {
     }
     _outputs[0] = input_memory_ptr();
     _mem_allocated = false;
+
+    std::cout << "[GPU][prepare_primitive][gather] update_output_memory aliased input->output: " << id()
+              << ", aliased_mem=" << (_outputs[0] ? (_outputs[0]->size() / (1024 * 1024)) : 0) << "MB"
+              << ", alloc=" << (_outputs[0] ? static_cast<int>(_outputs[0]->get_allocation_type()) : -1)
+              << std::endl;
 }
 
 gather_inst::typed_primitive_inst(network& network, gather_node const& node) : parent(network, node) {}

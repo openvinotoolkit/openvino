@@ -32,6 +32,68 @@
 #include <functional>
 #include <utility>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <dxgi1_4.h>
+#pragma comment(lib, "dxgi.lib")
+
+namespace {
+static IDXGIAdapter3* g_infer_dxgi_adapter = nullptr;
+static bool g_first_infer_done = false;
+
+static void init_infer_dxgi() {
+    if (g_infer_dxgi_adapter) return;
+    IDXGIFactory4* factory = nullptr;
+    if (SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)))) {
+        IDXGIAdapter* adapter = nullptr;
+        for (UINT i = 0; factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+            DXGI_ADAPTER_DESC desc;
+            adapter->GetDesc(&desc);
+            if (desc.VendorId == 0x8086) {
+                adapter->QueryInterface(IID_PPV_ARGS(&g_infer_dxgi_adapter));
+                adapter->Release();
+                break;
+            }
+            adapter->Release();
+        }
+        factory->Release();
+    }
+}
+
+static size_t get_infer_working_set_mb() {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize / (1024 * 1024);
+    }
+    return 0;
+}
+
+static void get_infer_gpu_memory_mb(size_t& local_mb, size_t& nonlocal_mb) {
+    init_infer_dxgi();
+    local_mb = 0;
+    nonlocal_mb = 0;
+    if (!g_infer_dxgi_adapter) return;
+
+    DXGI_QUERY_VIDEO_MEMORY_INFO local_info = {};
+    DXGI_QUERY_VIDEO_MEMORY_INFO nonlocal_info = {};
+
+    if (SUCCEEDED(g_infer_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local_info))) {
+        local_mb = local_info.CurrentUsage / (1024 * 1024);
+    }
+    if (SUCCEEDED(g_infer_dxgi_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &nonlocal_info))) {
+        nonlocal_mb = nonlocal_info.CurrentUsage / (1024 * 1024);
+    }
+}
+}  // namespace
+#else
+namespace {
+static bool g_first_infer_done = false;
+static size_t get_infer_working_set_mb() { return 0; }
+static void get_infer_gpu_memory_mb(size_t& local_mb, size_t& nonlocal_mb) { local_mb = 0; nonlocal_mb = 0; }
+}  // namespace
+#endif
+
 namespace {
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
@@ -537,6 +599,14 @@ void SyncInferRequest::wait() {
 
         exec_time_info.wait = sync_total_time;
         exec_time_info.outputs_processing = outputs_processing_time;
+    }
+
+    if (!g_first_infer_done) {
+        g_first_infer_done = true;
+        size_t local_mb = 0, nonlocal_mb = 0;
+        get_infer_gpu_memory_mb(local_mb, nonlocal_mb);
+        std::cout << "[GPU] First inference complete - WS: " << get_infer_working_set_mb() 
+                  << "MB, GPU LOCAL: " << local_mb << "MB, GPU NON_LOCAL: " << nonlocal_mb << "MB" << std::endl;
     }
 }
 
