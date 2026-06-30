@@ -9,16 +9,22 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/utils.hpp"
 
+namespace {
+
+constexpr std::string_view INVALID_STATE_MESSAGE = "Invalid state";
+
+}
+
 namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
-      m_graph(graph),
+      m_graph_or_schedule(graph),
       m_logger("ELFMainScheduleSection", log_level) {}
 
 ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
-      m_main_schedule(main_schedule),
+      m_graph_or_schedule(main_schedule),
       m_logger("ELFMainScheduleSection", log_level) {}
 
 std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
@@ -30,6 +36,8 @@ std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_sub
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
+    const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
+    OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
     // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
     // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
@@ -41,16 +49,18 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
 
     m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);
 
-    m_graph->export_main_blob(writer.m_stream.get());
+    (*graph)->export_main_blob(writer.m_stream.get());
 }
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
-    m_graph = graph;
-    m_main_schedule = ov::Tensor();  // Don't need this anymore
+    OPENVINO_ASSERT(std::holds_alternative<ov::Tensor>(m_graph_or_schedule), INVALID_STATE_MESSAGE);
+    m_graph_or_schedule = graph;
 }
 
 ov::Tensor ELFMainScheduleSection::get_schedule() const {
-    return m_main_schedule;
+    const auto* schedule = std::get_if<ov::Tensor>(&m_graph_or_schedule);
+    OPENVINO_ASSERT(schedule, INVALID_STATE_MESSAGE);
+    return *schedule;
 }
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
@@ -72,13 +82,13 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
                                                  const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
-      m_weightless_graph(weightless_graph),
+      m_graph_or_schedules(weightless_graph),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules,
                                                  const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
-      m_init_schedules(std::move(init_schedules)),
+      m_graph_or_schedules(std::move(init_schedules)),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
 std::vector<CREToken> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
@@ -90,8 +100,10 @@ std::vector<CREToken> ELFInitSchedulesSection::get_compatibility_requirements_su
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
+    const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
+    OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
-    const uint64_t number_of_inits = m_weightless_graph->get_number_of_inits();
+    const uint64_t number_of_inits = (*weightless_graph)->get_number_of_inits();
     writer.write_from(&number_of_inits, sizeof(number_of_inits));
 
     m_logger.debug("Writting %lu init schedules", number_of_inits);
@@ -108,7 +120,7 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.add_padding(padding_size);
 
-    const std::vector<uint64_t> init_sizes = m_weightless_graph->export_init_blobs(writer.m_stream.get());
+    const std::vector<uint64_t> init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
 
     // Go back and write the sizes of the init schedules
     writer.move_cursor_relative_to_current_section(will_get_to_this_later);
@@ -119,12 +131,14 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
 }
 
 void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph) {
-    m_weightless_graph = weightless_graph;
-    m_init_schedules = std::vector<ov::Tensor>();  // Don't need this anymore
+    OPENVINO_ASSERT(std::holds_alternative<std::vector<ov::Tensor>>(m_graph_or_schedules), INVALID_STATE_MESSAGE);
+    m_graph_or_schedules = weightless_graph;
 }
 
 std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
-    return m_init_schedules;
+    const auto* schedules = std::get_if<std::vector<ov::Tensor>>(&m_graph_or_schedules);
+    OPENVINO_ASSERT(schedules, INVALID_STATE_MESSAGE);
+    return *schedules;
 }
 
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {

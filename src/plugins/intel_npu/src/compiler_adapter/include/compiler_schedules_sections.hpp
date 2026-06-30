@@ -29,8 +29,7 @@ public:
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
-    std::shared_ptr<Graph> m_graph;
-    ov::Tensor m_main_schedule;
+    std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
 
     Logger m_logger;
 };
@@ -56,8 +55,7 @@ public:
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
-    std::shared_ptr<WeightlessGraph> m_weightless_graph;
-    std::vector<ov::Tensor> m_init_schedules;
+    std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
 
     Logger m_logger;
 };
