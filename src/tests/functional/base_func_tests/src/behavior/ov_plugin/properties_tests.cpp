@@ -7,6 +7,7 @@
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace test {

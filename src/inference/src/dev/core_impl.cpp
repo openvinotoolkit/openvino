@@ -30,7 +30,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/single_file_storage.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "openvino/util/ov_version.hpp"

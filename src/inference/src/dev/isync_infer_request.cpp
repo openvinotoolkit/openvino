@@ -18,7 +18,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/hash_util.hpp"
 
 namespace {
 void check_batched_tensors(const ov::Output<const ov::Node>& input,

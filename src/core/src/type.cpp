@@ -4,7 +4,7 @@
 
 #include "openvino/core/type.hpp"
 
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/hash_util.hpp"
 
 namespace std {
 size_t std::hash<ov::DiscreteTypeInfo>::operator()(const ov::DiscreteTypeInfo& k) const {
