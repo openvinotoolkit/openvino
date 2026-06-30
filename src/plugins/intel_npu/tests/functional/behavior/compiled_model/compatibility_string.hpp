@@ -295,13 +295,15 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-
     if (driverHandlesCompatibilityCheck) {
         ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     } else {
         ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     }
+
+    // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
+    // message is not present in the log
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompilerFallbackForOlderDriver) {
@@ -331,13 +333,15 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-
     if (driverHandlesCompatibilityCheck) {
         ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     } else {
         ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     }
+
+    // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
+    // message is not present in the log
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertiesLoadsPluginCompiler) {
