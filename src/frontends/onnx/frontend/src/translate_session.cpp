@@ -296,7 +296,6 @@ void TranslateSession::translate_graph_from_iterator(const ov::frontend::InputMo
         std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(model_onnx->get_graph_iterator());
     FRONT_END_GENERAL_CHECK(graph_iterator != nullptr, "Invalid graph iterator for single-pass conversion");
 
-
     const auto telemetry = model_onnx->get_telemetry_extension();
     // Preserve zero-copy constant wrapping when the iterator's owner allows it (e.g. an EP delegate
     // passing reuse_const_data=true); the two-pass path carries this through the Place graph.
@@ -396,8 +395,9 @@ void TranslateSession::translate_graph_from_iterator(const ov::frontend::InputMo
 
         const auto out_size = op_decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
-        const Operator* translator =
-            m_translator_map->get_operator(op_decoder->get_domain(), op_decoder->get_op_type(), op_decoder->get_op_set());
+        const Operator* translator = m_translator_map->get_operator(op_decoder->get_domain(),
+                                                                    op_decoder->get_op_type(),
+                                                                    op_decoder->get_op_set());
         ov::frontend::onnx::Node node_context(op_decoder, this);
         std::string error_message{};
 
@@ -443,10 +443,11 @@ void TranslateSession::translate_graph_from_iterator(const ov::frontend::InputMo
                 FRONT_END_THROW(error_message);
             } else {
                 if (telemetry) {
-                    error_message = "[ONNX Frontend] Conversion failed for " +
-                                    (onnx_domain != "" ? "***." + op_decoder->get_op_type() + "-X"
-                                                       : op_decoder->get_op_type() + "-" + std::to_string(opset_version)) +
-                                    "\n" + error_message;
+                    error_message =
+                        "[ONNX Frontend] Conversion failed for " +
+                        (onnx_domain != "" ? "***." + op_decoder->get_op_type() + "-X"
+                                           : op_decoder->get_op_type() + "-" + std::to_string(opset_version)) +
+                        "\n" + error_message;
                 }
                 auto operation =
                     std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(node_context.get_ov_inputs(),

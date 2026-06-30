@@ -29,7 +29,7 @@ public:
 
     std::shared_ptr<ov::Model> get_converted_model();
 
-    /// \brief Converts the input model to an ov::Model. 
+    /// \brief Converts the input model to an ov::Model.
     void translate_graph(const ov::frontend::InputModel::Ptr& input_model, std::shared_ptr<ov::Model>& ov_model);
 
     ov::frontend::InputModel::Ptr get_input_model(void) const {
@@ -56,7 +56,7 @@ public:
 
 private:
     /// \brief Single-pass conversion that walks the model's GraphIterator decoders directly and
-    /// builds the ov::Model. 
+    /// builds the ov::Model.
     void translate_graph_from_iterator(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model);
 
