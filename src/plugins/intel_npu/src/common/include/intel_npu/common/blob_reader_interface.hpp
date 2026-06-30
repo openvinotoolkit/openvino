@@ -26,13 +26,13 @@ public:
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
      * advanced according to the given size.
      */
-    void copy_data_from_source(char* destination, const size_t size);
+    void copy_from_source(char* destination, const size_t size);
 
     /**
      * @brief Returns a pointer to the current position of the cursor, then advances the cursor according to the given
      * size. This method avoids copying the content of the compiled model.
      */
-    const void* interpret_data_from_source(const size_t size);
+    const void* interpret_from_source(const size_t size);
 
     /**
      * @brief Returns an RoI tensor pointing to the current position of the cursor, then advances the cursor according

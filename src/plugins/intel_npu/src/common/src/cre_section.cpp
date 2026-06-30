@@ -45,7 +45,7 @@ std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     logger.debug("Reading %lu tokens", number_of_tokens);
 
     std::vector<CREToken> tokens(number_of_tokens);
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CREToken));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(tokens.data()), number_of_tokens * sizeof(CREToken));
 
     return std::make_shared<CRESection>(CRE(tokens, logger.level()), logger.level());
 }

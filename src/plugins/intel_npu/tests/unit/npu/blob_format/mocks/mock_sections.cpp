@@ -16,7 +16,7 @@ double MockSection_1::get_value() const {
 
 std::shared_ptr<ISection> MockSection_1::read(BlobReaderInterface& blob_reader) {
     double value;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(&value), sizeof(value));
     return std::make_shared<MockSection_1>(value);
 }
 
@@ -48,13 +48,13 @@ uint64_t MockSection_2::write_size(size_t n_values, uint64_t start_offset) {
 
 std::shared_ptr<ISection> MockSection_2::read(BlobReaderInterface& blob_reader) {
     uint64_t size;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&size), sizeof(size));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(&size), sizeof(size));
     std::vector<double> values(size);
     for (double& value : values) {
         const size_t pos = blob_reader.get_offset_relative_to_npu_region();
         const size_t padding = (ALIGNMENT - (pos % ALIGNMENT)) % ALIGNMENT;
         blob_reader.move_cursor_relative_to_npu_region(pos + padding);
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&value), sizeof(value));
     }
     return std::make_shared<MockSection_2>(values);
 }
@@ -159,14 +159,14 @@ std::shared_ptr<ISection> MockSectionWithTable::read_embedded(BlobReaderInterfac
 
 std::shared_ptr<ISection> MockSectionWithTable::read(BlobReaderInterface& blob_reader) {
     uint64_t table_location;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&table_location), sizeof(table_location));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(&table_location), sizeof(table_location));
 
     auto s1 = std::dynamic_pointer_cast<MockSection_1>(MockSection_1::read(blob_reader));
 
     blob_reader.move_cursor_relative_to_current_section(table_location);
 
     uint64_t number_of_entries;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_entries), sizeof(number_of_entries));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(&number_of_entries), sizeof(number_of_entries));
 
     OffsetsTable embedded;
     std::vector<Entry> entries;
@@ -174,10 +174,10 @@ std::shared_ptr<ISection> MockSectionWithTable::read(BlobReaderInterface& blob_r
         SectionType type;
         SectionTypeInstance instance;
         uint64_t offset, length;
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type), sizeof(type));
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&instance), sizeof(instance));
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&length), sizeof(length));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&type), sizeof(type));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&instance), sizeof(instance));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&length), sizeof(length));
         const SectionID id(type, instance);
         embedded.add_entry(id, offset, length);
         entries.push_back({id, offset, length});

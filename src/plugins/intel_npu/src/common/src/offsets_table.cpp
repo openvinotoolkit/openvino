@@ -123,10 +123,10 @@ std::shared_ptr<ISection> OffsetsTableSection::read(BlobReaderInterface& blob_re
     logger.debug("Reading %lu entries", number_of_sections_in_table);
 
     while (number_of_sections_in_table--) {
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type), sizeof(type));
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&type_instance), sizeof(type_instance));
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&length), sizeof(length));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&type), sizeof(type));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&type_instance), sizeof(type_instance));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&offset), sizeof(offset));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&length), sizeof(length));
 
         const SectionID section_id(type, type_instance);
         offsets_table.add_entry(section_id, offset, length);

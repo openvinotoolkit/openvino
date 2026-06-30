@@ -46,7 +46,7 @@ std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reade
                     sizeof(int64_t));
 
     int64_t batch_size;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&batch_size), sizeof(batch_size));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(&batch_size), sizeof(batch_size));
 
     Logger("BatchSizeSection", blob_reader.get_log_level()).debug("Read batch size %lu", batch_size);
 

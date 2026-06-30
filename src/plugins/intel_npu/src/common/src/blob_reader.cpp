@@ -175,7 +175,7 @@ void BlobReader::read(const ov::Tensor& source) {
     std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_location.has_value(), "The CRE was not found within the table of offsets");
 
-    std::unordered_map<SectionID, SectionInstanceEvaluator> section_type_instance_evaluators =
+    std::unordered_map<SectionID, SectionInstanceEvaluator> section_instance_evaluators =
         build_section_type_instance_evaluators(source, offsets_table, npu_region_size);
 
     // TODO test the negative branch as well
@@ -190,11 +190,10 @@ void BlobReader::read(const ov::Tensor& source) {
                       npu_region_size,
                       /*include_in_sections_order*/ false);
 
-        const bool is_compatible =
-            std::dynamic_pointer_cast<CRESection>(
-                m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
-                ->get_cre()
-                .check_compatibility(m_section_type_evaluators, section_type_instance_evaluators);
+        const bool is_compatible = std::dynamic_pointer_cast<CRESection>(
+                                       m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
+                                       ->get_cre()
+                                       .check_compatibility(m_section_type_evaluators, section_instance_evaluators);
         OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
         m_logger.debug("CRE evaluation passed");
     } else {
@@ -251,15 +250,14 @@ void BlobReader::read(const ov::Tensor& source) {
         m_logger.trace("Found a reader for section ", section_id);
 
         const std::shared_ptr<ISectionTypeEvaluator> type_evaluator = m_section_type_evaluators.at(section_id->type);
-        const SectionInstanceEvaluator& type_instance_evaluator =
-            section_type_instance_evaluators.at(section_id.value());
+        const SectionInstanceEvaluator& instance_evaluator = section_instance_evaluators.at(section_id.value());
 
         if (type_evaluator->evaluated() && type_evaluator->get_result()) {
-            if (type_instance_evaluator.evaluated() && type_instance_evaluator.get_result()) {
+            if (instance_evaluator.evaluated() && instance_evaluator.get_result()) {
                 // Case 1
                 m_logger.trace("Parsing mandatory section ", section_id);
                 parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
-            } else if (type_instance_evaluator.evaluated() && !type_instance_evaluator.get_result()) {
+            } else if (instance_evaluator.evaluated() && !instance_evaluator.get_result()) {
                 // Case 2
                 m_logger.debug("The parsing of section ID ",
                                section_id,
@@ -288,7 +286,7 @@ void BlobReader::read(const ov::Tensor& source) {
             // Case 5
             m_logger.trace("Section type ", section_id->type, " not evaluated");
             OPENVINO_ASSERT(
-                !type_instance_evaluator.evaluated(),
+                !instance_evaluator.evaluated(),
                 "Found a section type instance that was evaluated without evaluating the section type first");
 
             try {

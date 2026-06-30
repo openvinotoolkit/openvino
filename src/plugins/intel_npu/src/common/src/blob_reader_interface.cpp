@@ -24,7 +24,7 @@ BlobReaderInterface::BlobReaderInterface(const ov::Tensor& source,
     m_logger.debug("Created a new BlobReaderInterface. Boundaries: [%lu, %lu)", m_section_start, m_section_end);
 }
 
-void BlobReaderInterface::copy_data_from_source(char* destination, const size_t size) {
+void BlobReaderInterface::copy_from_source(char* destination, const size_t size) {
     m_logger.trace("Reading and copying %lu bytes", size);
 
     m_cursor += size;
@@ -32,7 +32,7 @@ void BlobReaderInterface::copy_data_from_source(char* destination, const size_t 
     std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
 }
 
-const void* BlobReaderInterface::interpret_data_from_source(const size_t size) {
+const void* BlobReaderInterface::interpret_from_source(const size_t size) {
     m_logger.trace("Reading without copying %lu bytes", size);
 
     m_cursor += size;

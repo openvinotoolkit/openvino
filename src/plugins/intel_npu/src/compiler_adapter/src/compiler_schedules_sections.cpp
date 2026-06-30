@@ -60,7 +60,7 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     // Skip the first padding region
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
-    blob_reader.interpret_data_from_source(padding_size);  // moves the cursor
+    blob_reader.interpret_from_source(padding_size);  // moves the cursor
 
     logger.debug("Skipped %lu padding from offset %lu", padding_size, offset);
 
@@ -134,7 +134,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     const size_t section_length = blob_reader.get_section_length();
 
     uint64_t number_of_inits;
-    blob_reader.copy_data_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
+    blob_reader.copy_from_source(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
     OPENVINO_ASSERT(
         number_of_inits * sizeof(uint64_t) < section_length,
         "The parsed number of init schedules is too big for the current section size. Number of init schedules: ",
@@ -148,7 +148,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     std::vector<uint64_t> init_sizes;
     uint64_t value;
     while (number_of_inits--) {
-        blob_reader.copy_data_from_source(reinterpret_cast<char*>(&value), sizeof(value));
+        blob_reader.copy_from_source(reinterpret_cast<char*>(&value), sizeof(value));
         init_sizes.push_back(value);
         total_init_sizes += value;
 
@@ -164,7 +164,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     // Skip the first padding
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
-    blob_reader.interpret_data_from_source(padding_size);
+    blob_reader.interpret_from_source(padding_size);
 
     std::vector<ov::Tensor> init_schedules;
     for (const auto& init_size : init_sizes) {
