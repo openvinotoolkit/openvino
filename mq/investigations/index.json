@@ -137,6 +137,14 @@
       "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
       "category": "Network",
       "signature_hash": "b8b6bc5f75a07aea"
+    },
+    {
+      "file": "2026-06-30-09-45-30-982-27757418260.json",
+      "run_id": 27757418260,
+      "signature": "7c78b84090c942b6",
+      "timestamp": "2026-06-30T09:45:30Z",
+      "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+      "category": "Code Issue"
     }
   ],
   "total": 17,

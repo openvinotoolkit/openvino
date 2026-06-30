@@ -1,0 +1,22 @@
+{
+  "run_id": 27757418260,
+  "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+  "head_sha": "c070fd7f50e541432bcc5d23bb1b8487a913369b",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27757418260",
+  "pr": 36464,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36464",
+  "pr_author": "gkoscins",
+  "timestamp": "2026-06-30T09:45:30Z",
+  "category": "Code Issue",
+  "title": "ov_gpu_unit_tests build fails: get_test_engine undeclared in paged_attention_gpu_test",
+  "failed_jobs": ["Build / Build"],
+  "root_cause": "The new test function shared_kv_cache_test::reader_output_matches_reference (in paged_attention_gpu_test.cpp starting line 642) uses unqualified names: get_test_engine(), get_test_stream(), topology, input_info, reorder, format, data_types, activation, activation_func, ExecutionConfig, get_network, get_test_stream_ptr, mem_lock, layout, network - without tests:: and cldnn:: namespace prefixes. These were added by PR #36399 which was in the merge queue simultaneously with PR #36464.",
+  "signature": "7c78b84090c942b6",
+  "key_errors": [
+    "paged_attention_gpu_test.cpp:650:31: error: 'get_test_engine' was not declared in this scope; did you mean 'tests::get_test_engine'?",
+    "paged_attention_gpu_test.cpp:719:21: error: 'input_info' was not declared in this scope; did you mean 'cldnn::input_info'?",
+    "paged_attention_gpu_test.cpp:748:9: error: 'topology' was not declared in this scope; did you mean 'cldnn::topology'?"
+  ],
+  "affected_file": "src/plugins/intel_gpu/tests/unit/test_cases/paged_attention_gpu_test.cpp",
+  "probable_culprit_pr": 36399
+}

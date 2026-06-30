@@ -1,0 +1,11 @@
+{
+  "signature": "get_test_engine was not declared in this scope; did you mean tests::get_test_engine|Build / Build|Code Issue",
+  "title": "ov_gpu_unit_tests build fails: get_test_engine undeclared in paged_attention_gpu_test",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-06-30T09:45:30Z",
+  "last_seen": "2026-06-30T09:45:30Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/27757418260"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36464"],
+  "recent_timestamps": ["2026-06-30T09:45:30Z"]
+}
