@@ -45,7 +45,7 @@ std::string to_lower(std::string value) {
 }
 
 bool contains_substring(const std::string& value, const std::string& substring) {
-    return to_lower(value).find(substring) != std::string::npos;
+    return to_lower(value).find(to_lower(substring)) != std::string::npos;
 }
 
 std::string format_duration_ms(double value) {
