@@ -38,9 +38,9 @@
 namespace ov::test {
 
 namespace {
-#ifdef __linux__
-const size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
+const size_t page_size = static_cast<size_t>(util::get_system_page_size());
 
+#ifdef __linux__
 // mlock forces every page resident before returning; munlock releases the pin without evicting.
 // Bounded by RLIMIT_MEMLOCK -- no limit on a privileged process.
 void ensure_memory_resident(const std::shared_ptr<ov::MappedMemory>& mapped) {
@@ -50,12 +50,10 @@ void ensure_memory_resident(const std::shared_ptr<ov::MappedMemory>& mapped) {
 }
 
 #else
-const size_t page_size = static_cast<size_t>(util::get_system_page_size());
-
 // VirtualLock forces pages resident; VirtualUnlock releases the pin without evicting.
 // The lock is bounded by the working-set quota, so grow it to cover the region first.
 void ensure_memory_resident(const std::shared_ptr<ov::MappedMemory>& mapped) {
-    const size_t need = mapped->size() + 64 * 1024 * 1024;  // headroom for code/stack
+    const size_t need = mapped->size() + 64 * util::one_mib;  // headroom for code/stack
     SIZE_T min_ws = 0, max_ws = 0;
     if (GetProcessWorkingSetSize(GetCurrentProcess(), &min_ws, &max_ws) && max_ws < need) {
         SetProcessWorkingSetSize(GetCurrentProcess(), need, need);
@@ -70,7 +68,7 @@ struct TestFile {
     size_t size_mib;
     std::filesystem::path path;
 
-    size_t size_bytes() const {return size_mib * 1024 * 1024; }
+    size_t size_bytes() const {return size_mib * util::one_mib; }
 };
 
 std::filesystem::path generate_test_file(const TestFile& tf) {
@@ -80,7 +78,7 @@ std::filesystem::path generate_test_file(const TestFile& tf) {
         std::cout << "Test file already exists: " << path << ", skipping generation." << std::endl;
         return path;
     }
-    std::vector<uint8_t> chunk(1024 * 1024);
+    std::vector<uint8_t> chunk(util::one_mib);
     for (size_t i = 0; i < chunk.size(); ++i)
         chunk[i] = static_cast<uint8_t>(i % 251);
     std::ofstream f(path, std::ios::binary);
@@ -213,7 +211,7 @@ void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
 void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch();
-    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MiB chunks
+    constexpr size_t chunk_size = 128 * util::one_mib;
     std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
@@ -225,7 +223,7 @@ void mmap_prefetch_then_memcpy(const std::filesystem::path& path, size_t file_si
 
 void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size) {
     auto mapped = load_mmap_object(path);
-    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MiB chunks
+    constexpr size_t chunk_size = 128 * util::one_mib;
     std::vector<char> buffer(std::min(chunk_size, file_size));
     volatile char sink = 0;
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
@@ -251,7 +249,7 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
     auto mapped = load_mmap_object(path);
     mapped->hint_prefetch(offset, size);
     const auto total_copy_size = std::min(size, mapped->size() - offset);
-    constexpr size_t chunk_size = 128 * 1024 * 1024;  // 128 MiB chunks
+    constexpr size_t chunk_size = 128 * util::one_mib;
     std::vector<char> buffer(std::min(chunk_size, total_copy_size));
     volatile char sink = 0;
     for (size_t i = 0; i < total_copy_size; i += chunk_size) {
@@ -329,17 +327,6 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     for (const auto& r : results) {
         printf("%-10zu | %14lld ms | %10lld ms | %10lld ms\n", r.mib, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
     }
-
-    printf("\n--- Throughput (MiB/s) ---\n");
-    printf("%-10s | %17s | %13s | %13s\n", "Size (MiB)", "prefetch+memcpy", "mmap+memcpy", "ifstream");
-    printf("%-10s-|-%17s-|-%13s-|-%13s\n", "----------", "-----------------", "-------------", "-------------");
-    for (const auto& r : results) {
-        printf("%-10zu | %12.0f MiB/s | %8.0f MiB/s | %8.0f MiB/s\n",
-               r.mib,
-               throughput_mibs(r.mib, r.t_hint_prefetch),
-               throughput_mibs(r.mib, r.t_no_prefault),
-               throughput_mibs(r.mib, r.t_ifstream));
-    }
 }
 
 TEST_F(FileLoadBenchmark, strategies_mlock) {
@@ -392,16 +379,6 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
     for (const auto& r : results) {
         printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_prefetch_mlock, r.t_mlock);
     }
-
-    printf("\n--- Throughput (MiB/s) ---\n");
-    printf("%-10s | %17s | %13s\n", "Size (MiB)", "prefetch+mlock", "mmap+mlock");
-    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
-    for (const auto& r : results) {
-        printf("%-10zu | %12.0f MiB/s | %8.0f MiB/s\n",
-               r.mib,
-               throughput_mibs(r.mib, r.t_prefetch_mlock),
-               throughput_mibs(r.mib, r.t_mlock));
-    }
 }
 
 TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
@@ -420,8 +397,8 @@ TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
     std::vector<std::vector<long long>> results(region_sizes_mib.size(), std::vector<long long>(offsets_mib.size(), -1));
     for (size_t si = 0; si < region_sizes_mib.size(); ++si) {
         for (size_t oi = 0; oi < offsets_mib.size(); ++oi) {
-            const size_t off_bytes = offsets_mib[oi] * 1024 * 1024;
-            const size_t sz_bytes = region_sizes_mib[si] * 1024 * 1024;
+            const size_t off_bytes = offsets_mib[oi] * util::one_mib;
+            const size_t sz_bytes = region_sizes_mib[si] * util::one_mib;
             if (off_bytes + sz_bytes > tf.size_bytes())
                 continue;
             results[si][oi] = bench(

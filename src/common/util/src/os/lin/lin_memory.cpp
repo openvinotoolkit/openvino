@@ -12,18 +12,8 @@
 #include <tuple>
 
 #include "openvino/util/memory.hpp"
-#include "prefetch_pages.hpp"
 
 namespace ov::util {
-
-namespace {
-
-void madvise_hint(void* ptr, size_t size) noexcept {
-    madvise(ptr, size, MADV_SEQUENTIAL);
-    madvise(ptr, size, MADV_WILLNEED);
-}
-
-}  // namespace
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
     if (alignment == 0) {
@@ -73,17 +63,10 @@ void vm_release(void* ptr, size_t size) noexcept {
     std::ignore = munmap(ptr, size);
 }
 
-void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
-    assert(ptr != nullptr && size > 0);
-    // assert if region is not mmap-backed.
-
-    if (num_threads == 0) {
-        // Option 1: OS advisory hints — async, low overhead.
-        madvise_hint(ptr, size);
-    } else {
-        // Option 2: parallel synchronous touch — blocks until every page is resident.
-        populate_pages(ptr, size, num_threads);
-    }
+void vm_prefetch_hint(void* ptr, size_t size) noexcept {
+    // OS advisory hints — async, low overhead.
+    madvise(ptr, size, MADV_SEQUENTIAL);
+    madvise(ptr, size, MADV_WILLNEED);
 }
 
 }  // namespace ov::util

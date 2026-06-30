@@ -15,7 +15,6 @@
 #include <tuple>
 
 #include "openvino/util/memory.hpp"
-#include "prefetch_pages.hpp"
 
 namespace ov::util {
 
@@ -58,18 +57,10 @@ void vm_release(void* ptr, size_t) noexcept {
     std::ignore = VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
-    assert(ptr != nullptr && size > 0);
-    // assert if region is not mmap-backed.
-
-    if (num_threads == 0) {
-        // Option 1: OS advisory hint — async, low overhead. Best-effort; failure is ignored.
-        WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
-        ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
-    } else {
-        // Option 2: parallel synchronous touch — blocks until every page is resident.
-        populate_pages(ptr, size, num_threads);
-    }
+void vm_prefetch_hint(void* ptr, size_t size) noexcept {
+    // OS advisory hint — async, low overhead. Best-effort; failure is ignored.
+    WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
+    ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
 }
 
 }  // namespace ov::util

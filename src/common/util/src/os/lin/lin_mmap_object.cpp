@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
-#include <thread>
 #include <tuple>
 
 #include "openvino/util/common_util.hpp"
@@ -23,6 +22,18 @@ namespace util {
 int64_t get_system_page_size() {
     static auto page_size = static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
     return page_size;
+}
+
+/**
+ * @brief Creates a memory region for mmap operations.
+ *
+ * @param offset The offset within the mmap region.
+ * @param size   The size of the region.
+ * @return AlignedRegion The aligned memory region.
+ */
+inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    return util::align_region(static_cast<uintptr_t>(offset), size, page_size);
 }
 }  // namespace util
 
@@ -140,12 +151,7 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-        if (const auto region = util::make_hint_region(m_data, m_size, offset, size); region.m_length > 4 * one_mib) {
-            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
-            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
-            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
-        }
+        util::prefetch_mapped_region(m_data, m_size, offset, size);
     }
 };
 
