@@ -312,16 +312,23 @@ constexpr FileMode operator|(FileMode a, FileMode b) noexcept {
     return static_cast<FileMode>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
 }
 
-/// @brief Test whether a specific flag is set in @p flags.
-constexpr bool has_flag(FileMode flags, FileMode flag) noexcept {
-    return (static_cast<unsigned>(flags) & static_cast<unsigned>(flag)) != 0;
+/**
+ * @brief Returns true when **all** bits of @p flags are set in @p mode.
+ *
+ * @param mode   The @ref FileMode value to test.
+ * @param flags  The flag or combination of flags that must all be present in @p mode.
+ * @return       True if every bit in @p flags is set in @p mode; False otherwise.
+ */
+constexpr bool mode_set(FileMode mode, FileMode flags) noexcept {
+    const auto mask = static_cast<unsigned>(flags);
+    return (static_cast<unsigned>(mode) & mask) == mask;
 }
 
 /**
  * @brief Open a file with the specified access mode.
  *
  * @param path  Path to the file.
- * @param mode  Access flags. Defaults to @c FileMode::read.
+ * @param mode  Access flags. Defaults to @c FileMode::READ.
  * @return A valid @ref FileHandle on success, or @c ov::invalid_handle on failure.
  */
 FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode::READ);
