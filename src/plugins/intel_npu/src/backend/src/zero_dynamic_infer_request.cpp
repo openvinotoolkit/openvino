@@ -369,6 +369,11 @@ void ZeroDynamicInferRequest::update_tensor(const std::vector<IDynamicGraph::Mem
 }
 
 void ZeroDynamicInferRequest::refresh_tensor_changed_flag_from_shapes() {
+    if (_isTensorChanged) {
+        _logger.debug("refresh_tensor_changed_flag_from_shapes - skip check because tensor change is already pending");
+        return;
+    }
+
     auto shape_to_log_string = [](const std::optional<ov::Shape>& shape) -> std::string {
         return shape.has_value() ? shape.value().to_string() : std::string("<null>");
     };
@@ -376,7 +381,7 @@ void ZeroDynamicInferRequest::refresh_tensor_changed_flag_from_shapes() {
     for (size_t i = 0; i < _metadata.inputs.size(); ++i) {
         const auto& userTensors = get_user_inputs(i);
         auto& cachedShapes = _cachedUserInputShapes.at(i);
-
+        // check size
         if (cachedShapes.size() != userTensors.size()) {
             _logger.debug("refresh_tensor_changed_flag_from_shapes - input[%zu] tensor count changed: %zu -> %zu",
                           i,
@@ -385,7 +390,7 @@ void ZeroDynamicInferRequest::refresh_tensor_changed_flag_from_shapes() {
             _isTensorChanged = true;
             return;
         }
-
+        // check each shape
         for (size_t j = 0; j < userTensors.size(); ++j) {
             const auto& userTensor = userTensors.at(j);
             const std::optional<ov::Shape> currentShape =
@@ -400,10 +405,6 @@ void ZeroDynamicInferRequest::refresh_tensor_changed_flag_from_shapes() {
                 return;
             }
         }
-    }
-
-    if (_isTensorChanged) {
-        return;
     }
 
     for (size_t i = 0; i < _metadata.outputs.size(); ++i) {
