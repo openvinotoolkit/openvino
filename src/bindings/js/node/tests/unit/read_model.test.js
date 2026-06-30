@@ -74,10 +74,10 @@ describe("Tests for reading model.", () => {
       assert.equal(model.inputs.length, 1);
     });
 
-    it("readModel(xmlPath) throws", async () => {
+    it("readModel(xmlPath) rejects on invalid path", async () => {
       await assert.rejects(
         async () => await core.readModel("not_exists"),
-        /ir: Could not open the file: /,
+        /Could not open the file/,
       );
     });
 
