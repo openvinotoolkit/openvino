@@ -58,12 +58,10 @@ namespace intel_npu {
 
 CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
                                                            const std::shared_ptr<IGraph>& graph,
-                                                           const std::shared_ptr<IDevice>& device,
                                                            const std::optional<int64_t>& batchSize,
                                                            Logger& logger)
     : _config(config),
       _graph(graph),
-      _device(device),
       _batchSize(batchSize),
       _logger(logger) {
     registerProperties();
@@ -131,9 +129,7 @@ void CompiledModelPropertyManager::registerProperties() {
 
     // clang-format off
     register_property<MODEL_PRIORITY>(_config, _properties, ov::hint::model_priority.name());
-    register_property_with_support<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name(), [&](const FilteredConfig&) {
-        return _device != nullptr && _device->isCommandQueueExtSupported();
-    });
+    register_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name());
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     register_property_as_read_only<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
