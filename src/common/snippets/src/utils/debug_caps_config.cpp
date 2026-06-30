@@ -4,13 +4,11 @@
 
 #include "snippets/utils/debug_caps_config.hpp"
 
-#ifdef SNIPPETS_DEBUG_CAPS
+#include <algorithm>
+#include <cstdlib>
 
-#    include <algorithm>
-#    include <cstdlib>
-
-#    include "openvino/core/except.hpp"
-#    include "openvino/util/common_util.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::snippets {
 
@@ -78,5 +76,3 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
 }
 
 }  // namespace ov::snippets
-
-#endif  // SNIPPETS_DEBUG_CAPS

@@ -36,8 +36,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_buffers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_load_store.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_loops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count_verbose.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_reg_spills.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_specific_iterations.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/iter_handler.cpp
@@ -89,7 +87,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/online_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/online_softmax_update_max.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/online_softmax_update_sum.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/perf_count.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/rank_normalization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/reduce.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/reg_spill.cpp
@@ -138,7 +135,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_configurator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shape_inference/shape_inference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shape_inference/shape_infer_instances.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/loop_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/tokenization_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/utils.cpp
@@ -175,8 +171,6 @@ set(PUBLIC_HEADERS
     ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_buffers.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_load_store.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_loops.hpp
-    ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_perf_count.hpp
-    ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_perf_count_verbose.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_reg_spills.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_specific_iterations.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/iter_handler.hpp
@@ -230,7 +224,6 @@ set(PUBLIC_HEADERS
     ${PUBLIC_HEADERS_DIR}/snippets/op/online_softmax.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/op/online_softmax_update_max.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/op/online_softmax_update_sum.hpp
-    ${PUBLIC_HEADERS_DIR}/snippets/op/perf_count.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/op/powerstatic.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/op/rank_normalization.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/op/reduce.hpp
@@ -287,13 +280,27 @@ set(PUBLIC_HEADERS
     ${PUBLIC_HEADERS_DIR}/snippets/shape_types.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/snippets_isa_tbl.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/target_machine.hpp
-    ${PUBLIC_HEADERS_DIR}/snippets/utils/debug_caps_config.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/utils/linear_ir_pass_dumper.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/utils/loop_utils.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/utils/reg_utils.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/utils/tokenization_utils.hpp
     ${PUBLIC_HEADERS_DIR}/snippets/utils/utils.hpp
 )
+
+if(ENABLE_SNIPPETS_DEBUG_CAPS)
+    list(APPEND LIBRARY_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count_verbose.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/op/perf_count.cpp
+    )
+    list(APPEND PUBLIC_HEADERS
+        ${PUBLIC_HEADERS_DIR}/snippets/utils/debug_caps_config.hpp
+        ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_perf_count.hpp
+        ${PUBLIC_HEADERS_DIR}/snippets/lowered/pass/insert_perf_count_verbose.hpp
+        ${PUBLIC_HEADERS_DIR}/snippets/op/perf_count.hpp
+    )
+endif()
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
