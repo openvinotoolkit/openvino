@@ -10,10 +10,10 @@
 #include <iostream>
 #include <sstream>
 
+#include "common/npu_test_env_cfg.hpp"
 #include "gtest/gtest.h"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "common/npu_test_env_cfg.hpp"
 #include "npu_test_report.hpp"
 #include "npu_test_tool.hpp"
 
