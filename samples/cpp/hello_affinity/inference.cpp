@@ -93,7 +93,8 @@ void fill_integer_tensor_value(ov::Tensor& tensor, int64_t value) {
         if (value != 0 && value != 1) {
             OPENVINO_THROW("Cannot fill boolean tensor with value ", value, ". Expected 0 or 1.");
         }
-        fill_tensor_value<char>(tensor, static_cast<char>(value));
+        using BoolT = ov::fundamental_type_for<ov::element::boolean>;
+        fill_tensor_value<BoolT>(tensor, static_cast<BoolT>(value));
     } else {
         OPENVINO_THROW("Cannot fill tensor with integer value. Unsupported element type: ", type);
     }
