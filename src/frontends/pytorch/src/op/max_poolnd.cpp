@@ -7,6 +7,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -33,6 +34,49 @@ using namespace ov::op;
 
 namespace {
 
+// Guard that spatial axis `spatial_idx` (0-based within the trailing `dims` spatial axes) of
+// `tensor` has runtime extent exactly equal to the runtime kernel value `k`. A non-constant kernel
+// element is only handled as a full-extent (global) pool, so this asserts that assumption at
+// runtime: build a Reshape whose target copies every axis from the runtime shape except this one,
+// which is pinned to `k`. When extent == k the Reshape is an identity; any other extent (e.g. a
+// genuine strided pool with k < extent) makes the element counts disagree and the Reshape fails
+// loudly at runtime instead of silently collapsing the axis to size 1.
+Output<Node> guard_full_extent_axis(const NodeContext& context,
+                                    const Output<Node>& tensor,
+                                    int dims,
+                                    int spatial_idx,
+                                    const Output<Node>& k) {
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto neg_dims = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i64));
+    // Leading (batch / channel / earlier-spatial) axes, copied verbatim; empty when there is no
+    // batch axis (rank == dims), which Concat handles.
+    auto batch = context.mark_node(std::make_shared<v8::Slice>(shape, zero, neg_dims, one, zero));
+    Output<Node> k_i64 = k;
+    if (k_i64.get_element_type() != element::i64) {
+        k_i64 = context.mark_node(std::make_shared<v0::Convert>(k_i64, element::i64));
+    }
+    // A kernel list element is a scalar; normalize it to a 1-D [1] so it slots into the shape.
+    auto k_1d = context.mark_node(std::make_shared<v1::Reshape>(k_i64, one, false));
+    OutputVector parts{batch};
+    for (int t = 0; t < dims; ++t) {
+        if (t == spatial_idx) {
+            parts.push_back(k_1d);
+        } else {
+            // Copy this spatial axis's current extent (negative index works for dynamic rank).
+            auto idx = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {t - dims}));
+            parts.push_back(context.mark_node(std::make_shared<v8::Gather>(shape, idx, zero)));
+        }
+    }
+    auto target = context.mark_node(std::make_shared<v0::Concat>(parts, 0));
+    auto guarded = context.mark_node(std::make_shared<v1::Reshape>(tensor, target, false));
+    // Op-labeled name so the runtime Reshape failure identifies the op (the CPU plugin embeds the
+    // node name in its error message).
+    guarded->set_friendly_name("aten::max_pool" + std::to_string(dims) + "d/require_full_extent");
+    return guarded;
+}
+
 // Decompose a max_pool whose kernel_size is only known at runtime.
 //
 // OpenVINO's MaxPool takes the pooling window (kernel/strides/pads/dilations) as constructor
@@ -51,7 +95,8 @@ OutputVector translate_max_pool_dynamic_kernel(const NodeContext& context,
                                                bool return_indices,
                                                const Output<Node>& input,
                                                const std::vector<bool>& elem_is_const,
-                                               const std::vector<int64_t>& elem_const_val) {
+                                               const std::vector<int64_t>& elem_const_val,
+                                               const std::vector<Output<Node>>& elem_runtime_val) {
     PYTORCH_OP_CONVERSION_CHECK(static_cast<int>(elem_is_const.size()) == dims,
                                 "aten::max_pool",
                                 dims,
@@ -92,12 +137,22 @@ OutputVector translate_max_pool_dynamic_kernel(const NodeContext& context,
                                     "d with a non-constant kernel_size is only supported with ceil_mode=False.");
     }
 
+    PYTORCH_OP_CONVERSION_CHECK(static_cast<int>(elem_runtime_val.size()) == dims,
+                                "aten::max_pool",
+                                dims,
+                                "d: could not recover the runtime kernel_size elements.");
+
     // Decide, per spatial axis, whether it is reduced (full-extent) or left untouched (window 1).
+    // For each runtime (non-constant) kernel element we guard, at runtime, that the axis extent
+    // equals the kernel value before reducing -- otherwise a genuine strided pool (kernel < extent)
+    // would silently collapse the axis to size 1 instead of the correct strided output.
+    Output<Node> guarded = input;
     std::vector<int64_t> reduce_axes;
     for (int i = 0; i < dims; ++i) {
         const int64_t axis = static_cast<int64_t>(i) - dims;  // negative index of this spatial axis
         if (!elem_is_const[i]) {
-            // Runtime kernel element: assume it spans the whole axis (global pool over that axis).
+            // Runtime kernel element: it must span the whole axis (global pool over that axis).
+            guarded = guard_full_extent_axis(context, guarded, dims, i, elem_runtime_val[i]);
             reduce_axes.push_back(axis);
         } else if (elem_const_val[i] == 1) {
             // Window of 1 with default stride is identity along this axis -- nothing to reduce.
@@ -118,7 +173,7 @@ OutputVector translate_max_pool_dynamic_kernel(const NodeContext& context,
                                 "d: a non-constant kernel_size that pools no axis is unexpected.");
 
     auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes));
-    auto res = context.mark_node(std::make_shared<v1::ReduceMax>(input, axes, /*keep_dims=*/true));
+    auto res = context.mark_node(std::make_shared<v1::ReduceMax>(guarded, axes, /*keep_dims=*/true));
     return {std::move(res)};
 }
 
@@ -134,16 +189,19 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool 
     // constant fall back to a ReduceMax-based decomposition (see translate_max_pool_dynamic_kernel).
     std::vector<bool> elem_is_const;
     std::vector<int64_t> elem_const_val;
+    std::vector<Output<Node>> elem_runtime_val;  // parallel to the vectors above; valid for non-const entries
     bool kernel_is_static = true;
     for (const auto& e : get_list_as_outputs(context.get_input(1))) {
         if (const auto c = ov::util::get_constant_from_source(e)) {
             for (auto val : c->cast_vector<int64_t>()) {
                 elem_is_const.push_back(true);
                 elem_const_val.push_back(val);
+                elem_runtime_val.emplace_back();  // unused for a constant element
             }
         } else {
             elem_is_const.push_back(false);
             elem_const_val.push_back(-1);
+            elem_runtime_val.push_back(e);
             kernel_is_static = false;
         }
     }
@@ -151,9 +209,16 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool 
     if (elem_is_const.size() == 1 && dims > 1) {
         elem_is_const.assign(dims, elem_is_const[0]);
         elem_const_val.assign(dims, elem_const_val[0]);
+        elem_runtime_val.assign(dims, elem_runtime_val[0]);
     }
     if (!kernel_is_static) {
-        return translate_max_pool_dynamic_kernel(context, dims, return_indices, input, elem_is_const, elem_const_val);
+        return translate_max_pool_dynamic_kernel(context,
+                                                 dims,
+                                                 return_indices,
+                                                 input,
+                                                 elem_is_const,
+                                                 elem_const_val,
+                                                 elem_runtime_val);
     }
 
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
