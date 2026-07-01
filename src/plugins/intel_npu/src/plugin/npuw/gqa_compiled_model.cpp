@@ -38,58 +38,34 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
     };
 
     const auto detect_gqa_model_stage = [&]() {
-        const auto to_lower = [](std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-                return static_cast<char>(std::tolower(ch));
-            });
-            return value;
-        };
-
-        const auto is_cache_parameter_name = [&](const std::string& name) {
-            const auto lower_name = to_lower(name);
-            return lower_name.find("past") != std::string::npos || lower_name.find("present") != std::string::npos ||
-                   lower_name.find("cache") != std::string::npos;
-        };
-
-        bool saw_generate_input = false;
-        bool saw_prefill_input = false;
-
+        // The activation tensor ("input_hidden_states") is what the embedding
+        // model stage feeds into the transformer.  For the generate (iter) model
+        // the seq dim is specialized to 1 via a free-dim override; for the
+        // prefill (ctx) model the seq dim is either >1 or left dynamic (the
+        // context length varies at runtime).  KV-cache slicing has no effect on
+        // this input at all.
         for (const auto& parameter : model->get_parameters()) {
-            if (is_cache_parameter_name(parameter->get_friendly_name())) {
-                continue;
-            }
-
-            const auto element_type = parameter->get_element_type();
-            if (!element_type.is_real()) {
+            const auto& name = parameter->get_friendly_name();
+            if (name != "input_hidden_states" && name != "input_ids") {
                 continue;
             }
 
             const auto& partial_shape = parameter->get_partial_shape();
-            if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() != 3) {
+            if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() < 2) {
                 continue;
             }
 
             const auto& token_dim = partial_shape[1];
+
+            // Dynamic seq dim → prefill model with variable context length.
             if (token_dim.is_dynamic()) {
-                continue;
+                return GQAModelStage::PREFILL;
             }
 
             const auto token_count = token_dim.get_length();
             if (token_count == 1) {
-                saw_generate_input = true;
-            } else if (token_count > 1) {
-                saw_prefill_input = true;
+                return GQAModelStage::GENERATE;
             }
-
-            if (saw_generate_input && saw_prefill_input) {
-                return GQAModelStage::UNKNOWN;
-            }
-        }
-
-        if (saw_generate_input) {
-            return GQAModelStage::GENERATE;
-        }
-        if (saw_prefill_input) {
             return GQAModelStage::PREFILL;
         }
         return GQAModelStage::UNKNOWN;
@@ -98,22 +74,28 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
     ov::AnyMap config = {
         {"NPUW_ONLINE_PIPELINE", "REP"},
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
-        {std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
     };
 
-    if (detect_gqa_model_stage() != GQAModelStage::GENERATE) {
+    const auto stage = detect_gqa_model_stage();
+    if (stage == GQAModelStage::PREFILL) {
         merge_config_with(config,
-                          {{"NPUW_ONLINE_ISOLATE", "ATTN"},
+                          {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
                            {"NPUW_FOLD_ONLY", "attn"},
+                           {"NPUW_ONLINE_ISOLATE", "ATTN"},
                            {"NPUW_ATTN", "STATIC"},
-                           {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "9"}});
-    } else {
+                           {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"}});
+        LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
+    } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
-                          {{std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
+                          {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+                           {"NPUW_FOLD_ONLY", "attn"},
+                           {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
-        LOG_INFO("Detected generate-style GQA model; skipping ATTN isolation defaults");
+        LOG_INFO("Detected generate-style GQA model; applying FOLD with async funcall");
+    } else {
+        LOG_INFO("GQA model stage unknown; FOLD disabled");
     }
     merge_config_with(config, properties);
     return config;

@@ -30,10 +30,9 @@ public:
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     memory_ptr import_buffer(const layout&, ov::intel_gpu::os_handle_param external_handle) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
-
     void release_external_memory(cl_mem) const;
 
-    void* get_user_context() const override;
+    void* get_user_context(runtime_types rt_type) const override;
 
     allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
     allocation_type detect_usm_allocation_type(const void* memory) const override;
