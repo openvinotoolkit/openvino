@@ -56,6 +56,40 @@ inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_
         return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
     }
 }
+
+/**
+ * @brief Plan computed by @ref make_prefetch_plan, shared between the sync and async
+ * hint_prefetch() implementations.
+ */
+struct PrefetchPlan {
+    uintptr_t m_address = 0;
+    size_t m_aligned_size = 0;
+    size_t m_num_threads = 0;
+    bool m_should_prefetch = false;
+};
+
+/**
+ * @brief Computes the aligned region, page-aligned size and thread count to use for a
+ * hint_prefetch()/hint_prefetch_async() call.
+ *
+ * @param data         The base address of the mapped memory region.
+ * @param mapping_size The size of the mapped memory region.
+ * @param offset       Offset within the mapping where prefetching starts.
+ * @param size         Number of bytes to prefetch.
+ * @return PrefetchPlan with m_should_prefetch == false when the requested region is below the
+ * 4 MiB threshold (spawning threads would not be worth it).
+ */
+inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, size_t offset, size_t size) {
+    constexpr size_t one_mb = 1024 * 1024;
+    // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+    if (const auto region = make_madvise_region(data, mapping_size, offset, size); region.m_length > 4 * one_mb) {
+        return {region.m_address,
+                align_size_up(region.m_length, static_cast<size_t>(get_system_page_size())),
+                std::min<size_t>(10, std::thread::hardware_concurrency()),
+                true};
+    }
+    return {};
+}
 }  // namespace util
 
 class HandleHolder {
@@ -172,13 +206,18 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        constexpr size_t one_mb = 1024 * 1024;
-        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
-            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
-            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
-            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_should_prefetch) {
+            util::vm_prefetch(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size, plan.m_num_threads);
         }
+    }
+
+    util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) override {
+        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_should_prefetch) {
+            return util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address),
+                                            plan.m_aligned_size,
+                                            plan.m_num_threads);
+        }
+        return {};
     }
 };
 

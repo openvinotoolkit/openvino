@@ -41,7 +41,7 @@ struct PageToucher {
     }
 };
 
-void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
+std::vector<std::thread> spawn_page_touchers(void* ptr, size_t size, size_t num_threads) noexcept {
     // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
     const auto page_size = static_cast<size_t>(get_system_page_size());
     const auto chunk_size = std::max<size_t>(align_size_up(size / num_threads, page_size), 1024 * 1024);
@@ -52,6 +52,12 @@ void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
     for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last; first += chunk_size) {
         threads.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
     }
+    return threads;
+}
+
+void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
+    // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
+    auto threads = spawn_page_touchers(ptr, size, num_threads);
     for (auto& t : threads) {
         t.join();
     }
@@ -118,6 +124,20 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
         // Option 2: parallel synchronous touch — blocks until every page is resident.
         populate_pages(ptr, size, num_threads);
     }
+}
+
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // assert if region is not mmap-backed.
+
+    if (num_threads == 0) {
+        // OS advisory hint is cheap and already asynchronous; no background threads needed.
+        madvise_hint(ptr, size);
+        return {};
+    }
+    // Spawn the touchers but do not join them here — ownership is transferred to the token,
+    // whose destructor (or explicit wait()) joins them.
+    return PrefetchToken(spawn_page_touchers(ptr, size, num_threads));
 }
 
 }  // namespace ov::util

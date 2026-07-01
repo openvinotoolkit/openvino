@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <string>
 #include <system_error>
+#include <thread>
+#include <vector>
 
 namespace ov::util {
 
@@ -123,5 +125,86 @@ void vm_release(void* ptr, size_t size) noexcept;
  *                    - @c N >= 1      → parallel touch with N threads (synchronous).
  */
 void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
+
+/**
+ * @brief Move-only RAII token representing background page-population work started by
+ * @ref vm_prefetch_async.
+ *
+ * The token owns the worker threads spawned to touch/populate pages. Call wait() to block
+ * until the population completes, or simply let the token go out of scope — its destructor
+ * joins all outstanding threads, so no background work is ever left running uncontrolled.
+ *
+ * A default-constructed (or moved-from) token is "empty": wait() is a no-op and valid()/
+ * operator bool() return false.
+ *
+ * @note The token does not extend the lifetime of the underlying memory mapping/buffer that
+ * is being populated. The caller is responsible for keeping that memory alive until the
+ * token has completed (via wait() or destruction).
+ */
+class PrefetchToken {
+public:
+    PrefetchToken() noexcept = default;
+    explicit PrefetchToken(std::vector<std::thread>&& threads) noexcept : m_threads(std::move(threads)) {}
+
+    PrefetchToken(const PrefetchToken&) = delete;
+    PrefetchToken& operator=(const PrefetchToken&) = delete;
+
+    PrefetchToken(PrefetchToken&&) noexcept = default;
+
+    PrefetchToken& operator=(PrefetchToken&& other) noexcept {
+        if (this != &other) {
+            wait();  // avoid destroying still-joinable threads owned by *this via vector assignment
+            m_threads = std::move(other.m_threads);
+        }
+        return *this;
+    }
+
+    ~PrefetchToken() {
+        wait();
+    }
+
+    /**
+     * @brief Blocks until all background population threads complete, then releases them.
+     * Safe to call multiple times and on an empty token (no-op).
+     */
+    void wait() {
+        for (auto& t : m_threads) {
+            if (t.joinable()) {
+                t.join();
+            }
+        }
+        m_threads.clear();
+    }
+
+    /** @brief Returns true if the token owns outstanding background work. */
+    bool valid() const noexcept {
+        return !m_threads.empty();
+    }
+
+    explicit operator bool() const noexcept {
+        return valid();
+    }
+
+private:
+    std::vector<std::thread> m_threads;
+};
+
+/**
+ * @brief Asynchronous variant of @ref vm_prefetch.
+ *
+ * Starts pre-fetching a committed VM range into physical memory in background threads and
+ * returns immediately with a @ref PrefetchToken that must be used to wait for completion
+ * (explicitly via wait(), or implicitly by letting the token go out of scope).
+ *
+ * @param ptr         Base address of the range. Must be page-aligned.
+ * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
+ * @param num_threads Number of worker threads to spawn:
+ *                    - @c 0 (default) → OS advisory hint is issued synchronously (cheap, returns
+ *                      an empty token since no background threads are needed).
+ *                    - @c N >= 1      → N background threads are spawned to touch pages in
+ *                      parallel; the returned token owns them.
+ * @return A @ref PrefetchToken owning the spawned worker threads (empty when @p num_threads == 0).
+ */
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads = 0) noexcept;
 
 }  // namespace ov::util

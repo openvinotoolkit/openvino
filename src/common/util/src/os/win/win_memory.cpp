@@ -69,4 +69,11 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     }
 }
 
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    // CVS-186579
+    // No background work is started on Windows; mirrors the vm_prefetch() no-op stub.
+    return {};
+}
+
 }  // namespace ov::util
