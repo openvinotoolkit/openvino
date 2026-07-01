@@ -161,5 +161,13 @@
     "timestamp": "2026-07-01T09:51:46Z",
     "workflow": "Windows (VS 2022, Python 3.11, Debug)",
     "category": "Infrastructure"
+  },
+  {
+    "file": "2026-07-01-10-28-17-000-28505410481.json",
+    "run_id": 28505410481,
+    "signature": "134f01149f41adcc",
+    "timestamp": "2026-07-01T10:28:17Z",
+    "workflow": "Windows (VS 2022, Python 3.11, Release)",
+    "category": "Flaky Test"
   }
 ]

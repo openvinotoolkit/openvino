@@ -1,0 +1,18 @@
+{
+  "run_id": 28505410481,
+  "timestamp": "2026-07-01T10:28:17Z",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "head_sha": "42b3e983a9eb85141888de0a1ede2d0b6136e7e0",
+  "pr_number": "36640",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36640",
+  "author": "akashchi",
+  "category": "Flaky Test",
+  "signature": "134f01149f41adcc",
+  "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
+  "failed_job": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+  "failed_step": "TensorFlow 2 Layer Tests - TF FE",
+  "failed_test": "test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32",
+  "error_summary": "AssertionError: Comparing with Framework failed - Max diff is 0.11681008338928223",
+  "root_cause": "Flaky numerical accuracy issue in LSTM (Keras/TF2 FE) on Windows CPU. The tolerance threshold is exceeded by a small numerical difference in LSTM computation with dropout enabled (0.1, 0.3), relu activation, recurrent_activation=tanh, float32. Unrelated to PR #36640.",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28505410481"
+}
