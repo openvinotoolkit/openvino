@@ -214,6 +214,7 @@ PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
     : _config(config),
       _backend(backend),
       _compilerOptionSupportHelper(optionSupportHelper),
+      _metrics(std::make_shared<Metrics>(_backend)),
       _logger(logger) {
     registerProperties();
 }
@@ -224,6 +225,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
           return CopyState{other._config,
                            other._backend,
                            other._compilerOptionSupportHelper,
+                           other._metrics,
                            other._logger,
                            other._currentlyUsedCompiler,
                            other._compatibilityCheckSupported,
@@ -236,6 +238,7 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
     : _config(std::move(state.config)),
       _backend(std::move(state.backend)),
       _compilerOptionSupportHelper(std::move(state.optionSupportHelper)),
+      _metrics(std::move(state.metrics)),
       _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
       _compatibilityCheckSupported(state.compatibilityCheckSupported),
