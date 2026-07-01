@@ -191,6 +191,10 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
 
     const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
 
+    if (runtimeRequirements.empty()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
     std::unique_ptr<MetadataBase> metadata = nullptr;
     try {
         metadata = read_as_text(runtimeRequirements);
