@@ -77,12 +77,12 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-static bool is_fe_lib_name(const std::string_view& file_name) {
-    static constexpr auto prefix = std::string_view(FRONTEND_LIB_PREFIX);
-    static constexpr auto suffix = std::string_view(FRONTEND_LIB_SUFFIX);
-    auto prefix_pos = file_name.find(prefix);
-    auto suffix_pos = file_name.rfind(suffix);
-    return (prefix_pos == 0 && suffix_pos != std::string::npos && (suffix_pos == file_name.length() - suffix.length()));
+static bool is_fe_lib_name(std::basic_string_view<std::filesystem::path::value_type> file_name) {
+    using sv = std::basic_string_view<std::filesystem::path::value_type>;
+    static constexpr sv prefix{OV_WSTR(FRONTEND_LIB_PREFIX)};
+    static constexpr sv suffix{OV_WSTR(FRONTEND_LIB_SUFFIX)};
+    return file_name.size() > prefix.size() + suffix.size() && file_name.substr(0, prefix.size()) == prefix &&
+           ov::util::ends_with(file_name, suffix);
 }
 
 static std::vector<std::filesystem::path> list_files(const std::filesystem::path& path) {
@@ -91,8 +91,7 @@ static std::vector<std::filesystem::path> list_files(const std::filesystem::path
     if (const auto dir_iter = std::filesystem::directory_iterator(path, ec); !ec) {
         for (const auto& dir_entry : dir_iter) {
             if (!std::filesystem::is_directory(dir_entry.status())) {
-                const auto file_name = dir_entry.path().filename().string();
-                if (is_fe_lib_name(file_name)) {
+                if (is_fe_lib_name(dir_entry.path().filename().native())) {
                     res.push_back(dir_entry.path());
                 }
             }
