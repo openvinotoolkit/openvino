@@ -48,16 +48,18 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
 
     const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
-    const bool partial_moe_const_upload = otd_ratio > 0 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
+    // ratio=0 (all resident) or ratio=100 (all on disk, invalid) → no partial upload.
+    const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }
 
-    const size_t otd_expert_num = std::max<size_t>(1, const_shape[0] * otd_ratio / 100);
+    // otd_ratio is the % on disk; GPU-resident experts = total * (100 - ratio) / 100
+    const size_t resident_expert_num = std::max<size_t>(1, const_shape[0] * (100 - otd_ratio) / 100);
 
     desc.enabled = true;
     desc.upload_shape = const_shape;
-    desc.upload_shape[0] = std::min<size_t>(const_shape[0], otd_expert_num);
+    desc.upload_shape[0] = std::min<size_t>(const_shape[0], resident_expert_num);
 
     auto upload_layout = cldnn::layout(desc.upload_shape, out_dtype, const_format);
     auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);

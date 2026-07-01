@@ -29,8 +29,9 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 // Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
-// When MOE_OFFLOAD_RATIO > 0, computes the per-weight byte offsets into the bin
-// file and the number of LRU expert slots to keep resident on the GPU.
+// MOE_OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
+// The number of GPU-resident LRU slots = num_expert * (100 - ratio) / 100.
+// ratio=0 means all resident (no OTD); ratio=100 means all on disk (invalid, disabled).
 // Returns true when OTD is enabled (lru_expert_num > 0).
 static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    const std::shared_ptr<ov::op::internal::MOECompressed>& op,
@@ -41,7 +42,14 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     const auto& config = op->get_config();
     const auto& model = p.get_model();
     const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
-    lru_expert_num = otd_ratio > 0 ? std::max<size_t>(1, static_cast<size_t>(config.num_expert) * otd_ratio / 100) : 0;
+    // ratio=0  → all resident, no offload
+    // ratio=100 → all on disk, cannot run → treat as disabled
+    // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
+    if (otd_ratio > 0 && otd_ratio < 100) {
+        lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
+    } else {
+        lru_expert_num = 0;
+    }
     const bool otd_enabled = lru_expert_num > 0;
     if (otd_enabled) {
         const auto& rt = model->get_rt_info();
