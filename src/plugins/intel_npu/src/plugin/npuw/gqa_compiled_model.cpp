@@ -316,6 +316,12 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
             }
         }
 
+        // After redirecting K Results to curr_k, re-run shape inference so that NPUW sees the
+        // correct (small) output shapes instead of the stale ScatterUpdate shapes.
+        if (!kv_indices.empty()) {
+            model->validate_nodes_and_infer_types();
+        }
+
         // Capture KV max_seq values from the outer (pre-strip) model.
         // All managed outputs use standard layout — sequence dim is [2].
         std::vector<size_t> kv_max_seqs;
@@ -612,22 +618,6 @@ void ov::npuw::GQAInferRequest::infer() {
             seqlens_k_val = *reinterpret_cast<const int64_t*>(sk->data());
     }
 
-    // Before running the inner request, pre-set managed KV output tensors to the
-    // inner model's (small) shape. The OV framework may otherwise propagate the
-    // full-cache-sized user tensor ({1,H,max_seq,head}) down to the NPU subgraph
-    // output port, which expects the current-token slice ({1,H,curr_seq,head}).
-    const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
-    if (m_compiled_model->m_kv_managed) {
-        for (size_t ki = 0; ki < m_compiled_model->m_kv_output_indices.size(); ++ki) {
-            const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
-            if (kv_idx >= inner_outputs.size())
-                continue;
-            const auto& inner_out = inner_outputs[kv_idx];
-            auto t = ov::make_tensor(inner_out.get_element_type(), inner_out.get_partial_shape().to_shape());
-            m_inner_request->set_tensor(inner_out, t);
-        }
-    }
-
     m_inner_request->infer();
 
     if (!m_compiled_model->m_kv_managed)
@@ -636,12 +626,14 @@ void ov::npuw::GQAInferRequest::infer() {
     // Scatter the small inner KV outputs into the right offset of the user's full KV tensors.
     for (size_t ki = 0; ki < m_compiled_model->m_kv_output_indices.size(); ++ki) {
         const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
-        auto it = m_user_kv_tensors.find(kv_idx);
-        if (it == m_user_kv_tensors.end())
+        auto user_it = m_user_kv_tensors.find(kv_idx);
+        auto work_it = m_kv_working_tensors.find(kv_idx);
+        if (user_it == m_user_kv_tensors.end() || work_it == m_kv_working_tensors.end())
             continue;
 
-        auto inner_t = m_inner_request->get_tensor(inner_outputs[kv_idx]);
-        auto& user_t = it->second;
+        // inner_t is the working tensor NPUW wrote K curr data into.
+        auto& inner_t = work_it->second;
+        auto& user_t = user_it->second;
 
         // inner_t shape (all KV): [1, kv_heads, curr_seq, head_size]
         const auto inner_shape = inner_t->get_shape();
@@ -713,10 +705,21 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
 
     if (m_compiled_model->m_kv_managed) {
         const auto& outer_outputs = m_compiled_model->outputs();
+        const auto& inner_outputs = m_inner_request->get_compiled_model()->outputs();
         for (size_t i = 0; i < outer_outputs.size(); ++i) {
             if (outer_outputs[i] == port && is_kv_output_locked(i)) {
-                // Store the user's full KV tensor; the inner model writes a small slice into it.
+                // Store the user's full KV tensor (scatter destination).
                 m_user_kv_tensors[i] = tensor;
+                // Provide the inner request with a correctly-sized working buffer so
+                // NPUW never has to allocate its own — the tensor is always set from outside.
+                if (i < inner_outputs.size()) {
+                    auto& wt = m_kv_working_tensors[i];
+                    if (!wt) {
+                        const auto& inner_port = inner_outputs[i];
+                        wt = ov::make_tensor(inner_port.get_element_type(), inner_port.get_partial_shape().to_shape());
+                    }
+                    m_inner_request->set_tensor(inner_outputs[i], wt);
+                }
                 return;
             }
         }

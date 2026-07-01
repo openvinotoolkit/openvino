@@ -40,6 +40,8 @@ private:
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
     // User-set tensors for KV outputs intercepted by the managed KV scatter path.
     mutable std::unordered_map<size_t, ov::SoPtr<ov::ITensor>> m_user_kv_tensors;
+    // Correctly-sized working tensors forwarded to the inner request for each managed K output.
+    mutable std::unordered_map<size_t, ov::SoPtr<ov::ITensor>> m_kv_working_tensors;
 };
 
 class GQACompiledModel final : public ov::npuw::ICompiledModel {
