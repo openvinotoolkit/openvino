@@ -362,8 +362,10 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
         # A dynamic last axis keeps x.size(3) a runtime (non-constant) value, so the mixed
         # static-window/dynamic-extent kernel survives to the frontend and the conversion-time
         # guard fires. (A static last axis would const-fold the kernel to [3, 20] and hit the
-        # ordinary static MaxPool path, which does not raise.)
-        with pytest.raises(Exception):
+        # ordinary static MaxPool path, which does not raise.) The translator's
+        # PYTORCH_OP_CONVERSION_CHECK surfaces as OpConversionFailure; asserting the exact type
+        # keeps an unrelated failure from greening this test.
+        with pytest.raises(ov.frontend.OpConversionFailure):
             ov.convert_model(scripted, example_input=(example,),
                              input=[ov.PartialShape([1, 8, 15, -1])])
 
@@ -391,8 +393,11 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
         op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
         assert "ReduceMax" in op_types, f"expected the dynamic-kernel branch; ops: {op_types}"
         compiled = ov.Core().compile_model(ov_model, "CPU")
-        with pytest.raises(Exception):
+        # Runtime failure in the CPU plugin (a RuntimeError, not OpConversionFailure). Assert the
+        # op-labeled guard node so an unrelated failure cannot green this test.
+        with pytest.raises(Exception) as exc_info:
             compiled((example.numpy(),))
+        assert "require_full_extent" in str(exc_info.value)
 
     @pytest.mark.nightly
     @pytest.mark.precommit

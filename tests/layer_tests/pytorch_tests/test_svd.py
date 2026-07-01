@@ -127,9 +127,13 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
         # Static trailing dims => the conversion-time check in ensure_trailing_square fires.
         example = torch.randn(2, 4, 4, dtype=torch.float32)
         scripted = torch.jit.trace(self._svd(), example)
-        with pytest.raises(Exception):
+        # Not OpConversionFailure: the 3x3 guard trips core Reshape shape-inference while the model
+        # is built, surfaced as a RuntimeError. Assert the op-labeled guard node so an unrelated
+        # failure (e.g. a tracing error) cannot green this test.
+        with pytest.raises(Exception) as exc_info:
             ov.convert_model(scripted, example_input=(example,),
                              input=[ov.PartialShape([2, 4, 4])])
+        assert "requires_3x3" in str(exc_info.value)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -143,8 +147,11 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
         ov_model = ov.convert_model(scripted, example_input=(example,),
                                     input=[ov.PartialShape([2, -1, -1])])
         compiled = ov.Core().compile_model(ov_model, "CPU")
-        with pytest.raises(Exception):
+        # Runtime failure in the CPU plugin (a RuntimeError, not OpConversionFailure). Assert the
+        # op-labeled guard node so an unrelated failure cannot green this test.
+        with pytest.raises(Exception) as exc_info:
             compiled((example.numpy(),))
+        assert "requires_3x3" in str(exc_info.value)
 
 
 class TestSVDComputeUvFalseFailsGracefully(PytorchLayerTest):
@@ -166,6 +173,8 @@ class TestSVDComputeUvFalseFailsGracefully(PytorchLayerTest):
 
         example = torch.randn(2, 3, 3, dtype=torch.float32)
         scripted = torch.jit.trace(aten_svd_no_uv(), example)
-        with pytest.raises(Exception):
+        # The translator's PYTORCH_OP_CONVERSION_CHECK surfaces as OpConversionFailure; asserting
+        # the exact type keeps an unrelated failure from greening this test.
+        with pytest.raises(ov.frontend.OpConversionFailure):
             ov.convert_model(scripted, example_input=(example,),
                              input=[ov.PartialShape([2, 3, 3])])
