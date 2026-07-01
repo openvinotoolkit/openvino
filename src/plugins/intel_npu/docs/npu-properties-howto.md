@@ -1,4 +1,4 @@
-# NPU Properties
+﻿# NPU Properties
 What is a property from NPU Plugin's POV and Step-by-step guide on how to add one  
 Practical manual for NPU plugin properties
 
@@ -163,7 +163,7 @@ _*simple in this context means that it has no special callback function required
 ## Step 1. Define the new property
 First step is to define the new property's name, datatype and string-name in the public header in  
 ```bash
-openvino/src/inference/include/openvino/runtime/intel_npu/properties.hpp
+src/inference/include/openvino/runtime/intel_npu/properties.hpp
 ```  
 Example:  
 ```cpp
@@ -177,7 +177,7 @@ Notes:
 ## Step 2. Define the internal option descriptor
 Second step is to define the optionDesc class for this property in  
 ```bash
-openvino/src/plugins/intel_npu/al/config/options.hpp
+src/plugins/intel_npu/al/config/options.hpp
 ```  
 Example:  
 ```cpp
@@ -257,11 +257,11 @@ Notes:
 
 **(!!)** None of the member functions are mandatory to be defined.  
 If any is missing, the default function will be used for its call, as defined in the OptionsBase class  
-(see class **OptionBase** in *openvino/src/plugins/intel_npu/al/include/config/config.hpp* or Class Hierarchy section above)
+(see class **OptionBase** in *src/plugins/intel_npu/al/include/config/config.hpp* or Class Hierarchy section above)
 
 ## Step 3. Register the new option
 Third step is to register the new option in the plugin:  
-**openvino/src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)**
+**src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)**
 ```cpp
     register_options<
         /* existing options... */
@@ -275,7 +275,7 @@ It ensures that it is enabled or disabled based on the current system/environmen
 ## Step 4. Link the new property to the new option
 Fourth step is to create and register the Property (which is basically the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
 ### For plugin
-openvino/src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
+src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 ```cpp
 register_property<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
 ```
@@ -284,7 +284,7 @@ this helper function registers a property with the name ov::intel_npu::example_p
 which maps to our internal configuration named EXAMPLE_PROPERTY, and is supported when the option is available.  
 and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
 ### For compiled-model (if required)
-openvino/src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
+src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
 register_property_as_read_only_mark_supported_if_set<EXAMPLE_PROPERTY>(_config,
                                                                         _properties,
@@ -298,7 +298,7 @@ and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
 
 ## Step 5. Python bindings
 In order for the property to be exposed in Python API, add python wrapper for the new property in pyOpenvino  
-openvino/src/bindings/python/src/pyopenvino/core/properties/properties.cpp:  
+src/bindings/python/src/pyopenvino/core/properties/properties.cpp:  
 In section // submodule npu  
 ```cpp
     wrap_property_RW(m_intel_npu, ov::intel_npu::example_property, "example_property"); 
@@ -307,8 +307,8 @@ In section // submodule npu
 ## Step 6. Update documentation
 Document the new property in the appropriate sections (+ additional information, if required) in:  
 ```bash
-openvino/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst 
-openvino/src/plugins/intel_npu/README.md 
+docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst 
+src/plugins/intel_npu/README.md 
 ```
 
 <br><br>
@@ -320,7 +320,7 @@ This means we do not need to define and Option nor register an Option for it.
 ## Step 1. Define the new property
 First step is to define the new property's name, datatype and string-name in the public header in  
 ```bash
-openvino/src/inference/include/openvino/runtime/intel_npu/properties.hpp
+src/inference/include/openvino/runtime/intel_npu/properties.hpp
 ```  
 Example:  
 ```cpp
@@ -333,8 +333,8 @@ Notes:
 
 ## Step 2. Define and register a callback function for the new (metric) Property
 You need to register the new property and define a callback function in the owner-specific property manager.
-For plugin: openvino/src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
-For compiled-model: openvino/src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
+For plugin: src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
+For compiled-model: src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
     register_property_with_custom_function(_properties,
                                            ov::intel_npu::example_property.name(),
@@ -350,7 +350,7 @@ Note: the first argument is the property name string (`property.name()`), not th
 
 ## Step 3. Python bindings
 In order for the property to be exposed in Python API, add python wrapper for the new property in pyOpenvino  
-openvino/src/bindings/python/src/pyopenvino/core/properties/properties.cpp:  
+src/bindings/python/src/pyopenvino/core/properties/properties.cpp:  
 In section // submodule npu  
 ```cpp
     wrap_property_RO(m_intel_npu, ov::intel_npu::example_property, "example_property"); 
@@ -359,8 +359,8 @@ In section // submodule npu
 ## Step 4. Update documentation
 Document the new property in the appropriate sections (+ additional information, if required) in:  
 ```bash
-openvino/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst
-openvino/src/plugins/intel_npu/README.md
+docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst
+src/plugins/intel_npu/README.md
 ```
 
 <br><br>
@@ -471,7 +471,7 @@ Enable/disable options based on runtime/backend support.
 Do not skip registration for normal capability gating. Keep options known to the stack and control availability via config.enable(...).
 For WORKLOAD_TYPE, this is exactly how availability is gated when backend support is missing.
 Implementation point:
-openvino/src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)
+src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)
 Example:
 ```cpp
     register_options</* base options..., */ WORKLOAD_TYPE>(options, config);
