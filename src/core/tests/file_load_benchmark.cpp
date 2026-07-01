@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 #ifdef __linux__
@@ -381,15 +382,15 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
         printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_prefetch_mlock, r.t_mlock);
     }
 
-    printf("\n--- Throughput (MB/s) ---\n");
-    printf("%-10s | %17s | %13s\n", "Size (MB)", "prefetch+mlock", "mmap+mlock");
+    printf("\n--- Throughput (MiB/s) ---\n");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "prefetch+mlock", "mmap+mlock");
     printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
 
     for (const auto& r : results) {
-        printf("%-10zu | %12.0f MB/s | %8.0f MB/s\n",
-               r.mb,
-               throughput_mbs(r.mb, r.t_prefetch_mlock),
-               throughput_mbs(r.mb, r.t_mlock));
+        printf("%-10zu | %12.0f MiB/s | %8.0f MiB/s\n",
+               r.mib,
+               throughput_mibs(r.mib, r.t_prefetch_mlock),
+               throughput_mibs(r.mib, r.t_mlock));
     }
 }
 

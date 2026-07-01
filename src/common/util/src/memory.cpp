@@ -51,9 +51,13 @@ void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept {
     }
 }
 
-}  // namespace
-
-AlignedRegion make_hint_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
+/**
+ * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result.
+ *
+ * Returns an empty region (m_length == 0) for a null/empty mapping, an offset at or past the end,
+ * or a sub-page request.
+ */
+AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
     const auto page_size = static_cast<size_t>(get_system_page_size());
     if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
         return {};
@@ -63,9 +67,11 @@ AlignedRegion make_hint_region(const void* data, size_t mapping_size, size_t off
     return align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
 }
 
+}  // namespace
+
 void prefetch_mapped_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
     // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-    if (const auto region = make_hint_region(data, mapping_size, offset, size); region.m_length > 4 * one_mib) {
+    if (const auto region = clamp_align_region(data, mapping_size, offset, size); region.m_length > 4 * one_mib) {
         const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
         const auto aligned_size = align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()));
         vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);

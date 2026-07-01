@@ -35,6 +35,28 @@ inline util::AlignedRegion make_mmap_region(size_t offset, size_t size) {
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
     return util::align_region(static_cast<uintptr_t>(offset), size, page_size);
 }
+
+/**
+ * @brief Computes a page-aligned sub-region of a mapping for madvise, clamped to its bounds.
+ *
+ * Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result. Returns an empty
+ * region (m_length == 0) for a null/empty mapping, an offset at or past the end, or a sub-page request.
+ *
+ * @param data         Base address of the mapped region.
+ * @param mapping_size Total size of the mapped region in bytes.
+ * @param offset       Offset within the mapping where the sub-region starts.
+ * @param size         Size of the sub-region (auto_size for the rest of the mapping).
+ * @return AlignedRegion Page-aligned sub-region, or an empty region when there is nothing to do.
+ */
+inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
+        return {};
+    }
+    const auto available = mapping_size - offset;
+    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+    return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+}
 }  // namespace util
 
 class HandleHolder {
@@ -144,7 +166,7 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override {
         if (m_mapped_view != MAP_FAILED) {
-            if (const auto region = util::make_hint_region(m_data, m_size, offset, size); region.m_length > 0) {
+            if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
         }

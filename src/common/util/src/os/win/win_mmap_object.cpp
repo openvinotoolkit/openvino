@@ -473,10 +473,10 @@ HandleHolder MapHolder::fill_anon_tail(const PlaceholderAPI& api,
     if (tail_data_size > 0) {
         const auto off = static_cast<ULONG64>(file_tail_offset);
         const auto src = ::MapViewOfFile(m_handle.get(),
-                                         FILE_MAP_READ,
-                                         static_cast<DWORD>(off >> 32),
-                                         static_cast<DWORD>(off & 0xFFFFFFFF),
-                                         tail_data_size);
+                                          FILE_MAP_READ,
+                                          static_cast<DWORD>(off >> 32),
+                                          static_cast<DWORD>(off & 0xFFFFFFFF),
+                                          tail_data_size);
         if (!src) {
             return HandleHolder{};
         }
