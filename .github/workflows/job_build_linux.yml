@@ -61,7 +61,7 @@ on:
         type: string
         required: false
       build-variant:
-        description: 'Build variant suffix including toolchain, e.g., "levelzero"'
+        description: 'Build variant, e.g., "levelzero"; blank by default'
         type: string
         required: false
         default: ''
