@@ -272,10 +272,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         // (ConvertFullyConnectedBias), so the dequantization Multiply directly follows the FC and is folded as the
         // FC dequantization scale, enabling a fused quantized output stage.
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        if (none_of(parentNode->getType(),
-                    Type::Convolution,
-                    Type::MatMul,
-                    Type::FullyConnected)) {
+        if (none_of(parentNode->getType(), Type::Convolution, Type::MatMul, Type::FullyConnected)) {
             return false;
         }
 #else
