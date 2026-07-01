@@ -21,7 +21,7 @@
 
 namespace {
 
-using Time = std::chrono::high_resolution_clock;
+using Time = std::chrono::steady_clock;
 
 double get_duration_ms(const Time::time_point& start_time) {
     const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(Time::now() - start_time);

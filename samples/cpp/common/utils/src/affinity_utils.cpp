@@ -82,8 +82,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
         const auto friendly_it = affinity_json.find(node->get_friendly_name());
         const auto name_it = affinity_json.find(node->get_name());
 
-        if (friendly_it != affinity_json.end() && name_it != affinity_json.end() && friendly_it.key() != name_it.key() &&
-            friendly_it->get<std::string>() != name_it->get<std::string>()) {
+        if (friendly_it != affinity_json.end() && name_it != affinity_json.end() &&
+            friendly_it.key() != name_it.key() && friendly_it->get<std::string>() != name_it->get<std::string>()) {
             OPENVINO_THROW("Affinity file ",
                            file_path,
                            " contains conflicting mappings for node '",
