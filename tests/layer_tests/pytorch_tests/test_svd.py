@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 import torch
+import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -100,3 +101,47 @@ class TestSVDProcrustes(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    dynamic_shapes=False,
                    kwargs_to_prepare_input={"batch": batch})
+
+
+class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
+    """A non-3x3 SVD must fail loudly, never silently return a wrong decomposition.
+
+    The frontend only implements the 3x3 SVD. ensure_trailing_square (utils.cpp)
+    rejects any other size: with statically-known trailing dims the op-labeled
+    error is raised at conversion time; when the trailing dims are dynamic a
+    runtime reshape guard makes it fail at inference. Either way a 4x4 matrix must
+    not silently produce a (wrong) 3x3 decomposition.
+    """
+
+    def _svd(self):
+        class aten_svd(torch.nn.Module):
+            def forward(self, x):
+                u, s, v = torch.svd(x)
+                return u, s, v
+
+        return aten_svd()
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_static_4x4_fails_at_conversion(self, ie_device, precision, ir_version):
+        # Static trailing dims => the conversion-time check in ensure_trailing_square fires.
+        example = torch.randn(2, 4, 4, dtype=torch.float32)
+        scripted = torch.jit.trace(self._svd(), example)
+        with pytest.raises(Exception):
+            ov.convert_model(scripted, example_input=(example,),
+                             input=[ov.PartialShape([2, 4, 4])])
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_dynamic_4x4_fails_at_runtime(self, ie_device, precision, ir_version):
+        # Dynamic trailing dims => conversion succeeds with the runtime reshape guard,
+        # which then fails loudly at inference for a genuine 4x4 input.
+        if ie_device != "CPU":
+            pytest.skip("runtime reshape-guard failure is asserted on CPU")
+        example = torch.randn(2, 4, 4, dtype=torch.float32)
+        scripted = torch.jit.trace(self._svd(), example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([2, -1, -1])])
+        compiled = ov.Core().compile_model(ov_model, "CPU")
+        with pytest.raises(Exception):
+            compiled((example.numpy(),))
