@@ -79,11 +79,16 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
     std::unordered_set<std::string> mapped_devices;
     std::unordered_set<std::string> matched_affinity_keys;
     for (const auto& node : model->get_ops()) {
-        const auto it = find_node_mapping(node);
-        if (it != affinity_json.end()) {
-            matched_affinity_keys.insert(it.key());
-            mapped_devices.insert(it->get<std::string>());
-        }
+        const auto friendly_it = affinity_json.find(node->get_friendly_name());
+         if (friendly_it != affinity_json.end()) {
+             matched_affinity_keys.insert(friendly_it.key());
+             mapped_devices.insert(friendly_it->get<std::string>());
+         }
+         const auto name_it = affinity_json.find(node->get_name());
+         if (name_it != affinity_json.end()) {
+             matched_affinity_keys.insert(name_it.key());
+             mapped_devices.insert(name_it->get<std::string>());
+         }
     }
 
     std::ostringstream unknown_nodes_oss;
