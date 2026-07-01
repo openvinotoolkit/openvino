@@ -238,12 +238,11 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
 namespace intel_npu {
 
 PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
-                                             const std::shared_ptr<Metrics>& metrics,
                                              const ov::SoPtr<IEngineBackend>& backend,
                                              Logger& logger)
     : _config(config),
-      _metrics(metrics),
       _backend(backend),
+      _metrics(std::make_shared<Metrics>(_backend)),
       _logger(logger) {
     registerProperties();
 }
@@ -252,8 +251,8 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
     : PluginPropertyManager([&other]() {
           std::lock_guard<std::mutex> lock(other._mutex);
           return CopyState{other._config,
-                           other._metrics,
                            other._backend,
+                           other._metrics,
                            other._logger,
                            other._currentlyUsedCompiler,
                            other._compatibilityCheckSupported,
@@ -264,8 +263,8 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
 
 PluginPropertyManager::PluginPropertyManager(CopyState&& state)
     : _config(std::move(state.config)),
-      _metrics(std::move(state.metrics)),
       _backend(std::move(state.backend)),
+      _metrics(std::move(state.metrics)),
       _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
       _compatibilityCheckSupported(state.compatibilityCheckSupported),

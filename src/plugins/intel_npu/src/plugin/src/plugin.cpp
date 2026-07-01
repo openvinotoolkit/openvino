@@ -18,7 +18,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -361,12 +360,9 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
         _backend->registerOptions(*options);
     }
 
-    OV_ITT_TASK_NEXT(PLUGIN, "CreateMetrics");
-    auto metrics = std::make_shared<Metrics>(_backend);
-
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _propertiesManager = std::make_unique<PluginPropertyManager>(config, metrics, _backend, _logger);
+    _propertiesManager = std::make_unique<PluginPropertyManager>(config, _backend, _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {

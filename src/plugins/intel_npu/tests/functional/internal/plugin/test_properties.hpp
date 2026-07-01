@@ -25,7 +25,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
-#include "metrics.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
@@ -91,10 +90,8 @@ public:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
-        auto metrics = std::make_shared<Metrics>(backend);
 
         options->reset();
-
         register_options<LOG_LEVEL,
                          CACHE_DIR,
                          CACHE_MODE,
@@ -194,8 +191,7 @@ public:
             }
         }
 
-        propertiesManager =
-            std::make_unique<PluginPropertyManager>(npu_config, metrics, backend, ::intel_npu::Logger::global());
+        propertiesManager = std::make_unique<PluginPropertyManager>(npu_config, backend, ::intel_npu::Logger::global());
     }
 
     void TearDown() override {

@@ -21,10 +21,7 @@ namespace intel_npu {
 
 class PluginPropertyManager final {
 public:
-    PluginPropertyManager(const FilteredConfig& config,
-                          const std::shared_ptr<Metrics>& metrics,
-                          const ov::SoPtr<IEngineBackend>& backend,
-                          Logger& logger);
+    PluginPropertyManager(const FilteredConfig& config, const ov::SoPtr<IEngineBackend>& backend, Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
 
@@ -47,8 +44,8 @@ private:
     PluginPropertyManager(const PluginPropertyManager& other);
     struct CopyState {
         FilteredConfig config;
-        std::shared_ptr<Metrics> metrics;
         ov::SoPtr<IEngineBackend> backend;
+        std::shared_ptr<Metrics> metrics;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         bool compatibilityCheckSupported;
@@ -65,8 +62,8 @@ private:
 
     FilteredConfig _config;
 
-    std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
+    std::shared_ptr<Metrics> _metrics;
     Logger& _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
