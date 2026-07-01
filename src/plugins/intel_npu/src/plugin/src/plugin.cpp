@@ -135,7 +135,8 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(const ov::AnyMap& proper
 template <typename OptionType>
 void register_option(OptionsDesc& options, FilteredConfig& config) {
     options.add<OptionType>();
-    config.enable(OptionType::key(), false);
+    const bool is_runtime_option = OptionType::mode() == OptionMode::RunTime;
+    config.enable(OptionType::key(), is_runtime_option);
 }
 
 template <typename... OptionTypes>
@@ -217,7 +218,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
         register_option<Opt>(options, config);
     });
 
-    config.enableRuntimeOptions();
     // Disable workload type in case driver is not present or it does not support the extension.
     config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
     // Disable max tiles in case we don't have a device.
