@@ -2424,7 +2424,7 @@ public:
             instance._weights.down_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
             instance._weights.down_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
             instance._weights.down_s = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
-            offload->bind_resident_buffers(instance._weights);
+            offload->bind(instance._weights);
         }
     }
 

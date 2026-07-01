@@ -28,6 +28,11 @@ public:
     bool is_offloaded() const override {
         return false;
     }
+
+    // Lease API: resident provider is identity mapping
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(
+        const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
@@ -36,7 +41,7 @@ public:
 // index per requested expert (parallel to the input vector, duplicates collapsed).
 //
 // The resident device buffers are not owned here; they are bound at runtime via
-// bind_resident_buffers() because in this back-end they alias the primitive's
+// bind() because in this back-end they alias the primitive's
 // input memory. Loading metadata (config / bin offsets / weights path) is captured
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
@@ -46,15 +51,6 @@ public:
                                 std::vector<size_t> weight_bin_offsets,
                                 std::string weights_path);
 
-    // Binds the device-resident slot buffers used to hold streamed expert weights.
-    // Must be called before the first acquire(). Idempotent.
-    void bind_resident_buffers(cldnn::moe_weights& resident);
-
-    // True once bind_resident_buffers() has run for this provider's cache.
-    bool is_bound() const {
-        return _cache && _cache->m_initialized;
-    }
-
     std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return _capacity;
@@ -62,6 +58,16 @@ public:
     bool is_offloaded() const override {
         return true;
     }
+
+    // Lease API
+    void bind(cldnn::moe_weights& resident) override;
+    bool is_bound() const override {
+        return _bound;
+    }
+    void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(
+        const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
 
     LRUCache& cache() {
         return *_cache;
@@ -74,6 +80,7 @@ private:
     std::string _weights_path;
     std::shared_ptr<LRUCache> _cache;
     cldnn::moe_weights* _resident = nullptr;
+    bool _bound = false;
 };
 
 }  // namespace ov::intel_gpu::ocl::moe

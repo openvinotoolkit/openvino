@@ -492,12 +492,26 @@ TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
     ASSERT_FALSE(provider.is_bound());
 
     cldnn::moe_weights resident;  // null device pointers are fine; only the binding flag matters here
-    provider.bind_resident_buffers(resident);
+    provider.bind(resident);
     ASSERT_TRUE(provider.is_bound());
     ASSERT_TRUE(provider.cache().m_initialized);
 
     // Idempotent: a second bind keeps the provider bound.
-    provider.bind_resident_buffers(resident);
+    provider.bind(resident);
     ASSERT_TRUE(provider.is_bound());
+}
+
+TEST(moe_expert_weight_provider, resident_try_acquire_simultaneous_is_identity) {
+    ResidentExpertWeightProvider provider;
+    std::vector<uint32_t> experts = {3, 7, 3, 1, 7};
+    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
+    ASSERT_TRUE(lease.has_value());
+    ASSERT_EQ(lease->slots, experts);
+}
+
+TEST(moe_expert_weight_provider, resident_acquire_one_is_identity) {
+    ResidentExpertWeightProvider provider;
+    ASSERT_EQ(provider.acquire_one(42, get_test_stream()), 42U);
+    ASSERT_EQ(provider.acquire_one(0, get_test_stream()), 0U);
 }
 
