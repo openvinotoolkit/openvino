@@ -88,9 +88,11 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
     };
 
     const auto gqa_managed_key = std::string(::intel_npu::NPUW_GQA_MANAGED::key());
-    const bool gqa_managed = properties.count(gqa_managed_key) && properties.at(gqa_managed_key).as<bool>();
+    const char* gqa_managed_env = std::getenv("NPUW_GQA_MANAGED");
+    const bool gqa_managed = (properties.count(gqa_managed_key) && properties.at(gqa_managed_key).as<bool>()) ||
+                             (gqa_managed_env && std::string(gqa_managed_env) == "YES");
     LOG_INFO("GQACompiledModel: gqa_managed=" << gqa_managed << " (key_present=" << properties.count(gqa_managed_key)
-                                              << ")");
+                                              << ", env=" << (gqa_managed_env ? gqa_managed_env : "unset") << ")");
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
@@ -297,6 +299,9 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 }
             }
             if (scatter) {
+                LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] detected as KV"
+                                                     << (transposed ? " (transposed V)" : " (K or plain V)")
+                                                     << "; src_type=" << direct_src->get_type_info().name);
                 // Redirect the Result so the inner model outputs only the current-token slice,
                 // not the full KV cache. CPU scatter writes it into the user's full KV tensor.
                 // For transposed V: keep the Transpose node — redirect its input to curr_v so
@@ -315,6 +320,9 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 }
                 kv_indices.push_back(i);
                 kv_transposed_flags.push_back(transposed);
+            } else {
+                LOG_DEBUG("NPUW_GQA_MANAGED: output[" << i << "] NOT KV"
+                                                      << "; src_type=" << direct_src->get_type_info().name);
             }
         }
 
