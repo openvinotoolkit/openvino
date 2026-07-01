@@ -168,19 +168,6 @@ void EltwiseLayerCPUTest::SetUp() {
         rel_threshold = 0.05f;
     }
 
-#if defined(OPENVINO_ARCH_ARM)
-    // ARM32-only: Sub/Div may be decomposed or routed to different implementations
-    // causing variability (binary->unary or ACL/ref). Keep tests stable but localized here.
-    if (ov::intel_cpu::any_of(eltwiseType, utils::EltwiseTypes::SUBTRACT, utils::EltwiseTypes::DIVIDE)) {
-        // If format expectations specify two inputs, but transforms reduce arity, limit to single input.
-        if (inFmts.size() > 1) {
-            inFmts.resize(1);
-        }
-        // Do not enforce specific primType (ACL vs REF) for Sub/Div on ARM32.
-        selectedType = CPUTestsBase::any_type;
-    }
-#endif
-
     shapes.resize(2);
     switch (opType) {
     case ov::test::utils::OpType::SCALAR: {
@@ -204,7 +191,7 @@ void EltwiseLayerCPUTest::SetUp() {
         netType,
         configuration);
     // selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     if (eltwiseType == utils::POWER) {
         selectedType = std::regex_replace(selectedType, std::regex("acl"), "ref");
     }

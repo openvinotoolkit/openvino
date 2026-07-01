@@ -79,12 +79,7 @@ set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
                                     armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
                                     armv8r64 # the same as armv8.4-a
 )
-if(ARM)
-    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT armv7a)
-    set(OV_CPU_ARM_TARGET_ARCHS armv7a armv7a-hf
-                                # requires estate=32
-                                ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
-elseif(AARCH64)
+if(AARCH64)
     if(APPLE)
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
     else()
@@ -145,7 +140,7 @@ if(OV_CPU_WITH_DNNL)
     add_definitions(-DOV_CPU_WITH_DNNL)
 endif()
 
-if(DNNL_USE_ACL)
+if(DNNL_AARCH64_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
@@ -179,7 +174,7 @@ if(X86_64 OR AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
 endif()
 
-if(NOT (AARCH64 OR ARM))
+if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
@@ -235,7 +230,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_TIDY)
 
 # give a different file name depending on target platform architecture
-if(ARM OR AARCH64)
+if(AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
 elseif(RISCV64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_riscv_cpu_plugin")

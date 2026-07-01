@@ -145,16 +145,9 @@ void ActivationLayerCPUTest::SetUp() {
     const auto primitiveType = getPrimitiveType(activationType, inType, inputShapes);
     selectedType = primitiveType.empty() ? "" : primitiveType + "_" + netPrecision.to_string();
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    if defined(OPENVINO_ARCH_ARM)
-    if (activationType == utils::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
-        selectedType = std::string("ref_") + netPrecision.to_string();
-#    endif
+#if defined(OPENVINO_ARCH_ARM64)
     if ((primitiveType != "jit") &&
         (activationType == utils::ActivationTypes::SoftSign || // @todo not supported by ACL, can be decomposed with transformation
-#if defined(OPENVINO_ARCH_ARM)
-        activationType == utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
-#endif
         inputShapes.front().first.rank().get_length() > 5))    // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.to_string();
 #else
@@ -174,7 +167,7 @@ void ActivationLayerCPUTest::SetUp() {
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
     function = std::make_shared<ov::Model>(ov::OutputVector{activation}, ov::ParameterVector{params}, "Activation");
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
     if (netPrecision == ov::element::f32 && outPrecision == ov::element::f32) {
         abs_threshold = 8e-4;
     }
@@ -300,10 +293,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
-// On arm32 Mish is decomposed
-#if !defined(OPENVINO_ARCH_ARM)
         {Mish,        {{}}},
-#endif
 // On other platforms HSigmoid is decomposed
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {HSigmoid,    {{}}},

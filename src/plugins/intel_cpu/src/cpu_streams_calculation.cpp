@@ -1039,39 +1039,7 @@ static void configure_arm64_linux_threads(Config& config,
 }
 #endif
 
-#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-void configure_arm_linux_threads(Config& config,
-                                 const std::vector<std::vector<int>>& proc_type_table,
-                                 const ov::MemBandwidthPressure& tolerance,
-                                 bool int8_intensive,
-                                 bool is_LLM) {
-    using namespace ThreadPreferenceConstants;
-    config.modelPreferThreadsThroughput = ARM_THREADS_DEFAULT;
-
-    if (tolerance.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-        if (tolerance.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
-            config.modelPreferThreadsThroughput = ARM_THREADS_HIGH;
-        }
-    } else if ((tolerance.max_mem_tolerance < ov::MemBandwidthPressure::LIMITED) &&
-               ((tolerance.ratio_mem_limited_deconvs > ov::MemBandwidthPressure::LIMITED) ||
-                (tolerance.ratio_mem_limited_gemms > ov::MemBandwidthPressure::LIMITED))) {
-        config.modelPreferThreadsThroughput = ARM_THREADS_HIGH;
-    }
-
-    const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
-    const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
-
-    bool use_all_cores = should_use_all_cores_for_latency(main_cores, efficient_cores, int8_intensive);
-
-    if (use_all_cores && (!is_LLM || should_use_ecores_for_llm(efficient_cores, main_cores))) {
-        config.modelPreferThreadsLatency = main_cores + efficient_cores;
-    } else {
-        config.modelPreferThreadsLatency = main_cores;
-    }
-}
-#endif
-
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+#if (defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
 void configure_apple_threads(Config& config,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const ov::MemBandwidthPressure& tolerance,
@@ -1244,10 +1212,7 @@ int get_model_prefer_threads(const int num_streams,
                                                  memThresholdAssumeLimitedForISA,
                                                  config.inferencePrecision);
 
-#    if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-        configure_arm_linux_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
-
-#    elif (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+#    if (defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
         configure_apple_threads(config,
                                 proc_type_table,
                                 networkToleranceForLowCache,

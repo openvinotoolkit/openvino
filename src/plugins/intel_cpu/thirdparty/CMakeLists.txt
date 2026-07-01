@@ -93,16 +93,14 @@ function(ov_add_onednn)
         set(DNNL_TARGET_ARCH "X86" CACHE STRING "" FORCE)
     elseif(RISCV64)
         set(DNNL_TARGET_ARCH "RV64" CACHE STRING "" FORCE)
-    elseif(ARM)
-        set(DNNL_TARGET_ARCH "ARM" CACHE STRING "" FORCE)
     elseif(AARCH64)
         set(DNNL_TARGET_ARCH "AARCH64" CACHE STRING "" FORCE)
     else()
         message(FATAL_ERROR "Unsupported system processor ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
-    if(AARCH64 OR ARM)
-        set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Compute Library kernels in oneDNN" FORCE)
+    if(AARCH64)
+        set(DNNL_AARCH64_USE_ACL ON CACHE BOOL "Use AArch64 Compute Library kernels in oneDNN" FORCE)
     endif()
 
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
@@ -125,7 +123,7 @@ function(ov_add_onednn)
         ov_add_compiler_flags(-Wno-error)
         ov_add_compiler_flags(-Wno-undef)
         ov_add_compiler_flags(-Wno-missing-declarations)
-        if(NOT CMAKE_COMPILER_IS_GNUCXX AND (ARM OR AARCH64))
+        if(NOT CMAKE_COMPILER_IS_GNUCXX AND AARCH64)
             ov_add_compiler_flags(-Wno-macro-redefined)
         endif()
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
@@ -148,7 +146,7 @@ function(ov_add_onednn)
     endif()
 
     # to find our FindACL.cmake
-    if(DNNL_USE_ACL)
+    if(DNNL_AARCH64_USE_ACL)
         list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
         # oneDNN needs arm_compute_version.embed file to detect ACL version
         # since the file has not been generated yet, it is created manually
@@ -158,7 +156,7 @@ function(ov_add_onednn)
     # Workaround for ARM compiler flag conflicts: oneDNN sets -mcpu=generic which conflicts
     # with OpenVINO's -march=armv8.2-a+fp16 flags. Override oneDNN's arch optimization flags
     # to prevent the conflicting -mcpu=generic flag on ARM architectures.
-    if(AARCH64 OR ARM)
+    if(AARCH64)
         set(DNNL_ARCH_OPT_FLAGS "" CACHE STRING "Disable oneDNN's automatic -mcpu=generic to avoid conflicts with OpenVINO ARM flags" FORCE)
     endif()
 
@@ -167,7 +165,7 @@ function(ov_add_onednn)
     # install static libraries
     ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
-    if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
+    if(DNNL_AARCH64_USE_ACL AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
         # we cannot use 'ov_install_static_lib' for imported targets,
         # but for this we need to install library files

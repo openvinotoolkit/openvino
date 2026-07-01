@@ -19,7 +19,7 @@ static bool hasFP16HardwareSupport() {
 #if defined(OPENVINO_ARCH_X86_64)
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) ||
            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
-#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM64)
     return with_cpu_neon_fp16();
 #else
     return false;
