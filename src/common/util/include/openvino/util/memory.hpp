@@ -61,17 +61,6 @@ constexpr AlignedRegion align_region(uintptr_t base, size_t raw_len, size_t alig
     return {aligned, raw_len + gap, gap};
 }
 
-/**
- * @brief Prepares a raw range from a mapped region and forwards it to @ref vm_prefetch.
- *
- * Regions of 4 MiB or smaller are skipped, since the thread-spawn overhead outweighs the benefit.
- *
- * @param data         Base address of the mapped region.
- * @param mapping_size Total size of the mapped region in bytes.
- * @param offset       Offset within the mapping where prefetching starts.
- * @param size         Number of bytes to prefetch (auto_size for the rest of the mapping).
- */
-void prefetch_mapped_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept;
 
 /**
  * @brief Allocates @p size bytes of uninitialized memory on the specified @p alignment boundary.
@@ -138,15 +127,5 @@ void vm_release(void* ptr, size_t size) noexcept;
  *                    - @c N >= 1      → parallel touch with N threads (synchronous).
  */
 void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
-
-/**
- * @brief OS advisory prefetch hint for a committed VM range (async, low overhead).
- *
- * Best-effort: failures are ignored. Used by @ref vm_prefetch for the @c num_threads == 0 path.
- *
- * @param ptr  Base address of the range. Must be page-aligned.
- * @param size Number of bytes to hint. Must be a multiple of the system page size.
- */
-void vm_prefetch_hint(void* ptr, size_t size) noexcept;
 
 }  // namespace ov::util

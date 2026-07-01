@@ -15,6 +15,10 @@
 
 namespace ov::util {
 
+// Per-OS advisory prefetch hint (async, low overhead). Defined in win_memory.cpp / lin_memory.cpp.
+// Kept out of the public header: it is an implementation detail of vm_prefetch's num_threads == 0 path.
+void vm_prefetch_hint(void* ptr, size_t size) noexcept;
+
 namespace {
 
 /**
@@ -69,15 +73,6 @@ AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t o
 
 }  // namespace
 
-void prefetch_mapped_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
-    // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-    if (const auto region = clamp_align_region(data, mapping_size, offset, size); region.m_length > 4 * one_mib) {
-        const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
-        const auto aligned_size = align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()));
-        vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
-    }
-}
-
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
@@ -89,3 +84,19 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
 }
 
 }  // namespace ov::util
+
+namespace ov {
+
+void MappedMemory::hint_prefetch(size_t offset, size_t size) {
+    // Common to all platforms: clamp+align the requested sub-region and, when it is large enough to
+    // outweigh the thread-spawn overhead (> 4 MiB), fault its pages in with a parallel touch.
+    if (const auto region = util::clamp_align_region(data(), this->size(), offset, size);
+        region.m_length > 4 * util::one_mib) {
+        const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+        const auto aligned_size =
+            util::align_size_up(region.m_length, static_cast<size_t>(util::get_system_page_size()));
+        util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+    }
+}
+
+}  // namespace ov

@@ -171,10 +171,6 @@ public:
             }
         }
     }
-
-    void hint_prefetch(size_t offset, size_t size) override {
-        util::prefetch_mapped_region(m_data, m_size, offset, size);
-    }
 };
 
 std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path,
