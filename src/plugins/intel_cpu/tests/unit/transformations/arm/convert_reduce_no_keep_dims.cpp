@@ -19,6 +19,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 
+using namespace testing;
 using namespace ov::intel_cpu;
 
 struct ReduceNoKeepDimsTestParams {
