@@ -28,7 +28,7 @@ std::string trim(std::string value) {
 
 std::string resolve_input_tensor_name(const std::string& name, const std::vector<ov::Output<const ov::Node>>& inputs) {
     for (const auto& input : inputs) {
-        if (input.get_any_name() == name || input.get_node_shared_ptr()->get_friendly_name() == name ||
+        if (input.get_names().count(name) != 0 || input.get_node_shared_ptr()->get_friendly_name() == name ||
             input.get_node_shared_ptr()->get_name() == name) {
             return input.get_any_name();
         }
