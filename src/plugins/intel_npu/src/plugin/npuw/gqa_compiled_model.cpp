@@ -36,7 +36,8 @@ enum class GQAModelStage {
     GENERATE,
 };
 
-std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
+std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
+                                                       const ov::AnyMap& properties) {
     const auto detect_gqa_model_stage = [&]() {
         // The activation tensor ("input_hidden_states") is what the embedding
         // model stage feeds into the transformer.  For the generate (iter) model
@@ -106,8 +107,11 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
     auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
-    // FOR DEBUG 
-    model->set_friendly_name(model->get_friendly_name() + "_gqa_" + (stage == GQAModelStage::PREFILL ? "prefill" : stage == GQAModelStage::GENERATE ? "generate" : "unknown"));
+
+    model->set_friendly_name(model->get_friendly_name() + "_gqa_" +
+                             (stage == GQAModelStage::PREFILL    ? "prefill"
+                              : stage == GQAModelStage::GENERATE ? "generate"
+                                                                 : "unknown"));
 
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
