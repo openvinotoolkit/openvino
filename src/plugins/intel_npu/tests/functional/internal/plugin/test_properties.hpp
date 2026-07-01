@@ -46,10 +46,8 @@ namespace behavior {
 
 template <typename OptionType>
 void register_option(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
-    auto dummyopt = ::intel_npu::details::makeOptionModel<OptionType>();
-    std::string option_name = dummyopt.key().data();
     options.add<OptionType>();
-    config.enable(std::move(option_name), false);
+    config.enable(OptionType::key(), false);
 }
 
 template <typename... OptionTypes>
@@ -162,6 +160,13 @@ public:
         });
 
         npu_config.enableRuntimeOptions();
+        // Disable workload type in case driver is not present or it does not support the extension.
+        npu_config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+        // Disable max tiles in case we don't have a device.
+        npu_config.enable(ov::intel_npu::max_tiles.name(), backend != nullptr && backend->getDevice() != nullptr);
+        // Disable idle memory pruning in case driver is not present or it does not support the extension.
+        npu_config.enable(ov::intel_npu::disable_idle_memory_prunning.name(),
+                          backend != nullptr && backend->isContextExtSupported());
 
         // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
         // support them, because they may be used by the plugin itself or by the driver.

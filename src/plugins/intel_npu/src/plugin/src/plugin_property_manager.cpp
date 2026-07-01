@@ -801,7 +801,8 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
         // Fast path: if turbo is already supported by the driver, return immediately.
         // Otherwise, fall through to compiler-based support check.
         if (_backend != nullptr && _backend->isCommandQueueExtSupported()) {
-            return true;
+            const auto it = _properties.find(name);
+            return it != _properties.end() && it->second.isPublic;
         }
     }
 

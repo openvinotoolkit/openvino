@@ -211,10 +211,8 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(ov::AnyMap& properties) 
 
 template <typename OptionType>
 void register_option(OptionsDesc& options, FilteredConfig& config) {
-    auto dummyopt = details::makeOptionModel<OptionType>();
-    std::string option_name = dummyopt.key().data();
     options.add<OptionType>();
-    config.enable(std::move(option_name), false);
+    config.enable(OptionType::key(), false);
 }
 
 template <typename... OptionTypes>

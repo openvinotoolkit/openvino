@@ -257,7 +257,7 @@ Notes:
 
 **(!!)** None of the member functions are mandatory to be defined.  
 If any is missing, the default function will be used for its call, as defined in the OptionsBase class  
-(see class **OptionBase** in src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp* or Class Hierarchy section above)
+(see class **OptionBase** in `src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp` or Class Hierarchy section above)
 
 ## Step 3. Register the new option
 Third step is to register the new option in the plugin:  
