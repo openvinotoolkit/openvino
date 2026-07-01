@@ -297,27 +297,25 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 }
             }
             if (scatter) {
-                // The GQA decomposition always scatters at axis=2 which is the sequence
-                // dimension for standard layout {B,H,seq,head}. When the model uses transposed
-                // V cache {B,H,head_size,max_seq}, the app wraps the ScatterUpdate output with
-                // a Transpose op — the 'transposed' flag captures this pattern.
-                // In that case axis=2 operates on head_size (wrong dim), so CPU-managed scatter
-                // is not applicable. Leave this output untouched so the NPU handles it natively.
+                // Strip the ScatterUpdate (and Transpose wrapper for transposed V) so the inner
+                // model only outputs the current-token slice. CPU scatter writes it into the
+                // user's full KV tensor at the right offset.
                 if (transposed) {
                     LOG_INFO("NPUW_GQA_MANAGED: output[" << i
                                                          << "] has Transpose wrapper on ScatterUpdate"
-                                                            "; skipping CPU scatter (NPU handles natively)");
-                    continue;  // leave Result → Transpose → ScatterUpdate intact in the inner model
+                                                            "; stripping for CPU transposed scatter");
+                    // For transposed V, strip past the Transpose too — redirect to curr_v directly.
+                    results[i]->input(0).replace_source_output(scatter->input_value(2));
+                } else {
+                    results[i]->input(0).replace_source_output(scatter->input_value(2));
                 }
-                // Redirect result to carry only the current-token slice (scatter's "updates").
-                results[i]->input(0).replace_source_output(scatter->input_value(2));
                 kv_indices.push_back(i);
                 kv_transposed_flags.push_back(transposed);
             }
         }
 
-        // After redirecting K Results to curr_k, re-run shape inference so that NPUW sees the
-        // correct (small) output shapes instead of the stale ScatterUpdate shapes.
+        // After redirecting KV Results to curr slices, re-run shape inference so that NPUW
+        // sees the correct (small) output shapes instead of the stale ScatterUpdate shapes.
         if (!kv_indices.empty()) {
             model->validate_nodes_and_infer_types();
         }
