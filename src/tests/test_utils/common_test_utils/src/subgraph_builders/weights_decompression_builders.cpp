@@ -11,6 +11,7 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -49,7 +50,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
                                                           const DecompressionType decompression_subtract_type,
                                                           const bool reshape_on_decompression_constant,
                                                           const std::optional<bool>& insert_transpose_node,
-                                                          const size_t seed) {
+                                                          const size_t seed,
+                                                          const bool extra_multiply,
+                                                          const bool param_weights) {
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
         auto result_shape = shape;
         if (transpose_weights)
@@ -81,11 +84,17 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
 
     auto up_to = weights_precision == ov::element::u2 ? 3 : weights_precision == ov::element::i4 ? 7 : 15;
     auto start_from = weights_precision == ov::element::u2 ? 0 : 1;
-    auto weights_tensor =
-        ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                transformed_weights_shape,
-                                                ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
-    auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+
+    std::shared_ptr<ov::Node> weights = nullptr;
+    if (param_weights) {
+        weights = std::make_shared<ov::op::v0::Parameter>(weights_precision, transformed_weights_shape);
+    } else {
+        auto weights_tensor =
+            ov::test::utils::create_and_fill_tensor(weights_precision,
+                                                    transformed_weights_shape,
+                                                    ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
+        weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+    }
 
     auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
@@ -135,6 +144,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
     }
 
+    std::shared_ptr<ov::Node> scale_const = nullptr;
     std::shared_ptr<ov::Node> last_node = mul_parent;
     const auto& scale_prc = scale_precision == ov::element::dynamic ? decompression_precision : scale_precision;
     if (decompression_multiply_type != DecompressionType::empty) {
@@ -142,7 +152,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
             decompression_multiply_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
         auto scale_const_tensor =
             ov::test::utils::create_and_fill_tensor_real_distribution(scale_prc, multiply_shape, 0.001f, 0.01f, seed);
-        std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
+        scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
 
         if (scale_prc != decompression_precision) {
             const auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, decompression_precision);
@@ -176,6 +186,11 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         ov::mark_as_decompression(last_node);
     }
     const bool insert_transpose = insert_transpose_node.value_or(transpose_weights);
+    if (extra_multiply) {
+        OPENVINO_ASSERT(decompression_multiply_type != DecompressionType::empty,
+                        "Extra multiply is only supported when decompression_multiply_type is not empty.");
+        OPENVINO_ASSERT(!insert_transpose, "Extra multiply is not supported when insert_transpose is true.");
+    }
     if (insert_transpose) {
         const size_t rank = last_node->get_output_partial_shape(0).size();
         std::vector<int> order(rank);
@@ -183,6 +198,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         std::swap(*order.rbegin(), *(order.rbegin() + 1));
         auto transpose_constant = ov::opset10::Constant::create(ov::element::i32, {rank}, order);
         last_node = std::make_shared<ov::opset10::Transpose>(last_node, transpose_constant);
+    } else if (extra_multiply) {
+        last_node = std::make_shared<ov::op::v1::Multiply>(last_node, scale_const);
     }
     return last_node;
 }
