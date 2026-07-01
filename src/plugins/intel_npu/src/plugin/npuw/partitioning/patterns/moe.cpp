@@ -81,7 +81,7 @@ void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
 // Both GPTOSSRouter and Qwen3Router call this after validating the TopK node.
 // expected_k is updated on first call and checked for consistency on subsequent calls;
 // OPENVINO_THROW is raised if two matched layers carry different K values.
-static bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
+bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
     auto k_input = topk_node->input_value(1);
     auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr());
     if (!k_const) {
@@ -266,8 +266,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     Pattern root is ScatterElementsUpdate to avoid matching other TopK+Slice subgraphs.
     No isolation; only TopK K value is extracted via RT_INFO_MOE_K.
 */
-GPTOSSRouter::GPTOSSRouter([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                           [[maybe_unused]] const std::string& isol_tag) {
+GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& /*snapshot*/,
+                           const std::string& /*isol_tag*/) {
     LOG_DEBUG("GPTOSSRouter pattern matcher registered (K-extraction only, no isolation)");
 
     // TopK output(1)->Convert (indices) cannot be expressed in wrap_type
@@ -447,8 +447,8 @@ Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
 
     Key difference from GPT-OSS: Softmax is BEFORE TopK (not after).
 */
-Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                         [[maybe_unused]] const std::string& isol_tag) {
+Qwen3Router::Qwen3Router(const std::shared_ptr<ov::npuw::online::Snapshot>& /*snapshot*/,
+                         const std::string& /*isol_tag*/) {
     LOG_DEBUG("Qwen3Router pattern matcher registered (K-extraction only, no isolation)");
 
     // Router weights: Convert(weight) -> Multiply(weight, scale) -> Convert -> MatMul
