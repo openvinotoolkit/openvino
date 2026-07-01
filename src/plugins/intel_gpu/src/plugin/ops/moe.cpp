@@ -51,7 +51,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     }
 
     // Lazy-initialized XML offset resolver (only used when WeightlessCacheAttribute is missing).
-    std::unique_ptr<moe_offload::XmlOffsetResolver> xml_resolver;
+    std::unique_ptr<moe_offload::MoeLegacyXmlOffsetResolver> xml_resolver;
 
     auto get_const_offset = [&](size_t index, size_t offset_slot) -> size_t {
         auto node = op->input_value(index).get_node_shared_ptr();
@@ -72,7 +72,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
 
         // Legacy fallback: parse offsets from the IR XML file.
         if (!xml_resolver) {
-            xml_resolver = std::make_unique<moe_offload::XmlOffsetResolver>(weights_path);
+            xml_resolver = std::make_unique<moe_offload::MoeLegacyXmlOffsetResolver>(weights_path);
         }
         OPENVINO_ASSERT(xml_resolver->is_ready(),
                         "Missing WeightlessCacheAttribute and failed to initialize xml-based offset lookup for "

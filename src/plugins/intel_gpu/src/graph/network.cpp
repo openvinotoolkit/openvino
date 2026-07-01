@@ -1169,7 +1169,7 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         && users.front()->is_type<reshape>()
         && users.front()->is_dynamic())
             return;
-    if (node.is_type<data>() && node.as<data>().get_primitive()->skip_device_transfer) {
+    if (node.is_type<data>() && node.as<data>().get_primitive()->skip_device_transfer()) {
         return;
     }
     // Do not transfer memory if a user requires lockable memory.

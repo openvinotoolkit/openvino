@@ -9,7 +9,7 @@
 
 namespace ov::intel_gpu::moe_offload {
 
-XmlOffsetResolver::XmlOffsetResolver(const std::string& weights_path) {
+MoeLegacyXmlOffsetResolver::MoeLegacyXmlOffsetResolver(const std::string& weights_path) {
     if (weights_path.empty())
         return;
 
@@ -48,7 +48,7 @@ XmlOffsetResolver::XmlOffsetResolver(const std::string& weights_path) {
     m_ready = true;
 }
 
-size_t XmlOffsetResolver::resolve(const std::shared_ptr<ov::op::v0::Constant>& const_op,
+size_t MoeLegacyXmlOffsetResolver::resolve(const std::shared_ptr<ov::op::v0::Constant>& const_op,
                                   const std::string& moe_name,
                                   size_t offset_slot) {
     const auto& name = const_op->get_friendly_name();
@@ -74,7 +74,7 @@ size_t XmlOffsetResolver::resolve(const std::shared_ptr<ov::op::v0::Constant>& c
     return resolve_by_size(name, expected_size, moe_name, offset_slot);
 }
 
-std::string XmlOffsetResolver::extract_layer_pattern(const std::string& moe_name) {
+std::string MoeLegacyXmlOffsetResolver::extract_layer_pattern(const std::string& moe_name) {
     auto pos = moe_name.find("layers.");
     if (pos == std::string::npos) return {};
     auto end = moe_name.find(".experts", pos);
@@ -86,7 +86,7 @@ std::string XmlOffsetResolver::extract_layer_pattern(const std::string& moe_name
     return moe_name.substr(pos, end - pos + 8);
 }
 
-XmlOffsetResolver::ProjHint XmlOffsetResolver::get_proj_hint(size_t offset_slot) {
+MoeLegacyXmlOffsetResolver::ProjHint MoeLegacyXmlOffsetResolver::get_proj_hint(size_t offset_slot) {
     size_t proj_idx = offset_slot % 3;
     ProjHint hint;
     if (proj_idx == 0) {
@@ -106,7 +106,7 @@ XmlOffsetResolver::ProjHint XmlOffsetResolver::get_proj_hint(size_t offset_slot)
     return hint;
 }
 
-bool XmlOffsetResolver::resolve_from_name(const std::string& lookup_name, size_t expected_size, size_t& resolved_offset) {
+bool MoeLegacyXmlOffsetResolver::resolve_from_name(const std::string& lookup_name, size_t expected_size, size_t& resolved_offset) {
     auto it = m_entries_by_name.find(lookup_name);
     if (it == m_entries_by_name.end())
         return false;
@@ -134,7 +134,7 @@ bool XmlOffsetResolver::resolve_from_name(const std::string& lookup_name, size_t
     return false;
 }
 
-size_t XmlOffsetResolver::resolve_by_size(const std::string& const_name, size_t expected_size,
+size_t MoeLegacyXmlOffsetResolver::resolve_by_size(const std::string& const_name, size_t expected_size,
                                           const std::string& moe_name, size_t offset_slot) {
     std::vector<SizeCandidate> size_candidates;
     for (auto& kv : m_entries_by_name) {

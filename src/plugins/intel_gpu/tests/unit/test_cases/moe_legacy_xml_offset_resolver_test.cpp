@@ -13,7 +13,7 @@
 #include "plugin/ops/moe_legacy_xml_offset_resolver.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
-using ov::intel_gpu::moe_offload::XmlOffsetResolver;
+using ov::intel_gpu::moe_offload::MoeLegacyXmlOffsetResolver;
 
 namespace {
 
@@ -70,7 +70,7 @@ std::shared_ptr<ov::op::v0::Constant> make_const(const std::string& name, size_t
 // ──────────────────────────────────────────────────
 TEST(moe_xml_offset_resolver, exact_name_match) {
     TempIr ir("exact", const_layer("const_gate", 1000, 16));
-    XmlOffsetResolver resolver(ir.weights_path());
+    MoeLegacyXmlOffsetResolver resolver(ir.weights_path());
     ASSERT_TRUE(resolver.is_ready());
 
     auto c = make_const("const_gate", 16);
@@ -84,7 +84,7 @@ TEST(moe_xml_offset_resolver, fused_name_match) {
     // Two size-16 entries → by-size alone is ambiguous, so a successful resolve
     // proves the fused-name path fired before falling through to by-size.
     TempIr ir("fused", const_layer("orig_up_proj", 2000, 16) + const_layer("other_const", 9999, 16));
-    XmlOffsetResolver resolver(ir.weights_path());
+    MoeLegacyXmlOffsetResolver resolver(ir.weights_path());
     ASSERT_TRUE(resolver.is_ready());
 
     auto c = make_const("renamed_const", 16);
@@ -98,7 +98,7 @@ TEST(moe_xml_offset_resolver, fused_name_match) {
 // ──────────────────────────────────────────────────
 TEST(moe_xml_offset_resolver, by_size_match) {
     TempIr ir("bysize", const_layer("weird_name_xyz", 3000, 24));
-    XmlOffsetResolver resolver(ir.weights_path());
+    MoeLegacyXmlOffsetResolver resolver(ir.weights_path());
     ASSERT_TRUE(resolver.is_ready());
 
     auto c = make_const("const_down", 24);
@@ -110,7 +110,7 @@ TEST(moe_xml_offset_resolver, by_size_match) {
 // ──────────────────────────────────────────────────
 TEST(moe_xml_offset_resolver, ambiguous_name_throws) {
     TempIr ir("ambig", const_layer("dup_const", 4000, 16) + const_layer("dup_const", 5000, 16));
-    XmlOffsetResolver resolver(ir.weights_path());
+    MoeLegacyXmlOffsetResolver resolver(ir.weights_path());
     ASSERT_TRUE(resolver.is_ready());
 
     auto c = make_const("dup_const", 16);
@@ -121,6 +121,6 @@ TEST(moe_xml_offset_resolver, ambiguous_name_throws) {
 // Empty weights path → resolver stays not-ready (xml fallback unavailable)
 // ──────────────────────────────────────────────────
 TEST(moe_xml_offset_resolver, empty_path_not_ready) {
-    XmlOffsetResolver resolver("");
+    MoeLegacyXmlOffsetResolver resolver("");
     EXPECT_FALSE(resolver.is_ready());
 }

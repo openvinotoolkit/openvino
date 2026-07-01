@@ -733,7 +733,7 @@ void program::transfer_memory_to_device() {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto prim = data_node.get_primitive();
-            if (prim->skip_device_transfer) {
+            if (prim->skip_device_transfer()) {
                 continue;
             }
             auto& mem = data_node.get_attached_memory();

@@ -19,9 +19,9 @@ namespace ov::intel_gpu::moe_offload {
 // Resolves byte offsets of weight constants from the IR XML file.
 // This is a legacy fallback for when WeightlessCacheAttribute and source_buffer
 // are not available (older IR formats or non-standard export paths).
-class XmlOffsetResolver {
+class MoeLegacyXmlOffsetResolver {
 public:
-    explicit XmlOffsetResolver(const std::string& weights_path);
+    explicit MoeLegacyXmlOffsetResolver(const std::string& weights_path);
 
     bool is_ready() const { return m_ready; }
 
