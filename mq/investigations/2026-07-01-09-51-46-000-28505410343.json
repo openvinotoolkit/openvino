@@ -1,0 +1,18 @@
+{
+  "run_id": 28505410343,
+  "timestamp": "2026-07-01T09:51:46Z",
+  "workflow": "Windows (VS 2022, Python 3.11, Debug)",
+  "event": "merge_group",
+  "head_sha": "42b3e983a9eb85141888de0a1ede2d0b6136e7e0",
+  "head_branch": "gh-readonly-queue/master/pr-36640-ee0676ee87992fb964390225d9d01d4ba4c24f13",
+  "pr_number": 36640,
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36640",
+  "author": "akashchi",
+  "failed_job": "Build / Build",
+  "failed_step": "Upload OpenVINO package",
+  "category": "Infrastructure",
+  "signature": "6b6a229047392a0f",
+  "error": "Failed to FinalizeArtifact: Unable to make request: ENOTFOUND",
+  "root_cause": "Self-hosted Windows runner lost DNS resolution to GitHub artifact service API after uploading ~126MB openvino_package artifact blob. The upload itself succeeded, but the finalization API call (PATCH to register the artifact) encountered ENOTFOUND, indicating transient DNS failure on the runner.",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28505410343"
+}

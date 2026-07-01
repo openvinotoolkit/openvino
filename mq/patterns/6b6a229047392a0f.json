@@ -1,0 +1,17 @@
+{
+  "signature": "Failed to FinalizeArtifact Unable to make request ENOTFOUND|Build / Build|Infrastructure",
+  "title": "Windows Build fails - FinalizeArtifact ENOTFOUND on self-hosted runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-01T09:51:46Z",
+  "last_seen": "2026-07-01T09:51:46Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28505410343"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36640"
+  ],
+  "recent_timestamps": [
+    "2026-07-01T09:51:46Z"
+  ]
+}
