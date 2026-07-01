@@ -873,7 +873,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithRandomSize) {
         << "Log content validation failed for fourth inference with new shape, got: " << logCapture.str();
 
     logCapture.clear();
-    ov::Shape shape3 = {1, 720, 360, 16};
+    ov::Shape shape3 = {1, 800, 720, 16};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
