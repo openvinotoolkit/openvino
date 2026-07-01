@@ -25,7 +25,7 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
-__all__ = ['Constant', 'Node', 'NodeInput', 'NumericType', 'Output', 'Parameter', 'PartialShape', 'Shape', 'TensorShape', 'Type', 'Variable', 'VariableInfo', 'as_node', 'as_nodes', 'assign', 'ctc_greedy_decoder_seq_len', 'gather_elements', 'get_element_type', 'mvn', 'nameable_op', 'np', 'overloading', 'partial', 'read_value', 'singledispatch']
+__all__: list[str] = ['Constant', 'Node', 'NodeInput', 'NumericType', 'Output', 'Parameter', 'PartialShape', 'Shape', 'TensorShape', 'Type', 'Variable', 'VariableInfo', 'as_node', 'as_nodes', 'assign', 'ctc_greedy_decoder_seq_len', 'gather_elements', 'get_element_type', 'mvn', 'nameable_op', 'np', 'overloading', 'partial', 'read_value', 'singledispatch']
 def ctc_greedy_decoder_seq_len(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which performs CTCGreedyDecoderSeqLen.

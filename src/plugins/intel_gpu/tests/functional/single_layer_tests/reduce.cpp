@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ using ReduceInputParams = std::tuple<
 class ReduceSumSqueezeTest : public testing::WithParamInterface<ReduceInputParams>,
           virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceInputParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceInputParams>& obj) {
         const auto& [input_shape, input_precisions, reduce_axes, keep_dims] = obj.param;
 
         std::ostringstream result;
@@ -92,7 +92,7 @@ const std::vector<ov::Shape> input_shapes = {{{1, 2, 3, 2, 4}}};
 const std::vector<ov::element::Type> input_prec = {ov::element::f16};
 
 INSTANTIATE_TEST_SUITE_P(
-    Smoke_ReduceSumSqueezeTest,
+    smoke_ReduceSumSqueezeTest,
     ReduceSumSqueezeTest,
     ::testing::Combine(::testing::ValuesIn(input_shapes),
                        ::testing::ValuesIn(input_prec),

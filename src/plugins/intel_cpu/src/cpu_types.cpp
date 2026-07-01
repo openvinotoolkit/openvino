@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
 
-#include <sstream>
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "cpu_shape.h"
+#include "openvino/util/common_util.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
@@ -16,18 +18,11 @@ std::string dim2str(Dim dim) {
 }
 
 std::string dims2str(const VectorDims& dims) {
-    std::stringstream output;
-    output << "{";
-
-    if (!dims.empty()) {
-        auto itr = dims.begin();
-        do {
-            output << dim2str(*itr);
-        } while (++itr != dims.end() && output << ", ");
-    }
-
-    output << "}";
-    return output.str();
+    std::vector<std::string> dimStrings(dims.size());
+    std::transform(dims.begin(), dims.end(), dimStrings.begin(), [](Dim dim) {
+        return dim2str(dim);
+    });
+    return "{" + ov::util::join(dimStrings) + "}";
 }
 
 using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
@@ -92,6 +87,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Erf", Type::Eltwise},
         {"SoftPlus", Type::Eltwise},
         {"SoftSign", Type::Eltwise},
+        {"ErfInv", Type::Eltwise},
         {"SegmentMax", Type::SegmentMax},
         {"Select", Type::Eltwise},
         {"Log", Type::Eltwise},
@@ -235,6 +231,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ExperimentalDetectronGenerateProposalsSingleImage", Type::ExperimentalDetectronGenerateProposalsSingleImage},
         {"ExtractImagePatches", Type::ExtractImagePatches},
         {"GenerateProposals", Type::GenerateProposals},
+        {"Identity", Type::Identity},
         {"Inverse", Type::Inverse},
         {"NonMaxSuppression", Type::NonMaxSuppression},
         {"NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
@@ -255,6 +252,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"SDPAWithTransposeReshape", Type::ScaledDotProductAttention},
         {"PagedAttentionExtension", Type::PagedAttention},
+        {"PaKVReorder", Type::PaKVReorder},
         {"RoPE", Type::RoPE},
         {"GatherCompressed", Type::Gather},
         {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
@@ -264,7 +262,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}};
+        {"LoraSubgraph", Type::LoRA},
+        {"GatherMatmul", Type::GatherMatmul},
+        {"GatherMatmulCompressed", Type::GatherMatmul},
+        {"GatedDeltaNet", Type::GatedDeltaNet},
+        {"PagedGatedDeltaNet", Type::PagedGatedDeltaNet},
+        {"PagedCausalConv1D", Type::PagedCausalConv1D}};
     return type_to_name_tbl;
 }
 
@@ -374,6 +377,7 @@ std::string NameFromType(const Type type) {
         CASE(ExperimentalDetectronPriorGridGenerator);
         CASE(ExperimentalDetectronGenerateProposalsSingleImage);
         CASE(GenerateProposals);
+        CASE(Identity);
         CASE(Inverse);
         CASE(ExtractImagePatches);
         CASE(NonMaxSuppression);
@@ -390,6 +394,7 @@ std::string NameFromType(const Type type) {
         CASE(Ngram);
         CASE(ScaledDotProductAttention);
         CASE(PagedAttention);
+        CASE(PaKVReorder);
         CASE(RoPE);
         CASE(CausalMaskPreprocess);
         CASE(LLMMLP);
@@ -398,6 +403,10 @@ std::string NameFromType(const Type type) {
         CASE(SearchSorted);
         CASE(SegmentMax);
         CASE(LoRA);
+        CASE(GatherMatmul);
+        CASE(GatedDeltaNet);
+        CASE(PagedGatedDeltaNet);
+        CASE(PagedCausalConv1D);
         CASE(Unknown);
     }
 #undef CASE
@@ -467,6 +476,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseRoundHalfAwayFromZero);
         CASE(EltwiseErf);
         CASE(EltwiseSoftSign);
+        CASE(EltwiseErfInv);
         CASE(EltwiseLog);
         CASE(EltwiseBitwiseAnd);
         CASE(EltwiseBitwiseNot);
@@ -481,6 +491,8 @@ std::string algToString(const Algorithm alg) {
         CASE(FullyConnectedCompressed);
         CASE(FullyConnectedQuantized);
         CASE(FullyConnectedQuantizedLegacy);
+        CASE(GatherMatmulDefault);
+        CASE(GatherMatmulCompressed);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

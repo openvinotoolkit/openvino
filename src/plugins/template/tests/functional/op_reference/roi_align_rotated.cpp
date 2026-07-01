@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,8 @@ ROIAlignRotatedParams PrepareTestCaseParams(const PartialShape& inputShape,
     const auto elementType = element::from<T>();
 
     ret.inputShape = inputShape;
-    ret.pooledH = pooledH;
-    ret.pooledW = pooledW;
+    ret.pooledH = static_cast<int32_t>(pooledH);
+    ret.pooledW = static_cast<int32_t>(pooledW);
     ret.spatialScale = spatialScale;
     ret.samplingRatio = samplingRatio;
     ret.clockwise = clockwise;

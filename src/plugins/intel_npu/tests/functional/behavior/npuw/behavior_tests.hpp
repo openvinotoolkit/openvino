@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -8,10 +8,10 @@
 #include <memory>
 #include <random>
 
-#include "generators/model_generator.hpp"
+#include "test_engine/models/model_builder.hpp"
+#include "test_engine/mocks/mock_plugins.hpp"
+#include "test_engine/mocks/register_in_ov.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
-#include "mocks/mock_plugins.hpp"
-#include "mocks/register_in_ov.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -28,7 +28,7 @@ public:
 
     ov::AnyMap use_npuw_props;
     std::shared_ptr<ov::Model> model;
-    ModelGenerator model_generator;
+    test::npuw::ModelBuilder model_builder;
 
     void SetUp() override {
         mock_npu_plugin = std::make_shared<MockNpuPlugin>();

@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils.h"
+#include "program_wrapper.h"
+#include "pass_manager.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
@@ -64,7 +66,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -109,7 +111,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -272,7 +274,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -319,7 +321,7 @@ public:
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -367,7 +369,7 @@ public:
 
         std::vector<float> answers = { 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -418,7 +420,7 @@ public:
                 24.f, 25.f, 26.f, 30.f, 31.f, 32.f, 36.f, 37.f, 38.f, 42.f, 43.f, 44.f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -534,7 +536,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -576,7 +578,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -621,7 +623,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -662,7 +664,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -707,7 +709,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -749,7 +751,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -795,7 +797,7 @@ public:
                 0.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -839,7 +841,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -888,7 +890,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -929,7 +931,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -985,7 +987,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1093,7 +1095,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1223,7 +1225,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1282,7 +1284,7 @@ public:
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1342,7 +1344,7 @@ public:
 
         std::vector<float> answers = { 15.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1409,7 +1411,7 @@ public:
                 24.f, 25.f, 26.f, 30.f, 31.f, 32.f, 36.f, 37.f, 38.f, 42.f, 43.f, 44.f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1556,7 +1558,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1610,7 +1612,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1664,7 +1666,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1717,7 +1719,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1770,7 +1772,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1826,7 +1828,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1877,7 +1879,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1928,7 +1930,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1979,7 +1981,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2033,7 +2035,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2088,7 +2090,7 @@ public:
                 6.0f, 7.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2141,7 +2143,7 @@ public:
                 6.0f, 7.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2198,7 +2200,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2253,7 +2255,7 @@ public:
 
         std::vector<float> answers = { 5.0f, 3.0f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2308,7 +2310,7 @@ public:
 
         std::vector<float> answers = { 5.0f, 3.0f };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2371,7 +2373,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2428,7 +2430,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2472,7 +2474,7 @@ public:
                 0, 1, 2, 3
         };
 
-        cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i) {
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -2513,7 +2515,7 @@ public:
                 0, 1, 2, 3, 4, 5, 6, 7,
         };
 
-        cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i) {
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -2568,7 +2570,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2952,4 +2954,71 @@ TEST_F(strided_slice_gpu_constants, test_1x1x1x10_pos_begin_end_neg_stride2) {
 
 TEST_F(strided_slice_gpu_constants, test_1x1x1x10_neg_begin_end_neg_stride2) {
     this->test_1x1x1x10_neg_begin_end_neg_stride2(false);
+}
+
+// Verify that strided_slice with partial end_mask is NOT marked as runtime skippable.
+// Regression test: previously, the dimension validation loop did not break on the first
+// non-full-slice dimension, allowing a later full-slice dim to overwrite is_valid to true.
+TEST(strided_slice_gpu_mark_skippable, partial_end_mask_not_skippable) {
+    auto& engine = get_test_engine();
+    // Static 4D input: shape {1, 2, 8, 4}
+    auto in_layout = layout{ov::PartialShape{1, 2, 8, 4}, data_types::f32, format::bfyx};
+
+    // end_mask = {1, 1, 0, 1}: dims 0,1,3 are full-slice via mask, dim 2 has end=4 < 8 (partial)
+    std::vector<int64_t> begin_data = {0, 0, 0, 0};
+    std::vector<int64_t> end_data = {0, 0, 4, 0};
+    std::vector<int64_t> strides_data = {1, 1, 1, 1};
+    std::vector<int64_t> begin_mask = {1, 1, 0, 1};
+    std::vector<int64_t> end_mask = {1, 1, 0, 1};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(strided_slice("strided_slice", input_info("input"),
+                               begin_data, end_data, strides_data,
+                               begin_mask, end_mask, {}, {}, {}, {1, 2, 4, 4}));
+    topology.add(reorder("output", input_info("strided_slice"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_runtime_skippable_nodes>(*prog);
+
+    auto& ss_node = prog->get_node("strided_slice");
+    // The strided_slice slices dim 2 partially, so it must NOT be runtime skippable
+    ASSERT_FALSE(ss_node.is_runtime_skippable());
+}
+
+// Verify that strided_slice with all-ones end_mask IS marked as runtime skippable.
+TEST(strided_slice_gpu_mark_skippable, full_end_mask_is_skippable) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{1, 2, 8, 4}, data_types::f32, format::bfyx};
+
+    // end_mask = {1, 1, 1, 1}: all dims are full-slice via mask
+    std::vector<int64_t> begin_data = {0, 0, 0, 0};
+    std::vector<int64_t> end_data = {0, 0, 0, 0};
+    std::vector<int64_t> strides_data = {1, 1, 1, 1};
+    std::vector<int64_t> begin_mask = {1, 1, 1, 1};
+    std::vector<int64_t> end_mask = {1, 1, 1, 1};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(strided_slice("strided_slice", input_info("input"),
+                               begin_data, end_data, strides_data,
+                               begin_mask, end_mask, {}, {}, {}, {1, 2, 8, 4}));
+    topology.add(reorder("output", input_info("strided_slice"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_runtime_skippable_nodes>(*prog);
+
+    auto& ss_node = prog->get_node("strided_slice");
+    // All dims are full-slice, so it should be runtime skippable
+    ASSERT_TRUE(ss_node.is_runtime_skippable());
 }

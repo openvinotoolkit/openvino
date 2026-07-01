@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,9 @@
 #define UNSUPPORTED_TYPE_OF_POSTOPS          " the type of post ops is not supported"
 #define UNSUPPORTED_SRC_PRECISIONS           " unsupported src precisions"
 #define UNSUPPORTED_WEI_PRECISIONS           " unsupported wei precisions"
+#define UNSUPPORTED_BIAS_PRECISIONS          " unsupported bias precisions"
 #define UNSUPPORTED_DST_PRECISIONS           " unsupported dst precisions"
+#define UNSUPPORTED_SRC_WEI_PRECISIONS       " unsupported src and wei precisions"
 #define UNSUPPORTED_ISA                      " unsupported isa"
 #define UNSUPPORTED_SRC_RANK                 " unsupported src rank"
 #define UNSUPPORTED_WEI_RANK                 " unsupported wei rank"
@@ -19,6 +21,7 @@
 #define UNSUPPORTED_DST_STRIDES              " unsupported dst strides"
 #define UNSUPPORTED_PER_CHANNEL_QUANTIZATION " unsupported per-channel quantization"
 #define UNSUPPORTED_BY_EXECUTOR              " unsupported by executor"
+#define UNSUPPORTED_ACL_COMMON_PRECONDITION  " ACL common preconditions not met"
 #define HEURISTICS_MISMATCH                  " heuristics mismatch"
 #define MEMORY_FORMAT_MISMATCH               " memory format mismatch"
 

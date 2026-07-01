@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,7 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -320,7 +321,7 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
              auto alpha_ = static_cast<float>(clampOp->get_min());
              auto beta_ = static_cast<float>(clampOp->get_max());
              if (clampOp->get_input_element_type(0).is_integral_number()) {
-                 // according to spec, when Clamp has integer element type, min and max mist be converted to
+                 // according to spec, when Clamp has integer element type, min and max must be converted to
                  // integer
                  alpha_ = std::ceil(alpha_);
                  beta_ = std::floor(beta_);
@@ -393,6 +394,10 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v9::SoftSign::get_type_info_static(),
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseSoftSign;
+         }},
+        {ov::op::v17::ErfInv::get_type_info_static(),
+         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseErfInv;
          }},
         {ov::op::v1::Select::get_type_info_static(),
          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
@@ -495,6 +500,7 @@ size_t Eltwise::getOpInputsNum() const {
     case Algorithm::EltwiseRoundHalfToEven:
     case Algorithm::EltwiseRoundHalfAwayFromZero:
     case Algorithm::EltwiseSoftSign:
+    case Algorithm::EltwiseErfInv:
     case Algorithm::EltwiseLog:
         return 1;
     case Algorithm::EltwiseAdd:
@@ -546,23 +552,25 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::init() {
-    // Bf16 saturation handling for gamma parameter when input precision is bf16 to make sure it stays within the valid
-    // range for bfloat16.
+    // Bf16 saturation handling for PowerStatic parameters
+    // to make sure they stay within the valid range for bfloat16.
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
-        auto& gamma = m_attrs.data.gamma;
+        const float bf16_lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        const float bf16_max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
 
-        if (gamma < lowest) {
-            gamma = lowest;
-        }
+        // Helper lambda to clamp parameter values within bf16 range
+        auto clampBf16Parameter = [&](auto& param) {
+            if (std::isfinite(param)) {
+                param = std::clamp(static_cast<float>(param), bf16_lowest, bf16_max);
+            }
+        };
 
-        if (gamma > max) {
-            gamma = max;
-        }
+        // Clamp all PowerStatic parameters
+        clampBf16Parameter(m_attrs.data.alpha);
+        clampBf16Parameter(m_attrs.data.beta);
+        clampBf16Parameter(m_attrs.data.gamma);
     }
 }
-
 void Eltwise::getSupportedDescriptors() {
     CPU_NODE_ASSERT(!getParentEdges().empty(), "Incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
@@ -662,7 +670,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     // Prepare memory descriptor arguments for a factory
     MemoryDescArgs descs;
-    for (size_t i = 0; i < srcDescs.size(); i++) {
+    for (int i = 0; i < static_cast<int>(srcDescs.size()); i++) {
         descs[ARG_SRC + i] = srcDescs[i];
     }
     descs[ARG_DST] = dstDesc;
@@ -679,7 +687,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         const auto& outputDesc = nodeDescriptors.at(ARG_DST);
         const auto outputPrecision = outputDesc->getPrecision();
 
-        for (size_t i = 0; i < srcDescs.size(); i++) {
+        for (int i = 0; i < static_cast<int>(srcDescs.size()); i++) {
             if (auto it = nodeDescriptors.find(ARG_SRC + i); it != nodeDescriptors.end()) {
                 const auto& [_, desc] = *it;
                 const int isInPlace =
@@ -716,7 +724,9 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseSubtract,
                     Algorithm::EltwiseDivide,
-                    Algorithm::EltwiseSquaredDifference)) {
+                    Algorithm::EltwiseSquaredDifference,
+                    Algorithm::EltwiseClamp,
+                    Algorithm::EltwiseAbs)) {
             return false;
         }
 
@@ -830,7 +840,7 @@ ov::element::Type Eltwise::getRuntimePrecision() const {
 }
 
 void Eltwise::createPrimitive() {
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
+    for (int i = 0; i < static_cast<int>(getParentEdges().size()); i++) {
         m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
     }
     m_memory[ARG_DST] = getDstMemoryAtPort(0);
@@ -987,8 +997,8 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         m_depthwiseDataSize = 2 * channelSize;
 
         // always align for legacy scale/shift post ops
-        constexpr int bufferAlignment = 16;
-        int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+        constexpr size_t bufferAlignment = 16;
+        size_t bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
         m_depthwiseData.resize(m_depthwiseDataSize + bufferPaddingSize, 0);
     }
 

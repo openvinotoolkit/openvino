@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,14 @@ void* ZeroHostTensor::data() {
 
 void* ZeroHostTensor::data(const ov::element::Type&) {
     return _impl->get_original_memory();
+}
+
+void* ZeroHostTensor::data_rw() {
+    return data();
+}
+
+void* ZeroHostTensor::data_rw(const ov::element::Type&) {
+    return data();
 }
 
 const void* ZeroHostTensor::data() const {

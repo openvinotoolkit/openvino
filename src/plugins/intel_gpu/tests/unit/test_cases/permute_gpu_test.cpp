@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2353,10 +2353,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
                              {{16, 32, 128, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
                              {{32, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
                              {{32, 32, 16, 4}, format::b_fs_yx_fsv16},     // THREE_DIM_TRANSPOSE
-                             {{32, 16, 16, 16}, format::bfyx}, 
-                             {{32, 16, 8, 16}, format::bfyx}, 
+                             {{32, 16, 16, 16}, format::bfyx},
+                             {{32, 16, 8, 16}, format::bfyx},
                              {{32, 16, 16, 64}, format::bfyx},
-                             {{32, 16, 8, 32}, format::bfyx}, 
+                             {{32, 16, 8, 32}, format::bfyx},
                              {{32, 8, 16, 32}, format::bfyx},
                              {{32, 196, 8, 64}, format::bfyx},           // permute_f_y_axes
                              {{1, 512, 30, 1}, format::bfyx},            // fix for JTIMES=0
@@ -2372,6 +2372,43 @@ TEST_P(permute_f_y_axes_tile, combined) {
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+}
+
+// permute_xy_swap kernel: optimized 4D X<->Y transpose ({0, 1, 3, 2}).
+// Constraints (see PermuteKernel_xy_swap::Validate):
+//   * 4D plain bfyx layout only.
+//   * Order must be {0, 1, 3, 2}.
+//   * Both X and Y must be divisible by one of the supported tile sizes (32 or 16).
+//   * No dynamic shapes; pitches must equal logical dims.
+// Sizes here use the test convention {B, F, Y, X}.
+class permute_xy_swap : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_permute_xy_swap,
+                         permute_xy_swap,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             // tile=32 path (both X and Y divisible by 32)
+                             {{1, 1, 32, 32}, format::bfyx},
+                             {{1, 4, 64, 32}, format::bfyx},
+                             {{2, 8, 32, 64}, format::bfyx},
+                             {{4, 4, 64, 64}, format::bfyx},
+                             // tile=16 path (X or Y not divisible by 32 but both by 16)
+                             {{1, 1, 16, 16}, format::bfyx},
+                             {{1, 8, 16, 32}, format::bfyx},
+                             {{2, 4, 48, 48}, format::bfyx},
+                             {{1, 16, 16, 64}, format::bfyx},
+                             // larger / batched
+                             {{1, 32, 128, 64}, format::bfyx},
+                             {{4, 16, 64, 128}, format::bfyx},
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_xy_swap, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
 }
 
 struct TiledPerformancePermuteTest : TiledPermuteTest
@@ -2415,7 +2452,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         }
         std::cout << std::endl;
     }
-    
+
     template<data_types Data_Type>
     void execute_perf_test(const std::vector<ov::Dimension::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
@@ -2507,7 +2544,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
                   << frm_str << " " << input_type << " " << exectime_opt << std::endl;
 
     }
-    
+
 };
 
 

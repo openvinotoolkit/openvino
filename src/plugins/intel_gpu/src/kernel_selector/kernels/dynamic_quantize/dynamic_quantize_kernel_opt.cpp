@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,9 @@ ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::bf);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -87,18 +90,22 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
+    jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZAION_IMPL_MODE", static_cast<int>(mode)));
     jit.AddConstant(MakeJitConstant("MODE_SMALL_GS", static_cast<int>(DynQuanMode::SMALL_GS)));
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
+    jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
+    size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+    jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
 
     if (mode == DynQuanMode::PER_TOKEN)  {
         size_t aligned_block_num = (total_block_num > 32) ? Align(total_block_num, 32) : total_block_num;
-        size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
-        jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
         jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
-        jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
     }
 
     return jit;
@@ -115,13 +122,12 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     } else if (mode == DynQuanMode::LARGE_GS) {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
-        size_t dyn_quan_gs = params.group_sizes.back() == UINT64_MAX ? bf_size.second : params.group_sizes.back();
         size_t total_block_num = bf_size.second / (simd * vec_size);
         size_t batch = bf_size.first;
+        size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
 
         dispatchData.gws = {simd, total_block_num, batch};
-        // NOTE: this implementation is not directly applicable to per-token case because dyn_quan_gs / (simd*vec_size) may exceed LWS size limit.
-        dispatchData.lws = {simd, dyn_quan_gs / (simd * vec_size), 1};
+        dispatchData.lws = {simd, block_num, 1};
     } else if (mode == DynQuanMode::PER_TOKEN) {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
@@ -197,10 +203,30 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
+    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     auto bf = get_input_bf_size(dq_params);
     if (((bf.second) % (simd * 2)) != 0)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    // For MODE_LARGE_GS, ensure the quantization group fits within a single work_group
+    // There is no cross work_group synchronization.
+    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::LARGE_GS) {
+        auto vec_size = get_match_vector_size(dq_params);
+        size_t block_size = simd * vec_size;
+        size_t blocks_per_group = dq_params.group_sizes.back() / block_size;
+
+        // BLOCK_NUM is limited to 32 in GetJitConstants, so we can only handle
+        // quantization groups that require <= 32 blocks
+        if (blocks_per_group > 32) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
+    }
 
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
         DO_NOT_USE_THIS_KERNEL(params.layerID);

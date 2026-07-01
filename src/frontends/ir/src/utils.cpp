@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,8 @@
 namespace ov {
 
 void operator>>(const std::stringstream& in, ov::element::Type& type) {
-    type = ov::element::Type(ov::util::trim(in.str()));
+    const std::string type_name{util::trim(in.str())};
+    type = element::Type(type_name);
 }
 
 }  // namespace ov

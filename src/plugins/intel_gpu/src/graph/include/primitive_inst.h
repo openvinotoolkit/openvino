@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "kernel_dump_info.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -46,12 +47,14 @@ class PrimitiveInstTestHelper;
 struct ImplementationManager;
 
 struct BufferDescriptor {
-    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
-    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
-        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
-    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
-        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    explicit BufferDescriptor(const layout& l, bool lockable = false, bool shareable = true)
+        : m_lockable(lockable), m_shareable(shareable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false, bool shareable = true)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable, shareable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false, bool shareable = true)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable, shareable) {}
     bool m_lockable = false;
+    bool m_shareable = true;  // Whether this buffer can be shared via memory pool across primitives
     layout m_layout;
 };
 
@@ -91,8 +94,17 @@ struct primitive_impl {
         ob << _is_dynamic;
         if (_weights_reorder_params == nullptr) {
             ob << false;
+            ob << false;
         } else {
             ob << true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(_weights_reorder_params)) {
+                ob << true;
+            } else
+#endif
+            {
+                ob << false;
+            }
             _weights_reorder_params->save(ob);
         }
     }
@@ -103,13 +115,25 @@ struct primitive_impl {
         bool has_weights_reorder_params;
         ib >> has_weights_reorder_params;
         if (has_weights_reorder_params) {
-            _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            bool has_onednn_weights_reorder = false;
+            ib >> has_onednn_weights_reorder;
+            if (has_onednn_weights_reorder) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                _weights_reorder_params = std::make_shared<onednn::WeightsReorderParamsOneDNN>();
+#endif
+            } else {
+                _weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            }
             _weights_reorder_params->load(ib);
+        } else {
+            bool dummy;
+            ib >> dummy;
         }
     }
-    // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
-    virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
-        return std::make_pair("", "");
+    // Returns a KernelDumpInfo object that contains a batch program hash and a kernel entry of each ocl impl. Returns empty object for other impl types.
+    // If static impl_params is provided, then only actually executed kernel entries are returned.
+    virtual KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const {
+        return KernelDumpInfo{};
     }
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
@@ -345,10 +369,11 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+    void clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    kernel_impl_params get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
 
 protected:
@@ -426,7 +451,7 @@ protected:
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false, bool shareable = true);
     void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
@@ -444,6 +469,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -481,23 +508,7 @@ protected:
         return false;
     }
 
-    virtual bool need_reset_output_memory() const {
-        for (const auto& user_inst : get_user_insts()) {
-            // Check users of optimized_out inst, as the optimized out inst will not be able to
-            // reset it's memory
-            if (user_inst->can_be_optimized()) {
-                if (user_inst->need_reset_output_memory())
-                    return true;
-                continue;
-            }
-
-            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
-                return true;
-        }
-        return false;
-    }
-
-    void clear_output_memory();
+    virtual bool need_reset_output_memory() const;
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
@@ -517,6 +528,7 @@ private:
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
     void do_runtime_skip_lora();
+    void do_runtime_skip_resample();
 };
 
 /*

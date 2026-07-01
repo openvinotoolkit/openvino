@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,7 +262,7 @@ void experimental_detectron_proposals_single_image(
                    img_W,
                    min_box_H,
                    min_box_W,
-                   static_cast<const float>(std::log(1000. / 16.)),
+                   static_cast<float>(std::log(1000. / 16.)),
                    1.0f);
     std::partial_sort(proposals.begin(),
                       proposals.begin() + pre_nms_topn,

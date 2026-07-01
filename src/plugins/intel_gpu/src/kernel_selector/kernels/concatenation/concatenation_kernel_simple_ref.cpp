@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,8 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
@@ -68,8 +70,10 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
     auto same_layout = params.inputs[0].GetLayout();
     for (const auto& lt : params.inputs) {
         auto cur_layout = lt.GetLayout();
-        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 || cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
-            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
+        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 ||
+             cur_layout == DataLayout::b_fs_zyx_fsv32 || cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
+            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 ||
+             same_layout == DataLayout::b_fs_zyx_fsv32 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
             || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
             continue;
         } else if (cur_layout != same_layout) {

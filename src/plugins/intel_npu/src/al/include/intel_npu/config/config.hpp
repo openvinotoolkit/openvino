@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,13 @@ TYPE_PRINTER(std::size_t)
 #ifndef ONEAPI_MAKE_VERSION
 /// @brief Generates generic 'oneAPI' API versions
 #    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+
+/// @brief extract 'oneAPI' API major version
+#    define ONEAPI_VERSION_MAJOR(_version) ((_version) >> 16)
+
+/// @brief extract 'oneAPI' API minor version
+#    define ONEAPI_VERSION_MINOR(_version) ((_version) & 0x0000ffff)
+
 #endif  // ONEAPI_MAKE_VERSION
 
 //
@@ -173,7 +180,6 @@ struct OptionPrinter final {
             ss << std::fixed << std::setprecision(2) << val;
         } else if constexpr (std::is_enum_v<std::decay_t<T>>) {
             ss << stringifyEnum(val);
-            return ss.str();
         } else {
             ss << val;
         }
@@ -283,7 +289,7 @@ struct OptionBase {
         return OptionMode::Both;
     }
 
-    // Overload this for private options.
+    // Overload this for public options.
     static bool isPublic() {
         return false;
     }
@@ -296,6 +302,16 @@ struct OptionBase {
     /// Overload this for options conditioned by compiler version
     static uint32_t compilerSupportVersion() {
         return ONEAPI_MAKE_VERSION(7, 23);
+    }
+
+    static bool isValueSupported(std::string_view val) {
+        try {
+            (void)ActualOpt::parse(val);
+            return true;
+        } catch (...) {
+            // failed to parse, return false below
+        }
+        return false;
     }
 
     static std::string toString(const ValueType& val) {
@@ -362,11 +378,22 @@ struct OptionConcept final {
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
     uint32_t (*compilerSupportVersion)() = nullptr;
-    std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
+    bool (*isValueSupportedImpl)(std::string_view val) =
+        nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
+                  // "makeOptionModel"
+    std::shared_ptr<OptionValue> (*validateAndParseFromString)(std::string_view val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParseFromAny)(const ov::Any& val) = nullptr;
+    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
+    bool isValueSupported(std::string_view val) {
+        if (customValueCheckerOpt.has_value()) {
+            return customValueCheckerOpt.value()(val);
+        }
+        return isValueSupportedImpl(val);
+    }
 };
 
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
+std::shared_ptr<OptionValue> validateAndParseFromString(std::string_view val) {
     using ValueType = typename Opt::ValueType;
 
     try {
@@ -379,14 +406,31 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 }
 
 template <class Opt>
-OptionConcept makeOptionModel() {
+std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
+    using ValueType = typename Opt::ValueType;
+
+    try {
+        auto parsedVal = val.as<ValueType>();
+        Opt::validateValue(parsedVal);
+        return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to parse '", Opt::key().data(), "' option : ", e.what());
+    }
+}
+
+template <class Opt>
+OptionConcept makeOptionModel(
+    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt) {
     return {&Opt::key,
             &Opt::envVar,
             &Opt::mode,
             &Opt::isPublic,
             &Opt::mutability,
             &Opt::compilerSupportVersion,
-            &validateAndParse<Opt>};
+            &Opt::isValueSupported,
+            &validateAndParseFromString<Opt>,
+            &validateAndParseFromAny<Opt>,
+            std::move(customValueCheckerOpt)};
 }
 
 }  // namespace details
@@ -398,7 +442,7 @@ OptionConcept makeOptionModel() {
 class OptionsDesc final {
 public:
     template <class Opt>
-    void add();
+    void add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt);
 
     bool has(std::string_view key) const;
 
@@ -408,18 +452,19 @@ public:
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
     std::string getSupportedAsString(bool includePrivate = false) const;
 
-    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
+    details::OptionConcept get(std::string_view key) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
     std::unordered_map<std::string, details::OptionConcept> _impl;
     std::unordered_map<std::string, std::string> _deprecated;
+    Logger _log{Logger::global().clone("OptionsDesc")};
 };
 
 template <class Opt>
-void OptionsDesc::add() {
+void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt) {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
-    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>(std::move(customValueCheckerOpt))});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
@@ -437,11 +482,13 @@ void OptionsDesc::add() {
 class Config {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
+    using ImplMap = std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-    virtual void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
+    virtual void update(const ConfigMap& options);
+
+    virtual void updateAny(const ov::AnyMap& options);
 
     void parseEnvVars();
 
@@ -466,6 +513,9 @@ public:
 protected:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
+
+private:
+    Logger _log{Logger::global().clone("Config")};
 };
 
 template <class Opt>
@@ -477,14 +527,13 @@ template <class Opt>
 typename Opt::ValueType Config::get() const {
     using ValueType = typename Opt::ValueType;
 
-    auto log = Logger::global().clone("Config");
-    log.trace("Get value for the option '%s'", Opt::key().data());
+    _log.trace("Get value for the option '%s'", Opt::key().data());
 
-    const auto it = _impl.find(Opt::key().data());
+    const auto it = _impl.find(Opt::key());
 
     if (it == _impl.end()) {
         const std::optional<ValueType> optional = Opt::defaultValue();
-        log.trace("The option '%s' was not set by user, try default value", Opt::key().data());
+        _log.trace("The option '%s' was not set by user, try default value", Opt::key().data());
 
         OPENVINO_ASSERT(optional.has_value(),
                         "Option '",
@@ -496,7 +545,7 @@ typename Opt::ValueType Config::get() const {
     OPENVINO_ASSERT(it->second != nullptr, "Got NULL OptionValue for :", Opt::key().data());
 
     const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
-#if defined(__CHROMIUMOS__)
+#if defined(__CHROMIUMOS__) || defined(__ANDROID__)
     if (optVal == nullptr) {
         if (Opt::getTypeName() == it->second->getTypeName()) {
             const auto val = std::static_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);

@@ -1,5 +1,8 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """
- Copyright (C) 2018-2025 Intel Corporation
+ Copyright (C) 2018-2026 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -10,8 +13,47 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import functools
 import subprocess
 import sys
+import time
+
+
+def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backoff=False, backoff_multiplier=2, max_delay=None):
+    """
+    Retry decorator with optional exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        exceptions: Tuple of exception types to catch and retry on
+        delay: Base delay in seconds between retries
+        exponential_backoff: If True, use exponential backoff instead of fixed delay
+        backoff_multiplier: Multiplier for exponential backoff (default: 2)
+        max_delay: Maximum delay cap for exponential backoff
+    """
+    def retry_decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
+                    if attempt < max_retries - 1 and delay is not None:
+                        if exponential_backoff:
+                            backoff_delay = delay * (backoff_multiplier ** attempt)
+                            if max_delay is not None:
+                                backoff_delay = min(backoff_delay, max_delay)
+                            print(f"Waiting {backoff_delay:.2f} seconds before retry")
+                            time.sleep(backoff_delay)
+                        else:
+                            print(f"Waiting {delay} seconds before retry")
+                            time.sleep(delay)
+                    else:
+                        raise e
+        return wrapper
+    return retry_decorator
+
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """

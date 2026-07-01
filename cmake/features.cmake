@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,6 +20,7 @@ ov_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE
 ov_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ov_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
+ov_option (ENABLE_TESTS_PER_SOURCE "Create one test executable per source file" OFF)
 
 if(ENABLE_TESTS)
     include(CTest)
@@ -41,9 +42,19 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
+# Set default GPU runtime to OCL
+set(OV_GPU_DEFAULT_RT "OCL")
+if (ENABLE_INTEL_GPU)
+    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL, SYCL and ZE (L0 is accepted as ZE alias)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL)
+    if(GPU_RT_TYPE STREQUAL "L0")
+        set(GPU_RT_TYPE "ZE" CACHE STRING "Type of GPU runtime" FORCE)
+    endif()
+endif()
 
-ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX" OFF)
+ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
+ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ON "ENABLE_INTEL_GPU" OFF)
+
+ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
 ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
@@ -54,7 +65,12 @@ ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilit
 
 ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM Tensor Processing Primitives" OFF "ENABLE_INTEL_CPU AND (X86_64 OR AARCH64)" OFF)
 
-ov_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
+## ITT tracing level: OFF | BASE | FULL
+# OFF  - no ITT backend linked; macros are no-ops
+# BASE - link ITT backend; only top-level API scopes are active (default)
+# FULL - link ITT backend; preserve full instrumentation (default prior behavior)
+ov_option_enum(ENABLE_PROFILING_ITT "ITT tracing mode: OFF | BASE | FULL" BASE
+               ALLOWED_VALUES OFF BASE FULL)
 
 ov_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
 Supported values:\
@@ -78,14 +94,15 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 # OpenVINO Runtime specific options
 #
 
-# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(RISCV64)
-    set(THREADING_DEFAULT "OMP")
-else()
+# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ|TBB_ADAPTIVE"
+if(AARCH64)
     set(THREADING_DEFAULT "TBB")
+else()
+    set(THREADING_DEFAULT "TBB_ADAPTIVE")
 endif()
 
-set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP")
+
+set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP" "TBB_ADAPTIVE")
 
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS ${THREADING_OPTIONS})
@@ -103,7 +120,7 @@ endif()
 
 ov_dependent_option (ENABLE_INTEL_OPENMP "Enables usage of Intel OpenMP instead of default compiler one" ${ENABLE_INTEL_OPENMP_DEFAULT} "THREADING STREQUAL OMP" OFF)
 
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE") AND
     (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
     set(ENABLE_TBBBIND_2_5_DEFAULT ON)
 else()
@@ -111,7 +128,6 @@ else()
 endif()
 
 ov_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB; NOT APPLE" OFF)
-ov_dependent_option (ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 ov_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
@@ -138,7 +154,6 @@ ov_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
-ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 
@@ -186,7 +201,7 @@ ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYS
 ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
-    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
+    "ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU" OFF)
 ov_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT}
     "ENABLE_INTEL_GPU" OFF)
 # the option is turned off by default, because we compile our own static version of protobuf
@@ -198,7 +213,7 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
     "ENABLE_SNAPPY_COMPRESSION" OFF)
 # the option is turned off by default, because we are not sure that system version of ZE loader is fresh enough
 ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of Level Zero" OFF
-    "ENABLE_INTEL_NPU" OFF)
+    "ENABLE_INTEL_NPU OR ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
@@ -210,6 +225,12 @@ else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
 
+if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "ZE"))
+    set(ENABLE_OV_ZERO_LOADER ON)
+else()
+    set(ENABLE_OV_ZERO_LOADER OFF)
+endif()
+
 #
 # Process featues
 #
@@ -218,8 +239,8 @@ if(ENABLE_OPENVINO_DEBUG)
     add_definitions(-DENABLE_OPENVINO_DEBUG)
 endif()
 
-if (ENABLE_PROFILING_RAW)
-    add_definitions(-DENABLE_PROFILING_RAW=1)
+if(ENABLE_DEBUG_CAPS)
+    add_definitions(-DENABLE_DEBUG_CAPS)
 endif()
 
 if (ENABLE_SNIPPETS_DEBUG_CAPS)

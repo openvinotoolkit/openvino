@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,61 @@ void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 
-// Count how many f32 values is out of normal finite numbers range when converted to f16
+/// @brief Maximum tolerated |abs(src - round_trip_f16(src))| for an in-range element.
+/// If any element exceeds this threshold, the whole tensor is kept in its
+/// original precision (FP32 / FP64 — acts as a tensor-wide veto in
+/// check_f16_compression()).
+inline constexpr double f16_compression_max_abs_error = 1.0;
+/// @brief Maximum tolerated relative round-trip error abs_diff / |src| for an in-range element when compressing a
+/// single scalar value. Used by the f16 scalar compression path (e.g. for RoPE constants), which is more sensitive to
+/// precision
+inline constexpr double f16_scalar_compression_max_rel_error = 1e-4;
+/// @brief  Maximum tolerated relative round-trip error abs_diff / |src| for an in-range element when compressing a
+/// whole tensor. Elements above this threshold are accumulated into the combined rejection count used together with
+/// f16_compression_keep_threshold. This is a looser threshold than f16_scalar_compression_max_rel_error to allow more
+/// aggressive compression at the tensor level, where individual high-relative-error elements may be "diluted" by many
+/// low-relative-error elements.
+inline constexpr double f16_tensor_compression_max_rel_error = 1e-3;
+/// @brief Proportion of combined rejections (out-of-FP16-range + high relative-error)
+/// at which the Constant is kept in its original precision (FP32 / FP64), i.e.
+/// no FP16 compression is applied.
+inline constexpr float f16_compression_keep_threshold = 0.75f;
+
+/// @brief Result of a single-pass FP16-compression feasibility check produced by
+/// check_f16_compression(). Used by CompressFloatConstantsImpl to decide
+/// whether a floating-point Constant may be safely compressed to FP16.
+struct CompressionCheckResult {
+    /// Combined count of rejected elements: values outside the finite FP16
+    /// range PLUS in-range values whose FP16 conversion exceeds
+    /// f16_tensor_compression_max_rel_error. Compared against
+    /// f16_compression_keep_threshold to keep the Constant in its original
+    /// precision. For a pure out-of-range count, use count_out_of_f16_range().
+    size_t rejected_count;
+    /// Early-bail flag: true iff any in-range element has |abs error| greater
+    /// than f16_compression_max_abs_error after the FP16 round-trip. When set,
+    /// rejected_count is not guaranteed to be complete.
+    bool has_lossy;
+};
+
+/// Single-pass combined FP16-compression feasibility check.
+///
+/// Bails immediately if any in-range value has significant precision loss
+/// (|round-trip error| > f16_compression_max_abs_error), setting
+/// CompressionCheckResult::has_lossy. Otherwise accumulates a combined
+/// rejection count (out-of-FP16-range + high relative-error) in
+/// CompressionCheckResult::rejected_count, to be compared against
+/// f16_compression_keep_threshold. The relative-error threshold is selected
+/// internally from the input size: single-element inputs use
+/// f16_scalar_compression_max_rel_error, while larger tensors use
+/// f16_tensor_compression_max_rel_error.
+/// JIT/AVX-512 (or AVX2+F16C) accelerated on x86 for tensors; single-element
+/// inputs fall back to a scalar loop.
+CompressionCheckResult check_f16_compression(const float* arg, size_t count);
+
+/// Counts elements in `arg` that fall outside the finite FP16 range (subnormal
+/// when rounded, or larger in magnitude than float16::max()). Distinct from
+/// check_f16_compression(), which also accounts for relative-error rejections.
+/// Kept as a backward-compatible helper for external consumers of this header.
 size_t count_out_of_f16_range(const float* arg, size_t count);
 
 // Convert values from f32 to f16 with clamping to f16 min/max when value is out of normal finite numbers range

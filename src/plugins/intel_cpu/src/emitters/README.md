@@ -101,7 +101,7 @@ JIT source code debugging can be separated in two parts:
      * MS Visual Studio: [View disassembly code in the Visual Studio debugger](https://learn.microsoft.com/en-us/visualstudio/debugger/how-to-use-the-disassembly-window?view=vs-2022)
 
 
-For additional debugging capabilities in `X64` you can use [register printer](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/plugin/x64/utils.hpp). For additional details refer to `RegPrinter` class documentation.
+For additional debugging capabilities you can use the register printers for [X64](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/plugin/x64/utils.hpp) and [AArch64](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/plugin/aarch64/debug_capabilities.hpp). Refer to the respective `RegPrinter` class documentation for usage details.
 
 ## Tests
 

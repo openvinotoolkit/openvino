@@ -1,8 +1,9 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 #include <bitset>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -39,7 +40,7 @@ public:
             if (!config.dumpIR.transformations.filter[prev]) {
                 break;
             }
-            if (wasDumped()[prev]) {
+            if (wasDumped(model->get_friendly_name())[prev]) {
                 return;
             }
         }
@@ -47,7 +48,7 @@ public:
     }
     ~TransformationDumper() {
         dump("_out");
-        wasDumped().set(type);
+        wasDumped(model->get_friendly_name()).set(type);
     }
 
 private:
@@ -66,35 +67,49 @@ private:
         {TransformationType::PostLpt, {"postLpt", TransformationType::Lpt}},
         {TransformationType::Snippets, {"snippets", TransformationType::PostLpt}},
         {TransformationType::Specific, {"cpuSpecific", TransformationType::Snippets}}};
-    static std::bitset<TransformationType::NumOfTypes>& wasDumped() {
-        static std::bitset<TransformationType::NumOfTypes> wasDumped;
-        return wasDumped;
+    static std::bitset<TransformationType::NumOfTypes>& wasDumped(const std::string& modelName) {
+        static std::unordered_map<std::string, std::bitset<TransformationType::NumOfTypes>> wasDumpedPerModel;
+        return wasDumpedPerModel[modelName];
     }
-    void dump(const std::string&& postfix) {
-        static int num = 0;  // just to keep dumped IRs ordered in filesystem
-        const auto pathAndName =
-            config.dumpIR.dir + "/ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix;
 
-        ov::util::create_directory_recursive(config.dumpIR.dir);
+    void dump(const std::string&& postfix) {
+        static std::unordered_map<std::string, int> numPerModel;
+        const std::filesystem::path dir{config.dumpIR.dir};
+        // include model name to a path so more than one model can be dumped without overriding dumps of each other
+        const std::filesystem::path dumpDir{dir / model->get_friendly_name()};
+        // add a serial number to the prefix to ensure the correct order in 'ls' output
+        auto& num = numPerModel[model->get_friendly_name()];
+        const std::filesystem::path irFileName{"ir_" + std::to_string(num) + '_' + infoMap.at(type).name + postfix};
+        // fullPath example: intel_cpu_dump/<model_name>/ir_0_preLpt_in.xml
+        const auto fullPath = dumpDir / irFileName;
+
+        ov::util::create_directory_recursive(dumpDir);
 
         ov::pass::Manager serializer;
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
-            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
+            auto xmlPath = fullPath;
+            xmlPath.replace_extension(".xml");
+            serializer.register_pass<ov::pass::Serialize>(xmlPath, std::filesystem::path{});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
-            std::string xmlFile(pathAndName + ".xml");
+            auto xmlFile = fullPath;
+            xmlFile.replace_extension(".xml");
 
-            serializer.register_pass<ov::pass::Serialize>(xmlFile, NULL_STREAM);
+            serializer.register_pass<ov::pass::Serialize>(xmlFile, std::filesystem::path{NULL_STREAM});
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Svg]) {
-            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".svg");
+            auto svgFile = fullPath;
+            svgFile.replace_extension(".svg");
+            serializer.register_pass<ov::pass::VisualizeTree>(svgFile);
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Dot]) {
-            serializer.register_pass<ov::pass::VisualizeTree>(pathAndName + ".dot");
+            auto dotFile = fullPath;
+            dotFile.replace_extension(".dot");
+            serializer.register_pass<ov::pass::VisualizeTree>(dotFile);
         }
 
         serializer.run_passes(model);

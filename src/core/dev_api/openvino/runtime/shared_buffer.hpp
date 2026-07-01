@@ -1,38 +1,154 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <type_traits>
+
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
+OPENVINO_API std::shared_ptr<IBufferDescriptor>
+create_base_descriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer);
 
-/// \brief SharedBuffer class to store pointer to pre-allocated buffer. Own the shared object.
+namespace detail {
+OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap);
+}  // namespace detail
+
 template <typename T>
-class SharedBuffer : public ov::AlignedBuffer {
+class SharedBufferBase : public ov::AlignedBuffer {
 public:
-    SharedBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
-        m_allocated_buffer = nullptr;
+    std::shared_ptr<IBufferDescriptor> get_descriptor() const override {
+        return m_descriptor;
+    }
+
+    virtual ~SharedBufferBase() {
+        m_aligned_buffer = nullptr;
+        m_byte_size = 0;
+    }
+
+    virtual void hint_evict() noexcept override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                m_shared_object->hint_evict(get_offset(), m_byte_size);
+            }
+        } else if constexpr (std::is_same_v<std::shared_ptr<ov::AlignedBuffer>, T>) {
+            if (m_shared_object) {
+                invoke_evict(*m_shared_object, get_offset(), m_byte_size);
+            }
+        } else {
+        }
+    }
+
+protected:
+    template <typename U>
+    struct is_aligned_buffer_ptr : std::false_type {};
+    template <typename U>
+    struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
+    template <typename U>
+    static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
+
+    virtual void hint_evict(size_t offset, size_t size) noexcept override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                m_shared_object->hint_evict(offset, size);
+            }
+        } else {
+        }
+    }
+
+    void hint_prefetch() const override {
+        if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (this->m_shared_object) {
+                AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
+            }
+        }
+    }
+
+    // protected to not create SharedBufferBase directly
+    SharedBufferBase(char* data,
+                     size_t size,
+                     const T& shared_object,
+                     const std::shared_ptr<IBufferDescriptor>& descriptor)
+        : m_shared_object{shared_object},
+          m_source_buffer{descriptor ? descriptor->get_source_buffer() : nullptr},
+          m_descriptor{[&] {
+              if (descriptor) {
+                  uintptr_t offset{};
+                  if (m_source_buffer) {
+                      const auto src_start = reinterpret_cast<uintptr_t>(m_source_buffer->get_ptr());
+                      const auto src_end = src_start + static_cast<uintptr_t>(m_source_buffer->size());
+                      const auto current = reinterpret_cast<uintptr_t>(data);
+                      const auto data_in_src_range = (current >= src_start) &&
+                                                     !ov::util::add_overflow(current, size, offset) &&
+                                                     (offset <= src_end);
+                      OPENVINO_ASSERT(data_in_src_range, "SharedBuffer data range is outside source buffer range");
+                      offset = current - src_start;
+                  }
+                  return create_base_descriptor(descriptor->get_id(), offset, m_source_buffer);
+              } else {
+                  return std::shared_ptr<IBufferDescriptor>{};
+              }
+          }()} {
         m_aligned_buffer = data;
         m_byte_size = size;
     }
 
-    virtual ~SharedBuffer() {
-        m_aligned_buffer = nullptr;
-        m_allocated_buffer = nullptr;
-        m_byte_size = 0;
+    SharedBufferBase(char* data, size_t size, const T& shared_object)
+        : m_shared_object{shared_object},
+          m_source_buffer{},
+          m_descriptor{} {
+        m_aligned_buffer = data;
+        m_byte_size = size;
     }
 
-private:
-    T _shared_object;
+    size_t get_offset() const {
+        if (m_source_buffer) {
+            return reinterpret_cast<uintptr_t>(m_aligned_buffer) -
+                   reinterpret_cast<uintptr_t>(m_source_buffer->get_ptr());
+        }
+        return 0;
+    }
+
+    // Owns the underlying data and keeps it alive for the lifetime of this buffer
+    T m_shared_object;
+    // Points to the root AlignedBuffer used for offset calculation and
+    // accessible externally via get_descriptor()->get_source_buffer();
+    // may or may not reference the same data as m_shared_object
+    std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
+    std::shared_ptr<IBufferDescriptor> m_descriptor;
 };
 
-/// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
+template <typename T>
+class SharedBuffer : public SharedBufferBase<T> {
+    static std::shared_ptr<IBufferDescriptor> get_or_make_descriptor(const T& shared_object) {
+        if constexpr (std::is_same_v<T, std::shared_ptr<ov::MappedMemory>>) {
+            return detail::create_mmap_descriptor(shared_object);
+        } else if constexpr (SharedBufferBase<T>::template is_aligned_buffer_ptr_v<T>) {
+            return shared_object ? shared_object->get_descriptor() : nullptr;
+        } else {
+            return nullptr;
+        }
+    }
+
+public:
+    SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
+        : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
+
+    SharedBuffer(char* data, size_t size, const T& shared_object)
+        : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
+};
+
+/// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
 ///  Can return ptr to shared memory and its size
 class SharedStreamBuffer : public std::streambuf {
 public:
-    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
+    SharedStreamBuffer(const char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
+    explicit SharedStreamBuffer(const void* data, size_t size)
+        : SharedStreamBuffer(reinterpret_cast<const char*>(data), size) {}
 
 protected:
     // override std::streambuf methods
@@ -55,33 +171,43 @@ protected:
         return m_size - m_offset;
     }
 
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+
     pos_type seekoff(off_type off,
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {
-        if (dir != std::ios_base::cur || which != std::ios_base::in) {
+        if (which != std::ios_base::in) {
             return pos_type(off_type(-1));
         }
-        m_offset += off;
+
+        size_t new_offset;
+        switch (dir) {
+        case std::ios_base::beg:
+            new_offset = off;
+            break;
+        case std::ios_base::cur:
+            new_offset = m_offset + off;
+            break;
+        case std::ios_base::end:
+            new_offset = m_size + off;
+            break;
+        default:
+            return pos_type(off_type(-1));
+        }
+
+        // Check bounds
+        if (new_offset > m_size) {
+            return pos_type(off_type(-1));
+        }
+
+        m_offset = new_offset;
         return pos_type(m_offset);
     }
 
-    char* m_data;
-    size_t m_size;
+    const char* m_data;
+    const size_t m_size;
     size_t m_offset;
-};
-
-/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object.
-class OwningSharedStreamBuffer : public SharedStreamBuffer {
-public:
-    OwningSharedStreamBuffer(std::shared_ptr<ov::AlignedBuffer> buffer)
-        : SharedStreamBuffer(static_cast<char*>(buffer->get_ptr()), buffer->size()),
-          m_shared_obj(buffer) {}
-
-    std::shared_ptr<ov::AlignedBuffer> get_buffer() {
-        return m_shared_obj;
-    }
-
-protected:
-    std::shared_ptr<ov::AlignedBuffer> m_shared_obj;
 };
 }  // namespace ov

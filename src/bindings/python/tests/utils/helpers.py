@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 from typing import Union
 
 import os
@@ -18,7 +19,8 @@ from openvino import Model, Core, Shape, Tensor, Type
 import openvino.opset13 as ops
 
 
-def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> tuple[bool, str]:  # noqa: C901 the function is too complex
+# noqa: C901 the function is too complex
+def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> tuple[bool, str]:
     """Function to compare OpenVINO model (ops names, types and shapes).
 
     Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
@@ -116,6 +118,11 @@ def plugins_path(device, lib_path):
 def generate_image(shape: tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
+
+
+def tensor_from_bytes(stream: io.BytesIO) -> Tensor:
+    stream.seek(0)
+    return Tensor(np.frombuffer(stream.getbuffer(), dtype=np.uint8))
 
 
 def get_model_with_template_extension():
@@ -274,7 +281,9 @@ def generate_concat_compiled_model(device, input_shape: list[int] = None, ov_typ
     return core.compile_model(model, device)
 
 
-def generate_concat_compiled_model_with_data(device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+def generate_concat_compiled_model_with_data(
+    device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32
+):
     if input_shape is None:
         input_shape = [5]
 

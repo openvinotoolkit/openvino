@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye
         shift = *constant->get_data_ptr<int32_t>();
         break;
     case ov::element::Type_t::i64:
-        shift = *constant->get_data_ptr<int64_t>();
+        shift = static_cast<int32_t>(*constant->get_data_ptr<int64_t>());
         break;
     default:
         throw std::runtime_error{"Input type can be only either i32 or i64"};

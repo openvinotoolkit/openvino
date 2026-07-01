@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,6 +169,39 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
     return cache.at(device);
 }
 
+bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+    if (device->get_info().arch < gpu_arch::xe3)
+        return false;
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    const char* kernel_code = "kernel void reg_file_size_check() {}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-ze-exp-register-file-size 128";
+    kernel_string->entry_point = "reg_file_size_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
         case cldnn::data_types::i4:
@@ -195,6 +228,12 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::F32;
         case cldnn::data_types::bf16:
             return kernel_selector::data_type::BF16;
+        case cldnn::data_types::f8e4m3:
+            return kernel_selector::data_type::F8E4M3;
+        case cldnn::data_types::f8e5m2:
+            return kernel_selector::data_type::F8E5M2;
+        case cldnn::data_types::f8e8m0:
+            return kernel_selector::data_type::F8E8M0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
     }
@@ -224,6 +263,12 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::f16;
         case kernel_selector::data_type::F32:
             return cldnn::data_types::f32;
+        case kernel_selector::data_type::F8E4M3:
+            return cldnn::data_types::f8e4m3;
+        case kernel_selector::data_type::F8E5M2:
+            return cldnn::data_types::f8e5m2;
+        case kernel_selector::data_type::F8E8M0:
+            return cldnn::data_types::f8e8m0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert kernel_selector data type ", kernel_selector::toString(dt), " to cldnn data type");
     }
@@ -247,6 +292,12 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
             return kernel_selector::weights_type::INT32;
         case cldnn::data_types::bf16:
             return kernel_selector::weights_type::BF16;
+        case cldnn::data_types::f8e4m3:
+            return kernel_selector::weights_type::F8E4M3;
+        case cldnn::data_types::f8e5m2:
+            return kernel_selector::weights_type::F8E5M2;
+        case cldnn::data_types::f8e8m0:
+            return kernel_selector::weights_type::F8E8M0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
     }
@@ -268,6 +319,12 @@ data_types from_weights_type(kernel_selector::weights_type dt) {
             return data_types::f32;
         case kernel_selector::weights_type::INT32:
             return data_types::i32;
+        case kernel_selector::weights_type::F8E4M3:
+            return data_types::f8e4m3;
+        case kernel_selector::weights_type::F8E5M2:
+            return data_types::f8e5m2;
+        case kernel_selector::weights_type::F8E8M0:
+            return data_types::f8e8m0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert kernel_selector weights type ", kernel_selector::toString(dt), " to cldnn data type");
     }
@@ -538,6 +595,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+        case format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+        case format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
         case format::os_is_yx_osv16_isv4:
             return kernel_selector::weights_layout::os_is_yx_osv16_isv4;
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
@@ -728,6 +789,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_isa8_osv16_isv4;
         case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
+        case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+        case kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return cldnn::format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2:
@@ -1021,6 +1086,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
         case cldnn::activation_func::round_half_away_from_zero:
             return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
+        case cldnn::activation_func::erfinv:
+            return kernel_selector::activation_function::ERFINV;
         default:
             throw std::runtime_error("Unknown activation function");
             break;
@@ -1031,9 +1098,19 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
     if (p->type() == swiglu::type_id()) {
         auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(p);
         auto axis = casted->_desc->axis;
-        auto split_length = casted->_desc->split_lengths;
-        auto split_to_glu_idx = casted->_desc->split_to_glu_idx;
-        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis, split_length, split_to_glu_idx);
+        auto glu_stride = casted->_desc->glu_stride;
+        auto gate_idx = casted->_desc->gate_idx;
+        auto clamp_min = casted->_desc->clamp_min;
+        auto clamp_max = casted->_desc->clamp_max;
+        auto swish_beta = casted->_desc->swish_beta;
+        auto up_add_val = casted->_desc->up_add_val;
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(static_cast<int32_t>(axis),
+                                                                     static_cast<size_t>(glu_stride),
+                                                                     gate_idx,
+                                                                     clamp_min,
+                                                                     clamp_max,
+                                                                     swish_beta,
+                                                                     up_add_val);
     } else if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;
@@ -1160,13 +1237,16 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
     params.engineInfo.supports_image = device_info.supports_image;
     params.engineInfo.supports_work_group_collective_functions = device_info.supports_work_group_collective_functions;
+    params.engineInfo.supports_non_uniform_work_group = device_info.supports_non_uniform_work_group;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;
     params.engineInfo.enable_sub_groups_emulation = true;
+    params.engineInfo.enable_large_allocations = config.get_enable_large_allocations();
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);
+    params.engineInfo.supports_register_file_size_option = query_register_file_size_option_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;

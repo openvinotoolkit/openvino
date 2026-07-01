@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto outDims = op->get_output_partial_shape(0);
 
     cldnn::primitive_id weights = inputs[op::Convolution::Args::WEIGHTS].pid;
-    const uint32_t groups = std::max<int64_t>(op->get_groups(), 1);
+    const uint32_t groups = static_cast<uint32_t>(std::max<int64_t>(op->get_groups(), 1));
     const bool weights_have_group_dim = op->get_groups() > 0;
 
     auto strides = op->get_strides();
@@ -42,6 +42,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto pads_begin = op->get_pads_begin();
     auto pads_end = op->get_pads_end();
     auto auto_pad = op->get_auto_pad();
+    size_t filter_rank = op->get_input_partial_shape(1).rank().get_length();
 
     if (!op->is_dynamic() && !p.use_new_shape_infer()) {
         // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
@@ -71,7 +72,8 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     pads_end,
                                                     weights_have_group_dim,
                                                     op->get_output_element_type(0),
-                                                    auto_pad);
+                                                    auto_pad,
+                                                    filter_rank);
     } else {
         prim = std::make_shared<cldnn::convolution>(layerName,
                                                     inputs[op::Convolution::Args::INPUT],
@@ -83,7 +85,8 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     pads_begin,
                                                     pads_end,
                                                     weights_have_group_dim,
-                                                    auto_pad);
+                                                    auto_pad,
+                                                    filter_rank);
     }
 
     p.add_primitive(*op, prim);
@@ -96,11 +99,6 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
-    for (auto d : dilations) {
-        if (d != 1) {
-            OPENVINO_THROW("Unsupported dilation in ConvolutionBackpropData ", op->get_friendly_name());
-        }
-    }
 
     auto weightsName = inputs[1];
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
@@ -181,11 +179,6 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
-    for (auto d : dilations) {
-        if (d != 1) {
-            OPENVINO_THROW("Unsupported dilation in GroupConvolutionBackpropData ", op->get_friendly_name());
-        }
-    }
 
     uint32_t groups = static_cast<uint32_t>(op->get_input_shape(1)[0]);
 
@@ -285,8 +278,8 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
                                        weights,
                                        "",
                                        true,
-                                       groups,
-                                       deformable_groups_num,
+                                       static_cast<uint32_t>(groups),
+                                       static_cast<uint32_t>(deformable_groups_num),
                                        strides,
                                        dilations,
                                        padding,

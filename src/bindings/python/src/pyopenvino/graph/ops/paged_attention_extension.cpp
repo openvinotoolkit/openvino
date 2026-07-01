@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,4 +18,5 @@ void regclass_graph_op_PagedAttentionExtension(py::module m) {
     cls.doc() = "Experimental extention for PagedAttention operation. Use with care: no backward compatibility is "
                 "guaranteed in future releases.";
     cls.def(py::init<const ov::OutputVector&>());
+    cls.def("get_write_kv_cache", &PagedAttentionExtension::get_write_kv_cache);
 }

@@ -1,9 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
 
@@ -37,6 +38,8 @@ public:
         element::Type quantization_dt = element::dynamic;
         element::Type scale_dt = element::dynamic;
         element::Type zp_dt = element::dynamic;
+        element::Type precomputed_reduction_dt = element::dynamic;
+        bool precomputed_reduction = false;  // whether to generate precomputed reduction
 
         std::vector<uint64_t> group_sizes = {};
         std::vector<uint64_t> scales_zp_output_order = {};
@@ -53,6 +56,8 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     const Attributes& get_attrs() const {
         return m_attrs;
@@ -87,4 +92,29 @@ protected:
 
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const ov::op::internal::DynamicQuantize::QuantizationType& quantization_type);
+std::ostream& operator<<(std::ostream& s,
+                         const ov::op::internal::DynamicQuantize::OutputStorageType& output_storage_type);
+
+template <>
+class OPENVINO_API AttributeAdapter<ov::op::internal::DynamicQuantize::QuantizationType>
+    : public EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::QuantizationType> {
+public:
+    AttributeAdapter(ov::op::internal::DynamicQuantize::QuantizationType& value)
+        : EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::QuantizationType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::DynamicQuantize::QuantizationType>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<ov::op::internal::DynamicQuantize::OutputStorageType>
+    : public EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::OutputStorageType> {
+public:
+    AttributeAdapter(ov::op::internal::DynamicQuantize::OutputStorageType& value)
+        : EnumAttributeAdapterBase<ov::op::internal::DynamicQuantize::OutputStorageType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::DynamicQuantize::OutputStorageType>");
+};
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -92,15 +92,15 @@ test_session_build_number = os.environ.get("TT_TEST_SESSION_BUILD_NUMBER", "0.0"
                           to be presented on test reports as a environment name."""
 environment_name = os.environ.get("TT_ENVIRONMENT_NAME", "")
 
-""" TT_BUGS - Filter collected test cases by provided bugs list, only tests marked by 
+""" TT_BUGS - Filter collected test cases by provided bugs list, only tests marked by
               @pytest.mark.bugs(...) will be collected (and executed). """
 bug_ids = os.environ.get("TT_BUGS", None)
 
-""" TT_REQUIREMENTS - Filter collected test cases by provided requirements list. Only tests marked by 
+""" TT_REQUIREMENTS - Filter collected test cases by provided requirements list. Only tests marked by
                       @pytest.mark.reqids(...) will be collected (and executed). """
 req_ids = os.environ.get("TT_REQUIREMENTS", None)
 
-""" TT_COMPONENTS - Filter collected test cases by provided components list. Only tests marked by 
+""" TT_COMPONENTS - Filter collected test cases by provided components list. Only tests marked by
                     @pytest.mark.components(...) will be collected (and executed)."""
 components_ids = os.environ.get("TT_COMPONENTS", None)
 

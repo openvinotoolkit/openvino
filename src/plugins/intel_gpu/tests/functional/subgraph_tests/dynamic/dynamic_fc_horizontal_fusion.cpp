@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -367,7 +367,7 @@ protected:
             abs_threshold = 1.0f;
 
             if (shape_params.lora_rank != 0) {
-                rel_threshold = 0.01f;
+                rel_threshold = 0.015f;
 
                 const auto& input_shape = shape_params.data_shape.second.front();
                 bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;

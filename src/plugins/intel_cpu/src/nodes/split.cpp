@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
@@ -31,7 +32,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -334,7 +334,7 @@ void Split::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     auto* srcData = srcMem.getDataAs<uint8_t>();
     CPU_NODE_ASSERT(execPtr, "Split executor is not initialized");
-    execPtr->exec(srcData, getRawDstMemPtrs());
+    execPtr->exec(srcData, getRawDstMemPtrs(), context->getCpuParallel());
 }
 
 bool Split::created() const {
@@ -459,8 +459,9 @@ void Split::selectOptimalPrimitiveDescriptor() {
 }
 
 void Split::optimizedNspc2Ncsp(size_t MB) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
-    const int rank = parentEdge->getMemory().getShape().getRank();
+    const auto rank = parentEdge->getMemory().getShape().getRank();
     const auto parentDims = parentEdge->getMemory().getStaticDims();
     const size_t IC = parentDims[1];
     const size_t D = rank == 5 ? parentDims[rank - 3] : 1;
@@ -490,7 +491,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
         const size_t OC = dims[1];
         const size_t strideOB = OC * strideOC;
 
-        parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
             const auto* localSrcPtr = srcPtr + b * strideIB + j * strideIW;
             auto* localDstPtr = dstData + b * strideOB + j * dataSize;
             for (size_t c = 0; c < OC; c++) {
@@ -518,7 +519,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
                                                       const size_t axis) {
     // find axis order position
     const auto& order = inDesc->getOrder();
-    unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
+    size_t axisOrderPos = std::numeric_limits<unsigned>::max();
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] == axis) {
             axisOrderPos = i;
@@ -530,7 +531,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
 
     const auto outputPortsCount = outDescs.size();
 
-    uint8_t srcDataSize = inDesc->getPrecision().size();
+    const auto srcDataSize = inDesc->getPrecision().size();
     const auto& srcDims = inDesc->getBlockDims();
     const auto getRank = srcDims.size();
 
@@ -558,10 +559,11 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
     }
 }
 
-void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData,
+                                         const std::vector<uint8_t*>& dstRawMemPtrs,
+                                         const CpuParallelPtr& cpuParallel) {
     size_t execCountStrides = countStrides;
-
-    parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
+    cpuParallel->parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];
 
         cpu_memcpy(&dstData[j * dataSize[i]], &srcData[srcDataOffsets[i] + j * srcDataStride], dataSize[i]);
@@ -586,7 +588,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         auto partDim = outputShapes[i].getDims()[axis];
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         "can not use inPlace memory with splitting on dynamic dimension");
-        const auto& childEdges = getChildEdgesAtPort(i);
+        const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
         for (const auto& childEdge : childEdges) {
             CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 

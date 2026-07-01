@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,8 @@ public:
                                                   testing::internal::ValueArray<const char*>>;
 
     static const TGenData GetTestDataForDevice(const char* deviceName);
+    static const TGenData GetStaticTestDataForDevice(const char* deviceName);
+    static const TGenData GetDynamicTestDataForDevice(const char* deviceName);
 
 protected:
     void SetUp() override;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,8 +9,11 @@ add_subdirectory(utils)
 
 add_subdirectory(al)
 
+add_subdirectory(ops)
+
 if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(common)
+    add_subdirectory(vm)
     add_subdirectory(compiler_adapter)
     add_subdirectory(backend)
     add_subdirectory(plugin)

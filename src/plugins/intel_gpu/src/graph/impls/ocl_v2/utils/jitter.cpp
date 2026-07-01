@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,18 +152,18 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
 }
 
 JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value) {
-    std::string type = "undefined";
-    std::string max_val = "undefined";
-    std::string min_val = "undefined";
-    std::string val_one = "undefined";
-    std::string val_zero = "undefined";
-    std::string to_type = "undefined";
-    std::string to_type_sat = "undefined";
-    std::string as_type = "undefined";
-    std::string max_func = "undefined";
-    std::string min_func = "undefined";
-    std::string abs_func = "undefined";
-    std::string type_size = "undefined";
+    std::string type = "dynamic";
+    std::string max_val = "dynamic";
+    std::string min_val = "dynamic";
+    std::string val_one = "dynamic";
+    std::string val_zero = "dynamic";
+    std::string to_type = "dynamic";
+    std::string to_type_sat = "dynamic";
+    std::string as_type = "dynamic";
+    std::string max_func = "dynamic";
+    std::string min_func = "dynamic";
+    std::string abs_func = "dynamic";
+    std::string type_size = "dynamic";
     bool is_fp = false;
     switch (value) {
     case ov::element::i8:
@@ -319,6 +319,57 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         abs_func = "fabs";
         type_size = "4";
         is_fp = true;
+        break;
+    case ov::element::f8e4m3:
+        type = "fp8e4m3_t";
+        max_val = "(fp8e4m3_t){as_char((char)0x7E)}";  // 448.0
+        min_val = "(fp8e4m3_t){as_char((char)0xFE)}";  // -448.0
+        val_one = "(fp8e4m3_t){as_char((char)0x38)}";
+        val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
+        to_type = "_convert_fp8e4m3_t(v)";
+        to_type_sat = "_convert_fp8e4m3_t_sat(v)";
+        as_type = "as_fp8e4m3_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::f8e5m2:
+        type = "fp8e5m2_t";
+        max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}";  // 57344.0
+        min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}";  // -57344.0
+        val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
+        val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
+        to_type = "_convert_fp8e5m2_t(v)";
+        to_type_sat = "_convert_fp8e5m2_t_sat(v)";
+        as_type = "as_fp8e5m2_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::f8e8m0:
+        type = "fp8e8m0_t";
+        max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}";  // 2^127
+        min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}";  // 2^(-127)
+        val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
+        val_zero = "";  // There is no representation of zero in FP8E8M0
+        to_type = "_convert_fp8e8m0_t(v)";
+        to_type_sat = "_convert_fp8e8m0_t_sat(v)";
+        as_type = "as_fp8e8m0_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::dynamic:
+        type = "uchar";
+        max_val = "UCHAR_MAX";
+        min_val = "0";
+        val_one = "(uchar) 1";
+        val_zero = "(uchar) 0";
+        to_type = "convert_uchar(v)";
+        to_type_sat = "convert_uchar_sat(v)";
+        as_type = "as_uchar(v)";
+        max_func = "max";
+        min_func = "min";
+        abs_func = "abs";
+        type_size = "1";
+        is_fp = false;
         break;
     default:
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);

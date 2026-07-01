@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "vl_sdpa_opt.hpp"
@@ -55,7 +55,7 @@ protected:
         const size_t head_size = key_shape[query_shape.size() - 1].get_length();
         const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
-        const float scale_factor = 1.0 / std::sqrt(static_cast<double>(head_size));
+        const float scale_factor = 1.0f / std::sqrt(static_cast<float>(head_size));
 
         GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order)
                                << ", key_shape " << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order)

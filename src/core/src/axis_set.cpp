@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,10 +31,7 @@ std::vector<int64_t> ov::AxisSet::to_vector() const {
 }
 
 std::ostream& ov::operator<<(std::ostream& s, const AxisSet& axis_set) {
-    s << "AxisSet{";
-    s << ov::util::join(axis_set);
-    s << "}";
-    return s;
+    return s << "AxisSet{" << ov::util::join<std::ostream>(axis_set) << "}";
 }
 
 const std::vector<int64_t>& ov::AttributeAdapter<ov::AxisSet>::get() {

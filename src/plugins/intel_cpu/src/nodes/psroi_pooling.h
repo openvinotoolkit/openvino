@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,8 @@ private:
     int nh = 0;
     int nw = 0;
 
+    size_t inBatchNum = 0;
+
     // for Deformable PSROIPolling
     bool noTrans;
     int partSize = 1;
@@ -55,13 +57,13 @@ private:
 
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,
-                      int& hInputStride,
-                      int& wInputStride,
-                      int& hOutputStride,
-                      int& wOutputStride,
-                      int& inBlockSize,
-                      int& outBlockSize,
-                      int& outBlockCount,
+                      size_t& hInputStride,
+                      size_t& wInputStride,
+                      size_t& hOutputStride,
+                      size_t& wOutputStride,
+                      size_t& inBlockSize,
+                      size_t& outBlockSize,
+                      size_t& outBlockCount,
                       uint64_t& inputChannelsPadding,
                       uint64_t& outputChannelsPadding);
 

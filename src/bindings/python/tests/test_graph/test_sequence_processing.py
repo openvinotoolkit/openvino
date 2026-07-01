@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 import openvino as ov
+import openvino.opset16 as ov16
 
 
 @pytest.mark.parametrize(("depth", "on_value", "off_value", "axis", "expected_shape"), [
@@ -49,3 +50,27 @@ def test_range_4(destination_type, expected_type):
     assert node.get_type_name() == "Range"
     assert list(node.get_output_shape(0)) == [6]
     assert node.get_element_type() == expected_type
+
+
+@pytest.mark.parametrize(("depth", "on_value", "off_value", "axis", "negative_indices_mode", "expected_shape"), [
+    (3, 1, 0, -1, "ignore_negative", [3, 3]),
+    (3, 1, 0, 0, "ignore_negative", [3, 3]),
+    (3, 1, 0, -1, "normalize", [3, 3]),
+    (4, 5, 10, 1, "normalize", [3, 4]),
+])
+def test_one_hot_opset16_with_negative_indices_mode(
+    depth, on_value, off_value, axis, negative_indices_mode, expected_shape
+):
+    param = ov.opset11.parameter([3], dtype=np.int32)
+    node = ov16.one_hot(param, depth, on_value, off_value, axis, negative_indices_mode)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "OneHot"
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+def test_one_hot_opset16_without_negative_indices_mode():
+    param = ov.opset11.parameter([3], dtype=np.int32)
+    node = ov16.one_hot(param, depth=2, on_value=5, off_value=10, axis=-1)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "OneHot"
+    assert list(node.get_output_shape(0)) == [3, 2]

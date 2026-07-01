@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ private:
     void prepareBeforeMappers(bool isThen, const dnnl::engine& eng);
     void prepareAfterMappers(bool isThen, const dnnl::engine& eng);
 
-    static std::deque<MemoryPtr> getToMemories(const Node* node, size_t port);
+    static std::deque<MemoryPtr> getToMemories(const Node* node, int port);
 
     struct PortMap {
         int from; /**< Index of external/internal out data */

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/op/util/max_pool_base.hpp"
+#include "post_ops.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -290,10 +291,10 @@ void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShap
     const auto& outDims = outShape.getStaticDims();
 
     for (size_t i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
-        int krn = poolingAttrs.kernel[i];
-        int dil = poolingAttrs.dilation[i];
-        int src = inDims[2 + i];
-        int dst = outDims[2 + i];
+        auto krn = static_cast<int>(poolingAttrs.kernel[i]);
+        auto dil = static_cast<int>(poolingAttrs.dilation[i]);
+        auto src = static_cast<int>(inDims[2 + i]);
+        auto dst = static_cast<int>(outDims[2 + i]);
 
         poolingAttrs.effective_pad_end[i] =
             (dst - 1) * poolingAttrs.stride[i] - (src - (1 + (krn - 1) * dil) + poolingAttrs.data_pad_begin[i]);
@@ -337,25 +338,37 @@ void Pooling::getSupportedDescriptors() {
     arm_compute::DataLayout dataLayout =
         (inShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
     arm_compute::TensorInfo srcTensorInfo =
-        arm_compute::TensorInfo(shapeCast(inShape.getDims()), 1, precisionToAclDataType(inputPrecision), dataLayout);
+        arm_compute::TensorInfo(shapeCast(inShape.getDims()),
+                                1,
+                                convertToQuantizedType(precisionToAclDataType(inputPrecision)),
+                                dataLayout);
     arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(
         shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() : childShape.getDims()),
         1,
-        precisionToAclDataType(outputPrecision),
+        convertToQuantizedType(precisionToAclDataType(
+            fusedWith.empty() ? outputPrecision : fusedWith.back()->getOriginalOutputPrecisionAtPort(0))),
         dataLayout);
     arm_compute::Pooling3dLayerInfo pool3d_info;
     arm_compute::PoolingLayerInfo pool_info;
-    useACL =
-        AclPoolingExecutor::isSupported(srcTensorInfo,
-                                        dstTensorInfo,
-                                        poolingAttrs,
-                                        inShape.getDims().size(),
-                                        getOriginalOutputsNumber(),
-                                        dataLayout,
-                                        (getOriginalOutputsNumber() > 1) ? &getOutputShapeAtPort(1).getDims() : nullptr,
-                                        &pool_info,
-                                        &pool3d_info,
-                                        isDynamicNode());
+    VectorDims indDims;
+    if (getOriginalOutputsNumber() > 1) {
+        if (isDynamicNode()) {
+            indDims = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(1)).getDims();
+        } else {
+            indDims = getOutputShapeAtPort(1).getDims();
+        }
+    }
+
+    useACL = AclPoolingExecutor::isSupported(srcTensorInfo,
+                                             dstTensorInfo,
+                                             poolingAttrs,
+                                             inShape.getDims().size(),
+                                             getOriginalOutputsNumber(),
+                                             dataLayout,
+                                             &indDims,
+                                             &pool_info,
+                                             &pool3d_info,
+                                             isDynamicNode());
     // FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout here
     // NEPooling3dLayer supports NDHWC only
     if (inShape.getDims().size() == 5) {
@@ -479,6 +492,8 @@ void Pooling::prepareParams() {
             poolingAttrs.data_pad_end = shapeInference->get_pads_end();
         }
     }
+    poolingAttrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
+
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
@@ -682,9 +697,11 @@ void Pooling::initSupportedPrimitiveDescriptors() {
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
             for (size_t i = 0; i < config.outConfs.size(); i++) {
+                const auto outputPrecision = (i == 0 && !fusedWith.empty())
+                                                 ? fusedWith.back()->getOriginalOutputPrecisionAtPort(0)
+                                                 : getOriginalOutputPrecisionAtPort(i);
                 config.outConfs[i].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(i),
-                                                             getOutputShapeAtPort(i)));
+                    creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(i)));
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 

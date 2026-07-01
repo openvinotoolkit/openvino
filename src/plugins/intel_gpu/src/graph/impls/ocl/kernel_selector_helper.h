@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,6 +213,8 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::BITWISE_OR;
         case eltwise_mode::bitwise_xor:
             return kernel_selector::eltwise_mode::BITWISE_XOR;
+        case eltwise_mode::atan2:
+            return kernel_selector::eltwise_mode::ATAN2;
         default:
             OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;
@@ -311,5 +313,6 @@ inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& 
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 
 }  // namespace cldnn

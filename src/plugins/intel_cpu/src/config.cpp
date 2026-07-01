@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
@@ -47,8 +48,9 @@ Config::Config() {
  * configuration properties
  */
 void Config::applyDebugCapsProperties() {
-    // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty()) {
+    // always enable perf counters for verbose, performance summary, average counters and exec graph serialization
+    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty() ||
+        !debugCaps.execGraphPath.empty()) {
         collectPerfCounters = true;
     }
 }
@@ -192,6 +194,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                             ov::intel_cpu::sparse_weights_decompression_rate.name(),
                             ". Sparse rate must be in range [0.0f,1.0f]");
             fcSparseWeiDecompressionRate = val_f;
+        } else if (key == ov::intel_cpu::tbb_partitioner.name()) {
+            try {
+                tbbPartitioner = val.as<ov::intel_cpu::TbbPartitioner>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::intel_cpu::tbb_partitioner.name(),
+                               ". Expected only ov::intel_cpu::TbbPartitioner::STATIC/AUTO");
+            }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
                 fcDynamicQuantizationGroupSizeSetExplicitly = true;
@@ -318,7 +330,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 kvCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                if (any_of(prec,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::u8,
+                           ov::element::u4,
+                           ov::element::u3)) {
                     kvCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -328,7 +346,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::hint::kv_cache_precision.name(),
-                               ". Supported values: u8, bf16, f16, f32");
+                               ". Supported values: u8, u4, u3, bf16, f16, f32");
             }
         } else if (key == ov::key_cache_precision.name()) {
             try {
@@ -340,7 +358,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                            ov::element::bf16,
                            ov::element::i8,
                            ov::element::u8,
-                           ov::element::u4)) {
+                           ov::element::u4,
+                           ov::element::u3)) {
                     keyCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
@@ -350,7 +369,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::key_cache_precision.name(),
-                               ". Supported values: u8, bf16, f16, f32");
+                               ". Supported values: u3, u4, u8, i8, bf16, f16, f32");
             }
         } else if (key == ov::value_cache_precision.name()) {
             try {
@@ -361,7 +380,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                            ov::element::f16,
                            ov::element::bf16,
                            ov::element::u8,
-                           ov::element::u4)) {
+                           ov::element::u4,
+                           ov::element::u3)) {
                     valueCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("valueCachePrecision doesn't support value ", prec);
@@ -371,7 +391,19 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::value_cache_precision.name(),
-                               ". Supported values: u4, u8, bf16, f16, f32");
+                               ". Supported values: u3, u4, u8, bf16, f16, f32");
+            }
+        } else if (key == ov::internal::key_cache_quant_alg.name()) {
+            auto alg = val.as<ov::internal::CacheQuantAlgorithm>();
+            keyCacheQuantAlg = alg;
+            if (alg == ov::internal::CacheQuantAlgorithm::TURBO && !keyCachePrecisionSetExplicitly) {
+                keyCachePrecision = ov::element::u4;
+            }
+        } else if (key == ov::internal::value_cache_quant_alg.name()) {
+            auto alg = val.as<ov::internal::CacheQuantAlgorithm>();
+            valueCacheQuantAlg = alg;
+            if (alg == ov::internal::CacheQuantAlgorithm::TURBO && !valueCachePrecisionSetExplicitly) {
+                valueCachePrecision = ov::element::u4;
             }
         } else if (key == ov::key_cache_group_size.name() || key == ov::value_cache_group_size.name()) {
             try {
@@ -446,12 +478,29 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
-        } else if (key == ov::internal::caching_with_mmap.name()) {
+        } else if (key == ov::cache_mode.name()) {
+            try {
+                m_cache_mode = val.as<ov::CacheMode>();
+                if (const auto enable_weightless = ov::util::is_weightless_enabled(prop); enable_weightless) {
+                    enableWeightless = *enable_weightless;
+                }
+            } catch (...) {
+                OPENVINO_THROW("Wrong value for property key ", ov::cache_mode.name());
+            }
+        } else if (key == ov::hint::model.name() || key == ov::internal::caching_with_mmap.name() ||
+                   key == ov::weights_path.name()) {
+            // do nothing
         } else if (key == ov::intel_cpu::enable_sage_attn.name()) {
             try {
                 enableSageAttn = val.as<bool>();
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
+            }
+        } else if (key == ov::enable_weightless.name()) {
+            try {
+                enableWeightless = val.as<bool>();
+            } catch (...) {
+                OPENVINO_THROW("Wrong value for property key ", ov::enable_weightless.name());
             }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
@@ -526,13 +575,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streams = 1;
         streamsChanged = true;
     }
-
-#if defined(OV_CPU_WITH_SHL)
-    // TODO: multi-stream execution is unsafe when SHL is used:
-    //       The library uses global static variables as flags and counters.
-    streams = 1;
-    streamsChanged = true;
-#endif
 
     this->modelType = modelType;
 

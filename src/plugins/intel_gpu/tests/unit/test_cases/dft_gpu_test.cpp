@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ public:
         ASSERT_EQ(outputs.begin()->first, "out");
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const auto expected_values = convert<T>(p.expected_values);
         ASSERT_EQ(output_ptr.size(), expected_values.size());
@@ -2056,7 +2056,7 @@ TEST(dft_gpu_test, irdft_output_shape) {
         ASSERT_EQ(outputs.begin()->first, "out");
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const auto expected_values = convert<T>(p.expected_values);
         ASSERT_EQ(output_ptr.size(), expected_values.size());

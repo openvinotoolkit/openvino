@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
-        static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::u8, ov::element::i8 };
+        static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::i8 };
         static const std::vector<format::type> supported_in_fmts = {
             format::any,
             format::bfyx,
@@ -54,7 +54,37 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
-        bool any_dep_is_onednn = false;
+        auto is_feature_aligned = [](const layout& l) {
+            if (!format::is_blocked(l.format))
+                return true;
+
+            const auto& order = format::internal_order(l.format);
+            const size_t feature_dim_idx = order.find('f');
+            if (feature_dim_idx == std::string::npos)
+                return true;
+
+            auto feature_dim = l.get_partial_shape()[feature_dim_idx];
+            if (feature_dim.is_dynamic())
+                return false;
+
+            const auto& block_sizes = format::block_sizes(l.format);
+            auto block_it = std::find_if(block_sizes.begin(), block_sizes.end(), [&](const auto& block) {
+                return block.first == feature_dim_idx;
+            });
+
+            if (block_it == block_sizes.end())
+                return true;
+
+            const int feature_block_size = block_it->second;
+            return feature_dim.get_length() % feature_block_size == 0;
+        };
+
+        // oneDNN blocked format contract requires zero-filled fsv padding lanes for unaligned feature blocks.
+        // Apply the same feature alignment requirement to both input and output layouts.
+        if (!is_feature_aligned(out_layout)) {
+            return false;
+        }
+
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
 
@@ -67,12 +97,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             if (!one_of(in_layout.format.value, supported_in_fmts))
                 return false;
 
-            if (dep.first->get_preferred_impl_type() == impl_types::onednn)
-                any_dep_is_onednn = true;
+            if (!is_feature_aligned(in_layout))
+                return false;
         }
-
-        if (!any_dep_is_onednn && format::is_simple_data_format(out_layout.format))
-            return false;
 
         return true;
     }

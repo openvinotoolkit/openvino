@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,3 +9,9 @@ ov_gpu_add_backend_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+if(GPU_RT_TYPE STREQUAL "SYCL")
+    # kernels_cache.cpp includes oneDNN headers that require SYCL backend support.
+    # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
+    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES kernels_cache.cpp)
+endif()

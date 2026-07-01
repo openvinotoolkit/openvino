@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,8 +6,6 @@
 set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-
-ov_try_use_gold_linker()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
@@ -24,7 +22,8 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
+                          ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
@@ -44,6 +43,7 @@ ov_add_test_target(
             Threads::Threads
             openvino::conditional_compilation
             openvino::runtime::dev
+            openvino::xml_util
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT CORE
@@ -51,6 +51,8 @@ ov_add_test_target(
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
                                                   ${CMAKE_CURRENT_SOURCE_DIR})
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
@@ -60,6 +62,12 @@ target_compile_definitions(${TARGET_NAME}
         # Assume <lib>.so is an existed symlink to <lib><version>.so (or <lib>.so<version>
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         )
+
+if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    # GCC 15's lto1 emits false-positive -Wstringop-overflow/-Wstringop-overread warnings during the LTO link phase
+    # when openvino_xml_util objects are processed. Suppress at the linker level for this test binary only.
+    target_link_options(${TARGET_NAME} PRIVATE -Wno-stringop-overflow -Wno-stringop-overread)
+endif()
 
 if(RISCV64)
     # for std::atomic_bool
@@ -81,5 +89,13 @@ if(ENABLE_OV_IR_FRONTEND)
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+set(BENCHMARK_TARGET_NAME ov_file_load_benchmark)
+add_executable(${BENCHMARK_TARGET_NAME} EXCLUDE_FROM_ALL
+    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
+    common_test_utils
+    openvino::util)
+target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(frontend)

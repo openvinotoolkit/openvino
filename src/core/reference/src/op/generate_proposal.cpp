@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -277,7 +277,7 @@ static void generate_proposals_single_image(const std::vector<float>& im_info,
                                      img_W,
                                      min_box_H,
                                      min_box_W,
-                                     static_cast<const float>(std::log(1000. / 16.)),
+                                     static_cast<float>(std::log(1000. / 16.)),
                                      coordinates_offset);
     std::partial_sort(proposals.begin(),
                       proposals.begin() + pre_nms_topn,

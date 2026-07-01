@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <common/c_types_map.hpp>
+#include <common/memory_desc.hpp>
 #include <common/memory_desc_wrapper.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -193,7 +194,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     desc.get()->format_kind = dnnl_blocked;
     desc.get()->extra.flags = 0;
     desc.get()->data_type = memory::convert_to_c(DnnlExtensionUtils::ElementTypeToDataType(prc));
-    desc.get()->ndims = dims.size();
+    desc.get()->ndims = static_cast<int>(dims.size());
     desc.get()->offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
     std::copy(dims.begin(), dims.end(), desc.get()->dims);
 
@@ -226,7 +227,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
     // Fill blocking desc
     auto& dnn_blk_desc = desc.get()->format_desc.blocking;
-    dnn_blk_desc.inner_nblks = inner_ndims;
+    dnn_blk_desc.inner_nblks = static_cast<int>(inner_ndims);
     std::copy(dnnlBlkDims.end() - inner_ndims, dnnlBlkDims.end(), dnn_blk_desc.inner_blks);
     std::copy(order.end() - inner_ndims, order.end(), dnn_blk_desc.inner_idxs);
 
@@ -298,7 +299,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask c
 
 bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     dnnl::impl::memory_desc_wrapper wrapped(desc.get());
-    return wrapped.extra().flags == dnnl_memory_extra_flag_none &&
+    return wrapped.extra().flags == dnnl::impl::memory_extra_flags_t::dnnl_memory_extra_flag_none &&
            BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
@@ -470,11 +471,13 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     dnnl::memory::desc clonedDesc(DnnlExtensionUtils::clone_desc(desc.get()));
 
     array_copy(clonedDesc.get()->dims, mklDims.data(), mklDims.size());
-    dnnl::memory::dims perm(convert_to_vector<dnnl::memory::dim, size_t>(order.data(), mklDims.size()));
+    std::vector<int> perm(convert_to_vector<int, size_t>(order.data(), mklDims.size()));
     auto innerBlks = clonedDesc.get_inner_blks();
     auto innerIdxs = clonedDesc.get_inner_idxs();
+    std::vector<int> innerBlksInt(convert_to_vector<int>(innerBlks.data(), innerBlks.size()));
+    std::vector<int> innerIdxsInt(convert_to_vector<int>(innerIdxs.data(), innerIdxs.size()));
 
-    auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlks, innerIdxs);
+    auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlksInt, innerIdxsInt);
     OPENVINO_ASSERT(retCode == dnnl::impl::status::success,
                     "Can not clone DnnlBlockedMemoryDesc with dims: ",
                     dims2str(dims));
@@ -494,7 +497,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims)
                     "Can't clone desc if new dims are undefined");
 
     // TODO [DS]: add stride recalculation for strided blobs
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(strides.size() - 2); i >= 0; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM) {
             break;
         }

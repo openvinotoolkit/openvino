@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -680,16 +680,40 @@ public:
     layout get_input_layout3(eltwise_test_params& p) {
         return layout{ {1, 1, 1, p.input_size[3]}, p.input_type, p.input_format };
     }
+
+    // Generate integer-valued f16 memory so the f16→i32→f16 ref-path reorders
+    // are lossless (i32 truncation of an integer is a no-op).
+    cldnn::memory::ptr get_int_f16_mem(cldnn::layout l) {
+        auto prim = engine.allocate_memory(l);
+        auto rnd_vec = rg.generate_random_1d<ov::float16>(l.get_tensor().count(), -4, 4, 1);
+        set_values(prim, rnd_vec);
+        return prim;
+    }
+
+    void execute(eltwise_test_params& p, bool count_reorder = false) {
+        auto input_prim = get_int_f16_mem(get_input_layout(p));
+
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+
+        auto inputs = network_fused.get_input_ids();
+        if (std::find(inputs.begin(), inputs.end(), "input") != inputs.end()) {
+            network_fused.set_input_data("input", input_prim);
+            network_not_fused.set_input_data("input", input_prim);
+        }
+
+        compare(network_not_fused, network_fused, p, count_reorder);
+    }
 };
 TEST_P(eltwise_fusing_reorders, reorders_for_data_type) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("data", get_mem(get_input_layout3(p))),
+        data("data", get_int_f16_mem(get_input_layout3(p))),
         eltwise("eltwise", { input_info("input"), input_info("data") }, p.mode, p.default_type),
         reorder("reorder1", input_info("eltwise"), format::bfyx, data_types::i32, {}, reorder_mean_mode::subtract, padding(), true),
         reorder("reorder2", input_info("reorder1"), format::bfyx, data_types::f16, {}, reorder_mean_mode::subtract, padding(), true),
-        data("data2", get_mem(get_input_layout3(p))),
+        data("data2", get_int_f16_mem(get_input_layout3(p))),
         eltwise("eltwise_min", { input_info("reorder2"), input_info("data2") }, eltwise_mode::min, p.default_type),
         reorder("out", input_info("eltwise_min"), p.default_format, data_types::f32)
     );
@@ -725,3 +749,30 @@ TEST_P(eltwise_with_constant_input, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_with_constant_input, ::testing::ValuesIn(std::vector<eltwise_test_params>{
     eltwise_test_params{ CASE_ELTWISE_FP16_1, 0, 0},
 }));
+
+class eltwise_i8_quantize_abs : public EltwiseFusingTest {};
+TEST_P(eltwise_i8_quantize_abs, basic) {
+    GTEST_SKIP();
+
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("input2", get_input_layout2(p)),
+        eltwise("eltwise", {input_info("input"), input_info("input2")}, p.mode, p.default_type),
+        data("in_lo", get_mem(get_single_element_layout(p), -1.9)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1.8)),
+        data("out_lo", get_mem(get_single_element_layout(p), -128)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 256, data_types::i8),
+        activation("activation", input_info("quantize"), activation_func::abs),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32));
+
+    tolerance = default_tolerance(data_types::i8);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                         eltwise_i8_quantize_abs,
+                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                             eltwise_test_params{CASE_ELTWISE_FP16_3, 3, 5},
+                         }));

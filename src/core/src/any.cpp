@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,19 +74,16 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
     return const_cast<Any::Base*>(this)->visit_attributes(visitor);
 }
 
-void Any::Base::read_to(Base& other) const {
-    std::stringstream strm;
-    print(strm);
-    if (other.is<std::string>()) {
-        *static_cast<std::string*>(other.addressof()) = strm.str();
-    } else {
-        if (!strm.str().empty())
-            other.read(strm);
-    }
-}
+void Any::Base::read_from(const Base& other) {
+    OPENVINO_ASSERT(!is<std::string>(),
+                    "Any::Base::read_from does not handle std::string type. std::string must be processed by the "
+                    "derived specialization.");
 
-bool Any::Base::is_base_type_info(const std::type_info& user_type) const {
-    return contains_type_index(base_type_info(), user_type);
+    std::stringstream strm;
+    other.print(strm);
+    if (strm.peek() != std::char_traits<char>::eof()) {
+        read(strm);
+    }
 }
 
 bool Any::Base::is_signed_integral() const {
@@ -157,6 +154,8 @@ void Any::impl_check() const {
 
 const std::type_info& Any::type_info() const {
     impl_check();
+    // `impl_check' asserts valid deference
+    // coverity[dereference:FALSE]
     return _impl->type_info();
 }
 

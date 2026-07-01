@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ public:
         Input,
         Output,
         Data,
+        Internal,
     } ParamType;
     struct KerenlParam {
         KerenlParam() :type(Input), paramIndex(-1), portIndex(-1),
@@ -33,6 +34,7 @@ public:
         int paramIndex;
         int portIndex;
         std::string blobName;
+        std::string size_expr;
         cldnn::format format;
     };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,7 @@ std::shared_ptr<ov::Node> ov::exec_model_info::ExecutionNode::clone_with_new_inp
     auto cloned = std::make_shared<ExecutionNode>();
 
     cloned->set_arguments(inputs);
-
-    for (auto kvp : get_rt_info())
-        cloned->get_rt_info()[kvp.first] = kvp.second;
+    cloned->get_rt_info().insert(get_rt_info().begin(), get_rt_info().end());
 
     for (size_t i = 0; i < get_output_size(); ++i)
         cloned->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));

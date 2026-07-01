@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,7 @@ inline std::string activation_type_to_str(activation_func activation) {
     case activation_func::gelu_tanh: return "gelu_tanh";
     case activation_func::round_half_to_even: return "round_half_to_even";
     case activation_func::round_half_away_from_zero: return "round_half_away_from_zero";
+    case activation_func::erfinv: return "erfinv";
     default: return "unknown activation";
     }
 }

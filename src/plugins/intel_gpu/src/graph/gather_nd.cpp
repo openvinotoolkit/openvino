@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
 
     if (op->batch_merged_output) {
         // calculate batch_size by batch_dims
-        int batch_size = 1;
+        tensor::value_type batch_size = 1;
         for (uint8_t x = 0; x < batch_dims; x++) {
             batch_size *= output_sizes[x];
         }

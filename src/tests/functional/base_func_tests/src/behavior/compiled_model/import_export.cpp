@@ -1,5 +1,5 @@
-// Copyright (C) 2024 Intel Corporation
-// SPDX-License-Identifcorer: Apache-2.0
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gmock/gmock-matchers.h>
@@ -36,7 +36,7 @@ std::string OVCompiledGraphImportExportTest::getTestCaseName(testing::TestParamI
 }
 
 void  OVCompiledGraphImportExportTest::SetUp() {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(elementType, target_device, configuration) = this->GetParam();
     APIBaseTest::SetUp();
@@ -298,7 +298,7 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
 
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::stringstream wrongStm;
     // Import model with wrong format throws exception
     OV_EXPECT_THROW((ie.import_model(wrongStm, target_device)),
@@ -784,6 +784,10 @@ TEST_P(OVExecGraphSerializationTest, ExecutionGraph) {
 
     ASSERT_TRUE(status) << message;
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelImportExportTestP);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelGraphUniqueNodeNamesTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVExecGraphSerializationTest);
 
 }  // namespace behavior
 }  // namespace test

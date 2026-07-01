@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -190,7 +190,7 @@ KERNEL(reduce_fsv16)(
 #endif
 
     const uint linear_idx = FUNC_CALL(calc_linear_offset)(b, f, y, x);
-    if (linear_idx >= COMPUTATIONAL_OPERATIONS_NUMBER)
+    if (linear_idx >= OUTPUT_LENGTH)
         return;
 
     const uint input_x_pitch = FSV;

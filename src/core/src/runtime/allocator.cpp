@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ bool Allocator::operator==(const Allocator& other) const {
         if (_impl == other._impl) {
             return true;
         }
-        return _impl->is_equal(*other._impl);
+        return other._impl && _impl->is_equal(*other._impl);
     });
 }
 

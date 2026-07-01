@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,6 +191,16 @@ public:
     float get_output_shift_val() const { return get_primitive()->out_shift; }
     float get_output_lo_val() const { return get_primitive()->out_lo; }
     float get_output_hi_val() const { return get_primitive()->out_hi; }
+
+    bool has_per_tensor_values() const {
+        return get_scale_shift_opt() &&
+               get_per_tensor_input_scale() &&
+               (get_per_tensor_input_shift() || !get_need_pre_shift()) &&
+               get_per_tensor_input_range() &&
+               get_per_tensor_output_scale() &&
+               (get_per_tensor_output_shift() || !get_need_post_shift()) &&
+               get_per_tensor_output_range();
+    }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<QuantizeFuseParams>(get_output_layout(),

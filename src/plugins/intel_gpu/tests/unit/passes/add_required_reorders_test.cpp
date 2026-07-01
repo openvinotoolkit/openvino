@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -234,7 +234,14 @@ TEST(add_required_reorders, prevent_runtime_error_for_mvn_requiring_alignment) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
-    const auto& fc_node = prog->get_node("fc");
+    std::shared_ptr<primitive_inst> prim = nullptr;
+    for (auto& item : network.get_executed_primitives()) {
+        if (network.get_primitive(item.first)->get_node().is_type<fully_connected>())
+            prim = network.get_primitive(item.first);
+    }
+
+    ASSERT_NE(prim, nullptr);
+    const auto& fc_node = prim->get_node();
     ASSERT_TRUE(fc_node.is_all_valid_output_layouts());
 }
 

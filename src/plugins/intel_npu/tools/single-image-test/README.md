@@ -23,7 +23,7 @@ If you need to configure a release package layout and have Single Image Test in 
 ### Standalone build
 
 #### Prerequisites
-* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2025/get-started/install-openvino.html)
+* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2026/get-started/install-openvino.html)
 * [OpenCV: Open Source Computer Vision Library release package](https://opencv.org/get-started/)
 
 #### Build instructions
@@ -38,7 +38,7 @@ If you need to configure a release package layout and have Single Image Test in 
     cmake --install . --prefix <sit_install_dir>
     ```
     > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html) for details.
     > Note 3: depending on OpenCV installation method, there might not be a need to specify OpenCV_DIR.
     > Note 4: depending on OpenCV version, cmake configs might be located somewhere else. You need to specify a directory that contains `OpenCVConfig.cmake` file
     > Note 5: `<sit_install_dir>` can be any directory on your filesystem that you want to use for installation including `<openvino_install_dir>` if you wish to extend OpenVINO package
@@ -50,7 +50,7 @@ If you need to configure a release package layout and have Single Image Test in 
     ```
     > Note 1: command line might differ depending on your platform
     > Note 2: depending on OpenCV installation method, there might not be a need to call setupvars.
-    > Note 3: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 3: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html) for details.
 
     Successful build will show the information about Single Image Test Tool CLI options
 
@@ -62,36 +62,57 @@ Running the application with the `-help` option yields the following usage messa
 single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
 
   Flags from C:\Users\mdoronin\work\applications.ai.vpu-accelerators.vpux-plugin\tools\single-image-test\main.cpp:
-    -box_tolerance (Box tolerance for 'detection' mode) type: double
-      default: 0.0001
+    -apply_soft_max (Apply SoftMax for 'nrmse' mode) type: bool default: false
+    -box_tolerance (Box tolerance for 'detection' mode. Can be a single value
+      or per-layer: 'layer1:0.01;layer2:0.02') type: string default: "0.000100"
     -classes (Number of classes for Yolo V3) type: int32 default: 80
+    -clamp_inf_outputs (Optional. ';'-separated list of output tensor names for
+      which +/-inf values will be clamped to the representable
+      [dtype::lowest, dtype::max] range before metric evaluation. Supported
+      element types: f32, f16, bf16. Unsupported types are skipped with a
+      warning.) type: string default: ""
+    -clamp_u8_outputs (Apply clamping when converting FP to U8) type: bool
+      default: false
     -color_format (Color format for input: RGB or BGR) type: string
       default: "BGR"
     -compiled_blob (Output compiled network file (compiled result blob))
       type: string default: ""
-    -confidence_threshold (Confidence threshold for Detection mode)
-      type: double default: 0.0001
+    -confidence_threshold (Confidence threshold for Detection mode. Can be a
+      single value or per-layer: 'layer1:0.5;layer2:0.3') type: string
+      default: "0.000100"
     -config (Path to the configuration file (optional)) type: string
       default: ""
     -coords (Number of coordinates for Yolo V3) type: int32 default: 4
-    -cosim_threshold (Threshold for 'cosim' mode) type: double
-      default: 0.90000000000000002
+    -cosim_threshold (Threshold for 'cosim' mode. Can be a single value or
+      per-layer: 'layer1:0.95;layer2:0.90') type: string default: "0.900000"
+    -data_shape (Required for models with dynamic shapes. Set shape for input
+      blobs. Only one shape can be set. In case of one input size:
+      "[1,3,224,224]") type: string default: ""
     -dataset (The dataset used to train the model. Useful for instances such as
       semantic segmentation to visualize the accuracy per-class) type: string
       default: "NONE"
     -device (Device to use) type: string default: ""
-    -il (Input layout) type: string default: ""
+    -il (Input layout for all inputs, or ';' separated list of pairs
+      <input>:<layout>. Regex in <input> is supported) type: string default: ""
     -img_as_bin (Force binary input even if network expects an image)
       type: bool default: false
     -img_bin_precision (Specify the precision of the binary input files. Eg:
       'FP32,FP16,I32,I64,U8') type: string default: ""
-    -iml (Model input layout) type: string default: ""
-    -input (Input file(s)) type: string default: ""
-    -ip (Input precision (default: U8, available: FP32, FP16, I32, I64, U8))
+    -iml (Model input layout for all model inputs, or ';' separated list of
+      pairs <input>:<layout>. Regex in <input> is supported)
       type: string default: ""
+    -input (Input file(s)) type: string default: ""
+    -ip (Input precision (default: U8, available: FP32, FP16, I32, I64, U8,
+      U16, I16, U4, I4, U2, BF8(F8E5M2), HF8(F8E4M3))) type: string
+      default: ""
     -is_tiny_yolo (Is it Tiny Yolo or not (true or false)?) type: bool
       default: false
+    -l2norm_threshold (Threshold for 'l2norm' mode. Can be a single value or
+      per-layer: 'layer1:1.0;layer2:2.0') type: string default: "1.000000"
     -log_level (IE logger level (optional)) type: string default: ""
+    -map_threshold (mAP score threshold for 'map' mode validation. Can be a
+      single value or per-layer: 'layer1:0.5;layer2:0.6') type: string
+      default: "0.500000"
     -mean_values (Optional. Mean values to be used for the input image per
       channel. Values to be provided in the [channel1,channel2,channel3]
       format. Can be defined for desired input of the model, for example:
@@ -103,23 +124,45 @@ single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
     -network (Network file (either XML or pre-compiled blob)) type: string
       default: ""
     -normalized_image (Images in [0, 1] range or not) type: bool default: false
-    -nrmse_loss_threshold (Threshold for 'nrmse' mode) type: double default: 1
+    -nrmse_loss_threshold (Threshold for 'nrmse' mode. Can be a single value
+      or per-layer: 'logits:0.03;pred_boxes:0.05') type: string
+      default: "0.020000"
     -num (Number of scales for Yolo V3) type: int32 default: 3
-    -ol (Output layout) type: string default: ""
-    -oml (Model output layout) type: string default: ""
-    -op (Output precision (default: FP32, available: FP32, FP16, I32, I64, U8))
-      type: string default: ""
+    -ol (Output layout for all outputs, or ';' separated list of pairs
+      <output>:<layout>. Regex in <output> is supported) type: string
+      default: ""
+    -oml (Model output layout for all outputs, or ';' separated list of pairs
+      <output>:<layout>. Regex in <output> is supported) type: string
+      default: ""
+    -op (Output precision (default: FP32, available: FP32, FP16, I32, I64, U8,
+      U16, I16, U4, I4, U2, BF8(F8E5M2), HF8(F8E4M3))) type: string
+      default: ""
+    -overlap_threshold (IoU threshold for 'map' mode (detection matching). Can
+      be a single value or per-layer: 'layer1:0.5;layer2:0.6') type: string
+      default: "0.500000"
     -override_model_batch_size (Enforce a model to be compiled for batch size)
       type: uint32 default: 1
     -pc (Report performance counters) type: bool default: false
-    -prob_tolerance (Probability tolerance for 'classification/ssd/yolo' mode)
-      type: double default: 0.0001
-    -psnr_reference (PSNR reference value in dB) type: double default: 30
-    -psnr_tolerance (Tolerance for 'psnr' mode) type: double default: 0.0001
-    -raw_tolerance (Tolerance for 'raw' mode (absolute diff)) type: double
-      default: 0.0001
-    -rrmse_loss_threshold (Threshold for 'rrmse' mode) type: double
-      default: 1.7976931348623157e+308
+    -prob_tolerance (Probability tolerance for 'classification/ssd/yolo' mode.
+      Can be a single value or per-layer: 'layer1:0.01;layer2:0.02')
+      type: string default: "0.000100"
+    -psnr_reference (PSNR reference value in dB. Can be a single value or
+      per-layer: 'layer1:30.0;layer2:35.0') type: string default: "30.000000"
+    -psnr_tolerance (Tolerance for 'psnr' mode. Can be a single value or
+      per-layer: 'layer1:0.01;layer2:0.02') type: string default: "0.000100"
+    -raw_tolerance (Tolerance for 'raw' mode (absolute diff). Can be a single
+      value or per-layer: 'layer1:0.01;layer2:0.02') type: string
+      default: "0.000100"
+    -ref_dir (A directory with reference blobs to compare with in run_test
+      mode. Leave it empty to use the current folder.) type: string default: ""
+    -ref_results (String of reference result file(s) to be used during
+      run_test mode. For the same test case, files are separated by comma (,);
+      for different test cases by semicolon (;). If ref_dir is provided, paths
+      should be relative to ref_dir; otherwise absolute paths are expected.)
+      type: string default: ""
+    -rrmse_loss_threshold (Threshold for 'rrmse' mode. Can be a single value
+      or per-layer: 'layer1:0.1;layer2:0.2') type: string
+      default: "1.7976931348623157e+308"
     -run_test (Run the test (compare current results with previously dumped))
       type: bool default: false
     -scale_border (Scale border) type: uint32 default: 4
@@ -136,8 +179,18 @@ single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
       default: 12
     -sem_seg_ignore_label (The number of the label to be ignored) type: uint32
       default: 4294967295
-    -sem_seg_threshold (Threshold for 'semantic segmentation' mode)
-      type: double default: 0.97999999999999998
+    -sem_seg_threshold (Threshold for 'semantic segmentation' mode. Can be a
+      single value or per-layer: 'layer1:0.98;layer2:0.95') type: string
+      default: "0.98"
+    -shape (Optional. Set shape for model input. For example,
+      "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one
+      input size. This parameter affects model input shape and can be dynamic.
+      For dynamic dimensions use symbol '?' or '-1'. Ex. [?,3,?,?].
+      For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].)
+      type: string default: ""
+    -skip_arg_max (Skip ArgMax post processing step) type: bool default: false
+    -skip_output_layers (Skip output layers from the network. Accept ';'
+      separated list of output layers) type: string default: ""
     -top_k (Top K parameter for 'classification' mode) type: uint32 default: 1
 ```
 
@@ -188,6 +241,9 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Performance counters:                     0
         Mean_values [channel1,channel2,channel3]
         Scale_values [channel1,channel2,channel3]
+        Skip checking output layers:
+        Clamp U8 outputs:                         0
+        Clamp inf outputs:
         Log level:
 
     Run single image test
@@ -263,6 +319,11 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Performance counters:                     0
         Mean_values [channel1,channel2,channel3]
         Scale_values [channel1,channel2,channel3]
+        Skip checking output layers:
+        Clamp U8 outputs:                         0
+        Clamp inf outputs:
+        Reference files directory:                Current directory
+        Reference file(s):
         Mode:             classification
         Top K:            1
         Tolerance:        0.6

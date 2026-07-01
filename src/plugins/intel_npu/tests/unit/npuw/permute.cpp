@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,6 +194,9 @@ const auto TestCases021 = ::testing::Combine(
 }
 , Tensors {
     input = {1, 16, 300};
+}
+, Tensors {
+    input = {32,128,1288};
 }
 }),
 ::testing::ValuesIn(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,7 @@
 #include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
-    s << "Strides{";
-    s << ov::util::join(strides);
-    s << "}";
-    return s;
+    return s << "Strides{" << ov::util::join<std::ostream>(strides) << "}";
 }
 
 ov::Strides::Strides() : std::vector<size_t>() {}

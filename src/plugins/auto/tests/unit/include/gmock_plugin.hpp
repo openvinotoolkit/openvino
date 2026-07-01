@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <iostream>
 
 #include "openvino/runtime/core.hpp"
@@ -18,7 +19,7 @@ class MockAutoPlugin : public Plugin {
 public:
     MOCK_METHOD((std::string),
                 get_device_list,
-                ((ov::AnyMap&), const std::shared_ptr<const ov::Model>&, const std::string&),
+                ((ov::AnyMap&), const std::shared_ptr<const ov::Model>&, const std::filesystem::path&),
                 (const, override));
     MOCK_METHOD((bool), is_meta_device, ((const std::string&)), (const, override));
     MOCK_METHOD((std::list<DeviceInformation>),

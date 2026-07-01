@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/utils/zero/zero_result.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 
 #include <string>
 

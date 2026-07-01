@@ -1,10 +1,16 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+add_subdirectory(shutdown)
 
 add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 add_subdirectory(util)
+
+if(ENABLE_OV_ZERO_LOADER)
+    add_subdirectory(zero_loader)
+endif()
 
 if(ENABLE_INTEL_CPU)
     add_subdirectory(snippets)

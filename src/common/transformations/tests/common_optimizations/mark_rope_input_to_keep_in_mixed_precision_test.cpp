@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
@@ -12,8 +12,9 @@
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
+namespace v0 = ov::op::v0;
 TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
     /*
     The 2nd/3rd inputs of ROPE is marked as FP32
@@ -38,8 +39,7 @@ TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
         auto input_a = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 32, 1});
         auto input_b = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, 10});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input_a, input_b);
-        auto transpose_order =
-            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
+        auto transpose_order = v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
         auto transpose = std::make_shared<ov::opset1::Transpose>(matmul, transpose_order);
         auto concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{transpose, transpose}, -1);
         auto cos = std::make_shared<ov::opset1::Cos>(concat);
@@ -58,17 +58,16 @@ TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
         auto input_a = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 32, 1});
         auto input_b = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, 10});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input_a, input_b);
-        auto transpose_order =
-            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
+        auto transpose_order = v0::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
         auto transpose = std::make_shared<ov::opset1::Transpose>(matmul, transpose_order);
         auto concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{transpose, transpose}, -1);
         auto cos = std::make_shared<ov::opset1::Cos>(concat);
         auto sin = std::make_shared<ov::opset1::Sin>(concat);
-        disable_fp16_compression(matmul);
-        disable_fp16_compression(transpose);
-        disable_fp16_compression(concat);
-        disable_fp16_compression(cos);
-        disable_fp16_compression(sin);
+        disable_conversion(matmul, ov::element::f16);
+        disable_conversion(transpose, ov::element::f16);
+        disable_conversion(concat, ov::element::f16);
+        disable_conversion(cos, ov::element::f16);
+        disable_conversion(sin, ov::element::f16);
         ov::op::internal::RoPE::Config config;
         auto rope =
             std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{input->output(0), cos->output(0), sin->output(0)},

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ void mlas_sgemm(const char* transa,
                 float beta,
                 float* C,
                 int64_t ldc,
-                size_t thread_num = 0);
+                int thread_num = 0);
 
 /**
  * @brief SGEMM with B matrix prepacked
@@ -98,5 +98,5 @@ void mlas_sgemm_compute(const char* transa,
                         float* C,
                         int64_t ldc,
                         const float* bias = nullptr,
-                        size_t thread_num = 0);
+                        int thread_num = 0);
 }  // namespace ov::intel_cpu

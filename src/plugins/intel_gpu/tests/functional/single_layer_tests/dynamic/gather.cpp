@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ typedef std::tuple<
 class GatherGPUTest : public testing::WithParamInterface<GatherGPUTestParams>,
                       virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherGPUTestParams>& obj) {
         const auto& [Shapes, model_type, isIndicesConstant, isAxisConstant] = obj.param;
 
         std::ostringstream result;

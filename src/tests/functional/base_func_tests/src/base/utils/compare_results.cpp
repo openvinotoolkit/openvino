@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/paged_attention.hpp"
 
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -187,9 +188,9 @@ void compareResults(const std::shared_ptr<ov::Node> &node,
 
 } // namespace
 
-CompareMap getCompareMap() {
+const CompareMap& getCompareMap() {
 OPENVINO_SUPPRESS_DEPRECATED_START
-    CompareMap compareMap{
+    const static CompareMap compareMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
 #include "openvino/opsets/opset1_tbl.hpp"
 #include "openvino/opsets/opset2_tbl.hpp"
@@ -207,6 +208,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
 #include "openvino/opsets/opset16_tbl.hpp"
+#include "openvino/opsets/opset17_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

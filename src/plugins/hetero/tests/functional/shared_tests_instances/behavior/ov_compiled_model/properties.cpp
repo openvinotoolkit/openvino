@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,6 +76,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
                          OVClassCompiledModelGetIncorrectPropertyTest,
                          ::testing::Values("HETERO:TEMPLATE"));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES);
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
                          OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,6 +194,12 @@ testing::AssertionResult TestCase::compare_results_with_tolerance_as_fp(float to
         case element::Type_t::f32:
             comparison_result = compare_with_fp_tolerance(exp_result, result_tensor, tolerance);
             break;
+        case element::Type_t::f16: {
+            auto exp_f32 = ov::test::utils::make_tensor_with_precision_convert(exp_result, ov::element::f32);
+            auto res_f32 = ov::test::utils::make_tensor_with_precision_convert(result_tensor, ov::element::f32);
+            comparison_result = compare_with_fp_tolerance(exp_f32, res_f32, tolerance);
+            break;
+        }
         case element::Type_t::i32:
             comparison_result = compare_values<int32_t>(exp_result, result_tensor, 0);
             break;
@@ -219,7 +225,8 @@ TestCase::TestCase(const std::shared_ptr<ov::Model>& function, const std::string
             "TEMPLATE");
     } catch (...) {
     }
-    m_request = m_core.compile_model(function, dev).create_infer_request();
+    AnyMap config = {{ov::hint::inference_precision.name(), ov::element::f32}};
+    m_request = m_core.compile_model(function, dev, config).create_infer_request();
 }
 
 void TestCase::run(const size_t tolerance_bits) {

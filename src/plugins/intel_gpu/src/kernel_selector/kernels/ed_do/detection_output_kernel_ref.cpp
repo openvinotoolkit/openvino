@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,7 +103,7 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareKernelCommon(
     cldnn_jit.AddConstant(MakeJitConstant(stage_name, "true"));
 
     const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-    KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
+    KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo);
     kernel.params.workGroups.global = dispatch_data.gws;
     kernel.params.workGroups.local = dispatch_data.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);

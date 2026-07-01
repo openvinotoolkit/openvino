@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -342,6 +342,7 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompressionQuantizeConvolution, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_results();
 }

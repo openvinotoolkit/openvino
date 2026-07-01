@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
@@ -49,6 +49,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -117,11 +118,11 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
     const auto* data = static_cast<const uint8_t*>(input->getData());
     std::vector<uint8_t> tmpBuff;
     tmpBuff.resize(output->getSize());
-    cpu_convert(data,
-                tmpBuff.data(),
-                DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
-                weightPrecision,
-                input->getSize() / input->getDesc().getPrecision().size());
+    cpu_parallel_convert(data,
+                         tmpBuff.data(),
+                         DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
+                         weightPrecision,
+                         input->getSize() / input->getDesc().getPrecision().size());
 
     return std::make_shared<Memory>(output->getPrimitive().get_engine(),
                                     output->getDesc().cloneWithNewPrecision(weightPrecision),
@@ -151,7 +152,7 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
         auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
-            dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
+            dnnl::stream loc_stream = make_stream(output->getPrimitive().get_engine(), context->getThreadPool());
             reorderWithoutConvert.execute(
                 loc_stream,
                 {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
@@ -198,7 +199,7 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     }
     // if precision conversion does not work then do direct reference reorder
     if (directReorder) {
-        dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        dnnl::stream loc_stream = make_stream(engine, context->getThreadPool());
         directReorder.execute(loc_stream,
                               {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
     } else {

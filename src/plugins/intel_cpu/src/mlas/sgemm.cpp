@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sgemm.hpp"
@@ -38,7 +38,7 @@ void mlas_sgemm(const char* transa,
                 const float beta,
                 float* C,
                 const int64_t ldc,
-                size_t thread_num) {
+                int thread_num) {
     // C = alpha*op( A )op( B ) + beta * C
     MLAS_SGEMM_DATA_PARAMS sgemmParam;
     sgemmParam.BIsPacked = false;
@@ -70,7 +70,7 @@ void mlas_sgemm_compute(const char* transa,
                         float* C,
                         const int64_t ldc,
                         const float* bias,
-                        size_t thread_num) {
+                        int thread_num) {
     // C = alpha*op( A )op( B ) + beta * C
     ov::cpu::OVMlasThreadPool threadPool(0 == thread_num ? parallel_get_max_threads() : thread_num);
     MLAS_SGEMM_DATA_PARAMS sgemmParam;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,8 +120,8 @@ inline uint FUNC(get_block_num)(int axis)
 }
 
 // This function works incorrect for the last block when there are leftovers (i.e. SUM_ITEMS_NUM % BLOCKSIZE != 0)
-// and REVERSE == false. But it is expected, since it will never be called for the last block when calculating 
-// sum of the previous blocks (see loop in cum_sum_final), thus, no need to make it correct 
+// and REVERSE == false. But it is expected, since it will never be called for the last block when calculating
+// sum of the previous blocks (see loop in cum_sum_final), thus, no need to make it correct
 // at cost of complexity and performance.
 inline uint FUNC(get_last_index_in_block)(int block)
 {

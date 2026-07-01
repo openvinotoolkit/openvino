@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using DynamicOutputConfigParams = std::tuple<ov::Any,  // priority device list
 class DynamicOutputInferenceTest : public tests::AutoTest, public ::testing::TestWithParam<DynamicOutputConfigParams> {
 public:
     DynamicOutputInferenceTest(const tests::MODELTYPE modelType = tests::MODELTYPE::DYNAMIC) : AutoTest(modelType) {}
-    static std::string getTestCaseName(testing::TestParamInfo<DynamicOutputConfigParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<DynamicOutputConfigParams>& obj);
     void SetUp() override;
     void TearDown() override {
         mockExecutor.reset();
@@ -36,7 +36,7 @@ protected:
     std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorActual;
 };
 
-std::string DynamicOutputInferenceTest::getTestCaseName(testing::TestParamInfo<DynamicOutputConfigParams> obj) {
+std::string DynamicOutputInferenceTest::getTestCaseName(const testing::TestParamInfo<DynamicOutputConfigParams>& obj) {
     const auto& [priorityList, targetList] = obj.param;
     std::ostringstream result;
     result << "_withList_" << priorityList.as<std::string>();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/engine_configuration.hpp"
-#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 #include "openvino/opsets/opset13.hpp"
 #include "ov_ops/vl_sdpa.hpp"
@@ -40,7 +39,7 @@ using TransposeVLSDPATestParams = std::tuple<ElementType,
 class TransposeVLSDPATestOnGPU: public testing::WithParamInterface<TransposeVLSDPATestParams>,
                                 virtual public test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeVLSDPATestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeVLSDPATestParams>& obj) {
         ElementType inType;
         ov::Dimension::value_type num_head, head_size;
         std::vector<int32_t> cu_seqlens;

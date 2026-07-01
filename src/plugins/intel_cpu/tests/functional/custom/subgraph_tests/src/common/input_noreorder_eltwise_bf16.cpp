@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ protected:
 
         auto eltwise = ov::test::utils::make_eltwise(input[0], secondaryInput, eltwiseType);
 
-        function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
+        function = create_ov_model(netPrecision, input, eltwise, "Eltwise");
     }
 };
 
@@ -53,6 +53,10 @@ protected:
              Output[BF16]
 */
 TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
+    if (!ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        GTEST_SKIP() << "Skipping test, platform doesn't support precision bf16";
+    }
+
     run();
 
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);

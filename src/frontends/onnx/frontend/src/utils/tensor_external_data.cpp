@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "exceptions.hpp"
+#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -18,7 +19,7 @@ namespace detail {
 TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
-            m_data_location = ov::util::sanitize_path(entry.value());
+            m_data_location = entry.value();
         } else if (entry.key() == "offset") {
             m_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {
@@ -33,12 +34,24 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     }
 #endif
 }
+TensorExternalData::TensorExternalData(const std::string& location, size_t offset, size_t size) {
+    m_data_location = location;
+    m_offset = offset;
+    m_data_length = size;
+}
 
-Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
+Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::filesystem::path& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
+    std::filesystem::path full_path;
+    try {
+        full_path = ov::util::sanitize_path(model_dir, ov::util::make_path(m_data_location));
+    } catch (const std::runtime_error& e) {
+        throw error::invalid_external_data{e.what()};
+    }
+
     const int64_t file_size = ov::util::file_size(full_path);
-    if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
+    if (file_size <= 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+        m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
     auto cached_mapped_memory = cache->find(full_path);
@@ -58,47 +71,63 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
         mapped_memory);
 }
 
-Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ov::util::convert_path_win_style(full_path);
-    std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),
-                                       std::ios::binary | std::ios::in | std::ios::ate);
-#else
-    std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
-#endif
-
-    if (external_data_stream.fail()) {
-        throw error::invalid_external_data{*this};
+Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::filesystem::path& model_dir) const {
+    std::filesystem::path full_path;
+    try {
+        full_path = ov::util::sanitize_path(model_dir, ov::util::make_path(m_data_location));
+    } catch (const std::runtime_error& e) {
+        throw error::invalid_external_data{e.what()};
     }
-    const uint64_t file_size = static_cast<uint64_t>(external_data_stream.tellg());
-    if (m_offset + m_data_length > file_size) {
+
+    const auto file_size = util::file_size(full_path);
+    if (file_size < 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+        m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
 
     uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
+    const auto get_now_buffer = [&]() {
+        std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
+        if (external_data_stream.fail()) {
+            throw error::invalid_external_data{*this};
+        }
+        // default value of m_offset is 0
+        external_data_stream.seekg(m_offset, std::ios::beg);
 
-    // default value of m_offset is 0
-    external_data_stream.seekg(m_offset, std::ios::beg);
+        auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
+        external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
+        external_data_stream.close();
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
+                                                                                      read_data->size(),
+                                                                                      read_data);
+    };
+    const auto get_lazy_buffer = [&]() {
+        const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
+        return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
+            static_cast<char*>(lazy->get_reserved_ptr()),
+            lazy->size(),
+            lazy);
+    };
 
-    auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
-    external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
-    external_data_stream.close();
-
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
-                                                                                         read_data->size(),
-                                                                                         read_data);
-
-    return buffer;
+    constexpr size_t lazy_loading_threshold = 0x100000;  // 1MB
+    return read_data_length >= lazy_loading_threshold ? get_lazy_buffer() : get_now_buffer();
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
-    char* addr_ptr = reinterpret_cast<char*>(m_offset);
-    if (m_data_location != ORT_MEM_ADDR || !addr_ptr || m_data_length == 0) {
+    if (m_data_location != ORT_MEM_ADDR) {
         throw error::invalid_external_data{*this};
     }
+    // Empty node will create a constant with zero shape and zero size external data.
+    bool is_valid_buffer = m_offset && m_data_length;
+    bool is_empty_buffer = (m_data_length == 0);
+    if (!(is_valid_buffer || is_empty_buffer)) {
+        throw error::invalid_external_data{*this};
+    }
+    char* addr_ptr = reinterpret_cast<char*>(m_offset);
     auto aligned_memory = std::make_shared<ov::AlignedBuffer>(m_data_length);
-    std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
+    if (m_data_length > 0) {
+        std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
+    }
     return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_memory->get_ptr<char>(),
                                                                                   aligned_memory->size(),
                                                                                   aligned_memory);

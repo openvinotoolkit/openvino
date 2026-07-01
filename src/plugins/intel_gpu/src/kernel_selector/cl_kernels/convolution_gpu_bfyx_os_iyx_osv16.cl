@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,12 +144,18 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                 // Position in sub-group on which new row need to be read.
                 const uint sg_br_pos = IN_BLOCK_WIDTH - in_block_pos % IN_BLOCK_WIDTH;
 
-                if (lid < sg_br_pos)
-                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
+                if (lid < sg_br_pos) {
+                    uint idx = tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH;
+                    idx = min(idx, input0_physical_len - 1);
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
+                }
                 // We have row break inside sub-group. Need to move to next line.
                 tmp_in_addr += INPUT0_Y_PITCH;
-                if (lid >= sg_br_pos)
-                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr - (sg_br_pos * INPUT0_X_PITCH)];
+                if (lid >= sg_br_pos) {
+                    uint idx = tmp_in_addr - (sg_br_pos * INPUT0_X_PITCH);
+                    idx = min(idx, input0_physical_len - 1);
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[idx];
+                }
 
                 // If we have another row break, move to the next row.
                 if (in_block_next_x_pos == 2 * IN_BLOCK_WIDTH)
@@ -214,7 +220,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         // addr went beyond due to prefetch so move it back to correct location.
         weight_addr -= PREFETCH * OSV_SIZE;
     }
-    
+
 
     uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
     uint out_addr = OUTPUT_OFFSET;

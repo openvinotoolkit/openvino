@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,11 @@ private:
 
     bool Validate(const Params &params) const override;
 
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+
     JitConstants GetJitConstants(const random_uniform_params &params) const;
+
+    CommonDispatchData SetDefault(const random_uniform_params &params) const;
 };
 
 } /* namespace kernel_selector */

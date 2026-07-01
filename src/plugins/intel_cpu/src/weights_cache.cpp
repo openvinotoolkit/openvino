@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@
 #include <mutex>
 #include <string>
 #include <utility>
-#include <vector>
+#ifdef CPU_DEBUG_CAPS
+#    include <vector>
+#endif
 
 #include "cpu_memory.h"
 #include "openvino/core/except.hpp"

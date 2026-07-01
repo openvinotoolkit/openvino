@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,9 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto output_layout = impl_params.get_output_layout();
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-    dnnl::memory::dims dilation(stride.size(), 1);
+    auto dilations_ov = prim->dilations;
+    dilations_ov.resize(stride.size(), 1);
+    dnnl::memory::dims dilation(dilations_ov.begin(), dilations_ov.end());
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
@@ -53,7 +55,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     }
 
     if (prim->bias.is_valid()) {
-        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
+        auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params.get_input_layout(2), dnnl::memory::format_tag::any);
         return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
             engine.get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
@@ -192,7 +194,7 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         } else {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
+            auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(2), dnnl::memory::format_tag::any);
             auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
                                     dnnl::prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,

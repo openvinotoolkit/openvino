@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ private:
     float max_delta_log_wh_;
     int64_t classes_num_;
     int64_t max_detections_per_class_;
-    int max_detections_per_image_;
+    size_t max_detections_per_image_;
     bool class_agnostic_box_regression_;
     std::vector<float> deltas_weights_;
 };

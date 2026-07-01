@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,7 +229,7 @@ void regclass_graph_Node(py::module m) {
         py::arg("evaluationContext") = PyRTMap(),
         R"(
                 Evaluate the node on inputs, putting results in outputs
-                
+
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
                 :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -257,7 +257,7 @@ void regclass_graph_Node(py::module m) {
         py::arg("evaluationContext") = PyRTMap(),
         R"(
                 Evaluate the node on inputs, putting results in outputs
-                
+
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
                 :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -575,7 +575,7 @@ void regclass_graph_Node(py::module m) {
         R"(
         Verifies that attributes and inputs are consistent and computes output shapes and element types.
         Must be implemented by concrete child classes so that it can be run any number of times.
-        
+
         Throws if the node is invalid.
     )");
 }

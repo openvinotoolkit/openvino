@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,11 +51,11 @@ void If::PortMapHelper::execute([[maybe_unused]] const dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_convert(srcMemPtr->getData(),
-                dstMemPtrs.front()->getData(),
-                srcMemPtr->getDesc().getPrecision(),
-                dstMemPtrs.front()->getDesc().getPrecision(),
-                size);
+    cpu_parallel_convert(srcMemPtr->getData(),
+                         dstMemPtrs.front()->getData(),
+                         srcMemPtr->getDesc().getPrecision(),
+                         dstMemPtrs.front()->getDesc().getPrecision(),
+                         size);
 }
 
 void If::PortMapHelper::redefineTo() {
@@ -67,9 +67,8 @@ void If::PortMapHelper::redefineTo() {
             // Only the shape is updated, the memory type remains unchanged
             dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
-
-        size = srcMemPtr->getShape().getElementsCount();
     }
+    size = srcMemPtr->getShape().getElementsCount();
 }
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -247,7 +246,7 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     }
 }
 
-std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
+std::deque<MemoryPtr> If::getToMemories(const Node* node, const int port) {
     std::deque<MemoryPtr> memories;
     for (const auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());
@@ -256,7 +255,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
 }
 
 void If::execute(const dnnl::stream& strm) {
-    const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
+    const auto condition = static_cast<bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

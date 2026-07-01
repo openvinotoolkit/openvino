@@ -1,5 +1,6 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 //
 
 #pragma once
@@ -9,12 +10,14 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -62,13 +65,31 @@ public:
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
     virtual void start_subrequest(std::size_t idx) = 0;
     virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
-    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
+    virtual void run_subrequest_for_success(std::size_t idx) = 0;
     virtual void complete_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
 
+    void update_history_size(int64_t history_size) {
+        m_history_size = history_size;
+    }
+
+    int64_t get_history_size() const {
+        return m_history_size;
+    }
+
+    std::size_t get_run_iteration() const {
+        return m_run_iter;
+    }
+
+    bool should_copy_subgraph_input(std::size_t idx) const {
+        return needs_copy(idx);
+    }
+
 protected:
+    int64_t m_history_size = 0;
+
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
 
@@ -76,19 +97,12 @@ protected:
     // function bodies. Function calls are not allowed to have
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
-    RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
-    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
+    RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1);
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
-
-    // This vector is used to track devices for individual subrequests
-    // here locally. Note that the models can be recompiled in
-    // contexts of other requests (if multiple of those are created)
-    // so this cached information is used to detect these situations.
-    std::vector<std::string> m_subrequest_devices;
 
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
@@ -98,7 +112,14 @@ protected:
                                        // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
-    std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+    // mutable due to lazy I/O allocation in get_tensor()
+    mutable std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+
+    // FIXME: need to lock internal storages (e.g. accessed within get_tensor())
+    mutable std::mutex m_io_storages_mutex;
+
+    // Check that m_port_to_tensor does have a tensor stored at the port
+    bool is_stored(const ov::Output<const ov::Node>& port) const;
 
     struct QuantGatherTensors {
         ov::Tensor w, z, s;
@@ -137,20 +158,32 @@ protected:
     std::vector<GlobalIO> m_subrequests_gio;
 
     // Tracks tensors we allocated on our own - to recognize and avoid copies
-    std::unordered_set<void*> m_input_allocated;
+    mutable std::unordered_set<void*> m_input_allocated;  // mutable due to lazy I/O allocation in get_tensor()
+
+    // Cached from compiled model properties to avoid repeated lookups in hot paths
+    bool m_is_npu_global_mem = false;
+    std::unordered_set<std::string> m_strided_ports;
 
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
 
-    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
-    virtual void alloc_io();
-    virtual TensorPtr alloc_global_out(std::size_t out_idx);
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
+    virtual void alloc_quant_gather();
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
+
+    std::string global_input_mem_device(std::size_t idx) const;
+    std::string global_output_mem_device(std::size_t idx) const;
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
+    virtual bool bind_behavior_input(std::size_t idx,
+                                     std::size_t real_idx,
+                                     std::size_t input_idx,
+                                     const ov::SoPtr<ov::ITensor>& tensor,
+                                     RqPtr request);
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
@@ -158,7 +191,14 @@ protected:
     void dump_output_tensors(std::size_t idx);
 
     // Quick-and-dirty profiling
-    ov::npuw::perf::metric<float, ov::npuw::perf::MSec> m_ms_unpack;
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    using B = ov::npuw::perf::counter<ov::npuw::perf::Bytes>;
+
+    MS m_ms_unpack;
+    ov::npuw::perf::Profile<MS> m_profile;
+    mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
+
+    std::string profile_tag(std::size_t idx) const;
 
     // Various name/dump formatting methods
     // TODO: These methods should probably go to CompiledModel
@@ -175,8 +215,6 @@ protected:
     bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
-
-    RqPtrs m_ref_subrequests;
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;

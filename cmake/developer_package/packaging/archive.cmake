@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -86,7 +86,7 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_OVC_EXCLUDE_ALL)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    # we don't need wheels in the distribution packages 
+    # we don't need wheels in the distribution packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     unset(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL)
     # nodejs

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,8 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 
@@ -40,14 +41,14 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
                                                                                    const bool add_subtract) {
     const auto indices_data = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape);
     const auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
-    const auto decompression_subgraph = initGatherDecompressionSubgraph(data_shape,
-                                                                        group_size,
-                                                                        data_precision,
-                                                                        output_precision,
-                                                                        add_subtract,
-                                                                        false,
-                                                                        false,
-                                                                        false);
+    const auto decompression_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
+                                                                                         group_size,
+                                                                                         data_precision,
+                                                                                         output_precision,
+                                                                                         add_subtract,
+                                                                                         false,
+                                                                                         false,
+                                                                                         false);
     const auto gather = std::make_shared<ov::op::v8::Gather>(decompression_subgraph, indices_data, axis_const, batch_dims);
 
     const auto fc_data = std::make_shared<ov::op::v0::Parameter>(output_precision, indices_shape);

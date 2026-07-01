@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "common/cpu_convert.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -53,7 +52,6 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -476,7 +474,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     m_attrs.isGraphQuantized = context->isGraphQuantized();
     m_attrs.fcSemantic = false;
-    m_attrs.nonConstantWeights = !getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
+    m_attrs.constantWeights = getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
     m_attrs.weightsNonTransposed = false;
     m_attrs.dqScales = getDQScales();
 
@@ -567,6 +565,16 @@ bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
     if (!fusedWith.empty()) {
         return false;
+    }
+
+    // Keep signed/unsigned low-precision domains consistent for already-quantized activations.
+    // For fp32 activation path, allow FQ fusion so ACL int8/u8 convolution can still be selected.
+    if (node->getType() == Type::FakeQuantize) {
+        const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+        const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+        if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+            return false;
+        }
     }
 #endif
     return canFuseSimpleOperation(node);

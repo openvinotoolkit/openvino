@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,8 +123,8 @@ private:
                        const VectorDims& roisnumStrides,
                        bool shared);
 
-    static const float* slice_class(int batch_idx,
-                                    int class_idx,
+    static const float* slice_class(size_t batch_idx,
+                                    size_t class_idx,
                                     const float* dataPtr,
                                     const VectorDims& dataStrides,
                                     bool is_boxes,

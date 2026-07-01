@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ using ConfigParams = std::tuple<std::vector<std::string>>;
 
 class LoadNetworkWithCTPUTMockTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [targetDevices] = obj.param;
         std::ostringstream result;
         result << "ctput_loadnetwork_to_device_";
@@ -125,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCTPUTExecutionDevice,
 using ConfigParams_1 = std::tuple<bool, std::vector<std::string>>;
 class AutoCTPUTCallMulti : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams_1> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams_1> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams_1>& obj) {
         const auto& [AutoCallMulti, targetDevices] = obj.param;
         std::ostringstream result;
         if (AutoCallMulti) {
@@ -176,11 +176,14 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     config.insert(ov::device::priorities(targetDev));
-    ON_CALL(*core,
-            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                          ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
-                          ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(ov::Throw("GeneralError"));
+    // gmock 1.11+ reports calls not matching any EXPECT_CALL as "unexpected"
+    // once any expectation exists for this method, so promote the failing
+    // device setup from ON_CALL to EXPECT_CALL.
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .WillRepeatedly(ov::Throw("GeneralError"));
     if (loadFailedDevice != ov::test::utils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -493,7 +493,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
             const auto new_variable_shapes = get_variables_shapes(variables_shapes);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             self.reshape(partial_shape, new_variable_shapes);
         },
         py::arg("partial_shape"),
@@ -535,7 +535,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape);
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -577,7 +577,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::tuple& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape.cast<py::list>());
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -618,7 +618,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const std::string& partial_shape, const py::dict& variables_shapes) {
             const auto new_variables_shape = get_variables_shapes(variables_shapes);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
         },
         py::arg("partial_shape"),
@@ -666,7 +666,7 @@ void regclass_graph_Model(py::module m) {
                                         partial_shape_from_handle(item.second));
             }
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            ConditionalGILScopedRelease release;
+            py::gil_scoped_release release;
             self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shapes"),
@@ -801,7 +801,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_parameters,
               R"(
                     Return the model parameters.
-                    
+
                     :return: a list of model's parameters.
                     :rtype: list[op.Parameter]
                  )");
@@ -809,7 +809,7 @@ void regclass_graph_Model(py::module m) {
                                 &ov::Model::get_parameters,
                                 R"(
                                         Return the model parameters.
-                                        
+
                                         :return: a list of model's parameters.
                                         :rtype: list[op.Parameter]
                                     )");
@@ -1236,7 +1236,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_variables,
               R"(
                     Return a list of model's variables.
-                    
+
                     :return: a list of model's variables.
                     :rtype: list[op.util.Variable]
                 )");
@@ -1245,7 +1245,7 @@ void regclass_graph_Model(py::module m) {
                                 &ov::Model::get_variables,
                                 R"(
                                     Return a list of model's variables.
-                                    
+
                                     :return: a list of model's variables.
                                     :rtype: list[op.util.Variable]
                                 )");

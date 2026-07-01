@@ -1,10 +1,13 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/compiled_model/compiled_model_base.hpp"
 
 using namespace ov::test::behavior;
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledModelSetType);
+
 namespace {
 
 const std::vector<ov::AnyMap> configs = {

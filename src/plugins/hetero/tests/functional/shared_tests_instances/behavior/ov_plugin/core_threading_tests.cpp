@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/core_threading.hpp"
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CoreThreadingTestsWithCacheEnabled);
 
 namespace {
 const Params params[] = {

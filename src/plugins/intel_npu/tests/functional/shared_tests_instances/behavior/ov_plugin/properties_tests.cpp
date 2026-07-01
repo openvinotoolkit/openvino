@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 
 #include <array>
+#include <openvino/util/codec_xor.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -26,23 +27,43 @@ constexpr std::vector<T> operator+(const std::vector<T>& vector1, const std::vec
 
 ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
     if (auto var = std::getenv("OV_NPU_LOG_LEVEL")) {
-        std::istringstream stringStream = std::istringstream(var);
-        ov::log::Level level;
+        try {
+            std::istringstream stringStream = std::istringstream(var);
+            ov::log::Level level;
 
-        stringStream >> level;
+            stringStream >> level;
 
-        return level;
+            return level;
+        } catch (...) {
+            // ignore parsing errors and return default log level
+        }
     }
     return instead;
+}
+
+const std::vector<std::string> anyMapVecToStringVec(const std::vector<ov::AnyMap>& anyMaps) {
+    std::vector<std::string> result;
+    for (const auto& anyMap : anyMaps) {
+        for (const auto& keyValue : anyMap) {
+            if (std::find(result.begin(), result.end(), keyValue.first) == result.end()) {
+                result.push_back(keyValue.first);
+            }
+        }
+    }
+    return result;
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     // OV
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}},
+    {{ov::intel_npu::platform.name(),
+      removeDeviceNameOnlyID(
+          ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::hint::num_requests.name(), 2u}},
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
     {{ov::enable_profiling.name(), true}},
+    {{ov::cache_encryption_callbacks.name(), ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor}}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
@@ -57,7 +78,7 @@ const std::vector<ov::AnyMap> compat_CorrectPluginDefaultMutableProperties = {
     {{ov::hint::num_requests.name(), 1u}},
     {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::WARNING)}},
     {{ov::device::id.name(), ""}},
-    {{ov::num_streams.name(), ov::streams::Num(1)}},
+    {{ov::num_streams.name(), ov::streams::AUTO}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
@@ -91,10 +112,11 @@ const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::PERFORMANCE}},
     {{ov::hint::num_requests.name(), 4u}},
     {{ov::hint::enable_cpu_pinning.name(), true}},
+    {{ov::hint::model.name(), std::shared_ptr<const ov::Model>(nullptr)}},
+    {{ov::hint::model.name(), std::shared_ptr<ov::Model>(nullptr)}}  // intentionally copied above to test constness
 };
 
 const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
-    {{ov::streams::num.name(), ov::streams::Num(2)}},
     {{ov::optimal_number_of_infer_requests.name(), 4}},
     {{ov::intel_npu::device_alloc_mem_size.name(), 1024}},
     {{ov::intel_npu::device_total_mem_size.name(), 2048}},
@@ -193,7 +215,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(getRWMandatoryPropertiesValues(compat_CorrectPluginMutableProperties))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
+                           anyMapVecToStringVec(compat_CorrectPluginMutableProperties)))),
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -217,20 +240,21 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(CorrectCompiledModelProperties)),
-    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_DEVICE_ID>));
+    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, true>));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(CorrectCompiledModelProperties)),
-    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_InferencePrecision>));
+    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_InferencePrecision, true>));
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVCheckMetricsPropsTests_ModelDependceProps,
-                         OVCheckMetricsPropsTests_ModelDependceProps,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(CorrectCompiledModelProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVCheckMetricsPropsTests_ModelDependceProps>));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests_OVCheckMetricsPropsTests_ModelDependceProps,
+    OVCheckMetricsPropsTests_ModelDependceProps,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::ValuesIn(CorrectCompiledModelProperties)),
+    (ov::test::utils::appendPlatformTypeTestName<OVCheckMetricsPropsTests_ModelDependceProps, true>));
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDefaultDeviceIDPropTest,
                          OVClassSetDefaultDeviceIDPropTest,

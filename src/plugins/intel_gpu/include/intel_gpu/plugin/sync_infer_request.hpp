@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
@@ -44,7 +45,7 @@ public:
 
     explicit SyncInferRequest(const std::shared_ptr<const CompiledModel>& compiled_model);
     SyncInferRequest(const SyncInferRequest &) = delete;
-    ~SyncInferRequest() override = default;
+    ~SyncInferRequest() override;
 
     void infer() override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
@@ -118,6 +119,14 @@ private:
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
     uint64_t total_output_bytes = 0;
+
+    // Per-output-port OutputMemoryBlock for zero-copy dynamic output.
+    // Keyed by output port index. Only populated when USM host memory is available.
+    std::unordered_map<size_t, std::unique_ptr<OutputMemoryBlock>> m_output_memory_blocks;
+
+    // Variable to hold the inference request string with compiled model name
+    // to prevent this string being constructed for each inference call
+    std::string m_itt_infer_request_str;
 };
 
 }  // namespace ov::intel_gpu

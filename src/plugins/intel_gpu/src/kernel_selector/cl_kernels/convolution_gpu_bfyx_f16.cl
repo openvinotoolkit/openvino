@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,7 @@ KERNEL(convolution_bfyx_f16)(
     int groups_per_sub_group = 1;
     if (prev_group_leftover < 16)
         groups_per_sub_group += ((FEATURE_SLICE_SIZE - prev_group_leftover - 1) / FILTER_OFM_NUM) + 1;
+    const uint my_group = group + (sglid / FILTER_OFM_NUM);
 #else
     const int group = 0;
     const int groups_per_sub_group = 1;
@@ -304,6 +305,26 @@ KERNEL(convolution_bfyx_f16)(
                                                                     kh * filter_y_pitch +
                                                                     kw * filter_x_pitch +
                                                                     8 * filter_isv_pitch);
+#if GROUPED
+                    if (groups_per_sub_group > 1) {
+                            uint correct_lane = sglid % FILTER_OFM_NUM;
+                            #if FILTER_TYPE_SIZE == 2
+                               short8 w0 = intel_sub_group_shuffle(as_short8(wei0), correct_lane);
+                               short8 w1 = intel_sub_group_shuffle(as_short8(wei1), correct_lane);
+                               wei0 = AS_FILTER_TYPE8(w0);
+                               wei1 = AS_FILTER_TYPE8(w1);
+                            #else
+                               wei0 = _sub_group_shuffle(wei0, correct_lane);
+                               wei1 = _sub_group_shuffle(wei1, correct_lane);
+                            #endif
+
+                            // Zero weights for lanes not in this group
+                            if (g != my_group) {
+                                wei0 = (FILTER_TYPE8)(0);
+                                wei1 = (FILTER_TYPE8)(0);
+                            }
+                    }
+#endif
                     const vec_t src0  = GET_SRC(src, 0);
                     const vec_t src1  = GET_SRC(src, 1);
                     const vec_t src2  = GET_SRC(src, 2);

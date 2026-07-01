@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,11 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "onednn/dnnl.h"
+#endif
+
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
@@ -32,7 +36,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
 #include "nodes/bin_conv.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
@@ -48,7 +51,6 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/transpose.h"
-#include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -89,12 +91,24 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // computing-intensive nodes. So Locate the FuseConvolutionAndZeroPoints() as the first optimization.
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE,
                        taskChain,
-                       itt::domains::intel_cpu_LT,
+                       itt::domains::ov_intel_cpu_LT,
                        "ApplyCommonGraphOptimizations",
                        "FuseConvolutionAndZeroPoints");
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
+// The order of applying scales and shifts is different for ARM to get specific postops order:
+// postops order on ARM: bias, scale, fq
+// postops order on x86: scale, bias, fq
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
+    FuseConvolutionMatMulDeconvAndBias(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
+    FuseConvMatmulFCDeconvAndDQScales(graph);
+    graph.RemoveDroppedNodes();
+#else
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
@@ -102,7 +116,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
-
+#endif
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
@@ -112,7 +126,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
-    FuseFCAndConvertOnWeights(graph);
+    FuseConvDeconvFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
@@ -228,7 +242,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 }
 
 void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph& graph) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
 
     TailNodesPrecisionOptimize(graph);
     graph.RemoveDroppedNodes();
@@ -264,7 +278,12 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (!parentNode->canBeExecutedInInt8()) {
             return false;
         }
+// The order of applying scales and shifts is different for ARM, so bias could be already fused here for ARM
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        return any_of(parentNode->getParentEdges().size(), 2U, 3U);
+#else
         return (parentNode->getParentEdges().size() == 2);
+#endif
     };
 
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
@@ -298,6 +317,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
                 return false;
             }
         }
+
         return true;
     };
 
@@ -832,11 +852,7 @@ void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
     }
 }
 
-void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
-#if defined(OV_CPU_WITH_SHL)
-    return;
-#endif
-
+void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion
     // handling based on internal logic (e.g. fuse conversion with weights reordering)
 
@@ -851,7 +867,7 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
     const auto& graphNodes = graph.GetNodes();
     for (const auto& fullyConnected : graphNodes) {
-        if (fullyConnected->getType() != Type::FullyConnected) {
+        if (none_of(fullyConnected->getType(), Type::FullyConnected, Type::Convolution, Type::Deconvolution)) {
             continue;
         }
 
@@ -866,18 +882,17 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
             parent = transpose->getParentEdgeAt(0)->getParent();
         }
 
-        const auto convert = parent;
-        if (!isSuitableConvert(convert)) {
+        if (!isSuitableConvert(parent)) {
             continue;
         }
 
-        const auto weights = convert->getParentEdgeAt(0)->getParent();
+        const auto weights = parent->getParentEdgeAt(0)->getParent();
         const auto weights_out_edge = weights->getChildEdges()[0].lock();
         const auto fc_weights_path_edge =
             transpose ? transpose->getParentEdgeAt(0) : fullyConnected->getParentEdgeAt(1);
         const auto inNum = weights_out_edge->getInputNum();
         const auto outNum = fc_weights_path_edge->getOutputNum();
-        const auto originalPrecision = convert->getOriginalInputPrecisionAtPort(0);
+        const auto originalPrecision = parent->getOriginalInputPrecisionAtPort(0);
         fullyConnected->setOriginalInputPrecisionAtPort(1, originalPrecision);
         if (transpose) {
             transpose->setOriginalInputPrecisionAtPort(0, originalPrecision);
@@ -885,17 +900,13 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
         }
         graph.RemoveEdge(fc_weights_path_edge);
         graph.CreateEdge(weights, transpose ? transpose : fullyConnected, inNum, outNum);
-        if (convert->getChildEdges().empty()) {
-            graph.DropNode(convert);
+        if (parent->getChildEdges().empty()) {
+            graph.DropNode(parent);
         }
     }
 }
 
 void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
-#if defined(OV_CPU_WITH_SHL)
-    return;
-#endif
-
     // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with
     // reordering in FC node
     const auto& graphNodes = graph.GetNodes();
@@ -919,6 +930,10 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
+// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return;
+#endif
 
     auto isSuitableConvNode = [](const NodePtr& node) {
         bool retVal = false;
@@ -1181,6 +1196,14 @@ void GraphOptimizer::FuseMatMulAndSimpleOperation(Graph& graph) {
 }
 
 void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    // There is no optimized implementation for avx512, so two avx512 convolutions
+    // are expected to be faster than single fused avx2 convolution
+    if (implication(impl::cpu::x64::mayiuse(impl::cpu::x64::avx2),
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))) {
+        return;
+    }
+
     const auto& graphNodes = graph.GetNodes();
 
     auto isConvolutionNode = [](const NodePtr& node) {
@@ -1309,14 +1332,6 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
         OPENVINO_ASSERT(parentConvolutionNode, "Cannot get convolution node ", parentNode->getName());
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
-            return false;
-        }
-        // there is no optimized implementation for avx512, so two avx512 convolutions
-        // are expected to be faster than single fused avx2 convolution
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
-            return false;
-        }
 
         return (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
     };
@@ -1353,6 +1368,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         graph.DropDWConvNode(childConvNode);
     }
+#endif
 }
 
 // TODO [NM]: unite with FuseConvolutionAndSimpleOperation
@@ -3477,7 +3493,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         std::unordered_set<NodePtr> visited;
         const NodePtr& cur = node;
         while (cur) {
-            if (!visited.insert(cur).second) {
+            if (!visited.insert(NodePtr(cur)).second) {
                 break;
             }
             size_t parentNum = cur->getParentEdges().size();

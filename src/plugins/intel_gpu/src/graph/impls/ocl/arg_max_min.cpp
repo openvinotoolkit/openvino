@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ public:
             // However, here we utilize output_layout and axis information to minimize mem_lock.
             auto output_layout = impl_param.get_output_layout(0);
             auto out_dims = output_layout.get_dims();
-            argm_params.topK = out_dims[axis];
+            argm_params.topK = static_cast<uint32_t>(out_dims[axis]);
         } else {
             argm_params.topK = top_k;
         }

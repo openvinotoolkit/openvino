@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,7 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableGroupedConvolution();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
+    k.EnableDilation();
     return k;
 }
 

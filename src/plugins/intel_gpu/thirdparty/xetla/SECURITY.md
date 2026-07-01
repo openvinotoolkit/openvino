@@ -1,4 +1,5 @@
-[README](/README.md#Security) > **Security Policy**
+[README](/SECURITY.md) > **Security Policy**
+
 # Security Policy
 Intel is committed to rapidly addressing security vulnerabilities affecting our customers and providing clear guidance on the solution, impact, severity and mitigation.
 

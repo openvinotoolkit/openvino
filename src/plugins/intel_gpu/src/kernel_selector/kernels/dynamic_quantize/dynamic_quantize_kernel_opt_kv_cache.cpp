@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,9 @@ ParamsKey DynamicQuantizeKernelKVCache::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT4);
+    k.EnableOutputDataType(Datatype::UINT4);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -141,6 +144,7 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
     jit.AddConstant(MakeJitConstant("ITERATIONS_NUMBER", iterations_number));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
+    jit.AddConstant(MakeJitConstant("IS_INT4_COMPRESSED", params.is_int4_compressed));
 
     // Use FP32 accumulator type for scale/zp calculation
     jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
@@ -261,6 +265,9 @@ bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
     const auto& group_sizes = dq_params.group_sizes;
     const auto& input_dims = get_normalized_dims(dq_params.inputs[0]);
     const size_t non_compressed_dims_number = std::count(group_sizes.begin(), group_sizes.end(), 1);
+
+    if (dq_params.generate_precomputed_reduction)
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (non_compressed_dims_number == group_sizes.size())
         DO_NOT_USE_THIS_KERNEL(params.layerID);

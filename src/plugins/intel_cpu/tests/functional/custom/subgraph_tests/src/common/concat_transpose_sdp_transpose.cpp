@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -386,6 +386,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                                             ::testing::Values(true),
                                             ::testing::Values(8)),
                          ConcatSDPTransposeTest::getTestCaseName);
+
 }  //  namespace
 
 class ConcatSDPTransposeTestSetState : public ConcatSDPTransposeTestBase {

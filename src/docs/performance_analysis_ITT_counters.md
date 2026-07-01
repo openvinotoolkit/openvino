@@ -13,7 +13,7 @@ OpenVINO has a powerful capabilities for performance analysis of the key stages,
 ## Performance analysis
 
 For performance analysis, follow the steps below:
-1. Run the CMake tool with the following option: `-DENABLE_PROFILING_ITT=ON` and build OpenVINO.
+1. Run the CMake tool with the following option: `-DENABLE_PROFILING_ITT=FULL` and build OpenVINO.
 2. Choose the tool for statistics collection using ITT counters.
 
     1. [Intel Vtune Profiler](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html)
@@ -37,7 +37,7 @@ Generated file can be opened with Vtune client.
 
 ## Adding new ITT counters
 
-Use API defined in [openvino/itt](https://docs.openvinotoolkit.org/latest/itt_2include_2openvino_2itt_8hpp.html) module.
+Use API defined in [openvino/itt](https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__dev__profiling.html) module.
 
 ## See also
 

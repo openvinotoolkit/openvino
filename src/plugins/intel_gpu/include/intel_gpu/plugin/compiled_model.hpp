@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,10 +61,19 @@ public:
     RemoteContextImpl::Ptr get_context_impl() const {
         return m_context;
     }
+
+    // Helper function to return the model name for ITT tracing
+    std::string_view get_model_name() const {
+        return m_model_name;
+    }
+
     const std::vector<std::shared_ptr<Graph>>& get_graphs() const;
     std::shared_ptr<Graph> get_graph(size_t n) const;
 
     void release_memory() override;
+    void set_backing_tensor(const std::shared_ptr<ov::Tensor>& tensor) {
+        _backing_tensor = tensor;
+    }
 
 private:
     RemoteContextImpl::Ptr m_context;
@@ -75,6 +84,7 @@ private:
     std::vector<ov::Output<const ov::Node>> m_outputs;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
+    std::shared_ptr<ov::Tensor> _backing_tensor;
 };
 
 }  // namespace ov::intel_gpu

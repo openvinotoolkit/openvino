@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -228,6 +228,19 @@ TEST_P(TopKLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "TopK");
 }
 
+class TopKLayerInvalidK : public TopKLayerCPUTest {};
+
+TEST_P(TopKLayerInvalidK, CompareWithRefsNegative) {
+    bool exception_caught = false;
+    set_callback_exception([&exception_caught](const std::exception& ex) {
+        exception_caught = true;
+        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr)
+            << "Expected ov::Exception but got: " << ex.what();
+    });
+    run();
+    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception for invalid K value";
+}
+
 namespace {
 
 const std::vector<ElementType> netPrecisions = {
@@ -396,6 +409,20 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_TopK_negative,
+    TopKLayerInvalidK,
+    ::testing::Combine(::testing::Combine(::testing::Values(0, 22),
+                                          ::testing::Values(0),
+                                          ::testing::Values(SortMode::MAX),
+                                          ::testing::Values(std::tuple<SortType, bool>{SortType::SORT_VALUES, false}),
+                                          ::testing::Values(ElementType::f32),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(InputShape{{}, {{21, 21, 21, 21}}})),
+                       ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
+                       ::testing::Values(additionalConfig[0])),
+    TopKLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

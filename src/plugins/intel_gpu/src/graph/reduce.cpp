@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank
     std::vector<uint16_t> converted_axes;
     for (auto axis : axes) {
         if (axis == 0 || axis == 1) {
-            converted_axes.push_back(axis);
+            converted_axes.push_back(static_cast<uint16_t>(axis));
             continue;
         }
 

@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <string>
+#include <string_view>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/shape.hpp"
@@ -19,5 +22,13 @@ void pad(const char* data,
          const CoordinateDiff& padding_below,
          const CoordinateDiff& padding_above,
          const op::PadMode pad_mode);
-}
+
+void pad(const std::string* data,
+         const std::string_view pad_value,
+         std::string* out,
+         const Shape& data_shape,
+         const Shape& out_shape,
+         const CoordinateDiff& padding_below,
+         const CoordinateDiff& padding_above);
+}  // namespace reference
 }  // namespace ov

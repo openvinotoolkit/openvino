@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -49,7 +48,7 @@ template <class T>
 ov::Tensor CreateTensor(const ov::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
     size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
     ov::Tensor tensor{element_type, {real_size}};
-    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
+    std::memcpy(tensor.data(), values.data(), std::min(tensor.get_byte_size(), sizeof(T) * values.size()));
 
     return tensor;
 }

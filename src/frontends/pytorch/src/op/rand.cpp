@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <random>
@@ -16,7 +16,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "pt_framework_node.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils.hpp"
 
 namespace ov {

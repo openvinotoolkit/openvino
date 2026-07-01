@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -323,7 +323,7 @@ class ScopedThread {
 public:
     explicit ScopedThread(std::thread t) : _t(std::move(t)) {
         if (!_t.joinable()) {
-            std::logic_error("Thread is not joinable!");
+            throw std::logic_error("Thread is not joinable!");
         }
     }
     ~ScopedThread() {

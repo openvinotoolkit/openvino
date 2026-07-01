@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -93,8 +93,8 @@ def patched_forward_sym(self, *args, **kwargs):
     return out
 
 
-# All the following AutoGPTQ"s quant types are supposed to have the same weights packing schema
-supported_quant_types = ["triton", "exllama", "exllamav2", "cuda-old"]
+# All the following AutoGPTQ/GPTQModel quant types are supposed to have the same weights packing schema
+supported_quant_types = ["triton", "exllama", "exllamav2", "cuda-old", "hf_kernel", "torch_fused"]
 
 
 def patch_model(model):
@@ -119,7 +119,7 @@ def patch_model(model):
         if hasattr(module, "QUANT_TYPE"):
             if module.QUANT_TYPE not in supported_quant_types:
                 raise ValueError(f"Unsupported QUANT_TYPE == {module.QUANT_TYPE} is discovered for "
-                                 "AutoGPTQ model, only the following types are supported: "
+                                 "GPTQ model, only the following types are supported: "
                                  f"{supported_quant_types}")
             if module.bits != 4:
                 raise ValueError(f"Unsupported bits == {module.bits} is discovered in module {name} "
@@ -144,12 +144,17 @@ def patch_model(model):
             module.qweight = module.qweight.view(dtype=torch.uint8)
             module.qzeros = module.qzeros.view(dtype=torch.uint8)
 
-            # TODO: Redundant tensor copy? Try to remove module.qweight and module.qzeros after keeping modified values as submodules
+            # TODO: Redundant tensor copy? Try to remove module.qweight and module.qzeros
+            # after keeping modified values as submodules
             module.add_module(
-                "_openvino_u4_compression_submodule_qweights", KeepWeight(module.qweight))
-            # Adding 17 to move zp+1 step from after unpacking to before to have correct decompression pattern. Can it overflow?
-            module.add_module("_openvino_u4_compression_submodule_qzeros",
-                              KeepWeight(module.qzeros + torch.tensor(17, dtype=torch.uint8)))
+                "_openvino_u4_compression_submodule_qweights", KeepWeight(module.qweight)
+            )
+            # Adding 17 to move zp+1 step from after unpacking to before
+            # to have correct decompression pattern. Can it overflow?
+            module.add_module(
+                "_openvino_u4_compression_submodule_qzeros",
+                KeepWeight(module.qzeros + torch.tensor(17, dtype=torch.uint8)),
+            )
 
             module.scales = module.scales.view(-1, 1, module.width)
 

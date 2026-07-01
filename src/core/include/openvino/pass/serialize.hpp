@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,17 +40,17 @@ public:
     };
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
+    Serialize(std::ostream& xml_file, std::ostream& bin_file, Version version = Version::UNSPECIFIED);
 
-    Serialize(const std::filesystem::path& xmlPath,
-              const std::filesystem::path& binPath,
+    Serialize(const std::filesystem::path& xml_path,
+              const std::filesystem::path& bin_path,
               Version version = Version::UNSPECIFIED);
 
 private:
-    std::ostream* m_xmlFile;
-    std::ostream* m_binFile;
-    const std::filesystem::path m_xmlPath;
-    const std::filesystem::path m_binPath;
+    std::ostream* m_xml_file;
+    std::ostream* m_bin_file;
+    const std::filesystem::path m_xml_path;
+    const std::filesystem::path m_bin_path;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,26 @@ private:
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
+class jit_ceil_emitter : public jit_emitter {
+public:
+    jit_ceil_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
 
+    jit_ceil_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
 class jit_clamp_emitter : public jit_emitter {
 public:
     jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
@@ -78,6 +97,42 @@ private:
 
     float min{0.F};
     float max{0.F};
+};
+
+class jit_convert_saturation_emitter : public jit_emitter {
+public:
+    jit_convert_saturation_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    ov::element::Type input_type;
+    ov::element::Type output_type;
+};
+
+class jit_convert_truncation_emitter : public jit_emitter {
+public:
+    jit_convert_truncation_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    ov::element::Type input_type;
+    ov::element::Type output_type;
 };
 
 class jit_divide_emitter : public jit_emitter {
@@ -259,6 +314,61 @@ private:
 
     void register_table_entries() override;
 };
+/// SoftSign ///
+class jit_softsign_emitter : public jit_emitter {
+public:
+    jit_softsign_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                         ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         ov::element::Type exec_prc = ov::element::f32);
+
+    jit_softsign_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                         ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         const std::shared_ptr<ov::Node>& node,
+                         ov::element::Type exec_prc = ov::element::f32);
+
+    size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
+
+class jit_erfinv_emitter : public jit_emitter {
+public:
+    jit_erfinv_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       ov::element::Type exec_prc = ov::element::f32);
+
+    jit_erfinv_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node,
+                       ov::element::Type exec_prc = ov::element::f32);
+
+    size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
 
 /// Greater///
 class jit_greater_emitter : public jit_emitter {
@@ -434,6 +544,7 @@ public:
     size_t get_inputs_num() const override;
     size_t aux_vecs_count() const override;
     size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
@@ -763,7 +874,7 @@ public:
     jit_not_equal_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                           ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                           const std::shared_ptr<ov::Node>& node,
-                          ov::element::Type exec_prc);
+                          ov::element::Type exec_prc = ov::element::f32);
     jit_not_equal_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                           ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc);
@@ -788,6 +899,10 @@ public:
                              float power,
                              float scale,
                              float shift,
+                             ov::element::Type exec_prc = ov::element::f32);
+    jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                             ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                             const std::shared_ptr<ov::Node>& node,
                              ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
@@ -820,6 +935,30 @@ private:
     float power{1.F};
     float scale{1.F};
     float shift{0.F};
+};
+
+class jit_power_dynamic_emitter : public jit_emitter {
+public:
+    jit_power_dynamic_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                              ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                              ov::element::Type exec_prc = ov::element::f32);
+    jit_power_dynamic_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                              ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                              const std::shared_ptr<ov::Node>& node,
+                              ov::element::Type exec_prc = ov::element::f32);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+    bool is_lmul_supported() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_prelu_emitter : public jit_emitter {
@@ -916,6 +1055,27 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
+class jit_select_emitter : public jit_emitter {
+public:
+    jit_select_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       ov::element::Type exec_prc = ov::element::f32);
+    jit_select_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+};
+
 class jit_sigmoid_emitter : public jit_emitter {
 public:
     jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
@@ -954,6 +1114,26 @@ public:
     jit_sqrt_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                      const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+};
+
+class jit_squared_difference_emitter : public jit_emitter {
+public:
+    jit_squared_difference_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node);
+    jit_squared_difference_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
 

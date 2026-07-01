@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -700,7 +700,7 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 }
 
 bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::can_constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Node::can_constant_fold");
 
     if (is_const_fold_disabled()) {
         return false;
@@ -715,7 +715,7 @@ bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
 }
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Node::constant_fold");
 
     if (!Node::can_constant_fold(input_values)) {
         return false;

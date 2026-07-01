@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,7 @@ private:
 
     mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
+    bool is_mode_normalize = false;
 
     ov::element::Type output_precision;
 

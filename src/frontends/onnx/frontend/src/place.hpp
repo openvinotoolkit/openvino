@@ -1,19 +1,20 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <editor.hpp>
 #include <memory>
-#include <openvino/frontend/place.hpp>
 #include <sstream>
+
+#include "editor.hpp"
+#include "openvino/frontend/place.hpp"
 
 namespace ov {
 namespace frontend {
 namespace onnx {
 
-class PlaceInputEdge : public Place {
+class PlaceInputEdge : public ov::frontend::Place {
 public:
     PlaceInputEdge(const InputEdge& edge, std::shared_ptr<ONNXModelEditor> editor);
     PlaceInputEdge(InputEdge&& edge, std::shared_ptr<ONNXModelEditor> editor);
@@ -39,7 +40,7 @@ private:
     std::string m_initial_source_tensor_name;
 };
 
-class PlaceOutputEdge : public Place {
+class PlaceOutputEdge : public ov::frontend::Place {
 public:
     PlaceOutputEdge(const OutputEdge& edge, std::shared_ptr<ONNXModelEditor> editor);
     PlaceOutputEdge(OutputEdge&& edge, std::shared_ptr<ONNXModelEditor> editor);
@@ -65,7 +66,7 @@ private:
     std::string m_initial_target_tensor_name;
 };
 
-class PlaceTensor : public Place {
+class PlaceTensor : public ov::frontend::Place {
 public:
     PlaceTensor(const std::string& name, std::shared_ptr<ONNXModelEditor> editor);
     PlaceTensor(std::string&& name, std::shared_ptr<ONNXModelEditor> editor);
@@ -89,7 +90,7 @@ private:
     std::shared_ptr<ONNXModelEditor> m_editor;
 };
 
-class PlaceOp : public Place {
+class PlaceOp : public ov::frontend::Place {
 public:
     PlaceOp(const EditorNode& node, std::shared_ptr<ONNXModelEditor> editor);
     PlaceOp(EditorNode&& node, std::shared_ptr<ONNXModelEditor> editor);
@@ -118,11 +119,11 @@ public:
     Place::Ptr get_producing_operation(int input_port_index) const override;
     Place::Ptr get_producing_operation(const std::string& input_port_name) const override;
 
-    Place::Place::Ptr get_target_tensor() const override;
+    Place::Ptr get_target_tensor() const override;
     Place::Ptr get_target_tensor(int output_port_index) const override;
     Place::Ptr get_target_tensor(const std::string& output_name) const override;
 
-    Place::Place::Ptr get_source_tensor() const override;
+    Place::Ptr get_source_tensor() const override;
     Place::Ptr get_source_tensor(int input_port_index) const override;
     Place::Ptr get_source_tensor(const std::string& input_name) const override;
 

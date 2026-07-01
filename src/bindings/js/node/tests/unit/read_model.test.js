@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const fs = require("node:fs");
@@ -72,6 +72,13 @@ describe("Tests for reading model.", () => {
     it("readModel(xmlPath) ", async () => {
       const model = await core.readModel(testModelFP32.xml);
       assert.equal(model.inputs.length, 1);
+    });
+
+    it("readModel(xmlPath) rejects on invalid path", async () => {
+      await assert.rejects(
+        async () => await core.readModel("not_exists"),
+        /Could not open the file/,
+      );
     });
 
     it("readModel(xmlPath, weightsPath) ", async () => {

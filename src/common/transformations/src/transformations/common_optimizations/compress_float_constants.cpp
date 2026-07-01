@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_convert.hpp"
@@ -21,45 +22,90 @@
 #include "openvino/reference/convert.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
+#include "transformations/utils/utils.hpp"
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
 
 namespace {
+
+/// Slow (non-JIT) FP32/FP64 -> FP16 compression for a single Constant node.
+///
+/// Returns either:
+///   * the new `v0::Constant` with FP16 data (fully converted and approved), or
+///   * `constant` unchanged when `postponed == true` (the Constant is kept in the
+///     graph and compressed later during serialization), or
+///   * `nullptr` if the tensor must stay in its original precision.
+///
+/// The tensor is rejected (returns `nullptr`) when:
+///   * any in-range element has absolute round-trip error above
+///     `f16_compression_max_abs_error` (RoPE-like high-magnitude values), or
+///   * the combined count of elements outside the finite FP16 range *plus*
+///     elements whose relative round-trip error exceeds
+///     the selected relative-error threshold reaches
+///     `f16_compression_keep_threshold` (75% by default).
+///
+/// Used by `CompressFloatConstantsImpl` for f64 constants on all platforms and
+/// for both f32/f64 on non-x86 architectures where the JIT fast-path
+/// `ov::reference::check_f16_compression` is unavailable.
 template <ov::element::Type_t PREC_FROM>
-std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::op::v0::Constant>& constant,
+std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::Constant>& constant,
                                                             bool postponed = false) {
     using src_type = typename ov::element_type_traits<PREC_FROM>::value_type;
+
+    const bool is_scalar_or_single_elem = ov::op::util::is_scalar_or_single_elem_constant(constant);
+    const double max_relative_error = is_scalar_or_single_elem ? ov::reference::f16_scalar_compression_max_rel_error
+                                                               : ov::reference::f16_tensor_compression_max_rel_error;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = ov::shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, constant->get_shape());
+    auto new_constant = std::make_shared<v0::Constant>(ov::element::f16, constant->get_shape());
     auto* dst_data = const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(new_constant->get_data_ptr()));
     if (!dst_data || !size)
         return nullptr;
 
-    // slow implementation: is used when optimized ones are not available: f64 or for ARM (both for f64 and f32)
-    int num_out_of_range = 0;
+    size_t num_rejected = 0;
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
         if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
-            num_out_of_range++;
+            dst_data[i] = static_cast<ov::float16>(src_data[i]);
+            num_rejected++;
         } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
             dst_data[i] = std::numeric_limits<ov::float16>::max();
-            num_out_of_range++;
+            num_rejected++;
         } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
-            num_out_of_range++;
+            num_rejected++;
         } else {
-            dst_data[i] = static_cast<ov::float16>(src_data[i]);
+            constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
+            const auto f16_val = static_cast<ov::float16>(src_data[i]);
+            const double src_val = static_cast<double>(src_data[i]);
+            const double roundtripped = static_cast<double>(static_cast<src_type>(f16_val));
+            const double abs_diff = std::abs(src_val - roundtripped);
+
+            if (abs_diff > max_abs_error) {
+                return nullptr;
+            }
+
+            if (src_val != 0.0 && abs_diff / std::abs(src_val) > max_relative_error) {
+                num_rejected++;
+            }
+            dst_data[i] = f16_val;
         }
     }
 
-    // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    const float keep_threshold = 0.75f;
-    const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+    // If the combined count of rejected elements (values outside the finite FP16
+    // range PLUS in-range values whose FP16 round-trip relative error exceeds
+    // the selected relative-error threshold) reaches f16_compression_keep_threshold
+    // (inclusive, 75% by default), keep the Constant in its original precision.
+    const double rejected_proportion = static_cast<double>(num_rejected) / static_cast<double>(size);
 
-    if (out_of_range_proportion >= keep_threshold) {
+    if (rejected_proportion >= ov::reference::f16_compression_keep_threshold) {
         return nullptr;
     }
 
@@ -72,12 +118,10 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     }
 }
 
-using namespace ov::pass;
-
 class DetectFakeQuantizeOrFakeConvert : public MatcherPass {
 public:
     DetectFakeQuantizeOrFakeConvert() {
-        auto root = pattern::wrap_type<ov::op::v0::FakeQuantize, ov::op::v13::FakeConvert>();
+        auto root = pattern::wrap_type<v0::FakeQuantize, ov::op::v13::FakeConvert>();
 
         ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
             return true;
@@ -91,20 +135,19 @@ public:
 class DetectCompressedWeights : public MatcherPass {
 public:
     DetectCompressedWeights() {
-        auto weights = pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any({ov::element::i4,
-                                                                                           ov::element::u4,
-                                                                                           ov::element::i8,
-                                                                                           ov::element::u8,
-                                                                                           ov::element::nf4,
-                                                                                           ov::element::f8e4m3,
-                                                                                           ov::element::f8e5m2}));
-        auto convert = pattern::wrap_type<ov::op::v0::Convert>({weights});
-        auto zero_point_const = pattern::wrap_type<ov::op::v0::Constant>();
-        auto zero_point = pattern::optional<ov::op::v0::Convert>(zero_point_const);
-        auto subtract = pattern::wrap_type<ov::op::v1::Subtract>({convert, zero_point});
+        auto weights = pattern::wrap_type<v0::Constant>(pattern::type_matches_any({ov::element::i4,
+                                                                                   ov::element::u4,
+                                                                                   ov::element::i8,
+                                                                                   ov::element::u8,
+                                                                                   ov::element::nf4,
+                                                                                   ov::element::f8e4m3,
+                                                                                   ov::element::f8e5m2}));
+        auto convert = pattern::wrap_type<v0::Convert>({weights});
+        auto zero_point_const = pattern::wrap_type<v0::Constant>();
+        auto zero_point = pattern::optional<v0::Convert>(zero_point_const);
+        auto subtract = pattern::wrap_type<v1::Subtract>({convert, zero_point});
         auto subtract_or_convert = std::make_shared<pattern::op::Or>(ov::OutputVector{convert, subtract});
-        auto multiply =
-            pattern::wrap_type<ov::op::v1::Multiply>({subtract_or_convert, pattern::wrap_type<ov::op::v0::Constant>()});
+        auto multiply = pattern::wrap_type<v1::Multiply>({subtract_or_convert, pattern::wrap_type<v0::Constant>()});
 
         ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
             return true;
@@ -114,9 +157,10 @@ public:
         register_matcher(m, callback);
     }
 };
+
 }  // namespace
 
-bool ov::pass::is_model_optimized(const std::shared_ptr<ov::Model>& model) {
+bool is_model_optimized(const std::shared_ptr<ov::Model>& model) {
     Manager manager;
     auto detect_optimized_model = manager.register_pass<GraphRewrite>();
     detect_optimized_model->add_matcher<DetectFakeQuantizeOrFakeConvert>();
@@ -124,7 +168,7 @@ bool ov::pass::is_model_optimized(const std::shared_ptr<ov::Model>& model) {
     return manager.run_passes(model);
 }
 
-void ov::pass::compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) {
+void compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) {
     if (!is_model_optimized(model)) {
         Manager manager;
         manager.register_pass<MarkPrecisionSensitiveConstants>();
@@ -133,22 +177,23 @@ void ov::pass::compress_model_to_f16(const std::shared_ptr<Model>& model, bool p
     }
 }
 
-ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
+CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
-    auto const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_pattern = pattern::wrap_type<v0::Constant>();
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_node_pattern = pattern_map.at(const_pattern);
 
-        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(const_node_pattern.get_node_shared_ptr());
+        auto const_node = ov::as_type_ptr<v0::Constant>(const_node_pattern.get_node_shared_ptr());
         if (!const_node)
             return false;
 
-        if (ov::fp16_compression_is_disabled(const_node))
+        if (ov::is_conversion_disabled(const_node, element::f16))
             return false;
 
         auto c_type = const_node->get_element_type();
+
         std::shared_ptr<ov::Node> new_const;
 
 #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
@@ -164,21 +209,26 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             auto size = shape_size(const_node->get_output_shape(0));
             if (size == 0)
                 return false;
-            auto num_out_of_range =
-                ov::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+            const auto* src_data = const_node->get_data_ptr<float>();
 
-            // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-            const float keep_threshold = 0.75f;
-            const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
-            if (out_of_range_proportion >= keep_threshold)
+            // Single-pass check: counts out-of-range and bails on any lossy element (JIT accelerated)
+            auto check = ov::reference::check_f16_compression(src_data, size);
+            if (check.has_lossy)
+                return false;
+
+            // If the combined count of rejected elements (values outside the finite FP16
+            // range PLUS in-range values whose FP16 round-trip relative error exceeds
+            // the selected relative-error threshold) reaches f16_compression_keep_threshold
+            // (inclusive, 75% by default), keep the Constant in FP32.
+            const float rejected_proportion = static_cast<float>(check.rejected_count) / static_cast<float>(size);
+            if (rejected_proportion >= ov::reference::f16_compression_keep_threshold)
                 return false;
 
             if (postponed) {
                 new_const = const_node;
             } else {
                 const auto* src_data = const_node->get_data_ptr<float>();
-                auto compressed_const =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::f16, const_node->get_shape());
+                auto compressed_const = std::make_shared<v0::Constant>(ov::element::f16, const_node->get_shape());
                 auto* dst_data =
                     const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
                 OPENVINO_ASSERT(dst_data);
@@ -196,21 +246,56 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             return false;
         }
         auto constant_target_inputs = const_node->get_output_target_inputs(0);
-        auto convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
 
-        convert->set_friendly_name(const_node->get_friendly_name());
-        new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
-        ov::copy_runtime_info(const_node, convert);
-        ov::mark_as_decompression(convert);
-        if (postponed) {
-            postpone_fp16_compression(new_const->get_rt_info());
-            postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
+        // Check if the next node is a postponed constant. It will be constant_folded later during serialization.
+        auto postponed_constant_node = [&]() -> std::shared_ptr<ov::Node> {
+            if (constant_target_inputs.size() == 1 &&
+                constant_target_inputs.begin()->get_node()->get_rt_info().count("postponed_constant")) {
+                return constant_target_inputs.begin()->get_node()->shared_from_this();
+            }
+            return nullptr;
+        }();
 
-            for (const auto& target_input : constant_target_inputs) {
-                target_input.replace_source_output(convert);
+        if (postponed_constant_node && postponed) {
+            // If f16 conversion is also postponed, we need to insert Convert after the postponed_constant_node
+            if (is_fp16_compression_postponed(postponed_constant_node->get_rt_info())) {
+                // Convert was already added after postponed_constant_node. Get it and just update rt info
+                auto next_node = postponed_constant_node->get_output_target_inputs(0).begin()->get_node();
+                OPENVINO_ASSERT(ov::as_type<v0::Convert>(next_node));
+                ov::copy_runtime_info(const_node, next_node->shared_from_this());
+            } else {
+                auto postponed_constant_target_inputs = postponed_constant_node->get_output_target_inputs(0);
+                auto convert = std::make_shared<v0::Convert>(postponed_constant_node, const_node->get_element_type());
+
+                convert->set_friendly_name(postponed_constant_node->get_friendly_name());
+                ov::mark_as_decompression(convert);
+                ov::copy_runtime_info(const_node, convert);
+                postponed_constant_node->set_friendly_name(postponed_constant_node->get_friendly_name() +
+                                                           "_compressed");
+                postpone_fp16_compression(postponed_constant_node->get_rt_info());
+                postpone_fp16_compression(postponed_constant_node->get_output_tensor(0).get_rt_info());
+
+                for (const auto& target_input : postponed_constant_target_inputs) {
+                    target_input.replace_source_output(convert);
+                }
             }
         } else {
-            ov::replace_node(const_node, convert);
+            auto convert = std::make_shared<v0::Convert>(new_const, const_node->get_element_type());
+
+            convert->set_friendly_name(const_node->get_friendly_name());
+            new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
+            ov::copy_runtime_info(const_node, convert);
+            ov::mark_as_decompression(convert);
+            if (postponed) {
+                postpone_fp16_compression(new_const->get_rt_info());
+                postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
+
+                for (const auto& target_input : constant_target_inputs) {
+                    target_input.replace_source_output(convert);
+                }
+            } else {
+                ov::replace_node(const_node, convert);
+            }
         }
         return true;
     };
@@ -218,3 +303,5 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
     auto m = std::make_shared<pattern::Matcher>(const_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

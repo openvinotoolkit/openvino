@@ -1,8 +1,11 @@
 name: Linux (Ubuntu 22.04, Python 3.11)
+run-name: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 0 * * 3,6' && 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (with latest OneDNN)' || 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (without latest OneDNN)') || 'Linux (Ubuntu 22.04, Python 3.11)' }}
 on:
   schedule:
-    # at 00:00 on Wednesday and Saturday
+    # at 00:00 on Wednesday and Saturday (with latest OneDNN)
     - cron: '0 0 * * 3,6'
+    # at 00:00 on Tuesday and Thursday (without latest OneDNN)
+    - cron: '0 0 * * 2,4'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -10,6 +13,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -31,13 +39,15 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      use_latest_onednn: "${{ steps.onednn_day.outputs.use_latest_onednn }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -53,12 +63,24 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
 
       - name: Show affected components
         run: |
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
         shell: bash
+
+      - name: Determine if latest OneDNN is needed
+        id: onednn_day
+        shell: bash
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [[ "$EVENT_SCHEDULE" == '0 0 * * 3,6' ]]; then
+            echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
+          fi
 
   Docker:
     needs: Smart_CI
@@ -73,11 +95,11 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64_nvidia\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\",\"ubuntu_22_04_x64_igpu\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64\":\"mock\",\"ubuntu_22_04_x64_nvidia\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -88,6 +110,7 @@ jobs:
             ov_build/ubuntu_22_04_x64
             ov_build/ubuntu_22_04_x64_nvidia
             ov_test/ubuntu_22_04_x64
+            ov_test/ubuntu_22_04_x64_igpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -101,6 +124,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
+      use_latest_onednn: ${{ needs.smart_ci.outputs.use_latest_onednn == 'true' }}
       os: 'ubuntu_22_04'
       build-js: true
       build-contrib: true
@@ -110,12 +134,11 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
-            -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
-            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
@@ -181,13 +204,13 @@ jobs:
       #
 
       - name: Download OpenVINO package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -202,7 +225,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -233,7 +256,8 @@ jobs:
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
             --cache_path=${CONFORMANCE_TOOLS_DIR}/github/cache/${TEST_DEVICE}/test_cache_${{ matrix.TEST_TYPE }}.lst \
-            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv
+            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv \
+            --ov_config_path=${CONFORMANCE_TOOLS_DIR}/github/plugin_config/${TEST_DEVICE}/config.txt
 
       - name: Pack Conformance Artifacts
         if: ${{ always() }}
@@ -244,7 +268,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -259,6 +283,7 @@ jobs:
             -d=TEMPLATE \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
+            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/TEMPLATE/expected_failures_${{ matrix.TEST_TYPE }}.csv \
             -sm=mandatory
 
       - name: Pack Conformance Artifacts
@@ -270,7 +295,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -407,7 +432,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_tf_hub'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
@@ -417,7 +442,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_hf'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
@@ -427,7 +452,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-32gb'
       model_scope: 'precommit'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
@@ -473,7 +498,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_nvidia }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -494,14 +520,22 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Download OpenVINO package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO dev package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_developer_package
           path: ${{ env.INSTALL_DIR }}
@@ -513,7 +547,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -532,7 +566,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
             -B ${NVIDIA_BUILD_DIR}
-          cmake --build ${NVIDIA_BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+          cmake --build ${NVIDIA_BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -552,7 +586,7 @@ jobs:
 
   iGPU:
     name: iGPU Tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
       max-parallel: 2
@@ -562,15 +596,15 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'igpu' ]"
-      image: ubuntu:22.04
-      options: "--group-add 109 --group-add 44 --device /dev/dri:/dev/dri"
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    if: ${{ 'false' }} # Ticket: 143677
+      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   dGPU:
     name: dGPU Tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
       max-parallel: 2
@@ -581,16 +615,34 @@ jobs:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'dgpu' ]"
-      image: ubuntu:22.04 
-      options: "--group-add 109 --group-add 44 --device /dev/dri/card0:/dev/dri/card0 --device /dev/dri/renderD128:/dev/dri/renderD128"
+      runner-group: 'Intel-GPU'
+      # image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_gpu }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129"
     # if: ${{ github.event_name == 'schedule' }}
     if: ${{ 'false' }} # Ticket: 143677
+
+  iGPU_RoPE_Tests:
+    name: iGPU RoPE Tests
+    needs: [ Build, Docker, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_gpu_rope_tests.yml
+    with:
+      device: 'igpu'
+      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      # Custom ACR test image (same one the iGPU job above uses): it already
+      # ships git, ca-certificates, clinfo, python3.11 and the Intel iGPU
+      # compute-runtime drivers, so the rope flow installs none of them at
+      # runtime (per review feedback). See the image's Dockerfile under
+      # .github/dockerfiles/ov_test/ubuntu_22_04_x64_igpu.
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
             CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
-            Keras3_OpenVINO_Backend, Python_API_Tests, Pytorch_FX_Layer_Tests, JAX_Layer_Tests, JS_API, ONNX_Models]
+            Keras3_OpenVINO_Backend, iGPU_RoPE_Tests, Python_API_Tests, Pytorch_FX_Layer_Tests, JAX_Layer_Tests, JS_API, ONNX_Models]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

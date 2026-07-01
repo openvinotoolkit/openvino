@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@ enum class allocation_type {
     usm_host,    // Accessible by host and device. Not Migratable
     usm_shared,  // Accessible by host and device. Migrtable.
     usm_device,  // Accessible only by device. Not migratable.
+    sycl_buffer, // Use standard SYCL buffer allocations.
+    ze_image,    // Level Zero image allocation. Accessible only by device.
     max_value,   // Used for data array size. Shall be last
 };
 
@@ -27,6 +29,8 @@ inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_
         case allocation_type::usm_host:   out << "usm_host";   break;
         case allocation_type::usm_shared: out << "usm_shared"; break;
         case allocation_type::usm_device: out << "usm_device"; break;
+        case allocation_type::sycl_buffer: out << "sycl_buffer"; break;
+        case allocation_type::ze_image:    out << "ze_image";    break;
         default: out << "unknown"; break;
     }
 
@@ -49,6 +53,12 @@ public:
             type == allocation_type::usm_device)
             return true;
         return false;
+    }
+
+    void remove_usm_caps() {
+        _caps.erase(
+            std::remove_if(_caps.begin(), _caps.end(), [&](const allocation_type& t) { return is_usm_type(t); }),
+            _caps.end());
     }
 
 private:
@@ -81,13 +91,26 @@ enum class shared_mem_type {
     shared_mem_usm
 };
 
+inline std::ostream& operator<<(std::ostream& out, const shared_mem_type& mem_type) {
+    switch (mem_type) {
+        case shared_mem_type::shared_mem_empty:     out << "shared_mem_empty"; break;
+        case shared_mem_type::shared_mem_buffer:    out << "shared_mem_buffer"; break;
+        case shared_mem_type::shared_mem_image:     out << "shared_mem_image"; break;
+        case shared_mem_type::shared_mem_vasurface: out << "shared_mem_vasurface"; break;
+        case shared_mem_type::shared_mem_dxbuffer:  out << "shared_mem_dxbuffer"; break;
+        case shared_mem_type::shared_mem_usm:       out << "shared_mem_usm"; break;
+        default: out << "unknown"; break;
+    }
+    return out;
+}
+
 using shared_handle = void*;
 using shared_surface = uint32_t;
 
 /// @brief Low-level API handles required for using cldnn memory objects in external API calls.
 struct shared_mem_params {
     shared_mem_type mem_type;     ///< shared buffer type
-    shared_handle context;        ///< OpenCL context for external operations
+    shared_handle context;        ///< OpenCL or Level Zero context for external operations
     shared_handle user_device;    ///< DX/VA device for external operations
     shared_handle mem;            ///< memory object handle
 #ifdef _WIN32

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -161,11 +161,11 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
  * alignment for targetSize
  * @return aligned buffer
  */
-inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, int align = -1) {
+inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, size_t align = 0) {
     OPENVINO_ASSERT(!buffer.empty(), "Can't align buffer, because buffer is empty");
 
     auto alignedBuffer = buffer;
-    if (align == -1) {
+    if (align == 0) {
         align = targetSize;
     }
     const size_t bufferSizeAligned = rnd_up(targetSize, align);

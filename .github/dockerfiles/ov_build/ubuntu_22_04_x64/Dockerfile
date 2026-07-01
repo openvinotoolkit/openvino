@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -26,9 +29,6 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.9-dev \
-        python3.9-venv \
-        python3.9-distutils \
         python3.10-dev \
         python3.10-venv \
         python3.10-distutils \
@@ -39,6 +39,9 @@ RUN apt-get update && \
         python3.12-venv \
         python3.13-dev \
         python3.13-venv \
+        python3.14-nogil \
+        python3.14-venv \
+        python3.14-dev \
         # For Java API
         default-jdk \
         # To build documentation
@@ -69,23 +72,33 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
+    
+# Install custom cmake (4.0+)
+RUN wget https://cmake.org/files/v4.1/cmake-4.1.1-linux-x86_64.sh && \
+    sh cmake-4.1.1-linux-x86_64.sh --skip-license --prefix=/usr/local && \
+    rm cmake-4.1.1-linux-x86_64.sh
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default
 # Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+
+# Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
@@ -107,4 +120,3 @@ RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.n
     tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
 ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
-

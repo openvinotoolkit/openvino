@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,12 @@ TestsCommon::TestsCommon()
 #endif
 {
 #ifndef __APPLE__  // TODO: add getVmSizeInKB() for Apple platform
-    auto memsize = ov::test::utils::getVmSizeInKB();
-    if (memsize != 0) {
-        std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
+    static const bool print_mem_usage = std::getenv("OV_TEST_PRINT_MEM_USAGE") != nullptr;
+    if (print_mem_usage) {
+        auto memsize = ov::test::utils::getVmSizeInKB();
+        if (memsize != 0) {
+            std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
+        }
     }
 #endif
     ov::threading::executor_manager()->clear();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
 
     auto pack_byte = [](uint8_t lo, uint8_t hi) -> uint8_t {
         return (hi << 4) | (lo & 0x0F);
-    };  // swap halfs because Convert op assumes this layout
+    };  // swap halves because Convert op assumes this layout
 
     const std::function<uint8_t(const uint8_t*, size_t)>& get_u4 = [](const uint8_t* src, size_t idx) {
         const size_t byte_idx = idx / 2;

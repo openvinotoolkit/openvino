@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -390,6 +390,8 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
     case dnnl::impl::cpu::x64::amx_fp16:
     case dnnl::impl::cpu::x64::avx512_core_amx_fp16:
     case dnnl::impl::cpu::x64::isa_all:
+    case dnnl::impl::cpu::x64::avx10_2_512:
+    case dnnl::impl::cpu::x64::avx10_2_512_amx_2:
         OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
     }
     OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 
+namespace ov::test {
+using ::testing::_;
 using OVDefaultAllocatorTest = ::testing::Test;
 
 TEST_F(OVDefaultAllocatorTest, notThrowOnZeroSize) {
@@ -28,7 +30,9 @@ TEST_F(OVDefaultAllocatorTest, canAllocateAndDeallocate) {
 
 TEST_F(OVDefaultAllocatorTest, alignedAllocationNotThrow) {
     ov::Allocator allocator;
-    OV_ASSERT_NO_THROW(allocator.allocate(64, 64));
+    void* ptr = nullptr;
+    OV_ASSERT_NO_THROW(ptr = allocator.allocate(64, 64));
+    OV_ASSERT_NO_THROW(allocator.deallocate(ptr, 64, 64));
 }
 
 TEST_F(OVDefaultAllocatorTest, sizedAndAlignedDeallocationNotThrow) {
@@ -59,3 +63,12 @@ TEST_F(OVDefaultAllocatorTest, canAllocate10KMemory) {
     EXPECT_EQ(ptr[9999], 11);
     allocator.deallocate(handle);
 }
+
+TEST_F(OVDefaultAllocatorTest, compareIfImplIsNull) {
+    auto a1 = ov::Allocator();
+    auto a2 = std::move(a1);
+
+    EXPECT_FALSE(a2 == a1);
+    OV_EXPECT_THROW(std::ignore = (a1 == a2), ov::Exception, _);
+}
+}  // namespace ov::test

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,43 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using testing::HasSubstr;
 
 using StringAlignedBufferTest = testing::Test;
+
+using header_element_t = int32_t;  // Type of a single element in the header (strings_count and offsets)
+
+namespace {
+
+/// @brief Creates a packed string tensor byte stream from given header and strings data.
+/// @param header The header elements of the string tensor.
+/// @param strings The string data of the tensor.
+/// @return A vector of bytes representing the packed string tensor.
+std::vector<uint8_t> pack_string_tensor(const std::vector<header_element_t>& header,
+                                        const std::vector<uint8_t>& strings = {}) {
+    std::vector<uint8_t> tensor;
+    tensor.reserve(header.size() * sizeof(header_element_t) + strings.size());
+    for (const auto value : header) {
+        const uint8_t* characters = reinterpret_cast<const uint8_t*>(&value);
+        tensor.insert(tensor.end(), characters, characters + sizeof(header_element_t));
+    }
+    tensor.insert(tensor.end(), strings.begin(), strings.end());
+    return tensor;
+}
+
+/// @brief Introduces invalid elements count in the header of the packed string tensor to trigger error handling in
+/// unpacking function.
+/// @param tensor The packed string tensor.
+/// @param elements_count The invalid elements count to be set in the header.
+void tamper_with_elements_count(std::vector<uint8_t>& tensor, const header_element_t elements_count) {
+    constexpr size_t elements_count_index = 0;
+    const uint8_t* characters = reinterpret_cast<const uint8_t*>(&elements_count);
+    std::copy(characters, characters + sizeof(header_element_t), tensor.begin() + elements_count_index);
+}
+
+}  // namespace
 
 TEST_F(StringAlignedBufferTest, default_ctor) {
     StringAlignedBuffer buffer;
@@ -100,5 +131,111 @@ TEST_F(SharedStringAlignedBufferTest, create_with_smaller_size_than_input_buffer
     EXPECT_EQ(*buffer.get_ptr<const std::string>(), msg_at_0);
 }
 
-}  // namespace test
-}  // namespace ov
+TEST(StringUnpackTensorTest, ZeroNumberOfStringsYieldsEmptyBuffer) {
+    constexpr auto strings_count = 0;
+    constexpr auto last_end = 0;
+
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, last_end});
+    const auto result = AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+        reinterpret_cast<const char*>(tensor.data()),
+        tensor.size());
+
+    EXPECT_EQ(result->get_num_elements(), 0);
+}
+
+TEST(StringUnpackTensorTest, MissingNumberOfStringsFails) {
+    const std::vector<uint8_t> strings = {'0', '1'};
+
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{}, strings);
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("no strings count in the packed string tensor"));
+}
+
+TEST(StringUnpackTensorTest, NegativeNumberOfStringsFails) {
+    constexpr auto strings_count = -1;
+    constexpr auto last_end = 0;
+
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, last_end});
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("negative number of strings"));
+}
+
+TEST(StringUnpackTensorTest, HeaderSizeOverflowFails) {
+    constexpr auto strings_count = 1;
+    constexpr auto strings_count_tampered = std::numeric_limits<header_element_t>::max();
+
+    if (strings_count_tampered < std::numeric_limits<size_t>::max() / sizeof(header_element_t)) {
+        GTEST_SKIP() << "Header size calculation does not overflow on this platform";
+    }
+
+    const std::vector<uint8_t> strings = {'0', '1', '2', '3', '4'};
+    auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, 0, 5}, strings);
+
+    tamper_with_elements_count(tensor, strings_count_tampered);
+
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("header size overflow detected"));
+}
+
+TEST(StringUnpackTensorTest, HeaderSizeBeyondBufferFails) {
+    constexpr auto strings_count = 2;
+    constexpr auto strings_count_tampered = 10;
+
+    const std::vector<uint8_t> strings = {'0', '1', '2', '3', '4'};
+    auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, 0, 3, 5}, strings);
+
+    tamper_with_elements_count(tensor, strings_count_tampered);
+
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("header exceeds provided buffer size"));
+}
+
+TEST(StringUnpackTensorTest, NegativeOffsetsFails) {
+    constexpr auto strings_count = 2;
+
+    const std::vector<uint8_t> strings = {'0', '1', '2', '3', '4'};
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, -3, 2, 5}, strings);
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("negative string offset in the packed string tensor"));
+}
+
+TEST(StringUnpackTensorTest, DecreasingOffsetsFails) {
+    constexpr auto strings_count = 2;
+
+    const std::vector<uint8_t> strings = {'0', '1', '2', '3', '4'};
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, 0, 5, 3}, strings);
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("begin offset greater than end offset"));
+}
+
+TEST(StringUnpackTensorTest, OffsetBeyondBufferFails) {
+    constexpr auto strings_count = 2;
+
+    const std::vector<uint8_t> strings = {'0', '1', '2', '3', '4'};
+    const auto tensor = pack_string_tensor(std::vector<header_element_t>{strings_count, 0, 10, 20}, strings);
+    OV_EXPECT_THROW(AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::unpack_string_tensor(
+                        reinterpret_cast<const char*>(tensor.data()),
+                        tensor.size()),
+                    AssertFailure,
+                    HasSubstr("string offset exceeds buffer bounds"));
+}
+
+}  // namespace ov::test

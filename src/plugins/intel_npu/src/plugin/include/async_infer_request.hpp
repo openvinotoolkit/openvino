@@ -1,34 +1,35 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "intel_npu/common/sync_infer_request.hpp"
+#include <memory>
+
 #include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace intel_npu {
 
+class InferRequest;
+
 class AsyncInferRequest final : public ov::IAsyncInferRequest {
 public:
-    explicit AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& inferRequest,
+    explicit AsyncInferRequest(const std::shared_ptr<InferRequest>& inferRequest,
                                const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
-                               const std::shared_ptr<ov::threading::ITaskExecutor>& getResultExecutor,
+                               const std::shared_ptr<ov::threading::ITaskExecutor>& resultExecutor,
                                const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor);
 
     AsyncInferRequest(const AsyncInferRequest&) = delete;
 
     AsyncInferRequest& operator=(const AsyncInferRequest&) = delete;
 
+    void cancel() override;
+
     ~AsyncInferRequest();
 
-    std::shared_ptr<SyncInferRequest> get_sync_infer_request() {
-        return _syncInferRequest;
-    }
-
 private:
-    std::shared_ptr<SyncInferRequest> _syncInferRequest;
-    std::shared_ptr<ov::threading::ITaskExecutor> _getResultExecutor;
+    std::shared_ptr<InferRequest> _inferRequest;
+    std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 };
 
 }  // namespace intel_npu

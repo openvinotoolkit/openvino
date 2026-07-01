@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,24 @@ class Pad12LayerTest : public PadLayerTest {
                                             const std::shared_ptr<ov::Node>&,
                                             const std::shared_ptr<ov::Node>&,
                                             ov::op::PadMode) const override;
+};
+
+using PadStringLayerTestParamSet = std::tuple<
+    std::vector<int64_t>,    // padsBegin
+    std::vector<int64_t>,    // padsEnd
+    std::string,             // padValue (CONSTANT mode)
+    std::vector<InputShape>, // Input shapes
+    std::string              // Target device name
+>;
+
+class PadStringLayerTest : public testing::WithParamInterface<PadStringLayerTestParamSet>,
+                           virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PadStringLayerTestParamSet>& obj);
+
+protected:
+    void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 }  // namespace test
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,8 @@ void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcMemory = getSrcMemoryAtPort(0);
     const auto& srcDataDims = srcMemory->getStaticDims();
     const auto& srcData = srcMemory->getDataAs<std::string>();
-    Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<>());
+    Dim stringCount =
+        std::accumulate(srcDataDims.begin(), srcDataDims.end(), static_cast<size_t>(1), std::multiplies<>());
     size_t totalCharLength = 0;
     for (Dim i = 0; i < stringCount; ++i) {
         totalCharLength += srcData[i].length();

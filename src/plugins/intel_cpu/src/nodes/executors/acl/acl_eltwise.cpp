@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,6 +85,11 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
         }
 
         srcDescs[argId - ARG_SRC] = desc;
+    }
+
+    if (!aclSupported({srcDescs[0], dstDescs[0]})) {
+        DEBUG_LOG("ACL common preconditions are not met");
+        return false;
     }
 
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc,

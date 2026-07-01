@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,10 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
 
     ASSERT_EQ(expectedTargets, exeTargets);
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS);
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

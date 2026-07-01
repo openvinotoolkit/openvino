@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ private:
     struct Executor {
         virtual void execute(const dnnl::stream& strm,
                              intel_cpu::Node* pnode,
+                             const CpuParallelPtr& cpu_parallel,
                              const intel_cpu::CausalMaskPreprocessNode::Config& config) = 0;
         virtual ~Executor() = default;
     };

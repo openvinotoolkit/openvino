@@ -20,7 +20,6 @@
 # -cppcoreguidelines-pro-type-static-cast-downcast. Performance impact
 # -cppcoreguidelines-pro-type-union-access. There are a lot of code which uses unions
 # -cppcoreguidelines-pro-type-vararg. There are a lot of code which uses vararg functions
-# -cppcoreguidelines-rvalue-reference-param-not-moved. There are a lot of code which uses rvalue references
 # -cppcoreguidelines-special-member-functions. There are a lot of code which does not define all copy/move constructors/assignment operators
 # -google-readability-todo. No big reason to enforce
 # -modernize-use-trailing-return-type. Just stylistic preference
@@ -81,7 +80,6 @@ Checks: >
   -cppcoreguidelines-pro-type-static-cast-downcast,
   -cppcoreguidelines-pro-type-union-access,
   -cppcoreguidelines-pro-type-vararg,
-  -cppcoreguidelines-rvalue-reference-param-not-moved,
   -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
   -google-explicit-constructor,

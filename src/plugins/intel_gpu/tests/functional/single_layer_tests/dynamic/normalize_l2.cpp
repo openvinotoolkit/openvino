@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ using NormalizeL2LayerGPUTestParams = std::tuple<
 class NormalizeL2LayerGPUTest : public testing::WithParamInterface<NormalizeL2LayerGPUTestParams>,
                                 virtual public ov::test::SubgraphBaseTest {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerGPUTestParams> obj) {
+   static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerGPUTestParams>& obj) {
        const auto& [inputShapes, netPrecision, axes, epsMode, eps] = obj.param;
 
        std::ostringstream result;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,8 +69,8 @@ inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
                                       const std::vector<int>& padBegin,
                                       const std::vector<int>& padEnd) {
     VectorDims paddedShape;
-    int dataRank = srcDims.size();
-    for (int i = 0; i < dataRank; i++) {
+    size_t dataRank = srcDims.size();
+    for (size_t i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
     }
     return paddedShape;

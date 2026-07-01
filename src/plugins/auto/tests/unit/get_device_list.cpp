@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ using ConfigParams = std::tuple<std::vector<std::string>,  // Available devices 
                                 >;
 class GetDeviceListTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [availableDevices, priorityAndMetaDev] = obj.param;
         const auto& [priorityDevices, metaDevices, expectedTimes] = priorityAndMetaDev;
         std::ostringstream result;
@@ -35,7 +35,7 @@ public:
         ON_CALL(*plugin, get_device_list)
             .WillByDefault([this](ov::AnyMap& config,
                                   const std::shared_ptr<const ov::Model>& model,
-                                  const std::string& model_path) {
+                                  const std::filesystem::path& model_path) {
                 return plugin->Plugin::get_device_list(config);
             });
     }

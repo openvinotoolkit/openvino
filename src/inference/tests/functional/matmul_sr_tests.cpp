@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
@@ -23,6 +24,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
@@ -129,6 +131,39 @@ INSTANTIATE_TEST_SUITE_P(
     SmartReshapeMatMulTests::getTestCaseName);
 // clang-format on
 }  // namespace
+
+TEST(SmartReshapeTransposeMatMulTests, TransposeBf16WeightsConvertMatMulFuse) {
+    // Pattern: bf16 weights -> Transpose -> Convert(f32) -> MatMul(transpose_b=false)
+    // Expected after TransposeConvert + TransposeMatMul:
+    //   bf16 weights -> Convert(f32) -> MatMul(transpose_b=true)
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+        auto weights_B = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{1, 5, 3});
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(weights_B, order);
+        auto convert = std::make_shared<ov::op::v0::Convert>(transpose, ov::element::f32);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, convert, false, false);
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, weights_B});
+
+        ov::pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeConvert>();
+        m.register_pass<ov::pass::TransposeMatMul>();
+        m.run_passes(f);
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+        auto weights_B = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{1, 5, 3});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_B, ov::element::f32);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, convert, false, true);
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, weights_B});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
 
 TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);

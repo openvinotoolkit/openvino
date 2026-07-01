@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,7 +108,7 @@ private:
     std::vector<int64_t> m_numPerBatch;
     std::vector<std::vector<int64_t>> m_numPerBatchClass;
     std::vector<BoxInfo> m_filteredBoxes;
-    std::vector<int> m_classOffset;
+    std::vector<size_t> m_classOffset;
     size_t m_realNumClasses = 0;
     size_t m_realNumBoxes = 0;
     float (*m_decay_fn)(float, float, float) = nullptr;

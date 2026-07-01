@@ -1,7 +1,7 @@
 # Build OpenVINO™ Runtime for macOS systems (Intel CPU)
 
 This guide shows how to build OpenVINO Runtime for later inference on Intel CPU on macOS with Intel CPU underneath. This can be done using two ways:
-- Compile on Intel CPU host using native compilation. Note, that [Build steps](#build-steps) show this scenario.
+- Compile on Intel CPU host using native compilation. Note, that [Build steps](#how-to-build) show this scenario.
 - Cross-compile on OSX Apple Silicon.
 
 The software was validated on:

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::GELU_TANH:                 method = "GELU_TANH"; break;
         case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
+        case ActivationFunction::ERFINV:                    method = "ERFINV"; break;
         default: break;
     }
     return method;
@@ -156,6 +157,9 @@ std::string toString(Datatype dType) {
         case Datatype::INT64:  return "INT64";
         case Datatype::F16:    return "F16";
         case Datatype::F32:    return "F32";
+        case Datatype::F8E4M3: return "F8E4M3";
+        case Datatype::F8E5M2: return "F8E5M2";
+        case Datatype::F8E8M0: return "F8E8M0";
         default: return "";
     }
 }
@@ -208,6 +212,7 @@ std::string toString(EltwiseMode b_mode) {
         case EltwiseMode::SQRT:   return "SQRT";
         case EltwiseMode::RSQRT:  return "RSQRT";
         case EltwiseMode::ASSIGN: return "ASSIGN";
+        case EltwiseMode::ATAN2:  return "ATAN2";
         default: return "";
     }
 }
@@ -347,6 +352,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_zyx_isa8_osv16_isv4:                   return "OS_IS_ZYX_ISA8_OSV16_ISV4";
         case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2: return "OS_IS_YX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2";
+        case WeightsLayout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2: return "OS_IS_ZYX_OSA2_ISA8_OSV16_ISV4_SWIZZLED_BY_2";
         case WeightsLayout::os_is_yx_osv16_isv4:                         return "OS_IS_YX_OSV16_ISV4";
         case WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2:           return "OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2";
         case WeightsLayout::os_is_yx_osv32_isv4:                         return "OS_IS_YX_OSV32_ISV4";

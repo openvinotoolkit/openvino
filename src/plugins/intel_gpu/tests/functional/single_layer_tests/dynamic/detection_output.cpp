@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ typedef std::tuple<
 class DetectionOutputLayerGPUTest : public testing::WithParamInterface<DetectionOutputGPUTestParams>,
                                     virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputGPUTestParams>& obj) {
         ov::op::v0::DetectionOutput::Attributes attrs;
 
         const auto& [commonAttrs, specificAttrs, batch, _objectness_score, replaceDynamicShapesToIntervals, targetDevice] = obj.param;

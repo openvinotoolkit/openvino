@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,9 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
       m_id(gid),
       m_graph(g),
       m_snapshot(snapshot) {
-    m_input_layers.insert(node);
-    m_output_layers.insert(node);
-    m_content.insert(node);
+    m_input_layers.insert(std::shared_ptr<ov::Node>(node));
+    m_output_layers.insert(std::shared_ptr<ov::Node>(node));
+    m_content.insert(std::shared_ptr<ov::Node>(node));
 }
 
 Group::Group(size_t gid,
@@ -57,14 +57,14 @@ void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
             auto target_input = layer->get_input_source_output(i);
             auto layer_parent = target_input.get_node()->shared_from_this();
             if (ov::op::util::is_parameter(layer_parent)) {
-                input_layers.insert(layer);
+                input_layers.insert(std::shared_ptr<ov::Node>(layer));
             }
             // Also include Converts
             if (!isOp(layer_parent)) {
                 if (!ov::op::util::is_constant(layer_parent) && !ov::op::util::is_parameter(layer_parent) &&
                     !ov::op::util::is_output(layer_parent)) {
                     NPUW_ASSERT(ov::is_type<ov::op::v0::Convert>(layer_parent));
-                    extra_content.insert(layer_parent);
+                    extra_content.insert(std::shared_ptr<ov::Node>(layer_parent));
                 }
             }
         }
@@ -73,14 +73,14 @@ void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
             for (const auto& target_output : target_outputs) {
                 auto layer_child = target_output.get_node()->shared_from_this();
                 if (ov::op::util::is_output(layer_child)) {
-                    output_layers.insert(layer);
+                    output_layers.insert(std::shared_ptr<ov::Node>(layer));
                 }
             }
         }
     }
 
     for (const auto& layer : extra_content) {
-        content.insert(layer);
+        content.insert(std::shared_ptr<ov::Node>(layer));
     }
 }
 
@@ -110,7 +110,7 @@ ov::npuw::Group Group::toGroup() const {
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated && !isNoFold()) {
-        g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
+        g.repeated_id = m_repeated->id();
     }
 
     if (!m_avoided_devices.empty()) {
@@ -121,7 +121,7 @@ ov::npuw::Group Group::toGroup() const {
         }
     }
 
-    g.tag = m_isol_tag;
+    g.settag(m_isol_tag);
 
     return g;
 }
@@ -135,16 +135,26 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     return *(m_content.begin());
 }
 
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getInputs() const {
+    return m_input_layers;
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
+    return m_output_layers;
+}
+
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {
-    m_input_layers.insert(node);
+    m_input_layers.insert(std::shared_ptr<ov::Node>(node));
+    m_mic_io_valid = false;
 }
 
 void Group::addOutput(const std::shared_ptr<ov::Node>& node) {
-    m_output_layers.insert(node);
+    m_output_layers.insert(std::shared_ptr<ov::Node>(node));
+    m_mic_io_valid = false;
 }
 
 void Group::addContent(const std::shared_ptr<ov::Node>& node) {
-    m_content.insert(node);
+    m_content.insert(std::shared_ptr<ov::Node>(node));
 }
 
 size_t Group::getId() const {
@@ -165,6 +175,7 @@ own::ade::NodeHandle Group::getHandle() const {
 
 // Not every input should be included - those layers which contained inside merging group are not inputs anymore
 void Group::updateInputLayers(const Group::GPtr& gptr_other) {
+    m_mic_io_valid = false;
     detail::OVNodeSet combined_input;
     combined_input.insert(m_input_layers.begin(), m_input_layers.end());
     combined_input.insert(gptr_other->m_input_layers.begin(), gptr_other->m_input_layers.end());
@@ -177,12 +188,12 @@ void Group::updateInputLayers(const Group::GPtr& gptr_other) {
         auto node_prod = locked_snapshot->getNodeProducers(layer);
         for (const auto& prod : node_prod) {
             if (m_content.find(prod) == m_content.end()) {
-                selected.insert(prod);
+                selected.insert(std::shared_ptr<ov::Node>(prod));
             }
         }
         for (const auto& l : selected) {
             if (isOp(l)) {
-                m_input_layers.insert(layer);
+                m_input_layers.insert(std::shared_ptr<ov::Node>(layer));
             }
         }
     }
@@ -191,6 +202,7 @@ void Group::updateInputLayers(const Group::GPtr& gptr_other) {
 // Not every output should be included - those layers which are consumed _ONLY_ by the merged group are not outputs
 // anymore
 void Group::updateOutputLayers(const Group::GPtr& gptr_other) {
+    m_mic_io_valid = false;
     detail::OVNodeSet combined_output;
     combined_output.insert(m_output_layers.begin(), m_output_layers.end());
     combined_output.insert(gptr_other->m_output_layers.begin(), gptr_other->m_output_layers.end());
@@ -207,7 +219,7 @@ void Group::updateOutputLayers(const Group::GPtr& gptr_other) {
             }
         }
         if (!reject) {
-            m_output_layers.insert(layer);
+            m_output_layers.insert(std::shared_ptr<ov::Node>(layer));
         }
     }
 }
@@ -247,6 +259,19 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
+    if (ov::npuw::debug_groups()) {
+        LOG_DEBUG("Fusing...");
+        LOG_BLOCK();
+        {
+            LOG_DEBUG("Merger: " << this->specialTags());
+            dump();
+        }
+        {
+            LOG_DEBUG("Mergee: " << gptr_cons->specialTags());
+            gptr_cons->dump();
+        }
+    }
+
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -255,7 +280,7 @@ void Group::fuseWith(const Group::GPtr& gptr_cons) {
 
     // Merge 2 contents together
     for (const auto& layer : gptr_cons->m_content) {
-        m_content.insert(layer);
+        m_content.insert(std::shared_ptr<ov::Node>(layer));
     }
 
     takeFlags(gptr_cons);
@@ -276,7 +301,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
     // Update ov::node to own::ade::NodeHandle map and merge all contents together
     for (const auto& layer : absorbed_group->m_content) {
         node_to_gr->at(layer) = absorbing_group;
-        absorbing_group->m_content.insert(layer);
+        absorbing_group->m_content.insert(std::shared_ptr<ov::Node>(layer));
     }
     absorbing_group->takeFlags(absorbed_group);
     absorbing_group->updateInputLayers(absorbed_group);
@@ -312,21 +337,26 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
 
 // Check if there is indirect path from this to gptr_cons
 bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
-    std::unordered_set<own::ade::NodeHandle> visited;
+    // Fast-path: if this group has at most 1 consumer, there is no alternative path
+    // to gptr_cons and therefore no cycle.
+    if (m_nh->dstNodes().size() <= 1) {
+        return false;
+    }
 
+    std::unordered_set<own::ade::NodeHandle> visited;
     std::stack<own::ade::NodeHandle> st;
 
     for (const auto& prod : gptr_cons->srcNodes()) {
         // skip self during this iter
         if (!(m_nh == prod)) {
             st.push(prod);
+            visited.insert(own::ade::NodeHandle(prod));  // mark at push time to avoid duplicate pushes
         }
     }
 
     while (!st.empty()) {
         auto nh = st.top();
         st.pop();
-        visited.insert(nh);
 
         if (nh == m_nh) {
             // Found another path from self to gptr_cons
@@ -334,8 +364,9 @@ bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
         }
 
         for (const auto& prod : nh->srcNodes()) {
-            if (visited.find(prod) == visited.end()) {
+            if (!visited.count(prod)) {
                 st.push(prod);
+                visited.insert(own::ade::NodeHandle(prod));  // mark at push time
             }
         }
     }
@@ -353,6 +384,10 @@ void Group::freeze() {
 
 void Group::noFold() {
     m_nofold = true;
+}
+
+void Group::unfreeze() {
+    m_frozen = false;
 }
 
 bool Group::isFrozen() const {
@@ -394,33 +429,39 @@ void Group::setRepeated(const std::shared_ptr<Repeated>& rep) {
 PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
     MICSet mics;
 
+    auto locked_snapshot = m_snapshot.lock();
     auto ics = interconnect(gptr_prod);
     for (const auto& ic : ics) {
-        mics.insert({ov::npuw::online::util::getMetaDesc(ic.input_node),
+        mics.insert({locked_snapshot->getMetaDesc(ic.input_node),
                      gptr_prod->m_reptrack.at(ic.input_node),
                      ic.input_port,
-                     ov::npuw::online::util::getMetaDesc(ic.output_node),
+                     locked_snapshot->getMetaDesc(ic.output_node),
                      m_reptrack.at(ic.output_node),
                      ic.output_port});
     }
 
-    MetaInterconnectIO mic_io;
-    auto locked_snapshot = m_snapshot.lock();
-    for (const auto& oi : m_input_layers) {
-        mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
-    }
-    for (const auto& oo : m_output_layers) {
-        mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+    // Cache the MetaInterconnectIO part — it only depends on m_input_layers /
+    // m_output_layers which are invalidated (m_mic_io_valid = false) whenever
+    // those sets change (addInput / addOutput / updateInputLayers / updateOutputLayers).
+    if (!m_mic_io_valid) {
+        m_cached_mic_io = MetaInterconnectIO{};
+        for (const auto& oi : m_input_layers) {
+            m_cached_mic_io.output_imeta.insert(locked_snapshot->getMetaDesc(oi));
+        }
+        for (const auto& oo : m_output_layers) {
+            m_cached_mic_io.output_ometa.insert(locked_snapshot->getMetaDesc(oo));
+        }
+        m_mic_io_valid = true;
     }
 
-    return {mics, mic_io};
+    return {mics, m_cached_mic_io};
 }
 
 std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_prod) const {
     std::unordered_set<Interconnect> ics;
 
     auto locked_snapshot = m_snapshot.lock();
-    auto ports_map = locked_snapshot->getPortsMap();
+    const auto& ports_map = locked_snapshot->getPortsMap();
 
     for (const auto& layer : m_content) {
         for (const auto& input_layer : locked_snapshot->getNodeProducers(layer)) {
@@ -474,4 +515,11 @@ void Group::dontIsolate() {
 
 const std::string& Group::isolatedTag() const {
     return m_isol_tag;
+}
+
+void Group::dump() const {
+    LOG_BLOCK();
+    for (auto&& layer : m_content) {
+        LOG_DEBUG(layer);
+    }
 }

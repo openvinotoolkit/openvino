@@ -1,9 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 
 #include "graph_iterator_proto.hpp"
@@ -14,16 +15,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-template <typename T>
-std::basic_string<T> get_variables_index_name(const std::basic_string<T> name) {}
-
-template <>
-std::basic_string<char> get_variables_index_name<char>(const std::string name);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_variables_index_name<wchar_t>(const std::wstring name);
-#endif
+std::filesystem::path get_variables_index_name(const std::filesystem::path& name);
 
 // Loads graph from Tensorflow MetaGraph file (*.meta)
 class GraphIteratorMeta : public GraphIteratorProto {
@@ -36,21 +28,18 @@ class GraphIteratorMeta : public GraphIteratorProto {
     bool m_mmap_enabled;
 
 public:
-    template <typename T>
-    GraphIteratorMeta(const std::basic_string<T>& path, const bool mmap_enabled)
+    GraphIteratorMeta(const std::filesystem::path& path, const bool mmap_enabled)
         : m_metagraph_def(std::make_shared<::tensorflow::MetaGraphDef>()),
           m_mmap_enabled(mmap_enabled) {
         this->read_meta(path);
     }
 
-    template <typename T>
-    static bool is_supported(const std::basic_string<T>& path) {
+    static bool is_supported(const std::filesystem::path& path) {
         FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
-                                "Could not open the file: \"",
-                                util::path_to_string(path),
-                                '"');
+                                "Could not open the file: ",
+                                path);
         try {
-            std::ifstream mg_stream(path.c_str(), std::ios::in | std::ifstream::binary);
+            std::ifstream mg_stream(path, std::ios::in | std::ifstream::binary);
             auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
             return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream) &&
                    metagraph_def->has_graph_def() && metagraph_def->graph_def().node_size() > 0;
@@ -82,17 +71,17 @@ public:
 private:
     bool is_valid_signature(const ::tensorflow::SignatureDef& signature) const;
 
-    template <typename T>
-    bool read_meta(const std::basic_string<T>& path) {
-        std::basic_string<T> model_path = path.substr(0, path.find_last_of('.'));
+    bool read_meta(const std::filesystem::path& path) {
+        auto model_path = path;
+        model_path.replace_extension();
 
-        std::ifstream mg_stream{path.c_str(), std::ifstream::in | std::ifstream::binary};
+        std::ifstream mg_stream{path, std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(mg_stream && mg_stream.is_open(), "Model file does not exist");
 
-        std::basic_string<T> varIndexPath = get_variables_index_name<T>(model_path);
+        auto varIndexPath = get_variables_index_name(model_path);
         if (ov::util::file_exists(varIndexPath)) {
             m_variables_index = std::make_shared<VariablesIndex>(m_mmap_enabled);
-            std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
+            std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(), "MetaGraph's variable index file does not exist");
             FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, model_path, false),
                                     "MetaGraph's variable index file cannot be parsed");

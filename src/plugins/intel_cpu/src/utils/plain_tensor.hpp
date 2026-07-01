@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,7 +122,7 @@ struct PlainTensor {
 
     [[nodiscard]] size_t size(int i) const {
         if (i < 0) {
-            i += m_rank;
+            i += static_cast<int>(m_rank);
         }
         assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_dims[i];
@@ -233,7 +233,7 @@ struct PlainTensor {
         for (auto idx : indices) {
             auto src_dim = m_dims[i_src];
             auto src_stride = m_strides[i_src];
-            idx.regularize(src_dim);
+            idx.regularize(static_cast<int>(src_dim));
             off += idx.start * src_stride;
             if (idx.slice_with_squeeze()) {
                 // no output dimension
@@ -293,7 +293,7 @@ struct PlainTensor {
     [[nodiscard]] bool is_dense() const {
         // check if it's dense tensor
         size_t stride = 1;
-        for (int i = m_rank - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
             if (m_strides[i] != stride) {
                 return false;
             }
@@ -363,7 +363,7 @@ struct PlainTensor {
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
-        for (int i = m_rank - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
             m_strides[i] = strides ? strides[i] : stride;
             stride *= new_dims[i];
@@ -405,6 +405,9 @@ struct PlainTensor {
         if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
+        if (m_dt == ov::element::u2) {
+            return 4;
+        }
         return 1;
     }
 
@@ -423,7 +426,15 @@ struct PlainTensor {
 
     template <typename DT, ov::element::Type_t SRC_PREC = ov::element::u8, typename... Is>
     [[nodiscard]] DT* ptr(Is... indices) const {
-        constexpr size_t stride_div = SRC_PREC == ov::element::u4 ? 2 : 1;
+        constexpr size_t stride_div = [] {
+            if (SRC_PREC == ov::element::u2) {
+                return 4;
+            }
+            if (SRC_PREC == ov::element::u4) {
+                return 2;
+            }
+            return 1;
+        }();
         const size_t off = offset<0>(indices...) / stride_div;
         return reinterpret_cast<DT*>(m_ptr.get()) + off;
     }

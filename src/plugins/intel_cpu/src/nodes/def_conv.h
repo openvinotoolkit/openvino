@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,11 @@ struct jit_def_conv_params {
     int dg;
     int ngroups, ic, oc, oc_padded;
     int id, ih, iw, od, oh, ow;
-    int f_pad, l_pad, t_pad;
+    size_t f_pad, l_pad, t_pad;
     int back_pad, r_pad, b_pad;
     int kd, kh, kw;
-    int stride_d, stride_h, stride_w;
-    int dilate_d, dilate_h, dilate_w;
+    size_t stride_d, stride_h, stride_w;
+    size_t dilate_d, dilate_h, dilate_w;
     int nthr;
     int nb_ic, ic_block;
     int nb_oc, oc_block;
@@ -126,11 +126,15 @@ private:
                           const float* modulation,
                           float* dst,
                           int* pSampledCoordsVector,
-                          float* pInterpWeightsVector) = 0;
+                          float* pInterpWeightsVector,
+                          const CpuParallelPtr& cpuParallel) = 0;
         virtual ~DefConvExecutor() = default;
 
     protected:
-        void prepareSamplingWeights(const float* offsets, const float* modulation = nullptr, bool enforceRef = false);
+        void prepareSamplingWeights(const float* offsets,
+                                    const CpuParallelPtr& cpuParallel,
+                                    const float* modulation = nullptr,
+                                    bool enforceRef = false);
         jit_def_conv_params jcp = {};
         VectorDims srcStrides;
         VectorDims offStrides;
@@ -153,7 +157,8 @@ private:
                   const float* modulation,
                   float* dst,
                   int* pSampledCoordsVector,
-                  float* pInterpWeightsVector) override;
+                  float* pInterpWeightsVector,
+                  const CpuParallelPtr& cpuParallel) override;
     };
 
     class DefConvJitExecutor : public DefConvExecutor {
@@ -169,7 +174,8 @@ private:
                   const float* modulation,
                   float* dst,
                   int* pSampledCoordsVector,
-                  float* pInterpWeightsVector) override;
+                  float* pInterpWeightsVector,
+                  const CpuParallelPtr& cpuParallel) override;
     };
 
     std::shared_ptr<DefConvExecutor> execPtr = nullptr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMul, MatMul,
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulEnforceBF16, MatMul,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(input_shapes),
+                                 ::testing::ValuesIn(precision_f32(2)),
+                                 ::testing::Values(MatMulType::MatMul),
+                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(1), // Tokenized MatMul
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
+                         MatMul::getTestCaseName);
+
 std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     { {{}, {{3, 3, 64, 64}}},   {{}, {{3, 3, 64, 64}}} },
     { {{}, {{1, 1, 32, 128}}},  {{}, {{1, 1, 64, 128}}} },
@@ -106,11 +117,7 @@ std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     }
 };
 
-#ifdef OPENVINO_ARCH_ARM64
-static constexpr size_t expected_num_subgraphs = 2; // MatMul + Transpose
-#else
 static constexpr size_t expected_num_subgraphs = 1; // MatMul
-#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                          ::testing::Combine(

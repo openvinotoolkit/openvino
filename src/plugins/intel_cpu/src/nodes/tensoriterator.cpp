@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
@@ -25,6 +26,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/reorder_prim.h"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -35,13 +37,11 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -84,7 +84,7 @@ static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const Memo
 }
 
 // this method get all memory ptrs of childs of one port to redefine descs for them
-static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port) {
+static std::vector<MemoryPtr> getToMemories(const Node* node, const int port) {
     std::vector<MemoryPtr> memories;
     for (auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());
@@ -95,6 +95,13 @@ static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port)
 static void nullifyUndefinedDims(VectorDims& dims) {
     std::transform(dims.begin(), dims.end(), dims.begin(), [](const size_t& dim) {
         return dim == Shape::UNDEFINED_DIM ? 0 : dim;
+    });
+}
+
+static bool hasEmptyDims(const dnnl::memory& mem) {
+    const auto& dims = mem.get_desc().get_dims();
+    return std::any_of(dims.begin(), dims.end(), [](const dnnl::memory::dim dim) {
+        return dim == 0;
     });
 }
 
@@ -119,7 +126,7 @@ public:
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0 ? -1 : 1;
 
-        iter_count = full_dims[axis] / abs_stride;
+        iter_count = static_cast<int>(full_dims[axis] / abs_stride);
 
         full_dims[axis] = abs_stride;
         OPENVINO_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");
@@ -153,6 +160,10 @@ public:
     void execute(const dnnl::stream& strm, int iter) override {
         OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
 
+        if (hasEmptyDims(mem_holder_src) || hasEmptyDims(mem_holder_dst)) {
+            return;
+        }
+
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +
                                   chunk_stride_in_byte * iter);
@@ -181,6 +192,10 @@ public:
 
     void execute(const dnnl::stream& strm, int iter) override {
         if (iter != 0) {
+            if (hasEmptyDims(mem_holder_src) || hasEmptyDims(mem_holder_dst)) {
+                return;
+            }
+
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
     }
@@ -245,11 +260,15 @@ private:
     int value;
 };
 
-DynamicBuffer::DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const PortMap& map_rule_)
+DynamicBuffer::DynamicBuffer(MemoryPtr from_,
+                             std::vector<MemoryPtr> to_,
+                             const PortMap& map_rule_,
+                             const std::shared_ptr<CpuParallel>& parallel)
     : from(std::move(from_)),
       to(std::move(to_)),
       map_rule(map_rule_),
-      elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())) {}
+      elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())),
+      cpu_parallel(parallel) {}
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     OPENVINO_ASSERT(from->getStaticDims()[map_rule.axis] == static_cast<size_t>(std::abs(map_rule.stride)),
@@ -347,7 +366,8 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
          src_stride,
          dst_stride,
          count,
-         valid_size);
+         valid_size,
+         cpu_parallel);
 
     // assign mem_holder_buffer
     mem_holder_buffer = new_buffer;
@@ -370,7 +390,8 @@ void DynamicBuffer::move_data() {
          src_stride,
          dst_stride,
          count,
-         chunk_unit_in_byte);
+         chunk_unit_in_byte,
+         cpu_parallel);
 
     // adjust for next execution
     num_execs++;
@@ -406,7 +427,8 @@ void DynamicBuffer::transfer(const Node* node) {
              src_stride,
              dst_stride,
              count,
-             dst_stride);
+             dst_stride,
+             cpu_parallel);
     } else {
         VectorDims newDims = to.front()->getShape().getDims();
         nullifyUndefinedDims(newDims);
@@ -421,8 +443,9 @@ void DynamicBuffer::copy(const uint8_t* src,
                          const size_t src_stride,
                          const size_t dst_stride,
                          const size_t count,
-                         const size_t len) {
-    parallel_for(count, [&](const size_t i) {
+                         const size_t len,
+                         const std::shared_ptr<CpuParallel>& cpu_parallel) {
+    cpu_parallel->parallel_for(count, [&](const size_t i) {
         cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
     });
 }
@@ -796,7 +819,8 @@ void TensorIterator::prepareDynamicBuffers() {
         if (map_rule.axis != -1) {
             auto to_mems = getToMemories(this, map_rule.from);
             auto& from_mem = output_mem[map_rule.to];
-            buffers.emplace_back(std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule));
+            buffers.emplace_back(
+                std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule, context->getCpuParallel()));
         }
     }
 }
@@ -811,6 +835,9 @@ void TensorIterator::prepareLoopBodyCurrentIteration() {
 
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
+        CPU_NODE_ASSERT(
+            loopBodyConditionOutputIdx >= 0 && loopBodyConditionOutputIdx < static_cast<int>(output_mem.size()),
+            "has invalid loopBodyConditionOutputIdx.");
         auto mem = output_mem[loopBodyConditionOutputIdx];
         continue_cond_check = std::make_shared<asBoolCheck>(mem);
     }

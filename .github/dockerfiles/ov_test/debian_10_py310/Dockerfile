@@ -1,13 +1,22 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/debian:10.13
 
 USER root
 
 # APT configuration
+# WARNING: Debian 10 "Buster" is no longer officially supported,
+# so repositories were moved to "archive.debian.org"
+# See: https://www.debian.org/releases/
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
-    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
+    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf && \
+    sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
+    sed -i '/stretch-updates/d' /etc/apt/sources.list
 
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"

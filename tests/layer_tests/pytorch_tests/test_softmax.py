@@ -1,17 +1,18 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import torch
+import torch.nn.functional as F
 
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSoftmax(PytorchLayerTest):
     def _prepare_input(self, second_input_dtype=None):
-        import numpy as np
         if second_input_dtype is None:
-            return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32), np.random.randn(1).astype(second_input_dtype))
+            return (self.random.randn(1, 3, 224, 224),)
+        return (self.random.randn(1, 3, 224, 224), self.random.randn(1, dtype=second_input_dtype))
 
     def create_model(self, dim, dtype=None, use_prim_dtype=False):
         import torch
@@ -25,7 +26,7 @@ class TestSoftmax(PytorchLayerTest):
 
         class aten_softmax(torch.nn.Module):
             def __init__(self, dim, dtype, use_prim_dtype):
-                super(aten_softmax, self).__init__()
+                super().__init__()
                 self.dim = dim
                 self.dtype = dtype
                 if use_prim_dtype:
@@ -42,9 +43,8 @@ class TestSoftmax(PytorchLayerTest):
             def forward_prim_dtype(self, x, y):
                 return F.softmax(x, self.dim, dtype=y.dtype)
 
-        ref_net = None
 
-        return aten_softmax(dim, dtype, use_prim_dtype), ref_net, "aten::softmax"
+        return aten_softmax(dim, dtype, use_prim_dtype), "aten::softmax"
 
     @pytest.mark.parametrize("dim", [-1, 3])
     @pytest.mark.nightly
@@ -67,3 +67,26 @@ class TestSoftmax(PytorchLayerTest):
             input_kwargs["second_input_dtype"] = dtype
         self._test(*self.create_model(dim, dtype, use_prim_dtype), ie_device,
                    precision, ir_version, kwargs_to_prepare_input=input_kwargs)
+
+
+class aten_softmax_scalar(torch.nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        return F.softmax(x, self.dim)
+
+
+class TestSoftmaxScalar(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(),)
+
+    @pytest.mark.parametrize("dim", [-1, 0])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_softmax_scalar(self, dim, ie_device, precision, ir_version):
+        self._test(aten_softmax_scalar(dim), "aten::softmax",
+                   ie_device, precision, ir_version)

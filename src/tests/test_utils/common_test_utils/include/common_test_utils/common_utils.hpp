@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,10 @@
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
+
+namespace ov::test::opt {
+inline constexpr auto FORCE = true;
+}
 
 namespace ov {
 namespace test {
@@ -210,6 +214,9 @@ std::string generateTestFilePrefix();
 size_t getVmSizeInKB();
 
 size_t getVmRSSInKB();
+
+size_t count_resident_pages(const void* data, size_t size);
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

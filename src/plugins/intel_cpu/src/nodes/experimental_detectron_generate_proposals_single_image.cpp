@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,21 +28,24 @@
 #    include <immintrin.h>
 #endif
 
+#include "cpu_parallel.hpp"
 #include "experimental_detectron_generate_proposals_single_image.h"
-#include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 namespace ov::intel_cpu::node {
 namespace {
 
 struct Indexer4d {
-    int dim3_;
-    int dim23_;
-    int dim123_;
+    size_t dim3_;
+    size_t dim23_;
+    size_t dim123_;
 
-    explicit Indexer4d(int dim1, int dim2, int dim3) : dim3_(dim3), dim23_(dim2 * dim3), dim123_(dim1 * dim2 * dim3) {}
+    explicit Indexer4d(size_t dim1, size_t dim2, size_t dim3)
+        : dim3_(dim3),
+          dim23_(dim2 * dim3),
+          dim123_(dim1 * dim2 * dim3) {}
 
-    int operator()(int i, int j, int k, int n) const {
+    size_t operator()(size_t i, size_t j, size_t k, size_t n) const {
         return i * dim123_ + j * dim23_ + k * dim3_ + n;
     }
 };
@@ -51,23 +54,24 @@ void refine_anchors(const float* deltas,
                     const float* scores,
                     const float* anchors,
                     float* proposals,
-                    const int anchors_num,
-                    const int bottom_H,
-                    const int bottom_W,
+                    const size_t anchors_num,
+                    const size_t bottom_H,
+                    const size_t bottom_W,
                     const float img_H,
                     const float img_W,
                     const float min_box_H,
                     const float min_box_W,
                     const float max_delta_log_wh,
-                    float coordinates_offset) {
-    Indexer4d delta_idx(4, bottom_H, bottom_W);
-    Indexer4d score_idx(1, bottom_H, bottom_W);
-    Indexer4d proposal_idx(bottom_W, anchors_num, 5);
-    Indexer4d anchor_idx(bottom_W, anchors_num, 4);
+                    float coordinates_offset,
+                    const std::shared_ptr<CpuParallel>& cpuParallel) {
+    Indexer4d delta_idx(4U, bottom_H, bottom_W);
+    Indexer4d score_idx(1U, bottom_H, bottom_W);
+    Indexer4d proposal_idx(bottom_W, anchors_num, 5U);
+    Indexer4d anchor_idx(bottom_W, anchors_num, 4U);
 
-    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-        for (int anchor = 0; anchor < anchors_num; ++anchor) {
-            int a_idx = anchor_idx(h, w, anchor, 0);
+    cpuParallel->parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
+        for (size_t anchor = 0; anchor < anchors_num; ++anchor) {
+            size_t a_idx = anchor_idx(h, w, anchor, 0);
             float x0 = anchors[a_idx + 0];
             float y0 = anchors[a_idx + 1];
             float x1 = anchors[a_idx + 2];
@@ -111,7 +115,7 @@ void refine_anchors(const float* deltas,
             const float box_w = x1 - x0 + coordinates_offset;
             const float box_h = y1 - y0 + coordinates_offset;
 
-            int p_idx = proposal_idx(h, w, anchor, 0);
+            auto p_idx = proposal_idx(h, w, anchor, 0);
             proposals[p_idx + 0] = x0;
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
@@ -122,8 +126,11 @@ void refine_anchors(const float* deltas,
     });
 }
 
-void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
-    parallel_for(pre_nms_topn, [&](size_t i) {
+void unpack_boxes(const float* p_proposals,
+                  float* unpacked_boxes,
+                  size_t pre_nms_topn,
+                  const std::shared_ptr<CpuParallel>& cpuParallel) {
+    cpuParallel->parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
         unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
         unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -136,13 +143,13 @@ void nms_cpu(const int num_boxes,
              int is_dead[],
              const float* boxes,
              int index_out[],
-             int* const num_out,
+             size_t* const num_out,
              const int base_index,
              const float nms_thresh,
-             const int max_num_out,
+             const size_t max_num_out,
              float coordinates_offset) {
-    const int num_proposals = num_boxes;
-    int count = 0;
+    const auto num_proposals = num_boxes;
+    size_t count = 0;
 
     const float* x0 = boxes + 0 * num_proposals;
     const float* y0 = boxes + 1 * num_proposals;
@@ -267,17 +274,18 @@ void fill_output_blobs(const float* proposals,
                        const int* roi_indices,
                        float* rois,
                        float* scores,
-                       const int num_proposals,
-                       const int num_rois,
-                       const int post_nms_topn) {
+                       const size_t num_proposals,
+                       const size_t num_rois,
+                       const size_t post_nms_topn,
+                       const std::shared_ptr<CpuParallel>& cpuParallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_score = proposals + 4 * num_proposals;
 
-    parallel_for(num_rois, [&](size_t i) {
-        int index = roi_indices[i];
+    cpuParallel->parallel_for(num_rois, [&](size_t i) {
+        size_t index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
         rois[i * 4 + 2] = src_x1[index];
@@ -286,10 +294,10 @@ void fill_output_blobs(const float* proposals,
     });
 
     if (num_rois < post_nms_topn) {
-        for (int i = 4 * num_rois; i < 4 * post_nms_topn; i++) {
+        for (size_t i = 4 * num_rois; i < 4 * post_nms_topn; i++) {
             rois[i] = 0.F;
         }
-        for (int i = num_rois; i < post_nms_topn; i++) {
+        for (size_t i = num_rois; i < post_nms_topn; i++) {
             scores[i] = 0.F;
         }
     }
@@ -349,6 +357,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
 
 void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
+        const auto& cpuParallel = context->getCpuParallel();
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             CPU_NODE_THROW("Incorrect number of input or output edges!");
         }
@@ -384,11 +393,11 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
         auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
         auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
-        const int anchors_num = scoreDims[0];
+        const auto anchors_num = scoreDims[0];
 
         // bottom shape: (num_anchors) x H x W
-        const int bottom_H = deltaDims[1];
-        const int bottom_W = deltaDims[2];
+        const auto bottom_H = deltaDims[1];
+        const auto bottom_W = deltaDims[2];
 
         // input image height & width
         const float img_H = p_img_info_cpu[0];
@@ -401,13 +410,13 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
         const float min_box_W = min_size_;
 
         // number of all proposals = num_anchors * H * W
-        const int num_proposals = anchors_num * bottom_H * bottom_W;
+        const auto num_proposals = anchors_num * bottom_H * bottom_W;
 
         // number of top-n proposals before NMS
-        const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
+        const auto pre_nms_topn = std::min(num_proposals, pre_nms_topn_);
 
         // number of final RoIs
-        int num_rois = 0;
+        size_t num_rois = 0;
 
         // enumerate all proposals
         //   num_proposals = num_anchors * H * W
@@ -438,8 +447,9 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                            img_W,
                            min_box_H,
                            min_box_W,
-                           static_cast<const float>(std::log(1000. / 16.)),
-                           1.0F);
+                           static_cast<float>(std::log(1000. / 16.)),
+                           1.0F,
+                           cpuParallel);
             std::partial_sort(proposals_.begin(),
                               proposals_.begin() + pre_nms_topn,
                               proposals_.end(),
@@ -447,8 +457,8 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn);
-            nms_cpu(pre_nms_topn,
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn, cpuParallel);
+            nms_cpu(static_cast<int>(pre_nms_topn),
                     is_dead.data(),
                     unpacked_boxes.data(),
                     roi_indices_.data(),
@@ -463,7 +473,8 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                               p_roi_score_item,
                               pre_nms_topn,
                               num_rois,
-                              post_nms_topn_);
+                              post_nms_topn_,
+                              cpuParallel);
         }
     } catch (const std::exception& e) {
         CPU_NODE_THROW(e.what());

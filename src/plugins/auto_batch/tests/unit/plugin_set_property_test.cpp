@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ public:
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_plugin;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<set_property_params> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<set_property_params>& obj) {
         const auto& [properties, throw_exception] = obj.param;
         std::string res = "";
         if (properties.size() > 0) {

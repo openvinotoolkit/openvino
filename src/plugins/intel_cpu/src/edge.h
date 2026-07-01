@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ public:
     [[nodiscard]] int getOutputNum() const;
 
     void setChildPort(const size_t port) {
-        child_port = port;
+        child_port = static_cast<int>(port);
     }
 
     void sharedMemFrom(const EdgePtr& edge);

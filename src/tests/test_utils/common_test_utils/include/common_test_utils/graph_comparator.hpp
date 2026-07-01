@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,10 @@ public:
         fc.enable(TENSOR_NAMES);
         fc.enable(SUBGRAPH_DESCRIPTORS);
         return fc;
+    }
+
+    static FunctionsComparator all_flags_enabled() noexcept {
+        return FunctionsComparator{static_cast<CmpValues>(~0)};
     }
 
     FunctionsComparator& enable(CmpValues f) noexcept {

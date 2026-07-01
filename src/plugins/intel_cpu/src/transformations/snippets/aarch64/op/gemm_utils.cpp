@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include <cstddef>
 
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -20,14 +22,14 @@ namespace ov::intel_cpu::aarch64::gemm_utils::repacking {
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& gemm_expr) {
     OPENVINO_ASSERT(ov::is_type<GemmCPU>(gemm_expr->get_node()),
                     "get_copy_b_expr must be called only for GemmCPU node");
-    auto b_input_expr = gemm_expr->get_input_port_connector(1)->get_source().get_expr();
+    auto b_input_expr = gemm_expr->get_input_expr_ptr(1);
     if (ov::is_type<GemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
     }
     if (ov::is_type<RepackedWeightsBufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() == 1,
                         "RepackedWeightsBufferExpression on gemm's B input must has one input");
-        auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
+        auto input_buffer_expr = b_input_expr->get_input_expr_ptr(0);
         if (ov::is_type<GemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
         }
@@ -36,13 +38,50 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
 }
 
 size_t get_inner_n_block(const ov::element::Type& precision) {
-    OPENVINO_ASSERT(precision == element::f32, "Only f32 is supported for snippets Matmul");
-    return 8;
+    if (precision == element::f32) {
+        return 8;
+    }
+    if (precision == element::f16) {
+        return 16;
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM inner N block: ", precision.get_type_name());
 }
 
 size_t get_k_pad_size(const ov::element::Type& precision) {
-    OPENVINO_ASSERT(precision == element::f32, "Only f32 is supported for snippets Matmul");
-    return 1;
+    if (precision == element::f32 || precision == element::f16) {
+        return 1;
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM K pad size: ", precision.get_type_name());
+}
+
+size_t get_rhs_packed_offset(const ov::element::Type& precision, size_t n_idx, size_t K) {
+    if (precision == element::f32) {
+        return kai_get_rhs_packed_offset_rhs_pack_kxn_x32p16x1b_x32_x32_neon(n_idx, K);
+    }
+    if (precision == element::f16) {
+        return kai_get_rhs_packed_offset_rhs_pack_kxn_x16p32x1b_x16_x16_neon(n_idx, K);
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM RHS packed offset: ", precision.get_type_name());
+}
+
+size_t get_rhs_packed_size(const ov::element::Type& precision, size_t N, size_t K) {
+    if (precision == element::f32) {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_x32p16x1b_x32_x32_neon(N, K);
+    }
+    if (precision == element::f16) {
+        return kai_get_rhs_packed_size_rhs_pack_kxn_x16p32x1b_x16_x16_neon(N, K);
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM RHS packed size: ", precision.get_type_name());
+}
+
+size_t get_rhs_packed_n_step(const ov::element::Type& precision) {
+    if (precision == element::f32) {
+        return kai_get_n_step_rhs_pack_kxn_x32p16x1b_x32_x32_neon();
+    }
+    if (precision == element::f16) {
+        return kai_get_n_step_rhs_pack_kxn_x16p32x1b_x16_x16_neon();
+    }
+    OPENVINO_THROW("Unsupported precision for aarch64 GEMM RHS packed N step: ", precision.get_type_name());
 }
 
 }  // namespace ov::intel_cpu::aarch64::gemm_utils::repacking

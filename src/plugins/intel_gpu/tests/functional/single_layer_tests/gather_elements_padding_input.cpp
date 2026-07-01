@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <algorithm>
@@ -27,7 +27,7 @@ using GatherElementsPaddingInputParams = std::tuple<std::tuple<
 class GatherElementsPaddingInputTest : public testing::WithParamInterface<GatherElementsPaddingInputParams>,
                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherElementsPaddingInputParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherElementsPaddingInputParams>& obj) {
         const auto& [input_params, input_precision] = obj.param;
         const auto& [input_shape, axis, numSplits] = input_params;
 

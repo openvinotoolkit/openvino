@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
@@ -21,6 +21,7 @@ def convert_model(
         extension: [str, pathlib.Path, list, Any] = None,
         verbose: bool = False,
         share_weights: bool = True,
+        dynamo: bool = False,
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -95,6 +96,15 @@ def convert_model(
             then mmap is used to allocate weights directly from file. If input model is
             runtime object, then original memory regions allocated in the original model
             are reused for weights in the converted model.
+        :param dynamo:
+            Export a PyTorch torch.nn.Module using torch.export instead of
+            torch.jit.trace. Requires example_input and PyTorch >= 2.6.
+            Default is False.
+            The resulting model uses static shapes derived from example_input by default.
+            To enable dynamic dimensions, combine with the input parameter:
+            dimensions set to -1 or Dimension(-1) become fully dynamic
+            (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
+            are exported with explicit min/max constraints.
 
     Returns:
         openvino.Model

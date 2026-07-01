@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ public:
     const primitive_id& get_execution_condition_id() const { return execution_condition_id; }
     const primitive_id& get_num_iterations_id() const { return num_iterations_id; }
 
-    const int32_t get_max_num_iteration() const { return get_primitive()->max_num_iterations; }
+    int32_t get_max_num_iteration() const { return get_primitive()->max_num_iterations; }
 
     const std::vector<loop::io_primitive_map>& get_input_primitive_maps() const { return input_primitive_maps; }
     const std::vector<loop::io_primitive_map>& get_output_primitive_maps() const { return output_primitive_maps; }

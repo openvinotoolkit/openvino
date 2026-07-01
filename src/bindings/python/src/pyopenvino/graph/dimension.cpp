@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ void regclass_graph_Dimension(py::module m) {
                 :type max_dimension: int
             )");
 
-    dim.def(py::init<const std::string&>(), py::arg("str"));
+    dim.def(py::init<std::string_view>(), py::arg("str"));
 
     dim.def_static("dynamic", &ov::Dimension::dynamic);
 
@@ -81,7 +81,7 @@ void regclass_graph_Dimension(py::module m) {
             R"(
                 Return this dimension as integer.
                 This dimension must be static and non-negative.
-                
+
                 :return: Value of the dimension.
                 :rtype: int
             )");

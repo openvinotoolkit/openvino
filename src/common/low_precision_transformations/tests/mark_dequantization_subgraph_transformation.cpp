@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/opsets/opset10_decl.hpp"
@@ -8,7 +8,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -781,7 +781,7 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
 
 TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
     // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
-    // are marked with the 'disable_fp16_compression' attribute
+    // are marked with the 'DisablePrecisionConversion' attribute
 
     auto quantization_dt = element::u16;
     auto dequantization_dt = element::f32;
@@ -805,15 +805,15 @@ TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
         auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
         auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
         auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
-        disable_fp16_compression(convert);
+        disable_conversion(convert, element::f16);
         auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
         auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
-        disable_fp16_compression(convert_on_zero_point);
+        disable_conversion(convert_on_zero_point, element::f16);
         auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
-        disable_fp16_compression(subtract);
+        disable_conversion(subtract, element::f16);
         auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
         auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
-        disable_fp16_compression(multiply);
+        disable_conversion(multiply, element::f16);
         auto add = std::make_shared<opset10::Add>(parameter, multiply);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{add});
     }
@@ -855,7 +855,7 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
     // Once this issue is fixed, the test should be migrated to the new TransformationTestsF infrastructure.
 
     // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
-    // are marked with the 'disable_fp16_compression' attribute, and dequantization subgraph is folded
+    // are marked with the 'DisablePrecisionConversion' attribute, and dequantization subgraph is folded
     // during Constant Folding (called from ConvertPrecision pass), using f32 data type for constants.
 
     std::shared_ptr<Model> model, model_ref;
@@ -903,7 +903,7 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFoldingWith
     // Once this issue is fixed, the test should be migrated to the new TransformationTestsF infrastructure.
 
     // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
-    // are marked with the 'disable_fp16_compression' attribute, and dequantization subgraph is folded
+    // are marked with the 'DisablePrecisionConversion' attribute, and dequantization subgraph is folded
     // during Constant Folding (called from ConvertPrecision pass), using f32 data type and finally
     // converted to the f16 data type.
 
@@ -943,6 +943,59 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFoldingWith
     auto func_comparator = FunctionsComparator::with_default();
     auto result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationFQMarkup) {
+    // After KeepDequantizationPrecision all Converts, Subtract, and Multiply nodes
+    // are marked with the 'DisablePrecisionConversion' attribute
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{ 1 });
+        auto fq = std::make_shared<opset10::FakeQuantize>(parameter,
+            opset10::Constant::create(element::f32, Shape{}, { 0 }),
+            opset10::Constant::create(element::f32, Shape{}, { 20 }),
+            opset10::Constant::create(element::f32, Shape{}, { 0 }),
+            opset10::Constant::create(element::f32, Shape{}, { 65536 }),
+            65535);
+        auto convert1 = std::make_shared<opset10::Convert>(fq, quantization_dt);
+        auto convert2 = std::make_shared<opset10::Convert>(convert1, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, { 65535 });
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert2, convert_on_zero_point);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, { 0.2 });
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        model = std::make_shared<ov::Model>(ov::OutputVector{ multiply });
+
+
+    }
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{ quantization_dt });
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{ 1 });
+        auto fq = std::make_shared<opset10::FakeQuantize>(parameter,
+            opset10::Constant::create(element::f32, Shape{}, { 0 }),
+            opset10::Constant::create(element::f32, Shape{}, { 20 }),
+            opset10::Constant::create(element::f32, Shape{}, { 0 }),
+            opset10::Constant::create(element::f32, Shape{}, { 65536 }),
+            65535);
+        auto convert1 = std::make_shared<opset10::Convert>(fq, quantization_dt);
+        disable_conversion(convert1, element::f16);
+        auto convert2 = std::make_shared<opset10::Convert>(convert1, dequantization_dt);
+        disable_conversion(convert2, element::f16);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, { 65535 });
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        disable_conversion(convert_on_zero_point, element::f16);
+        auto subtract = std::make_shared<opset10::Subtract>(convert2, convert_on_zero_point);
+        disable_conversion(subtract, element::f16);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, { 0.2 });
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        disable_conversion(multiply, element::f16);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ multiply });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
 inline std::shared_ptr<Model> make_gather_model(element::Type data_type,

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,6 +70,8 @@ public:
     const std::vector<PortDescriptorPtr>& get_output_port_descriptors() const {
         return m_output_port_descriptors;
     }
+
+    ExpressionPtr get_input_expr_ptr(size_t i) const;
 
     size_t get_input_count() const {
         return m_input_port_connectors.size();

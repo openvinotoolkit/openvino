@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,6 +141,12 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params) const 
 Datatype DeconvolutionKernelBase::GetAccumulatorType(const deconvolution_params& params) const {
     if (params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8)
         return Datatype::INT32;
+
+    // Use fp32 accumulator for dilated fp16 deconvolutions to avoid precision loss
+    // during accumulation with large effective kernel sizes.
+    if (params.inputs[0].GetDType() == Datatype::F16 &&
+        (params.dilation.x > 1 || params.dilation.y > 1 || params.dilation.z > 1))
+        return Datatype::F32;
 
     // input is either fp32 or fp16
     // for fp32->fp16 accumulate to fp16, otherwise accumulate to input type

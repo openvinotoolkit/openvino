@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,10 +59,7 @@ bool MatMulTransformation::transform(ov::pass::pattern::Matcher &m) {
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
-            const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fakeQuantize);
-            const auto precisions = precisionsAttribute.empty() ?
-                defaultPrecisions :
-                precisionsAttribute.as<PrecisionsAttribute>().value();
+            const auto precisions = getOutputPrecisionAttribute(fakeQuantize->output(0)).value_or(defaultPrecisions);
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
             if (dataPrecision.empty()) {
                 return false;

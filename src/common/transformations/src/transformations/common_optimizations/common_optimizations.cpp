@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,11 @@
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/fq_concat_fusion.hpp"
+#include "transformations/common_optimizations/fq_eliminate_sequential.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
@@ -84,6 +87,7 @@
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
+#include "transformations/op_conversions/convert_one_hot_v16_to_v1.hpp"
 #include "transformations/op_conversions/convert_pad12_downgrade.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
@@ -241,15 +245,20 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertScatterNDUpdate15ToScatterNDUpdate3)
     REGISTER_PASS(manager, ConvertSliceScatter)
     REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
+    REGISTER_PASS(manager, ConvertOneHot16To1)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
+    ADD_MATCHER(fq_fusions, FakeQuantizeConcatFusion)
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, FuseClampAndFakeQuantize)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
+
+    REGISTER_PASS(manager, FakeQuantizeEliminateSequential)
 
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins

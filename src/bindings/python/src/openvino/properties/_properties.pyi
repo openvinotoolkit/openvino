@@ -6,7 +6,7 @@ from collections.abc import Callable
 import collections.abc
 import sys as sys
 import typing
-__all__ = ['BuiltinFunctionType', 'Callable', 'ModuleType', 'Property', 'sys']
+__all__: list[str] = ['BuiltinFunctionType', 'Callable', 'ModuleType', 'Property', 'sys']
 class Property(str):
     """
     This class allows to make a string object callable. Call returns underlying string's data.

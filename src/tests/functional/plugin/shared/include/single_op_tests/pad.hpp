@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@ TEST_P(PadLayerTest, Inference) {
 }
 
 TEST_P(Pad12LayerTest, Inference) {
+    run();
+}
+
+TEST_P(PadStringLayerTest, Inference) {
     run();
 }
 }  // namespace test

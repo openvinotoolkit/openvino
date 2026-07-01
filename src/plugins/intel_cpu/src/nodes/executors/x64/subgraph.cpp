@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <iostream>
 #include <memory>
-#include <mutex>
 #include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -23,7 +20,6 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/input_repacker.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -32,7 +28,12 @@
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+#    include <iostream>
+#    include <mutex>
+#    include <string>
+
+#    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 #endif
 
@@ -138,7 +139,7 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
 
     m_buffer_scratchpad = allocator(m_internal_buffer_size + external_buffer_size);
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(
         snippet_attrs->snippet->get_generator()->get_target_machine());
     enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
@@ -175,14 +176,15 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
     }
 }
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 void SubgraphExecutor::segfault_detector() const {
     static std::mutex err_print_lock;
     if (enabled_segfault_detector) {
-        __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
+        auto signal_handler = []([[maybe_unused]] int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto* segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
+            if (auto* segfault_detector_emitter =
+                    ov::intel_cpu::g_custom_segfault_handler<ov::intel_cpu::jit_uni_segfault_detector_emitter>->local()) {
                 std::cout << segfault_detector_emitter->info() << '\n';
             }
             auto tid = parallel_get_thread_num();
@@ -292,7 +294,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs
         OPENVINO_THROW("Uknown RepackingImplType");
     }
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     segfault_detector();
 #endif
 
@@ -351,7 +353,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
         OPENVINO_THROW("Uknown RepackingImplType");
     }
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     segfault_detector();
 #endif
 

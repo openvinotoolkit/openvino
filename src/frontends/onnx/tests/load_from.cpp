@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "load_from.hpp"
@@ -7,6 +7,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <fstream>
+#include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "onnx_utils.hpp"
@@ -30,10 +31,8 @@ static LoadFromFEParam getTestData() {
 }
 
 TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
-    const auto path =
-        ov::util::path_join(
-            {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx"})
-            .string();
+    const auto path = ov::util::path_join(
+        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx"});
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::istream* is = &ifs;
@@ -66,8 +65,7 @@ TEST_P(FrontEndLoadFromTest, load_model_not_exists_at_path) {
 
 TEST_P(FrontEndLoadFromTest, load_model_and_apply_ppp) {
     auto model_file_path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, m_param.m_stream})
-            .string();
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, m_param.m_stream});
 
     m_frontEnd = m_fem.load_by_model(model_file_path);
     const auto fe_model = m_frontEnd->load(model_file_path);
@@ -101,7 +99,7 @@ using ::ONNX_NAMESPACE::Version;
 
 TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64) {
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"}).string();
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::vector<std::string> frontends;
@@ -129,7 +127,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64) {
 
 TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64_Negative) {
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"}).string();
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::vector<std::string> frontends;
@@ -159,3 +157,21 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64_Negative) {
                     testing::HasSubstr("unsupported IR version"));
 }
 // !!! End of Experimental feature !!!
+
+TEST(FrontEndInputModel, InitializersAreNotModelInputs) {
+    ov::frontend::FrontEnd::Ptr fe;
+    auto input_model = ov::frontend::onnx::tests::load_model("regression/initializer_shares_input_name.onnx", &fe);
+    ASSERT_NE(input_model, nullptr);
+
+    auto inputs = input_model->get_inputs();
+    ASSERT_EQ(inputs.size(), 1);
+
+    std::vector<std::string> input_names;
+    input_names.reserve(inputs.size());
+    for (const auto& place : inputs) {
+        ASSERT_FALSE(place->get_names().empty());
+        input_names.push_back(place->get_names().front());
+    }
+
+    EXPECT_THAT(input_names, ElementsAre("data"));
+}

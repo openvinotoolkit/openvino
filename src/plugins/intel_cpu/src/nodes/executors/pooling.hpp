@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/op/util/attr_types.hpp"
+#include "post_ops.hpp"
 
 namespace ov::intel_cpu {
 
@@ -44,6 +45,8 @@ struct PoolingAttrs {
     /// Effective dilation. Used to define correct dilation for OneDNN.
     /// For OneDNN default dilation is vector of zero
     std::vector<ptrdiff_t> effective_dilation;
+
+    PostOps postOps;
 };
 
 class PoolingExecutor {

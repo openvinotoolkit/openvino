@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -32,6 +33,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -84,6 +86,10 @@ inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_no
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
+
+// Returns the normalized Softmax axis when the node is a Softmax with a static rank.
+// Returns nullopt if the node is null, has a dynamic rank, or is not a supported Softmax version.
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node);
 
 template <typename T, typename... Args>
 constexpr bool any_of(T val, Args... items) {
@@ -167,16 +173,11 @@ inline std::string value2str(const T& value) {
 
 template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 std::string vector2str(const std::vector<T>& values) {
-    std::ostringstream str;
-    bool first = true;
-    for (auto& v : values) {
-        if (!first) {
-            str << ",";
-        }
-        str << value2str(v);
-        first = false;
-    }
-    return str.str();
+    std::vector<std::string> string_values(values.size());
+    std::transform(values.cbegin(), values.cend(), string_values.begin(), [](const auto& v) {
+        return value2str(v);
+    });
+    return ov::util::join(string_values, ",");
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
@@ -392,5 +393,13 @@ void visit_path(const lowered::ExpressionPtr& expr,
  * @return A string representation of the tensor.
  */
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
+
+/**
+ * @brief check if the expression should be connected from all expanded loop iterations for passes such as register
+ * assignment.
+ * @param expr The expression to be checked.
+ * @return Returns true if full connectors are needed, false otherwise.
+ */
+bool need_full_connectors(const lowered::ExpressionPtr& expr);
 
 }  // namespace ov::snippets::utils

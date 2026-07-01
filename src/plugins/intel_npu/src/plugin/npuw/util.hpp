@@ -1,14 +1,18 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <future>
+#include <optional>
+#include <random>
 #include <string>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -33,6 +37,31 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
+
+// Matches the three DynamicQuantize decomposition implementations declared in
+// kv_cache_compressed.hpp.
+enum class DynamicQuantDecomposeMode {
+    // V1: handcrafted symmetric-style path, i8 range [-127, 127].
+    HandcraftedSymmetricI8 = 1,
+
+    // V2: ONNX DynamicQuantizeLinear-style path, u8 range [0, 255].
+    OnnxDynamicQuantizeLinear = 2,
+
+    // V3: compiler pattern-style path. i8 requests are materialized as u8
+    // storage for the asymmetric decomposition branch.
+    CompilerPatternI8 = 3,
+};
+
+struct DynamicQuantStorageTypes {
+    ov::element::Type quantized_data_type = ov::element::dynamic;
+    ov::element::Type zero_point_type = ov::element::dynamic;
+    ov::element::Type scale_type = ov::element::f32;
+};
+
+DynamicQuantStorageTypes resolve_dynamic_quant_storage_types(DynamicQuantDecomposeMode decompose_mode,
+                                                             bool is_symmetric,
+                                                             const ov::element::Type& quant_dt,
+                                                             const ov::element::Type& scale_dt = ov::element::f32);
 
 struct UnpackOptions {
     bool bUseOvParallelFor;
@@ -75,6 +104,8 @@ ov::Tensor to_f16(const ov::Tensor& t);
 ov::Tensor transpose(const ov::Tensor& t);
 ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
+
+void permute_i4d(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const std::array<int, 4> order);
 
 // Start is inclusive, end is exclusive
 using range_1d = std::pair<std::size_t, std::size_t>;
@@ -134,6 +165,12 @@ struct Impl {
     const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
         return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
+
+    template <typename K>
+    V at_or(const K& k, const V& default_val) const {
+        const auto iter = m->find(k);
+        return iter != m->end() ? iter->second : default_val;
+    }
 };
 
 template <typename M>
@@ -169,6 +206,8 @@ struct Unique {
     }
 };
 
+std::string generate_random_string(std::size_t size = 32);
+
 using TensorPtr = ov::SoPtr<ov::ITensor>;
 TensorPtr allocMem(const ov::element::Type type,
                    const ov::Shape& shape,
@@ -182,6 +221,134 @@ bool matchLoRAMatMulAString(const std::string& input);
 bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
+
+bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
+
+bool starts_with_past_lincache(const std::string& input_name);
+
+// Structure to hold SDPA pattern nodes.
+// After SplitKVCacheIntoBlocks the single past_key / past_value parameter is
+// replaced by N block parameters, so both param-node fields are vectors.
+// For the unmodified (non-block) case each vector contains exactly one element.
+struct SDPAPatternNodes {
+    std::shared_ptr<ov::Node> matmul1_node = nullptr;
+    std::shared_ptr<ov::Node> matmul2_node = nullptr;
+    std::shared_ptr<ov::Node> softmax_node = nullptr;
+    std::shared_ptr<ov::Node> add_node = nullptr;
+    // 1 (contiguous) or N (block-split) Parameter nodes feeding the KV Concat.
+    std::vector<std::shared_ptr<ov::Node>> past_key_param_nodes;
+    std::vector<std::shared_ptr<ov::Node>> past_value_param_nodes;
+    std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
+    std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
+
+    bool is_valid() const {
+        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_concat_node &&
+               past_value_concat_node;
+    }
+
+    // Log pattern information for debugging. prefix is optional.
+    void log_pattern(const std::string& prefix = "") const {
+        LOG_DEBUG("SDPA Pattern " << prefix << " nodes:");
+        LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
+        LOG_DEBUG(
+            "  Value Concat: " << (past_value_concat_node ? past_value_concat_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Past key params: " << past_key_param_nodes.size());
+        LOG_DEBUG("  Past value params: " << past_value_param_nodes.size());
+    }
+};
+
+// Find the decomposed SDPA sub-graph pattern (MatMul->Add->Softmax->MatMul) in a
+// model and return all relevant nodes.  Returns an invalid result if not found.
+SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
+
+// Traverse upward from an Add node's mask input to find the attention-mask
+// Parameter.  Only unary ops are traversed; returns nullptr on failure.
+std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
+
+template <typename T>
+void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
+    T* tensor_data = tensor->data<T>();
+    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
+}
+
+void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val);
+
+template <class T>
+typename std::underlying_type<T>::type _v(T&& t) {
+    return static_cast<typename std::underlying_type<T>::type>(t);
+}
+
+template <class T>
+class Delayed {
+public:
+    T& get() {
+        return const_cast<T&>(get_impl());
+    }
+    // FIXME: since main purpose of this is to guard closure,
+    // even const get should wait for the future to finish,
+    // otherwise it's not ready yet (e.g. .size() method).
+    const T& get() const {
+        return get_impl();
+    }
+    T& unsafe_get() {
+        return data;
+    }
+    void set_future(std::shared_future<void>& f) {
+        future = f;
+    }
+    void wait() const {
+        if (!done && future.valid()) {
+            future.wait();
+            done = true;
+        }
+    }
+
+private:
+    const T& get_impl() const {
+        if (done)
+            return data;
+        if (future.valid()) {
+            future.wait();
+            done = true;
+        }
+        return data;
+    }
+
+    T data;
+    std::shared_future<void> future;
+    mutable bool done = false;
+};
+
+// Matches only the contiguous (non-block-split) past key param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesKeyContiguous(const std::string& str);
+// Matches only the contiguous (non-block-split) past value param. Returns the layer index if matched.
+std::optional<int> isPastKeyValuesValueContiguous(const std::string& str);
+
+// Backward compatibility: Alias for isPastKeyValuesKeyContiguous
+inline std::optional<int> isPastKeyValuesKey(const std::string& str) {
+    return isPastKeyValuesKeyContiguous(str);
+}
+// Backward compatibility: Alias for isPastKeyValuesValueContiguous
+inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
+    return isPastKeyValuesValueContiguous(str);
+}
+
+std::optional<int> isPresentKeyValuesKey(const std::string& str);
+std::optional<int> isPresentKeyValuesValue(const std::string& str);
+
+// Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
+bool isPastKeyParam(const std::string& str);
+// Matches any past value param: contiguous or block-split.
+bool isPastValueParam(const std::string& str);
+
+// To remove input KV params that got badly matched in StatefulToStateless pass
+// in Whisper model.
+bool isRestoredPastKeyValueParam(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

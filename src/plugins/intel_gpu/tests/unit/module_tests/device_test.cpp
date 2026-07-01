@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ TEST(devices_test, sort_order_single_vendor) {
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::discrete_gpu, device_id++));
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::discrete_gpu, device_id++));
 
-    auto sorted_list = ocl::ocl_device_detector::sort_devices(devices_list);
+    auto sorted_list = sort_devices(devices_list);
 
     std::vector<size_t> expected_devices_order = {2, 0, 1, 3, 4};
 
@@ -77,7 +77,7 @@ TEST(devices_test, sort_order_two_vendors) {
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::discrete_gpu, device_id++));
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::integrated_gpu, device_id++));
 
-    auto sorted_list = ocl::ocl_device_detector::sort_devices(devices_list);
+    auto sorted_list = sort_devices(devices_list);
 
     std::vector<size_t> expected_devices_order = {3, 2, 0, 1};
 
@@ -101,7 +101,7 @@ TEST(devices_test, sort_order_three_vendors) {
     devices_list.push_back(std::make_shared<dummy_device>(OTHER_VENDOR_ID2, device_type::discrete_gpu, device_id++));
     devices_list.push_back(std::make_shared<dummy_device>(OTHER_VENDOR_ID2, device_type::discrete_gpu, device_id++));
 
-    auto sorted_list = ocl::ocl_device_detector::sort_devices(devices_list);
+    auto sorted_list = sort_devices(devices_list);
 
     std::vector<size_t> expected_devices_order = {2, 3, 0, 1, 4, 5};
 
@@ -150,6 +150,9 @@ TEST(devices_test, is_same_device) {
 
     ASSERT_TRUE(new_device->is_same(orig_device));
 
+    // To disable the short path in sameness check
+    new_device->get_device() = cl::Device();
+
     auto new_device_info = new_device->get_info();
     auto orig_uuid = new_device_info.uuid.uuid;
     new_device_info.uuid.uuid[0] += 1;
@@ -197,7 +200,7 @@ TEST(devices_test, on_demand_initialization) {
         auto ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(device.second);
         auto should_be_initialized = ocl_device->get_info().vendor_id == cldnn::INTEL_VENDOR_ID;
         ASSERT_EQ(ocl_device->is_initialized(), should_be_initialized);
-        ASSERT_EQ(ocl_device->get_device().get() != nullptr, should_be_initialized);
+        ASSERT_EQ(ocl_device->get_device().get() != nullptr, true);
         ASSERT_EQ(ocl_device->get_context().get() != nullptr, should_be_initialized);
         ASSERT_FALSE(ocl_device->get_info().execution_units_count == 0);
         ASSERT_FALSE(ocl_device->get_info().vendor_id == 0);

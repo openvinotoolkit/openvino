@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ using StaticEltwiseDynamicFusionsParams = std::tuple<std::vector<InputShape>,   
 class StaticEltwiseDynamicFusions : public testing::WithParamInterface<StaticEltwiseDynamicFusionsParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<StaticEltwiseDynamicFusionsParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<StaticEltwiseDynamicFusionsParams>& obj) {
         const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;

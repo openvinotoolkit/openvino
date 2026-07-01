@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 abs_path () {
@@ -100,8 +100,8 @@ if command -v lsb_release >/dev/null 2>&1; then
 fi
 
 PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="9"
-MAX_SUPPORTED_PYTHON_VERSION_MINOR="13"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="10"
+MAX_SUPPORTED_PYTHON_VERSION_MINOR="14"
 
 check_python_version () {
     if [ -z "$python_version" ]; then
@@ -113,9 +113,12 @@ check_python_version () {
         python_version_minor=$( python3 -c "import sys; print(str(\"${python_version}\".split('.')[1]))" )
     fi
 
+    # Strip non-numeric suffix from minor version (e.g., 14t -> 14)
+    python_version_minor_numeric="${python_version_minor%%[!0-9]*}"
+
     if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
-        [ "$python_version_minor" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
-        [ "$python_version_minor" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
+        [ "$python_version_minor_numeric" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
+        [ "$python_version_minor_numeric" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
         echo "[setupvars.sh] WARNING: Unsupported Python version ${python_version}. Please install one of Python" \
         "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
         "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"

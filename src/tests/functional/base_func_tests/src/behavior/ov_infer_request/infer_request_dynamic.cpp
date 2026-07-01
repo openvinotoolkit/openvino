@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -587,6 +587,9 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     ov::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, target_device, configuration)), ov::Exception);
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVNotSupportRequestDynamicTests);
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

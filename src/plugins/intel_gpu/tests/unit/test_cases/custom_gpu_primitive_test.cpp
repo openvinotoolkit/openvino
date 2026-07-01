@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values(input, {
@@ -98,7 +98,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
                           18.f,17.5f,   15.f,   22.f,
                           2.f,   6.f,   7.5f,  5.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -171,7 +171,7 @@ void add_basic_in2x2x2x2_with_reorder()
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
     topology.add(reorder("to_float", input_info("user_kernel"), { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
 
@@ -204,7 +204,7 @@ void add_basic_in2x2x2x2_with_reorder()
         18.f,17.f,   15.f,   22.f,
         2.f,   6.f,   8.f,  6.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -272,7 +272,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values(input, {
@@ -305,7 +305,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
         19.f, 18.5f,  16.f,  23.f,
          3.f,   7.f,  8.5f,  6.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -364,7 +364,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=1",
-        output_layout,
+        { output_layout },
         gws));
     topology.add(eltwise("eltwise", { input_info("user_kernel"), input_info("input2") }, eltwise_mode::sum));
 
@@ -398,7 +398,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
         19.f, 18.5f,  16.f,  23.f,
         3.f,   7.f,  8.5f,  6.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -464,7 +464,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=1",
-        output_layout,
+        { output_layout },
         gws));
     topology.add(custom_gpu_primitive(
         "user_kernel2",
@@ -473,7 +473,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=3",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values(input, {
@@ -493,7 +493,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
 
     auto output = outputs.at("user_kernel2").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
@@ -530,7 +530,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
         entry_point,
         parameters,
         "-cl-mad-enable",
-        output_layout,
+        { output_layout },
         gws));
 
     set_values<T>(input, {

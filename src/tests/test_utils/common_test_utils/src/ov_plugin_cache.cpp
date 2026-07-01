@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,8 @@ void register_plugin(ov::Core& ov_core) noexcept {
     }
 }
 
-void register_template_plugin(ov::Core& ov_core) noexcept {
+void register_template_plugin([[maybe_unused]] ov::Core& ov_core) noexcept {
+#if !defined(ENABLE_TEMPLATE_REGISTRATION)
     auto plugin_path =
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                            std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
@@ -35,6 +36,7 @@ void register_template_plugin(ov::Core& ov_core) noexcept {
         OPENVINO_THROW("Plugin: " + plugin_path + " does not exists!");
     }
     ov_core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
+#endif
 }
 
 ov::Core create_core(const std::string& in_target_device) {
@@ -69,7 +71,7 @@ ov::Core create_core(const std::string& in_target_device) {
                 ov_core.set_property(config_device, global_plugin_config);
             } catch (...) {
                 OPENVINO_THROW("Property " + property.first +
-                               ", which was tryed to set in --config file, is not supported by " + target_device);
+                               ", which was tried to set in --config file, is not supported by " + target_device);
             }
         }
     }

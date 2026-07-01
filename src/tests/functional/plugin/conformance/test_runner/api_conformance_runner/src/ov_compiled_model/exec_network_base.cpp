@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/compiled_model/compiled_model_base.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
+
+namespace ov::test::behavior {
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledModelSetType);
+}  // namespace ov::test::behavior
 
 namespace {
 using namespace ov::test::behavior;

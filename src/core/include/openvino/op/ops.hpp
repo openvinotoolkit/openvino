@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@
 #include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
@@ -83,6 +84,7 @@
 #include "openvino/op/grn.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/group_normalization.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/hard_sigmoid.hpp"

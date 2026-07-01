@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,11 +38,10 @@ enum class ExecutorType : uint8_t {
     Dnnl,
     Acl,
     Mlas,
-    Shl,
     Kleidiai,
 };
 
-enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise };
+enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise, GatherMatmul, GatedDeltaNet };
 
 std::string ExecutorTypeToString(ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
@@ -61,7 +60,8 @@ public:
           engine(graphContext->getEngine()),
           implPriorities(std::move(implPriorities)),
           privateWeighCache(std::move(privateWeighCache)),
-          numNumaNodes(graphContext->getNumNumaNodes()) {
+          numNumaNodes(graphContext->getNumNumaNodes()),
+          cpuParallel(graphContext->getCpuParallel()) {
         auto cpuStreamsExecutor = graphContext->getCPUStreamExecutor();
         curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
     }
@@ -92,6 +92,14 @@ public:
         return weightsCache;
     }
 
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return cpuParallel;
+    }
+
+    [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {
+        return cpuParallel->get_thread_pool();
+    }
+
 private:
     // weak_ptr is required to avoid cycle dependencies with MultiCache
     // since ExecutorContext is stored in Executor itself
@@ -104,6 +112,7 @@ private:
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache;
     int numNumaNodes;
     int curNumaNodeId = -1;
+    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 class ExecutorFactoryLegacy {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,11 +21,24 @@ class SparseTensor {
 public:
     SparseTensor() = delete;
     SparseTensor(const SparseTensorProto& sparse_tensor,
-                 const std::string& model_dir,
+                 const std::filesystem::path& model_dir,
                  detail::MappedMemoryHandles mmap_cache)
         : m_values{sparse_tensor.values(), model_dir, mmap_cache},
           m_indices{sparse_tensor.indices(), model_dir, mmap_cache},
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {
+        if (m_shape == ov::Shape{0}) {
+            // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
+            // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
+            // In OpenVINO a scalar is represented with ov::Shape{} and thus this replacement.
+            m_shape = ov::Shape{};
+        }
+    }
+    SparseTensor(const std::shared_ptr<TensorONNXPlace>& values,
+                 const std::shared_ptr<TensorONNXPlace>& indices,
+                 const ov::PartialShape& shape)
+        : m_values{values},
+          m_indices{indices},
+          m_shape{shape.get_shape()} {
         if (m_shape == ov::Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
@@ -44,7 +57,7 @@ public:
         return m_shape;
     }
 
-    const std::string& get_name() const {
+    const std::string get_name() const {
         return m_values.get_name();
     }
 

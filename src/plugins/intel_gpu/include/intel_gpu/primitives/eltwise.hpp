@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,9 @@ enum class eltwise_mode : int32_t {
     /// @brief Eltwise bitwise or.
     bitwise_or,
     /// @brief Eltwise bitwise xor.
-    bitwise_xor
+    bitwise_xor,
+    /// @brief Eltwise atan2(y, x). Two-input. fp16/fp32 only.
+    atan2
 };
 
 /// @brief Performs elementwise operations (sum, subtract, max or product) on two input primitives

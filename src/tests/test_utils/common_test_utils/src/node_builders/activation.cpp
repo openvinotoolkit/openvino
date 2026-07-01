@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/op/cosh.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/gelu.hpp"
@@ -148,6 +149,8 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
         return std::make_shared<ov::op::v7::Gelu>(in, ov::op::GeluApproximationMode::TANH);
     case ov::test::utils::ActivationTypes::SoftSign:
         return std::make_shared<ov::op::v9::SoftSign>(in);
+    case ov::test::utils::ActivationTypes::ErfInv:
+        return std::make_shared<ov::op::v17::ErfInv>(in);
     case ov::test::utils::ActivationTypes::IsFinite:
         return std::make_shared<ov::op::v10::IsFinite>(in);
     case ov::test::utils::ActivationTypes::IsInf:

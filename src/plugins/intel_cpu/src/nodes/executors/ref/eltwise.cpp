@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cpu/primitive_attr_postops.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/eltwise_executor.hpp"
@@ -29,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/erfinv.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -133,7 +135,9 @@ size_t EltwiseRefBaseExecutor<T>::getBatchDimIdx() const {
 }
 
 template <typename T>
-void EltwiseRefBaseExecutor<T>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {}
+void EltwiseRefBaseExecutor<T>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                     const VectorDims& dims_out,
+                                     const CpuParallelPtr& cpu_parallel) {}
 
 template <typename T>
 void EltwiseRefBaseExecutor<T>::init_ptr(const jit_eltwise_call_args_ptrs& args_ptrs,
@@ -205,8 +209,8 @@ void EltwiseRefBaseExecutor<T>::initializeDimsAndOffsets(const VectorDims& outBl
 
 template <typename T>
 void EltwiseRefBaseExecutor<T>::offset_out_calc(VectorDims& offset, const VectorDims& dims) {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
+    size_t k = 1;
+    for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
         offset[i] = k;
         k *= dims[i];
     }
@@ -216,8 +220,8 @@ template <typename T>
 void EltwiseRefBaseExecutor<T>::offset_in_calc(VectorDims& offset,
                                                const VectorDims& dims_in,
                                                const VectorDims& dims_out) {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
+    size_t k = 1;
+    for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
         offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
         k *= dims_in[i];
     }
@@ -228,12 +232,14 @@ template <typename T, typename Enable>
 EltwiseRefExecutor<T, Enable>::EltwiseRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
 
 template <typename T, typename Enable>
-void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {
+void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                         const VectorDims& dims_out,
+                                         const CpuParallelPtr& cpu_parallel) {
     // Handle special cases first
     if (this->m_opData.algo == Algorithm::EltwiseLog) {
         const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
         T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
-        parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+        cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
             dst_ptr_f[i] = logf(src_ptr_f[i]);
         });
         return;
@@ -243,12 +249,12 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
         const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
         T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
         if (this->m_opData.alpha == 2) {
-            parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+            cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
                 dst_ptr_f[i] = (this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma) *
                                (this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma);
             });
         } else {
-            parallel_for(this->m_fullWorkAmount, [&](size_t i) {
+            cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
                 dst_ptr_f[i] = powf(this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma, this->m_opData.alpha);
             });
         }
@@ -366,7 +372,14 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] || src_f[1];
                 break;
             case Algorithm::EltwiseLogicalXor:
-                *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]);
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#endif
+                *dst_ptr_f = static_cast<T>((src_f[0] || src_f[1]) - (src_f[0] && src_f[1]));
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
                 break;
             case Algorithm::EltwiseLogicalNot:
                 *dst_ptr_f = !src_f[0];
@@ -379,6 +392,9 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 break;
             case Algorithm::EltwiseSoftSign:
                 *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0]));
+                break;
+            case Algorithm::EltwiseErfInv:
+                *dst_ptr_f = static_cast<T>(ov::reference::func::erfinv(static_cast<float>(src_f[0])));
                 break;
             // @todo implement proper isinfinite for non-float precisions
             case Algorithm::EltwiseIsFinite:
@@ -411,7 +427,9 @@ template <typename T, typename Enable>
 BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
 
 template <typename T, typename Enable>
-void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {
+void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                         const VectorDims& dims_out,
+                                         [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
         size_t end = 0;

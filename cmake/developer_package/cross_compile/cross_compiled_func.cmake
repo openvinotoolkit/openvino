@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -149,6 +149,14 @@ function(_clone_source_to_target_with_archs TARGET SOURCE ARCH_SET)
 
         set_property(SOURCE ${ARCH_SOURCE} APPEND_STRING PROPERTY COMPILE_OPTIONS
                 "${_FLAGS_${_arch}}")
+
+        if(ENABLE_LTO AND LINUX AND AARCH64 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            # GCC LTO may merge target options from runtime-dispatched AArch64
+            # variants into baseline code during the final link. Keep these
+            # ISA-specific clones as regular objects so each variant preserves
+            # its own compile-time architecture while generic code stays generic.
+            set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
+        endif()
 
         set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY COMPILE_DEFINITIONS
                 ${_DEFINE_${_arch}}

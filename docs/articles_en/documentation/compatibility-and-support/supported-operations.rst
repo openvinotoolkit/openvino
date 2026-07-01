@@ -9,7 +9,7 @@ Here, you will find comprehensive information on operations supported by OpenVIN
 conformance reports provide operation coverage for inference devices, while the tables list
 operations available for all OpenVINO framework frontends.
 
-Data as of OpenVINO 2024.4, 18 Oct. 2024.
+Data as of OpenVINO 2025.4.1 (December 18, 2025).
 
 **Device-operation conformance reports:**
 
@@ -141,7 +141,7 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        GlobalMaxPool
        Greater
        GreaterOrEqual
-       GridSample
+       GridSample                                  Only 4D input tensors are supported.
        GroupNormalization
        GRU
        HammingWindow
@@ -211,13 +211,16 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Reshape
        Resize
        ReverseSequence
+       RMSNormalization
        RNN
        RoiAlign
+       RotaryEmbedding
        Round
        Scan
        ScatterElements
        ScatterND
        Selu
+       SequenceAt
        Shape
        Shrink
        Sigmoid
@@ -231,6 +234,7 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Softsign
        SpaceToDepth
        Split
+       SplitToSequence
        Sqrt
        Squeeze
        STFT

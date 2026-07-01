@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ using EltwiseMergeParams = std::tuple<std::vector<InputShape>,  // input shapes
 
 class EltwiseMerge : public testing::WithParamInterface<EltwiseMergeParams>, virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EltwiseMergeParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseMergeParams>& obj) {
         const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;

@@ -1,9 +1,9 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #define DECLARE_LOWER_BOUND(Name, Type, ValType, GetIndex)                                        \
-    inline Type* FUNC(Name)(const Type* data, uint first_index, uint last_index, ValType value) { \
+    inline uint FUNC(Name)(const Type* data, uint first_index, uint last_index, ValType value) { \
         uint count = last_index - first_index;                                                    \
         while (count > 0) {                                                                       \
             const uint step = count / 2;                                                          \
@@ -19,7 +19,7 @@
     }
 
 #define DECLARE_UPPER_BOUND(Name, Type, ValType, GetIndex)                                        \
-    inline Type* FUNC(Name)(const Type* data, uint first_index, uint last_index, ValType value) { \
+    inline uint FUNC(Name)(const Type* data, uint first_index, uint last_index, ValType value) { \
         uint count = last_index - first_index;                                                    \
         while (count > 0) {                                                                       \
             const uint step = count / 2;                                                          \

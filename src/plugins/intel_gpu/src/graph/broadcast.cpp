@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,6 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
     }
-
 
     ov::op::v3::Broadcast op;
     op.set_broadcast_spec(desc->broadcast_mode);
@@ -138,10 +137,14 @@ void broadcast_inst::on_execute() {
 void broadcast_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
 
     build_deps();
+
+    if (input_memory_ptr() == nullptr)
+        return;
+
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gmock/gmock.h>
@@ -25,7 +25,7 @@ protected:
     std::vector<std::string> expectedScheDevs;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [devicesInfo, schedulePolicy, numOfInferRequests, expectedScheDevs] = obj.param;
         std::ostringstream result;
         std::string candidateDevList;

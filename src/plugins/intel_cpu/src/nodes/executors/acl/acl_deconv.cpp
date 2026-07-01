@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/deconv.hpp"
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/parallel.hpp"
@@ -234,10 +235,10 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
 bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
                                                  const std::vector<MemoryDescPtr>& srcDescs,
                                                  const std::vector<MemoryDescPtr>& dstDescs) {
-    if ((srcDescs[0]->getShape().getDims().size() != 3 && srcDescs[0]->getShape().getDims().size() != 4) ||
-        dstDescs[0]->getShape().getDims().size() != srcDescs[0]->getShape().getDims().size() ||
+    VERIFY(aclSupported({srcDescs[0], dstDescs[0]}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    if (srcDescs[0]->getShape().getDims().size() != 4 || dstDescs[0]->getShape().getDims().size() != 4 ||
         srcDescs[1]->getShape().getDims().size() != 4) {
-        DEBUG_LOG("AclDeconvExecutor does not support dimension:",
+        DEBUG_LOG("AclDeconvExecutor only supports 4D tensors:",
                   " src[0]=",
                   srcDescs[0]->getShape().getDims().size(),
                   " src[1]=",

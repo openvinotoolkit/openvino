@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,8 +95,8 @@ protected:
 TEST_P(SubgraphCacheTest, CompareWithRefs) {
     run();
 
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Subgraph", 2);
+    CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Subgraph", 2);
 }
 
 namespace {

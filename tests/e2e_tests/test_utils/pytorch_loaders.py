@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
@@ -6,6 +6,7 @@ import os
 import sys
 
 import torch
+from huggingface_hub import snapshot_download
 
 
 class LoadPyTorchModel:
@@ -70,7 +71,8 @@ def load_cadene_model(module, args):
 
 def load_hugging_face_model(module, args):
     module = importlib.import_module(module)
-    model = module.AutoModel.from_pretrained(args['model-name'], torchscript=True)
+    model_cached = snapshot_download(args['model-name'])  # required to avoid HF rate limits
+    model = module.AutoModel.from_pretrained(model_cached, torchscript=True)
 
     return model
 

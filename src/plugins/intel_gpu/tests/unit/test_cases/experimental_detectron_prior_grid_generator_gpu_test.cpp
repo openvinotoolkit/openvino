@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ public:
         auto result = network->execute();
 
         auto out_mem = result.at(experimental_detectron_prior_grid_generator_id).get_memory();
-        cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         for (size_t i = 0; i < params.expectedOutput.size(); ++i) {

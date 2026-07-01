@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,7 +126,7 @@ private:
     bool sort_index = false;
     bool stable = false;
     bool mode_max = false;
-    int axis = 0;
+    size_t axis = 0;
     static const size_t TOPK_DATA = 0;
     static const size_t TOPK_K = 1;
     static const size_t TOPK_INDEX = 1;

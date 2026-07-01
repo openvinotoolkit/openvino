@@ -186,7 +186,6 @@ Example:
     <skip_config>
         <message>TensorIterator layer is not supported</message>
         <filters>
-            <filter>.*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*</filter>
             <filter>.*OVInferRequestDynamicTests.*</filter>
             <filter>.*OVInferenceChaining.*</filter>
         </filters>
@@ -196,9 +195,29 @@ Example:
     <skip_config>
         <message>Tests with unsupported precision</message>
         <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=AUTO.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=AUTO.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data types not supported by NPU3720 PV Driver.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f64.*</filter>
         </filters>
     </skip_config>
 
@@ -380,20 +399,9 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#85493 -->
-    <skip_config>
-        <message>Runs only on NPU3720 with Level Zero enabled #85493</message>
-        <enable_rules>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E###### -->
     <skip_config>
-        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported</message>
+        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + PLUGIN is not supported</message>
         <filters>
             <filter>.*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*</filter>
         </filters>
@@ -575,6 +583,16 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Output I4 / U4 precision is not currently supported.</message>
+        <filters>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
+            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- E#109040 -->
     <skip_config>
         <message>Disabled tests for NPU3720</message>
@@ -582,21 +600,17 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=i16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u64.*</filter>
             <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
         </filters>
     </skip_config>
 
     <!-- E#112064 -->
     <skip_config>
-        <message>Failing common core threading tests</message>
+        <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <!-- INFERENCE_PRECISION_HINT = FP32 not supported on NPU -->
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
         </filters>
@@ -607,10 +621,11 @@ Example:
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
             <operating_system>windows</operating_system>
         </enable_rules>
         <filters>
-            <filter>.*CoreThreadingTest.smoke_QueryModel/.*_driverVersion=1688.*</filter>
+            <filter>.*CoreThreadingTest.smoke_QueryModel/.*</filter>
         </filters>
     </skip_config>
 
@@ -674,7 +689,7 @@ Example:
 
     <!-- E#118045 -->
     <skip_config>
-        <message>NPU needs to implement ROITensor logic in zero_infer_request</message>
+        <message>A property with the name of the tensors must be set to support ROI Tensors</message>
         <filters>
             <filter>.*OVInferRequestInferenceTests.Inference_ROI_Tensor/roi_nchw.*</filter>
         </filters>
@@ -683,9 +698,14 @@ Example:
     <!-- E#116761 -->
     <skip_config>
         <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+            <operating_system>windows</operating_system>
+        </enable_rules>
         <filters>
-            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*</filter>
         </filters>
     </skip_config>
 
@@ -717,7 +737,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>NPU cannot set properties for compiled models</message>
+        <message>NPU cannot set properties for compiled models except CACHE_ENCRYPTION_CALLBACKS, but is not convertible to string</message>
         <filters>
             <filter>.*OVClassCompiledModelSetCorrectConfigTest.canSetConfig.*</filter>
         </filters>
@@ -762,48 +782,169 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
-    <!-- C#165445 -->
+    <!-- E#170977 -->
     <skip_config>
-        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
+        <message>Data type u1/u2 not supported by NPU3720.</message>
         <enable_rules>
-            <device>!3720</device>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data type u1 not supported by NPU4000 and NPU5010.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Tests skipped to reduce overall log length</message>
+        <filters>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <enable_rules>
+            <device>5010</device>
         </enable_rules>
         <filters>
             <filter>.*OVBlobCompatibilityNPU.*</filter>
         </filters>
     </skip_config>
 
-    <!-- E#170977 -->
     <skip_config>
-        <message>Skip tests with u2 precision not supported on NPU3720.</message>
+        <message>Set of caching properties that are not suported by PV driver</message>
         <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CompileModelLoadFromCacheTest.*EXECUTION_MODE_HINT.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*INFERENCE_PRECISION_HINT.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_BATCH_COMPILER_MODE_SETTINGS.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_BATCH_MODE.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_COMPILER_DYNAMIC_QUANTIZATION.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_DYNAMIC_SHAPE_TO_STATIC.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_MAX_TILES.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_TILES.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#206393 -->
+    <skip_config>
+        <message>Skip memory standard allocation tests for Win NPU3720 due to OS issue, E#206393.</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*</filter>
         </filters>
     </skip_config>
 
-    <!-- E#168772 -->
+    <!-- C#187111 -->
     <skip_config>
-        <message>Tests currently skipped until dynamic batch is fully supported (need NPU compiler alignment/driver update)</message>
+        <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
         <filters>
-            <filter>.*DynamicBatchingRunSeqTests.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.*</filter>
+            <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*ENABLE_WEIGHTLESS.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#185847 -->
+    <skip_config>
+        <message>Write only (WO) properties will return empty ov::Any objects</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVPropertiesTests.canSetPropertyAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
+            <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
+            <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
         </filters>
     </skip_config>
 
     <skip_config>
-        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
+        <message>PV driver cannot compile models securely</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
         <filters>
-            <filter>.*WeightsSeparationOneShotTests.*</filter>
+            <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Exclusive Async Request is not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestPropertiesTest.canSetExclusiveAsyncRequests.*</filter>
+            <filter>.*InferRequestPropertiesTest.ReusableCPUStreamsExecutor.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#216296 -->
+    <skip_config>
+        <message>Test failed with compile error.</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*SerializationTestNPUW.CompiledModelPhase0CompatibilityExportSucceedsWithStaticAttention.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#218923 -->
+    <skip_config>
+        <message>The tests crash when compiling MaxPool model on NPU4000 and NPU5010</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithHostCompileTests.*model=MaxPool.*</filter>
         </filters>
     </skip_config>
 

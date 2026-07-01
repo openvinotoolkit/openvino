@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const path = require("path");
@@ -41,6 +41,13 @@ const testModels = {
   },
   reluModel: {
     xml: getModelPath("relu_model.xml"),
+  },
+  reluLargeModel: {
+    xml: getModelPath("relu_large_model.xml"),
+    inputShape: [1, 3, 1024, 1024],
+    outputShape: [1, 3, 1024, 1024],
+    inputName: "data",
+    outputName: "relu_out",
   },
 };
 

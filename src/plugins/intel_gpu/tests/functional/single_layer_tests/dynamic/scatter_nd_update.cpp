@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ typedef std::tuple<
 class ScatterUpdateLayerGPUTest : public testing::WithParamInterface<ScatterUpdateParams>,
                                     virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ScatterUpdateParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ScatterUpdateParams>& obj) {
         const auto& [scatterParams, model_type, idx_type] = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;

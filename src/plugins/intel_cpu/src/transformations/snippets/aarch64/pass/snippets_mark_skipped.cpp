@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
@@ -42,6 +42,10 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/multiply.hpp"
+#    include "transformations/utils.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -97,7 +101,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
     const auto rank_w = out_weights.get_partial_shape().rank();
     return out_weights.get_partial_shape().is_static() && rank_a.is_static() && rank_w.is_static() &&
            rank_a.get_length() != 1 && rank_w.get_length() != 1 && rank_w.get_length() <= 3 &&
-           ov::op::util::is_on_constant_path(out_weights);
+           ov::op::util::is_on_path<ov::op::v0::Constant>(out_weights);
 }
 
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node>& node) {
@@ -171,7 +175,8 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int f
             }
             const auto bias_port = 1 - in.get_index();
             const auto bias_out = node->input_value(bias_port);
-            if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out)) {
+            if ((bias_out.get_target_inputs().size() > 1) ||
+                !ov::op::util::is_on_path<ov::op::v0::Constant>(bias_out)) {
                 break;
             }
             const auto& bias_pshape = bias_out.get_partial_shape();
@@ -255,8 +260,39 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::op::v0::MatMul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
-           ov::op::util::is_on_constant_path(node->input_value(1));
+           ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
+
+#if defined(OPENVINO_ARCH_ARM64)
+bool isACLInt8PoolingFQChainMarked(const std::shared_ptr<Node>& node) {
+    if (!match_acl_int8_pooling_fq_chain(node)) {
+        return false;
+    }
+
+    snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    snippets::pass::SetSnippetsNodeType(node->get_input_node_shared_ptr(0),
+                                        snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    return true;
+}
+
+bool isACLInt8ConvFQChainMarked(const std::shared_ptr<Node>& node) {
+    if (!match_acl_int8_conv_fq_chain(node)) {
+        return false;
+    }
+    snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(node->get_input_node_shared_ptr(0));
+    if (!mul) {
+        return true;
+    }
+    snippets::pass::SetSnippetsNodeType(mul, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    if (const auto add = ov::as_type_ptr<ov::op::v1::Add>(mul->get_input_node_shared_ptr(0)); add) {
+        snippets::pass::SetSnippetsNodeType(add, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    }
+    return true;
+}
+#endif
 
 }  // namespace
 
@@ -267,6 +303,14 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (is_skipped_op(node)) {
             continue;
         }
+#if defined(OPENVINO_ARCH_ARM64)
+        if (isACLInt8PoolingFQChainMarked(node)) {
+            continue;
+        }
+        if (isACLInt8ConvFQChainMarked(node)) {
+            continue;
+        }
+#endif
         // We perform this check separately because we mark here only weights path
         // Matmul itself will be checked further
         if (isSuitableMatMulWithConstantPath(node)) {

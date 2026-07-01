@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ enum cpu_isa_bit_t : unsigned {
     d_bit = 1U << 4,
     c_bit = 1U << 5,
     v_bit = 1U << 6,  // rvv 1.0
+    zvfh_bit = 1U << 7,
 
     last_bit = 1U << (cpu_isa_total_bits - 1),
 };
@@ -27,6 +28,7 @@ enum cpu_isa_t : unsigned {
     isa_undef = 0U,
     g = i_bit | m_bit | a_bit | f_bit | d_bit,  // G = IMAFD
     gv = g | v_bit,
+    gv_zvfh = gv | zvfh_bit,
     isa_all = ~0U & ~last_bit
 };
 

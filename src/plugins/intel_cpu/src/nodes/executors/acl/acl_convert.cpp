@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/convert.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -56,7 +57,7 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
             return false;
         }
     } else {
-        Status s = NECast::validate(&srcTensorInfo, &dstTensorInfo, ConvertPolicy::SATURATE);
+        Status s = NECast::validate(&srcTensorInfo, &dstTensorInfo, ConvertPolicy::WRAP);
         if (!s) {
             DEBUG_LOG("NECast validation failed: ", s.error_description());
             return false;
@@ -74,7 +75,7 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
     } else {
         acl_cast = std::make_unique<NECast>();
         configureThreadSafe([&] {
-            acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::SATURATE);
+            acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::WRAP);
         });
     }
     return true;
@@ -98,8 +99,9 @@ void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vec
 }
 
 bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
-                                            [[maybe_unused]] const MemoryDescPtr& srcDesc,
-                                            [[maybe_unused]] const MemoryDescPtr& dstDesc) const {
+                                            const MemoryDescPtr& srcDesc,
+                                            const MemoryDescPtr& dstDesc) const {
+    VERIFY(aclSupported({srcDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (none_of(convertParams.srcPrc,
                     ov::element::i8,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
+    , m_prim_inst(info.m_release_variable_inst)
     , m_transpose_required(info.transpose_required)
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
@@ -28,6 +29,11 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
 void VariableState::reset() {
     m_is_set = false;
     set_layout(m_initial_layout);
+    for (auto& user : m_prim_inst) {
+        if (const auto prim = user.lock(); prim) {
+            prim->release_variable();
+        }
+    }
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
@@ -92,7 +98,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
             upper_pad[pad_dim] = static_cast<ov::Dimension::value_type>(padded_size) - static_cast<ov::Dimension::value_type>(non_padded_size);
         }
     }
-    cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad, 0.f);
+    cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad);
     auto src_fmt = cldnn::format::get_default_format(src_rank);
     auto src_layout = cldnn::layout(ov::PartialShape(src_shape), state->get_element_type(), src_fmt, src_padd);
 

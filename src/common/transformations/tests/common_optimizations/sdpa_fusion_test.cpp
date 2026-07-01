@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -32,11 +33,13 @@ using namespace std;
 using namespace testing;
 
 using namespace ov;
-using namespace ov::op;
 using namespace ov::pass;
 using namespace ov::element;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 enum class InputType : int { Q, K, V, SDPA };
+enum class SinksSliceType : int { None, Slice, StridedSlice };
 
 class SDPA {
 public:
@@ -62,15 +65,19 @@ public:
         m_scale = new_scale;
     }
 
-    void set_sinks(const PartialShape& sinks_shape, const std::vector<size_t>& sinks_broadcast_shape) {
+    void set_sinks(const PartialShape& sinks_shape,
+                   const std::vector<size_t>& sinks_broadcast_shape,
+                   SinksSliceType sinks_slice_type = SinksSliceType::None) {
         // Adjust the code for sinks if you see other values for them.
         // For now, there has been only one model with sinks: gpt-oss
         with_sinks = true;
+        m_sinks_slice_type = sinks_slice_type;
         std::vector<size_t> broadcast_shape_value(sinks_broadcast_shape.begin(), sinks_broadcast_shape.end());
         auto broadcast_to_shape =
             v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
         auto sinks_param = make_shared<v0::Parameter>(element::f16, sinks_shape);
-        m_sinks = make_shared<v3::Broadcast>(sinks_param, broadcast_to_shape, BroadcastType::BIDIRECTIONAL);
+        m_sinks =
+            make_shared<ov::op::v3::Broadcast>(sinks_param, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         m_sinks_rank = sinks_broadcast_shape.size();
         params.push_back(sinks_param);
     }
@@ -84,6 +91,14 @@ public:
         multiply_k(scale);
     }
 
+    void squeeze(InputType which, const vector<int64_t>& axes) {
+        auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
+        nodes[which] = make_shared<op::v0::Squeeze>(nodes[which], axes_const);
+    }
+    void unsqueeze(InputType which, const vector<int64_t>& axes) {
+        auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
+        nodes[which] = make_shared<op::v0::Unsqueeze>(nodes[which], axes_const);
+    }
     void reshape(InputType which, const Shape& shape) {
         auto shape_const = op::v0::Constant::create(element::i64, {shape.size()}, shape);
         nodes[which] = make_shared<op::v1::Reshape>(nodes[which], shape_const, false);
@@ -105,6 +120,33 @@ public:
     void reshape_sdpa(const Shape& shape) {
         reshape(InputType::SDPA, shape);
     }
+
+    void unsqueeze_q(const vector<int64_t>& axes) {
+        unsqueeze(InputType::Q, axes);
+    }
+    void unsqueeze_k(const vector<int64_t>& axes) {
+        unsqueeze(InputType::K, axes);
+    }
+    void unsqueeze_v(const vector<int64_t>& axes) {
+        unsqueeze(InputType::V, axes);
+    }
+    void unsqueeze_sdpa(const vector<int64_t>& axes) {
+        unsqueeze(InputType::SDPA, axes);
+    }
+
+    void squeeze_q(const vector<int64_t>& axes) {
+        squeeze(InputType::Q, axes);
+    }
+    void squeeze_k(const vector<int64_t>& axes) {
+        squeeze(InputType::K, axes);
+    }
+    void squeeze_v(const vector<int64_t>& axes) {
+        squeeze(InputType::V, axes);
+    }
+    void squeeze_sdpa(const vector<int64_t>& axes) {
+        squeeze(InputType::SDPA, axes);
+    }
+
     void transpose_q(const vector<size_t>& order) {
         transpose(InputType::Q, order);
     }
@@ -153,25 +195,34 @@ public:
         }
 
         std::shared_ptr<ov::Node> softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
-        if (with_sinks) {
+        if (with_sinks && m_sinks_slice_type != SinksSliceType::None) {
             // Adjust the code for sinks if you see other values for them.
             // For now, there has been only one model with sinks: gpt-oss
-            std::vector<int> start(m_sinks_rank, 0);
-            std::vector<int> stop(m_sinks_rank, 0);
-            std::vector<int> step(m_sinks_rank, 1);
-            stop[stop.size() - 1] = -1;
+            if (m_sinks_slice_type == SinksSliceType::Slice) {
+                softmax = make_shared<op::v8::Slice>(softmax,
+                                                     v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                     v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                     v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                     v0::Constant::create(element::i64, Shape{1}, {m_sinks_rank - 1}));
+            } else {
+                std::vector<int> start(m_sinks_rank, 0);
+                std::vector<int> stop(m_sinks_rank, 0);
+                std::vector<int> step(m_sinks_rank, 1);
+                stop[stop.size() - 1] = -1;
 
-            std::vector<int64_t> begin_mask(m_sinks_rank, 1);
-            std::vector<int64_t> end_mask(m_sinks_rank, 1);
-            begin_mask[begin_mask.size() - 1] = 0;
-            end_mask[end_mask.size() - 1] = 0;
+                std::vector<int64_t> begin_mask(m_sinks_rank, 1);
+                std::vector<int64_t> end_mask(m_sinks_rank, 1);
+                begin_mask[begin_mask.size() - 1] = 0;
+                end_mask[end_mask.size() - 1] = 0;
 
-            softmax = make_shared<op::v1::StridedSlice>(softmax,
-                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
-                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
-                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
-                                                        begin_mask,
-                                                        end_mask);
+                softmax =
+                    make_shared<op::v1::StridedSlice>(softmax,
+                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
+                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
+                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
+                                                      begin_mask,
+                                                      end_mask);
+            }
         }
         auto output = make_shared<op::v0::MatMul>(softmax, nodes[InputType::V]);
 
@@ -179,7 +230,7 @@ public:
     }
 
     // fused ScaledDotProductAttention op
-    void create_reference_sdpa() {
+    void create_reference_sdpa(bool causal = false) {
         auto scale_const = op::v0::Constant::create(m_type, Shape{}, {m_scale});
 
         shared_ptr<Node> mask_input = m_mask;
@@ -258,7 +309,7 @@ private:
     bool with_mask = false;
     bool with_scale = false;
     bool with_sinks = false;
-    bool causal = false;
+    SinksSliceType m_sinks_slice_type = SinksSliceType::None;
 
     element::Type m_type = f32;
 
@@ -898,13 +949,13 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
 
 TEST_F(TransformationTestsF, SDPAFusionTest13) {
     const PartialShape query_shape{1, 64, 1, 64};
-    const PartialShape key_shape{1, 8, 8, 1, 64};
-    const PartialShape value_shape{1, 8, 8, 1, 64};
+    const PartialShape key_shape{1, 8, 8, 3, 64};
+    const PartialShape value_shape{1, 8, 8, 3, 64};
 
-    const PartialShape mask_shape{1, 1, 1, 1};
+    const PartialShape mask_shape{1, 1, 1, 3};
 
-    const Shape key_reshaped{1, 64, 1, 64};
-    const Shape value_reshaped{1, 64, 1, 64};
+    const Shape key_reshaped{1, 64, 3, 64};
+    const Shape value_reshaped{1, 64, 3, 64};
 
     const Shape sinks_shape{1, 64, 1, 1};
     std::vector<size_t> sinks_broadcast_shape{1, 64, 1, 1};
@@ -917,7 +968,56 @@ TEST_F(TransformationTestsF, SDPAFusionTest13) {
     {
         sdpa.set_mask(mask_shape);
         sdpa.set_scale(0.125f);
-        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape);
+        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape, SinksSliceType::Slice);
+
+        sdpa.reshape_k(key_reshaped);
+        sdpa.reshape_v(value_reshaped);
+
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa(final_order);
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        sdpa_ref.set_mask(mask_shape);
+        sdpa_ref.set_scale(0.125f);
+        sdpa_ref.set_sinks(sinks_shape, sinks_broadcast_shape);
+
+        sdpa_ref.reshape_k(key_reshaped);
+        sdpa_ref.reshape_v(value_reshaped);
+
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.transpose_sdpa(final_order);
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest14) {
+    const PartialShape query_shape{1, 64, 1, 64};
+    const PartialShape key_shape{1, 8, 8, 3, 64};
+    const PartialShape value_shape{1, 8, 8, 3, 64};
+
+    const PartialShape mask_shape{1, 1, 1, 3};
+
+    const Shape key_reshaped{1, 64, 3, 64};
+    const Shape value_reshaped{1, 64, 3, 64};
+
+    const Shape sinks_shape{1, 64, 1, 1};
+    std::vector<size_t> sinks_broadcast_shape{1, 64, 1, 1};
+
+    const Shape final_order{0, 2, 1, 3};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    {
+        sdpa.set_mask(mask_shape);
+        sdpa.set_scale(0.125f);
+        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape, SinksSliceType::StridedSlice);
 
         sdpa.reshape_k(key_reshaped);
         sdpa.reshape_v(value_reshaped);
@@ -1037,6 +1137,175 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMask) {
+    // Init.
+    const PartialShape query_shape{2, 49, 52};
+    const PartialShape key_shape{2, 49, 52};
+    const PartialShape value_shape{2, 49, 52};
+    const PartialShape mask_shape{-1, 1, 49, 49};
+    const Shape reshape_shape_4d{1, 2, 49, 52};
+    const Shape reshape_shape_3d{2, 49, 52};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    // SDPA model.
+    {
+        sdpa.reshape_q(reshape_shape_4d);
+        sdpa.reshape_k(reshape_shape_4d);
+        sdpa.reshape_v(reshape_shape_4d);
+        sdpa.set_mask(mask_shape);
+
+        sdpa.create_pattern_sdpa(true);
+
+        sdpa.reshape_sdpa(reshape_shape_4d);
+        sdpa.reshape_sdpa(reshape_shape_3d);
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.reshape_q(reshape_shape_4d);
+        sdpa_ref.reshape_k(reshape_shape_4d);
+        sdpa_ref.reshape_v(reshape_shape_4d);
+        sdpa_ref.set_mask(mask_shape);
+
+        sdpa_ref.create_reference_sdpa();
+
+        sdpa_ref.reshape_sdpa(reshape_shape_4d);
+        sdpa_ref.reshape_sdpa(reshape_shape_3d);
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
+    // Init.
+    const PartialShape query_shape{2, 49, 52};
+    const PartialShape key_shape{2, 49, 52};
+    const PartialShape value_shape{2, 49, 52};
+    const PartialShape mask_shape{-1, 1, 49, 49};
+    const Shape reshape_shape_4d{1, 2, 49, 52};
+    const Shape reshape_shape_3d{2, 49, 52};
+
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+
+    // SDPA model.
+    {
+        sdpa.reshape_q(reshape_shape_4d);
+        sdpa.reshape_k(reshape_shape_4d);
+        sdpa.reshape_v(reshape_shape_4d);
+        sdpa.set_mask(mask_shape);
+
+        sdpa.create_reference_sdpa(/*causal=*/true);
+
+        sdpa.reshape_sdpa(reshape_shape_4d);
+        sdpa.reshape_sdpa(reshape_shape_3d);
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_mask(mask_shape);
+
+        sdpa_ref.create_reference_sdpa(/*causal=*/true);
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+class SDPASqueezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+
+TEST_P(SDPASqueezeOutput, SDPAFusionTest_SqueezeOutput) {
+    // Parametrization
+    const auto& shape = GetParam();
+
+    SDPA sdpa(f16, shape, shape, shape);
+    SDPA sdpa_ref(f16, shape, shape, shape);
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa({1, 0});
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.unsqueeze_q({0});
+        sdpa_ref.unsqueeze_k({0});
+        sdpa_ref.unsqueeze_v({0});
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.squeeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({1, 0});
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPASqueezeOutput,
+                         Values(PartialShape{55, 128},   // Static 2D
+                                PartialShape{-1, 128},   // Dynamic batch
+                                PartialShape{55, -1},    // Dynamic embedding
+                                PartialShape{-1, -1}));  // Fully dynamic
+
+class SDPAUnsqueezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+
+TEST_P(SDPAUnsqueezeOutput, SDPAFusionTest_UnsqueezeOutput) {
+    // Parametrization
+    const auto& shape = GetParam();
+
+    SDPA sdpa(f16, shape, shape, shape);
+    SDPA sdpa_ref(f16, shape, shape, shape);
+
+    // SDPA model.
+    {
+        sdpa.set_mask({1, 1, shape[1], shape[1]});
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa({0, 1, 3, 2});
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_mask({1, 1, shape[1], shape[1]});
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.unsqueeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({0, 1, 3, 2});
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPAUnsqueezeOutput,
+                         Values(PartialShape{1, 55, 128},   // Static
+                                PartialShape{1, -1, 128},   // Dynamic batch
+                                PartialShape{1, 55, -1},    // Dynamic embedding
+                                PartialShape{1, -1, -1}));  // Fully dynamic
 
 TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     // Init.
@@ -1253,4 +1522,40 @@ TEST_F(TransformationTestsF, SDPAFusionTest_DynamicMaskScores) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// Regression test that locks in the order of `set_friendly_name` and `try_align_outputs` inside the
+// SDPAFusion callback. The fused SDPA must inherit the match-root's friendly name *before* the
+// alignment step runs, because `try_align_outputs` derives the wrapping reshape's name from the SDPA's
+// name with a "/Reshape" suffix. If a future refactor reorders these steps the assertions below fail.
+TEST(SDPAFusionTest, AlignedOutputFriendlyName) {
+    const PartialShape shape{55, 128};
+
+    auto q_param = make_shared<v0::Parameter>(f16, shape);
+    auto k_param = make_shared<v0::Parameter>(f16, shape);
+    auto v_param = make_shared<v0::Parameter>(f16, shape);
+
+    auto qk = make_shared<v0::MatMul>(q_param, k_param, false, true);
+    auto softmax = make_shared<ov::op::v8::Softmax>(qk, -1);
+    auto qkv = make_shared<v0::MatMul>(softmax, v_param, false, false);
+
+    constexpr auto kMatchRootName = "match_root";
+    qkv->set_friendly_name(kMatchRootName);
+
+    const auto model = make_shared<Model>(OutputVector{qkv}, ParameterVector{q_param, k_param, v_param});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAFusion>();
+    manager.run_passes(model);
+
+    const auto result = model->get_results().front();
+    const auto wrapping = result->get_input_node_shared_ptr(0);
+
+    ASSERT_TRUE(ov::is_type<v0::Squeeze>(wrapping))
+        << "Expected a Squeeze to wrap the SDPA output for 2D inputs (rank-3 SDPA → rank-2 match-root).";
+    EXPECT_EQ(wrapping->get_friendly_name(), std::string(kMatchRootName) + "/Reshape");
+
+    const auto fused_sdpa = wrapping->get_input_node_shared_ptr(0);
+    ASSERT_TRUE(ov::is_type<ov::op::v13::ScaledDotProductAttention>(fused_sdpa));
+    EXPECT_EQ(fused_sdpa->get_friendly_name(), kMatchRootName);
 }

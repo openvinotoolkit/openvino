@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -19,7 +20,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/log_softmax.hpp"
@@ -57,9 +57,9 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (dimsSize == 0) {
         dimsSize += 1;
     }
-    axis = static_cast<int>(logSoftMax->get_axis());
+    axis = logSoftMax->get_axis();
     if (axis < 0) {
-        axis += dimsSize;
+        axis += static_cast<int64_t>(dimsSize);
     }
 
     CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(1) + axis,
@@ -95,6 +95,7 @@ void LogSoftmax::prepareParams() {
     for (int i = 0; i < axis; i++) {
         axisStep *= dims[i];
     }
+    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(dims.size()), "has out of bound axis.");
     reducedAxisSize = dims[axis];
     for (size_t i = (axis + 1); i < dims.size(); i++) {
         reducedAxisStride *= dims[i];
@@ -106,11 +107,12 @@ void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     if (isLastDim) {
-        parallel_for(axisStep, [&](size_t i) {
+        cpu_parallel->parallel_for(axisStep, [&](size_t i) {
             const float* srcDataPtr = &srcData[i * reducedAxisSize];
             float* dstDataPtr = &dstData[i * reducedAxisSize];
 
@@ -126,7 +128,7 @@ void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
             }
         });
     } else {
-        parallel_for2d(axisStep, reducedAxisStride, [&](size_t k, size_t i) {
+        cpu_parallel->parallel_for2d(axisStep, reducedAxisStride, [&](size_t k, size_t i) {
             const float* srcDataPtr = &srcData[k * reducedAxisStride * reducedAxisSize + i];
             float* dstDataPtr = &dstData[k * reducedAxisStride * reducedAxisSize + i];
 

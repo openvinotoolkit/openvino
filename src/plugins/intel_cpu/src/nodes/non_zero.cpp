@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,7 +195,7 @@ void NonZero::executeSpecified() {
             size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
-                    dst[outputIndex] = i;
+                    dst[outputIndex] = static_cast<int>(i);
                     outputIndex++;
                 }
             });

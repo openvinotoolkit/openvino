@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,33 +6,72 @@ set(TARGET_NAME openvino_util)
 
 set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${UTIL_INCLUDE_DIR}/*.hpp)
+set(WIN32_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/os.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/parallel_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_memory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_mmap_object.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_shared_object_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/wstring_convert_util.cpp
+)
 
-if (WIN32)
-    # Remove linux specific files
-    file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-    list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
-else()
-    # Remove windows specific files
-    file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-    list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
-endif()
+set(UNIX_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_memory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_mmap_object.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/parallel_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/wstring_convert_util.cpp
+)
 
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
+add_library(${TARGET_NAME} STATIC)
 
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp"
     PROPERTIES COMPILE_DEFINITIONS OpenVINO_VERSION="${OpenVINO_VERSION}")
 
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
-add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+target_sources(${TARGET_NAME}
+    PRIVATE
+        # Headers
+        ${UTIL_INCLUDE_DIR}/openvino/pch/precomp_std.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/codec_xor.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/common_util.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/const_string.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/cpp_version.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/env_util.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/file_path.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/file_util.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/io.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/log.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/memory.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/mmap_object.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/os.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/ov_version.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/parallel_io.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/parallel_read_streambuf.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/pp.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/shared_object.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/util.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/variant_visitor.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/wstring_convert_util.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/xml_parse_utils.hpp
+
+        # Sources
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/codec_xor.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/common_util.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/env_util.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/file_path.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
+        # Windows specific sources
+        "$<$<BOOL:${WIN32}>:${WIN32_SOURCES}>"
+         # Unix specific sources
+        "$<$<BOOL:${UNIX}>:${UNIX_SOURCES}>"
+)
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)

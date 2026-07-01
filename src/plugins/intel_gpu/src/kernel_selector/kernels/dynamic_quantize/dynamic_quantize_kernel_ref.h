@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@ struct dynamic_quantize_params : public base_params {
     std::vector<uint64_t> scales_output_order;
     bool use_asymmetric_quantization = false;
     bool combine_scales_and_zp = false;
+    bool generate_precomputed_reduction = false;
+    bool is_int4_compressed = false;
 };
 
 class DynamicQuantizeKernelRef : public KernelBaseOpenCL {

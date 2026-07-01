@@ -1,0 +1,798 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "paged_attention_gen.hpp"
+
+#include <array>
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "paged_attention_inst.h"
+#include "primitive_cm_base.hpp"
+#include "primitive_inst.h"
+
+namespace ov::intel_gpu::cm {
+
+using namespace ov;
+using namespace ov::intel_gpu::ocl;
+using namespace cldnn;
+namespace {
+constexpr size_t reduce_split_step = 16;
+constexpr size_t KV_SUB_BLOCK_SIZE = 16;
+}  // namespace
+
+#define DEBUG_ENABLED 0
+
+inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage& stage) {
+    if (stage == PagedAttentionStage::PREFILL) {
+        auto key_shape = params.input_layouts[PagedAttentionInputIdx::KEY].get_shape();
+        const size_t kv_len = key_shape[key_shape.size() - 2];
+        return kv_len;
+    } else {
+        // key_cache shape = [block_num, head_num, block_size(128), head_size]
+        auto key_cache_shape = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_shape();
+        const size_t kv_len = key_cache_shape[0] * key_cache_shape[2];
+        return kv_len;
+    }
+    OPENVINO_ASSERT(false, "Unsupported PagedAttentionStage for get_kv_len");
+    return 0;  // Fallback case, should not be reached
+}
+
+inline size_t get_input_kv_len(const RuntimeParams& params) {
+    auto key_shape = params.input_layouts[PagedAttentionInputIdx::KEY].get_shape();
+    const size_t kv_len = key_shape[key_shape.size() - 2];
+    return kv_len;
+}
+
+inline bool get_kv_compressed(const RuntimeParams& params) {
+    auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+    if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// max_context_len = max(past_lens + prompt_lens)
+size_t get_max_context_len(const kernel_impl_params& params) {
+    const auto& input_mem = params.memory_deps;
+    const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
+    mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
+    const auto paged_attention_max_len = max_context_len_mem_lock[0];
+    return paged_attention_max_len;
+}
+
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts) {
+    const auto past_lens_shape = input_layouts[PagedAttentionInputIdx::PAST_LENS].get_shape();
+    OPENVINO_ASSERT(!past_lens_shape.empty(), "PAST_LENS layout must have at least 1 dimension");
+    return past_lens_shape[0];
+}
+
+// TODO: change xattn_thresh from scaler to memory... once we remove the converter node
+// between parameter node "xattention_threshold.xxx" and paged_attention node.
+float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
+    const auto desc = params.typed_desc<paged_attention>();
+    OPENVINO_ASSERT(desc->has_xattention, "XAttention threshold must be accessed only when has_xattention is true");
+
+    const auto& input_mem = params.memory_deps;
+    const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
+    if (it == input_mem.end() || it->second == nullptr) {
+        OPENVINO_THROW("XAttention threshold input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
+    }
+
+    const auto threshold_mem = it->second;
+    const auto dt = threshold_mem->get_layout().data_type;
+
+    if (dt == data_types::f16) {
+        mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return static_cast<float>(lock[seq_idx]);
+    }
+
+    if (dt == data_types::f32) {
+        mem_lock<float, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return lock[seq_idx];
+    }
+
+    OPENVINO_THROW("Unsupported xattention_threshold data type");
+}
+
+// Bypass xattn stages in the following conditions -
+// either threshold is larger than 1.0, or, q_len is too small
+// to compute xattn block_mask.
+bool bypass_xattn(const kernel_impl_params& params) {
+    bool bypass = false;
+    bool allow_bypass = params.get_program().get_config().get_allow_bypass_xattn();
+    if (allow_bypass) {
+        auto xattn_thresh = get_xattn_thresh(params);
+        bypass = xattn_thresh >= 1.0;
+    }
+
+    auto q_len = params.output_layouts[0].get_shape()[0];
+    bypass |= q_len < static_cast<size_t>(STRIDE);  //# will slient drop the tails which is less than `stride`
+    return bypass;
+}
+
+PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param) {
+    const auto& query_shape = impl_param.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
+    const auto& past_lens_shape = impl_param.get_input_layout(PagedAttentionInputIdx::PAST_LENS).get_partial_shape();
+
+    if (query_shape.is_static() && past_lens_shape.is_static()) {
+        if (query_shape[0].get_length() == past_lens_shape[0].get_length()) {
+            return PagedAttentionStage::GENERATE;
+        }
+
+        const auto& memory_deps = impl_param.memory_deps;
+        const auto past_lens_mem = memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
+        mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
+
+        const auto past_lens_size = past_lens_mem_lock.size();
+        for (size_t i = 0; i < past_lens_size; i++) {
+            if (past_lens_mem_lock[i] != 0) {
+                return PagedAttentionStage::MIXED;
+            }
+        }
+        return PagedAttentionStage::PREFILL;
+    }
+    return PagedAttentionStage::UNKNOWN;
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Base generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = KernelGenerator::get_jit_constants(params);
+    jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+
+    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    jit.make("XE_ARCH", xe_arch);
+
+    auto split_size = get_kv_split_size(xe_arch);
+    jit.make("KV_STEP", split_size.first);
+
+    jit.make("CAUSAL_MASK", 1);
+
+    // 0: no compression, 1: per-token compression for both key and value, 2: per-channel compression for key and per-token compression for value
+    if (get_kv_compressed(params)) {
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+        }
+    } else {
+        jit.make("KV_CACHE_COMPRESSION", 0);
+    }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
+
+    return jit;
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// KV cache update generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+
+    const auto desc = params.typed_desc<paged_attention>();
+    jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+    jit.make("K_HEAD_SIZE", desc->k_head_size);
+    jit.make("V_HEAD_SIZE", desc->v_head_size);
+    if (desc->has_xattention) {
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
+    }
+
+    if (get_kv_compressed(params)) {
+        if (desc->is_key_by_channel) {
+            jit.make("ADJUSTED_BLOCK_SIZE",
+                     desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4
+                                          : PA_KV_CACHE_BLOCK_SIZE_LEGACY + PA_KV_CACHE_BLOCK_SIZE_LEGACY / KV_SUB_BLOCK_SIZE * 4);
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+        } else {
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
+        }
+        jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
+    } else {
+        jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+        jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
+    }
+
+    return jit;
+}
+
+size_t PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(const RuntimeParams& params) {
+    constexpr size_t default_wg_size = 16;
+    const auto desc = params.typed_desc<paged_attention>();
+    if (get_kv_compressed(params) && desc->is_key_by_channel) {
+        const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN : PA_KV_CACHE_BLOCK_SIZE_LEGACY;
+        OPENVINO_ASSERT(block_size % KV_SUB_BLOCK_SIZE == 0, "block_size (", block_size, ") must be divisible by KV_SUB_BLOCK_SIZE (", KV_SUB_BLOCK_SIZE, ")");
+        return block_size / KV_SUB_BLOCK_SIZE;
+    }
+
+    return default_wg_size;
+}
+
+Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY});                   // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE});                 // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});             // values cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});           // keys cache
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // key_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // key_offset
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // value_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // value_offset
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // batch_size_in_sequences
+    return args;
+}
+
+DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+        const auto desc = params.typed_desc<paged_attention>();
+
+        const size_t kv_len = get_input_kv_len(params);
+        const size_t kv_heads_num = desc->kv_heads_num;
+        const size_t kv_wg_size = PagedAttentionGeneratorKVCacheUpdate::get_kv_update_wg_size(params);
+        size_t kv_items;
+        if (get_kv_compressed(params) && desc->is_key_by_channel) {
+            const auto past_lens_mem = params.memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_lock(past_lens_mem, *params.strm);
+            const auto subseq_begins_mem = params.memory_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+            mem_lock<int32_t, mem_lock_type::read> subseq_begins_lock(subseq_begins_mem, *params.strm);
+
+            const size_t batch_size = get_batch_size_in_sequences(params.input_layouts);
+            size_t total_sub_blocks = 0;
+            for (size_t i = 0; i < batch_size; ++i) {
+                const size_t past_tail = static_cast<size_t>(past_lens_lock[i]) % KV_SUB_BLOCK_SIZE;
+                const size_t cur_tokens = static_cast<size_t>(subseq_begins_lock[i + 1] - subseq_begins_lock[i]);
+                total_sub_blocks += ceil_div(past_tail + cur_tokens, KV_SUB_BLOCK_SIZE);
+            }
+            kv_items = total_sub_blocks;
+        } else {
+            kv_items = kv_len;
+        }
+        const size_t wg_count = ceil_div(kv_items, kv_wg_size);
+
+        wgs.global = {1, kv_heads_num, wg_count * kv_wg_size};
+        wgs.local = {1, 1, kv_wg_size};
+
+        auto& scalars = kd.params.scalars;
+        size_t key_pitch = desc->k_head_size * kv_heads_num;
+        size_t value_pitch = desc->v_head_size * kv_heads_num;
+        auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
+        auto value_layout = params.input_layouts[PagedAttentionInputIdx::VALUE];
+
+        auto get_simple_pitch = [](const layout& layout) {
+            size_t pitch = 1;
+            auto dims_padding = layout.get_padded_dims();
+            for (size_t i = dims_padding.size() - 1; i > 0; --i) {
+                pitch = dims_padding[i];
+                if (pitch > 1) {
+                    break;
+                }
+            }
+            return pitch;
+        };
+        key_pitch = get_simple_pitch(key_layout);
+        value_pitch = get_simple_pitch(value_layout);
+
+        auto get_simple_offset = [](const layout& layout) {
+            size_t offset = 0;
+            const auto& data_padding = layout.data_padding;
+            const auto& lower_pads = data_padding._lower_size;
+            for (auto& it : lower_pads) {
+                if (it > 0) {
+                    offset = it;
+                    break;
+                }
+            }
+            return offset;
+        };
+        size_t key_offset = get_simple_offset(key_layout);
+        size_t value_offset = get_simple_offset(value_layout);
+
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: " << "kv_len: " << kv_len << ", key_pitch: " << key_pitch
+                      << ", key_offset: " << key_offset << ", value_pitch: " << value_pitch << ", value_offset: " << value_offset << ", gws: [" << wgs.global[0]
+                      << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2]
+                      << "]" << std::endl;
+        }
+        size_t batch_size_in_sequences = get_batch_size_in_sequences(params.input_layouts);
+        std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
+        scalars.resize(scaler_value.size());
+
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        }
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// multi token generator
+//-----------------------------------------------------------------------------------------------------------------
+Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_impl_params& params) const {
+    const auto desc = params.typed_desc<paged_attention>();
+
+    Arguments args;
+    // Doesn't support Query with dynamic_padding
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                                  // query
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                              // key_cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});                            // value_cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});                              // past_lens
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                          // block_indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});                   // block_indices_begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                     // subsequence_begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::MULTI_TOKEN_WG_MAPPING});  // per-WG subsequence mapping
+
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
+
+    if (_xattn_block_size > 1 && desc->has_xattention) {
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});       // xattn_subseq_meta
+    }
+    return args;
+}
+
+JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+    const auto desc = params.typed_desc<paged_attention>();
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
+    OPENVINO_ASSERT(_xattn_block_size == 1 || _xattn_block_size == 128 || _xattn_block_size == 256,
+                    "Unsupported xattention block size for multi token kernel: ",
+                    _xattn_block_size);
+
+    jit.make("CMFLA_NUM_HEADS", desc->heads_num);
+    jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
+    jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
+    jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
+    jit.make("CMFLA_IS_CAUSAL", 1);
+    if (_xattn_block_size > 1) {
+        jit.make("SPARSE_BLOCK_SIZE", _xattn_block_size);
+    } else {
+        jit.make("SPARSE_BLOCK_SIZE", 1);
+    }
+
+    if (desc->has_xattention) {
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
+    }
+    jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
+
+    return jit;
+}
+
+DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        auto& wgs = kd.params.workGroups;
+        auto& scalars = kd.params.scalars;
+        auto desc = params.typed_desc<paged_attention>();
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        OPENVINO_ASSERT(rt_params != nullptr);
+        const size_t heads_num = desc->heads_num;
+
+        auto out_shape = params.output_layouts[0].get_shape();
+        const size_t q_len = out_shape[0];
+
+        const size_t q_step = get_q_step(params);
+        const size_t wg_seq_len = get_wg_seq_len(params);
+        const size_t wg_count = rtp->multi_token_wg_count;
+        OPENVINO_ASSERT(wg_count > 0, "Invalid multi_token_wg_count in runtime params");
+
+        wgs.global = {1, heads_num, wg_count * PagedAttentionGeneratorMultiToken::_wg_size};
+        wgs.local = {1, 1, PagedAttentionGeneratorMultiToken::_wg_size};
+
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
+                      << "\theads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step << ", wg_seq_len: " << wg_seq_len
+                      << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: ["
+                      << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+        }
+        scalars.resize(1);
+        scalars[0].t = ScalarDescriptor::Types::INT32;
+        scalars[0].v.s32 = static_cast<int32_t>(q_len);
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// single token generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+    // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+    auto desc = params.typed_desc<paged_attention>();
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
+    const size_t kv_partition_size = get_partition_size(desc->has_xattention);
+    jit.make("KV_PARTITION_SIZE", kv_partition_size);
+    if (desc->has_xattention) {
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    } else {
+        jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
+    }
+    jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+    jit.make("HEAD_SIZE", desc->k_head_size);
+    jit.make("HEADS_NUM", desc->heads_num);
+    jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+
+    const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
+    jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
+
+    return jit;
+}
+
+Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    const auto desc = params.typed_desc<paged_attention>();
+    // const auto has_scale_input = !desc->scale_val.has_value();
+    const auto has_scores_output = params.output_layouts.size() > 1;
+    OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleToken with scores output is not supported yet");
+
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                                         // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                                     // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});                                   // values cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});                                     // past lens
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                                 // block indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});                          // block indices begins
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                            // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse output
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // selected_sequence_count
+
+    return args;
+}
+
+DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+        const auto desc = params.typed_desc<paged_attention>();
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        OPENVINO_ASSERT(rt_params != nullptr);
+
+        const size_t batch = rtp->single_token_selected_count;
+        const size_t heads_num = desc->heads_num;
+        const size_t kv_heads_num = desc->kv_heads_num;
+        const size_t partition_num = rtp->num_of_partitions;
+
+        OPENVINO_ASSERT(rtp->q_chunking.q_head_chunks_per_kv_head > 0, "Invalid q_head_chunks_per_kv_head in runtime params");
+        wgs.global = {batch, kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
+        wgs.local = {1, 1, 1};
+
+        // generate stage: q_len=1
+        auto& scalars = kd.params.scalars;
+        std::vector<size_t> scaler_value = {1, rtp->single_token_selected_count};
+        scalars.resize(scaler_value.size());
+
+        if (DEBUG_ENABLED) {  // Debug
+            size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
+            size_t max_context_len = get_max_context_len(params);
+            std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
+                      << ", partition_num: " << partition_num << ", kv_len: " << kv_len << ", max_context_len = " << max_context_len << ", gws: ["
+                      << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]" << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", "
+                      << wgs.local[2] << "]" << std::endl;
+        }
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        }
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// single token finalization generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants PagedAttentionGeneratorSingleTokenFinalization::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+    const auto desc = params.typed_desc<paged_attention>();
+
+    jit.make("REDUCE_SPLIT_SIZE", reduce_split_step);
+    jit.make("HEAD_SIZE", desc->k_head_size);
+    jit.make("HEADS_NUM", desc->heads_num);
+    return jit;
+}
+
+Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    const auto has_scores_output = params.output_layouts.size() > 1;
+    if (has_scores_output)
+        OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
+
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});            // partition data
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                                    // output
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});                 // lse
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});                            // subsequence begins
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SINGLE_TOKEN_SELECTED_SEQ_IDS});  // selected sequence ids
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // selected_sequence_count
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_partition_num
+
+    return args;
+}
+
+DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+
+        const auto desc = params.typed_desc<paged_attention>();
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+
+        OPENVINO_ASSERT(rt_params != nullptr);
+
+        const size_t batch = rtp->single_token_selected_count;
+        const size_t heads_num = desc->heads_num;
+        const size_t head_size = desc->k_head_size;
+        wgs.global = {batch, heads_num, head_size / reduce_split_step};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        const size_t partition_num = rtp->num_of_partitions;
+        std::vector<size_t> scaler_value = {rtp->single_token_selected_count, partition_num};
+        scalars.resize(scaler_value.size());
+
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func: " << "batch: " << batch << ", heads_num: " << heads_num
+                      << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+        }
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+        }
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// Helpers of XAttention
+//-----------------------------------------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------------------------------------------
+// Base generator of XAttention
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = KernelGenerator::get_jit_constants(params);
+    jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+
+    auto desc = params.typed_desc<paged_attention>();
+
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size)) / STRIDE;
+    int scale_factor_i;
+    std::memcpy(static_cast<void*>(&scale_factor_i), &scale_factor, sizeof(scale_factor));
+
+    const uint32_t block_sg_m = get_block_sg_m(params);
+    const uint32_t block_sg_n = get_block_sg_n(params);
+    const uint32_t wg_k = get_block_wg_m(params);
+    const uint32_t wg_q = get_block_wg_n(params);
+    OPENVINO_ASSERT(wg_k % _xattn_block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
+    OPENVINO_ASSERT(wg_q % _xattn_block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
+
+    jit.make("STRIDE", STRIDE);
+    jit.make("HQ", desc->heads_num);
+    jit.make("HK", desc->kv_heads_num);
+    jit.make("HEAD_SIZE", desc->k_head_size);
+    jit.make("SG_M", SG_M);
+    jit.make("SG_N", SG_N);
+    jit.make("BLOCK_SG_M", block_sg_m);
+    jit.make("BLOCK_SG_N", block_sg_n);
+    jit.make("BLOCK_WG_K", desc->k_head_size % 64 == 0 ? 64 : 32);  // GEMM QK kernel unrolls HEAD_SIZE with a step of BLOCK_WG_K
+    jit.make("BLOCK_SIZE", _xattn_block_size);
+    jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+    jit.add(make_jit_constant("INV_S", scale_factor_i));
+    jit.make("BLOCK_SHARE_MAX", wg_q);
+    //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
+    jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
+    jit.make("IS_CAUSAL", 1);
+    if (get_kv_compressed(params)) {
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 4 * desc->k_head_size / KV_SUB_BLOCK_SIZE);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
+        }
+    } else {
+        jit.make("KV_CACHE_COMPRESSION", 0);
+        jit.make("HEAD_SIZE_KEY", desc->k_head_size);
+    }
+    jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
+    jit.make("SOFTMAX_TYPE", "float");
+
+    return jit;
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate gemm_qk generator
+//-----------------------------------------------------------------------------------------------------------------
+Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});                         // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                             // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                     // block indices
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});      // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // query_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // num_subseqs
+
+    return args;
+}
+
+DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
+    return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        const auto desc = params.typed_desc<paged_attention>();
+
+        auto get_simple_pitch = [](const layout& layout) {
+            size_t pitch = 1;
+            auto dims_padding = layout.get_padded_dims();
+            for (size_t i = dims_padding.size() - 1; i > 0; --i) {
+                pitch = dims_padding[i];
+                if (pitch > 1) {
+                    break;
+                }
+            }
+            return pitch;
+        };
+        auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
+        const size_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
+
+        const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
+
+        auto& wgs = kd.params.workGroups;
+        wgs.global = {rtp->xattn_gemmqk_wg_count * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
+        wgs.local = {SG_N, SG_M, 1};
+
+        auto& scalars = kd.params.scalars;
+        scalars.resize(2);
+        scalars[0].t = ScalarDescriptor::Types::UINT32;
+        scalars[0].v.u32 = static_cast<uint32_t>(query_pitch);
+        scalars[1].t = ScalarDescriptor::Types::INT32;
+        scalars[1].v.s32 = static_cast<int32_t>(rtp->xattn_num_subseqs);
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate find_block generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants XAttentionEstimateFindBlock::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
+
+    const uint32_t NUM_THREADS = _xattn_block_size == 128 ? 32 : 16;  // for xattn sort kernel
+    jit.make("NUM_THREADS", NUM_THREADS);
+#if FIND_DEBUG_ACC
+    jit.make("DEBUG_ACC", FIND_DEBUG_ACC);
+#endif
+
+    return jit;
+}
+
+Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+
+    // inputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX});      // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
+
+    // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_WG_MAP});  // compact [subseq_id, q_block_idx] map
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // thresh
+
+#if FIND_DEBUG_ACC
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC});  // kq_sum for debug purpose only
+#endif
+
+    return args;
+}
+
+DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
+    return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        const auto desc = params.typed_desc<paged_attention>();
+
+        auto& wgs = kd.params.workGroups;
+
+        const size_t heads_num = desc->heads_num;
+        const float xattn_thresh = get_xattn_thresh(params);
+
+        wgs.global = {rtp->xattn_find_wg_count, heads_num, 1};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        scalars.resize(1);
+        scalars[0].t = ScalarDescriptor::Types::FLOAT32;
+        scalars[0].v.f32 = static_cast<float>(xattn_thresh);
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate post_proc generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
+
+    jit.make("MERGED_Q_NUM", PagedAttentionGeneratorMultiToken::get_wg_seq_len(params) / _xattn_block_size);
+
+    return jit;
+}
+
+Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+
+    // inputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
+
+    // metadata
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META});  // metadata
+    args.push_back(
+        {ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_POST_WG_MAP});  // compact [subseq_id, merged_q_block_idx] map
+
+    return args;
+}
+
+DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
+    return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        OPENVINO_ASSERT(!params.is_dynamic());
+        OPENVINO_ASSERT(rt_params != nullptr);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        const auto desc = params.typed_desc<paged_attention>();
+
+        auto& wgs = kd.params.workGroups;
+
+        wgs.global = {rtp->xattn_post_wg_count, desc->heads_num, 1};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        scalars.clear();
+    }};
+}
+
+}  // namespace ov::intel_gpu::cm

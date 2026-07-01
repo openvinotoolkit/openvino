@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,11 +72,7 @@ TEST_P(ReadValueAssignGPUTest, Inference) {
 }
 
 TEST_P(ReadValueAssignGPUTest, Inference_cached) {
-    std::stringstream ss;
-    ss << "gpu_model_cache_" << std::hash<std::string>{}(
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-    std::string cacheDirName = ss.str();
+    std::string cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";
     {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");

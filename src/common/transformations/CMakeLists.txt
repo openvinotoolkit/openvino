@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,6 +14,12 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp)
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
+
+# Debug capabilities sources - only compiled when ENABLE_DEBUG_CAPS is ON
+if(NOT ENABLE_DEBUG_CAPS)
+    list(REMOVE_ITEM LIBRARY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/utils/extract_subgraph.cpp")
+    list(REMOVE_ITEM PUBLIC_HEADERS "${PUBLIC_HEADERS_DIR}/transformations/utils/extract_subgraph.hpp")
+endif()
 
 # Create library
 add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})

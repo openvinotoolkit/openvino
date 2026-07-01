@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,9 @@ std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> ov::frontend::t
     if (quantization->get_zero_point().empty() && quantization->get_scale().empty())
         return {};
     quantization->set_axis(tf_quantization->quantized_dimension());
+    FRONT_END_GENERAL_CHECK(quantization->get_axis() >= 0,
+                            "Quantized dimension must be non-negative, got: ",
+                            quantization->get_axis());
     return quantization;
 }
 
@@ -32,14 +35,15 @@ std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> ov::frontend::tenso
     const flatbuffers::Vector<int32_t>* tf_shape,
     const tflite::SparsityParameters* tf_sparsity,
     const ov::element::Type target_type,
-    const uint8_t* buffer) {
+    const uint8_t* buffer,
+    size_t buffer_size) {
     if (tf_shape == nullptr)
         return {};
     if (tf_sparsity == nullptr)
         return {};
     auto sparsity = std::make_shared<ov::frontend::tensorflow_lite::SparsityInfo>();
     sparsity->set_shape({tf_shape->begin(), tf_shape->end()});
-    sparsity->set_values(buffer);
+    sparsity->set_values(buffer, buffer_size);
     sparsity->set_target_type(target_type);
     if (tf_sparsity->traversal_order() != nullptr)
         sparsity->set_traversal_order({tf_sparsity->traversal_order()->begin(), tf_sparsity->traversal_order()->end()});
@@ -60,6 +64,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> ov::frontend::tenso
         sparsity->set_dim_format(dim_format);
         sparsity->set_data_desc(data_desc);
     }
+    sparsity->enable();  // Enable sparsity validation; disables if fields are incomplete
     return sparsity;
 }
 
@@ -127,12 +132,24 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     return;
 }
 
-void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) {
+void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs,
+                                                      const std::shared_ptr<DecoderBase>& decoder) {
+    // Dequantization is performed in floating point. Most TFLite models compute in f32, but fully
+    // float16 models keep activations and dequantized weights in f16. Derive the dequantization type
+    // from the operation's float output type so operands stay consistent, falling back to f32.
+    auto dequantized_type = element::f32;
+    auto op_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
+    if (op_decoder && op_decoder->get_output_size() > 0) {
+        const auto out_type = op_decoder->get_output_tensor_type(0);
+        if (out_type.is_real())
+            dequantized_type = out_type;
+    }
+
     for (auto& deq_input : deq_inputs) {
         auto input = deq_input.get_node_shared_ptr();
         if (!ov::is_type<ov::frontend::tensorflow_lite::TFLQuantize>(input))
             continue;
-        deq_input = std::make_shared<opset10::Convert>(deq_input, element::f32);
+        deq_input = std::make_shared<opset10::Convert>(deq_input, dequantized_type);
     }
 }
 

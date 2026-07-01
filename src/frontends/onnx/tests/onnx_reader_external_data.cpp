@@ -1,8 +1,8 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
@@ -18,11 +18,13 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/tensor_external_data.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace frontend;
 using namespace frontend::onnx::tests;
+using testing::AnyOf, testing::HasSubstr;
 
 // API 2.0 tests
 class OnnxFeMmapFixture : public ::testing::TestWithParam<bool> {};
@@ -36,6 +38,32 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data) {
     auto test_case = test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>({2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_0_size.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({4.f});
+    test_case.add_expected_output<float>({}, {4.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size_offset) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_0_size_offset.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({4.f});
+    test_case.add_expected_output<float>({}, {4.f});
 
     test_case.run();
 }
@@ -94,11 +122,10 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_incorrect_size_exception) {
         const auto model = core.read_model(path);
         FAIL() << "Incorrect size of external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(
-            testing::IsSubstring,
-            string(
-                "The size of the external data file does not match the byte size of an initializer 'A' in the model"),
-            ex.what());
+        EXPECT_THAT(
+            ex.what(),
+            HasSubstr(
+                "The size of the external data file does not match the byte size of an initializer 'A' in the model"));
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
@@ -227,10 +254,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
         core.read_model(path);
         FAIL() << "Incorrect path to external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            string("tensor.data, offset: 4096, "
-                                   "data_length: 16)"),
-                            ex.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, string("which is outside the base directory"), ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }

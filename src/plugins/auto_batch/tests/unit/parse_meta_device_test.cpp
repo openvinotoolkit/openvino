@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
     bool m_throw_exception;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<meta_device_params> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<meta_device_params>& obj) {
         const auto& [batch_cfg, config, info, throw_exception] = obj.param;
         std::string res = batch_cfg;
         for (auto& c : config) {

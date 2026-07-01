@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,15 +14,16 @@ inline bool FUNC(row_exists)(const __global INPUT2_TYPE* restrict indices, uint 
 }
 
 KERNEL(sparse_fill_empty_rows_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* restrict values,         // [N] - values at specified indices
     const __global INPUT1_TYPE* restrict _unused,        // [2] - shape of the dense tensor (rows, cols)
     const __global INPUT2_TYPE* restrict indices,        // [N, 2] - indices (row, col) coordinates
     const __global INPUT3_TYPE* restrict default_value,  // scalar - default value
-    __global OUTPUT_TYPE* restrict output_indices,       // [M, 2] - output indices 
+    __global OUTPUT_TYPE* restrict output_indices,       // [M, 2] - output indices
     __global OUTPUT1_TYPE* restrict output_values,       // [M] - output values
     __global OUTPUT2_TYPE* restrict empty_row_indicator  // [dense_shape[0]] - indicator if row was empty
 ) {
-    const uint indices_count = INDICES_COUNT;  // JIT constant for N
+    const uint indices_count = INPUT2_BATCH_NUM;
     const uint row_idx = get_global_id(0);
     uint output_base_pos = 0;
 

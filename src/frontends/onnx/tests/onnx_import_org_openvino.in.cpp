@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -420,6 +419,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_propos
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
+    if (is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "Experimental ops are not supported when using GraphIterator.";
+    }
     auto model = convert_model("org.openvinotoolkit/experimental_detectron/group_norm.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
@@ -566,6 +568,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d_with_mask) {
+    if (is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "Experimental ops are not supported when using GraphIterator.";
+    }
     auto model = convert_model("org.openvinotoolkit/deformable_conv_2d_with_mask.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);

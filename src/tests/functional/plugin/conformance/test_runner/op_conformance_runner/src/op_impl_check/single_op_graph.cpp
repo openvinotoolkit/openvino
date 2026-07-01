@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -579,6 +579,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SparseFil
     return std::make_shared<ov::Model>(results, ov::ParameterVector{values, indices, default_value}, "SparseFillEmptyRowsGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::GroupedMatMul> &node) {
+    // Case: 3D × 3D (batched uniform groups)
+    const auto mat_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 128, 64});
+    const auto groupedMatMulNode = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupedMatMulNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{mat_a, mat_b}, "GroupedMatMulGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
@@ -839,6 +848,23 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::OneHot> &n
     const auto onehot = std::make_shared<ov::op::v1::OneHot>(params[0], depth, onvalue, offvalue, axes);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
     return std::make_shared<ov::Model>(results, params, "OneHot-1");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::OneHot>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{})};
+    const auto depth = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{3});
+    const auto onvalue = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1});
+    const auto offvalue =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+    const int32_t axes = 0;
+    const auto onehot = std::make_shared<ov::op::v16::OneHot>(params[0],
+                                                              depth,
+                                                              onvalue,
+                                                              offvalue,
+                                                              axes,
+                                                              op::v16::OneHot::NegativeIndicesMode::NORMALIZE);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
+    return std::make_shared<ov::Model>(results, params, "OneHot-16");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PRelu> &node) {
@@ -1540,6 +1566,8 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Elu>(param, 0.5f);
     } else if (ov::is_type<ov::op::v0::Erf>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Erf>(param);
+    } else if (ov::is_type<ov::op::v17::ErfInv>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v17::ErfInv>(param);
     } else if (ov::is_type<ov::op::v0::Exp>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Exp>(param);
     } else if (ov::is_type<ov::op::v0::Floor>(node)) {
@@ -2256,6 +2284,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
 #include "openvino/opsets/opset16_tbl.hpp"
+#include "openvino/opsets/opset17_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

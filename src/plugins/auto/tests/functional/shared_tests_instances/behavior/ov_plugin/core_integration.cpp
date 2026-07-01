@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,12 @@
 #include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassModelOptionalTestP);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassModelTestP);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassQueryModelTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestCompileModel);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestQueryModel);
 
 // defined in plugin_name.cpp
 extern const char* cpu_plugin_file_name;

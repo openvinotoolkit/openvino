@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ int main(int argc, char *argv[]) {
     ov::test::utils::is_print_rel_influence_coef = false;
     bool print_custom_help = false;
     std::string outputFolderPath(".");
+    ov::test::utils::OpSummary::setSaveReportTimeout(60);
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
             ov::test::utils::disable_tests_skipping = true;

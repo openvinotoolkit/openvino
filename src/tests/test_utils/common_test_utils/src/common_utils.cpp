@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,11 @@
 #    include <windows.h>
 
 #    include "psapi.h"
+#else
+#    include <sys/mman.h>  // mincore
+#    include <unistd.h>
+
+#    include <cstdint>
 #endif
 
 namespace ov {
@@ -39,8 +44,8 @@ std::ostream& operator<<(std::ostream& os, OpType type) {
 }
 
 std::string generateTestFilePrefix() {
-    // Generate unique file names based on test name, thread id and timestamp
-    // This allows execution of tests in parallel (stress mode)
+    // Generate unique file names based on test name, process id, thread id and timestamp.
+    // This allows execution of tests in parallel across threads and processes.
     auto testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
     std::string testName = testInfo->test_case_name();
     testName += testInfo->name();
@@ -48,7 +53,12 @@ std::string generateTestFilePrefix() {
     std::stringstream ss;
     auto ts = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::high_resolution_clock::now().time_since_epoch());
-    ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
+#ifdef _WIN32
+    const auto pid = static_cast<uint64_t>(::GetCurrentProcessId());
+#else
+    const auto pid = static_cast<uint64_t>(::getpid());
+#endif
+    ss << testName << "_" << pid << "_" << std::this_thread::get_id() << "_" << ts.count();
     testName = ss.str();
     std::replace(testName.begin(), testName.end(), ':', '_');
     return testName;
@@ -69,6 +79,10 @@ size_t getVmSizeInKB() {
 
 size_t getVmRSSInKB() {
     return getMemoryInfo().WorkingSetSize / 1024;
+}
+
+size_t count_resident_pages(const void* data, size_t size) {
+    throw std::runtime_error("count_resident_pages is not implemented on Windows");
 }
 
 #else
@@ -110,6 +124,29 @@ size_t getVmSizeInKB() {
 
 size_t getVmRSSInKB() {
     return getSystemDataByName(const_cast<char*>("VmRSS:"));
+}
+
+// Returns the number of pages in [data, data+size) that are resident in the page cache.
+// Uses mincore(2). Returns 0 if mincore fails (region not mapped or other error).
+size_t count_resident_pages(const void* data, size_t size) {
+    if (!data || size == 0)
+        return 0;
+    const size_t page = static_cast<size_t>(sysconf(_SC_PAGE_SIZE));
+    const auto base_addr = reinterpret_cast<uintptr_t>(data);
+    const auto aligned = (base_addr / page) * page;
+    const auto gap = base_addr - aligned;
+    const size_t aligned_size = size + gap;
+    const size_t num_pages = (aligned_size + page - 1) / page;
+    std::vector<unsigned char> vec(num_pages, 0);
+#    ifdef __linux__
+    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, vec.data()) != 0)
+#    else
+    if (mincore(reinterpret_cast<void*>(aligned), aligned_size, reinterpret_cast<char*>(vec.data())) != 0)
+#    endif
+        return 0;
+    return static_cast<size_t>(std::count_if(vec.begin(), vec.end(), [](unsigned char v) {
+        return (v & 1) != 0;
+    }));
 }
 
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,24 +213,20 @@ bool evaluate_interpolate(const ov::op::util::InterpolateBase* node,
     const auto& m_attrs = node->get_attrs();
     const auto scales = get_scales_vector(node, inputs, padded_input_shape, m_attrs, *axes);
 
-    const auto input_et = inputs[0].get_element_type();
+    const auto& input_et = inputs[0].get_element_type();
     const auto type_size = input_et.size();
-    const auto bytes_in_padded_input = ov::shape_size(padded_input_shape) * type_size;
-    auto padded_input_data = std::vector<uint8_t>(bytes_in_padded_input, 0);
+    auto padded_input_data = ov::Tensor(input_et, padded_input_shape);
+    std::memset(padded_input_data.data(), 0, padded_input_data.get_byte_size());
 
-    auto* data_ptr = static_cast<const uint8_t*>(inputs[data_port].data());
-    auto* padded_data_ptr = padded_input_data.data();
-
-    ov::reference::pad_input_data(data_ptr,
-                                  padded_data_ptr,
+    ov::reference::pad_input_data(reinterpret_cast<const uint8_t*>(inputs[data_port].data()),
+                                  reinterpret_cast<uint8_t*>(padded_input_data.data()),
                                   type_size,
                                   inputs[data_port].get_shape(),
                                   padded_input_shape,
                                   pads_begin);
-    using ov::element::Type_t;
     switch (input_et) {
-    case Type_t::f32:
-        ov::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+    case ov::element::f32:
+        ov::reference::interpolate<float>(padded_input_data.data<float>(),
                                           padded_input_shape,
                                           scales,
                                           *axes,
@@ -238,11 +234,11 @@ bool evaluate_interpolate(const ov::op::util::InterpolateBase* node,
                                           out_shape,
                                           m_attrs);
         break;
-    case Type_t::f16:
-    case Type_t::bf16:
+    case ov::element::f16:
+    case ov::element::bf16:
         return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
-    case Type_t::i8:
-        ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+    case ov::element::i8:
+        ov::reference::interpolate<int8_t>(padded_input_data.data<int8_t>(),
                                            padded_input_shape,
                                            scales,
                                            *axes,
@@ -250,8 +246,8 @@ bool evaluate_interpolate(const ov::op::util::InterpolateBase* node,
                                            out_shape,
                                            m_attrs);
         break;
-    case Type_t::u8:
-        ov::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+    case ov::element::u8:
+        ov::reference::interpolate<uint8_t>(padded_input_data.data<uint8_t>(),
                                             padded_input_shape,
                                             scales,
                                             *axes,

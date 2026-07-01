@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ using ConfigParams = std::tuple<bool,  // cpu load success
                                 >;
 class AutoReleaseHelperTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [cpuSuccess, accSuccess] = obj.param;
         std::ostringstream result;
         if (!cpuSuccess) {
@@ -38,7 +38,7 @@ using PropertyConfigParams = std::tuple<bool,  // if CPU device sleep
 class AutoCompiledModelGetPropertyWithReleaseHelper : public tests::AutoTest,
                                                       public ::testing::TestWithParam<PropertyConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PropertyConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertyConfigParams>& obj) {
         const auto& [cpuSleep, actSleep] = obj.param;
         std::ostringstream result;
         if (cpuSleep) {

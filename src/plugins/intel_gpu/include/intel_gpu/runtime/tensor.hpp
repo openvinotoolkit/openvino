@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -283,14 +283,14 @@ public:
     /// @brief Copy construction.
     tensor(const tensor& other)
         : tensor(0) {
-        std::copy_n(other._sizes, tensor_dim_max, _sizes);
+        std::copy(std::cbegin(other._sizes), std::cend(other._sizes), std::begin(_sizes));
     }
 
     /// @brief Copy assignment.
     tensor& operator=(const tensor& other) {
         if (this == &other)
             return *this;
-        std::copy_n(other._sizes, tensor_dim_max, _sizes);
+        std::copy(std::cbegin(other._sizes), std::cend(other._sizes), std::begin(_sizes));
         return *this;
     }
 

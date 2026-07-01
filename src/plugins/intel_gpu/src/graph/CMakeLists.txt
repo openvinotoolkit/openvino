@@ -1,8 +1,12 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
+
+if(ENABLE_CM_FOR_GPU)
+    add_compile_definitions(ENABLE_CM_FOR_GPU)
+endif()
 
 file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 
@@ -34,7 +38,13 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
+                          OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
+
+if(GPU_RT_TYPE STREQUAL "ZE")
+    # Onednn needs ZE headers
+    list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
+endif()
 
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
 set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL "")
@@ -65,7 +75,6 @@ macro(ov_gpu_add_backend_target)
         NAME ${ARG_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         TYPE OBJECT
-        ADD_CPPLINT
         INCLUDES
             PRIVATE
                 ${TARGET_INCLUDES}
@@ -79,6 +88,7 @@ macro(ov_gpu_add_backend_target)
     target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
     target_compile_definitions(${TARGET_NAME} PRIVATE ${TARGET_DEFINITIONS})
     ov_set_threading_interface_for(${TARGET_NAME})
+    ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
@@ -103,6 +113,9 @@ add_test(NAME TestOCLCodePreprocessing
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+        continue()
+    endif()
     add_subdirectory(impls/${IMPL_TYPE})
     if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
         list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)
@@ -129,7 +142,6 @@ ov_add_target(
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
         run_codegen_test
-    ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
@@ -137,6 +149,7 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

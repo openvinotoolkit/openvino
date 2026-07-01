@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const fs = require("node:fs/promises");
@@ -68,7 +68,10 @@ describe("ov.InferRequest tests", () => {
       const inputMessagePairs = [
         ["string", "Cannot create a tensor from the passed Napi::Value."],
         [tensorData.slice(-10), /Memory allocated using shape and element::type mismatch/],
-        [new Float32Array(buffer, 4), "TypedArray.byteOffset has to be equal to zero."],
+        [
+          new Float32Array(buffer, 4),
+          /TypedArray.byteOffset must be zero for zero-copy tensor construction./,
+        ],
         [{}, /Invalid argument/], // Test for object that is not Tensor
       ];
 
@@ -94,43 +97,109 @@ describe("ov.InferRequest tests", () => {
       inferRequest = compiledModel.createInferRequest();
     });
 
-    it("Test inferAsync(inputData: { [inputName: string]: Tensor })", () => {
-      inferRequest.inferAsync({ data: tensor }).then((result) => {
-        assert.ok(result["fc_out"] instanceof ov.Tensor);
-        assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
-        assert.deepStrictEqual(
-          result["fc_out"].data.length,
-          lengthFromShape(testModelFP32.outputShape),
-        );
-      });
+    it("Test inferAsync(inputData: { [inputName: string]: Tensor })", async () => {
+      const result = await inferRequest.inferAsync({ data: tensor });
+      assert.ok(result["fc_out"] instanceof ov.Tensor);
+      assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
+      assert.deepStrictEqual(
+        result["fc_out"].data.length,
+        lengthFromShape(testModelFP32.outputShape),
+      );
     });
 
-    it("Test inferAsync(inputData: Tensor[])", () => {
-      inferRequest.inferAsync([tensor]).then((result) => {
-        assert.ok(result["fc_out"] instanceof ov.Tensor);
-        assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
-        assert.deepStrictEqual(
-          result["fc_out"].data.length,
-          lengthFromShape(testModelFP32.outputShape),
-        );
-      });
+    it("Test inferAsync(inputData: Tensor[])", async () => {
+      const result = await inferRequest.inferAsync([tensor]);
+      assert.ok(result["fc_out"] instanceof ov.Tensor);
+      assert.deepStrictEqual(Object.keys(result), ["fc_out"]);
+      assert.deepStrictEqual(
+        result["fc_out"].data.length,
+        lengthFromShape(testModelFP32.outputShape),
+      );
     });
 
-    it("Test inferAsync([data]) throws", () => {
-      assert.throws(
-        () => inferRequest.inferAsync(["string"]).then(),
+    it("Test inferAsync([data]) throws", async () => {
+      await assert.rejects(
+        async () => await inferRequest.inferAsync(["string"]),
         /Cannot create a tensor from the passed Napi::Value./,
       );
     });
 
-    it('Test inferAsync({ data: "string"}) throws', () => {
-      assert.throws(
-        () => inferRequest.inferAsync({ data: "string" }).then(),
+    it('Test inferAsync({ data: "string"}) throws', async () => {
+      await assert.rejects(
+        async () => await inferRequest.inferAsync({ data: "string" }),
         /Cannot create a tensor from the passed Napi::Value./,
       );
     });
   });
 
+  describe("BigInt InferRequest support", () => {
+    let core, originalModel, compiledModel, inferRequest;
+
+    before(async () => {
+      const { addModel } = testModels;
+      await isModelAvailable(addModel);
+      core = new ov.Core();
+      originalModel = core.readModelSync(addModel.xml);
+    });
+
+    beforeEach(() => {
+      const model = originalModel.clone();
+
+      const ppp = new ov.preprocess.PrePostProcessor(model);
+      ppp.input(0).tensor().setElementType(ov.element.i64);
+      ppp.input(1).tensor().setElementType(ov.element.i64);
+      ppp.build();
+
+      compiledModel = core.compileModelSync(model, "CPU");
+      inferRequest = compiledModel.createInferRequest();
+    });
+
+    it("infers with BigInt64Array input using Tensor objects", () => {
+      const shape0 = originalModel.input(0).getShape();
+      const shape1 = originalModel.input(1).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const size1 = shape1.reduce((a, b) => a * b, 1);
+      const inputData0 = new BigInt64Array(size0).fill(1n);
+      const inputData1 = new BigInt64Array(size1).fill(2n);
+
+      const tensor0 = new ov.Tensor(ov.element.i64, shape0, inputData0);
+      const tensor1 = new ov.Tensor(ov.element.i64, shape1, inputData1);
+
+      assert.doesNotThrow(() => {
+        const result = inferRequest.infer([tensor0, tensor1]);
+        assert.ok(result);
+        const outputTensor = Object.values(result)[0];
+        assert.ok(outputTensor instanceof ov.Tensor);
+      });
+    });
+
+    it("infers with BigUint64Array input", () => {
+      const model = originalModel.clone();
+      const ppp = new ov.preprocess.PrePostProcessor(model);
+      ppp.input(0).tensor().setElementType(ov.element.u64);
+      ppp.input(1).tensor().setElementType(ov.element.u64);
+      ppp.build();
+      const compiledModelU64 = core.compileModelSync(model, "CPU");
+      const inferRequestU64 = compiledModelU64.createInferRequest();
+
+      const shape0 = originalModel.input(0).getShape();
+      const shape1 = originalModel.input(1).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const size1 = shape1.reduce((a, b) => a * b, 1);
+      const inputData0 = new BigUint64Array(size0).fill(1n);
+      const inputData1 = new BigUint64Array(size1).fill(2n);
+
+      const tensor0 = new ov.Tensor(ov.element.u64, shape0, inputData0);
+      const tensor1 = new ov.Tensor(ov.element.u64, shape1, inputData1);
+
+      assert.doesNotThrow(() => {
+        const result = inferRequestU64.infer([tensor0, tensor1]);
+        assert.ok(result);
+        const outputTensor = Object.values(result)[0];
+        assert.ok(outputTensor instanceof ov.Tensor);
+      });
+    });
+  });
   describe("setters", () => {
     let inferRequest = null;
     beforeEach(() => {
@@ -332,9 +401,82 @@ describe("ov.InferRequest tests with missing outputs names", () => {
     assert.deepStrictEqual(Object.keys(result).length, 1);
   });
 
-  it("Test inferAsync(inputData: Tensor[])", () => {
-    inferRequest.inferAsync([tensor]).then((result) => {
-      assert.deepStrictEqual(Object.keys(result).length, 1);
-    });
+  it("Test inferAsync(inputData: Tensor[])", async () => {
+    const result = await inferRequest.inferAsync([tensor]);
+    assert.deepStrictEqual(Object.keys(result).length, 1);
+  });
+});
+
+describe("GC safety infer() / inferAsync()", () => {
+  const { reluLargeModel } = testModels;
+  const iterationCount = 5;
+  const elementCount = lengthFromShape(reluLargeModel.inputShape);
+  let compiledModel = null;
+  let inferRequest = null;
+
+  before(() => {
+    const core = new ov.Core();
+    const model = core.readModelSync(reluLargeModel.xml);
+    compiledModel = core.compileModelSync(model, "CPU");
+    inferRequest = compiledModel.createInferRequest();
+  });
+
+  it("original TypedArray is alive during infer()", async () => {
+    function testInfer() {
+      const inputData = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, inputData);
+      return inferRequest.infer({ [reluLargeModel.inputName]: tensor });
+    }
+
+    const results = [];
+    for (let i = 0; i < iterationCount; i++) {
+      results.push(testInfer());
+    }
+    for (const result of results) {
+      const data = result["relu_out"].getData();
+      assert.strictEqual(data[0], 128.0, "First element should be 128");
+      assert.strictEqual(data[elementCount - 1], 128.0, "Last element should be 128");
+    }
+  });
+
+  it("original TypedArray is alive during inferAsync()", async () => {
+    async function testInferAsync() {
+      const inputData = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, inputData);
+      return inferRequest.inferAsync({ [reluLargeModel.inputName]: tensor });
+    }
+
+    const promises = [];
+    for (let i = 0; i < iterationCount; i++) {
+      promises.push(testInferAsync());
+    }
+    if (typeof global.gc === "function") global.gc();
+    const results = await Promise.all(promises);
+    for (const result of results) {
+      const data = result["relu_out"].getData();
+      assert.strictEqual(data[0], 128.0, "First element should be 128");
+      assert.strictEqual(data[elementCount - 1], 128.0, "Last element should be 128");
+    }
+  });
+
+  it("Full-cycle tensor converting test", () => {
+    function fillInferRequest(inferRequest) {
+      // 1. TypedArray → TensorWrap
+      const buf = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, buf);
+      // 2. TensorWrap → ov::Tensor
+      inferRequest.setInputTensor(tensor);
+    }
+
+    fillInferRequest(inferRequest);
+
+    // Intermediate execution, where GC collects buffer
+    if (typeof global.gc === "function") global.gc();
+
+    // 3. the same ov::Tensor → new TensorWrap
+    const sameTensor = inferRequest.getInputTensor();
+
+    // 4. read data from buffer, but it is not available or rewrote
+    assert.deepStrictEqual(sameTensor.getData(), new Float32Array(elementCount).fill(128.0));
   });
 });

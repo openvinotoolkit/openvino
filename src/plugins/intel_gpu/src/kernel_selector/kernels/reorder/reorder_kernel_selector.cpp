@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "reorder_kernel_fs_b_yx_fsv32_to_bfyx.h"
 #include "reorder_kernel_bfyx_to_blocked_format.h"
 #include "reorder_kernel_b_fs_yx_fsv16_fsv32_to_bfyx.h"
+#include "reorder_kernel_fsv.h"
 
 namespace kernel_selector {
 
@@ -25,6 +26,7 @@ reorder_kernel_selector::reorder_kernel_selector() {
     Attach<ReorderKernel_fs_b_yx_fsv32_to_bfyx>();
     Attach<ReorderKernel_bfyx_to_blocked_format>();
     Attach<ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx>();
+    Attach<ReorderKernel_fsv>();
 }
 
 KernelsData reorder_kernel_selector::GetBestKernels(const Params& params) const {

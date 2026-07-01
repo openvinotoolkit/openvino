@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,9 @@ struct DispatchDataFunc {
     explicit DispatchDataFunc(std::nullptr_t) {}
 
     void operator()(const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params = nullptr) const {
-        m_dispatch_data_func(params, kd, rt_params);
+        if (m_dispatch_data_func) {
+            m_dispatch_data_func(params, kd, rt_params);
+        }
     }
 };
 

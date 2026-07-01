@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,6 +66,7 @@ enum class KernelType {
     SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
+    SLICE_SCATTER,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
@@ -106,6 +107,7 @@ enum class KernelType {
     ROPE,
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
+    SEGMENT_MAX,
     STFT,
     ISTFT,
     COL2IM,
@@ -129,6 +131,9 @@ enum class Datatype {
     F16,
     F32,
     BF16,
+    F8E4M3,
+    F8E5M2,
+    F8E8M0,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,7 +148,10 @@ enum class WeightsType {
     UINT4,
     INT4,
     INT32,
-    BF16
+    BF16,
+    F8E4M3,
+    F8E5M2,
+    F8E8M0,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -195,7 +203,8 @@ enum class ActivationFunction {
     GELU,
     GELU_TANH,
     ROUND_HALF_TO_EVEN,
-    ROUND_HALF_AWAY_FROM_ZERO
+    ROUND_HALF_AWAY_FROM_ZERO,
+    ERFINV
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +327,8 @@ enum class EltwiseMode {
     LEFT_SHIFT,
     BITWISE_AND,
     BITWISE_OR,
-    BITWISE_XOR
+    BITWISE_XOR,
+    ATAN2
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

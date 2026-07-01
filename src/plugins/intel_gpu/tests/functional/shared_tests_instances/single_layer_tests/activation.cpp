@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {ActivationTypes::GeluErf,               {}},
         {ActivationTypes::GeluTanh,              {}},
         {ActivationTypes::SoftSign,              {}},
+        {ActivationTypes::ErfInv,                {}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> big_rank_activation_types = {

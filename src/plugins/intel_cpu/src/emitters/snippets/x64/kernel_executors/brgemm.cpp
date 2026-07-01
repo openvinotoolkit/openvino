@@ -1,18 +1,13 @@
-// Copyright (C) 2020-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "brgemm.hpp"
 
-#include <oneapi/dnnl/dnnl_common_types.h>
-
 #include <common/primitive_attr.hpp>
-#include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <utility>
 
 #include "cache/multi_cache.h"
@@ -24,7 +19,15 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "utils/general_utils.h"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <oneapi/dnnl/dnnl_common_types.h>
+
+#    include <cpu/x64/brgemm/brgemm_types.hpp>
+#    include <sstream>
+#    include <string>
+
+#    include "utils/general_utils.h"
+#endif
 
 using namespace Xbyak;
 using namespace dnnl::impl;

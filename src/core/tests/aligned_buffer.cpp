@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,11 @@
 
 #include "gtest/gtest.h"
 
-using namespace ov;
+namespace ov::test {
 
 TEST(aligned_buffer, alignment) {
     AlignedBuffer buffer(100, 64);
+    ASSERT_NE(buffer.get_ptr(), nullptr);
     size_t addr = reinterpret_cast<size_t>(buffer.get_ptr()) % 64;
     EXPECT_EQ(addr, 0);
 }
@@ -33,3 +34,4 @@ TEST(aligned_buffer, move) {
         EXPECT_NE(buffer2.get_ptr(), nullptr);
     }
 }
+}  // namespace ov::test

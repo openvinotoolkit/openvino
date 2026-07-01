@@ -1,17 +1,20 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "subgraphs_builders.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace {
 
 class SerializeBaseTest : virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    std::string cacheDirName = "cache_serialize";
+    std::string cacheDirName;
 
     void run() override {
+        cacheDirName = ov::test::utils::generateTestFilePrefix() + "_cache_serialize";
         std::stringstream model_stream;
         ov::AnyMap config = { ov::cache_dir(cacheDirName) };
         compiledModel = core->compile_model(function, targetDevice);
@@ -45,7 +48,7 @@ public:
 
 class GRUSequenceTest : virtual public SerializeBaseTest {
 public:
-    void SetUp() {
+    void SetUp() override {
         std::string cacheDirName = "cache_gru";
         auto init_shape = ov::PartialShape({1, 30, 512});
         auto batch_size = static_cast<size_t>(init_shape[0].get_length());
@@ -65,4 +68,40 @@ TEST_F(LSTMSequenceTest, smoke_serialize) {
 TEST_F(GRUSequenceTest, smoke_serialize) {
     run();
 }
+
+class GpuCacheDirWithDotsParamTest : public ::testing::TestWithParam<std::string> {
+protected:
+    ov::Core core;
+    std::string cacheDir;
+
+    void SetUp() override {
+        cacheDir = ov::test::utils::generateTestFilePrefix() + GetParam();
+
+        // Clean previous
+        ov::test::utils::removeFilesWithExt(cacheDir, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDir, "cl_cache");
+        ov::test::utils::removeDir(cacheDir);
+
+        core.set_property(ov::cache_dir(cacheDir));
+    }
+
+    void TearDown() override {
+        ov::test::utils::removeFilesWithExt(cacheDir, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDir, "cl_cache");
+        ov::test::utils::removeDir(cacheDir);
+    }
+};
+
+TEST_P(GpuCacheDirWithDotsParamTest, smoke_PopulateAndReuseCache) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 8, 8});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    auto res = std::make_shared<ov::op::v0::Result>(relu);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param}, "CacheDotsModel");
+    core.compile_model(model, "GPU");
+}
+
+INSTANTIATE_TEST_SUITE_P(CacheDirDotVariants,
+                         GpuCacheDirWithDotsParamTest,
+                         ::testing::Values("/test_encoder/test_encoder.encrypted/", "/test_encoder/test_encoder.encrypted"));
+
 }  // namespace

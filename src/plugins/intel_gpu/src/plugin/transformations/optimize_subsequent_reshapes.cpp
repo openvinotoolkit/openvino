@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
             if (dim.is_dynamic()) {
                 new_pattern.push_back(-1);
             } else {
-                new_pattern.push_back(dim.get_length());
+                new_pattern.push_back(static_cast<int32_t>(dim.get_length()));
             }
         }
 

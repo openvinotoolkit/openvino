@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -280,6 +280,24 @@ TYPED_TEST_P(PadTest, pad_begin_and_end_has_inf_interval_as_bounds) {
     EXPECT_THAT(get_shape_symbols(pad->get_output_partial_shape(0)), Each(nullptr));
 }
 
+TYPED_TEST_P(PadTest, pad_begin_and_end_dynamic) {
+    auto arg_shape = PartialShape{9, {3, 5}, {3, 5}, {3, 4}, {3, 4}};
+    auto begin_shape = PartialShape{-1};
+    auto end_shape = PartialShape{-1};
+    set_shape_symbols(arg_shape);
+    set_shape_symbols(begin_shape);
+    set_shape_symbols(end_shape);
+
+    auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
+    auto begin = make_shared<op::v0::Parameter>(element::i32, begin_shape);
+    auto end = make_shared<op::v0::Parameter>(element::i32, end_shape);
+
+    auto pad = this->make_op(arg, begin, end, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1}));
+    EXPECT_THAT(get_shape_symbols(pad->get_output_partial_shape(0)), Each(nullptr));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(PadTest,
                             pad_default_ctor,
                             pad_arg_pad_value_type_mismatch,
@@ -301,7 +319,80 @@ REGISTER_TYPED_TEST_SUITE_P(PadTest,
                             pad_dynamic_input_type_with_static_value,
                             pad_preserve_partial_values_and_symbols_via_evaluates_bounds,
                             pad_begin_and_end_has_inf_interval_as_bounds,
-                            pad_preserve_partial_values_and_symbols_on_inputs);
+                            pad_preserve_partial_values_and_symbols_on_inputs,
+                            pad_begin_and_end_dynamic);
 
 using PadOpTypes = Types<op::v1::Pad, op::v12::Pad>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, PadTest, PadOpTypes);
+
+template <class T>
+class PadStringTest : public TypePropOpTest<T> {};
+TYPED_TEST_SUITE_P(PadStringTest);
+
+TYPED_TEST_P(PadStringTest, pad_string_output_type_is_string) {
+    auto arg = make_shared<op::v0::Parameter>(element::string, Shape{3, 4});
+    auto pads_begin = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 2});
+    auto pads_end = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 1});
+    auto pad_value = make_shared<op::v0::Constant>(element::string, Shape{}, std::vector<std::string>{""});
+
+    auto pad = this->make_op(arg, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_element_type(0), element::string);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({4, 7}));
+}
+
+TYPED_TEST_P(PadStringTest, pad_string_negative_pads_crop) {
+    auto arg = make_shared<op::v0::Parameter>(element::string, Shape{4, 6});
+    auto pads_begin = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, 0});
+    auto pads_end = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, -2});
+    auto pad_value = make_shared<op::v0::Constant>(element::string, Shape{}, std::vector<std::string>{""});
+
+    auto pad = this->make_op(arg, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_element_type(0), element::string);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({3, 4}));
+}
+
+TYPED_TEST_P(PadStringTest, pad_string_dynamic_shape) {
+    auto arg = make_shared<op::v0::Parameter>(element::string, PartialShape{-1, -1});
+    auto pads_begin = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+    auto pads_end = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{2, 1});
+    auto pad_value = make_shared<op::v0::Constant>(element::string, Shape{}, std::vector<std::string>{"x"});
+
+    auto pad = this->make_op(arg, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_element_type(0), element::string);
+    EXPECT_EQ(pad->get_output_partial_shape(0), (PartialShape{{3, -1}, {1, -1}}));
+}
+
+TYPED_TEST_P(PadStringTest, pad_string_multi_char_pad_value) {
+    auto arg = make_shared<op::v0::Parameter>(element::string, Shape{2, 3});
+    auto pads_begin = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 2});
+    auto pads_end = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+    auto pad_value = make_shared<op::v0::Constant>(element::string, Shape{}, std::vector<std::string>{"hello world"});
+
+    auto pad = this->make_op(arg, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_element_type(0), element::string);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({4, 5}));
+}
+
+TYPED_TEST_P(PadStringTest, pad_string_pad_value_type_mismatch) {
+    auto arg = make_shared<op::v0::Parameter>(element::string, Shape{3});
+    auto pads_begin = make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    auto pads_end = make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    auto pad_value = make_shared<op::v0::Parameter>(element::f32, Shape{});
+
+    OV_EXPECT_THROW(ignore = this->make_op(arg, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT),
+                    NodeValidationFailure,
+                    HasSubstr("Argument element types do not match"));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(PadStringTest,
+                            pad_string_output_type_is_string,
+                            pad_string_negative_pads_crop,
+                            pad_string_dynamic_shape,
+                            pad_string_multi_char_pad_value,
+                            pad_string_pad_value_type_mismatch);
+
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, PadStringTest, PadOpTypes);

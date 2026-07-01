@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ typedef std::tuple<
 class BroadcastLayerGPUTest : public testing::WithParamInterface<BroadcastLayerTestParamsSet>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadcastLayerTestParamsSet>& obj) {
         const auto& [shapes, targetShapes, axesMapping, mode, model_type, isConstInputs, deviceName] = obj.param;
 
         std::ostringstream result;

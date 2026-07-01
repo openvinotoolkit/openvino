@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,33 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::util {
 struct GenericLayerParams;
+
+template <class T>
+void str_to_container(const std::string& value, T& res) {
+    std::stringstream ss(value);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        if (field.empty())
+            OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
+        typename T::value_type val;
+        if constexpr (std::is_arithmetic_v<typename T::value_type>) {
+            auto parsed = ov::util::view_to_number<typename T::value_type>(ov::util::trim(field));
+            OPENVINO_ASSERT(parsed.has_value(), "Cannot parse '", field, "' in \"", value, "\"");
+            val = *parsed;
+        } else {
+            std::stringstream fs(field);
+            fs >> val;
+        }
+        res.insert(res.end(), val);
+    }
+}
+
+template <>
+void str_to_container<std::vector<std::string>>(const std::string& value, std::vector<std::string>& res);
 
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
@@ -53,6 +77,9 @@ protected:
     virtual void set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter);
 
     const pugi::xml_node& get_node() const;
+    const std::shared_ptr<ov::AlignedBuffer>& get_weights() const {
+        return m_weights;
+    }
 
 private:
     struct IoMap {

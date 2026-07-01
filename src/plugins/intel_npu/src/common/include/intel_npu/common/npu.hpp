@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
@@ -38,12 +38,14 @@ public:
     virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Backend has support for LUID info */
     virtual bool isLUIDExtSupported() const = 0;
+    /** @brief Backend has support for npu context dditable ext */
+    virtual bool isContextExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
     virtual void* getContext() const;
     /** @brief Update backend and device info */
-    virtual void updateInfo(const Config& config) = 0;
+    virtual void updateInfo(const ov::AnyMap& properties) = 0;
     /** @brief Get LevelZero structures */
     virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
 
@@ -53,11 +55,24 @@ protected:
 
 //------------------------------------------------------------------------------
 
+class InferRequest : public ov::IInferRequest {
+public:
+    virtual void infer_async() = 0;
+    virtual void get_result() = 0;
+
+    virtual ~InferRequest() = default;
+};
+
 //------------------------------------------------------------------------------
 
 class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
+    struct DeviceProperties {
+        uint32_t deviceId;
+        uint32_t subdeviceId;
+        uint32_t numSlices;
+    };
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -71,11 +86,12 @@ public:
     virtual ov::device::Type getDeviceType() const;
     virtual std::map<ov::element::Type, float> getGops() const;
 
-    virtual std::shared_ptr<SyncInferRequest> createInferRequest(
-        const std::shared_ptr<const ICompiledModel>& compiledModel,
-        const Config& config) = 0;
+    virtual std::shared_ptr<InferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                                             const Config& config) = 0;
 
-    virtual void updateInfo(const Config& config) = 0;
+    virtual void updateInfo(const ov::AnyMap& properties) = 0;
+    virtual bool validateCompatibilityDescriptor(const std::string& compatibilityDescriptor) const = 0;
+    virtual DeviceProperties getDeviceProperties() const = 0;
 
 protected:
     virtual ~IDevice() = default;

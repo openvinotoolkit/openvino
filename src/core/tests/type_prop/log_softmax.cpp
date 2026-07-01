@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/log_softmax.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
 using namespace std;
@@ -19,12 +20,9 @@ TEST(type_prop, log_softmax) {
 TEST(type_prop, log_softmax_incorrect_axis) {
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 6});
 
-    try {
-        auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 3);
-        FAIL() << "LogSoftmax node was created with incorrect axis.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Reduction axis (3) is out of bounds"));
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v5::LogSoftmax>(data, 3),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Axis 3 out of the tensor rank range"));
 }
 
 // TEST(type_prop, log_softmax_partial)
@@ -48,4 +46,18 @@ TEST(type_prop, log_softmax_partial_static_rank) {
     EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).same_scheme((PartialShape{1, Dimension::dynamic(), 6})));
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).rank().is_static());
+}
+
+TEST(type_prop, log_softmax_scalar) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 0);
+    EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
+    EXPECT_EQ(log_softmax_func->get_output_partial_shape(0), (PartialShape{}));
+}
+
+TEST(type_prop, log_softmax_scalar_neg_axis) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, -1);
+    EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
+    EXPECT_EQ(log_softmax_func->get_output_partial_shape(0), (PartialShape{}));
 }

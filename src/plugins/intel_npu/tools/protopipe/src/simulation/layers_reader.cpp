@@ -1,5 +1,4 @@
-//
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,5 +41,7 @@ InOutLayers LayersReader::readLayers(const InferenceParams& params) {
     // NB: Using OpenVINO to read the i/o layers information for *.onnx model
     OpenVINOParams ov;
     ov.path = OpenVINOParams::ModelPath{ort.model_path, ""};
+    // NB: Pass reshape info to handle models with dynamic shapes
+    ov.reshape = ort.reshape;
     return getOVReader().readLayers(ov, true /* use_results_names */);
 }

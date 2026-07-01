@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     std::vector<Stage*> _stages;
     std::vector<size_t> _order;
     std::unique_ptr<ImplRuntimeParams> m_rt_params = nullptr;
+
+    // a pair of batch program hash and kernel entry hash of each ocl impl.
+    mutable cldnn::KernelDumpInfo kernel_dump_info;
 
     template <typename CodeGenType, typename... Args>
     Stage::Ptr make_stage(Args&&... args) {
@@ -131,6 +134,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     void init_kernels(const cldnn::kernels_cache& kernels_cache, const RuntimeParams& params) override {
         auto compiled_kernels = kernels_cache.get_kernels(params);
+        kernel_dump_info.set_batch_hash(std::to_string(kernels_cache.get_kernel_batch_hash(params)));
         for (size_t i = 0; i < _order.size(); i++) {
             _stages[_order[i]]->kernel = compiled_kernels[i];
         }
@@ -235,6 +239,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         if (kd.need_args_update) {
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
+            args.local_memory_args = &params.local_memory_args;
 
             GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
             GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
@@ -242,13 +247,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
                 GPU_DEBUG_TRACE_DETAIL << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t) << ", index = " << params.arguments[i].index
                                        << '\n';
             }
-            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:"
-                                   << "shape_info=" << args.shape_info << " "
-                                   << "inputs=" << args.inputs.size() << " "
-                                   << "outputs=" << args.outputs.size() << " "
-                                   << "intermediates=" << args.intermediates.size() << " "
-                                   << "weights=" << args.weights << " "
-                                   << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:" << "shape_info=" << args.shape_info << " " << "inputs=" << args.inputs.size() << " "
+                                   << "outputs=" << args.outputs.size() << " " << "intermediates=" << args.intermediates.size() << " "
+                                   << "weights=" << args.weights << " " << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
             stream.set_arguments(*stage.kernel, params, args);
             kd.need_args_update = false;
         }
@@ -259,22 +260,26 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] " << "lws=["
                                << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "") << '\n';
 
+        kernel_dump_info.add_entry_point(stage.kernel->get_id());
+
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
     }
 
-    virtual std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const {
+    virtual std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const {
         return _order;
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
+
         cldnn::stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
-            return stream.aggregate_events(events, false, instance.is_output());
+            return stream.aggregate_events(events, events.size() > 1, instance.is_output());
         }
 
         update_rt_params(instance);
 
-        const auto& exec_stages = get_stages_execution_order(instance);
+        const auto& exec_stages = get_stages_execution_order(*instance.get_impl_params());
 
         if (exec_stages.size() == 1) {
             return execute_stage(events, instance, *_stages[exec_stages[0]]);
@@ -315,8 +320,26 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
     }
 
-    [[nodiscard]] std::pair<std::string, std::string> get_kernels_dump_info() const override {
-        return {};
+    // The compile graph relies entirely on stages execution order, for a dynamic model it cannot be calculated and will contain all compiled kernels
+    // As well as if complex logic is introduced for the impl execution without a corresponding overload of the get_stages_execution_order() method
+    // The runtime graph relies on the actual execution of the kernel in execute_stage(..)
+    cldnn::KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
+        if (kernel_dump_info.has_entries()) {
+            return kernel_dump_info;
+        }
+
+        const auto& updated_order = !impl_params.is_dynamic() ? get_stages_execution_order(impl_params) : _order;
+
+        for (size_t i = 0; i < updated_order.size(); ++i) {
+            const auto& stage = _stages[updated_order[i]];
+
+            if (stage->kd.code) {
+                kernel_dump_info.add_entry_point(stage->kd.code->entry_point);
+            } else if (stage->kernel) {
+                kernel_dump_info.add_entry_point(stage->kernel->get_id());
+            }
+        }
+        return kernel_dump_info;
     }
 };
 

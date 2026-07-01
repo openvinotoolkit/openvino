@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,8 +46,8 @@ public:
         std::vector<int> specIdxDiff;
         std::vector<int> beforeAxPermMask;
         std::vector<int> afterAxPermMask;
-        int betweenBatchAndAxisIter = 0;
-        int specIdxAndAfterAxIterB = 0;
+        size_t betweenBatchAndAxisIter = 0;
+        size_t specIdxAndAfterAxIterB = 0;
 
         uint64_t workAmount = 0;
         uint64_t dstStart = 0;

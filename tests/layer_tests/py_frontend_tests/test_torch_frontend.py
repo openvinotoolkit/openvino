@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import glob
@@ -7,6 +7,7 @@ import itertools
 import math
 import os
 import re
+import sys
 import logging
 import platform
 from pathlib import Path
@@ -18,8 +19,13 @@ import pytest
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino import PartialShape, Type
 import openvino.opset10 as ops
+import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
+
+orig_compile = torch.compile
+torch.compile = lambda func: func
+default_cfg = {hints.inference_precision: Type.f32}
 
 
 class aten_relu(torch.nn.Module):
@@ -305,6 +311,15 @@ class CosModel(torch.nn.Module):
         return torch.cos(x.to(torch.float32))
 
 
+class ModelWithCosModule(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.cos_module = CosModel()
+
+    def forward(self, x):
+        return self.cos_module(x)
+
+
 def test_op_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import OpExtension
@@ -465,13 +480,407 @@ def test_multiple_module_extension():
         "Parameter", "Sin", "Tan", "Add", "Result"]
 
 
+@pytest.mark.parametrize("match_key_fn", [
+    pytest.param(lambda m: type(m.cos_module), id="by_class"),
+    pytest.param(lambda m: m.cos_module, id="by_instance"),
+    pytest.param(lambda m: "cos_module", id="by_name"),
+])
+def test_module_extension_dynamo_match(match_key_fn):
+    """ModuleExtension matches by class, instance, or name with dynamo=True."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    model = ModelWithCosModule()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(match_key_fn(model), "MySinOp"),
+            ConversionExtension("MySinOp", sin_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_condition():
+    """ModuleExtension condition callback controls whether extension is applied."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    me = ModuleExtension(CosModel, "MySinOp",
+                         condition=lambda m: getattr(m, "flag", False))
+
+    # condition False → extension skipped, original Cos runs
+    model = ModelWithCosModule()
+    model.cos_module.flag = False
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ConversionExtension("MySinOp", sin_op)])
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Cos", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+    # condition True → extension applies, Sin replaces Cos
+    model = ModelWithCosModule()
+    model.cos_module.flag = True
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ConversionExtension("MySinOp", sin_op)])
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_unpatch():
+    """Model is unpatched after conversion (no leftover attributes)."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    model = ModelWithCosModule()
+    convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(CosModel, "MySinOp"),
+            ConversionExtension("MySinOp", sin_op)])
+
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_module_extension_patch_orig_forward")
+
+    # Verify model still produces correct output after unpatching
+    x = torch.randn(100)
+    result = model(x)
+    expected = torch.cos(x.to(torch.float32))
+    assert torch.allclose(result, expected)
+
+
+def test_module_extension_dynamo_fx_op_reuse():
+    """FX-style op name as target_op reuses built-in FX translator."""
+    from openvino.frontend.pytorch import ModuleExtension
+    from openvino import convert_model
+
+    model = ModelWithCosModule()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[ModuleExtension(CosModel, "aten.sin.default")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_multi_input():
+    """Multi-input module: schema generated with correct arity."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class AddModule(torch.nn.Module):
+        def forward(self, x, y):
+            return x + y
+
+    class ModelWithAdd(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.add_mod = AddModule()
+
+        def forward(self, a, b):
+            return self.add_mod(a, b)
+
+    def mul_op(context):
+        return ops.multiply(context.get_input(0),
+                            context.get_input(1)).outputs()
+
+    model = ModelWithAdd()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100), torch.randn(100)],
+        dynamo=True,
+        extension=[
+            ModuleExtension(AddModule, "MyMulOp"),
+            ConversionExtension("MyMulOp", mul_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Parameter", "Multiply", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_weight_carrying():
+    """convert() passes extra module params (weight, bias) to target_op.
+
+    The auto-registered schema must match what convert() actually calls
+    (3 args: input, weight, bias), not the forward signature (1 arg: x).
+    """
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class WeightedModule(torch.nn.Module):
+        def __init__(self, out_features):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.randn(out_features, 10))
+            self.bias = torch.nn.Parameter(torch.randn(out_features))
+
+        def forward(self, x):
+            return x @ self.weight.t() + self.bias
+
+    class ModelWithWeighted(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = WeightedModule(5)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    def custom_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.weight, module.bias)
+
+    def linear_op(context):
+        mm = ops.matmul(context.get_input(0),
+                        context.get_input(1), False, True)
+        return ops.add(mm, context.get_input(2)).outputs()
+
+    model = ModelWithWeighted()
+    ref_weight = model.linear.weight.detach().numpy().copy()
+    ref_bias = model.linear.bias.detach().numpy().copy()
+
+    converted_model = convert_model(
+        model, example_input=[torch.randn(2, 10)], dynamo=True,
+        extension=[
+            ModuleExtension(WeightedModule, "WeightedLinear",
+                            convert=custom_convert),
+            ConversionExtension("WeightedLinear", linear_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "MatMul" in op_types
+    assert "Add" in op_types
+    # Weight is [5, 10], input is [2, 10], MatMul(input, weight^T) → [2, 5]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([2, 5])
+
+    # Verify weight and bias constant values match the original parameters
+    found_weight = False
+    found_bias = False
+    for n in converted_model.get_ordered_ops():
+        if n.get_type_name() != "Constant":
+            continue
+        data = n.get_data()
+        if data.shape == ref_weight.shape and np.allclose(data, ref_weight):
+            found_weight = True
+        if data.size == ref_bias.size and np.allclose(data.flatten(), ref_bias.flatten()):
+            found_bias = True
+    assert found_weight, "Weight constant not found or values don't match"
+    assert found_bias, "Bias constant not found or values don't match"
+
+
+def test_module_extension_dynamo_scalar_args():
+    """convert() passes scalar args (int, bool) alongside tensors."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class ScalarArgModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scale = 2
+            self.negate = True
+
+        def forward(self, x):
+            return x * self.scale * (-1 if self.negate else 1)
+
+    class ModelWithScalar(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.mod = ScalarArgModule()
+
+        def forward(self, x):
+            return self.mod(x)
+
+    def scalar_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.scale, module.negate)
+
+    def scalar_op(context):
+        inp = context.get_input(0)
+        scale = context.get_values_from_const_input(1)
+        negate = context.get_values_from_const_input(2)
+        assert scale == 2, f"Expected scale=2, got {scale}"
+        assert negate == True, f"Expected negate=True, got {negate}"
+        # Apply: x * scale * (-1 if negate else 1)
+        scale_const = ops.constant(np.array([scale], dtype=np.float32))
+        result = ops.multiply(inp, scale_const)
+        if negate:
+            neg_one = ops.constant(np.array([-1], dtype=np.float32))
+            result = ops.multiply(result, neg_one)
+        return result.outputs()
+
+    model = ModelWithScalar()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(ScalarArgModule, "ScalarOp",
+                            convert=scalar_convert),
+            ConversionExtension("ScalarOp", scalar_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "Multiply" in op_types, f"Expected Multiply in ops, got {op_types}"
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+def test_module_extension_dynamo_shape_changing():
+    """Shape-changing module: input [2,10] → output [2,5].
+
+    The Meta impl must use evaluate to infer correct output shape;
+    otherwise downstream ops see the wrong shape and export fails.
+    """
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class ShapeChangingModule(torch.nn.Module):
+        def __init__(self, in_features, out_features):
+            super().__init__()
+            self.weight = torch.nn.Parameter(
+                torch.randn(out_features, in_features))
+            self.out_features = out_features
+
+        def forward(self, x):
+            return x @ self.weight.t()
+
+    class ModelWithShapeChange(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.proj = ShapeChangingModule(10, 5)
+
+        def forward(self, x):
+            y = self.proj(x)
+            # Downstream op depends on correct output shape (2, 5).
+            return y + torch.ones(5)
+
+    def proj_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.weight)
+
+    def proj_op(context):
+        return ops.matmul(
+            context.get_input(0), context.get_input(1),
+            False, True).outputs()
+
+    model = ModelWithShapeChange()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(2, 10)], dynamo=True,
+        extension=[
+            ModuleExtension(ShapeChangingModule, "ProjOp",
+                            convert=proj_convert),
+            ConversionExtension("ProjOp", proj_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "MatMul" in op_types
+    assert "Add" in op_types
+    # Final output shape must be [2, 5] (proj [2,10]→[2,5], then + ones(5))
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([2, 5])
+
+
+def test_module_extension_dynamo_custom_callbacks():
+    """Custom evaluate, convert, and condition callbacks."""
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    # Custom convert: negate input before calling target_op.
+    def custom_convert(module, target_op, *args, **kwargs):
+        return target_op(-args[0])
+
+    def custom_evaluate(module, *args, **kwargs):
+        return torch.zeros_like(args[0])
+
+    def custom_condition(module):
+        return getattr(module, "apply_ext", False)
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    me = ModuleExtension(CosModel, "CustomNegOp",
+                         evaluate=custom_evaluate,
+                         convert=custom_convert,
+                         condition=custom_condition)
+    ce = ConversionExtension("CustomNegOp", sin_op)
+
+    # condition True → custom_convert negates input, then Sin
+    model = ModelWithCosModule()
+    model.cos_module.apply_ext = True
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ce])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "Sin" in op_types
+    assert "Multiply" in op_types  # negation: x * -1
+    assert "Cos" not in op_types
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+    # condition False → extension skipped, original Cos runs
+    model = ModelWithCosModule()
+    model.cos_module.apply_ext = False
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[me, ce])
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Cos", "Result"]
+    assert converted_model.get_results()[0].get_output_partial_shape(0) == \
+        PartialShape([100])
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
+    """__make_16bit_traceable keeps ModuleExtension (Linear/Embedding) weights
+    in 16-bit while up-casting params/buffers of non-extension modules to fp32.
+    """
+    from openvino.frontend.pytorch import patch_model
+
+    class Block(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scale_shift_table = torch.nn.Parameter(torch.randn(2, 4))
+            self.linear = torch.nn.Linear(4, 4)
+            self.embedding = torch.nn.Embedding(8, 4)
+            self.norm = torch.nn.LayerNorm(4)
+
+    model = Block().to(dtype)
+
+    assert all(p.dtype == dtype for p in model.parameters())
+
+    orig_forward_name = "_openvino_module_extension_patch_orig_forward"
+    try:
+        patch_model.__make_16bit_traceable(model)
+
+        # Linear/Embedding weights are consumed by ModuleExtension and must
+        # stay in 16-bit
+        assert model.linear.weight.dtype == dtype
+        assert model.embedding.weight.dtype == dtype
+
+        # Param and non-extension module weights are up-cast to fp32.
+        assert model.scale_shift_table.dtype == torch.float32
+        assert model.norm.weight.dtype == torch.float32
+    finally:
+        patch_model.unpatch_model(model, orig_forward_name)
+
+
 def verify_model(model, example_input, expected_ops):
     import numpy as np
     import openvino as ov
     # Convert and compile the model
     converted_model = ov.convert_model(model, example_input=(example_input,))
     assert converted_model, "Model conversion failed."
-    compiled_model = ov.compile_model(converted_model, "CPU")
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
     assert compiled_model, "Model compilation failed."
 
     # Verify model operations
@@ -883,28 +1292,34 @@ def test_patched_16bit_model_converts():
     model_fp16 = copy.deepcopy(model_ref).half()
 
     patch_model.__make_16bit_traceable(model_fp16)
-    # verify torch.nn.Linear signature after patching
-    signature = inspect.signature(model_ref.branch1[0].forward).parameters
-    assert ["input"] == list(signature)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_fp16, example_input=example)
-    assert converted_model
-    cm_fp16 = compile_model(converted_model, "CPU")
-    res_fp16 = cm_fp16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # verify torch.nn.Linear signature after patching
+        signature = inspect.signature(model_ref.branch1[0].forward).parameters
+        assert ["input"] == list(signature)
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
     model_bf16 = copy.deepcopy(model_ref).bfloat16()
     patch_model.__make_16bit_traceable(model_bf16)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_bf16, example_input=example)
-    assert converted_model
-    cm_bf16 = compile_model(converted_model, "CPU")
-    res_bf16 = cm_bf16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_bf16, example_input=example)
+        assert converted_model
+        cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
+        res_bf16 = cm_bf16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
 def test_patched_16bit_model_with_convert():
@@ -926,21 +1341,24 @@ def test_patched_16bit_model_with_convert():
     example = (torch.randint(0, 10, [16, 32]),)
     model = ModelWithLinear()
     patch_model.__make_16bit_traceable(model)
-    with torch.no_grad():
-        converted_model = convert_model(model, example_input=example)
-    assert converted_model
-    mm_num = 0
-    for node in converted_model.get_ordered_ops():
-        if node.get_type_name() == "MatMul":
-            mm_num += 1
-            # verify all matmuls are executed in fp32
-            assert node.get_input_element_type(0) == Type.f32
-            assert node.get_input_element_type(1) == Type.f32
-            assert node.get_output_element_type(0) == Type.f32
-    assert mm_num == 2
+    try:
+        with torch.no_grad():
+            converted_model = convert_model(model, example_input=example)
+        assert converted_model
+        mm_num = 0
+        for node in converted_model.get_ordered_ops():
+            if node.get_type_name() == "MatMul":
+                mm_num += 1
+                # verify all matmuls are executed in fp32
+                assert node.get_input_element_type(0) == Type.f32
+                assert node.get_input_element_type(1) == Type.f32
+                assert node.get_output_element_type(0) == Type.f32
+        assert mm_num == 2
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
-def test_patched_8bit_model_converts():
+def test_patched_8bit_model_converts_e4m3fn():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     from transformers.pytorch_utils import Conv1D
@@ -972,28 +1390,152 @@ def test_patched_8bit_model_converts():
         res_ref = model_ref(*example)
     model_f8_e4m3 = model_ref.to(torch.float8_e4m3fn)
     patch_model.__make_16bit_traceable(model_f8_e4m3)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_f8_e4m3, example_input=example)
-    assert converted_model
-    cm_f8_e4m3 = compile_model(converted_model, "CPU")
-    res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_f8_e4m3, example_input=example)
+        assert converted_model
+        cm_f8_e4m3 = compile_model(converted_model, "CPU", default_cfg)
+        res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
+        np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    reason="PyTorch float8_e5m2 cleanup deadlock on macOS ARM64. Ticket: 172658"
+)
+def test_patched_8bit_model_converts_e5m2():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    from transformers.pytorch_utils import Conv1D
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+
+            self.branch1 = torch.nn.Sequential(
+                torch.nn.Embedding(10, 64),
+                torch.nn.Linear(64, 32),
+                torch.nn.ReLU()
+            )
+            self.branch2 = torch.nn.Sequential(
+                Conv1D(256, 128),
+                torch.nn.Linear(256, 64), torch.nn.ReLU()
+            )
+            self.buffer = torch.ones(32)
+
+        def forward(self, x1, x2):
+            out1 = self.branch1(x1)
+            out2 = self.branch2(x2)
+            return (out1 + self.buffer, out2)
+
+    example = (torch.randint(0, 10, [32, 64]), torch.randn(32, 128))
 
     model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
     with torch.no_grad():
         res_ref = model_ref(*example)
     model_f8_e5m2 = model_ref.to(torch.float8_e5m2)
     patch_model.__make_16bit_traceable(model_f8_e5m2)
-    # the approach with patching only works for node with no grad
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_f8_e5m2, example_input=example)
+        assert converted_model
+        cm_f8_e5m2 = compile_model(converted_model, "CPU", default_cfg)
+        res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
+        np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
+def test_patched_16bit_model_with_bmm():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    import copy
+
+    rng = torch.Generator().manual_seed(42)
+
+    class MoEStyleModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.expert_weights = torch.nn.Parameter(
+                torch.randint(-4, 5, (4, 32, 64), generator=rng).float() * 0.25)
+            self.linear = torch.nn.Linear(64, 32, bias=False)
+            self.linear.weight.data = torch.randint(-4, 5, (32, 64), generator=rng).float() * 0.25
+
+        def forward(self, x):
+            batch, seq, _ = x.shape
+            x_expanded = x.reshape(1, batch * seq, -1).expand(4, -1, -1)
+            expert_out = torch.bmm(x_expanded, self.expert_weights)
+            out = expert_out.mean(dim=0).reshape(batch, seq, -1)
+            return self.linear(out)
+
+    example = (torch.randint(-4, 5, (2, 8, 32), generator=rng).float() * 0.25,)
+    model_ref = MoEStyleModel()
     with torch.no_grad():
-        converted_model = convert_model(model_f8_e5m2, example_input=example)
+        res_ref = model_ref(*example)
+
+    try:
+        model_bf16 = copy.deepcopy(model_ref).bfloat16()
+        patch_model.__make_16bit_traceable(model_bf16)
+        with torch.no_grad():
+            converted_model = convert_model(model_bf16, example_input=example)
+        assert converted_model
+        cm_bf16 = compile_model(converted_model, "CPU")
+        res_bf16 = cm_bf16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=1e-2)
+
+        model_fp16 = copy.deepcopy(model_ref).half()
+        patch_model.__make_16bit_traceable(model_fp16)
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU")
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_patched_bitnet_model_converts():
+    from openvino import convert_model, compile_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+
+    class TestModel(torch.nn.Module):
+        def __init__(self, size):
+            super().__init__()
+            self.config = PretrainedConfig(quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    size = (32, 64)
+    x = torch.randn(1, size[0], generator=rng)
+    model = TestModel(size)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    with torch.no_grad():
+        converted_model = convert_model(model, example_input=(torch.randn(1, size[0], generator=rng),))
     assert converted_model
-    cm_f8_e5m2 = compile_model(converted_model, "CPU")
-    res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    cm = compile_model(converted_model, "CPU", default_cfg)
+    res = cm([x.numpy()])
+    rtol, atol = 1e-4, 1e-4
+    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        rtol, atol = 0.5, 0.1
+    np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
 
 
 class InlinedInputsModel(torch.nn.Module):
@@ -1007,5 +1549,1429 @@ class InlinedInputsModel(torch.nn.Module):
 def test_inlined_inputs():
     model = InlinedInputsModel()
     model.eval()
-    model = torch.compile(model, backend="openvino", options={"testing": 1})
+    model = orig_compile(model, backend="openvino", options={"testing": 1})
     model()
+
+
+# --- dynamo (torch.export) tests ---
+
+def _torch_version_at_least(version_str):
+    from packaging.version import parse
+    return parse(torch.__version__.split('+')[0].split('dev')[0]) >= parse(version_str)
+
+
+@pytest.mark.skipif(not _torch_version_at_least("2.6"),
+                    reason="Dim.AUTO requires PyTorch >= 2.6")
+class TestBuildDynamicShapes:
+    """Unit tests for _build_dynamic_shapes covering many input combinations."""
+
+    @staticmethod
+    def _make_spec(shape):
+        """Create an _InputCutInfo with the given PartialShape."""
+        from openvino.tools.ovc.cli_parser import _InputCutInfo
+        return _InputCutInfo(name=None, shape=PartialShape(shape))
+
+    # ── input_specs=None → always None ──────────────────────────────
+
+    def test_no_specs_returns_none_single_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.randn(2, 3),)
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    def test_no_specs_returns_none_multi_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.randn(4,), torch.randn(4,))
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    def test_no_specs_returns_none_dict_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = {"x": torch.randn(2, 3), "y": torch.randn(2, 3)}
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    def test_no_specs_returns_none_single_tensor(self):
+        """Bare tensor (not wrapped in tuple) with no specs."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = torch.randn(2, 3, 4)
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    # ── All dims dynamic (-1) ───────────────────────────────────────
+
+    def test_all_dims_dynamic_1d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(5),)
+        inp = [self._make_spec([-1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert isinstance(result, tuple)
+        assert result[0] == {0: Dim.AUTO}
+
+    def test_all_dims_dynamic_2d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3),)
+        inp = [self._make_spec([-1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO}
+
+    def test_all_dims_dynamic_4d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 3, 224, 224),)
+        inp = [self._make_spec([-1, -1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+
+    # ── Only batch dynamic ──────────────────────────────────────────
+
+    def test_batch_only_dynamic_4d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32),)
+        inp = [self._make_spec([-1, 3, 32, 32])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    def test_batch_only_dynamic_3d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(4, 10, 512),)
+        inp = [self._make_spec([-1, 10, 512])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Mixed dynamic / static dims ─────────────────────────────────
+
+    def test_batch_and_seqlen_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 128, 768),)
+        inp = [self._make_spec([-1, -1, 768])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO}
+
+    def test_only_spatial_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 3, 64, 64),)
+        inp = [self._make_spec([1, 3, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {2: Dim.AUTO, 3: Dim.AUTO}
+
+    def test_only_middle_dim_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(4, 10, 16),)
+        inp = [self._make_spec([4, -1, 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {1: Dim.AUTO}
+
+    # ── All static dims → None per input ────────────────────────────
+
+    def test_all_static_returns_none_for_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.randn(2, 3, 4),)
+        inp = [self._make_spec([2, 3, 4])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result is not None  # tuple is returned (not None), but element is None
+        assert result[0] is None
+
+    # ── Multiple inputs ─────────────────────────────────────────────
+
+    def test_two_inputs_both_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 8), torch.randn(2, 8))
+        inp = [self._make_spec([-1, 8]), self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] == {0: Dim.AUTO}
+
+    def test_two_inputs_one_dynamic_one_static(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32), torch.randn(2, 10))
+        inp = [self._make_spec([-1, 3, 32, 32]), self._make_spec([2, 10])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] is None
+
+    def test_three_inputs_mixed(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 128, 64), torch.randn(1, 128, 64), torch.randn(1, 128, 64))
+        inp = [self._make_spec([-1, -1, 64])] * 3
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        for i in range(3):
+            assert result[i] == {0: Dim.AUTO, 1: Dim.AUTO}
+
+    # ── Dict inputs ─────────────────────────────────────────────────
+
+    def test_dict_input_single_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = {"x": torch.randn(4, 16), "y": torch.randn(4, 16)}
+        inp = [self._make_spec([-1, 16]), self._make_spec([-1, 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result["x"] == {0: Dim.AUTO}
+        assert result["y"] == {0: Dim.AUTO}
+
+    def test_dict_input_mixed_shapes(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = {"image": torch.randn(1, 3, 64, 64), "mask": torch.randn(1, 1, 64, 64)}
+        inp = [self._make_spec([-1, 3, -1, -1]), self._make_spec([-1, 1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result["image"] == {0: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+        assert result["mask"] == {0: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+
+    def test_dict_input_all_static(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = {"a": torch.randn(2, 3), "b": torch.randn(2, 3)}
+        inp = [self._make_spec([2, 3]), self._make_spec([2, 3])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result["a"] is None
+        assert result["b"] is None
+
+    # ── List inputs (auto-converted to tuple) ───────────────────────
+
+    def test_list_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = [torch.randn(3, 5)]
+        inp = [self._make_spec([-1, 5])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Bare single tensor input ────────────────────────────────────
+
+    def test_bare_tensor_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = torch.randn(2, 10)
+        inp = [self._make_spec([-1, 10])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Scalar tensor → None ────────────────────────────────────────
+
+    def test_scalar_tensor_returns_none(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.tensor(3.14),)
+        inp = [self._make_spec([])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+
+    # ── Spec with None shape ────────────────────────────────────────
+
+    def test_spec_with_none_shape(self):
+        """Spec that has shape=None should not produce dynamic dims."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino.tools.ovc.cli_parser import _InputCutInfo
+        example_input = (torch.randn(2, 3),)
+        inp = [_InputCutInfo(name=None, shape=None)]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+
+    # ── More specs than inputs (extra specs ignored) ────────────────
+
+    def test_extra_specs_ignored(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4),)
+        inp = [self._make_spec([-1, 4]), self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Fewer specs than inputs (missing specs → None) ──────────────
+
+    def test_fewer_specs_than_inputs(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4), torch.randn(2, 4))
+        inp = [self._make_spec([-1, 4])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] is None  # no spec → static
+
+    # ── High-dimensional tensors ────────────────────────────────────
+
+    def test_5d_tensor(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 16, 224, 224),)
+        inp = [self._make_spec([-1, 3, -1, 224, 224])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 2: Dim.AUTO}
+
+    def test_6d_tensor_all_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 2, 3, 4, 5, 6),)
+        inp = [self._make_spec([-1, -1, -1, -1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO,
+                              3: Dim.AUTO, 4: Dim.AUTO, 5: Dim.AUTO}
+
+    # ── Multiple inputs with different ranks ────────────────────────
+
+    def test_inputs_different_ranks(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(8), torch.randn(4, 8), torch.randn(2, 4, 8))
+        inp = [self._make_spec([-1]), self._make_spec([-1, -1]), self._make_spec([-1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] == {0: Dim.AUTO, 1: Dim.AUTO}
+        assert result[2] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO}
+
+    # ── Spec shape shorter than tensor rank (extra dims stay static)
+
+    def test_spec_shorter_than_tensor(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32),)
+        inp = [self._make_spec([-1, 3])]  # only covers first 2 of 4 dims
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Only dim 0 is -1 in spec, dim 1 is 3 (static), dims 2,3 not in spec → static
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Dimension constraints (min/max bounds) ──────────────────────
+
+    def test_constrained_batch_dim(self):
+        """Dimension(1, 10) → Dim with min=1, max=10."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32),)
+        inp = [self._make_spec([Dimension(1, 10), 3, 32, 32])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        d = result[0][0]
+        assert d is not Dim.AUTO
+        assert d.min == 1
+        assert d.max == 10
+
+    def test_constrained_lower_bound_only(self):
+        """Dimension(1, -1) → Dim with min=1, unbounded max."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(4, 16),)
+        inp = [self._make_spec([Dimension(1, -1), 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        d = result[0][0]
+        assert d is not Dim.AUTO
+        assert d.min == 1
+
+    def test_constrained_upper_bound_only(self):
+        """Dimension(0, 100) → Dim with max=100."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(4, 16),)
+        inp = [self._make_spec([Dimension(0, 100), 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        d = result[0][0]
+        assert d is not Dim.AUTO
+        assert d.max == 100
+
+    def test_constrained_mixed_with_fully_dynamic(self):
+        """Mix constrained dims, fully dynamic dims, and static dims."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(1, 3, 64, 64),)
+        inp = [self._make_spec([Dimension(1, 8), 3, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # dim 0: constrained
+        assert result[0][0] is not Dim.AUTO
+        assert result[0][0].min == 1
+        assert result[0][0].max == 8
+        # dims 2,3: fully dynamic
+        assert result[0][2] is Dim.AUTO
+        assert result[0][3] is Dim.AUTO
+        # dim 1 (static 3) not present
+        assert 1 not in result[0]
+
+    def test_constrained_all_dims(self):
+        """All dims have constraints."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        example_input = (torch.randn(2, 8),)
+        inp = [self._make_spec([Dimension(1, 4), Dimension(4, 16)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0][0].min == 1
+        assert result[0][0].max == 4
+        assert result[0][1].min == 4
+        assert result[0][1].max == 16
+
+    def test_constrained_multiple_inputs(self):
+        """Two inputs, each with different constraints."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(2, 8), torch.randn(2, 16))
+        inp = [self._make_spec([Dimension(1, 4), 8]),
+               self._make_spec([-1, Dimension(8, 32)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Input 0: dim 0 constrained
+        assert result[0][0].min == 1
+        assert result[0][0].max == 4
+        # Input 1: dim 0 fully dynamic, dim 1 constrained
+        assert result[1][0] is Dim.AUTO
+        assert result[1][1].min == 8
+        assert result[1][1].max == 32
+
+    def test_constrained_dict_input(self):
+        """Dict input with constrained dimensions."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = {"x": torch.randn(2, 3), "y": torch.randn(2, 3)}
+        inp = [self._make_spec([Dimension(1, 8), 3]),
+               self._make_spec([-1, 3])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # "x": dim 0 constrained
+        assert result["x"][0].min == 1
+        assert result["x"][0].max == 8
+        # "y": dim 0 fully dynamic
+        assert result["y"][0] is Dim.AUTO
+
+    def test_constrained_all_static_still_none(self):
+        """Static Dimension values should be treated same as plain ints."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        example_input = (torch.randn(2, 3),)
+        inp = [self._make_spec([Dimension(2), Dimension(3)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+
+    # ── Parametrized: many rank / dynamic-dim combos ────────────────
+
+    @pytest.mark.parametrize("ndim,dyn_dims", [
+        (1, [0]),
+        (2, [0]),
+        (2, [1]),
+        (2, [0, 1]),
+        (3, [0]),
+        (3, [2]),
+        (3, [0, 2]),
+        (4, [0]),
+        (4, [0, 2, 3]),
+        (4, [0, 1, 2, 3]),
+        (5, [0, 2]),
+    ])
+    def test_parametrized_dynamic_dims(self, ndim, dyn_dims):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        tensor_shape = [(d + 2) for d in range(ndim)]
+        example_input = (torch.randn(*tensor_shape),)
+        inp = [self._make_spec([(-1 if d in dyn_dims else (d + 2)) for d in range(ndim)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        if dyn_dims:
+            assert result[0] == {d: Dim.AUTO for d in dyn_dims}
+        else:
+            assert result[0] is None
+
+    # ── Nested tuple inputs (e.g. past_key_values) ─────────────────
+
+    def test_nested_tuple_single_layer(self):
+        """past_key_values with one layer: ((key, value),)."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        x = torch.randn(2, 4)
+        past_kv = ((torch.randn(2, 4, 3, 8), torch.randn(2, 4, 3, 8)),)
+        example_input = (x, past_kv)
+        # 3 flat specs: x, key, value
+        inp = [self._make_spec([-1, 4]),
+               self._make_spec([-1, 4, 3, 8]),
+               self._make_spec([-1, 4, 3, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Result must mirror nested structure: (dims_x, ((dims_k, dims_v),))
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0][0] == {0: Dim.AUTO}
+        assert result[1][0][1] == {0: Dim.AUTO}
+
+    def test_nested_tuple_two_layers(self):
+        """past_key_values with two layers: ((k0, v0), (k1, v1))."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        x = torch.randn(1, 16)
+        past_kv = (
+            (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
+            (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
+        )
+        example_input = (x, past_kv)
+        # 5 flat specs
+        inp = [self._make_spec([-1, 16]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        for layer in range(2):
+            for kv in range(2):
+                d = result[1][layer][kv]
+                assert 0 in d and 2 in d
+                assert d[0] is Dim.AUTO
+                assert d[2] is Dim.AUTO
+
+    def test_nested_tuple_static_specs(self):
+        """Nested inputs with all-static specs → None per leaf."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        x = torch.randn(2, 4)
+        past_kv = ((torch.randn(2, 4, 3, 8),),)
+        example_input = (x, past_kv)
+        inp = [self._make_spec([2, 4]),
+               self._make_spec([2, 4, 3, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+        assert result[1][0][0] is None
+
+    def test_nested_list_input(self):
+        """List containing tensors (auto-converted by pytree)."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4), [torch.randn(2, 8), torch.randn(2, 8)])
+        inp = [self._make_spec([-1, 4]),
+               self._make_spec([-1, 8]),
+               self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0] == {0: Dim.AUTO}
+        assert result[1][1] == {0: Dim.AUTO}
+
+
+class TestConvertModelDynamo:
+    """Tests for convert_model with dynamo=True (torch.export path)."""
+
+    def test_basic(self):
+        from openvino import convert_model, compile_model
+
+        class SimpleModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = torch.nn.Linear(16, 32)
+
+            def forward(self, x):
+                return torch.nn.functional.relu(self.linear(x))
+
+        model = SimpleModel()
+        example = (torch.randn(2, 16),)
+
+        with torch.no_grad():
+            ref = model(*example)
+
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([e.numpy() for e in example])
+        np.testing.assert_allclose(res[0], ref.numpy(), atol=1e-4, rtol=1e-4)
+
+    def test_multi_input(self):
+        from openvino import convert_model, compile_model
+
+        class MultiInputModel(torch.nn.Module):
+            def forward(self, x, y):
+                return x + y, x * y
+
+        model = MultiInputModel()
+        example = (torch.randn(2, 8), torch.randn(2, 8))
+
+        with torch.no_grad():
+            ref = model(*example)
+
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([e.numpy() for e in example])
+        np.testing.assert_allclose(res[0], ref[0].numpy(), atol=1e-5, rtol=1e-5)
+        np.testing.assert_allclose(res[1], ref[1].numpy(), atol=1e-5, rtol=1e-5)
+
+    def test_dynamic_shapes(self):
+        from openvino import convert_model, compile_model
+
+        class DynModel(torch.nn.Module):
+            def forward(self, x):
+                return x * 2.0
+
+        model = DynModel()
+        example = (torch.randn(2, 4),)
+
+        # No 'input' provided → fully static export
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        input_shape = ov_model.input(0).get_partial_shape()
+        assert input_shape.is_static, (
+            f"Expected static shape without 'input', got {input_shape}")
+
+        # With 'input' specifying dynamic dims → dynamic export
+        ov_model_dyn = convert_model(
+            model, example_input=example, dynamo=True,
+            input=(PartialShape([-1, -1]),))
+        assert ov_model_dyn is not None
+
+        input_shape_dyn = ov_model_dyn.input(0).get_partial_shape()
+        assert input_shape_dyn.is_dynamic, (
+            f"Expected dynamic shape with 'input', got {input_shape_dyn}")
+
+        # Inference with different shapes should work
+        cm = compile_model(ov_model_dyn, "CPU", default_cfg)
+        for shape in [(1, 4), (3, 4), (5, 8)]:
+            inp = np.random.randn(*shape).astype(np.float32)
+            res = cm([inp])
+            np.testing.assert_allclose(res[0], inp * 2.0, atol=1e-5, rtol=1e-5)
+
+    def test_no_example_input_raises(self):
+        from openvino import convert_model
+
+        class Dummy(torch.nn.Module):
+            def forward(self, x):
+                return x
+
+        with pytest.raises(Exception, match="example_input is required when dynamo=True"):
+            convert_model(Dummy(), dynamo=True)
+
+    def test_dict_example_input(self):
+        from openvino import convert_model, compile_model
+
+        class DictModel(torch.nn.Module):
+            def forward(self, a, b):
+                return a - b
+
+        model = DictModel()
+        example = {"a": torch.randn(3, 5), "b": torch.randn(3, 5)}
+
+        with torch.no_grad():
+            ref = model(**example)
+
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([v.numpy() for v in example.values()])
+        np.testing.assert_allclose(res[0], ref.numpy(), atol=1e-5, rtol=1e-5)
+
+    def test_input_shapes_constrain_dynamism(self):
+        """When 'input' specifies shapes, only -1 dims become dynamic."""
+        from openvino import convert_model, compile_model
+
+        class ConvModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.conv = torch.nn.Conv2d(3, 8, 3, padding=1)
+
+            def forward(self, x):
+                return self.conv(x)
+
+        model = ConvModel()
+        example = (torch.randn(1, 3, 32, 32),)
+
+        # Only batch dim is dynamic (-1), spatial dims are fixed
+        ov_model = convert_model(
+            model, example_input=example, dynamo=True,
+            input=(PartialShape([-1, 3, 32, 32]),))
+        assert ov_model is not None
+
+        ps = ov_model.input(0).get_partial_shape()
+        # Batch dim should be dynamic
+        assert ps[0].is_dynamic, f"Expected dynamic batch dim, got {ps}"
+        # Channel and spatial dims should be static
+        assert ps[1].get_length() == 3
+        assert ps[2].get_length() == 32
+        assert ps[3].get_length() == 32
+
+        # Inference with different batch sizes should work
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        for batch in [1, 2, 4]:
+            inp = np.random.randn(batch, 3, 32, 32).astype(np.float32)
+            res = cm([inp])
+            assert res[0].shape[0] == batch
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for torch.export path with ov_ext custom ops (quantized models)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_ov_ext_ops_meta_dispatch():
+    """Verify quantized ov_ext ops produce correct shapes and dtypes on meta device."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+
+    # awq_gemm
+    r = torch.ops.ov_ext.awq_gemm(
+        torch.empty(2, 64, dtype=torch.float16, device="meta"),
+        torch.empty(64, 16, device="meta"),
+        torch.empty(2, 16, device="meta"),
+        torch.empty(2, 128, device="meta"),
+        32, 4, None)
+    assert r.shape == (2, 128) and r.dtype == torch.float16
+
+    # bit_linear
+    r = torch.ops.ov_ext.bit_linear(
+        torch.empty(2, 3, 32, dtype=torch.bfloat16, device="meta"),
+        torch.empty(64, 32, device="meta"),
+        torch.empty(64, device="meta"), None)
+    assert r.shape == (2, 3, 64) and r.dtype == torch.bfloat16
+
+    # gptq_gemm  — qweight is [in_features/8, out_features]
+    r = torch.ops.ov_ext.gptq_gemm(
+        torch.empty(2, 64, dtype=torch.float16, device="meta"),
+        torch.empty(8, 16, device="meta"),
+        torch.empty(2, 2, device="meta"),
+        torch.empty(2, 16, device="meta"),
+        32, 4, False, None)
+    assert r.shape == (2, 16) and r.dtype == torch.float16
+
+
+def test_ov_ext_awq_gemm_output_shape():
+    """ov_ext.awq_gemm produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    batch, in_f, w_bit, group_size = 2, 64, 4, 32
+    pack_num = 32 // w_bit
+    packed_out = 16  # out_features = packed_out * pack_num = 128
+    data = torch.randn(batch, in_f)
+    qweight = torch.randint(0, 255, (in_f, packed_out), dtype=torch.int32)
+    qzeros = torch.randint(0, 255, (in_f // group_size, packed_out), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, packed_out * pack_num)
+    result = torch.ops.ov_ext.awq_gemm(data, qweight, qzeros, scales, group_size, w_bit, None)
+    assert result.shape == (batch, packed_out * pack_num)
+
+
+def test_ov_ext_bit_linear_output_shape():
+    """ov_ext.bit_linear produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    out_features = 64
+    data = torch.randn(2, 3, 32)
+    weight = torch.randn(out_features, 32)
+    weight_scale = torch.randn(out_features)
+    result = torch.ops.ov_ext.bit_linear(data, weight, weight_scale, None)
+    assert result.shape == (2, 3, out_features)
+
+
+def test_ov_ext_gptq_gemm_output_shape():
+    """ov_ext.gptq_gemm produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    batch, in_f, w_bit, group_size = 2, 64, 4, 32
+    pack_num = 32 // w_bit
+    out_features = 64
+    data = torch.randn(batch, in_f)
+    # GPTQ packs along input dim: qweight = [in_features/pack_num, out_features]
+    qweight = torch.randint(0, 255, (in_f // pack_num, out_features), dtype=torch.int32)
+    # qzeros packs along output dim: qzeros = [n_groups, out_features/pack_num]
+    qzeros = torch.randint(0, 255, (in_f // group_size, out_features // pack_num), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, out_features)
+    # Asymmetric
+    result = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
+                                         group_size, w_bit, False, None)
+    assert result.shape == (batch, out_features)
+    # Symmetric
+    result_sym = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
+                                             group_size, w_bit, True, None)
+    assert result_sym.shape == (batch, out_features)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_gptq_export_pipeline():
+    """Patch a GPTQ model with patch_quantized_for_export, export, convert, verify."""
+    try:
+        from auto_gptq.nn_modules.qlinear.qlinear_cuda_old import (
+            QuantLinear as GPTQQuantLinear)
+    except ImportError:
+        pytest.skip("auto_gptq not installed")
+
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+
+    rng = torch.Generator().manual_seed(42)
+    in_features, out_features, group_size, bits = 32, 64, 32, 4
+    pack_num = 32 // bits
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = False
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = GPTQQuantLinear(
+                bits, group_size, in_features, out_features, True)
+            # Fill with random quantized data
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // pack_num, out_features),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // group_size,
+                              out_features // pack_num),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_features // group_size, out_features,
+                            dtype=torch.float16, generator=rng),
+                requires_grad=False)
+            self.linear.bias = torch.nn.Parameter(
+                torch.randn(out_features, dtype=torch.float16, generator=rng),
+                requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = GPTQModel()
+    x = torch.randn(1, in_features, generator=rng)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,))
+        # Verify custom op in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.gptq_gemm.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy()])
+        assert res[0].shape == (1, out_features)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    # Verify model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+
+def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32):
+    """Build a minimal GPTQ model whose linear layer mimics gptqmodel's
+    ``TorchFusedQuantLinear`` backend (``QUANT_TYPE == "torch_fused"``), using the
+    standard 4-bit/int32 weight packing the OpenVINO GPTQ patcher expects. The
+    layer's own ``forward`` is a placeholder — OpenVINO replaces it with its
+    decompression forward before tracing/export, so only the packed buffers and
+    attributes need to be realistic.
+    """
+    bits = 4
+    pack_num = 32 // bits  # 8 nibbles per int32
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = True
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class TorchFusedLinear(torch.nn.Module):
+        QUANT_TYPE = "torch_fused"
+
+        def __init__(self):
+            super().__init__()
+            self.bits = bits
+            self.group_size = group_size
+            # Real GPTQ backends register the packed tensors as buffers (not
+            # parameters); the OpenVINO patcher re-assigns plain tensors to them.
+            self.register_buffer("qweight", torch.randint(
+                0, 2 ** 31, (in_features // pack_num, out_features),
+                dtype=torch.int32))
+            self.register_buffer("qzeros", torch.randint(
+                0, 2 ** 31, (in_features // group_size, out_features // pack_num),
+                dtype=torch.int32))
+            self.register_buffer("scales", torch.randn(
+                in_features // group_size, out_features, dtype=torch.float16))
+            self.bias = None
+
+        def forward(self, x):
+            return torch.zeros(*x.shape[:-1], out_features, dtype=x.dtype, device=x.device)
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = TorchFusedLinear()
+
+        def forward(self, x):
+            return self.linear(x)
+
+    return GPTQModel(), torch.randn(2, in_features)
+
+
+def test_gptq_torch_fused_convert_keeps_u4():
+    """A GPTQ model whose layers report ``QUANT_TYPE == "torch_fused"`` must convert
+    via the TorchScript path and keep its 4-bit weight packing: the resulting
+    ov::Model must contain a 4-bit (i4/u4) Constant and no live ``BitwiseRightShift``
+    weight-unpacking op."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, x = _make_torch_fused_gptq_model()
+    model.eval()
+
+    # Convert through the frontend directly: TorchScriptPythonDecoder traces the
+    # model and auto-applies the GPTQ patch, and FrontEnd.convert keeps the u4
+    # weight constant produced by the u4_compression_stack fold. The full
+    # openvino.convert_model MOC pipeline would constant-fold the all-constant
+    # dequant subgraph of this tiny fixture, hiding the packing under test.
+    decoder = TorchScriptPythonDecoder(model, example_input=(x,))
+    fe = FrontEndManager().load_by_framework("pytorch")
+    ov_model = fe.convert(fe.load(decoder))
+    assert ov_model
+
+    ops = ov_model.get_ops()
+    type_names = [o.get_type_name() for o in ops]
+    # The GPTQ unpacking must have been folded away (no runtime bit-shift unpacking).
+    assert "BitwiseRightShift" not in type_names
+    # ...and the weights must be stored as a packed 4-bit constant.
+    four_bit_consts = [o for o in ops
+                       if o.get_type_name() == "Constant"
+                       and o.get_output_element_type(0) in (Type.i4, Type.u4)]
+    assert four_bit_consts, "expected a packed 4-bit (i4/u4) weight constant"
+
+
+def test_gptq_torch_fused_export_supported():
+    """``patch_quantized_for_export`` must accept ``QUANT_TYPE == "torch_fused"``
+    rather than raising ``ValueError`` for the unsupported quant type."""
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+
+    model, _ = _make_torch_fused_gptq_model()
+
+    patch_quantized_for_export(model)  # must not raise
+    try:
+        assert hasattr(model.linear, "_openvino_quantized_patch_orig_forward")
+    finally:
+        unpatch_quantized_for_export(model)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for dynamo=True auto-patching of quantized models
+# ──────────────────────────────────────────────────────────────────────
+
+def test_dynamo_auto_patches_quantized_awq():
+    """Verify convert_model(dynamo=True) auto-patches AWQ quantized models."""
+    try:
+        from awq.modules.linear import WQLinear_GEMM
+    except ImportError:
+        pytest.skip("awq not installed")
+
+    from openvino import convert_model
+
+    class FakeQuantConfig:
+        quant_method = "awq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    # Build a model with a WQLinear_GEMM submodule
+    class FakeAWQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            in_f, out_f, w_bit, group_size = 64, 128, 4, 32
+            pack_num = 32 // w_bit
+            self.linear = WQLinear_GEMM(w_bit, group_size, in_f, out_f, bias=False, dev="cpu")
+            # Provide properly shaped fake weights
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 255, (in_f, out_f // pack_num), dtype=torch.int32),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 255, (in_f // group_size, out_f // pack_num), dtype=torch.int32),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_f // group_size, out_f), requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeAWQModel()
+    example_input = torch.randn(2, 64)
+    ov_model = convert_model(model, example_input=[example_input], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched (no leftover attributes)
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify model has expected output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == 128
+
+
+def test_dynamo_auto_patches_gptq_graceful_fallback():
+    """Verify convert_model(dynamo=True) handles GPTQ model with plain Linear (no QUANT_TYPE)."""
+    from openvino import convert_model
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeGPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = torch.nn.Linear(4, 2)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeGPTQModel()
+    example_input = torch.randn(2, 4)
+    # Model uses plain Linear (no QUANT_TYPE), so GPTQ patching finds
+    # nothing to patch and the model exports as-is
+    ov_model = convert_model(model, example_input=[example_input], dynamo=True)
+    assert ov_model is not None
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  BitNet export pipeline tests
+# ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_bitnet_export_pipeline():
+    """Patch a BitNet model with patch_quantized_for_export, export, convert, verify."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+    size = (32, 64)
+
+    class BitNetModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = PretrainedConfig(
+                quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = BitNetModel()
+    x = torch.randn(1, size[0], generator=rng)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,))
+        # Verify custom ops in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.bit_linear.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy()])
+        rtol, atol = 1e-4, 1e-4
+        if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+            rtol, atol = 0.5, 0.1
+        np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    # Verify model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_dynamo_auto_patches_bitnet():
+    """Verify convert_model(dynamo=True) auto-patches BitNet quantized models."""
+    from openvino import convert_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+    size = (32, 64)
+
+    class BitNetModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = PretrainedConfig(
+                quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = BitNetModel()
+    x = torch.randn(1, size[0], generator=rng)
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == size[1]
+
+
+def test_dynamo_auto_patches_gptq_converts_without_quantized_ops():
+    """Verify convert_model(dynamo=True) with GPTQ produces valid model (no quant ops)."""
+    from openvino import convert_model, compile_model
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeGPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = torch.nn.Linear(16, 8)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeGPTQModel()
+    x = torch.randn(2, 16)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    # GPTQ patching fails gracefully; model is still exported as plain linear
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was not patched (no leftover attributes)
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output is numerically correct (plain linear, no quantization)
+    cm = compile_model(ov_model, "CPU", default_cfg)
+    res = cm([x.numpy()])
+    np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-5)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_dynamo_auto_patches_gptq():
+    """Verify convert_model(dynamo=True) auto-patches GPTQ quantized models."""
+    try:
+        from auto_gptq.nn_modules.qlinear.qlinear_cuda_old import (
+            QuantLinear as GPTQQuantLinear)
+    except ImportError:
+        pytest.skip("auto_gptq not installed")
+
+    from openvino import convert_model
+
+    rng = torch.Generator().manual_seed(42)
+    in_features, out_features, group_size, bits = 32, 64, 32, 4
+    pack_num = 32 // bits
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = False
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = GPTQQuantLinear(
+                bits, group_size, in_features, out_features, True)
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // pack_num, out_features),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // group_size,
+                              out_features // pack_num),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_features // group_size, out_features,
+                            dtype=torch.float16, generator=rng),
+                requires_grad=False)
+            self.linear.bias = torch.nn.Parameter(
+                torch.randn(out_features, dtype=torch.float16, generator=rng),
+                requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = GPTQModel()
+    x = torch.randn(1, in_features, generator=rng)
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == out_features
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  compressed-tensors (NeuralMagic) export pipeline tests
+# ──────────────────────────────────────────────────────────────────────
+
+def _make_fake_ct_model(in_features=32, out_features=64, group_size=32, symmetric=True):
+    """Return ``(model, x, FakeCompressedLinear)`` for compressed-tensors tests.
+
+    The fake module exposes all attributes consumed by
+    ``compressed_tensors.build_extensions``:
+
+    * ``weight_packed``       – int32, shape ``[out, in//8]``
+    * ``weight_scale``        – float32, shape ``[out, n_groups]``
+    * ``weight_zero_point``   – int32, shape ``[out//8, n_groups]`` (asymmetric only)
+    * ``quantization_scheme`` – object with ``.weights.num_bits``,
+                                ``.weights.symmetric``, ``.weights.strategy``,
+                                ``.weights.group_size``
+    * ``out_features``        – plain int
+    * ``bias``                – None
+
+    The outer ``CTModel`` has ``config.quantization_config.quant_method``
+    set to ``"compressed-tensors"`` so that ``detect_quantized_model``
+    returns the right type.
+    """
+    rng = torch.Generator().manual_seed(0)
+    n_groups = in_features // group_size
+    _group_size = group_size  # captured before class definition to avoid class-scope NameError
+    _symmetric = symmetric
+
+    class FakeWeightArgs:
+        num_bits = 4
+        symmetric = _symmetric
+        strategy = "group"
+        group_size = _group_size
+
+    class FakeScheme:
+        weights = FakeWeightArgs()
+
+    class FakeQuantConfig:
+        quant_method = "compressed-tensors"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeCompressedLinear(torch.nn.Module):
+        """Minimal stand-in for ``compressed_tensors.linear.CompressedLinear``."""
+
+        def __init__(self):
+            super().__init__()
+            self.out_features = out_features
+            self.in_features = in_features
+            self.register_buffer(
+                "weight_packed",
+                torch.randint(
+                    -(2 ** 31), 2 ** 31,
+                    (out_features, in_features // 8),
+                    dtype=torch.int32,
+                    generator=rng,
+                ),
+            )
+            self.register_buffer(
+                "weight_scale",
+                torch.randn(out_features, n_groups, dtype=torch.float32, generator=rng),
+            )
+            if not _symmetric:
+                self.register_buffer(
+                    "weight_zero_point",
+                    torch.randint(
+                        -(2 ** 31), 2 ** 31,
+                        (out_features // 8, n_groups),
+                        dtype=torch.int32,
+                        generator=rng,
+                    ),
+                )
+            self.quantization_scheme = FakeScheme()
+            self.bias = None
+
+        def forward(self, x):
+            return torch.zeros(*x.shape[:-1], self.out_features, dtype=x.dtype)
+
+    class CTModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = FakeCompressedLinear()
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = CTModel()
+    x = torch.randn(2, in_features, generator=rng)
+    return model, x, FakeCompressedLinear
+
+
+def _inject_fake_ct_module(fake_linear_class):
+    """Inject a stub ``compressed_tensors`` package into ``sys.modules`` so that
+    ``compressed_tensors.build_extensions`` resolves ``CompressedLinear`` to
+    ``fake_linear_class``.
+
+    Returns a dict of the previous ``sys.modules`` state for the touched keys so
+    the caller can restore it (pass to ``_restore_ct_modules``).
+    """
+    import types
+    _CT_KEYS = [
+        "compressed_tensors",
+        "compressed_tensors.linear",
+        "compressed_tensors.linear.compressed_linear",
+    ]
+    prior = {k: sys.modules.get(k) for k in _CT_KEYS}
+
+    fake_ct_pkg = prior["compressed_tensors"] or types.ModuleType("compressed_tensors")
+    fake_linear_mod = types.ModuleType("compressed_tensors.linear.compressed_linear")
+    fake_linear_mod.CompressedLinear = fake_linear_class
+    sys.modules.setdefault("compressed_tensors", fake_ct_pkg)
+    sys.modules["compressed_tensors.linear"] = types.ModuleType("compressed_tensors.linear")
+    sys.modules["compressed_tensors.linear.compressed_linear"] = fake_linear_mod
+    return prior
+
+
+def _restore_ct_modules(prior):
+    """Restore ``sys.modules`` entries saved by ``_inject_fake_ct_module``."""
+    for key, value in prior.items():
+        if value is None:
+            sys.modules.pop(key, None)
+        else:
+            sys.modules[key] = value
+
+
+def test_compressed_tensors_build_extensions_returns_non_empty():
+    """``build_extensions()`` returns a non-empty dict keyed by ``CompressedLinear``."""
+    from openvino.frontend.pytorch.compressed_tensors import build_extensions
+    from openvino.frontend.pytorch import ModuleExtension
+
+    _, _, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        extensions = build_extensions(for_export=False)
+        assert extensions, "build_extensions() returned an empty dict"
+        assert FakeCompressedLinear in extensions, \
+            "CompressedLinear class not in extensions dict"
+        assert isinstance(extensions[FakeCompressedLinear], ModuleExtension)
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_convert_keeps_u4():
+    """TorchScript conversion of a compressed-tensors model must keep 4-bit
+    (i4/u4) weight constants — weights must NOT be decompressed to float.
+
+    The ``TorchScriptPythonDecoder`` auto-detects the quant type via
+    ``detect_quantized_model`` and patches the model internally, so no manual
+    ``patch_model`` call is needed here.
+    """
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(x,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        four_bit_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) in (Type.i4, Type.u4)
+        ]
+        assert four_bit_consts, \
+            "Expected a packed 4-bit (i4/u4) weight constant in the OV model"
+    finally:
+        _restore_ct_modules(prior)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_compressed_tensors_export_pipeline():
+    """``patch_quantized_for_export`` + ``torch.export`` + ``convert_model``
+    must produce a valid OV model and preserve ``ov_ext.ct_gemm`` in the
+    exported graph."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        patch_quantized_for_export(model)
+        try:
+            with torch.no_grad():
+                ep = torch.export.export(model, (x,))
+
+            ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+            assert "ov_ext.ct_gemm.default" in ops, \
+                f"ov_ext.ct_gemm not found in exported graph. Ops: {ops}"
+
+            ov_model = convert_model(ep)
+            assert ov_model is not None
+            cm = compile_model(ov_model, "CPU", default_cfg)
+            res = cm([x.numpy()])
+            assert res[0].shape == (2, 64)
+        finally:
+            unpatch_quantized_for_export(model)
+
+        for _, m in model.named_modules():
+            assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_dynamo_auto_patches_compressed_tensors():
+    """``convert_model(dynamo=True)`` must auto-patch a compressed-tensors model
+    and produce a valid OV model with the expected output shape."""
+    from openvino import convert_model
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model()
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        ov_model = convert_model(model, example_input=[x], dynamo=True)
+        assert ov_model is not None
+
+        for _, m in model.named_modules():
+            assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+        assert ov_model.output(0).get_partial_shape()[-1].get_length() == 64
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_convert_asym_keeps_u4():
+    """TorchScript conversion of an asymmetric compressed-tensors model must
+    keep u4 weight constants — the zero-point and packed weights must NOT be
+    decompressed to float.
+    """
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, x, FakeCompressedLinear = _make_fake_ct_model(symmetric=False)
+    prior = _inject_fake_ct_module(FakeCompressedLinear)
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(x,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        u4_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) == Type.u4
+        ]
+        assert u4_consts, \
+            "Expected u4 weight constants in the OV model for asymmetric CT gemm"
+    finally:
+        _restore_ct_modules(prior)

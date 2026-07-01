@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // @file dnnl_utils.hpp
@@ -31,5 +31,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                const MultiCachePtr& rtCache,
                                const WeightsSharing::Ptr& globalWeightCache,
                                const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
+                               const std::shared_ptr<ThreadPool>& threadPool,
                                bool needShiftSignedToUnsigned = false);
 }  // namespace ov::intel_cpu::utils

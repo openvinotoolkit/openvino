@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <pugixml.hpp>
+#include <thread>
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
@@ -271,8 +272,7 @@ void OpSummary::saveReport() {
     char timeNow[80];
 
     time(&rawtime);
-    // cpplint require to use localtime_r instead which is not available in C++11
-    timeinfo = localtime(&rawtime);  // NOLINT
+    timeinfo = localtime(&rawtime);
 
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
@@ -364,6 +364,9 @@ void OpSummary::saveReport() {
     bool result = false;
     do {
         result = doc.save_file(outputFilePath.c_str());
+        if (!result && std::chrono::system_clock::now() < exitTime) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
     } while (!result && std::chrono::system_clock::now() < exitTime);
 
     if (!result) {

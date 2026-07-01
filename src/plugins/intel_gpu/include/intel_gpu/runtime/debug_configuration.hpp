@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,12 +59,21 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
     cldnn::instrumentation::mem_usage_logger mem_logger{stage, ov::intel_gpu::ExecutionConfig::get_verbose() >= 2};
 
-#define GPU_DEBUG_PROFILED_STAGE(stage)                                       \
+#define GPU_DEBUG_PROFILED_STAGE(stage) \
     auto stage_prof = cldnn::instrumentation::profiled_stage<primitive_inst>( \
-        !get_config().get_dump_profiling_data_path().empty(), *this, stage)
+        !get_config().get_dump_profiling_data_path().empty() || \
+        !get_config().get_average_counters().empty(), \
+        *this, stage)
 
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info) stage_prof.add_memalloc_info(info)
+
+#if defined(_WIN32)
+#define GPU_DEBUG_SET_ACTIVE_LUID(luid) \
+    cldnn::instrumentation::mem_usage_logger::set_active_luid(luid)
+#else
+#define GPU_DEBUG_SET_ACTIVE_LUID(luid)
+#endif
 
 #define GPU_DEBUG_LOG_PREFIX ov::intel_gpu::get_verbose_stream() \
                              << prefix \
@@ -91,6 +100,9 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
+#ifndef GPU_DEBUG_SET_ACTIVE_LUID
+#define GPU_DEBUG_SET_ACTIVE_LUID(luid)
+#endif
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) ov::intel_gpu::get_verbose_stream()
 #endif
 

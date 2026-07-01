@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,8 @@ private:
     const int OUTPUT_SCORES{1};
 
     float min_size_;
-    int pre_nms_topn_;
-    int post_nms_topn_;
+    size_t pre_nms_topn_;
+    size_t post_nms_topn_;
     float nms_thresh_;
     float coordinates_offset;
 

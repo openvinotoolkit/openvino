@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 import numpy as np
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestLogAddExp(PytorchLayerTest):
@@ -21,20 +21,19 @@ class TestLogAddExp(PytorchLayerTest):
 
         class LogAddExpModel(torch.nn.Module):
             def __init__(self, out):
-                super(LogAddExpModel, self).__init__()
+                super().__init__()
                 if out:
                     self.forward = self.forward_out
 
             def forward(self, x, y):
                 return torch.logaddexp(x, y)
-        
+
             def forward_out(self, x, y, out):
                 return torch.logaddexp(x, y, out=out), out
 
         model_class = LogAddExpModel(out)
-        ref_net = None
 
-        return model_class, ref_net, "aten::logaddexp"
+        return model_class, "aten::logaddexp"
 
     @pytest.mark.parametrize(
         "dtype1",
@@ -57,19 +56,19 @@ class TestLogAddExp(PytorchLayerTest):
             (0.0, 0.0),        # log(exp(0) + exp(0)) = log(2)
             (1.0, 1.0),        # log(exp(1) + exp(1)) = log(2*e)
             (-1.0, -1.0),      # log(exp(-1) + exp(-1)) = log(2/e)
-            
+
             # One large, one small number
             (100.0, 0.0),      # Tests handling of large differences
             (-100.0, 0.0),     # Tests handling of negative large differences
-            
+
             # Both large numbers
             (100.0, 100.0),    # Tests numerical stability with large numbers
             (-100.0, -100.0),  # Tests numerical stability with large negative numbers
-            
+
             # Numbers with different signs
             (1.0, -1.0),       # Tests mixed positive/negative
             (-1.0, 1.0),       # Tests mixed negative/positive
-            
+
             # Near-zero cases
             (1e-7, 1e-7),      # Tests handling of very small numbers
             (-1e-7, -1e-7),    # Tests handling of very small negative numbers
@@ -90,6 +89,7 @@ class TestLogAddExp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize(
         "dtype1",
         [
@@ -116,13 +116,13 @@ class TestLogAddExp(PytorchLayerTest):
         ],
     )
     @pytest.mark.parametrize(
-        "out", (False, True)
+        "out", (False, skip_if_export(True))
     )
     def test_logaddexp_shapes(self, dtype1, dtype2, shape, out, ie_device, precision, ir_version):
         # Generate random inputs within a reasonable range
-        input1 = np.random.uniform(-10, 10, shape)
-        input2 = np.random.uniform(-10, 10, shape)
-        
+        input1 = self.random.uniform(-10, 10, shape)
+        input2 = self.random.uniform(-10, 10, shape)
+
         self._test(
             *self.create_model(out),
             ie_device,
@@ -134,11 +134,12 @@ class TestLogAddExp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_logaddexp_broadcasting(self, ie_device, precision, ir_version):
         # Test broadcasting with different shapes
         input1 = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)  # Shape (1, 3)
         input2 = np.array([[1.0], [2.0]], dtype=np.float32)     # Shape (2, 1)
-        
+
         self._test(
             *self.create_model(),
             ie_device,

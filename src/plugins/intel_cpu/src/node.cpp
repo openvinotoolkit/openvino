@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@
 #include "dnnl_extension_utils.h"
 #include "edge.h"
 #include "graph_context.h"
+#include "itt.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -48,7 +49,7 @@
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "utils/cpu_utils.hpp"
 #endif
@@ -56,6 +57,10 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+
+#ifndef CPU_DEBUG_CAPS
+#    include <ostream>
+#endif
 
 using namespace dnnl;
 using namespace openvino;
@@ -70,13 +75,11 @@ Node::NodesFactory& Node::factory() {
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
     : context(std::move(ctx)),
-
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
-      type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()) {
+      type(TypeFromName(op->get_type_name())) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -184,7 +187,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
-    if (fp16_compression_is_disabled(op)) {
+    if (is_conversion_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
 }
@@ -194,7 +197,7 @@ Node::Node(const std::string& type,
            std::vector<Shape> outShapes,
            std::vector<ov::element::Type> inputPrecisions,
            std::vector<ov::element::Type> outputPrecisions,
-           const std::string& name,
+           std::string name,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
@@ -204,10 +207,9 @@ Node::Node(const std::string& type,
       originalOutputPrecisions(std::move(outputPrecisions)),
       fusingPort(-1),
       engine(ctx->getEngine()),
-      name(name),
+      name(std::move(name)),
       typeStr(type),
-      type(TypeFromName(type)),
-      profiling(name) {
+      type(TypeFromName(type)) {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
@@ -403,7 +405,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                     if (!isReorderRequired(parentDesc, curDesc)) {
                         estimate += 1;
                     } else {
-                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
+                        estimate += static_cast<int>(
+                            ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims()));
                     }
                 }
 
@@ -551,7 +554,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
             auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
-            const auto& childEdges = getChildEdgesAtPort(i);
+            const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
 
             for (const auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
@@ -644,7 +647,6 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
-    SEARCH_TYPE(shl);
     SEARCH_TYPE(kleidiai);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
@@ -811,6 +813,7 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
+                context->getCpuParallel()->activate();
                 prepareParams();
             }
         }
@@ -820,6 +823,7 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, getName());
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
@@ -863,7 +867,7 @@ void Node::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) 
 }
 
 void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const {
-    const auto edges = getChildEdgesAtPort(port);
+    const auto edges = getChildEdgesAtPort(static_cast<int>(port));
 
     static const VectorDims single_element_shape = {1};
 
@@ -1116,7 +1120,10 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
-        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(memory,
+                                   *_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
         return _ptr;
     };
 
@@ -1150,7 +1157,10 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto create = [&]() {
         Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(srcMemory,
+                                   *_ptr,
+                                   context->getParamsCache(),
+                                   context->getCpuParallel()->get_thread_pool());
 
         return _ptr;
     };
@@ -1474,16 +1484,18 @@ bool Node::isConfigDefined(const NodeConfig& config) {
 
 MemoryDescPtr Node::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(static_cast<int>(idx)),
+                                                     getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(static_cast<int>(idx)));
 }
 
 MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(static_cast<int>(idx)),
+                                                     getOutputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(static_cast<int>(idx)));
 }
 
 void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
@@ -1691,11 +1703,11 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->getData(),
-                    buffer.data(),
-                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
+        cpu_parallel_convert(constBlob->getData(),
+                             buffer.data(),
+                             DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                             ov::element::f32,
+                             elementsCount);
     };
 
     const auto constPort = getParentEdgeAt(0)->getParent().get() == parentNode ? 1 : 0;

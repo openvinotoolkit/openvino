@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:20.04
 
@@ -25,9 +28,6 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.9-dev \
-        python3.9-venv \
-        python3.9-distutils \
         python3.10-dev \
         python3.10-venv \
         python3.10-distutils \
@@ -66,16 +66,18 @@ ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3.8.py && \
     python3 get-pip-3.8.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.9 as default instead of Python 3.8
+# Use Python 3.10 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
-RUN python3.9 -m venv venv
+RUN python3.10 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+
+# Install newer ninja (apt ships 1.10.0 on 20.04 which lacks --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

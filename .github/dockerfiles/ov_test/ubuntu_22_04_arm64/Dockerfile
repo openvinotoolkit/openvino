@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -33,6 +36,13 @@ RUN apt-get update && \
         python3.11-distutils \
         libhdf5-dev \
         libgomp1 \
+        # libGL for PyTorch Models tests
+        ffmpeg  \
+        libsm6  \
+        libxext6 \
+        libgl1 \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
         && \
     rm -rf /var/lib/apt/lists/*
 

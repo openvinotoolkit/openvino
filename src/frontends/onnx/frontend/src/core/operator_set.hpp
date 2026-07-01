@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ extern const char* OPENVINO_ONNX_DOMAIN;
 extern const char* MICROSOFT_DOMAIN;
 extern const char* PYTORCH_ATEN_DOMAIN;
 extern const char* MMDEPLOY_DOMAIN;
+extern const char* AIONNX_ML_DOMAIN;
 
 /// \brief Registering a versions range of translator in global map of translators (preferred to use)
 extern bool register_translator(const std::string name,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,10 @@ void CustomLayer::ProcessBuffersNode(const pugi::xml_node & node) {
             kp.type = ParamType::Input;
         } else if (typeStr.compare("output") == 0) {
             kp.type = ParamType::Output;
+        } else if (typeStr.compare("internal") == 0) {  
+            kp.type = ParamType::Internal;
+            kp.size_expr = get_str_attr(tensorNode, "size", "");
+            CheckAndReturnError(kp.size_expr.empty(), "Internal buffer requires a size attribute");
         } else {
             CheckAndReturnError(true, "Tensor node has an invalid type: " << typeStr);
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,8 @@ void regclass_frontend_FrontEndManager(py::module m) {
         "register_front_end",
         [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem,
            const std::string& name,
-           const std::string& library_path) {
-            return fem->register_front_end(name, library_path);
+           const py::object& library_path) {
+            return fem->register_front_end(name, Common::utils::to_fs_path(library_path));
         },
         py::arg("name"),
         py::arg("library_path"),
@@ -59,7 +59,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
                 :param library_path: Path (absolute or relative) or name of a frontend library. If name is
                 provided, depending on platform, it will be wrapped with shared library suffix and prefix
                 to identify library full name.
-                :type library_path: str
+                :type library_path: Union[str, pathlib.Path]
 
                 :return: None
              )");
@@ -80,15 +80,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
         "load_by_model",
         [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const py::object& model) {
             if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model)) {
-                std::string model_path = Common::utils::convert_path_to_string(model);
-
-            // Fix unicode path
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                return fem->load_by_model(ov::util::string_to_wstring(model_path.c_str()));
-#else
-                std::string model_path_str = model_path;
-                return fem->load_by_model(model_path_str);
-#endif
+                return fem->load_by_model(Common::utils::to_fs_path(model));
             }
             return fem->load_by_model({Common::utils::py_object_to_any(model)});
         },
@@ -96,8 +88,8 @@ void regclass_frontend_FrontEndManager(py::module m) {
         R"(
                 Selects and loads appropriate frontend depending on model type or model file extension and other file info (header).
 
-                :param model_path: A model object or path to a model file/directory.
-                :type model_path: Any
+                :param model: A model object or path to a model file/directory.
+                :type model: Any
                 :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found.
                 :rtype: openvino.frontend.FrontEnd
             )");

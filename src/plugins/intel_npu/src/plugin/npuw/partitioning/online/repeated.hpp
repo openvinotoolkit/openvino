@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,11 +23,15 @@ struct Repeated {
         bool operator==(const Archetype& other) const;
     };
 
+    explicit Repeated(size_t id) : m_id(id) {}
+
     void exclude();
     void resetExclude();
     bool openForMerge() const;
+    std::string id() const;
 
     bool m_excluded = false;
+    size_t m_id = 0;
 };
 
 struct Interconnect {

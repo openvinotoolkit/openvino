@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,6 +112,41 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionNonSingleConsumer) {
     model = std::make_shared<Model>(OutputVector{add}, ParameterVector{data});
 
     manager.register_pass<ov::pass::MatMulMultiplyFusion>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, MatMulMultiplyFusionBlockedForFP16DynamicWeightsAmplifyingScale) {
+    auto data = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
+    auto weights = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
+    auto matmul = std::make_shared<opset8::MatMul>(data, weights, true, false);
+    auto mul_const = opset8::Constant::create(element::f16, Shape{1, 1}, {2});
+    auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
+    model = std::make_shared<Model>(OutputVector{mul}, ParameterVector{data, weights});
+
+    manager.register_pass<ov::pass::MatMulMultiplyFusion>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, MatMulMultiplyFusionAllowedForFP16DynamicWeightsReducingScale) {
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
+        auto weights = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
+        auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, true);
+        auto mul_const = opset8::Constant::create(element::f16, Shape{1, 1}, {0.5f});
+        auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
+        model = std::make_shared<Model>(OutputVector{mul}, ParameterVector{data, weights});
+
+        manager.register_pass<ov::pass::MatMulMultiplyFusion>();
+    }
+
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
+        auto weights = std::make_shared<opset8::Parameter>(element::f16, Shape{2, 3});
+        auto mul_const = opset8::Constant::create(element::f16, Shape{1, 1}, {0.5f});
+        auto mul = std::make_shared<opset8::Multiply>(weights, mul_const);
+        auto matmul = std::make_shared<opset8::MatMul>(data, mul, false, true);
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data, weights});
+    }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 

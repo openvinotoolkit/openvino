@@ -1,13 +1,34 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
+#include <algorithm>
+#include <vector>
+
+#include "arm_compute/core/QuantizationInfo.h"
 #include "arm_compute/core/Types.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "utils/arm_isa_support.h"
 
 namespace ov::intel_cpu {
+
+/**
+ * @brief Convert ACL DataType to quantized variant for U8/S8 tensors.
+ * @param dataType original ACL data type
+ * @return quantized data type for U8/S8, unchanged otherwise
+ */
+inline arm_compute::DataType convertToQuantizedType(arm_compute::DataType dataType) {
+    switch (dataType) {
+    case arm_compute::DataType::S8:
+        return arm_compute::DataType::QASYMM8_SIGNED;
+    case arm_compute::DataType::U8:
+        return arm_compute::DataType::QASYMM8;
+    default:
+        return dataType;
+    }
+}
 
 /**
  * @brief ACL supports arm_compute::MAX_DIMS maximum. The method squashes the last
@@ -151,6 +172,23 @@ inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision)
 }
 
 /**
+ * @brief Preconditions common to every ACL executor, independent of the op/config type. ACL kernels
+ * run on the ARMv8-A NEON baseline (ASIMD) and can only operate on ACL-representable precisions
+ * (precisionToAclDataType != UNKNOWN; e.g. u4/i4/nf4/string must never reach an ACL kernel), so an
+ * executor must not be selected when either is unmet. Op-specific checks (exact precisions, ranks,
+ * post ops, layouts, ...) stay in each executor's own supports()/isSupported(). Pass the executor's
+ * tensor descriptors; empty ones (e.g. an absent optional bias) are ignored. Usage:
+ *   VERIFY(aclSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+ *   if (!aclSupported({srcDescs[0], dstDescs[0]})) { return false; }
+ * @return whether the current core and the tensor precisions meet the common ACL preconditions
+ */
+inline bool aclSupported(const std::vector<MemoryDescPtr>& descs) {
+    return hasArmISASupport(ArmISA::ASIMD) && std::all_of(descs.begin(), descs.end(), [](const MemoryDescPtr& desc) {
+               return desc->empty() || precisionToAclDataType(desc->getPrecision()) != arm_compute::DataType::UNKNOWN;
+           });
+}
+
+/**
  * @brief Return ComputeLibrary DataLayout that corresponds to MemoryDecs layout
  * @param desc MemoryDecs from which layout is retrieved
  * @param treatAs4D the flag that treats MemoryDecs as 4D shape
@@ -197,5 +235,24 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm, flo
  * @param algorithm activation function of openvino representation
  */
 bool checkActivationLayerInfo(Algorithm algorithm);
+
+/**
+ * @brief Build ACL destination quantization info from FakeQuantize input scale/shift.
+ * @param fqInputScale input scale from FakeQuantize post op (per-tensor expected by ACL destination)
+ * @param fqInputShift input shift from FakeQuantize post op
+ */
+inline arm_compute::QuantizationInfo getDstQuantizationInfo(const std::vector<float>& fqInputScale,
+                                                            const std::vector<float>& fqInputShift,
+                                                            const ov::element::Type& dstPrecision) {
+    const float dstScale = fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0];
+    int dstShift = fqInputShift.empty() ? 0 : static_cast<int>(fqInputShift[0]);
+
+    // FakeQuantize input shift for signed paths may come either in signed-domain form (expected by ACL)
+    // or in unsigned-domain form (offset by 128). Normalize only the latter.
+    if (dstPrecision == ov::element::i8 && dstShift >= 128) {
+        dstShift -= 128;
+    }
+    return {dstScale, dstShift};
+}
 
 }  // namespace ov::intel_cpu

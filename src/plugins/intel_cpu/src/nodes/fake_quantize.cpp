@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include <cassert>
 #include <cmath>
 #include <common/c_types_map.hpp>
-#include <common/dnnl_thread.hpp>
 #include <common/nstl.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -1700,6 +1699,7 @@ void FakeQuantize::createPrimitive() {
 }
 
 void FakeQuantize::executeReference() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
@@ -1745,7 +1745,7 @@ void FakeQuantize::executeReference() {
         const auto* thresholds = internalBlobMemory[0]->getDataAs<const float>();
         const auto* output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
 
-        parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
+        cpu_parallel->parallel_for5d(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
             for (int c = static_cast<int>(cb) * nbits, shift = 0;
                  c < std::min(static_cast<int>(C), (static_cast<int>(cb) + 1) * nbits);
@@ -1778,14 +1778,14 @@ void FakeQuantize::executeReference() {
     } else {
         auto* dst = dstMemory->getDataAs<float>();
 
-        parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
+        cpu_parallel->parallel_for5d(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = n * s_str[0];
             if (srcDims.size() == 5) {
-                src_off += d * s_str[2] + h * s_str[3] + w * s_str[4];
+                src_off += c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4];
             } else if (srcDims.size() == 4) {
-                src_off += h * s_str[2] + w * s_str[3];
+                src_off += c * s_str[1] + h * s_str[2] + w * s_str[3];
             } else if (srcDims.size() == 3) {
-                src_off += h * s_str[2];
+                src_off += c * s_str[1] + h * s_str[2];
             } else if (srcDims.size() == 2) {
                 src_off += c * s_str[1];
             }
@@ -1809,13 +1809,15 @@ void FakeQuantize::executeReference() {
             dst_val = roundf(dst_val);
             dst_val = dst_val * osc + osh;
 
-            size_t dst_off = n * d_str[0] + c * d_str[1];
+            size_t dst_off = n * d_str[0];
             if (dstDims.size() == 5) {
-                dst_off += d * d_str[2] + h * d_str[3] + w * d_str[4];
+                dst_off += c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4];
             } else if (dstDims.size() == 4) {
-                dst_off += h * d_str[2] + w * d_str[3];
+                dst_off += c * d_str[1] + h * d_str[2] + w * d_str[3];
             } else if (dstDims.size() == 3) {
-                dst_off += h * d_str[2];
+                dst_off += c * d_str[1] + h * d_str[2];
+            } else if (dstDims.size() == 2) {
+                dst_off += c * d_str[1];
             }
 
             dst[dst_off] = dst_val;
@@ -1824,6 +1826,7 @@ void FakeQuantize::executeReference() {
 }
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
+    const auto& cpu_parallel = context->getCpuParallel();
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
@@ -1850,7 +1853,7 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
     int nbits = 8;
 
-    parallel_nd(N, H, W, [&](dim_t n, dim_t h, dim_t w) {
+    cpu_parallel->parallel_for3d(N, H, W, [&](dim_t n, dim_t h, dim_t w) {
         auto arg = jit_quantize_call_args();
 
         arg.from = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
@@ -1866,6 +1869,7 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
 void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
+    const auto& cpu_parallel = context->getCpuParallel();
     auto srcMemory = getSrcMemoryAtPort(0);
     auto dstMemory = getDstMemoryAtPort(0);
 
@@ -1922,7 +1926,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     }
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
-        parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
+        cpu_parallel->parallel_for3d(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
             auto arg = jit_quantize_call_args();
 
             int c = static_cast<int>(cb) * blk_size;
@@ -1953,7 +1957,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     } else if (jqp.is_planar && srcDims.size() > 2) {
         const int batch_size = 256;
         const int B = div_up(H * W, batch_size);
-        parallel_nd(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
+        cpu_parallel->parallel_for4d(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
             auto arg = jit_quantize_call_args();
 
             const int c = static_cast<int>(cb) * blk_size;
@@ -1988,7 +1992,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             (*pKernel)(&arg);
         });
     } else {
-        parallel_nd_legacy(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
+        cpu_parallel->parallel_for4d(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
             auto arg = jit_quantize_call_args();
 
             int c = static_cast<int>(cb) * blk_size;

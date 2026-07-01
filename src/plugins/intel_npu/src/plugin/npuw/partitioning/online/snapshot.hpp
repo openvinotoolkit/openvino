@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,10 @@ public:
     void earlyRegroup();
 
     void stripTag(const std::string& tag);
+    void fuseUnfolded();
+
+    // Passes to detect corner cases
+    bool isRegularIOCase() const;
 
     // Utility
     std::shared_ptr<own::ade::Graph> getGraph() const;
@@ -64,6 +68,7 @@ public:
     void repeat(detail::Pass&& pass);
     void setCtx(const PassContext& ctx);
     size_t graphSize() const;
+    std::string getMetaDesc(const std::shared_ptr<ov::Node>& node) const;
 
 private:
     detail::GPtrSet getRepGroups(const std::shared_ptr<Group>& group) const;
@@ -86,15 +91,18 @@ private:
                                                 const std::vector<std::shared_ptr<Group>>& conss);
     std::unordered_map<std::shared_ptr<Repeated>, detail::GPtrSet> repeating() const;
     void completeRepeating(const std::shared_ptr<Repeated>& reptag, const detail::GPtrSet& gset);
+    size_t getNextRepId();
 
     std::shared_ptr<ov::Model> m_model;
     std::shared_ptr<own::ade::Graph> m_graph;
     detail::OVNodeMapPtr m_node_to_prod_cons;
     detail::OVNodeToGroupMapPtr m_node_to_gr;
     PassContext m_ctx;
+    size_t m_current_rep_count = 0;
 
     detail::OVPortsMap m_ports_map;
     std::map<std::string, std::vector<std::set<std::string>>> m_layer_matches;
+    mutable std::unordered_map<size_t, std::string> m_metadesc_cache;
 };
 
 }  // namespace online

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,20 +102,6 @@ public:
         params.support_neg_ind = primitive->support_neg_ind;
 
         auto output_layout = impl_param.get_output_layout(0);
-        auto in_rank = input_layout.get_partial_shape().size();
-        auto out_rank = output_layout.get_partial_shape().size();
-
-        if (in_rank > 4 && in_rank > out_rank) { // if in_rank <= 4, the dims are to be adjusted to 4 by convert_data_tensor
-            auto output_shape = output_layout.get_partial_shape();
-            ov::PartialShape new_output_shape({output_shape[0], output_shape[1]});
-            for (size_t i = 0; i < in_rank - out_rank; ++i)
-                new_output_shape.push_back(1);
-
-            for (size_t i = 2; i < out_rank; ++i) {
-                new_output_shape.push_back(output_shape[i]);
-            }
-            output_layout = layout(new_output_shape, output_layout.data_type, format::get_default_format(new_output_shape.size()));
-        }
 
         params.outputs[0] = convert_data_tensor(output_layout);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
@@ -153,6 +139,36 @@ public:
             output_pshape.insert(output_pshape.begin() + prim->axis, ov::Dimension(1));
             out_layout.set_partial_shape(output_pshape);
             out_layout.format = format::adjust_to_rank(out_layout.format, output_pshape.size());
+
+            // Insert a dimension of size 1 at the gather axis for fused op tensors
+            // so that the jitter's GetIdx maps dimensions correctly after rank change.
+            for (size_t fi = 0; fi < updated_impl_params.fused_desc.size(); fi++) {
+                auto& fd = updated_impl_params.fused_desc[fi];
+                // Extend fused op output_layout rank to match the restored output rank
+                auto fd_out_pshape = fd.output_layout.get_partial_shape();
+                if (fd_out_pshape.size() < output_pshape.size()) {
+                    fd_out_pshape.insert(fd_out_pshape.begin() + prim->axis, ov::Dimension(1));
+                    fd.output_layout.set_partial_shape(fd_out_pshape);
+                    fd.output_layout.format = format::adjust_to_rank(fd.output_layout.format, fd_out_pshape.size());
+                }
+
+                // Extend all fused op peer dependency tensor ranks (quantize has multiple: in_lo, in_hi, out_lo, out_hi)
+                if (fd.has_outer_dep()) {
+                    size_t num_outer_deps = fd.total_num_deps > 0 ? fd.total_num_deps - 1 : 0;
+                    for (size_t di = 0; di < num_outer_deps; di++) {
+                        size_t dep_idx = static_cast<size_t>(fd.outer_dep_start_idx) + di;
+                        if (dep_idx >= updated_impl_params.input_layouts.size())
+                            break;
+                        auto& dep_layout = updated_impl_params.input_layouts[dep_idx];
+                        auto dep_pshape = dep_layout.get_partial_shape();
+                        if (dep_pshape.size() < output_pshape.size()) {
+                            dep_pshape.insert(dep_pshape.begin() + prim->axis, ov::Dimension(1));
+                            dep_layout.set_partial_shape(dep_pshape);
+                            dep_layout.format = format::adjust_to_rank(dep_layout.format, dep_pshape.size());
+                        }
+                    }
+                }
+            }
         }
 
         for (auto& input_layout : updated_impl_params.input_layouts) {

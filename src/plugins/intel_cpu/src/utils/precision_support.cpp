@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,11 @@
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/runtime/system_conf.hpp"
+#endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
-#include "openvino/runtime/system_conf.hpp"
 
 namespace ov::intel_cpu {
 
@@ -52,10 +54,6 @@ ov::element::Type defaultFloatPrecision() {
         return ov::element::bf16;
     }
     return ov::element::f32;
-}
-
-bool hasIntDotProductSupport() {
-    return with_cpu_arm_dotprod();
 }
 
 }  // namespace ov::intel_cpu

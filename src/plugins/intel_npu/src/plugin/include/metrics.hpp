@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,14 +18,12 @@ namespace intel_npu {
 
 class Metrics final {
 public:
-    Metrics(const ov::SoPtr<IEngineBackend>& backend);
+    Metrics(const ov::SoPtr<IEngineBackend>& backend) : _backend(backend) {};
 
     std::vector<std::string> GetAvailableDevicesNames() const;
-    const std::vector<std::string>& SupportedMetrics() const;
     std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
     ov::device::LUID GetDeviceLUID(const std::string& specifiedDeviceName) const;
-    const std::vector<std::string>& GetSupportedConfigKeys() const;
     const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
@@ -46,8 +44,7 @@ public:
 
 private:
     const ov::SoPtr<IEngineBackend> _backend;
-    std::vector<std::string> _supportedMetrics;
-    std::vector<std::string> _supportedConfigKeys;
+    static constexpr uint32_t _maxNumOfOptimalInferRequests = 8u;
     const std::vector<std::string> _optimizationCapabilities = {
         ov::device::capability::FP16,
         ov::device::capability::INT8,
@@ -55,10 +52,10 @@ private:
     };
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
-    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 10u, 1u};
+    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, _maxNumOfOptimalInferRequests, 1u};
 
     // Metric to provide information about a range for streams.(bottom bound, upper bound)
-    const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
+    const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, _maxNumOfOptimalInferRequests};
 
     std::string getDeviceName(const std::string& specifiedDeviceName) const;
     std::shared_ptr<intel_npu::IDevice> getDevice(const std::string& specifiedDeviceName) const;

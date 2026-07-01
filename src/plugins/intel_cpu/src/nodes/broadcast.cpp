@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -212,7 +212,7 @@ void Broadcast::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Broadcast::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0));
+        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0), context->getCpuParallel());
     } else {
         plainExecute(strm);
     }
@@ -261,9 +261,10 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         size_t end = 0LU;
         VectorDims counters(dataDstRank, 0);
         splitter(workAmountDst, nthr, ithr, start, end);
-        for (int j = dataDstRank - 1, i = start; j >= 0; j--) {
-            counters[j] = i % dstDims[j];
-            i /= dstDims[j];
+        for (int64_t j = static_cast<int64_t>(dataDstRank) - 1, idx = static_cast<int64_t>(start); j >= 0; --j) {
+            const auto index = static_cast<size_t>(j);
+            counters[index] = static_cast<size_t>(idx) % dstDims[index];
+            idx /= static_cast<int64_t>(dstDims[index]);
         }
         for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
             for (i = 0LU, srcIdx = 0LU; i < dataDstRank; ++i) {
@@ -272,9 +273,10 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
 
             cpu_memcpy(&dstData[iwork], &srcData[srcIdx * dataSize], dataSize);
 
-            for (int j = dataDstRank - 1; j >= 0; j--) {
-                counters[j] = (counters[j] + 1) % dstDims[j];
-                if (counters[j] != 0) {
+            for (int64_t j = static_cast<int64_t>(dataDstRank) - 1; j >= 0; --j) {
+                const auto index = static_cast<size_t>(j);
+                counters[index] = (counters[index] + 1) % dstDims[index];
+                if (counters[index] != 0) {
                     break;
                 }
             }

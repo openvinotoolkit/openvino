@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,6 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
         const auto& m_weights = pattern_map.at(weights).get_node_shared_ptr();
         const auto& m_bias = pattern_map.at(bias).get_node_shared_ptr();
         const auto& m_convert = pattern_map.at(convert).get_node_shared_ptr();
@@ -42,22 +41,35 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         auto it = pattern_map.find(fully_connected);
         if (it != pattern_map.end()) {
             m_fc = it->second.get_node_shared_ptr();
-            new_fc = std::make_shared<op::FullyConnected>(m_data, m_weights, m_bias, output_type);
+            auto m_fc_typed = ov::as_type_ptr<op::FullyConnected>(m_fc);
+            OPENVINO_ASSERT(m_fc_typed);
+            new_fc = std::make_shared<op::FullyConnected>(m_fc->input_value(0),
+                                                          m_weights,
+                                                          m_bias,
+                                                          output_type,
+                                                          m_fc_typed->get_transpose_b());
+
         } else {
             m_fc = pattern_map.at(fully_connected_compressed).get_node_shared_ptr();
+            auto m_fc_typed = ov::as_type_ptr<op::FullyConnectedCompressed>(m_fc);
+            OPENVINO_ASSERT(m_fc_typed);
+
+
             if (m_fc->input_values().size() == 4)
-                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
+                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
-                                                                        output_type);
+                                                                        output_type,
+                                                                        m_fc_typed->get_transpose_b());
             else
-                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
+                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         m_fc->input_value(4),
-                                                                        output_type);
+                                                                        output_type,
+                                                                        m_fc_typed->get_transpose_b());
         }
         new_fc->set_friendly_name(m_convert->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), new_fc);

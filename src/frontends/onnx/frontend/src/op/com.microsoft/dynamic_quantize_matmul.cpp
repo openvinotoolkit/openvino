@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -34,13 +32,6 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> b_zero_point;  // optional, input[3]
     ov::Output<ov::Node> bias;          // optional, input[4]
 
-    // Constrain input matrix A to T1 type (float tensor)
-    auto element_type_A = A.get_element_type();
-    CHECK_VALID_NODE(node,
-                     element_type_A == ov::element::f32,
-                     "Unsupported input A type, accepted FP32 but got: ",
-                     element_type_A);
-
     // Constrain input matrix B to T2 type (int8 tensor, uint8 tensor)
     auto element_type_B = B.get_element_type();
     CHECK_VALID_NODE(node,
@@ -56,7 +47,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                      element_type_b_scale);
 
     // Check for the optional inputs
-    if (inputs.size() > 3) {
+    if (common::is_input_valid(node, 3)) {
         // Constrain input b_zero_point to T2 type (int8 tensor, uint8 tensor)
         b_zero_point = inputs[3];
         auto element_type_b_zero_point = b_zero_point.get_element_type();
@@ -66,7 +57,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                          element_type_b_zero_point);
     }
 
-    if (inputs.size() > 4) {
+    if (common::is_input_valid(node, 4)) {
         // Constrain input bias to T1 type (float tensor)
         bias = inputs[4];
         auto element_type_bias = bias.get_element_type();
@@ -82,10 +73,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     // here https://tomwildenhain-microsoft.github.io/onnxruntime/docs/performance/quantization.html B_dequantized = (B
     // - b_zero_point) * b_scale
 
-    ov::Output<ov::Node> B_dequantized = std::make_shared<v0::Convert>(B, b_scale.get_element_type());
-    b_zero_point = std::make_shared<v0::Convert>(b_zero_point, b_scale.get_element_type());
-    B_dequantized = std::make_shared<v1::Subtract>(B_dequantized, b_zero_point);
-    B_dequantized = std::make_shared<v1::Multiply>(B_dequantized, b_scale);
+    ov::Output<ov::Node> B_dequantized = ov::decomposition::low_precision_dequantize(B, b_scale, b_zero_point);
 
     // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input
     // A/B such that B's shape is already transposed. E.g.

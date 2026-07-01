@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ public:
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.merge_repeated = primitive->ctc_merge_repeated;
         if (primitive->blank_index == UINT32_MAX) {
-            params.blank_index = impl_param.get_input_layout(0).spatial(1) - 1;
+            params.blank_index = static_cast<uint32_t>(impl_param.get_input_layout(0).spatial(1) - 1);
         } else {
             params.blank_index = primitive->blank_index;
         }

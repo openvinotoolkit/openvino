@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -22,6 +22,11 @@ public:
 
     KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::ELTWISE,
+                 FusedOpType::ACTIVATION };
+    }
 
 protected:
     JitConstants GetJitConstantsForKernel(KernelId id, const resample_params& params) const;

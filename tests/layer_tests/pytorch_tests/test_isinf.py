@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,7 +8,9 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_tensor', (np.array([1, 0, -1]),))
+@pytest.mark.parametrize('input_tensor',
+                         (np.array([float("inf"), float("nan"), -float("inf"), 0.0, 1.0, -1.0],
+                                   dtype=np.float32),))
 class TestIsInf(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -19,11 +21,12 @@ class TestIsInf(PytorchLayerTest):
         class aten_isinf(torch.nn.Module):
 
             def forward(self, input_tensor):
-                return torch.isinf(input_tensor * float("inf"))
+                return torch.isinf(input_tensor)
 
-        return aten_isinf(), None, "aten::isinf"
+        return aten_isinf(), "aten::isinf"
 
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     def test_isinf(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor
         self._test(*self.create_model(), ie_device, precision, ir_version)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -183,6 +183,35 @@ TEST_F(TransformationTestsF, MVNFusionTestAltDiv) {
     {
         auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto axes = opset6::Constant::create(element::i32, Shape{3}, {1, 2, 3});
+        auto mvn = std::make_shared<opset6::MVN>(input, axes, true, 1e-9f, op::MVNEpsMode::OUTSIDE_SQRT);
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, MVNFusionTestSelfMultiply) {
+    {
+        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 16, 409600, 1});
+        auto mean1_axes = opset6::Constant::create(element::i32, Shape{1}, {2});
+        auto mean1 = std::make_shared<opset6::ReduceMean>(input, mean1_axes, true);
+        auto sub1 = std::make_shared<opset6::Subtract>(input, mean1);
+        auto self_multiply = std::make_shared<opset6::Multiply>(sub1, sub1);
+        auto mean3_axes = opset6::Constant::create(element::i32, Shape{1}, {2});
+        auto mean3 = std::make_shared<opset6::ReduceMean>(self_multiply, mean3_axes, true);
+        auto const_0_5 = opset6::Constant::create(element::f32, Shape{}, {0.5});
+        auto power_sqrt = std::make_shared<opset6::Power>(mean3, const_0_5);
+        auto eps = opset6::Constant::create(element::f32, Shape{}, {1e-9});
+        auto add_eps = std::make_shared<opset6::Add>(power_sqrt, eps);
+        auto div = std::make_shared<opset6::Divide>(sub1, add_eps);
+
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
+
+        manager.register_pass<ov::pass::MVNFusion>();
+    }
+
+    {
+        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 16, 409600, 1});
+        auto axes = opset6::Constant::create(element::i32, Shape{1}, {2});
         auto mvn = std::make_shared<opset6::MVN>(input, axes, true, 1e-9f, op::MVNEpsMode::OUTSIDE_SQRT);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});

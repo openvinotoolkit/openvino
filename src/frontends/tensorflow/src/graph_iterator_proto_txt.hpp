@@ -1,13 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
-#if defined(__MINGW32__) || defined(__MINGW64__)
-#    include <filesystem>
-#endif
 
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -22,13 +20,8 @@ namespace tensorflow {
 class GraphIteratorProtoTxt : public GraphIteratorProto {
 public:
     /// \brief Construct GraphIterator for the frozen model in text format without v1 checkpoints
-    template <typename T>
-    GraphIteratorProtoTxt(const std::basic_string<T>& path) : GraphIteratorProto() {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-        std::ifstream pbtxt_stream(std::filesystem::path(path), std::ios::in);
-#else
+    GraphIteratorProtoTxt(const std::filesystem::path& path) : GraphIteratorProto() {
         std::ifstream pbtxt_stream(path, std::ios::in);
-#endif
         FRONT_END_GENERAL_CHECK(pbtxt_stream && pbtxt_stream.is_open(), "Model file does not exist");
         auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
         FRONT_END_GENERAL_CHECK(input_stream, "Model cannot be read");
@@ -41,8 +34,7 @@ public:
     }
 
     /// \brief Construct GraphIterator for the frozen model in text format with v1 checkpoints
-    template <typename T>
-    GraphIteratorProtoTxt(const std::basic_string<T>& path, const std::basic_string<T>& checkpoint_directory)
+    GraphIteratorProtoTxt(const std::filesystem::path& path, const std::filesystem::path& checkpoint_directory)
         : GraphIteratorProto() {
         std::ifstream pbtxt_stream(path, std::ios::in);
         FRONT_END_GENERAL_CHECK(pbtxt_stream && pbtxt_stream.is_open(), "Model file does not exist");
@@ -58,14 +50,12 @@ public:
     }
 
     /// \brief Check if the input file is supported
-    template <typename T>
-    static bool is_supported(const std::basic_string<T>& path) {
+    static bool is_supported(const std::filesystem::path& path) {
         FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
-                                "Could not open the file: \"",
-                                util::path_to_string(path),
-                                '"');
+                                "Could not open the file: ",
+                                path);
         try {
-            std::ifstream pbtxt_stream(path.c_str(), std::ios::in);
+            std::ifstream pbtxt_stream(path, std::ios::in);
             bool model_exists = (pbtxt_stream && pbtxt_stream.is_open());
             if (!model_exists) {
                 return false;

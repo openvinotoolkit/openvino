@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+
 
 namespace {
 
@@ -104,4 +105,29 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCompileModel) {
     ASSERT_EQ(scale.as<float>(), 4.0f);
 }
 
+// Test i4 -> u4 normalization in finalize_impl (no PA model required)
+TEST(KVCachePrecisionAutoDetection, I4NormalizedToU4) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU,
+                                                           ov::hint::kv_cache_precision(ov::element::i4)));
+
+    auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec, ov::element::u4);
+}
+
+// Test u8 -> i8 normalization in finalize_impl
+TEST(KVCachePrecisionAutoDetection, U8NormalizedToI8) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU,
+                                                           ov::hint::kv_cache_precision(ov::element::u8)));
+
+    auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec, ov::element::i8);
+}
 } // namespace

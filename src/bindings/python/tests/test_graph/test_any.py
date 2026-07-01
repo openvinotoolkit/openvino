@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import OVAny
@@ -71,6 +71,12 @@ def test_any_class():
     value = OVAny(TestClass())
     assert isinstance(value.value, TestClass)
     assert value.value.text == "test"
+
+
+def test_any_empty():
+    ovany = OVAny(None)
+    assert ovany.value is None
+    assert ovany.get() is None
 
 
 @pytest.mark.parametrize(("value", "dtype"), [

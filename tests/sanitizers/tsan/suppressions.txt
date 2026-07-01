@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # This is a ThreadSanitizer (TSan) suppression file which provides a default
@@ -10,6 +10,9 @@
 race:libtbb
 mutex:libtbb
 race:libhwloc
+# oneDNN primitive cache destruction race (thirdparty)
+race:dnnl::impl::primitive_cache_t
 # race conditions from std libs
 race:libstdc++
 race:libc
+race:_dl_deallocate_tls

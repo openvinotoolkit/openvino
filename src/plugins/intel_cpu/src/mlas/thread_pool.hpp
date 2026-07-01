@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,13 @@ namespace cpu {
 class OVMlasThreadPool : public IMlasThreadPool {
 public:
     OVMlasThreadPool() = delete;
-    explicit OVMlasThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
+    explicit OVMlasThreadPool(const int& threadNum) : threadNum(threadNum) {}
     virtual ~OVMlasThreadPool() = default;
     size_t DegreeOfParallelism() override;
     void TrySimpleParallelFor(std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) override;
 
     // the actual threads used for sgemm
-    size_t threadNum = 0;
+    int threadNum = 0;
 };
 };  // namespace cpu
 };  // namespace ov

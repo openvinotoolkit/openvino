@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain,
                                             ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions()),
                                             ::testing::ValuesIn(eltwiseOps()),
-                                            ::testing::Values(false),
+                                            ::testing::Values(PostNode::EMPTY),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EltwiseChainTest::getTestCaseName);
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(inputPrecisionsConvert()),
                        ::testing::ValuesIn(eltwiseOpsConvert()),
-                       ::testing::Values(false),
+                       ::testing::Values(PostNode::EMPTY),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     EltwiseChainTest::getTestCaseName);
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ,
                                             ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisionsFQ),
                                             ::testing::ValuesIn(eltwiseOps()),
-                                            ::testing::Values(true),
+                                            ::testing::Values(PostNode::QUANTIZE),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EltwiseChainTest::getTestCaseName);
@@ -331,8 +331,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn,
                                             ::testing::Values(InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(inputPrecisions()),
                                             ::testing::ValuesIn(eltwiseOps()),
-                                            ::testing::Values(false),
+                                            ::testing::Values(PostNode::EMPTY),
                                             ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EltwiseChainTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithSoftSign_dyn,
+                         EltwiseChainTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_dyn),
+                                            ::testing::Values(InputLayerType::PARAMETER),
+                                            ::testing::ValuesIn(inputPrecisions()),
+                                            ::testing::ValuesIn(eltwiseOps()),
+                                            ::testing::Values(PostNode::SOFTSIGN),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EltwiseChainTest::getTestCaseName);
 

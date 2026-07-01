@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tempfile
@@ -36,7 +36,7 @@ def make_pd_static_graph_model(shape):
     relu = paddle.nn.ReLU()
     sigmoid = paddle.nn.Sigmoid()
     y = sigmoid(relu(x))
-    
+
     exe = paddle.static.Executor(paddle.CPUPlace())
     exe.run(paddle.static.default_startup_program())
     return exe, x, y
@@ -50,7 +50,7 @@ def make_pd_hapi_graph_model(shape):
         paddle.nn.Sigmoid())
     input = InputSpec(shape, 'float32', 'x')
     label = InputSpec(shape, 'float32', 'label')
-    
+
     model = paddle.Model(net, input, label)
     optim = paddle.optimizer.SGD(learning_rate=1e-3,
         parameters=model.parameters())

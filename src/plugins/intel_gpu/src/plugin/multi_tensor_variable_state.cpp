@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
     , m_concat_axis(concat_axis) {
     cldnn::layout beam_table_layout(get_beam_table_shape(info.m_layout.get_partial_shape()), ov::element::i32, cldnn::format::bfyx);
     VariableStateInfo beam_table_state_info(info.m_id + "/beam_table", beam_table_layout);
+    beam_table_state_info.m_release_variable_inst = info.m_release_variable_inst;
     m_hidden_states.push_back(std::make_shared<VariableState>(beam_table_state_info, context, shape_predictor));
     OPENVINO_ASSERT(m_hidden_states.size() == 2, "[GPU] VariableStateIndirectKVCache expects 2 internal states to be initialized");
 }
@@ -105,7 +106,7 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
 
                     if (ov::element::Type(kv_layout.data_type).size() == 2)
                         copy_element<uint16_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
-                    else if (ov::element::Type(kv_layout.data_type).size() == 2)
+                    else if (ov::element::Type(kv_layout.data_type).size() == 4)
                         copy_element<uint32_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
                 }
             }
@@ -164,7 +165,7 @@ VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
     const std::vector<cldnn::layout>& output_layouts,
     size_t beam_idx,
     size_t concat_idx,
-    bool has_zp_state = false)
+    bool has_zp_state)
     : VariableStateIndirectKVCache(info, context, shape_predictor, beam_idx, concat_idx),
       m_has_zp_state(has_zp_state) {
     OPENVINO_ASSERT((has_zp_state && output_layouts.size() == 3) ||

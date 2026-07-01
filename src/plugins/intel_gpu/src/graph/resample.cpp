@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -7,10 +7,35 @@
 #include "json_object.h"
 #include "memory_accessor.hpp"
 #include "primitive_type_base.h"
+#include "program_helpers.h"
 #include "resample_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(resample)
+
+namespace {
+
+void rebind_onednn_reuse_optimized_dst_if_needed(primitive_inst& inst) {
+    auto output = inst.output_memory_ptr();
+    if (!output)
+        return;
+
+    auto& engine = inst.get_network().get_engine();
+    for (auto* user_inst : inst.get_user_insts()) {
+        auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(user_inst->get_node());
+        if (reused_eltwmem_idx < 0)
+            continue;
+
+        if (user_inst->dependencies().at(reused_eltwmem_idx).first != &inst)
+            continue;
+        if (engine.is_the_same_buffer(*user_inst->output_memory_ptr(), *output))
+            continue;
+        auto new_mem = engine.reinterpret_buffer(*output, user_inst->get_output_layout());
+        user_inst->set_output_memory(new_mem, false);
+    }
+}
+
+}  // namespace
 
 layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
@@ -215,5 +240,38 @@ std::string resample_inst::to_string(resample_node const& node) {
 }
 
 resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
+}
+
+void resample_inst::on_execute() {
+    update_output_memory();
+}
+
+void resample_inst::update_output_memory() {
+    if (!can_be_optimized() || _impl_params->is_dynamic())
+        return;
+
+    build_deps();
+
+    if (input_memory_ptr() == nullptr)
+        return;
+
+    // compile time: resample's input/output memory is not the same
+    // runtime     : resample's input/output memory should be the same (case 1),
+    //               unless resample's input (namely dependency's output) is changed by a previous rebind (case 2).
+    if (_outputs[0] && get_network().get_engine().is_the_same_buffer(output_memory(), input_memory())) {
+        // runtime:  rebind for case 1, the user instances are already initialized here.
+        rebind_onednn_reuse_optimized_dst_if_needed(*this);
+        return;
+    }
+
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
+    }
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
+    rebind_onednn_reuse_optimized_dst_if_needed(*this);
+    _mem_allocated = false;
 }
 }  // namespace cldnn

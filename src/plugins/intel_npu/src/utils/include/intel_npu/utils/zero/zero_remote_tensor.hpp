@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_mem.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
@@ -23,10 +24,10 @@ public:
                      const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                      const ov::element::Type& element_type,
                      const ov::Shape& shape,
-                     ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
-                     ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-                     const void* mem = nullptr,
-                     const std::optional<ov::intel_npu::FileDescriptor>& file_descriptor = std::nullopt);
+                     ov::intel_npu::TensorType zero_tensor_type = ov::intel_npu::TensorType::BINDED,
+                     ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
+                     const void* memory = nullptr,
+                     const std::optional<ov::intel_npu::FileDescriptor>& file_desc = std::nullopt);
 
     /**
      * @brief Returns additional information associated with tensor
@@ -62,6 +63,16 @@ public:
      */
     const ov::Strides& get_strides() const override;
 
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                 size_t src_offset,
+                 size_t dst_offset,
+                 const ov::Shape& roi_shape) const override;
+
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                   size_t src_offset,
+                   size_t dst_offset,
+                   const ov::Shape& roi_shape) override;
+
     /**
      * @return The remote context
      */
@@ -74,11 +85,10 @@ public:
 
 private:
     void allocate(const size_t bytes);
-    bool deallocate() noexcept;
     bool is_allocated() const noexcept;
     void update_strides();
     void update_properties();
-    void copy_file_data_to_level_zero_memory();
+    void copy_file_data_to_level_zero_memory(const size_t size_to_read);
 
     std::shared_ptr<ov::IRemoteContext> _context;
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
@@ -97,10 +107,8 @@ private:
     const void* _mem = nullptr;
     void* _data = nullptr;
 
-    bool _external_memory_support = false;
-    bool _mmaped_file_support = false;
-
     ov::Tensor _mmap_tensor;
+    std::shared_ptr<ZeroMem> _host_memory;
 };
 
 inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {

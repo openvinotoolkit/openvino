@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,11 @@
 namespace ov::test {
 INSTANTIATE_TEST_SUITE_P(smoke_SparseFillEmptyRows_static,
                          SparseFillEmptyRowsLayerTest,
-                         SparseFillEmptyRowsLayerTest::GetTestDataForDevice(ov::test::utils::DEVICE_GPU),
+                         SparseFillEmptyRowsLayerTest::GetStaticTestDataForDevice(ov::test::utils::DEVICE_GPU),
+                         SparseFillEmptyRowsLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparseFillEmptyRows_dynamic,
+                         SparseFillEmptyRowsLayerTest,
+                         SparseFillEmptyRowsLayerTest::GetDynamicTestDataForDevice(ov::test::utils::DEVICE_GPU),
                          SparseFillEmptyRowsLayerTest::getTestCaseName);
 }  // namespace ov::test

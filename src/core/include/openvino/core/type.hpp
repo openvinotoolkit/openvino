@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,11 @@ class ConversionExtensionBase;
 
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {
+#if defined(__ANDROID__)
+    return true;
+#else
     return std::is_base_of_v<ov::frontend::ConversionExtensionBase, T>;
+#endif
 }
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a

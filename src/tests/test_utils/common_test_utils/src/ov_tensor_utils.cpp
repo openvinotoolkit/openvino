@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -367,11 +367,21 @@ inline bool less_or_equal(double a, double b) {
 }
 
 template <typename T>
+inline constexpr bool is_ov_integral =
+    std::is_same_v<T, char> || std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> ||
+    std::is_same_v<T, int64_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
+    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+
+template <typename T>
 inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
-    bool out_of_limits = std::isnan(value) || std::isinf(value);
-    out_of_limits |=
-        upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
-    return out_of_limits;
+    if constexpr (is_ov_integral<T>) {
+        return false;
+    } else {
+        bool out_of_limits = std::isnan(value) || std::isinf(value);
+        out_of_limits |=
+            upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
+        return out_of_limits;
+    }
 }
 
 template <typename T1, typename T2>
@@ -402,6 +412,11 @@ protected:
     std::vector<IncorrectValue> incorrect_values_abs;
     double abs_threshold, rel_threshold, mvn_threshold, topk_threshold, mvn_results, topk_results;
     size_t tensor_size;
+    // Track the coord with the largest |actual - expected| so release builds (which only
+    // print one failing coord) surface the coord that actually drives the failure —
+    // otherwise the reader sees the first-in-tensor-order fail, which may be far from worst.
+    double worst_diff = -1.0;
+    IncorrectValue worst_value{0.0, 0.0, 0.0, 0};
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
@@ -428,6 +443,10 @@ public:
         if (less_or_equal(diff, threshold)) {
             return true;
         }
+        if (diff > worst_diff) {
+            worst_diff = diff;
+            worst_value = IncorrectValue(actual, expected, threshold, coordinate);
+        }
         emplace_back(actual, expected, threshold, coordinate);
         return false;
     }
@@ -453,12 +472,22 @@ public:
             constexpr size_t max_num_to_print = 1;
 #endif
             size_t i = 0;
-            for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
-                auto val = incorrect_values_abs[i];
-                std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
-                          << " Actual: " << val.actual_value
-                          << " Diff: " << std::fabs(val.expected_value - val.actual_value)
-                          << " abs_threshold: " << val.threshold << "\n";
+            if constexpr (max_num_to_print == 1) {
+                if (worst_diff >= 0.0) {
+                    std::cout << "Coordinate: " << std::setw(2) << worst_value.coordinate
+                              << " Expected: " << worst_value.expected_value << " Actual: " << worst_value.actual_value
+                              << " Diff: " << worst_diff << " abs_threshold: " << worst_value.threshold << " (worst of "
+                              << incorrect_values_abs.size() << ")\n";
+                    i = 1;
+                }
+            } else {
+                for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
+                    auto val = incorrect_values_abs[i];
+                    std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
+                              << " Actual: " << val.actual_value
+                              << " Diff: " << std::fabs(val.expected_value - val.actual_value)
+                              << " abs_threshold: " << val.threshold << "\n";
+                }
             }
 
             if constexpr (max_num_to_print > 1) {

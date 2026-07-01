@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -111,10 +111,14 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     const auto supports_immad = node.get_program().get_engine().get_device_info().supports_immad;
 
-    auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
+    auto reshape_to_2d = [&](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
         size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        std::vector<int64_t> reshapeSize;
+        if (desc->weights_transposed)
+            reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        else
+            reshapeSize = { feature, static_cast<int64_t>(total) / feature };
         return reshapeSize;
     };
 
@@ -130,16 +134,17 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (supports_immad) {
-        ov::PartialShape out_pshape = {input_layout.batch(), weights_layout.batch(), 1, 1};
+        auto out_features = desc->weights_transposed ? weights_layout.batch() : weights_layout.feature();
+        ov::PartialShape out_pshape = {input_layout.batch(), out_features, 1, 1};
         if (desc->input_size == 3) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1};
+            out_pshape = {input_layout.batch(), input_layout.feature(), out_features, 1};
         } else if (desc->input_size == 4) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), out_features};
         } else if (desc->input_size == 5) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), out_features};
         } else if (desc->input_size == 6) {
             out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(3),
-                          input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+                          input_layout.spatial(2), input_layout.spatial(1), out_features};
         }
 
         format output_format = get_preferred_format(node, impl_param);
@@ -150,13 +155,14 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
             input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
         }
 
-        auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        auto out_features = desc->weights_transposed ? weights_layout.batch() : weights_layout.feature();
+        auto output_size = tensor(input_layout.batch(), out_features, 1, 1);
         if (desc->input_size == 3) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, out_features);
         } else if (desc->input_size == 4) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+            output_size = tensor(input_layout.batch(), input_layout.feature(), out_features, input_layout.spatial(1));
         } else if (desc->input_size == 5) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
+            output_size = tensor(input_layout.batch(), input_layout.feature(), out_features, input_layout.spatial(1), input_layout.spatial(2));
         }
 
         format output_format = get_preferred_format(node, impl_param);
@@ -180,7 +186,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     }
 
     ov::op::v0::MatMul matmul_op;
-    matmul_op.set_transpose_b(true);
+    matmul_op.set_transpose_b(desc->weights_transposed);
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
@@ -200,7 +206,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         OPENVINO_ASSERT(fused_prims.size() == 1);
         OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
         swiglu_op.set_axis(fused_prims[0].typed_desc<swiglu>()->axis);
-        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->split_lengths);
+        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->glu_stride);
         swiglu_op.set_glu_type(fused_prims[0].typed_desc<swiglu>()->glu_type);
         std::vector<ShapeType> input_shapes = { output_shapes[0] };
         output_shapes = shape_infer(&swiglu_op, input_shapes);
@@ -280,6 +286,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment = false;
     }
 
+    // Don't apply fake alignment for f32 data type due to memory usage issues
+    if (orig_output_layout.data_type == data_types::f32) {
+        can_apply_fake_alignment = false;
+    }
+
     GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
@@ -314,6 +325,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
         updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
 
+        GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment to " << orig_impl_param.desc->id << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
                                << updated_param.input_layouts[0].to_short_string() << "), output("
                                << orig_output_layout.to_short_string() << " -> "

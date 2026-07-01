@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -25,7 +25,7 @@ public:
 protected:
     JitConstants GetJitConstants(const sparse_fill_empty_rows_params& params) const;
     bool SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id = 0) const;
-//    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 } // namespace kernel_selector

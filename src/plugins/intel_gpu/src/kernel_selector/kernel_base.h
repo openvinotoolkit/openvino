@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ protected:
     const std::string kernelName;
 
     static void CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
-                                  const size_t maxWorkGroupSize);
+                                  const EngineInfo& engineInfo);
     virtual Datatype GetUnitType(const base_params& params) const;
 
     bool IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const;

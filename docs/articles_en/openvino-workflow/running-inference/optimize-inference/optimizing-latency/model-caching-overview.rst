@@ -14,13 +14,13 @@ a common workflow consists of the following steps:
 1. | **Create a Core object**:
    |   First step to manage available devices and read model objects
 2. | **Read the Intermediate Representation**:
-   |   Read an Intermediate Representation file into the `ov::Model <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_model.html>`__ object
+   |   Read an Intermediate Representation file into the `ov::Model <https://docs.openvino.ai/2026/api/c_cpp_api/classov_1_1_model.html>`__ object
 3. | **Prepare inputs and outputs**:
    |   If needed, manipulate precision, memory layout, size or color format
 4. | **Set configuration**:
    |   Add device-specific loading configurations to the device
 5. | **Compile and Load Network to device**:
-   |   Use the `ov::Core::compile_model() <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__ method with a specific device
+   |   Use the `ov::Core::compile_model() <https://docs.openvino.ai/2026/api/c_cpp_api/classov_1_1_core.html>`__ method with a specific device
 6. | **Set input data**:
    |   Specify input tensor
 7. | **Execute**:
@@ -192,7 +192,7 @@ loading it from the cache. Currently, this property can be set only in ``compile
          :language: cpp
          :fragment: [ov:caching:part5]
 
-If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
+If model caching is enabled in the GPU Plugin, the model topology is encrypted when saved to the cache and decrypted when loaded from the cache if the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``. The weights are encrypted only when ``CacheMode`` is set to ``OPTIMIZE_SPEED``. Weight encryption requires extra disk space equal to the size of the weights and may introduce runtime memory overhead for decryption, depending on the encryption algorithm. 
 
 .. tab-set::
 

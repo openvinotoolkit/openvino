@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,22 +9,14 @@
 namespace ov {
 namespace test {
 
-inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function,
-                                       const std::unordered_set<std::string>& nodeTypes,
-                                       size_t expectedCount) {
-    ASSERT_NE(nullptr, function);
-    int num_ops = 0;
-    for (const auto& node : function->get_ordered_ops()) {
-        const auto& rt_info = node->get_rt_info();
-        const auto layer_type = rt_info.find("layerType")->second.as<std::string>();
-        if (nodeTypes.count(layer_type)) {
-            num_ops++;
-        }
-    }
-    ASSERT_EQ(num_ops, expectedCount);
-}
-
 TEST_P(RoPETestFlux, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestQwenVL, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
@@ -102,6 +94,20 @@ TEST_P(RoPETestChatGLM2DRoPEStridedSlice, CompareWithRefs) {
 };
 
 TEST_P(RoPETestChatGLMHF, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestGPTOSS, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestLtxVideo, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();

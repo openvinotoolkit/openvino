@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,26 @@ KERNEL(quantize_ref)(
     const int w = ((vuwzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z % OUTPUT_SIZE_W;
     const int u = ((vuwzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z / OUTPUT_SIZE_W % OUTPUT_SIZE_U;
     const int v = ((vuwzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_SIZE_U;
+#endif
+
+#if OUTPUT_LAYOUT_B_FS_YX_FSV16
+    if (of >= OUTPUT_FEATURE_NUM)
+        return;
+#else
+    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y || z >= OUTPUT_SIZE_Z)
+        return;
+#if OUTPUT_DIMS >= 6
+    if (w >= OUTPUT_SIZE_W)
+        return;
+#endif
+#if OUTPUT_DIMS >= 7
+    if (u >= OUTPUT_SIZE_U)
+        return;
+#endif
+#if OUTPUT_DIMS >= 8
+    if (v >= OUTPUT_SIZE_V)
+        return;
+#endif
 #endif
 
 #if INPUT0_DIMS == 8
@@ -125,14 +145,6 @@ KERNEL(quantize_ref)(
 #endif
 
     INPUT0_TYPE val = input[input_offset];
-
-#if OUTPUT_LAYOUT_B_FS_YX_FSV16
-    if (of >= OUTPUT_FEATURE_NUM)
-        return;
-#else
-    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y || z >= OUTPUT_SIZE_Z)
-        return;
-#endif
 
     INPUT0_TYPE input_low_val  = input_low[input_low_offset];
     INPUT0_TYPE input_high_val  = input_high[input_high_offset];

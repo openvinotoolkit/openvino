@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <string_view>
 
 #include "backend.hpp"
 #include "compiled_model.hpp"
@@ -54,6 +56,7 @@ public:
 private:
     friend class CompiledModel;
     friend class InferRequest;
+    std::string_view get_runtime_requirements() const;
 
     std::shared_ptr<ov::runtime::Backend> m_backend;
     Configuration m_cfg;

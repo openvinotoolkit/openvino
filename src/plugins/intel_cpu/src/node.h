@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -187,8 +187,8 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        explicit PerfCounters(const std::string& name)
-            : execute(openvino::itt::handle(name)),
+        PerfCounters()
+            : execute(openvino::itt::handle<Tag<Node, -1>>("Node::execute")),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
                   openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors")),
@@ -202,6 +202,7 @@ public:
 
         template <typename NodeType>
         void buildClassCounters(const std::string& type_name) {
+            execute = openvino::itt::handle<Tag<NodeType, -1>>(type_name + "::execute");
             getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
             initSupportedPrimitiveDescriptors =
                 openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
@@ -364,7 +365,7 @@ public:
     virtual void fuseInto(const NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
         // port a node was fused into parent one.
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
+        for (int i = 0; i < static_cast<int>(getParentEdges().size()); i++) {
             if (getParentEdgeAt(i)->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
@@ -373,7 +374,7 @@ public:
 
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
+            for (int i = 0; i < static_cast<int>(getParentEdges().size()); i++) {
                 if (getParentEdgeAt(i)->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
@@ -730,7 +731,7 @@ protected:
          std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
-         const std::string& name,
+         std::string name,
          const GraphContext::CPtr& ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
@@ -884,14 +885,14 @@ private:
 };
 
 #ifndef CPU_DEBUG_CAPS
-std::ostream& operator<<(std::ostream&, const Node&);
+std::ostream& operator<<(std::ostream& out, const Node& node);
 
-std::ostream& operator<<(std::ostream&, const Node*);
+std::ostream& operator<<(std::ostream& out, const Node* node);
 #endif
 
 template <class... T>
-constexpr uint64_t PortMask(T... rest) {
-    return util::bit::mask(rest...);
+constexpr uint32_t PortMask(T... rest) {
+    return static_cast<uint32_t>(util::bit::mask(rest...));
 }
 
 class Node::NodesFactory

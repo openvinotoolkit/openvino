@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "node/include/async_reader.hpp"
 
@@ -16,8 +17,6 @@ void ReaderWorker::Execute() {
 
 void ReaderWorker::OnOK() {
     auto model = cpp_to_js(Env(), _model);
-
-    delete _args;
 
     _deferred.Resolve(model);
 }

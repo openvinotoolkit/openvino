@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,7 +159,7 @@ Range::StatusCode Range::rangeKernel() {
         size_t iwork = 0;
         size_t end = 0;
         splitter(work_amount_dst, nthr, ithr, iwork, end);
-        data_t dst_value = start + iwork * delta;
+        data_t dst_value = start + static_cast<data_t>(iwork) * delta;
         for (; iwork < end; ++iwork, dst_value += delta) {
             dst_data[iwork] = dst_value;
         }

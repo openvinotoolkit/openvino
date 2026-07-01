@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/util/pp.hpp"
@@ -25,6 +26,9 @@
 
 namespace ov {
 namespace op {
+namespace v0 {
+class FakeQuantize;
+}  // namespace v0
 namespace util {
 
 template <class T>
@@ -65,37 +69,6 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
     return false;
 }
 
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string create_ie_output_name(const Output<const Node>& output) {
-    const auto& prev_layer = output.get_node_shared_ptr();
-    auto out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1) {
-        out_name += "." + std::to_string(output.get_index());
-    }
-    return out_name;
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string create_ie_output_name(const Output<Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return create_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string get_ie_output_name(const Output<const Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return create_ie_output_name(output);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string get_ie_output_name(const Output<Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 /**
  * \brief Convert epsilon value from double to float type.
  *
@@ -108,6 +81,10 @@ inline std::string get_ie_output_name(const Output<Node>& output) {
  * \return Epsilon value as float.
  */
 float cast_eps_to_float(double eps_d);
+
+inline bool is_scalar_or_single_elem_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+    return constant && shape_size(constant->get_shape()) == 1;
+}
 
 template <typename T>
 bool get_constant_value(const std::shared_ptr<ov::Node>& node, T& value) {
@@ -133,8 +110,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
-    if (!is_scalar_or_single_elem) {
+    if (!is_scalar_or_single_elem_constant(constant)) {
         return false;
     }
 
@@ -182,6 +158,8 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<ov::op::v0::Constant>& const_node,
                                           float& value,
                                           bool check_value_range = true);
+
+TRANSFORMATIONS_API bool fq_ranges_are_equal(const std::shared_ptr<const ov::Node>& fq);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<ov::op::v0::Constant>& constant,
                                                              const PartialShape& shape);
@@ -236,6 +214,31 @@ TRANSFORMATIONS_API void visit_path(ov::Node* node,
                                     std::function<bool(ov::Node*)> skip_node_predicate);
 
 /**
+ * \brief Traverses path forward (following consumers) starting from `node`, and calls "func" for each ov::Node.
+ *
+ * \param start_node  The node from which forward path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ * \param skip_node_predicate  predicate to skip nodes.
+ */
+TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
+                                            std::unordered_set<ov::Node*>& visited,
+                                            std::function<void(ov::Node*)> func,
+                                            std::function<bool(ov::Node*)> skip_node_predicate);
+
+/**
+ * \brief Checks whether two FakeQuantize ops share identical quantization parameters: the same number
+ * of levels, the same auto-broadcast spec, and equal input_low/input_high/output_low/output_high
+ * constants.
+ *
+ * \param lhs  The first FakeQuantize.
+ * \param rhs  The second FakeQuantize.
+ * \return true if both ops are valid and have identical parameters.
+ */
+TRANSFORMATIONS_API bool have_same_fake_quantize_params(const std::shared_ptr<ov::op::v0::FakeQuantize>& lhs,
+                                                        const std::shared_ptr<ov::op::v0::FakeQuantize>& rhs);
+
+/**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
  * and calls "func" for each ov::Node.
  *
@@ -287,9 +290,55 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
-TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+template <typename... AllowedTypes>
+bool is_on_path(const ov::Output<ov::Node>& output) {
+    auto status = true;
+
+    auto root_node = output.get_node();
+    if (!root_node || root_node->get_output_size() == 0) {
+        return false;
+    }
+    std::deque<ov::Node*> nodes_to_calculate = {root_node};
+
+    std::unordered_set<ov::Node*> visited;
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+        if (visited.count(current_node)) {
+            continue;
+        }
+        visited.insert(current_node);
+        // RandomUniform output changes during runtime, so we should not consider it as a constant
+        if (current_node->get_type_info() == ov::op::v8::RandomUniform::get_type_info_static()) {
+            return false;
+        }
+
+        if (current_node->get_input_size() == 0 && !(ov::is_type_any_of<AllowedTypes...>(current_node))) {
+            status = false;
+        } else {
+            // not a leaf - continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                if (!visited.count(input_node)) {
+                    nodes_to_calculate.push_front(input_node);
+                }
+            }
+        }
+    }
+    return status;
+}
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
+
+/// \brief Disconnect output from consumer's target inputs (internal utility for transformations)
+/// \param output_to_disconnect The output that should be disconnected
+/// \param consumer_output The output whose targets should be cleaned
+///
+/// Removes connections from output_to_disconnect that appear in consumer_output's target inputs.
+/// This is useful after replace() to clean up incorrect cyclic connections.
+/// Should be at most one such connection in normal cases.
+TRANSFORMATIONS_API void disconnect_output_from_consumers(const Output<Node>& output_to_disconnect,
+                                                          const Output<Node>& consumer_output);
 
 TRANSFORMATIONS_API std::tuple<std::shared_ptr<ov::Node>,  // result
                                std::shared_ptr<ov::Node>,  // reshape_kv

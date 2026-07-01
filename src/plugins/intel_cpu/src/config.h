@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -16,6 +17,8 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
@@ -65,14 +68,14 @@ struct Config {
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
-#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
+#if defined(OV_CPU_WITH_ACL)
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0UL;
 #else
     size_t rtCacheCapacity = 5000UL;
 #endif
     size_t snippetsCacheCapacity = 5000UL;
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     ov::element::Type kvCachePrecision = ov::element::u8;
     ov::element::Type keyCachePrecision = ov::element::u8;
     ov::element::Type valueCachePrecision = ov::element::u8;
@@ -85,6 +88,10 @@ struct Config {
     size_t valueCacheGroupSize = 0UL;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
     CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
+    // SCALAR = per-group affine scale/zp (default). TURBO = TBQ rotation + codebook.
+    // For TURBO: bits derived from cachePrecision (u3→3, u4→4).
+    ov::internal::CacheQuantAlgorithm keyCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
+    ov::internal::CacheQuantAlgorithm valueCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
     bool enableSageAttn = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
@@ -100,6 +107,7 @@ struct Config {
     bool changedCpuPinning = false;
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    ov::intel_cpu::TbbPartitioner tbbPartitioner = ov::intel_cpu::TbbPartitioner::NONE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
     bool enableTensorParallel = false;
     int streamsRankLevel = 1;
@@ -134,9 +142,14 @@ struct Config {
     std::map<std::string, std::string> _config;
 
     int modelPreferThreads = -1;
+    int modelPreferThreadsLatency = 0;
+    int modelPreferThreadsThroughput = 0;
     ModelType modelType = ModelType::Unknown;
     std::function<std::string(const std::string&)> cacheEncrypt;
     std::function<std::string(const std::string&)> cacheDecrypt;
+
+    ov::CacheMode m_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    bool enableWeightless = false;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

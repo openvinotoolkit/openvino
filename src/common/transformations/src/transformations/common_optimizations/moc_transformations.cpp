@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "low_precision/low_precision.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/adaptive_pool_to_reduce.hpp"
@@ -33,8 +34,11 @@
 #include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
+#include "transformations/common_optimizations/fq_concat_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
@@ -44,6 +48,7 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
+#include "transformations/common_optimizations/moe_transpose_weights.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -52,6 +57,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
+#include "transformations/common_optimizations/pack_multi_head_attention.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/prelu_fusion.hpp"
 #include "transformations/common_optimizations/pull_through_reduce.hpp"
@@ -132,11 +138,18 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
+    // To avoid extra memory allocations and ensure behavior consistent with plugin
+    // expectations, Transpose on MatMul inputs (optionally via Convert)
+    // must be fused into MatMul rather than constant-folded.
+    // Therefore, TransposeMatMul should run before the first ConstantFolding pass.
+    REGISTER_PASS(manager, TransposeConvert)
+    REGISTER_PASS(manager, TransposeMatMul)
     if (m_low_precision_enabled) {
         // Transformation call example, to check with the real model
         manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
         manager.register_pass<ov::pass::MarkDequantization>(
-            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f8e4m3, f8e5m2, f4e2m1, f8e8m0});
+        manager.register_pass<ov::pass::MarkDequantization>(TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0}, false, false);
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
@@ -152,7 +165,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
-    REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
@@ -162,20 +174,16 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)
     REGISTER_PASS(manager, ConstantFolding)
-    REGISTER_PASS(manager, Validate)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
     REGISTER_PASS(manager, FuseFilteringBoxesBySize)
-    REGISTER_PASS(manager, Validate)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
         REGISTER_PASS(manager, LSTMStatesBroadcast)
-        REGISTER_PASS(manager, Validate)
         REGISTER_PASS(manager, ReshapeSinkingMatMul)
-        REGISTER_PASS(manager, Validate)
     }
     REGISTER_PASS(manager, ConvertQuantizeDequantize)
     REGISTER_PASS(manager, SimplifyShapeOfSubGraph, m_use_shapes)
@@ -251,6 +259,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
+    REGISTER_PASS(manager, PackMultiHeadAttention)
     REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
@@ -276,10 +285,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    ADD_MATCHER(fq_fusions, FakeQuantizeConcatFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, FuseClampAndFakeQuantize)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
@@ -289,6 +300,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
+    // TODO: Remove pytestmark to enable e2e test:
+    // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
+    REGISTER_PASS(manager, FuseMOE)
+    REGISTER_PASS(manager, VectorizedMOE2GEMMTransposeWeights)
+    REGISTER_PASS(manager, Validate)
+
     manager.run_passes(f);
 
     if (!m_use_shapes) {

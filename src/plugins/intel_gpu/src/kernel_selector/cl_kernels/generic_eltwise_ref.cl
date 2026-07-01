@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -190,7 +190,7 @@ KERNEL(eltwise)(
 #endif
 
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
+    output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
     output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED));
 #endif

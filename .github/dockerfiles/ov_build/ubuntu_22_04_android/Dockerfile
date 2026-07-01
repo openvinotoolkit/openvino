@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -17,13 +20,15 @@ RUN apt update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     apt update && \
     apt install \
+        pigz \
         scons \
         wget \
         ninja-build \
         build-essential \
         python3-pip && \
     # vcpkg requires cmake 3.19 or later
-    python3 -m pip install -U pip cmake~=3.28.0 && \
+    # ninja>=1.11 needed for --quiet support (apt ships 1.10.1 on 22.04)
+    python3 -m pip install -U pip cmake~=3.28.0 ninja==1.13.0 && \
     # vcpkg's tool dependencies
     apt install curl zip unzip tar && \
     # vcpkg 'python3' port dependencies
@@ -47,10 +52,10 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Install Android SDK, NDK and Tools
 ENV ANDROID_TOOLS /deps/android_tools
-ENV ANDROID_NDK_HOME /deps/android_tools/ndk/28.2.13676358
+ENV ANDROID_NDK_HOME /deps/android_tools/ndk/29.0.14206865
 RUN mkdir -p ${ANDROID_NDK_HOME}
 ENV ANDROID_SDK_VERSION 35
 
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip && \
     unzip commandlinetools-linux-9123335_latest.zip
-RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk;28.2.13676358" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
+RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk;29.0.14206865" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"

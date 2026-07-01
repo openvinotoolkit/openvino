@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,6 +180,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
+    test_case.run();
+}
+
+// Regression test: with the `allowzero=1` attribute (opset 14+), a `0` in the
+// target shape must be taken literally instead of being mapped to OpenVINO's
+// `special_zero=true` (copy-dim) semantics. Previously, when the shape was
+// provided as an input (opset 5+ form), `allowzero` was ignored and `0` was
+// always interpreted as "copy from input".
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_allowzero) {
+    auto model = convert_model("reshape_allowzero.onnx");
+
+    // input shape (0, 3, 4), zero-element tensor
+    std::vector<float> input;
+    // target shape literally [3, 4, 0] (must NOT be reinterpreted as [3, 4, 4])
+    std::vector<float> expected_output;
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(Shape{0, 3, 4}, input);
+    test_case.add_expected_output(Shape{3, 4, 0}, expected_output);
     test_case.run();
 }
 

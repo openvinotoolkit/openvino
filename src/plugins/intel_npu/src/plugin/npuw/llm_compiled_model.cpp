@@ -1,16 +1,34 @@
-// Copyright (C) 2023-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
 
+#include "embedding/embedding_infer_request.hpp"
+#include "embedding/prepare_embedding_model.hpp"
+#include "embedding/redirect_new_kv_to_output.hpp"
+#include "embedding/remove_empty_kv_inputs.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
-#include "openvino/op/group_query_attention.hpp"
+#include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "npuw_transformations/add_position_ids_param.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/optimize_value_tensors.hpp"
+#include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/reshape_sliced_head_to_static.hpp"
+#include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/slice_out_embeds.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -19,357 +37,34 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/fold_const.hpp"
+#include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
+#include "whisper/prepare_whisper_model.hpp"
+#include "whisper/whisper_infer_request.hpp"
 
 namespace opp = ov::pass::pattern;
 
-class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
-
-    struct Context {
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
-        using Ref = std::reference_wrapper<Context>;
-    };
-
-    RemoveEmptyKVTensors(Context::Ref ctx) {
-        auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, opp::any_input()});
-
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
-            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
-
-            ctx.get().old_params.push_back(matched_param);
-
-            auto users = matched_param->get_users();
-            if (users.size() == 2u) {
-                auto shapeof_node = ov::is_type<ov::op::v3::ShapeOf>(users[0]) ? users[0] : users[1];
-                NPUW_ASSERT(ov::is_type<ov::op::v3::ShapeOf>(shapeof_node));
-                auto cst_node =
-                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, matched_param->get_shape());
-                ov::replace_node(shapeof_node, cst_node);
-            } else {
-                NPUW_ASSERT(users.size() == 1u);
-            }
-
-            // Redirect second concat input to every node which reads from concat
-            auto curr_kv_tensor = matched_node_concat->input(1).get_source_output();
-            for (auto target_input : matched_node_concat->output(0u).get_target_inputs()) {
-                target_input.replace_source_output(curr_kv_tensor);
-            }
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
-    }
-};
-
-class GroupQueryAttentionDecomposition : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GroupQueryAttentionDecomposition");
-    GroupQueryAttentionDecomposition(bool is_prefill_model) {
-        auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
-
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& pattern_to_output = m.get_pattern_value_map();
-            auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
-                pattern_to_output.at(pattern_node).get_node_shared_ptr());
-
-            if (node == nullptr || transformation_callback(node)) {
-                return false;
-            }
-
-            auto new_output_node = decompose(node, is_prefill_model);
-            ov::replace_node(node, new_output_node);
-            return true;
-        };
-
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "GroupQueryAttentionDecomposition");
-        register_matcher(m, std::move(callback));
-    }
-
-    ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node, bool is_prefill_model) {
-        using namespace ov::op;
-        using namespace ov;
-
-        const auto num_heads = node->get_num_heads();
-        const auto kv_num_heads = node->get_kv_num_heads();
-        const auto scale = node->get_scale();
-        const auto do_rotary = node->get_do_rotary();
-        const auto rotary_interleaved = node->get_rotary_interleaved();
-        // TODO: add softcap support
-
-        auto Q = node->input_value(0);
-        auto K = node->input_value(1);
-        auto V = node->input_value(2);
-        auto past_key = node->input_value(3);
-        auto past_value = node->input_value(4);
-        auto seqlens_k = node->input_value(5);
-        auto cos_cache = node->input_value(6);
-        auto sin_cache = node->input_value(7);
-
-        // The length of all tokens (past + current) is `seqlens_k` + 1.
-        // current = Q.shape[2], past = `seqlens_k` + 1 - current
-
-        const auto T = Q.get_element_type();
-        const auto q_shape = register_new_node<v3::ShapeOf>(Q);
-        const auto current_seqlen = get_dimensions(q_shape, {2});
-        const auto head_size_node = get_dimensions(q_shape, {3});
-
-        const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-        const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
-        const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
-        const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
-        const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
-
-        // Only consider batch is 1
-        const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
-        const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
-        const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
-
-        if (do_rotary) {
-            ov::Output<ov::Node> position_ids = register_new_node<v4::Range>(zero_without_shape,
-                                                                             curr_seqlen_scalar,
-                                                                             one_without_shape,
-                                                                             ov::element::i64);
-            position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
-
-            const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
-            const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
-            Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
-            K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
-        }
-
-        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
-        };
-        K = construct_kv_cache(past_key, K);
-        V = construct_kv_cache(past_value, V);
-
-        ov::Output<ov::Node> present_k = K;
-        ov::Output<ov::Node> present_v = V;
-
-        const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
-        const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
-
-        // Broadcast KV if grouped query attention
-        const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-        if (kv_num_heads_factor > 1) {
-            const auto kv_shape = register_new_node<v3::ShapeOf>(K);
-            const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
-            const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
-            auto new_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
-            K = register_new_node<v1::Reshape>(K, new_kv_shape, false);
-            V = register_new_node<v1::Reshape>(V, new_kv_shape, false);
-            K = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
-            V = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
-            const auto q_shape = register_new_node<v3::ShapeOf>(Q);
-            const auto q_shape_prev_2 = get_dimensions(q_shape, {0, 1});
-            auto extended_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
-            K = register_new_node<v1::Reshape>(K, extended_kv_shape, false);
-            V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
-        }
-
-        // Make attention mask
-        std::shared_ptr<ov::Node> mask;
-
-        std::shared_ptr<ov::Node> hori_range =
-            register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
-        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
-
-        std::shared_ptr<ov::Node> vert_range =
-            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-        vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
-
-        const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
-        const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
-        // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
-        std::shared_ptr<ov::Node> minus_inf = nullptr;
-        if (T == ov::element::f32)
-            minus_inf =
-                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
-        else if (T == ov::element::f16)
-            minus_inf =
-                register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
-        mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
-
-        if (is_prefill_model) {
-            // prefill model
-            const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
-            const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
-            const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
-            const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
-            mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
-        } else {
-            // kv cache model
-            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);     // first N
-            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, vert_range);  // last 1
-            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,0,1]
-            mask = register_new_node<v1::Select>(atte_mask, mask, minus_inf);
-        }
-
-        std::shared_ptr<ov::Node> qga_output;
-        if (scale != 0.0f) {
-            auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
-        } else {
-            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
-        }
-
-        // transpose the result from (batch_size, num_heads, sequence_length, head_size)
-        // to (batch_size, sequence_length, num_heads * head_size)
-        auto perm = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
-        auto qga_output_transposed = register_new_node<v1::Transpose>(qga_output, perm);
-        auto dim_merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
-        auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
-
-        return {std::move(output), std::move(present_k), std::move(present_v)};
-    }
-
-    // make split functions is a copy-past from ONNX FE. TODO: move it to one place
-    ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
-        using namespace ov::op;
-        const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
-        const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
-
-        return split->outputs();
-    }
-
-    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                             const std::vector<int>& dims) {
-        using namespace ov::op;
-        const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-        const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
-        return register_new_node<v8::Gather>(shape, dims_const, zero);
-    }
-
-    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
-        return get_dimensions(register_new_node<ov::op::v3::ShapeOf>(node), dims);
-    }
-
-    std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
-                                              ov::Output<ov::Node> cos,
-                                              ov::Output<ov::Node> sin,
-                                              bool interleaved) {
-        using namespace ov::op;
-        auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-
-        if (interleaved) {
-            auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-            auto cos_last_dim = get_dimensions(cos.get_node_shared_ptr(), {-1});
-            auto input_shape = register_new_node<v3::ShapeOf>(input);
-            auto dim_bns = get_dimensions(input_shape, {0, 1, 2});
-
-            auto negtive_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-            auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, two}, 0);
-            auto reshaped_input = register_new_node<v1::Reshape>(input, split_input_shape, false);
-
-            auto in_split = make_split(reshaped_input, 2, -1);
-            split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim}, 0);
-            auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
-            auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
-
-            auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
-                                                         register_new_node<v1::Multiply>(in_split_1, sin));
-            auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
-                                                    register_new_node<v1::Multiply>(in_split_1, cos));
-
-            split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, one}, 0);
-            auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
-            auto res_1_5d = register_new_node<v1::Reshape>(res_1, split_input_shape, false);
-
-            auto concat_ret = register_new_node<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
-            return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
-        } else {
-            auto in_split = make_split(input, 2, -1);
-            auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
-                                                         register_new_node<v1::Multiply>(in_split[1], sin));
-            auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
-                                                    register_new_node<v1::Multiply>(in_split[1], cos));
-
-            return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
-        }
-    }
-};
-
 namespace {
-uint32_t align_to(uint32_t value, uint32_t alignment) {
+template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+T align_to(T value, T alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
-
-std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
-    ov::preprocess::PrePostProcessor ppp(model);
-
-    for (const auto& tensor : model->inputs()) {
-        if (tensor.get_any_name().find("past_key") != std::string::npos) {
-            ppp.input(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
-        }
-    }
-
-    for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("present") != std::string::npos) {
-            ppp.output(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
-        }
-    }
-
-    return ppp.build();
+template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+bool is_aligned_to(T value, T alignment) {
+    return value % alignment == 0;
 }
 
-std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
-        auto kvout = model->output(i);
-        auto kvrslt = kvout.get_node();
-        auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
-        auto kvval = kvcat->inputs()[1].get_source_output();
-        kvval.set_names({kvout.get_any_name()});
-        kvrslt->inputs()[0].replace_source_output(kvval);
-    }
-    model->validate_nodes_and_infer_types();
-    return model;
-}
-
-bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
-    ov::pass::GraphRewrite rewr;
-    RemoveEmptyKVTensors::Context ctx;
-    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
-    rewr.run_on_model(model);
-    for (auto old_param : ctx.old_params) {
-        model->remove_parameter(old_param);
-    }
-    ov::pass::Validate().run_on_model(model);
-    // NB: if old_params is not empty - pass has been applied
-    return !ctx.old_params.empty();
-}
-
-void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<GroupQueryAttentionDecomposition>(is_prefill_model);
-    rewr.run_on_model(model);
-}
 }  // namespace
-
-namespace {
-struct KVAxesPosition {
-    uint32_t batch;
-    uint32_t seq_len;
-};
-}  // anonymous namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::CutLMHead");
-    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
+    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -386,14 +81,14 @@ public:
         auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
         auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
 
-        auto last_op = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                                    matmul_add->output(0),
-                                                                                    matmul_transpose->output(0),
-                                                                                    matmul_convert->output(0),
-                                                                                    matmul_multiply->output(0)});
+        auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
+                                                                      matmul_add->output(0),
+                                                                      matmul_transpose->output(0),
+                                                                      matmul_convert->output(0),
+                                                                      matmul_multiply->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
-        auto callback = [=, &lm_head_model](ov::pass::pattern::Matcher& m) {
+        auto callback = [=, &lm_head_model](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
@@ -413,6 +108,14 @@ public:
 
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
+
+            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
+            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
+            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
+            const auto& rt_info = matched_result->get_rt_info();
+            if (rt_info.count("manually_added_output")) {
+                return false;
+            }
 
             // Cut point:
             auto matmul_first_source = matched_matmul->input(0).get_source_output();
@@ -443,7 +146,7 @@ public:
 };
 
 namespace {
-std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
+std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     rewr.add_matcher<CutLMHead>(lm_head_model);
@@ -454,117 +157,6 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     model->validate_nodes_and_infer_types();
 
     return lm_head_model;
-}
-
-void reshape_to_static(std::shared_ptr<ov::Model> model,
-                       const uint32_t input_size,
-                       const uint32_t kvcache_size,
-                       const KVAxesPosition& kv_axes_position,
-                       const uint32_t lora_rank) {
-    std::map<std::string, ov::PartialShape> new_shapes;
-    for (const auto& input : model->inputs()) {
-        const auto& input_name = input.get_any_name();
-        ov::PartialShape new_shape;
-        if (input_name.find("input_ids") != std::string::npos) {
-            new_shape = ov::PartialShape({1, input_size});
-        } else if (input_name.find("inputs_embeds") != std::string::npos) {
-            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
-            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
-            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
-            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
-        } else if (input_name.find("attention_mask") != std::string::npos) {
-            new_shape = ov::PartialShape({1, kvcache_size});
-        } else if (input_name.find("position_ids") != std::string::npos) {
-            const auto partial_shape_size = input.get_partial_shape().size();
-            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
-            // The first dimension (3) represents the three components of position encoding: time, height, and width
-            // enabling alignment across multimodal inputs like text, audio, and video
-            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
-            new_shape =
-                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
-            new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
-            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
-            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else {
-            const auto& partial_shape = input.get_partial_shape();
-            new_shape = partial_shape;
-            new_shape[kv_axes_position.batch] = 1;
-            new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
-        }
-        new_shapes.emplace(input_name, new_shape);
-    }
-    model->reshape(new_shapes);
-}
-
-void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
-                                   const uint32_t& batch_dim,
-                                   std::size_t max_generation_token_len) {
-    // We have only one input with dynamic shapes: output embeds.
-    // Output embeds should have "max_generation_token_len" for dimension representing
-    // number of embeddings to send to the matmul. Batch size should be equal to "1"
-    // for NPU.
-    const auto& input = lm_head_model->input(0);
-    const auto& partial_shape = input.get_partial_shape();
-    NPUW_ASSERT(partial_shape.size() == 3);
-
-    ov::PartialShape new_shape = partial_shape;
-    new_shape[batch_dim] = 1;
-    // Left dynamic axis will be for number of embeddings
-    for (auto i = 0; i < new_shape.rank().get_length(); i++) {
-        if (new_shape[i].is_dynamic()) {
-            new_shape[i] = max_generation_token_len;
-            // Sanity check that only one left dimension is dynamic, as
-            // another one should contain embedding space rank
-            break;
-        }
-    }
-
-    lm_head_model->reshape(new_shape);
-}
-
-void slice_out_embeds(std::shared_ptr<ov::Model> model,
-                      const uint32_t& batch_dim,
-                      std::size_t max_generation_token_len) {
-    std::shared_ptr<ov::Node> embed_result;
-    for (auto&& output : model->outputs()) {
-        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
-            embed_result = output.get_node_shared_ptr();
-        }
-    }
-
-    if (embed_result) {
-        auto shape = embed_result->input(0).get_shape();
-        // If shape.size() is 3, then last axis should be the Vocab size.
-        // But 1st and 2nd axes can mean different things.
-        // 1st axis can represent the batch size, while 2nd - the number of embeddings,
-        // or vice-versa (in chatglm)
-        if (shape.size() == 3) {
-            uint32_t num_embeds_dim = 1 - batch_dim;
-            if (shape[num_embeds_dim] > max_generation_token_len) {
-                std::vector<int32_t> start_pos{
-                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
-                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
-                    0};
-                std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                              static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                              static_cast<int32_t>(shape[2])};
-                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
-                auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
-                auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                   ov::Shape{3},
-                                                                   std::vector<int32_t>{1, 1, 1});
-
-                auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
-
-                embed_result->input(0).replace_source_output(slice);
-                embed_result->validate_and_infer_types();
-                model->validate_nodes_and_infer_types();
-            }
-        }
-    }
 }
 
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
@@ -581,19 +173,43 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
+bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
+    if (!model->has_rt_info(rt_info_path)) {
+        // NB: Model isn't compressed by NNCF - skip
+        return false;
+    }
+    auto mode = model->get_rt_info<std::string>(rt_info_path);
+    if (mode.find("int8") != std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
     bool compiler_dq = false;
+    bool compiler_matmul_gate = false;
     int64_t compiler_ver = 0;
+    bool support_flash_attention_tile = false;
 };
 
-std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config) {
+    if (!plugin->get_core()) {
+        return std::nullopt;
+    }
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
+        return std::nullopt;
+    }
     if (all_devices.empty()) {
         return std::nullopt;
     }
-
     NPUDesc desc;
     desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
@@ -606,7 +222,38 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         desc.compiler_dq = true;
     }
 
-    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    // Get compiler version based on NPU_COMPILER_TYPE configuration
+    // If NPU_COMPILER_TYPE is not specified in config, use default compiler version
+    auto compiler_type_it = config.find(ov::intel_npu::compiler_type.name());
+    if (compiler_type_it == config.end()) {
+        // NPU_COMPILER_TYPE is not specified in config, use default compiler version
+        desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+    } else {
+        // NPU_COMPILER_TYPE is specified in config, get compiler version for the specified compiler type
+        auto target_compiler_type = compiler_type_it->second.as<std::string>();
+        desc.compiler_ver = plugin
+                                ->get_property(ov::intel_npu::compiler_version.name(),
+                                               ov::AnyMap{{ov::intel_npu::compiler_type.name(), target_compiler_type}})
+                                .as<int64_t>();
+    }
+    LOG_INFO("Compiler version: " << ONEAPI_VERSION_MAJOR(desc.compiler_ver) << "."
+                                  << ONEAPI_VERSION_MINOR(desc.compiler_ver));
+
+    constexpr std::string_view compiler_gate_support_msg =
+        "Compiler: accurate gated matmul (MatMul -> Divide -> Tanh -> Multiply -> Result) : ";
+
+    if (desc.compiler_ver >= ONEAPI_MAKE_VERSION(7, 28)) {
+        // accuracy for gated matmul fixed at 7.28
+        desc.compiler_matmul_gate = true;
+        LOG_INFO(compiler_gate_support_msg << "supported");
+    } else {
+        LOG_WARN(compiler_gate_support_msg << "unsupported");
+    }
+
+    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
+        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
+        desc.support_flash_attention_tile = true;
+    }
 
     return std::make_optional(std::move(desc));
 }
@@ -620,6 +267,18 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
+void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
+    auto it = config.find("NPUW_WEIGHTS_BANK");
+    if (it != config.end()) {
+        if (it->second.as<std::string>().empty()) {
+            NPUW_ASSERT(false && "NPUW_WEIGHTS_BANK is empty in the provided config! Please use non-empty name to "
+                                 "share the model weights.");
+        }
+    } else {
+        config["NPUW_WEIGHTS_BANK"] = bank_name;
+    }
+}
+
 ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
@@ -628,7 +287,6 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
         {"NPUW_FOLD", "YES"},
         {"NPUW_DCOFF_TYPE", "f16"},
         {"NPUW_DCOFF_SCALE", "YES"},
-        {"NPUW_WEIGHTS_BANK", "shared"},
         {"NPUW_SLICE_OUT", "YES"},
         {"NPUW_FUNCALL_ASYNC", "YES"}};
     // FIXME: this config logic is getting more and more complex
@@ -638,6 +296,13 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
         config.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
         config.erase("NPUW_DCOFF_TYPE");
         config.erase("NPUW_DCOFF_SCALE");
+    }
+
+    // default value is ON
+    // for compiler versions >= 7.28 value is ON
+    // for other compiler versions value is OFF
+    if (npudesc.has_value()) {
+        config.emplace("NPUW_MM_GATED", (npudesc->compiler_matmul_gate ? "YES" : "NO"));
     }
     return config;
 }
@@ -651,14 +316,52 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     } else {
         config.emplace("NPUW_FUNCALL_FOR_ALL", "YES");
     }
+    auto set_max_tiles_based_on_arch = [&config, &npudesc]() {
+        if (!npudesc.has_value()) {
+            return;
+        }
+        LOG_DEBUG("NPU architecture detected: " << npudesc->arch << ", max tiles: " << npudesc->max_tiles
+                                                << ", compiler DQ support: " << (npudesc->compiler_dq ? "YES" : "NO"));
+
+        // Platform parameter has a higher priority than deviceID
+        std::string npu_platform;
+        if (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT) {
+            npu_platform = ov::intel_npu::Platform::standardize(npudesc->arch);
+        } else {
+            npu_platform = npudesc->arch;
+        }
+
+        bool set_npu_tiles = false;
+        std::string arch_added_compilation_param;
+        if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+            // Keep baseline settings.
+        } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+            set_npu_tiles = true;
+            arch_added_compilation_param = "optimization-level=3";
+        } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
+                   npu_platform == ov::intel_npu::Platform::NPU5020) {
+            set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+            arch_added_compilation_param = "performance-hint-override=latency";
+        } else {
+            LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
+        }
+
+        if (set_npu_tiles) {
+            config["NPU_TILES"] = npudesc->max_tiles;
+        }
+
+        if (!arch_added_compilation_param.empty()) {
+            config["NPU_COMPILATION_MODE_PARAMS"] =
+                config["NPU_COMPILATION_MODE_PARAMS"].as<std::string>() + " " + arch_added_compilation_param;
+        }
+    };
+    set_max_tiles_based_on_arch();
     return config;
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_TILES", npudesc->max_tiles);
-    }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         if (is_cw_compressed(model)) {
@@ -678,6 +381,10 @@ ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
+    }
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
     }
     // We don't need slice out for kv cache model, especially for speculative decoding which need
     // to generate more than 1 token for each inference
@@ -706,7 +413,7 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
 
 void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properties, ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_LLM") != it->first.npos) {
+        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos) {
             llm_properties.insert(*it);
         } else {
             other_properties.insert(*it);
@@ -732,6 +439,21 @@ void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDes
     }
 }
 
+void update_config_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_SLICE_OUT");
+}
+
+void disable_ws_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_FUNCALL_FOR_ALL");
+    config.erase("NPUW_FOLD");
+    config.erase("NPUW_FOLD_ONLY");
+    config.erase("NPUW_CWAI");
+}
+
+void update_config_for_text_embed(ov::AnyMap& config) {
+    config.erase("NPUW_SLICE_OUT");
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -739,100 +461,90 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
-}  // namespace
 
-void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
-    typedef std::shared_ptr<ov::op::util::AssignBase> PAssign;
-    typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
-    std::vector<PReadValue> readValues;
-    std::vector<PAssign> assigns;
-    auto sinks = model->get_sinks();
-    for (size_t i = 0; i < sinks.size(); ++i) {
-        if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
-            auto variable_name = assign->get_variable_id();
-            if (!ov::npuw::util::matchLoRAMatMulAString(variable_name) &&
-                !ov::npuw::util::matchLoRAMatMulBString(variable_name) &&
-                !ov::npuw::util::matchLoRAMatMulAlphaString(variable_name)) {
-                continue;
-            }
+// Detect if the model is a Mixture-of-Experts (MoE) architecture
+// by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
+bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        const std::string& node_name = op->get_friendly_name();
+        // Check for MoE-specific patterns:
+        // - layers.*.mlp.router (router network for expert selection)
+        // - layers.*.mlp.experts (expert networks)
+        // Note: "expert" also matches "experts" (plural)
+        if (node_name.find(ov::npuw::patterns::moe::MLP_ROUTER_NAME) != std::string::npos ||
+            node_name.find(ov::npuw::patterns::moe::MLP_EXPERT_NAME) != std::string::npos) {
+            LOG_INFO("Detected MoE model: found node with MoE pattern - " << node_name);
+            return true;
+        }
+    }
+    LOG_DEBUG("Non-MoE model detected: no .mlp.router or .mlp.expert nodes found");
+    return false;
+}
 
-            auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(assign->get_input_node_shared_ptr(0));
-            OPENVINO_ASSERT(read_value, "Can't find ReadValue");
-            readValues.push_back(read_value);
-            assigns.push_back(assign);
+// Apply MoE-specific configuration based on hint
+void apply_moe_config(ov::AnyMap& stage_config,
+                      ::intel_npu::npuw::llm::MoEHint moe_hint,
+                      const std::string& stage_name) {
+    if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
+        LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
+        // MoE expert and router pattern isolation options
+        const ov::AnyMap expert_opts = {
+            {"NPUW_ONLINE_PIPELINE", "REP"},
+            {"NPUW_ONLINE_ISOLATE", "MOE"},
+            {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+            {"NPUW_UNFOLD_IREQS", "NO"},
+        };
+        merge_config_with(stage_config, expert_opts);
+    } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+        if (stage_name == "PREFILL") {
+            NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "
+                                 "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
+                                 "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
+        }
+        stage_config["NPUW_UNFOLD_IREQS"] = "NO";
+    } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
+        LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
+        // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
+        auto npuw_devices =
+            stage_config.count("NPUW_DEVICES") ? stage_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
+        NPUW_ASSERT(npuw_devices == "CPU" &&
+                    "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
+                    "DENSE activates all experts simultaneously, causing extremely long NPU compilation time. "
+                    "Please set NPUW_DEVICES to 'CPU'.");
+    }
+}
+
+// Apply DEVICE_ROUTED MoE transformations to models
+ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>& model,
+                                               const ::intel_npu::Config& cfg,
+                                               ov::AnyMap& other_props) {
+    auto kv_kache_storage_type = ov::element::f16;
+
+    // kv-cache-precision changes to fp8 does make sense unconditionally only if LPT passes succesfully applied
+    if (cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>()) {
+        kv_kache_storage_type = ov::npuw::optimize_kv_cache_storage(model);
+    }
+
+    auto kv_cache_precision_hint = pop_option(other_props, ov::hint::kv_cache_precision.name());
+    // ov::kv_cache_precision hint can additionally change kv-cache precision, but it might lead to less accurate
+    // results
+    if (kv_cache_precision_hint.has_value()) {
+        auto suggested_kv_cache_precision = kv_cache_precision_hint.value().as<ov::element::Type>();
+        if (kv_kache_storage_type != suggested_kv_cache_precision) {
+            LOG_WARN("KV-cache precision HINT: " << suggested_kv_cache_precision << " applied");
+            kv_kache_storage_type = suggested_kv_cache_precision;
         }
     }
 
-    ov::ParameterVector new_parameters;
-    new_parameters.reserve(readValues.size());
-    for (size_t i = 0; i < readValues.size(); ++i) {
-        auto read_value = readValues[i];
-        auto variable_name = read_value->get_variable_id();
-        const auto element_type = read_value->get_output_element_type(0);
-        const auto shape = read_value->get_output_partial_shape(0);
-
-        auto parameter = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
-        ov::op::util::set_name(*parameter, variable_name);
-        replace_node(read_value, parameter);
-
-        auto assign = assigns[i];
-        model->remove_sink(assign);
-        model->remove_variable(model->get_variable_by_id(variable_name));
-        new_parameters.push_back(parameter);
-    }
-
-    model->add_parameters(new_parameters);
+    return kv_kache_storage_type;
 }
 
-ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
-                                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
-      m_name(model->get_friendly_name()),
-      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
-      m_cfg(m_options_desc) {
-    LOG_DEBUG("Creating LLMCompiledModel");
-    LOG_BLOCK();
-
-    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
-
-    const auto npudesc = extract_npu_descriptor(plugin);
-
-    ov::AnyMap npuw_llm_props;
-    ov::AnyMap other_props;
-    split_llm_properties(properties, npuw_llm_props, other_props);
-    // Solely used for serialization at the moment
-    m_non_llm_props = other_props;
-
-    // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
-    // to not pass them into ::intel_npu::Config object, as we don't need to
-    // preserve them somewhere.
-    auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
-    auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
-    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
-    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
-    // Also make these maps for third: lm head model, in case it will be created:
-    auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
-    auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
-    refine_dynamic_props(npuw_llm_props, npudesc);
-    m_cfg.update(any_copy(npuw_llm_props));
-
-    LOG_DEBUG("Creating kvcache model as clone of passed one.");
-    auto kvcache_model = model->clone();
-    LOG_DEBUG("Transform kvcache model from stateful to stateless.");
-    ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-    convert_stateful_lora_to_stateless(kvcache_model);
-    LOG_DEBUG("   ...also convert BF16 to FP16");
-    // Note: we need to identify original bf16 constants for potential weightless deserialization later
-    // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
-    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-
-    bool shared_head_enabled = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
+std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg) {
+    bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     if (shared_head_enabled) {
         LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(kvcache_model);
+        lm_head_model = cut_lm_head(m);
         if (lm_head_model) {
             LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
         } else {
@@ -843,9 +555,205 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Two-model pipeline will be created.");
     }
 
-    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
-    auto prefill_model = kvcache_model->clone();
-    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+    return lm_head_model;
+}
+
+bool has_phi_v5_longrope_pattern(const std::shared_ptr<ov::Model>& model) {
+    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
+    bool matched = false;
+    long_rope->transform_cb = [&]() {
+        matched = true;
+    };
+    long_rope->run_on_model(model);
+    return matched;
+}
+
+}  // namespace
+
+// Apply DEVICE_ROUTED MoE transformations to models
+std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
+    const std::shared_ptr<ov::Model>& generate_model,
+    const KVAxesPosition& axes,
+    const uint32_t whisper_lhs_seq_size) {
+    const uint32_t total_kv_size = m_kvcache_desc.total_size;
+    const uint32_t min_response_len = total_kv_size - m_kvcache_desc.max_prompt_size;
+    const uint32_t max_generation_token_len = m_kvcache_desc.max_generation_token_len;
+    const bool enable_generate_pyramid = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>();
+
+    // Check if generate pyramid feature is enabled
+    if (enable_generate_pyramid) {
+        LOG_INFO("Generate pyramid feature is ENABLED");
+        LOG_INFO(
+            "Creating multiple generate model variants with stepping: 1K+min_response_len, 2K+min_response_len, etc.");
+
+        // Determine KV cache size steps: (1K + min_response_len), (2K + min_response_len), (4K + min_response_len), (8K
+        // + min_response_len), etc.
+        std::vector<uint32_t> kv_size_steps;
+        for (uint32_t base_size = 1024; base_size + min_response_len <= total_kv_size; base_size *= 2) {
+            kv_size_steps.push_back(base_size + min_response_len);
+        }
+        // Always include the total size if it's not already in the list
+        if (kv_size_steps.empty() || kv_size_steps.back() < total_kv_size) {
+            kv_size_steps.push_back(total_kv_size);
+        }
+
+        LOG_DEBUG("KV cache size variants: ");
+        for (const auto& size : kv_size_steps) {
+            LOG_DEBUG("  - " << size);
+        }
+
+        // Store the sizes for runtime selection
+        m_kvcache_sizes = std::move(kv_size_steps);
+    } else {
+        LOG_INFO("KV cache variants feature is DISABLED - using single model");
+        // Use only the total size (traditional single-model approach)
+        m_kvcache_sizes = {total_kv_size};
+    }
+
+    // Create generate model variants
+    LOG_INFO("Creating " << m_kvcache_sizes.size() << " generate model variants...");
+    std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
+    generate_model_variants.reserve(m_kvcache_sizes.size());
+
+    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
+        const uint32_t kv_size = m_kvcache_sizes[i];
+
+        auto generate_variant = (kv_size == total_kv_size) ? generate_model : generate_model->clone();
+        LOG_DEBUG("Variant " << (i + 1) << "/" << m_kvcache_sizes.size() << " (size=" << kv_size
+                             << "): reshaping to static");
+
+        // Reshape to target size
+        ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
+            .run_on_model(generate_variant);
+
+        // Set unique name for this variant
+        generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
+        generate_model_variants.push_back(generate_variant);
+    }
+    LOG_INFO("Created all generate model variants");
+
+    return generate_model_variants;
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel_v0> ov::npuw::LLMCompiledModel::make_compiled_model(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    return std::dynamic_pointer_cast<ov::npuw::ICompiledModel_v0>(
+        ov::npuw::ICompiledModel::create(model, plugin, properties));
+}
+
+void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
+    const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& generate_config) {
+    // Compile multiple generate model variants with different sizes
+    LOG_INFO("Compiling " << m_kvcache_sizes.size() << " generate model variants...");
+    m_generate_compiled_variants.reserve(m_kvcache_sizes.size());
+
+    for (size_t i = 0; i < m_kvcache_sizes.size(); ++i) {
+        const uint32_t kv_size = m_kvcache_sizes[i];
+        LOG_DEBUG("Compiling generate variant " << (i + 1) << "/" << m_kvcache_sizes.size()
+                                                << " with size: " << kv_size);
+
+        // Use the already prepared variant model
+        auto& generate_variant = generate_model_variants[i];
+
+        // Compile the variant
+        auto compiled_variant = m_compiled_model_factory(generate_variant, plugin, generate_config);
+        NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for generate variant!");
+
+        m_generate_compiled_variants.push_back(compiled_variant);
+        LOG_DEBUG("Successfully compiled generate variant with size: " << kv_size);
+    }
+
+    // Keep the original compiled model for backward compatibility (using the largest size)
+    m_kvcache_compiled = m_generate_compiled_variants.back();
+}
+
+ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
+                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                             const ov::AnyMap& properties,
+                                             CompiledModelFactory factory)
+    : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc),
+      m_compiled_model_factory(std::move(factory)) {
+    LOG_DEBUG("Creating LLMCompiledModel");
+    LOG_BLOCK();
+    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
+
+    ov::AnyMap npuw_llm_props;
+    ov::AnyMap other_props;
+    split_llm_properties(properties, npuw_llm_props, other_props);
+    const auto npudesc = extract_npu_descriptor(plugin, other_props);
+    auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
+
+    // Remove map-valued section configs before m_cfg.update(any_copy(...)), since Config expects string options.
+    auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
+    // Also make these maps for third: lm head model, in case it will be created:
+    auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
+    auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
+
+    m_cfg.update(any_copy(npuw_llm_props));
+
+    // m_cfg should be updated before checking for optimize_fp8, because affect the decision on kv-cache storage type
+    auto kv_kache_storage_type = choose_kv_cache_storage_type(model, m_cfg, other_props);
+
+    // Solely used for serialization at the moment
+    m_non_llm_props = other_props;
+
+    refine_dynamic_props(npuw_llm_props, npudesc);
+    m_cfg.update(any_copy(npuw_llm_props));
+
+    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
+    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+    const auto is_hfa =
+        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
+    }
+
+    m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
+    if (m_is_whisper) {
+        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
+        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
+
+        m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
+    }
+
+    m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
+    if (m_is_eagle) {
+        LOG_INFO("Eagle3 speculative decoding mode enabled");
+    }
+
+    // Auto-detect MoE model by scanning for router/expert nodes
+    const bool is_moe = is_moe_model(model);
+    if (is_moe) {
+        // Only apply MoE defaults if not explicitly set in external config
+        if (npuw_llm_props.find("NPUW_LLM_SHARED_HEAD") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        }
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+        }
+
+        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
+        // HOST_ROUTED
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
+            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
+        }
+    }
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
@@ -853,9 +761,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
 
-    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
-    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
-    KVAxesPosition axes{batch_dim, seq_len_dim};
     uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
@@ -866,6 +771,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // If chunk size covers the entire prompt, just follow the static behavior.
     // Otherwise, use chunking and align the prompt size to the chunk size.
     if (m_use_chunk_prefill) {
+        OPENVINO_ASSERT(
+            !ov::npuw::util::has_input(model, "token_type_ids") || !ov::npuw::util::has_input(model, "inputs_embeds"),
+            "Chunking is not implemented for Gemma model family yet. "
+            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
         if (m_prefill_chunk_size >= max_prompt_len) {
             m_use_chunk_prefill = false;
         } else {
@@ -879,77 +788,217 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
         }
+
+        m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
+        if (m_enable_prefix_caching) {
+            LOG_INFO("Prefix caching is enabled");
+            m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
+            if (!is_aligned_to(static_cast<uint32_t>(m_prefill_chunk_size),
+                               static_cast<uint32_t>(m_prefix_caching_block_size))) {
+                LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size);
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
+            m_prefix_caching_max_num_blocks = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
+            LOG_INFO("Prefix caching block size: " << m_prefix_caching_block_size);
+            LOG_INFO("Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks);
+        }
     }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
+    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
+    KVAxesPosition axes{batch_dim, seq_len_dim};
+
+    LOG_DEBUG("Creating kvcache model as clone of passed one.");
+    auto kvcache_model = model->clone();
+
+    auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
+    m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
+
+    if (m_is_embedding) {
+        LOG_DEBUG("Text-embedding model rebuild");
+        ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
+    } else {
+        LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
+        ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
+        LOG_DEBUG("Transform kvcache model from stateful to stateless.");
+        ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    }
+
+    ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
+
+    LOG_DEBUG("   ...also convert BF16 to FP16");
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
+
+    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+
+    if (!m_is_whisper) {
+        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
+        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+    }
+
+    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
+    auto prefill_model = kvcache_model->clone();
+    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
+
+    uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
+    if (m_is_whisper) {
+        axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
+        m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
+        whisper_lhs_seq_size =
+            static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
+        auto whisper_decompose_sdpa = m_cfg.get<::intel_npu::NPUW_WHISPER_DECOMPOSE_SDPA>();
+        if (whisper_decompose_sdpa) {
+            m_kvcache_desc.max_prompt_size = whisper_kvcache_size - 1;
+        }
+
+        auto prepare_prefill_model = ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
+                                                                                whisper_lhs_seq_size,
+                                                                                whisper_decompose_sdpa);
+        prepare_prefill_model.run_on_model(prefill_model);                         // Whisper decoder model
+        ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model);  // Whisper decoder_with_past model
+
+        // FIXME: Whisper Decompose SDPA
+        // WA: to mock new "cross_attention_qk_scaled_scores" outputs in original model
+        if (whisper_decompose_sdpa) {
+            m_decomposed_sdpa_size = prepare_prefill_model.get_decomposed_sdpa_size();
+            auto& mutable_outputs = const_cast<std::vector<ov::Output<const ov::Node>>&>(this->outputs());
+            for (size_t idx = 0; idx < m_decomposed_sdpa_size; idx++) {
+                auto fake_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+                auto fake_result = std::make_shared<ov::op::v0::Result>(fake_param);
+                fake_result->output(0).get_tensor().add_names(
+                    {WhisperInferRequest::whisper_layer_names::qk_scores,
+                     WhisperInferRequest::whisper_layer_names::qk_scores_ + std::to_string(idx)});
+
+                mutable_outputs.emplace_back(fake_result->output(0));
+            }
+        }
+    }
 
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
-        reshape_to_static(prefill_model,
-                          static_cast<uint32_t>(m_prefill_chunk_size),
-                          m_kvcache_desc.max_prompt_size,
-                          axes,
-                          m_max_lora_rank);
+        ov::npuw::ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
+                                  m_kvcache_desc.max_prompt_size,
+                                  axes,
+                                  m_max_lora_rank,
+                                  0,
+                                  true)
+            .run_on_model(prefill_model);
     } else {
-        reshape_to_static(prefill_model,
-                          m_kvcache_desc.max_prompt_size,
-                          m_kvcache_desc.max_prompt_size,
-                          axes,
-                          m_max_lora_rank);
+        ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
+                                  m_kvcache_desc.max_prompt_size,
+                                  axes,
+                                  m_max_lora_rank,
+                                  whisper_lhs_seq_size,
+                                  true)
+            .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
-    reshape_to_static(kvcache_model,
-                      m_kvcache_desc.max_generation_token_len,
-                      m_kvcache_desc.total_size,
-                      axes,
-                      m_max_lora_rank);
+
+    // Create generate model variants with different sizes
+    auto generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
+
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
-        slice_out_embeds(prefill_model, axes.batch, m_kvcache_desc.max_generation_token_len);
+        ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
         LOG_DEBUG("Make LM head model with static shapes");
-        reshape_sliced_head_to_static(lm_head_model, axes.batch, m_kvcache_desc.max_generation_token_len);
+        ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
+            .run_on_model(lm_head_model);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    decompose_GQA(prefill_model, true);
-    decompose_GQA(kvcache_model, false);
+    ov::npuw::DecomposeGQA(true).run_on_model(prefill_model);
+    for (auto& model_variant : generate_model_variants) {
+        ov::npuw::DecomposeGQA(false).run_on_model(model_variant);
+    }
+
+    const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
+    const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+    const bool generate_attn_dyn = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+
+    const bool prefill_attn_pyramid = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+    const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+
+    const bool prefill_attn_hfa = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
-        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
-            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
-            m_kvcache_desc.v_tensors_transposed = true;
-        } else {
-            LOG_DEBUG("vtensors optimisation not applied");
+        // Only optimize V tensors for static attention types
+        if (!generate_attn_dyn) {
+            // Apply optimization to all variants and track results
+            size_t optimized_count = 0;
+            for (auto& model_variant : generate_model_variants) {
+                if (ov::npuw::util::OptimizeValueTensors(false).run_on_model(model_variant)) {
+                    ++optimized_count;
+                }
+            }
+
+            // Check consistency: either all or none should be optimized
+            if (optimized_count == generate_model_variants.size()) {
+                LOG_DEBUG("V-tensors transposed in generate model variants");
+                m_kvcache_desc.v_tensors_transposed_gen = true;
+            } else if (optimized_count == 0) {
+                LOG_DEBUG("No V-tensors were optimized");
+                m_kvcache_desc.v_tensors_transposed_gen = false;
+            } else {
+                // Partial optimization is not allowed
+                OPENVINO_ASSERT(false,
+                                "Partial optimization detected: ",
+                                optimized_count,
+                                " out of ",
+                                generate_model_variants.size(),
+                                " variants were optimized, which is not allowed.");
+            }
+        }
+        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_model)) {
+            LOG_DEBUG("V-tensors tranposed in prefill model");
+            m_kvcache_desc.v_tensors_transposed_pre = true;
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
+    if (!m_is_embedding) {
+        if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Removing EmptyKVInputs");
+            NPUW_ASSERT(ov::npuw::RemoveEmptyKVInputs().run_on_model(prefill_model));
+        } else {
+            LOG_DEBUG("Don't remove input key/values from prefill model.");
+            LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
+            ov::npuw::RedirectNewKvToOutput().run_on_model(prefill_model);
+        }
 
-    if (!m_use_chunk_prefill) {
-        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    } else {
-        LOG_DEBUG("Don't remove input key/values from prefill model.");
-        LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-        prefill_model = redirect_new_kv_to_output(prefill_model);
+        LOG_DEBUG("Optimize generate model to output key/values for new token.");
+        for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+            ov::npuw::RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
+        }
     }
+    LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
+    for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
+    }
+    LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
 
-    LOG_DEBUG("Optimize kvcache model to output key/values for new token.");
-    kvcache_model = redirect_new_kv_to_output(kvcache_model);
-    LOG_DEBUG("Converting KV-cache in kvcache model to FP16.");
-    kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
-    LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
-    prefill_model = cvt_kvcache_to_fp16(prefill_model);
+    std::optional<std::string> user_compilation_mode_params = std::nullopt;
+    if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
+        user_compilation_mode_params = it->second.as<std::string>();
+    }
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
@@ -962,6 +1011,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
+    const std::optional<std::string> default_compilation_mode_params =
+        [&prefill_config]() -> std::optional<std::string> {
+        if (const auto it = prefill_config.find("NPU_COMPILATION_MODE_PARAMS"); it != prefill_config.end()) {
+            return it->second.as<std::string>();
+        }
+        return std::nullopt;
+    }();
+
     auto prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
     auto generate_config_addition_value =
@@ -972,40 +1029,142 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
+        user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
+        LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
+                 << default_compilation_mode_params.value() << "\". User value: \""
+                 << user_compilation_mode_params.value() << "\".");
+    }
+
+    // Generate a random weights bank name unique to this LLMCompiledModel object
+    auto weights_bank_name = ov::npuw::util::generate_random_string();
+    LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
+    apply_weights_bank_name(prefill_config, weights_bank_name);
+    apply_weights_bank_name(generate_config, weights_bank_name);
+
+    // Handle attention hints. FIXME: Maybe it makes sense to make those
+    // mutually exclusive with the precise configuration sections as well
+    const ov::AnyMap dyn_attn_opts = {
+        {"NPUW_ONLINE_PIPELINE", "REP"},
+        {"NPUW_ONLINE_ISOLATE", "ATTN"},
+        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+        {"NPUW_UNFOLD_IREQS", "NO"},
+    };
+
+    if (m_use_chunk_prefill && (prefill_attn_pyramid || prefill_attn_hfa || prefill_attn_dyn)) {
+        prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
+        merge_config_with(prefill_config, dyn_attn_opts);
+    }
+
+    if (generate_attn_pyramid || generate_attn_hfa || generate_attn_dyn) {
+        generate_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT::toString(generate_attn_hint);
+        merge_config_with(generate_config, dyn_attn_opts);
+    }
+
+    // Note: with dynamic attention in EITHER STAGE, we have to
+    // explicitly disable the run-time fallback to so extra ov::Model
+    // references won't be held by the npuw::CompiledModel, resulting
+    // in a higher memory consumption. This behavior should be reworked!
+    // The reason here is that NPUW_DEVICES may come as a global setting,
+    // impacting all the stages.
+    if (prefill_attn_dyn || generate_attn_dyn) {
+        prefill_config["NPUW_FALLBACK_EXEC"] = "NO";
+        generate_config["NPUW_FALLBACK_EXEC"] = "NO";
+    }
+
+    if (is_moe) {
+        // Apply MoE configuration for prefill stage
+        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
+
+        // Apply MoE configuration for generate stage
+        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
+
+        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
+        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
+        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        for (auto&& model_variant : generate_model_variants) {
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+        }
+
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
+            // transformations)
+            for (auto&& model_variant : generate_model_variants) {
+                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
+            }
+        }
+    }
+
+    if (m_is_whisper) {
+        update_config_for_whisper(prefill_config);
+        if (is_int8_compressed(model)) {
+            disable_ws_for_whisper(prefill_config);
+            disable_ws_for_whisper(generate_config);
+            LOG_INFO(" WS is disabled for Whisper int8 model!");
+        }
+    }
+
+    if (m_is_embedding) {
+        update_config_for_text_embed(prefill_config);
+    }
+
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
+        const bool force_rope_cache = has_phi_v5_longrope_pattern(prefill_model);
 
-        if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
+        if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
+                max_prompt_len,
+                ov::npuw::LLMInferRequest::layer_names::longrope_input);
             rope_prefill_cacher.run_on_model(prefill_model);
         }
 
-        if (const uint32_t ctx_len = max_prompt_len + min_response_len; !is_best || (ctx_len >= CACHE_ROPE_START)) {
-            LOG_DEBUG("Enable RoPE Cache for kvcache");
-            ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
-            rope_generate_cacher.run_on_model(kvcache_model);
+        // Apply RoPE Cache to all generate variant models
+        for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+            const uint32_t kv_size = m_kvcache_sizes[i];
+            if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
+                LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
+                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
+                    kv_size,
+                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
+                rope_cacher.run_on_model(generate_model_variants[i]);
+            }
         }
     }
 
-    m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
-    NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
-                                      "model and its config, please check passed config.");
-    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+    // Regularize models for the better partitioning assuming it is a transformer
+    // Apply these transformations to all variant models
+    {
+        ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)
+            .run_on_model(prefill_model);
+        for (auto& model_variant : generate_model_variants) {
+            ov::npuw::patterns::regularize::RegularizeSDPA(generate_attn_dyn || generate_attn_pyramid ||
+                                                           generate_attn_hfa)
+                .run_on_model(model_variant);
+        }
+    }
+
+    // Compile multiple generate model variants with different sizes
+    compile_generate_model_variants(generate_model_variants, plugin, generate_config);
+
+    m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-
         merge_config_with(lm_head_config, lm_head_config_addition_value);
-        m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-            ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
+
+        apply_weights_bank_name(lm_head_config, weights_bank_name);
+
+        m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }
 
@@ -1081,7 +1240,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 }
 
-void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const {
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -1096,34 +1255,42 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     }
 
     auto write_model_meta = [&](std::ostream& model_stream) {
+        auto stream = Stream::writer(model_stream);
         // Serialize name
-        write(model_stream, m_name);
+        stream & m_name;
 
         // Serialize inputs and outputs
-        write(model_stream, inputs());
-        write(model_stream, outputs());
+        stream& inputs() & outputs();
 
         // Serialize LLMCompiledModel-specific data
-        write(model_stream, m_kvcache_desc.max_prompt_size);
-        write(model_stream, m_kvcache_desc.total_size);
-        write(model_stream, m_kvcache_desc.num_stored_tokens);
-        write(model_stream, m_kvcache_desc.dim);
-        write(model_stream, m_kvcache_desc.max_generation_token_len);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed);
-        write(model_stream, m_prefill_chunk_size);
-        write(model_stream, m_use_chunk_prefill);
-        write(model_stream, m_max_lora_rank);
+        stream & m_kvcache_desc.max_prompt_size & m_kvcache_desc.total_size & m_kvcache_desc.num_stored_tokens &
+            m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
+            m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
+            m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
+            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding;
 
         // Write config
-        write(model_stream, m_cfg);
+        stream & m_cfg;
+
+        // Serialize KV cache model variants
+        auto variant_count = static_cast<uint32_t>(m_generate_compiled_variants.size());
+        stream & m_kvcache_sizes & variant_count;
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
+        // This cache is collected on the original LLM graph before BF16->FP16
+        // conversion and submodel splitting. Child CompiledModels must serialize
+        // this propagated view, not just their local post-transform snapshot.
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
-        m_kvcache_compiled->serialize(model_stream, enc_ctx);
+
+        // Serialize all generate variants
+        for (const auto& compiled_variant : m_generate_compiled_variants) {
+            compiled_variant->serialize(model_stream, enc_ctx);
+        }
+
         m_prefill_compiled->serialize(model_stream, enc_ctx);
         const bool is_shared_lm_head = m_lm_head_compiled != nullptr;
-        write(model_stream, is_shared_lm_head);
+        stream & is_shared_lm_head;
         if (is_shared_lm_head) {
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
         }
@@ -1132,24 +1299,24 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
     std::stringstream non_encrypted_stream;
     if (ctx.encrypted) {
         NPUW_ASSERT(ctx.encrypt && "Encryption function isn't provided!");
-        non_encrypted_stream.copyfmt(stream);
+        non_encrypted_stream.copyfmt(raw_stream);
         write_model_meta(non_encrypted_stream);
         std::string encrypted_str = ctx.encrypt(non_encrypted_stream.str());
-        write(stream, encrypted_str);
+        write(raw_stream, encrypted_str);
     } else {
-        write_model_meta(stream);
+        write_model_meta(raw_stream);
     }
 
     // Serialize bank name
-    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
+    const auto& p_bank = m_prefill_compiled->get_weights_bank();
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    write(stream, kv_bank->get_name());
+    auto stream = Stream::writer(raw_stream);
+    auto bank_name = kv_bank->get_name();
+    stream & bank_name;
 
     if (!is_weightless) {
-        // Serialize weights bank
-        // Note: no need to encrypt weights in full flow
-        kv_bank->serialize(stream);
+        stream&* kv_bank;
     }
 
     LOG_INFO("Done.");
@@ -1210,40 +1377,40 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
-        // Deserialize weights bank name
+        auto stream = Stream::reader(model_stream);
         std::string bank_name;
-        read(model_stream, bank_name);
+        stream & bank_name;
 
         if (is_weightless) {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
+                compiled_variant->set_weights_bank(bank);
+                compiled_variant->finalize_weights_bank();
+            }
 
-            compiled->m_kvcache_compiled->finalize_weights_bank();
-            compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
+            compiled->m_prefill_compiled->set_weights_bank(bank);
             compiled->m_prefill_compiled->finalize_weights_bank();
-            compiled->m_prefill_compiled->m_import_weights_ctx.reset();
 
             if (compiled->m_lm_head_compiled) {
-                compiled->m_lm_head_compiled->m_weights_bank = bank;
-
+                compiled->m_lm_head_compiled->set_weights_bank(bank);
                 compiled->m_lm_head_compiled->finalize_weights_bank();
-                compiled->m_lm_head_compiled->m_import_weights_ctx.reset();
             }
         } else {
-            auto bank =
-                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            stream&* bank;
 
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->set_weights_bank(bank);
+            for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
+                compiled_variant->set_weights_bank(bank);
+                compiled_variant->reconstruct_closure();
+            }
 
-            compiled->m_kvcache_compiled->reconstruct_closure();
+            compiled->m_prefill_compiled->set_weights_bank(bank);
             compiled->m_prefill_compiled->reconstruct_closure();
 
             if (compiled->m_lm_head_compiled) {
-                compiled->m_lm_head_compiled->m_weights_bank = bank;
-
+                compiled->m_lm_head_compiled->set_weights_bank(bank);
                 compiled->m_lm_head_compiled->reconstruct_closure();
             }
         }
@@ -1296,48 +1463,66 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
+        auto stream = Stream::reader(model_stream);
         // Deserialize model name first
         std::string model_name;
-        read(model_stream, model_name);
+        stream & model_name;
 
         // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
         // to continue deserialization
         ov::ParameterVector parameters;
         ov::NodeVector results;
 
-        read(model_stream, parameters);
-        read(model_stream, results);
+        stream & parameters & results;
 
         auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
         auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
 
         // Deserialize LLMCompiledModel-specific data
-        read(model_stream, compiled->m_kvcache_desc.max_prompt_size);
-        read(model_stream, compiled->m_kvcache_desc.total_size);
-        read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
-        read(model_stream, compiled->m_kvcache_desc.dim);
-        read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
-        read(model_stream, compiled->m_prefill_chunk_size);
-        read(model_stream, compiled->m_use_chunk_prefill);
-        read(model_stream, compiled->m_max_lora_rank);
+        stream & compiled->m_kvcache_desc.max_prompt_size & compiled->m_kvcache_desc.total_size &
+            compiled->m_kvcache_desc.num_stored_tokens & compiled->m_kvcache_desc.dim &
+            compiled->m_kvcache_desc.max_generation_token_len & compiled->m_kvcache_desc.v_tensors_transposed_pre &
+            compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
+            compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
+            compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
+            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
+            compiled->m_is_embedding;
 
         // Deserialize config
-        read(model_stream, compiled->m_cfg);
+        stream & compiled->m_cfg;
         compiled->implement_properties();
+
+        // Deserialize KV cache model variants
+        stream & compiled->m_kvcache_sizes;
+        uint32_t num_variants = 0;
+        stream & num_variants;
+
+        compiled->m_generate_compiled_variants.reserve(num_variants);
 
         // Deserialize CompiledModels
         // Note: no need to pass any encryption here as it's done in import_model()
         CompiledContext enc_ctx(false, nullptr, nullptr);
-        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+
+        // Deserialize all generate variants
+        for (uint32_t i = 0; i < num_variants; ++i) {
+            auto compiled_variant = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+            compiled->m_generate_compiled_variants.push_back(compiled_variant);
+        }
+
+        // Set the main kvcache_compiled to the largest variant for backward compatibility
+        if (!compiled->m_generate_compiled_variants.empty()) {
+            compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
+        }
+
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         bool is_shared_lm_head = false;
-        read(model_stream, is_shared_lm_head);
+        stream & is_shared_lm_head;
         if (is_shared_lm_head) {
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
+
         return compiled;
     };
 
@@ -1382,12 +1567,28 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return non_const_this->create_llm_infer_request();
+    if (m_is_whisper) {
+        return non_const_this->create_whisper_infer_request();
+    } else if (m_is_embedding) {
+        return non_const_this->create_embedding_infer_request();
+    } else {
+        return non_const_this->create_llm_infer_request();
+    }
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_embedding_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::EmbeddingInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
@@ -1406,9 +1607,21 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
+                          BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
+                          BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
+                          BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
+                          BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
-                          BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get)});
+                          BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
+                          BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
+                          BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
+                          BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
+                          BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
+                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,11 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
 // We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
-static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
+static bool should_skip_execution(const dynamic_quantize_node& node, const layout& act_layout, const dynamic_quantize::Attributes& attrs) {
+    if (cldnn::data_type_traits::is_floating_point(attrs.quantization_dt)) {
+        return false; // Execute unconditionally for floating point types.
+    }
+
     if (!node.is_runtime_skippable()
         || !act_layout.is_static())
         return false;
@@ -45,7 +49,7 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
 layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     const auto& input_layout = impl_param.get_input_layout();
-    auto output_type = data_types::i8;
+    auto output_type = desc->attrs.quantization_dt;
     auto output_format = input_layout.format;
 
     return layout(output_type, output_format, input_layout.get_tensor());
@@ -69,13 +73,18 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     std::vector<layout> output_layouts = {  layout(output_shapes[0], attrs.quantization_dt, output_format),
                                             layout(output_shapes[1], attrs.scale_dt, output_format) };
 
-    auto flag_skip_execution = should_skip_execution(node, act_layout);
+    auto flag_skip_execution = should_skip_execution(node, act_layout, attrs);
 
     GPU_DEBUG_TRACE_DETAIL << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
 
     if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
         attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         output_layouts.emplace_back(layout(output_shapes[2], attrs.zp_dt, output_format));
+    }
+    if (attrs.precomputed_reduction) {
+        OPENVINO_ASSERT(output_layouts.size() == 2,
+                        "Dynamic quantization is supposed to have 2 outputs in front of precomputed reduction, but got: ", output_layouts.size());
+        output_layouts.emplace_back(layout(output_shapes[2], attrs.precomputed_reduction_dt, output_format));
     }
 
     if (flag_skip_execution) {
@@ -121,6 +130,7 @@ std::string dynamic_quantize_inst::to_string(dynamic_quantize_node const& node) 
     dynamic_quantize_info.add("scale_dt", desc->attrs.scale_dt);
     dynamic_quantize_info.add("zp_dt", desc->attrs.zp_dt);
     dynamic_quantize_info.add("quantization_type", static_cast<int>(desc->attrs.quantization_type));
+    dynamic_quantize_info.add("precomputed_reduction", desc->attrs.precomputed_reduction);
     node_info->add("dynamic_quantize info", dynamic_quantize_info);
     node_info->dump(primitive_description);
 
@@ -137,13 +147,16 @@ void dynamic_quantize_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
+    if (_node != nullptr)
+        build_deps();
+
+    if (input_memory_ptr() == nullptr)
+        return;
+
     if (static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
         && output_memory().get_layout().identical(get_output_layout()))
         return;
-
-    if (_node != nullptr)
-        build_deps();
 
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 

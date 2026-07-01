@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,7 +125,7 @@ public:
         m_names_compatiblity_mode = compatiblity_mode;
     }
 
-    const bool get_names_compatibility_mode() const {
+    bool get_names_compatibility_mode() const {
         return m_names_compatiblity_mode;
     }
 

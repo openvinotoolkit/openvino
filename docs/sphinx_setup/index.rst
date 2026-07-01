@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2025.2
+OpenVINO 2026.2
 ============================
 
 .. container::
@@ -15,7 +15,7 @@ OpenVINO 2025.2
                <li id="ov-homepage-slide2" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO GenAI</p>
                   <p class="ov-homepage-slide-subtitle">Simplify GenAI model deployment!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2026/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide1" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO models on Hugging Face!</p>
@@ -30,7 +30,7 @@ OpenVINO 2025.2
                   <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html">Learn more</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2026/openvino-workflow/torch-compile.html">Learn more</a>
                   </li>
             </ul>
            </div>
@@ -39,23 +39,28 @@ OpenVINO 2025.2
 
 |
 
-**OpenVINO is an open-source toolkit** for deploying performant AI solutions in the cloud,
-on-prem, and on the edge alike. Develop your applications with both generative and conventional
-AI models, coming from the most popular model frameworks.
+**OpenVINO is an open-source toolkit** for deploying high-performance AI solutions across 
+cloud, AI PCs, edge devices, and Physical AI alike. Develop your applications 
+with both generative and conventional AI models, coming from the most popular model frameworks. 
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
-There are three main tools in OpenVINO to meet all your deployment needs:
+There are four main tools in OpenVINO to meet all your deployment needs:
 
-.. grid:: 1 1 3 3
+.. grid:: 1 2 2 4
+
+   .. grid-item-card:: OpenVINO Base Package
+      :link: ./openvino-workflow.html
+
+      Run and deploy conventional AI models
 
    .. grid-item-card:: OpenVINO GenAI
       :link: ./openvino-workflow-generative.html
 
       Run and deploy generative AI models
 
-   .. grid-item-card:: OpenVINO Base Package
-      :link: ./openvino-workflow.html
+   .. grid-item-card:: OpenVINO Physical AI
+      :link: ./physical-ai.html
 
-      Run and deploy conventional AI models
+      Deploy VLA models on robots
 
    .. grid-item-card:: OpenVINO Model Server
       :link: ./model-server/ovms_what_is_openvino_model_server.html
@@ -64,9 +69,9 @@ There are three main tools in OpenVINO to meet all your deployment needs:
 
 |
 | For a quick ramp-up, check out the
-  `OpenVINO Toolkit Cheat Sheet [PDF] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+  `OpenVINO Toolkit Cheat Sheet [PDF] <https://docs.openvino.ai/2026/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
   and the
-  `OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
+  `OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2026/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 |
 
 .. image:: ./assets/images/openvino-overview-diagram.jpg
@@ -213,5 +218,6 @@ Key Features
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
    HOW TO USE - CONVENTIONAL AI WORKFLOW <openvino-workflow>
    HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
+   HOW TO USE - PHYSICAL AI <physical-ai>
    REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

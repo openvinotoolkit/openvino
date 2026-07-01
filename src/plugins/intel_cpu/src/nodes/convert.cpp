@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,8 +165,10 @@ void Convert::initSupportedPrimitiveDescriptors() {
         }
     }
     auto range = hasOutputChild
-                     ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
-                     : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
+                     ? BlockedDescCreator::makeFilteredRange(creators,
+                                                             static_cast<unsigned int>(insShape.getRank()),
+                                                             {LayoutType::ncsp})
+                     : BlockedDescCreator::makeFilteredRange(creators, static_cast<unsigned int>(insShape.getRank()));
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].setMemDesc(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "program_node.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
+#include "gated_mlp_inst.h"
 #include "assign_inst.h"
 #include "mvn_inst.h"
 
@@ -40,6 +41,10 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
     }
 
     if (use_onednn) {
+        // In case of implicit onednn concat, padding should not be removed.
+        if (node.can_be_optimized()) {
+            return;
+        }
         for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             auto node_and_port = node.get_dependency_with_port(idx);
             auto& input = *node_and_port.first;
@@ -111,11 +116,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (keep_original_dt)
         reorder_layout.data_type = node->get_output_layout().data_type;
 
-    auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
-    auto& new_reorder_node = p.get_or_create(new_reorder);
-    new_reorder_node.set_output_layout(reorder_layout, false);
-
-    // ToDo: add a method to program class which adds an intermediate node given a node and its user
+    // dep index in reorder id distinguishes multi-port edges; otherwise add_intermediate fails on the second pass.
     auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
     [&](const std::pair<program_node*, int32_t>& dep) {
         return node == dep.first;
@@ -127,6 +128,12 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
         throw std::runtime_error("Internal Error: container index out of range exception.");
     }
+
+    auto new_reorder = std::make_shared<reorder>(
+        node->id() + "_reorder_" + usr->id() + "_p" + std::to_string(idx), node->id(), reorder_layout);
+    auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
+
     p.add_intermediate(new_reorder_node, *usr, idx);
     new_reorder_node.recalc_output_layouts(false);
 }
@@ -144,7 +151,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
 
         auto current_format = dep->get_output_layout(false, dep_with_port.second).format;
 
-        if (format::is_weights_format(current_format))
+        if (dep->is_constant() || format::is_weights_format(current_format))
             continue;
 
         if (dep->is_type<reorder>()) {
@@ -264,28 +271,6 @@ void add_required_reorders::run(program& p) {
                 }
             }
 
-            auto input_layout = usr->get_input_layout();
-            auto input_pshape = input_layout.get_partial_shape();
-            auto prim = usr->as<mvn>().get_primitive();
-
-            if (prim->requires_alignment(input_pshape)) {
-                auto block_sizes = format::block_sizes(input_layout.format);
-                auto axes = prim->reduction_axes;
-                if (input_layout.is_dynamic() || block_sizes.size() > 1
-                    || (block_sizes.size() == 1 &&
-                        input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
-                        std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)) {
-                    auto rank = input_pshape.size();
-                    input_layout.format = format::get_default_format(rank);
-                    auto& dep = usr->as<mvn>().input();
-                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_to_plain", dep.id(), input_layout);
-                    auto& new_reorder_node = p.get_or_create(new_reorder);
-                    p.add_intermediate(new_reorder_node, *usr, dep);
-                    // Need to invalidate users because the output format of mvn follows input format.
-                    new_reorder_node.recalc_output_layout(true);
-                    usr->recalc_output_layout(false);
-                }
-            }
         }
 
         eliminate_pad_for_onednn_impl(p, *usr);
@@ -294,7 +279,7 @@ void add_required_reorders::run(program& p) {
             continue;
 
         bool correct_layout_selected = false;
-        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>() || usr->is_type<gated_mlp>());
 
         layout original_layout = usr->get_output_layout();
 
@@ -325,7 +310,7 @@ void add_required_reorders::run(program& p) {
                     continue;
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
-            // This list of preferred layouts has been selected arbitrary due to developers' experience
+            // This list of preferred layouts has been selected arbitrarily due to developers' experience
             preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
             if (max_in_dims == 8) {
                 preferred_layout_formats.push_back(cldnn::format::bfvuwzyx);
@@ -357,6 +342,6 @@ void add_required_reorders::run(program& p) {
         OPENVINO_ASSERT(correct_layout_selected,
                         "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
                         " (format: ", original_layout.format.to_string(),
-                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ");
+                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ", original_layout.to_string(), ", ", correct_layout_selected);
     }
 }

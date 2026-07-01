@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,16 @@ TRShape make_padded_shape(const TShape& input, TInputIter pads_begin, TInputIter
     TRShape out;
     out.reserve(input.size());
     std::transform(input.cbegin(), input.cend(), std::back_inserter(out), [&pads_begin, &pads_end](const TDim& d) {
-        return ov::util::dim::padded(d, (*pads_begin++ + *pads_end++));
+        const auto pad_a = *pads_begin++;
+        const auto pad_b = *pads_end++;
+        using TPad = std::decay_t<decltype(pad_a)>;
+        constexpr auto pad_max = std::numeric_limits<TPad>::max();
+
+        if (pad_a == pad_max || pad_b == pad_max || (pad_b > (pad_max - pad_a))) {
+            return TDim(ov::util::dim::inf_bound);
+        } else {
+            return ov::util::dim::padded(d, pad_a + pad_b);
+        }
     });
 
     return out;

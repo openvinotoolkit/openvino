@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ using GroupDeconvLayerTestParamsSet = std::tuple<groupConvBackpropSpecificParams
 class GroupDeconvolutionLayerGPUTest : public testing::WithParamInterface<GroupDeconvLayerTestParamsSet>,
                                        virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GroupDeconvLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupDeconvLayerTestParamsSet>& obj) {
         const auto& [basicParamsSet, inputData, prec, targetDevice, additionalConfig] = obj.param;
 
         const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding] = basicParamsSet;

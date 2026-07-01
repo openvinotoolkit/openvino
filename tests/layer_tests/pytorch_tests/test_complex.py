@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -9,8 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestComplex(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2).astype(np.float32),)
+        return (self.random.randn(2),)
 
     def create_model(self, dtype):
         class complex_model(torch.nn.Module):
@@ -19,16 +18,17 @@ class TestComplex(PytorchLayerTest):
                 self.dtype = dtype
                 x = torch.tensor([1.0 + 2.0j, 3.0 + 4.0j], dtype=dtype)
                 self.complex_attr = torch.nn.Parameter(x)
+                self.register_buffer(
+                    'complex_const',
+                    torch.tensor([5.0 + 6.0j, 7.0 + 8.0j], dtype=dtype),
+                )
 
             def forward(self, x):
-                complex_const = torch.tensor(
-                    [5.0 + 6.0j, 7.0 + 8.0j], dtype=self.dtype)
-
                 real_attr = self.complex_attr.real
                 imag_attr = self.complex_attr.imag
 
-                real_const = complex_const.real
-                imag_const = complex_const.imag
+                real_const = self.complex_const.real
+                imag_const = self.complex_const.imag
 
                 real_result = x + real_attr + real_const
                 imag_result = imag_attr + imag_const
@@ -36,7 +36,7 @@ class TestComplex(PytorchLayerTest):
                 result = real_result + imag_result
                 return result
 
-        return complex_model(dtype), None, ["prim::GetAttr", "prim::Constant"]
+        return complex_model(dtype), ["prim::GetAttr", "prim::Constant"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -44,6 +44,7 @@ class TestComplex(PytorchLayerTest):
         torch.complex32,
         torch.complex64,
         torch.complex128])
+    @pytest.mark.filterwarnings("ignore:ComplexHalf support is experimental:UserWarning")
     def test_complex(self, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype), ie_device,
                    precision, ir_version, trace_model=True)
@@ -51,11 +52,10 @@ class TestComplex(PytorchLayerTest):
 
 class TestReal(PytorchLayerTest):
     def _prepare_input(self, y):
-        import numpy as np
         if y:
-            return (np.random.randn(2, 3).astype(np.float32),
-                    np.random.randn(2, 3).astype(np.float32))
-        return (np.random.randn(2, 3).astype(np.float32),)
+            return (self.random.randn(2, 3),
+                    self.random.randn(2, 3))
+        return (self.random.randn(2, 3),)
 
     def create_model(self):
         class aten_real(torch.nn.Module):
@@ -66,7 +66,7 @@ class TestReal(PytorchLayerTest):
                     c = x
                 return torch.real(c)
 
-        return aten_real(), None, "aten::real"
+        return aten_real(), "aten::real"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

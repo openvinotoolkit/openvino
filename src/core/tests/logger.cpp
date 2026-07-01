@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include "openvino/core/log_util.hpp"
 #include "openvino/util/log.hpp"
 
-namespace ov::tests {
+namespace ov::test {
 
 using namespace ov::util;
 
@@ -137,4 +137,4 @@ INSTANTIATE_TEST_SUITE_P(Log_callback,
                                            LogEntries{LOG_TYPE::_LOG_TYPE_INFO, "path_3", 3, "text 3"},
                                            LogEntries{LOG_TYPE::_LOG_TYPE_DEBUG, "path_4", 4, "text 4"},
                                            LogEntries{LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "path_5", 5, "text 5"}));
-}  // namespace ov::tests
+}  // namespace ov::test

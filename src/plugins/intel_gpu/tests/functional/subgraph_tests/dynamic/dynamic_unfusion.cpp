@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ using DynamicUnfusionsParams = std::tuple<std::vector<InputShape>,   // input sh
 class DynamicUnfusions : public testing::WithParamInterface<DynamicUnfusionsParams>,
                          virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DynamicUnfusionsParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DynamicUnfusionsParams>& obj) {
         const auto& [input_shapes, transpose_a, transpose_b, input_precision] = obj.param;
 
         std::ostringstream result;

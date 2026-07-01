@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ using namespace dnnl;
 using namespace ov::element;
 
 static Dim batchDim(const VectorDims& dims) {
-    return std::accumulate(dims.begin(), dims.end() - 1, 1, std::multiplies<>());
+    return std::accumulate(dims.begin(), dims.end() - 1U, Dim{1}, std::multiplies<>());
 }
 
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
@@ -103,8 +103,7 @@ bool MlasGemmExecutor::supports(const FCConfig& config) {
 }
 
 MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
-    : m_attrs(attrs),
-      m_memoryArgs(memory),
+    : m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
 
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
@@ -151,7 +150,7 @@ void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
     }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
-    if (m_attrs.withBias) {
+    if (!m_memoryArgs.at(ARG_BIAS)->getDesc().empty()) {
         mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
     }
 }

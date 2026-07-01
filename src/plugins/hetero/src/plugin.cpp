@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,7 +156,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::Tensor& model,
                                                                      const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
 }

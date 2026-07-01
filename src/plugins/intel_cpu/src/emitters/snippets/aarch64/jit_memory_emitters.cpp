@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,24 +18,26 @@
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/plugin/aarch64/jit_load_store_emitters.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -55,13 +57,13 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h,
         OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_input_port(0), "must be input port - memory access");
         count = memory_access->get_input_count();
         compiled_byte_offset = memory_access->get_input_offset();
-        buffer_cluster_id = get_parent_buffer_cluster_id(expr);
+        buffer_cluster_id = ov::intel_cpu::utils::get_parent_buffer_cluster_id(expr);
     } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
         OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_output_port(0),
                                   "must be output port - memory access");
         count = memory_access->get_output_count();
         compiled_byte_offset = memory_access->get_output_offset();
-        buffer_cluster_id = get_consumer_buffer_cluster_id(expr);
+        buffer_cluster_id = ov::intel_cpu::utils::get_consumer_buffer_cluster_id(expr);
     } else {
         OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
     }
@@ -75,37 +77,14 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h,
     }
 }
 
-size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_count() == 1, "MemoryAccess must have one parent");
-    const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
-    if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(parent_expr)) {
-        return buffer->get_cluster_id();
-    }
-    return SIZE_MAX;
-}
-
-size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_count() == 1, "MemoryAccess must have one output");
-    const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
-    for (const auto& consumer : consumers) {
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(consumer.get_expr())) {
-            return buffer->get_cluster_id();
-        }
-    }
-    return SIZE_MAX;
-}
-
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
-    bool is_supported_precision =
-        any_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-        src_prc == dst_prc;
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
     count = load->get_count();
-    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset);
+    const auto mode = ov::is_type<ov::intel_cpu::LoadConvertTruncation>(expr->get_node()) ? arithmetic_mode::truncation
+                                                                                          : arithmetic_mode::saturation;
+    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset, mode);
 }
 
 size_t jit_memory_emitter::get_aux_gprs_count() const {
@@ -230,15 +209,13 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
-    bool is_supported_precision =
-        any_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-        src_prc == dst_prc;
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(store != nullptr, "Expects Store expression");
     count = store->get_count();
-    store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset);
+    const auto mode = ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())
+                          ? arithmetic_mode::truncation
+                          : arithmetic_mode::saturation;
+    store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset, mode);
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {

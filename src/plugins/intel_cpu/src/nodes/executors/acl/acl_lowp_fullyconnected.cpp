@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include "acl_fullyconnected_utils.hpp"
 #include "arm_compute/runtime/NEON/functions/NEGEMMLowpMatrixMultiplyCore.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/common/common_utils.hpp"
@@ -41,8 +40,10 @@ static bool checkPostOps(const PostOps& postOps) {
         return false;
     }
 
-    const auto& activation = std::any_cast<const ActivationPostOp&>(postOps[0]);
-    return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()));
+    if (const auto& activation = std::any_cast<const ActivationPostOp>(postOps.data())) {
+        return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
+    }
+    return false;
 }
 
 static void initFCAttrs(const FCAttrs& attrs,
@@ -77,13 +78,11 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
-    const auto src0 = srcType(config);
-    const auto src1 = weiType(config);
-    const auto dst = dstType(config);
-    if ((src0 != ov::element::i8) || (src1 != ov::element::i8) || (dst != ov::element::f32)) {
-        return false;
-    }
-
+    VERIFY(aclSupported({config.descs.at(ARG_SRC), config.descs.at(ARG_WEI), config.descs.at(ARG_DST)}),
+           UNSUPPORTED_ACL_COMMON_PRECONDITION);
+    VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
+    VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
+    VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
     VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
     VERIFY(any_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
@@ -132,18 +131,7 @@ std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTens
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    const auto result = [&]() {
-        switch (dataType) {
-        case arm_compute::DataType::S8:
-            return arm_compute::DataType::QASYMM8_SIGNED;
-        case arm_compute::DataType::U8:
-            return arm_compute::DataType::QASYMM8;
-        default:
-            return dataType;
-        }
-    }();
-
-    return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
+    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

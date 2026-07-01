@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@
 #include <list>
 #include <algorithm>
 #include <thread>
+#include <map>
+#include <utility>
 
 namespace cldnn {
 
@@ -519,6 +521,7 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
+    bool share_internal_buffer = true;
     std::array<bool, tensor_dim_max> _support_padding_in_axis;
 
     mutable bool has_reused_memory = false;
@@ -647,24 +650,25 @@ inline RT test_no_input_pad(program_node& node, std::function<RT(program_node& n
     if (!node.is_all_valid_output_layouts())
         node.recalc_output_layouts(false);
 
-    std::vector<padding> original_padding(node.get_dependencies().size());
+    // Use a map keyed by (dep_node_ptr, port) to handle duplicate dependencies correctly.
+    // When the same dependency appears multiple times (e.g., eltwise self-multiply),
+    // we must save and restore its padding only once.
+    std::map<std::pair<program_node*, int32_t>, padding> original_padding;
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
         auto dep_with_port = node.get_dependency_with_port(i);
         if (dep_with_port.first->is_constant())
             continue;
-        original_padding[i] = dep_with_port.first->get_output_layout(false, dep_with_port.second).data_padding;;
-
+        auto key = std::make_pair(dep_with_port.first, dep_with_port.second);
+        if (original_padding.count(key))
+            continue;
+        original_padding[key] = dep_with_port.first->get_output_layout(false, dep_with_port.second).data_padding;
         dep_with_port.first->set_output_padding(padding(), dep_with_port.second);
     }
 
     RT res = f(node);
 
-    for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-        auto dep_with_port = node.get_dependency_with_port(i);
-        if (dep_with_port.first->is_constant())
-            continue;
-
-        dep_with_port.first->set_output_padding(original_padding[i], dep_with_port.second);
+    for (auto& entry : original_padding) {
+        entry.first.first->set_output_padding(entry.second, entry.first.second);
     }
 
     return res;

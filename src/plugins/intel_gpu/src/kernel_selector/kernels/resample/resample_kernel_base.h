@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ struct resample_params : public base_params {
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
-        k.EnableReampleType(resampleType);
+        k.EnableResampleType(resampleType);
         return k;
     }
 };

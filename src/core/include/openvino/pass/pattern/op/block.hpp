@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <optional>
@@ -9,7 +13,7 @@
 namespace {
 
 // _MAKE_ANCHOR is an internal macro for REGISTER_ANCHORS that is not supposed to used separately.
-#define _MAKE_ANCHOR(x) block->register_anchor(#x, x);
+#define _MAKE_ANCHOR(block, x) (block)->register_anchor(#x, x);
 
 }  // namespace
 
@@ -23,9 +27,9 @@ namespace ov::pass::pattern::op {
  *
  */
 
-#define REGISTER_ANCHORS(block, ...)        \
-    do {                                    \
-        FOR_EACH(_MAKE_ANCHOR, __VA_ARGS__) \
+#define REGISTER_ANCHORS(block, ...)               \
+    do {                                           \
+        FOR_EACH(_MAKE_ANCHOR, block, __VA_ARGS__) \
     } while (0)
 
 /**
@@ -95,10 +99,11 @@ public:
         return m_named_anchors;
     }
 
-private:
+protected:
     OutputVector m_inputs;
     OutputVector m_outputs;
 
+private:
     std::map<std::string, Output<Node>> m_named_anchors;
 };
 

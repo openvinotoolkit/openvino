@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,7 +149,7 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
             && !dep_node.is_constant()
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
-            && !(dep_node.get_program().is_body_program() && dep_node.is_type<input_layout>())) {
+            && !(dep_node.is_type<input_layout>() && dep_node.get_users().size() > 1)) {
             return add_fusing_type::sum;
         } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;

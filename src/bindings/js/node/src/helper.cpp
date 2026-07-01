@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "node/include/helper.hpp"
 
 #include "node/include/compiled_model.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
+#include "node/include/tensor_impl.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -151,6 +155,13 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const
 }
 
 template <>
+std::filesystem::path js_to_cpp<std::filesystem::path>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& path = info[idx];
+    OPENVINO_ASSERT(path.IsString(), "Passed argument must be of type String.");
+    return std::filesystem::path(path.ToString().Utf8Value());
+}
+
+template <>
 ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value) {
     if (value.IsString()) {
         return ov::Any(value.ToString().Utf8Value());
@@ -282,13 +293,20 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 
 Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to Model prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to Model prototype.");
     const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Node> node) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->node;
+    OPENVINO_ASSERT(prototype, "Invalid pointer to Node prototype.");
+    const auto& node_js = prototype.New({});
+    const auto nw = Napi::ObjectWrap<NodeWrap>::Unwrap(node_js);
+    nw->set_node(node);
+    return node_js;
 }
 
 template <>
@@ -298,9 +316,7 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
 
 Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to CompiledModel prototype.");
     auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->set_compiled_model(compiled_model);
@@ -355,17 +371,10 @@ ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
 ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
                           const ov::Shape& shape,
                           const ov::element::Type_t& type) {
-    /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
-    because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
-    if (typed_array.ByteOffset() != 0) {
-        OPENVINO_THROW("TypedArray.byteOffset has to be equal to zero.");
-    }
-    auto array_buffer = typed_array.ArrayBuffer();
-    auto tensor = ov::Tensor(type, shape, array_buffer.Data());
-    if (tensor.get_byte_size() != array_buffer.ByteLength()) {
-        OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
-    }
-    return tensor;
+    OPENVINO_ASSERT(typed_array.ByteOffset() == 0,
+                    "TypedArray.byteOffset must be zero for zero-copy tensor construction.");
+    auto impl = std::make_shared<ov::js::TensorImpl>(typed_array.Env(), typed_array, type, shape);
+    return ov::make_tensor(ov::SoPtr<ov::ITensor>{impl, nullptr});
 }
 
 void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {

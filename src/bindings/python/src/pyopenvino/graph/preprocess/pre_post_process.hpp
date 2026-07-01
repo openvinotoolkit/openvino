@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ template <> struct type_caster<ov::Layout> : public type_caster_base<ov::Layout>
     using base = type_caster_base<ov::Layout>;
 public:
     /**
-     * Conversion part 1 (Python->C++): convert a PyObject into a LayoutWrapper 
+     * Conversion part 1 (Python->C++): convert a PyObject into a LayoutWrapper
      * instance or return false upon failure. The second argument
      * indicates whether implicit conversions should be applied.
      */

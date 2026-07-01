@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -599,6 +599,17 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_eltwise_i8, ::
 class gemm_2in_act_scale_eltwise : public GemmFusingTest {};
 TEST_P(gemm_2in_act_scale_eltwise, basic) {
     auto p = GetParam();
+
+    // TODO: Fused JIT int8 gemm kernel produces incorrect results with activation_func::negative
+    // on iGPU with IMMAD (Xe3+). The negation is skipped in the fused path, causing sign flips.
+    // Only affects auto-selected kernels; forced OCL kernels (gemm_mmad_int8 etc.) work correctly.
+    // Ticket: 185581
+    if (engine.get_device_info().supports_immad &&
+        engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+        (p.data_type_in0 == data_types::u8 || p.data_type_in0 == data_types::i8) &&
+        p.kernel_name.empty())
+        GTEST_SKIP();
+
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
@@ -658,9 +669,9 @@ INSTANTIATE_TEST_SUITE_P(
     }));
 
 
-/// 
+///
 /// GemmPaddingTest: checking the pad propagation is working for reshape before matmul(onednn).
-/// 
+///
 struct gemm_test_params2 {
     std::vector<ov::PartialShape> in_shapes;
     ov::PartialShape out_shape;

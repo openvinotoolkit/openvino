@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 #define TO_TYPE(type, val)              CAT(convert_, type)(val)
-#define TO_TYPE_SAT(type, val)          CAT(CAT(convert_, type), _sat)(val)
 
 #if ELTWISE_BROADCAST
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
@@ -61,23 +60,22 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
 
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
-
-    DO_ELTWISE
+    if ((OUT_F_BLOCK * 2 > OUT_F_BLOCK_VEC_SIZE) && (OUT_F_BLOCK_VEC_SIZE == f_block)) {
+        res = TO_OUTPUT_TYPE(0);
+    } else {
+        DO_ELTWISE
+    }
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
     OUTPUT_TYPE_BLOCK out = TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE), FUSED_OPS_RESULT);
 #else
-#if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE_SAT(MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE), res), ACTIVATION_PARAMS_TYPED);
-#else
     OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE), res), ACTIVATION_PARAMS_TYPED);
-#endif
 #endif
 
 #ifdef LEFTOVERS
@@ -102,4 +100,3 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 
 #undef OUTPUT_TYPE_BLOCK
 #undef TO_TYPE
-#undef TO_TYPE_SAT

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -51,10 +51,8 @@ xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimensi
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
-xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
 xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
-xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
-xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
+xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported 5 dimensions")
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
 xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
@@ -68,7 +66,6 @@ xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
 xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
@@ -89,8 +86,6 @@ xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
-xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
-                                      "AssertionError: Mismatched elements.")
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND, "
@@ -121,7 +116,6 @@ skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to toleran
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
-xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
@@ -157,7 +151,7 @@ xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to to
 # ONNX 1.15
 xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
 xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
-skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support cubic and linear modes, and 4D tensor") # Need to enable after bumping to 1.15
+skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support volumetric (5D) inputs")
 skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
 skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
@@ -181,9 +175,6 @@ xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
 skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 
 # ONNX 1.18
-xfail_issue_171766 = pytest.mark.skip(reason="Unsupported feature: Attention")
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
-xfail_issue_171768 = pytest.mark.skip(reason="Unsupported feature: RMSNormalization")
-xfail_issue_171770 = pytest.mark.skip(reason="Unsupported feature: RotaryEmbedding")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
 xfail_issue_171772 = pytest.mark.skip(reason="Mismatches in tests: AveragePool")

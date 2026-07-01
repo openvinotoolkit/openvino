@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -335,7 +335,7 @@ public:
         return res;
     }
     const variable& operator+=(arithmetic_type rhs) const {
-        base::_kernel.add(base::reg(), rhs);
+        base::_kernel.add(base::reg(), static_cast<size_t>(rhs));
         return *this;
     }
     variable operator+(arithmetic_type rhs) const {
@@ -665,7 +665,10 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
     void store(const variable<DstT>& dst, const variable<SrcT[N]>& src, const variable<size_t>& length);
 
     template <typename B, typename E, typename S = size_t>
-    void foreach (const B& begin, const E& end, std::function<void(const variable<size_t>&)> && fn, const S& step = 1);
+    void foreach (const B& begin,
+                  const E& end,
+                  const std::function<void(const variable<size_t>&)>& fn,
+                  const S& step = 1);
 
     template <typename T>
     variable<T> var();
@@ -814,7 +817,7 @@ void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, 
 template <typename B, typename E, typename S>
 void jit_kernel::foreach (const B& begin,
                           const E& end,
-                          std::function<void(const variable<size_t>&)> && fn,
+                          const std::function<void(const variable<size_t>&)>& fn,
                           const S& step) {
     using namespace Xbyak;
 

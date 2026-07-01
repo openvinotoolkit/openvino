@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <tuple>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
@@ -31,11 +33,13 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
@@ -59,6 +63,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto cur_q = any_input();
     auto cur_k = any_input();
     auto cur_v = any_input();
+    auto atten_sink = any_input();
 
     auto past_k = wrap_type<ov::op::v6::ReadValue>();
     auto past_v = wrap_type<ov::op::v6::ReadValue>();
@@ -88,6 +93,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
     auto sdp2 =
         wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
+    // gpt-oss
+    auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+        {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
 
     // non-canonical q/k/v shape definitions, for example: [L, B, H, S]/[B, L, H, S]
     auto order_k = wrap_type<ov::op::v0::Constant>();
@@ -102,10 +110,13 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
     auto sdp_trans2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
         {transpose_q, transpose_k, transpose_v, any_input(), any_input()});
+    // gpt-oss
+    auto sdp_trans3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+        {transpose_q, transpose_k, transpose_v, any_input(), any_input(), atten_sink});
 
-    auto sdp = sdp0 | sdp1 | sdp2 | sdp_trans0 | sdp_trans1 | sdp_trans2;
+    auto sdp = sdp0 | sdp1 | sdp2 | sdp3 | sdp_trans0 | sdp_trans1 | sdp_trans2 | sdp_trans3;
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -151,6 +162,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto sdp_node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
         const auto past_k_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
         const auto past_v_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
+        if (m_processed_k_variable_ids.find(past_k_node->get_variable_id()) != m_processed_k_variable_ids.end() ||
+            m_processed_v_variable_ids.find(past_v_node->get_variable_id()) != m_processed_v_variable_ids.end()) {
+            return false;
+        }
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
             return false;
         }
@@ -281,6 +296,24 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             assign_v_node->set_arguments({new_node->output(2)});
         }
 
+        // Without this reroute the dead Concat keeps the old Gather alive as a MemoryInput child;
+        // MatchSdpaKvCache rejects non-{SDPA, ShapeOf} children and the fused kernel asserts on null states.
+        auto reroute_shape_of_consumers = [](const std::shared_ptr<Node>& concat_node,
+                                             const ov::Output<ov::Node>& replacement) {
+            std::vector<ov::Input<Node>> shape_of_inputs;
+            for (const auto& target : concat_node->get_output_target_inputs(0)) {
+                auto* child = target.get_node();
+                if (ov::is_type<ov::op::util::ShapeOfBase>(child)) {
+                    shape_of_inputs.push_back(target);
+                }
+            }
+            for (const auto& inp : shape_of_inputs) {
+                inp.replace_source_output(replacement);
+            }
+        };
+        reroute_shape_of_consumers(concat_k_node, new_node->output(1));
+        reroute_shape_of_consumers(concat_v_node, new_node->output(2));
+
         // Markup pattern:
         // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that
         // ReadValue can't be replaced with ReadValueWithSubgraph in this pattern.
@@ -288,6 +321,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
         past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
 
+        m_processed_k_variable_ids.insert(past_k_node->get_variable_id());
+        m_processed_v_variable_ids.insert(past_v_node->get_variable_id());
         return true;
     };
 
@@ -297,7 +332,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
-    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    ov::pass::SymbolicOptimizations symbolic_optimizations(true, get_pass_config());
     auto& ctx_manager = *symbolic_optimizations.get_manager();
 
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::SimplifyGatherShapeOf);

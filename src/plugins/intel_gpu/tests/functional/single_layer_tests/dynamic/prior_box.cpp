@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ typedef std::tuple<
 class PriorBoxLayerGPUTest : public testing::WithParamInterface<PriorBoxLayerGPUTestParamsSet>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PriorBoxLayerGPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxLayerGPUTestParamsSet>& obj) {
         const auto& [input1Shape, input2Shape, model_type, max_size, priorboxType] = obj.param;
 
         std::ostringstream result;

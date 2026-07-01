@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/ngram.hpp"
@@ -88,8 +87,9 @@ void Ngram::prepareParams() {
     const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();
     ;
 
-    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<>());
-    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<>());
+    idcesShapeSize =
+        std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), static_cast<Dim>(1), std::multiplies<>());
+    numOutElems = std::accumulate(outDims.begin(), outDims.end(), static_cast<Dim>(1), std::multiplies<>());
     idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
@@ -118,6 +118,7 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == ov::element::i32) {
@@ -133,7 +134,7 @@ void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
        2. Apply sliding window of windowSize with a step windowStride and form k new embedding vectors for the embedding
     */
     memset(dstData, 0, numOutElems * sizeof(float));
-    parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
+    cpu_parallel->parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
         size_t srcWindowBias = 0;
         size_t dstWindowBias = 0;
 

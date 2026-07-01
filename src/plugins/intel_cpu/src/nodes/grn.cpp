@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/grn.hpp"
@@ -102,10 +101,11 @@ void GRN::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void GRN::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
-    parallel_for3d(N, H, W, [&](int b, int h, int w) {
+    cpu_parallel->parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;
         for (int c = 0; c < C; c++) {
             variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);

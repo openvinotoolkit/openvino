@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,6 +84,19 @@ public:
         return m_ptr;
     }
 
+    void* data_rw() override {
+        return m_ptr;
+    }
+
+    void* data_rw(const element::Type& element_type) override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
+    }
+
     const element::Type& get_element_type() const override {
         return m_element_type;
     }
@@ -105,6 +118,14 @@ public:
                         m_element_type);
         std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
+    }
+
+    std::optional<uint64_t> get_source_id() const {
+        return m_source_id;
+    }
+
+    void set_source_id(uint64_t id) {
+        m_source_id = id;
     }
 
 protected:
@@ -144,6 +165,7 @@ protected:
     mutable Strides m_strides;
     mutable std::once_flag m_strides_once;
     void* m_ptr;
+    std::optional<uint64_t> m_source_id;
 };
 
 /**
@@ -157,11 +179,11 @@ public:
 
     using ViewTensor::data;
 
-    [[noreturn]] void* data() override {
+    [[noreturn]] void* data_rw() override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
     }
 
-    [[noreturn]] void* data(const element::Type& element_type) override {
+    [[noreturn]] void* data_rw(const element::Type& element_type) override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data(element_type)'");
     }
 };
@@ -231,7 +253,11 @@ public:
 
     using StridedViewTensor::data;
 
-    [[noreturn]] void* data(const element::Type& element_type) override {
+    [[noreturn]] void* data_rw() override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+
+    [[noreturn]] void* data_rw(const element::Type& element_type) override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
     }
 };
@@ -416,6 +442,10 @@ public:
         m_shape = std::move(new_shape);
     }
 
+    size_t get_offset() const {
+        return m_offset;
+    }
+
 protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
@@ -462,6 +492,14 @@ public:
 
     const void* data(const element::Type& element_type) const override {
         return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    void* data_rw() override {
+        return static_cast<uint8_t*>(m_owner->data_rw()) + m_offset;
+    }
+
+    void* data_rw(const element::Type& element_type) override {
+        return static_cast<uint8_t*>(m_owner->data_rw(element_type)) + m_offset;
     }
 };
 
@@ -585,6 +623,26 @@ ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor) {
     std::shared_ptr<void> so;
     util::get_tensor_impl(tensor, tensor_impl, so);
     return ov::SoPtr<ov::ITensor>(tensor_impl, so);
+}
+
+size_t get_tensor_data_offset(const ov::ITensor& tensor) {
+    if (auto tensor_impl = dynamic_cast<const BaseRoiTensor*>(&tensor)) {
+        return tensor_impl->get_offset();
+    }
+    return 0;
+}
+
+std::optional<uint64_t> get_tensor_source_id(const ov::Tensor& tensor) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        return itensor->get_source_id();
+    }
+    return std::nullopt;
+}
+
+void set_tensor_source_id(ov::Tensor& tensor, uint64_t id) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        itensor->set_source_id(id);
+    }
 }
 
 }  // namespace ov

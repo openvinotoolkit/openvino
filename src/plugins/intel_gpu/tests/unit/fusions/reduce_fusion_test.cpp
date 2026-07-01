@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -366,4 +366,25 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, reduce_eltwise_activation_quantiz
     reduce_test_params{ CASE_REDUCE_I32_3, 2, 4, reduce_mode::sum, { 5 }, true, "reduce_ref" },
     reduce_test_params{ CASE_REDUCE_I8_3, 2, 4, reduce_mode::mean, { 5 }, true, "reduce_ref" },
     reduce_test_params{ CASE_REDUCE_U8_3, 2, 4, reduce_mode::l2, { 5 }, true, "reduce_ref" }
+}));
+
+class reduce_scale_activation_3d : public ReduceFusingTest {};
+TEST_P(reduce_scale_activation_3d, per_channel) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      data("scale_data", get_mem(layout{{1, p.in_shape[1], 1}, p.default_type, p.default_format}, -0.125f)),
+                      reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+                      eltwise("scale", {input_info("reduce"), input_info("scale_data")}, eltwise_mode::prod),
+                      activation("activation", input_info("scale"), activation_func::cos),
+                      reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32));
+    // Activation won't be fused because onednn doesn't support cos activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
+    tolerance = 1e-02f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_scale_activation_3d, ::testing::ValuesIn(std::vector<reduce_test_params>{
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 4, reduce_mode::sum, { 3, 2, 0 }, true, "reduce_ref" },
 }));

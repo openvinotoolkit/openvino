@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,7 +13,6 @@ ov_add_test_target(
             PRIVATE
             ov_subgraphs_dumper_util
             func_test_utils
-        ADD_CPPLINT
         LABELS
             OV UNIT
 )

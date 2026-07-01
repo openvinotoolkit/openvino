@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "graph.hpp"
 #include "openvino/openvino.hpp"
+#include "repeated.hpp"
 #include "utils/utils.hpp"
 
 namespace ov {
@@ -49,6 +50,8 @@ public:
     own::ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getInputs() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getOutputs() const;
     void addInput(const std::shared_ptr<ov::Node>& node);
     void addOutput(const std::shared_ptr<ov::Node>& node);
     void addContent(const std::shared_ptr<ov::Node>& node);
@@ -64,6 +67,7 @@ public:
     size_t size() const;
     void freeze();
     void noFold();
+    void unfreeze();
     bool isFrozen() const;
     bool isNoFold() const;
     const detail::OVNodeSet& getContent() const;
@@ -83,6 +87,8 @@ public:
     std::string specialTags() const;
     void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
     const std::vector<ov::element::Type>& getConstsPrecision() const;
+
+    void dump() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -115,6 +121,11 @@ private:
     std::shared_ptr<Repeated> m_repeated = nullptr;
     // For each layer inside group, store it's history of repeated groups
     detail::ReptrackMap m_reptrack;
+
+    // Cache for the MetaInterconnectIO part of metaInterconnect().
+    // Invalidated whenever m_input_layers or m_output_layers change.
+    mutable bool m_mic_io_valid = false;
+    mutable MetaInterconnectIO m_cached_mic_io;
 };
 
 }  // namespace online

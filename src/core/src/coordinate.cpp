@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,7 @@
 #include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const Coordinate& coordinate) {
-    s << "Coordinate{";
-    s << ov::util::join(coordinate);
-    s << "}";
-    return s;
+    return s << "Coordinate{" << ov::util::join<std::ostream>(coordinate) << "}";
 }
 
 ov::Coordinate::Coordinate() = default;

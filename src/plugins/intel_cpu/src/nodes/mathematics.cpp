@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
@@ -104,90 +103,91 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     switch (getAlgorithm()) {
     case Algorithm::MathAbs:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = (std::abs)(src_data[i]);
         });
         break;
     case Algorithm::MathAcos:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = acosf(src_data[i]);
         });
         break;
     case Algorithm::MathAcosh:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = acoshf(src_data[i]);
         });
         break;
     case Algorithm::MathAsin:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = asinf(src_data[i]);
         });
         break;
     case Algorithm::MathAsinh:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = asinhf(src_data[i]);
         });
         break;
     case Algorithm::MathAtan:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = atanf(src_data[i]);
         });
         break;
     case Algorithm::MathAtanh:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = atanhf(src_data[i]);
         });
         break;
     case Algorithm::MathCeiling:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = ceilf(src_data[i]);
         });
         break;
     case Algorithm::MathCos:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = cosf(src_data[i]);
         });
         break;
     case Algorithm::MathCosh:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = coshf(src_data[i]);
         });
         break;
     case Algorithm::MathFloor:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = floorf(src_data[i]);
         });
         break;
     case Algorithm::MathHardSigmoid:
         alpha = (alpha == 0.0F) ? 0.2F : alpha;
         beta = (beta == 0.0F) ? 0.5F : beta;
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = (std::max)(0.F, (std::min)(1.F, alpha * src_data[i] + beta));
         });
         break;
     case Algorithm::MathNegative:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = -src_data[i];
         });
         break;
     case Algorithm::MathReciprocal:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = 1.0F / src_data[i];
         });
         break;
     case Algorithm::MathSelu:
         alpha = (alpha == 0.0F) ? 1.67326F : alpha;
         gamma = (gamma == 0.0F) ? 1.0507F : gamma;
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
             dst_data[i] = (x > 0.0F) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0F));
         });
         break;
     case Algorithm::MathSign:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             if (src_data[i] > 0.0F) {
                 dst_data[i] = 1.0F;
             } else if (src_data[i] < 0.0F) {
@@ -200,28 +200,28 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         });
         break;
     case Algorithm::MathSin:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = sinf(src_data[i]);
         });
         break;
     case Algorithm::MathSinh:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = sinhf(src_data[i]);
         });
         break;
     case Algorithm::MathSoftPlus:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = logf(expf(src_data[i]) + 1);
         });
         break;
     case Algorithm::MathSoftsign:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
             dst_data[i] = x / (1.F + (std::abs)(x));
         });
         break;
     case Algorithm::MathTan:
-        parallel_for(dataSize, [&](size_t i) {
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
             dst_data[i] = tanf(src_data[i]);
         });
         break;

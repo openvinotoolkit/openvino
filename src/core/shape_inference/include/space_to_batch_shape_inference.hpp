@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,8 @@ std::vector<TRShape> shape_infer(const SpaceToBatch* op,
             for (auto idx = spatial_dim_offset; idx < data_rank_size; ++idx) {
                 NODE_VALIDATION_CHECK(op, (*blocks)[idx] > 0, "block_shape values must be greater than 0");
 
-                const auto padded_dim = data_shape[idx] + static_cast<TVal>((*pads_begin)[idx] + (*pads_end)[idx]);
+                const auto padded_dim =
+                    data_shape[idx] + static_cast<TVal>((*pads_begin)[idx]) + static_cast<TVal>((*pads_end)[idx]);
                 const auto divisor = static_cast<TVal>((*blocks)[idx]);
 
                 if (static_cast<int64_t>(padded_dim.get_max_length()) == dim::inf_bound) {

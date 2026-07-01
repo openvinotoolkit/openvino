@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, 
 static std::vector<int32_t> tensor_to_vec(const tensor& t, const format f) {
     std::vector<int32_t> vec(cldnn::format::dimension(f));
     for (size_t i = 0; i < vec.size(); ++i) {
-        vec[i] = t.sizes()[i];
+        vec[i] = static_cast<int32_t>(t.sizes()[i]);
     }
     std::reverse(vec.begin() + 2, vec.end());
     return vec;

@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/shared_matmul_weights_decompression.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 #include "common_test_utils/test_constants.hpp"
 #include "internal_properties.hpp"
@@ -31,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulSharedCompressedWeights,
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::ValuesIn(transpose_weights),
-                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),
                                             ::testing::Values(additional_config)),
                          SharedMatmulWeightsDecompression::getTestCaseName);
@@ -48,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Model_Distribution_MatMulSharedCompressedWeights,
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
-                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),
                                             ::testing::Values(model_distribution_config)),
                          SharedMatmulWeightsDecompression::getTestCaseName);

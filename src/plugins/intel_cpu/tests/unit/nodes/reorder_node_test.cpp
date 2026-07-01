@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <common/blocked_desc_creator.h>
@@ -16,6 +16,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "memory_control.hpp"
 #include "nodes/input.h"
+#include "thread_pool_imp.hpp"
 
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
@@ -139,7 +140,7 @@ public:
             n->initSupportedPrimitiveDescriptors();
             n->selectPrimitiveDescriptorByIndex(0);
         }
-        stream = dnnl::stream{cpuEngine};
+        stream = ov::intel_cpu::make_stream(cpuEngine, context->getCpuParallel()->get_thread_pool());
     }
 
 protected:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace kernel_selector {
 class MVNKernel_bs_fs_yx_bsv32 : public MVNKernelBase {
 public:
     using Parent = MVNKernelBase;
-    MVNKernel_bs_fs_yx_bsv32() : MVNKernelBase("mvn_gpu_b_fs_yx_fsv16_imad") {}
+    MVNKernel_bs_fs_yx_bsv32() : MVNKernelBase("mvn_gpu_b_fs_yx_bsv32") {}
     virtual ~MVNKernel_bs_fs_yx_bsv32() {}
 
     KernelsData GetKernelsData(const Params& params) const override;

@@ -1,6 +1,11 @@
 name: Documentation
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
 
 concurrency:
@@ -12,12 +17,13 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -49,7 +55,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -60,6 +66,37 @@ jobs:
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Check_Doc_Links:
+    needs: Smart_CI
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Check relative links in Markdown files
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
+        with:
+          # --exclude skips links whose target matches the regex.
+          # '\{[^}]+\}' ignores template placeholders like {run_url} or
+          # {workflow_name} that appear verbatim in markdown and are not
+          # resolvable file paths (lychee would otherwise report them as errors).
+          # '%7B[^%]+%7D' covers the same placeholders when URL-encoded by lychee
+          # before matching (e.g. {run_url} becomes %7Brun_url%7D in the file: URI).
+          args: >-
+            --offline
+            --root-dir "${{ github.workspace }}"
+            --verbose
+            --no-progress
+            --exclude '\{[^}]+\}'
+            --exclude '%7B[^%]+%7D'
+            './**/*.md'
+          fail: true
+          jobSummary: true
 
   Build_Doc:
     needs: [ Docker, Smart_CI ]
@@ -73,7 +110,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -v ${{ github.workspace }}:${{ github.workspace }}
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
@@ -84,8 +122,16 @@ jobs:
       SCCACHE_CACHE_SIZE: 50G
       SCCACHE_AZURE_KEY_PREFIX: build_docs
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -104,11 +150,11 @@ jobs:
       - name: Build docs
         run: |
           cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --target sphinx_docs
+          cmake --build ${BUILD_DIR} --target sphinx_docs -- --quiet
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.BUILD_DIR }}/docs/_build/.doctrees
           key: sphinx-docs-cache
@@ -119,13 +165,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: Upload sphinx.log
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: ${{ env.BUILD_DIR }}/docs/sphinx.log
 
       - name: Upload docs html
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}
           path: ${{ env.BUILD_DIR }}/docs/_build
@@ -142,7 +188,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openvino_docs_pytest
           path: ${{ env.BUILD_DIR }}/docs/_artifacts/

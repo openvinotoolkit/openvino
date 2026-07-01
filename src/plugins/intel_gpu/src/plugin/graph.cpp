@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,9 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
+
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
+#include "dynamic_quantize_inst.h"
 
 #include <list>
 #include <set>
@@ -134,12 +137,12 @@ Graph::~Graph() {
 
         auto print_entry = [this, &get_time_str, &log_level](std::string name, HostTimeProfilingEntry& entry, int64_t iters_num = 1) {
             if (log_level == 1) {
-                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer enqueue host time: "
+                GPU_DEBUG_COUT << "[network_id=" << m_network->get_id() << " stream_id=" << m_stream_id << " iter_num=" << iters_num << "] " << name << " infer enqueue host time: "
                                << get_time_str(entry.enqueue, iters_num) << std::endl;
             } else if (log_level >= 2) {
                 auto total_time = entry.inputs_processing + entry.enqueue + entry.wait + entry.outputs_processing;
 
-                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer host time: "
+                GPU_DEBUG_COUT << "[network_id=" << m_network->get_id() << " stream_id=" << m_stream_id << " iter_num=" << iters_num << "] " << name << " infer host time: "
                                << get_time_str(total_time, iters_num) << std::endl;
                 GPU_DEBUG_COUT << " - " << " Inputs processing: " << get_time_str(entry.inputs_processing, iters_num) << std::endl;
                 GPU_DEBUG_COUT << " - " << " Enqueue: " << get_time_str(entry.enqueue, iters_num) << std::endl;
@@ -157,13 +160,13 @@ Graph::~Graph() {
 
             const auto begin = std::begin(host_exec_times) + 1;
             const auto end = std::end(host_exec_times);
-            avg.inputs_processing = std::accumulate(begin, end, 0,
+            avg.inputs_processing = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.inputs_processing; });
-            avg.enqueue = std::accumulate(begin, end, 0,
+            avg.enqueue = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.enqueue; });
-            avg.wait = std::accumulate(begin, end, 0,
+            avg.wait = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.wait; });
-            avg.outputs_processing = std::accumulate(begin, end, 0,
+            avg.outputs_processing = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.outputs_processing; });
 
             const auto iters_num = host_exec_times.size() - 1;
@@ -235,6 +238,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },
                 { "deformable_convolution", "DeformableConvolution" },
+                { "dynamic_quantize", "DynamicQuantize" },
                 { "crop", "Crop" },
                 { "custom_gpu_primitive", "CustomGPUPrimitive" },
                 { "data", "Const" },
@@ -243,6 +247,8 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "detection_output", "DetectionOutput" },
                 { "eltwise", "Eltwise" },
                 { "fully_connected", "FullyConnected" },
+                { "gated_delta_net", "GatedDeltaNet" },
+                { "paged_causal_conv1d", "PagedCausalConv1D" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
                 { "gru_seq", "GRU_Seq" },
@@ -418,6 +424,15 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
             }
         }
         info[ov::exec_model_info::PERF_COUNTER] = exec_time;
+
+        if (prim_info.type_id == "dynamic_quantize") {
+            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
+            info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+            if (dyn_quan->attrs.precomputed_reduction) {
+                info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
+            }
+        }
 
         for (auto&& kvp : info) {
             return_node->get_rt_info()[kvp.first] = kvp.second;

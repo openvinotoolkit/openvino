@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,10 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+
+namespace ov::weight_sharing {
+struct Context;
+}
 
 namespace ov {
 
@@ -91,6 +95,12 @@ static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUER
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
 /**
+ * @brief Read-only property to get plugin specific needed alignment for cache header
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignment{"CACHE_HEADER_ALIGNMENT"};
+
+/**
  * @brief Enum to define possible cache quant schema hints.
  */
 enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };
@@ -146,13 +156,13 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
     ├───────────────────────────────┤ token[0]
     ├───────────────────────────────┤ token[1]
     │                               │ ...
-    │                               │ 
-    │                               │ 
+    │                               │
+    │                               │
     │                               │ token[seq_len - 1]
     └───────────────────────────────┘
     c[0] c[1] ...    c[head_size - 1]
  */
-                                                      
+
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
 
 /**
@@ -163,5 +173,64 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+/**
+ * @brief KV cache quantization algorithm.
+ * Selects SCALAR vs TURBO for integer cache precision (u8/u4); defaults to SCALAR when unset.
+ * No effect for floating-point cache precision.
+ */
+enum class CacheQuantAlgorithm {
+    SCALAR = 0,  // Per-group affine scale/zero-point (metadata in k_scale_zp / v_scale_zp)
+    TURBO = 1,   // TurboQuant: random orthogonal rotation + Lloyd-Max codebook + per-head norm
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheQuantAlgorithm& alg) {
+    switch (alg) {
+    case CacheQuantAlgorithm::SCALAR:
+        return os << "SCALAR";
+    case CacheQuantAlgorithm::TURBO:
+        return os << "TURBO";
+    default:
+        OPENVINO_THROW("Unsupported cache quant algorithm");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheQuantAlgorithm& alg) {
+    std::string str;
+    is >> str;
+    if (str == "SCALAR") {
+        alg = CacheQuantAlgorithm::SCALAR;
+    } else if (str == "TURBO") {
+        alg = CacheQuantAlgorithm::TURBO;
+    } else {
+        OPENVINO_THROW("Unsupported cache quant algorithm: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Define quantization algorithm for key cache.
+ * Set both key_cache_quant_alg and value_cache_quant_alg to the same value
+ * for symmetric K/V; differ them for asymmetric configs.
+ */
+static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> key_cache_quant_alg{"KEY_CACHE_QUANT_ALG"};
+
+/**
+ * @brief Define quantization algorithm for value cache. See key_cache_quant_alg.
+ */
+static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> value_cache_quant_alg{"VALUE_CACHE_QUANT_ALG"};
+
+using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
+
+/**
+ * @brief Property to pass weight sharing context.
+ *
+ * The property is used to pass weight sharing context to plugins on model compile/import.
+ * The property can be retrieved from a compiled model to get the weight sharing context
+ * for further sharing of weights between models.
+ */
+inline constexpr Property<WeightSharingCtxPtr, PropertyMutability::RW> model_sharing_context{"MODEL_SHARING_CONTEXT"};
 }  // namespace internal
 }  // namespace ov

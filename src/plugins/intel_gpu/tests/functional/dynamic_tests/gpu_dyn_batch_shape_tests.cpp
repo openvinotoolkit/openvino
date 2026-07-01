@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ using OVDynamicBatchParams = std::tuple<
 class OVDynamicBatchShape_Tests : public ::testing::WithParamInterface<OVDynamicBatchParams>,
                                   virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<OVDynamicBatchParams> obj) {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<OVDynamicBatchParams>& obj) {
         const auto& [input_shapes, model_type, target_device, configuration] = obj.param;
 
         std::ostringstream result;

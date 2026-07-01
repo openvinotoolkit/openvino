@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
 #include <napi.h>
+
+#include <memory>
+#include <utility>
 
 #include "openvino/runtime/core.hpp"
 #include "read_model_args.hpp"
@@ -11,15 +15,14 @@
 class ReaderWorker : public Napi::AsyncWorker {
 public:
     /**
-     * @brief Constructs ReaderWorker class that is responisible for reading the model asynchronously.
+     * @brief Constructs ReaderWorker class that is responsible for reading the model asynchronously.
      * @note In the Execute() method, the Core object might be used concurrently to call read_model().
-     * @param info contains passed arguments. Can be empty.
      */
-    ReaderWorker(const Napi::Env& env, ov::Core& core, ReadModelArgs* args)
+    ReaderWorker(const Napi::Env& env, ov::Core& core, std::unique_ptr<ReadModelArgs> args)
         : Napi::AsyncWorker{env, "ReaderWorker"},
           _deferred{env},
           _core{core},
-          _args{args},
+          _args{std::move(args)},
           _model{} {
         OPENVINO_ASSERT(_args, "Invalid pointer to ReadModelArgs.");
     }
@@ -28,7 +31,7 @@ public:
 
 protected:
     /** @name AsyncWorkerMethods
-     * Methods to safely move data betweeb the event loop and worker threads.
+     * Methods to safely move data between the event loop and worker threads.
      */
     ///@{
     void Execute() override;
@@ -38,6 +41,6 @@ protected:
 private:
     Napi::Promise::Deferred _deferred;
     ov::Core& _core;
-    ReadModelArgs* _args;
+    std::unique_ptr<ReadModelArgs> _args;
     std::shared_ptr<ov::Model> _model;
 };

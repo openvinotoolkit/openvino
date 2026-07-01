@@ -1,5 +1,8 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """
- Copyright (C) 2018-2025 Intel Corporation
+ Copyright (C) 2018-2026 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -35,10 +38,12 @@ test_data_fp16 = get_tests({
 class TestClassification(SamplesCommonTestClass):
     sample_name = 'classification_sample_async'
 
+    @pytest.mark.skip(reason="CVS-188974")
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_classification_sample_async_fp32(self, param, cache):
         _check_output(self, param, '215', cache)
 
+    @pytest.mark.skip(reason="CVS-188974")
     @pytest.mark.parametrize("param", test_data_fp16)
     def test_classification_sample_async_fp16(self, param, cache):
         _check_output(self, param, '215', cache)

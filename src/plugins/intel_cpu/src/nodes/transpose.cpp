@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "shape_inference/custom/transpose.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
@@ -50,6 +52,11 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
         if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
             // TODO: Support parameterized Order input for dynamic shapes.
             errorMessage = "Constant expected as the second input for static shapes.";
+            return false;
+        }
+
+        if (op->get_input_element_type(INPUT_DATA_IDX) == ov::element::string) {
+            errorMessage = "String element type is not supported.";
             return false;
         }
     } catch (...) {

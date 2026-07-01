@@ -1,9 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 
 #include "graph_iterator_proto.hpp"
@@ -15,22 +16,8 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-template <typename T>
-std::basic_string<T> get_saved_model_name() {}
-template <typename T>
-std::basic_string<T> get_variables_index_name() {}
-
-template <>
-std::basic_string<char> get_saved_model_name<char>();
-template <>
-std::basic_string<char> get_variables_index_name<char>();
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_saved_model_name<wchar_t>();
-template <>
-std::basic_string<wchar_t> get_variables_index_name<wchar_t>();
-#endif
+std::filesystem::path get_saved_model_name();
+std::filesystem::path get_variables_index_name();
 
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class GraphIteratorSavedModel : public GraphIteratorProto {
@@ -43,17 +30,13 @@ class GraphIteratorSavedModel : public GraphIteratorProto {
     bool m_mmap_enabled;
 
 public:
-    template <typename T>
-    GraphIteratorSavedModel(const std::basic_string<T>& path, const std::string& tags, const bool mmap_enabled)
+    GraphIteratorSavedModel(const std::filesystem::path& path, const std::string& tags, const bool mmap_enabled)
         : m_saved_model(std::make_shared<::tensorflow::SavedModel>()),
           m_mmap_enabled(mmap_enabled) {
         this->read_saved_model(path, tags);
     }
 
-    static bool is_supported(const std::string& path);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    static bool is_supported(const std::wstring& path);
-#endif
+    static bool is_supported(const std::filesystem::path& path);
 
     std::shared_ptr<VariablesIndex> get_variables_index() {
         return m_variables_index;
@@ -78,16 +61,15 @@ public:
 private:
     bool is_valid_signature(const ::tensorflow::SignatureDef& signature) const;
 
-    template <typename T>
-    bool read_saved_model(const std::basic_string<T>& path, const std::string& tags) {
-        std::basic_string<T> save_model_path = path + get_saved_model_name<T>();
-        std::ifstream sm_stream{save_model_path.c_str(), std::ifstream::in | std::ifstream::binary};
+    bool read_saved_model(const std::filesystem::path& path, const std::string& tags) {
+        const auto save_model_path = path / get_saved_model_name();
+        std::ifstream sm_stream{save_model_path, std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "[TensorFlow Frontend] Model file does not exist");
 
-        std::basic_string<T> varIndexPath = path + get_variables_index_name<T>();
+        const auto varIndexPath = path / get_variables_index_name();
         if (ov::util::file_exists(varIndexPath)) {
             m_variables_index = std::make_shared<VariablesIndex>(m_mmap_enabled);
-            std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
+            std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
                                     "[TensorFlow Frontend] Saved Model's variable index file does not exist");
             FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, path),
@@ -210,9 +192,9 @@ private:
         return true;
     }
 
-    /// \brief Splitting tags by using "," delimeter
+    /// \brief Splitting tags by using "," delimiter
     /// \param[in] tags String with tags separated by ","
-    /// \return Returns vector with splitted tags, no trimming is used. When you pass "tag1, tag2"
+    /// \return Returns vector with split tags, no trimming is used. When you pass "tag1, tag2"
     /// you will have a vector ["tag1", " tag2"]. Because TensorFlow saves tags without trimming
     std::vector<std::string> split_tags(const std::string tags) const;
 };  // GraphIteratorSavedModel

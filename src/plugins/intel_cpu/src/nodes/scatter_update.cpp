@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -346,9 +346,9 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
-    size_t shapeRank = shape.size();
+    auto shapeRank = static_cast<int>(shape.size());
     std::vector<size_t> blockND(shapeRank + 1, 1);
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    for (auto i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
     }
     return blockND;
@@ -375,8 +375,8 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 }
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
-    size_t shapeRank = shape.size();
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    auto shapeRank = static_cast<int>(shape.size());
+    for (auto i = shapeRank - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
     }
@@ -565,12 +565,12 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    const size_t updates_rank = indices_shape.size();
+    const auto updates_rank = static_cast<int>(indices_shape.size());
 
     if (axis < 0) {
         axis += updates_rank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    CPU_NODE_ASSERT(axis >= 0 && axis < updates_rank, "Invalid axis.");
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -697,7 +697,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += updates_rank;
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
@@ -862,7 +862,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t srcRank = srcDataDim.size();
+    auto srcRank = static_cast<int>(srcDataDim.size());
 
     // 1d short vector scatter update optimized for shape inference subgraph
     if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
@@ -898,7 +898,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             axis = static_cast<int>(*axisPtr64);
         }
 
-        CPU_NODE_ASSERT(axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1),
+        CPU_NODE_ASSERT(axis < srcRank && axis >= (srcRank * -1),
                         "should have axis value in range [-r, r - 1], where r is the rank of input data");
         axis = axis < 0 ? (axis + srcRank) : axis;
 
@@ -923,8 +923,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             size_t updateRank = updateDim.size();
             VectorDims expectUpdateShape(srcRank + indicesRank - 1, 0);
             int axisIter = 0;
-            for (size_t rs = 0; rs < srcRank; rs++) {
-                if (rs != static_cast<size_t>(axis)) {
+            for (int rs = 0; rs < srcRank; rs++) {
+                if (rs != axis) {
                     expectUpdateShape[axisIter] = srcDataDim[rs];
                     axisIter++;
                 } else {
@@ -985,6 +985,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 // and indices tensor of shape [i_0, i_1, ..., i_k].
 // Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
 void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, uint8_t* dstData) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
@@ -1006,7 +1007,7 @@ void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, u
     size_t blockToUpdate = srcBlockND[axis + 1];
     size_t blockToUpdateSize = blockToUpdate * dataSize;
 
-    parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
+    cpu_parallel->parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
         int64_t idxValue = getIndicesValue(indices, idx);
         uint8_t* dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
         uint8_t* updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
@@ -1038,6 +1039,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
                                     [[maybe_unused]] const scatter_reductions::ReduceNone& kernel) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto* indices = mem_indices->getDataAs<uint8_t>();
     auto* update = mem_updates->getDataAs<uint8_t>();
     auto* dstData = mem_data->getDataAs<uint8_t>();
@@ -1055,7 +1057,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     }
 
     size_t sizeToUpdate = srcBlockND[k] * dataSize;
-    parallel_for(idxTupleNum, [&](size_t tupleIdx) {
+    cpu_parallel->parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
         for (size_t i = 0; i < k; i++) {

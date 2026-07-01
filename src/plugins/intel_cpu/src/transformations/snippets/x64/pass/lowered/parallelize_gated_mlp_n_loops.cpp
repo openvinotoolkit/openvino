@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,8 @@ bool ParallelizeGatedMlpNLoops::run(LinearIR& linear_ir, LinearIR::constExprIt b
     }
 
     // Gated MLP pattern contains 3 brgemms, 2 first brgemms have the same A input
-    const bool is_gated_mlp = brgemm_expressions.size() == 3 &&
-                              brgemm_expressions[0]->get_input_port_connector(0)->get_source().get_expr() ==
-                                  brgemm_expressions[1]->get_input_port_connector(0)->get_source().get_expr();
+    const bool is_gated_mlp = brgemm_expressions.size() == 3 && brgemm_expressions[0]->get_input_expr_ptr(0) ==
+                                                                    brgemm_expressions[1]->get_input_expr_ptr(0);
     if (!is_gated_mlp) {
         return false;
     }

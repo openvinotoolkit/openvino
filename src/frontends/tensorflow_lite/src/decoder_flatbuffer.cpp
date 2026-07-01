@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,25 @@ namespace frontend {
 namespace tensorflow_lite {
 
 namespace {
+void validate_tensor_name(const tflite::Tensor* tensor) {
+    FRONT_END_GENERAL_CHECK(tensor != nullptr, "TensorFlow Lite Frontend: tensor pointer is null.");
+    FRONT_END_GENERAL_CHECK(tensor->name() != nullptr,
+                            "TensorFlow Lite Frontend: tensor has no 'name' field "
+                            "(malformed flatbuffer: optional 'name' string is absent).");
+}
+
+std::string safe_tensor_name(const tflite::Tensor* tensor) {
+    validate_tensor_name(tensor);
+    return tensor->name()->str();
+}
+
 TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     TensorMetaInfo tensor_meta_info;
     const auto tensor = tensor_info.tensor;
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    const size_t tensor_data_size =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->size() : 0);
 
     tensor_meta_info.m_partial_shape =
         ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature());
@@ -30,9 +44,11 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     tensor_meta_info.m_sparsity_info = ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(),
                                                                                    tensor->sparsity(),
                                                                                    tensor_meta_info.m_element_type,
-                                                                                   tensor_data);
+                                                                                   tensor_data,
+                                                                                   tensor_data_size);
     tensor_meta_info.m_tensor_data = tensor_data;
-    tensor_meta_info.m_tensor_name = tensor->name()->str();
+    tensor_meta_info.m_tensor_data_size = tensor_data_size;
+    tensor_meta_info.m_tensor_name = safe_tensor_name(tensor);
 
     return tensor_meta_info;
 }
@@ -56,8 +72,7 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                             inputs->size());
     auto input_tensor_idx = (*inputs)[static_cast<flatbuffers::uoffset_t>(input_port_idx)];
     auto tensor = m_input_info.at(input_port_idx).tensor;
-    std::string name = (*tensor).name()->str();
-    producer_name = name;
+    producer_name = safe_tensor_name(tensor);
     producer_output_port_index = input_tensor_idx;
 }
 
@@ -75,7 +90,7 @@ size_t DecoderFlatBuffer::get_output_size() const {
 
 std::string DecoderFlatBuffer::get_input_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
-    return m_input_info.at(idx).tensor->name()->str();
+    return safe_tensor_name(m_input_info.at(idx).tensor);
 }
 
 ov::element::Type DecoderFlatBuffer::get_input_tensor_type(size_t idx) const {
@@ -85,7 +100,7 @@ ov::element::Type DecoderFlatBuffer::get_input_tensor_type(size_t idx) const {
 
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
-    return m_output_info.at(idx).tensor->name()->str();
+    return safe_tensor_name(m_output_info.at(idx).tensor);
 }
 
 ov::element::Type DecoderFlatBuffer::get_output_tensor_type(size_t idx) const {
@@ -111,9 +126,11 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
     const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,
     const ov::frontend::InputModel& model) const {
     const auto tensor = tensor_info.tensor;
-    std::vector<std::string> names = {tensor->name()->str()};
+    std::vector<std::string> names = {safe_tensor_name(tensor)};
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    const size_t tensor_data_size =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->size() : 0);
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
@@ -124,8 +141,10 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
         ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(),
                                                     tensor->sparsity(),
                                                     ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
-                                                    tensor_data),
-        tensor_data);
+                                                    tensor_data,
+                                                    tensor_data_size),
+        tensor_data,
+        tensor_data_size);
 }
 
 ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
@@ -246,6 +265,20 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return this->get_attribute(&tflite::WhileOptions::cond_subgraph_index);
     } else if (name == "body_subgraph_index" && m_type == "WHILE") {
         return this->get_attribute(&tflite::WhileOptions::body_subgraph_index);
+    } else if (name == "composite_name" && m_type == "STABLEHLO_COMPOSITE") {
+        const auto opts = m_node_def->builtin_options_2_as<tflite::StableHLOCompositeOptions>();
+        FRONT_END_GENERAL_CHECK(opts != nullptr, "StableHLOCompositeOptions not found for STABLEHLO_COMPOSITE op");
+        FRONT_END_GENERAL_CHECK(opts->name() != nullptr, "composite_name is missing in STABLEHLO_COMPOSITE op");
+        return std::string(opts->name()->str());
+    } else if (name == "decomposition_subgraph_index" && m_type == "STABLEHLO_COMPOSITE") {
+        const auto opts = m_node_def->builtin_options_2_as<tflite::StableHLOCompositeOptions>();
+        FRONT_END_GENERAL_CHECK(opts != nullptr, "StableHLOCompositeOptions not found for STABLEHLO_COMPOSITE op");
+        // The flatbuffer accessor returns the schema default (0) when the field is absent, so probe
+        // the vtable to distinguish "missing" from a genuine value.
+        if (!flatbuffers::IsFieldPresent(opts, tflite::StableHLOCompositeOptions::VT_DECOMPOSITION_SUBGRAPH_INDEX)) {
+            return {};
+        }
+        return static_cast<int32_t>(opts->decomposition_subgraph_index());
     } else if (name == "strides" && m_type == "CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::Conv2DOptions::stride_h),
@@ -262,6 +295,24 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return "NHWC";
     } else if (name == "activation" && m_type == "CONV_2D") {
         return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv2DOptions::fused_activation_function));
+    } else if (name == "strides" && m_type == "CONV_3D") {
+        return std::vector<int64_t>{1,
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_d),
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_h),
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_w),
+                                    1};
+    } else if (name == "padding" && m_type == "CONV_3D") {
+        return std::string(EnumNamePadding(this->get_attribute(&tflite::Conv3DOptions::padding)));
+    } else if (name == "dilations" && m_type == "CONV_3D") {
+        return std::vector<int64_t>{1,
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_d_factor),
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_h_factor),
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_w_factor),
+                                    1};
+    } else if (name == "data_format" && m_type == "CONV_3D") {
+        return "NDHWC";
+    } else if (name == "activation" && m_type == "CONV_3D") {
+        return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv3DOptions::fused_activation_function));
     } else if (name == "strides" && m_type == "DEPTHWISE_CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::stride_h),
@@ -352,6 +403,26 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         } else {
             return {};
         }
+    }
+
+    // For STABLEHLO_COMPOSITE, look up unknown attributes in composite_attributes FlexBuffer.
+    // Missing keys return empty ov::Any (not an error) — callers must use the two-argument
+    // get_attribute(name, default) overload for optional attributes, matching the custom_options
+    // contract below.
+    if (m_type == "STABLEHLO_COMPOSITE") {
+        const auto opts = m_node_def->builtin_options_2_as<tflite::StableHLOCompositeOptions>();
+        if (opts != nullptr) {
+            const auto attrs = opts->composite_attributes();
+            // Only FLEXBUFFERS is defined in the schema today; bail out instead of
+            // misinterpreting bytes if a future format is encountered.
+            FRONT_END_GENERAL_CHECK(opts->composite_attributes_format() == tflite::CustomOptionsFormat_FLEXBUFFERS,
+                                    "Unsupported composite_attributes_format for STABLEHLO_COMPOSITE op");
+            if (attrs != nullptr) {
+                const flexbuffers::Map& m = flexbuffers::GetRoot(attrs->Data(), attrs->size()).AsMap();
+                return get_value_as_ov_any(m[name]);
+            }
+        }
+        return {};
     }
 
     const auto opts = m_node_def->custom_options();

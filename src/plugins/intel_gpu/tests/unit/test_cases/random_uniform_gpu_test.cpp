@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ public:
         auto result = net->execute();
 
         auto out_mem = result.at("random_uniform").get_memory();
-        cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected_out.size(); ++i) {
