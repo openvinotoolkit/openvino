@@ -1,6 +1,6 @@
-#include "../node_context.h"
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include <memory>
 #include <openvino/core/node_output.hpp>
@@ -10,12 +10,16 @@
 #include <openvino/op/sigmoid.hpp>
 #include <openvino/op/slice.hpp>
 
+#include "node_context.h"
+#include "op_table.h"
+#include "utils.h"
+
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_glu_geglu(const NodeContext & context) {
+OutputVector translate_glu_geglu(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
 
     ov::Output<ov::Node> src0;
@@ -32,20 +36,18 @@ OutputVector translate_glu_geglu(const NodeContext & context) {
         int64_t last_dim_val = combined_shape[combined_shape.rank().get_length() - 1].get_length();
         int64_t nc = last_dim_val / 2;
 
-        auto axis   = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        auto step   = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
         auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto stop0  = ov::op::v0::Constant::create(ov::element::i64, {1}, {nc});
+        auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {nc});
         auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {nc});
-        auto stop1  = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * nc});
+        auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * nc});
 
         src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
         src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
     }
 
-    int32_t * params = context.get_output_op_params();
-    const int32_t swapped = params[1];
-    if (swapped) {
+    if (context.get_attribute<bool>("swapped")) {
         std::swap(src0, src1);
     }
 

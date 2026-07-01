@@ -1,6 +1,6 @@
-#include "../node_context.h"
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include <climits>
 #include <cstdint>
@@ -13,12 +13,16 @@
 #include <openvino/op/slice.hpp>
 #include <openvino/op/transpose.hpp>
 
+#include "node_context.h"
+#include "op_table.h"
+#include "utils.h"
+
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_permute(const NodeContext & context) {
+OutputVector translate_permute(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     int op_case = context.get_op_case();
@@ -35,17 +39,13 @@ OutputVector translate_permute(const NodeContext & context) {
         auto output_shape = context.get_output_shape().to_shape();
         auto n_heads = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[1]});
         auto head_size = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3]});
-        auto n_seq_active = context.has_input("n_seq_active") ?
-                                context.get_input("n_seq_active") :
-                                ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[0]});
+        auto n_seq_active = context.has_input("n_seq_active")
+                                ? context.get_input("n_seq_active")
+                                : ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[0]});
         auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
 
         auto new_shape =
             std::make_shared<ov::op::v0::Concat>(ov::OutputVector{n_seq_active, neg_one, n_heads, head_size}, 0);
-
-        // // Alternative
-        // auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        // auto new_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{n_seq_active, neg_one, zero, zero}, 0);
 
         auto reshaped = std::make_shared<ov::op::v1::Reshape>(src, new_shape, true);
         res = std::make_shared<ov::op::v1::Transpose>(reshaped, perm);
@@ -73,8 +73,8 @@ OutputVector translate_permute(const NodeContext & context) {
             seq_active_end = context.get_input("seq_active_end");
         } else {
             int64_t n_seq_active = output_shape[0];
-            size_t offset = *((size_t *) context.get_input_op_params(0));
-            int64_t seq_active_start_val = offset / context.get_input_stride(0)[0];
+            int64_t offset = context.get_input_view_offset(0);
+            int64_t seq_active_start_val = offset / (int64_t)context.get_input_stride(0)[0];
             int64_t seq_active_end_val = seq_active_start_val + n_seq_active;
             seq_active_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {seq_active_start_val});
             seq_active_end = ov::op::v0::Constant::create(ov::element::i64, {1}, {seq_active_end_val});
@@ -88,7 +88,9 @@ OutputVector translate_permute(const NodeContext & context) {
         auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
 
         auto src_reshaped = std::make_shared<ov::op::v1::Reshape>(
-            src, ov::op::v0::Constant::create(ov::element::i64, {4}, {n_seq, ctx_per_seq, n_heads, head_size}), false);
+            src,
+            ov::op::v0::Constant::create(ov::element::i64, {4}, {n_seq, ctx_per_seq, n_heads, head_size}),
+            false);
         auto slice1 = std::make_shared<ov::op::v8::Slice>(src_reshaped, seq_active_start, seq_active_end, one, zero);
         auto slice2 = std::make_shared<ov::op::v8::Slice>(slice1, zero, attention_size, one, one);
         res = std::make_shared<ov::op::v1::Transpose>(slice2, perm);

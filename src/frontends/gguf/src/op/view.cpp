@@ -1,5 +1,9 @@
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "op_table.h"
+#include "utils.h"
 #include <openvino/op/reshape.hpp>
 namespace ov {
 namespace frontend {
@@ -14,14 +18,13 @@ OutputVector translate_view(const NodeContext & context) {
         return rename_outputs_with_suffix({process_view_input(context, 0, dst_shape[2] * dst_shape[3])},
                                           context.get_name());
     }
-    // op_case 3
     if (context.get_op_case() == 3) {
         auto input = context.get_input(0);
         auto input_ov_shape = input.get_partial_shape();
 
         auto input_llama_shape = context.get_input_shape(0).to_shape();
 
-        // if the input ov shape size is different from the input llama shape size, it means the input is already reshaped and we need to reshape it back to the original shape before slicing
+        // Input already reshaped: restore the original llama shape before slicing.
         if (input_ov_shape.size() != input_llama_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(input, ov::op::v0::Constant::create(ov::element::i64, {input_llama_shape.size()}, input_llama_shape), false);
         }

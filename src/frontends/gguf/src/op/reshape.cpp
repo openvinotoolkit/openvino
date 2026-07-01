@@ -1,6 +1,10 @@
-#include "../node_context.h"
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "node_context.h"
+#include "op_table.h"
+#include "utils.h"
 
 #include <cstdint>
 #include <memory>
@@ -62,13 +66,6 @@ OutputVector translate_reshape(const NodeContext & context) {
             std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t) context.get_output_shape().to_shape()[3]};
             new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, shape_vec);
         }
-
-        // // Alternative
-        // auto token_len = context.get_input("token_len");
-        // auto emb_size =
-        //     ov::op::v0::Constant::create(ov::element::i64, {1}, {(int64_t) context.get_output_shape().to_shape()[3]});
-        // auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        // new_shape_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{one, one, token_len, emb_size}, 0);
 
     } else if (op_case == 6) {
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, context.get_output_shape().to_shape());

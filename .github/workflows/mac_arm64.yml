@@ -184,6 +184,7 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
+            -DENABLE_OV_GGUF_FRONTEND=ON \
             -DENABLE_WHEEL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
