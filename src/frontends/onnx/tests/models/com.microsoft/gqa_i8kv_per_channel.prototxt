@@ -1,0 +1,68 @@
+ir_version: 10
+graph {
+  node {
+    input: "query"
+    input: ""
+    input: ""
+    input: "past_key"
+    input: "past_value"
+    input: "seqlens_k"
+    input: "total_sequence_length"
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: "k_scale"
+    input: "v_scale"
+    output: "output"
+    output: "present_key"
+    output: "present_value"
+    name: "GroupQueryAttention_0"
+    op_type: "GroupQueryAttention"
+    attribute { name: "num_heads" i: 2 type: INT }
+    attribute { name: "kv_num_heads" i: 1 type: INT }
+    attribute { name: "do_rotary" i: 0 type: INT }
+    attribute { name: "kv_cache_bit_width" i: 8 type: INT }
+    attribute { name: "k_quant_type" s: "PER_CHANNEL" type: STRING }
+    attribute { name: "v_quant_type" s: "PER_CHANNEL" type: STRING }
+    domain: "com.microsoft"
+  }
+  name: "GQA_QuantKV_Graph"
+  initializer {
+    dims: 8
+    data_type: 1
+    name: "k_scale"
+    float_data: 0.05374000
+    float_data: 0.04973000
+    float_data: 0.04667000
+    float_data: 0.02217000
+    float_data: 0.04807000
+    float_data: 0.03648000
+    float_data: 0.04515000
+    float_data: 0.02559000
+  }
+  initializer {
+    dims: 8
+    data_type: 1
+    name: "v_scale"
+    float_data: 0.05036000
+    float_data: 0.04830000
+    float_data: 0.02034000
+    float_data: 0.05087000
+    float_data: 0.06561000
+    float_data: 0.05953000
+    float_data: 0.06960000
+    float_data: 0.06794000
+  }
+  input { name: "query" type { tensor_type { elem_type: 1 shape { dim { dim_value: 1 } dim { dim_value: 1 } dim { dim_value: 32 } } } } }
+  input { name: "past_key" type { tensor_type { elem_type: 3 shape { dim { dim_value: 1 } dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 8 } } } } }
+  input { name: "past_value" type { tensor_type { elem_type: 3 shape { dim { dim_value: 1 } dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 8 } } } } }
+  input { name: "seqlens_k" type { tensor_type { elem_type: 6 shape { dim { dim_value: 1 } dim { dim_value: 1 } } } } }
+  input { name: "total_sequence_length" type { tensor_type { elem_type: 6 shape { } } } }
+  output { name: "output" type { tensor_type { elem_type: 1 shape { dim { dim_value: 1 } dim { dim_value: 1 } dim { dim_value: 16 } } } } }
+  output { name: "present_key" type { tensor_type { elem_type: 3 shape { dim { dim_value: 1 } dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 8 } } } } }
+  output { name: "present_value" type { tensor_type { elem_type: 3 shape { dim { dim_value: 1 } dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 8 } } } } }
+}
+opset_import { version: 21 }
+opset_import { domain: "com.microsoft" version: 1 }
