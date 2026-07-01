@@ -622,7 +622,7 @@ Rules that apply to both artefact types:
    IF existing != null:
        record.schema_version = "1.0"
        record.signature   = existing.signature
-       record.signature_hash = existing.signature-hash
+       record.signature_hash = existing.signature_hash
        record.title       = title from investigation (refresh always)
        record.category    = category from investigation (refresh always)
        record.count       = existing.count + 1          ← MUST increment
