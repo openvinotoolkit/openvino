@@ -216,5 +216,12 @@ static constexpr Property<uint32_t> dev_object_handle{"DEV_OBJECT_HANDLE"};
  */
 static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
 
+/**
+ * @brief Read-only flag indicating whether the device supports
+ * Level Zero - OpenCL interoperability (LEO extension).
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> supports_leo{"SUPPORTS_LEO"};
+
 }  // namespace intel_gpu
 }  // namespace ov
