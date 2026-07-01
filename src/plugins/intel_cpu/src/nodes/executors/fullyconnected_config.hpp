@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "config.h"
 #include "executor_config.hpp"
@@ -20,6 +21,11 @@ struct FCAttrs {
     bool constantWeights = true;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
+
+    // Per-channel (or per-tensor) dequantization scales folded from the post-FC dequantization Multiply by
+    // GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales (ARM int8). Mirrors ConvAttrs::dqScales; consumed by the
+    // ACL int8 FullyConnected executor as the weights requantization scale.
+    std::vector<float> dqScales;
 
     PostOps postOps;
 };

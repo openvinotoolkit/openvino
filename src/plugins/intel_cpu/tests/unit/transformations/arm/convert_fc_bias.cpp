@@ -75,15 +75,31 @@ static std::shared_ptr<ov::op::v0::FakeQuantize> createFakeQuantize(const ov::Ou
         ov::test::utils::make_fake_quantize(input, input_type, levels, {}, {low}, {high}, {low}, {high}));
 }
 
+// Build the per-channel (or per-tensor) dequantization scale Constant. The scale lives on the MatMul output channel
+// (last) axis; a {1, 16} per-channel scale exercises the int8 FC per-channel requantization path, while a {1}
+// per-tensor scale exercises the common per-tensor case. ConvertFullyConnectedBias only swaps the Multiply/Add and
+// rounds the bias, so it must apply to both shapes identically.
+static std::shared_ptr<ov::op::v0::Constant> createDequantScale(bool per_channel) {
+    if (per_channel) {
+        std::vector<float> scales(16);
+        for (size_t i = 0; i < scales.size(); ++i) {
+            scales[i] = 0.25f + 0.05f * static_cast<float>(i);
+        }
+        return ov::op::v0::Constant::create(ov::element::f32, {1, 16}, scales);
+    }
+    return ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
+}
+
 // Pattern: Input -> MatMul -> Multiply -> Add(bias) -> FQ -> Result
 static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
                                                   ov::element::Type weights_type,
                                                   ov::element::Type bias_type,
-                                                  bool keep_fq_output_precision = false) {
+                                                  bool keep_fq_output_precision = false,
+                                                  bool per_channel_scale = false) {
     std::shared_ptr<ov::op::v0::Parameter> input;
     auto matmul = createMatMul(input_type, weights_type, input);
 
-    auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
+    auto dequant_scale = createDequantScale(per_channel_scale);
     auto multiply = std::make_shared<ov::op::v1::Multiply>(matmul, dequant_scale);
 
     auto bias = ov::op::v0::Constant::create(bias_type, {1, 16}, {1.5f});
@@ -98,7 +114,8 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
 // Pattern: Input -> MatMul -> Add(Round(bias)->Convert(i32)) -> Multiply -> FQ -> Result
 static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
                                                  ov::element::Type weights_type,
-                                                 ov::element::Type bias_type) {
+                                                 ov::element::Type bias_type,
+                                                 bool per_channel_scale = false) {
     std::shared_ptr<ov::op::v0::Parameter> input;
     auto matmul = createMatMul(input_type, weights_type, input);
 
@@ -108,7 +125,7 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
 
     // The transformation creates a TypeRelaxed Add and then swaps Add/Multiply.
     auto add = createAdd(matmul, convert, true);
-    auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
+    auto dequant_scale = createDequantScale(per_channel_scale);
     auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
     ov::mark_as_dequantization_node(multiply);
 
@@ -129,6 +146,16 @@ TEST_F(TransformationTestsF, ConvertFullyConnectedBias_I8Act_I8Weights_Applied) 
     model = createInitGraph(ov::element::i8, ov::element::i8, ov::element::f32);
     manager.register_pass<ConvertFullyConnectedBias>();
     model_ref = createRefGraph(ov::element::i8, ov::element::i8, ov::element::f32);
+}
+
+// i8 act, i8 weights, f32 bias, PER-CHANNEL dequantization scale ({1, 16} on the output-channel axis) ->
+// transformation should be applied. The per-channel dequantization Multiply is folded as the FC per-channel weight
+// requantization scale (GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales) and applied by the int8 ACL FullyConnected
+// executor via a per-channel GEMMLowp output stage; ConvertFullyConnectedBias itself is scale-shape-agnostic.
+TEST_F(TransformationTestsF, ConvertFullyConnectedBias_I8Act_I8Weights_PerChannelScale_Applied) {
+    model = createInitGraph(ov::element::i8, ov::element::i8, ov::element::f32, false, true);
+    manager.register_pass<ConvertFullyConnectedBias>();
+    model_ref = createRefGraph(ov::element::i8, ov::element::i8, ov::element::f32, true);
 }
 
 // u8 act, u8 weights, f32 bias -> transformation should NOT be applied.

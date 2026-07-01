@@ -13,6 +13,7 @@
 #include <arm_compute/function_info/GEMMInfo.h>
 
 #include <any>
+#include <cmath>
 #include <memory>
 
 #include "acl_fullyconnected_utils.hpp"
@@ -84,7 +85,10 @@ static void initFCAttrs(const FCAttrs& attrs,
 ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attrs,
                                                              const MemoryArgs& memory,
                                                              const ExecutorContext::CPtr& context) {
-    dequantizationScales = getDeQuantizedScales(memory);
+    // The (possibly per-channel) dequantization scale folded from the post-FC dequantization Multiply is provided via
+    // FCAttrs::dqScales on ARM (GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales), mirroring ConvAttrs::dqScales.
+    // Fall back to the ARG_DST_DEQ_SCALE memory (the FullyConnectedQuantizedLegacy path) when attrs carries none.
+    dequantizationScales = attrs.dqScales.empty() ? getDeQuantizedScales(memory) : attrs.dqScales;
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo);
 
     // Capture a fused per-tensor FakeQuantize requantization for the quantized dst path. The output scale/shift are
@@ -94,6 +98,20 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
         if (const auto* const fq = std::any_cast<const FakeQuantizePostOp>(attrs.postOps.data())) {
             fqInputScale = fq->inputScale();
             fqInputShift = fq->inputShift();
+            const auto fqOutputScale = fq->outputScale();
+            const auto fqOutputShift = fq->outputShift();
+            // Fold an integer FakeQuantize output shift (with unit output scale) into the input shift, mirroring the
+            // conv path (acl_conv.cpp). For a signed i8 dst the requantization FakeQuantize is typically
+            // round(x * inScale + 128) - 128, i.e. inShift ~= +128 and outShift == -128; folding yields the true
+            // per-tensor output offset (~0) used as the GEMMLowp output stage offset. Without this fold the offset is
+            // wrong whenever inShift drifts just below 128 (the previous >=128 normalization in getDstQuantizationInfo
+            // does not see outShift), which corrupts the requantized result.
+            if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
+                fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
+                for (auto& v : fqInputShift) {
+                    v += fqOutputShift[0];
+                }
+            }
         }
     }
 
@@ -131,25 +149,30 @@ void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShap
 }
 
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+    // The dequantization scales fused into the FC (the per-channel weight scale * per-tensor activation scale,
+    // collapsed to a single element by getDeQuantizedScales() when uniform) are applied as the weights
+    // QuantizationInfo, mirroring the ACL conv path (acl_conv.cpp): the activation QuantizationInfo stays trivial
+    // and the (possibly per-channel) requantization lives on the weights. calculate_quantized_multipliers() then
+    // produces multiplier_i = src_scale(1.0) * wei_scale[i] / dst_scale, i.e. one multiplier per output channel for
+    // a per-channel weight scale, or a single multiplier for the per-tensor case.
     const auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
-    if (dequantizationScales.empty()) {
-        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.F));
-    } else {
-        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(dequantizationScales[0]));
-    }
+    tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.F));
 
     const auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
-    tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.F));
+    tensor_info_weights->set_quantization_info(dequantizationScales.empty()
+                                                   ? arm_compute::QuantizationInfo(1.F)
+                                                   : arm_compute::QuantizationInfo(dequantizationScales));
 
     // Quantized dst path: derive the destination quantization from the fused per-tensor FakeQuantize and build a
     // GEMMLowp output stage so NEGEMMLowpMatrixMultiplyCore requantizes int32 accumulators back to i8/u8 in-kernel.
     // NEGEMMLowpMatrixMultiplyCore couples this with an S32 bias (verified in supports()); the float dst path keeps
     // the default NONE output stage. The requantization multiplier follows ACL's own conv pipeline
     // (CpuGemmConv2d -> calculate_quantized_multipliers): multiplier = src_scale * wei_scale / dst_scale.
+    // hasQuantizedDst (set in the ctor from the i8/u8 OV dst precision) already implies an ACL
+    // QASYMM8/QASYMM8_SIGNED dst, since initTensorInfo() maps S8/U8 to QASYMM8_SIGNED/QASYMM8 via
+    // convertToQuantizedType(), so no separate ACL data-type check is needed here.
     const auto& tensor_info_dst = aclMemoryInfos[ACLArgs::ACL_DST];
-    const bool quantizedDst =
-        any_of(tensor_info_dst->data_type(), arm_compute::DataType::QASYMM8, arm_compute::DataType::QASYMM8_SIGNED);
-    if (hasQuantizedDst && quantizedDst) {
+    if (hasQuantizedDst) {
         const auto dstPrecision =
             tensor_info_dst->data_type() == arm_compute::DataType::QASYMM8_SIGNED ? ov::element::i8 : ov::element::u8;
         tensor_info_dst->set_quantization_info(getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
@@ -163,7 +186,13 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
         outputStage.gemmlowp_offset = oqinfo.offset;
         outputStage.gemmlowp_min_bound = type_min;
         outputStage.gemmlowp_max_bound = type_max;
-        outputStage.is_quantized_per_channel = false;
+        // The FakeQuantize requantization (dst scale/shift) is always per-tensor here (gated by
+        // isPerTensorFakeQuantize() in checkPostOps()), but the weights quantization may be per-channel when the
+        // fused dequantization scale is a vector. calculate_quantized_multipliers() keys the per-channel multiplier
+        // path off the weights scale vector size, so the output stage must advertise it as per-channel accordingly.
+        // ACL's GEMMLowp accepts a QASYMM8_SIGNED weights tensor carrying a per-channel QuantizationInfo (the
+        // QSYMM8_PER_CHANNEL data type is not required); see CpuGemmLowpMatrixMultiplyCore::validate().
+        outputStage.is_quantized_per_channel = dequantizationScales.size() > 1;
         outputStage.output_data_type = tensor_info_dst->data_type();
         const auto multipliersStatus =
             arm_compute::quantization::calculate_quantized_multipliers(tensor_info->quantization_info(),
