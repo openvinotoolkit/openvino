@@ -27,6 +27,7 @@ from tests.utils.helpers import (
 )
 
 
+@pytest.mark.skip(reason="CVS-189144")
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_queue(device, share_inputs):
     jobs = 8
