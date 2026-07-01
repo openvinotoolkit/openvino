@@ -11,6 +11,12 @@
 
 namespace intel_npu {
 
+Metrics::Metrics(const ov::SoPtr<IEngineBackend>& backend) : _backend(backend) {
+    if (_backend == nullptr) {
+        OPENVINO_THROW("NPU backend is not available.");
+    }
+}
+
 std::vector<std::string> Metrics::GetAvailableDevicesNames() const {
     return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
 }
@@ -60,6 +66,10 @@ ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) 
     return ov::device::LUID{{
         0,
     }};
+}
+
+bool Metrics::IsLUIDSupported() const {
+    return _backend != nullptr && _backend->isLUIDExtSupported();
 }
 
 std::string Metrics::GetBackendName() const {

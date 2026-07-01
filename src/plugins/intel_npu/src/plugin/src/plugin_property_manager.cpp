@@ -145,13 +145,6 @@ void disableCompilerProperties(intel_npu::FilteredConfig& config, const ov::SoPt
     }
 }
 
-static auto get_specified_device_name(const intel_npu::Config& config) {
-    if (config.has<intel_npu::DEVICE_ID>()) {
-        return config.get<intel_npu::DEVICE_ID>();
-    }
-    return std::string();
-}
-
 void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     if (properties.count(ov::hint::model.name())) {
         properties.erase(ov::hint::model.name());
@@ -242,8 +235,13 @@ PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
                                              Logger& logger)
     : _config(config),
       _backend(backend),
-      _metrics(std::make_shared<Metrics>(_backend)),
       _logger(logger) {
+    if (_backend != nullptr) {
+        _metrics = std::make_shared<Metrics>(_backend);
+    } else {
+        _logger.info("No backend is available. Metrics-based properties will be unavailable.");
+    }
+
     registerProperties();
 }
 
@@ -276,6 +274,26 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
 
 void PluginPropertyManager::registerProperties() {
     _properties.clear();
+
+    const auto has_metrics = [this](const FilteredConfig&) {
+        return _metrics != nullptr;
+    };
+
+    const auto has_metrics_and_valid_device = [this](const FilteredConfig& config) {
+        if (_metrics == nullptr) {
+            return false;
+        }
+
+        try {
+            const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
+            const auto deviceName = _metrics->getDeviceName(specifiedDeviceName);
+            return _metrics->getDevice(deviceName) != nullptr;
+        } catch (...) {
+            _logger.debug("Property is not supported for current configuration due to unavailable device.");
+        }
+
+        return false;
+    };
 
     // clang-format off
     register_property<PERF_COUNT>(_config, _properties, ov::enable_profiling.name());
@@ -327,7 +345,7 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(), [this](const FilteredConfig& config) {
         if (!config.has<STEPPING>()) {
             try {
-                const auto specifiedDeviceName = get_specified_device_name(config);
+                const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
                 return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
             } catch (...) {
                 _logger.warning("Metrics GetSteppingNumber failed to get value from device.");
@@ -340,27 +358,19 @@ void PluginPropertyManager::registerProperties() {
     });
 
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::max_tiles.name(),
-        [this](const FilteredConfig& config) {  // support predicate
+        [this, &has_metrics_and_valid_device](const FilteredConfig& config) {  // support predicate
             // If this is already disabled in the config, do not perform extra checks and return false.
-            if (config.isAvailable(ov::intel_npu::max_tiles.name()) == false || _metrics == nullptr) {
+            if (config.isAvailable(ov::intel_npu::max_tiles.name()) == false) {
                 return false;
             }
 
             // If enabled in the config, validate the configuration and check whether the expected device exists.
-            try {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                const auto deviceName = _metrics->getDeviceName(specifiedDeviceName);
-                return _metrics->getDevice(deviceName) != nullptr;
-            } catch (...) {
-                _logger.debug("MAX_TILES is not supported for current configuration.");
-            }
-
-            return false;
+            return has_metrics_and_valid_device(config);
         },
         [this](const FilteredConfig& config) {  // value getter
             if (!config.has<MAX_TILES>()) {
                 try {
-                    const auto specifiedDeviceName = get_specified_device_name(config);
+                    const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
                     return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
                 } catch (...) {
                     _logger.warning("Metrics GetMaxTiles failed to get value from device.");
@@ -387,104 +397,58 @@ void PluginPropertyManager::registerProperties() {
     });
 
     // clang-format off
-    if (_metrics != nullptr) {
-        register_property_with_custom_function(_properties, ov::available_devices.name(), true, [this](const FilteredConfig&) {
-            return _metrics->GetAvailableDevicesNames();
-        });
-        register_property_with_custom_function(_properties, ov::device::capabilities.name(), true, [this](const FilteredConfig&) {
-            return _metrics->GetOptimizationCapabilities();
-        });
-        register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [this](const FilteredConfig&) {
-            return _metrics->GetRangeForAsyncInferRequest();
-        });
-        register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [this](const FilteredConfig&) {
-            return _metrics->GetRangeForStreams();
-        });
-        register_property_with_custom_function(_properties, ov::device::pci_info.name(), true, [this](const FilteredConfig& config) {
-            return _metrics->GetPciInfo(get_specified_device_name(config));
-        });
-        register_property_with_custom_function(_properties, ov::device::gops.name(), true, [this](const FilteredConfig& config) {
-            return _metrics->GetGops(get_specified_device_name(config));
-        });
-        register_property_with_custom_function(_properties, ov::device::type.name(), true, [this](const FilteredConfig& config) {
-            return _metrics->GetDeviceType(get_specified_device_name(config));
-        });
-        register_property_with_custom_function(_properties, ov::intel_npu::device_alloc_mem_size.name(), true, [this](const FilteredConfig& config) {
-            return _metrics->GetDeviceAllocMemSize(get_specified_device_name(config));
-        });
-        register_property_with_custom_function(_properties, ov::intel_npu::device_total_mem_size.name(), true, [this](const FilteredConfig& config) {
-            return _metrics->GetDeviceTotalMemSize(get_specified_device_name(config));
-        });
-        register_property_with_custom_function(_properties, ov::intel_npu::driver_version.name(), true, [this](const FilteredConfig&) {
-            return _metrics->GetDriverVersion();
-        });
-        register_property_with_custom_function(_properties, ov::device::uuid.name(), true, [this](const FilteredConfig& config) {
-            auto devUuid = _metrics->GetDeviceUuid(get_specified_device_name(config));
-            return decltype(ov::device::uuid)::value_type{devUuid};
-        });
-        register_property_with_custom_function(_properties, ov::device::luid.name(), _backend == nullptr ? false : _backend->isLUIDExtSupported(), [this](const FilteredConfig& config) {
-            return _metrics->GetDeviceLUID(get_specified_device_name(config));
-        });
-        register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [this](const FilteredConfig& config) {
-            if (_metrics->GetAvailableDevicesNames().size() > 1) {
-                return std::string("NPU." + config.get<DEVICE_ID>());
-            }
-            return std::string("NPU");
-        });
-        register_property_with_custom_function(_properties, ov::intel_npu::backend_name.name(), false, [this](const FilteredConfig&) {
-            return _metrics->GetBackendName();
-        });
-        // clang-format on
+    register_property_with_support_and_custom_function(_properties, ov::execution_devices.name(), has_metrics, true, [this](const FilteredConfig& config) {
+        return std::string("NPU");
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), has_metrics, false, [this](const FilteredConfig&) {
+        return _metrics->GetBackendName();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::driver_version.name(), has_metrics, true, [this](const FilteredConfig&) {
+        return _metrics->GetDriverVersion();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::available_devices.name(), has_metrics, true, [this](const FilteredConfig&) {
+        return _metrics->GetAvailableDevicesNames();
+    });
+    register_property_with_support_and_custom_function( _properties, ov::device::capabilities.name(), has_metrics, true, [this](const FilteredConfig&) {
+        return _metrics->GetOptimizationCapabilities();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::range_for_async_infer_requests.name(), has_metrics, true, [this](const FilteredConfig&) {
+        return _metrics->GetRangeForAsyncInferRequest();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::range_for_streams.name(), has_metrics, true, [this](const FilteredConfig&) {
+        return _metrics->GetRangeForStreams();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::pci_info.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetPciInfo(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::gops.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetGops(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::type.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetDeviceType(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::device_alloc_mem_size.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetDeviceAllocMemSize(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::device_total_mem_size.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetDeviceTotalMemSize(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::uuid.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        auto devUuid = _metrics->GetDeviceUuid(config.get<intel_npu::DEVICE_ID>());
+        return decltype(ov::device::uuid)::value_type{devUuid};
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::architecture.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetDeviceArchitecture(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::full_name.name(), has_metrics_and_valid_device, true, [this](const FilteredConfig& config) {
+        return _metrics->GetFullDeviceName(config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::luid.name(), has_metrics_and_valid_device, _metrics != nullptr && _metrics->IsLUIDSupported(), [this](const FilteredConfig& config) {
+        return _metrics->GetDeviceLUID(config.get<intel_npu::DEVICE_ID>());
+    });
 
-        register_property_with_support_and_custom_function(
-            _properties,
-            ov::device::architecture.name(),
-            [this](const FilteredConfig&) {  // support predicate
-                return !_metrics->GetAvailableDevicesNames().empty();
-            },
-            true,
-            [this](const FilteredConfig& config) {  // value getter
-                return _metrics->GetDeviceArchitecture(get_specified_device_name(config));
-            });
-        register_property_with_support_and_custom_function(
-            _properties,
-            ov::device::full_name.name(),
-            [this](const FilteredConfig&) {  // support predicate
-                return !_metrics->GetAvailableDevicesNames().empty();
-            },
-            true,
-            [this](const FilteredConfig& config) {  // value getter
-                return _metrics->GetFullDeviceName(get_specified_device_name(config));
-            });
-    }
-
-    // clang-format off
     register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const FilteredConfig&) {
         return std::shared_ptr<const ov::Model>(nullptr);
-    });
-    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, [this](const FilteredConfig& config) {
-        return utils::getOptimalNumberOfInferRequestsInParallel(
-            utils::getCompilationPlatform(
-                config.get<PLATFORM>(),
-                _backend == nullptr ? config.get<DEVICE_ID>()
-                                    : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
-                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()),
-            config.get<PERFORMANCE_HINT>());
-    });
-    register_property_with_custom_function(_properties, ov::intel_npu::compiler_version.name(), true, [this](const FilteredConfig& config) {
-        auto compilerType = config.get<COMPILER_TYPE>();
-        auto deviceId = config.get<DEVICE_ID>();
-        auto device = utils::getDeviceById(_backend, deviceId);
-
-        auto compilationPlatform = utils::getCompilationPlatform(
-            config.get<PLATFORM>(),
-            device == nullptr ? std::move(deviceId) : device->getName(),
-            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-        CompilerAdapterFactory factory;
-        auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
-
-        return dummyCompiler->get_version();
     });
     register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, [this](const FilteredConfig&) {
         return _internalSupportedProperties;
@@ -516,6 +480,43 @@ void PluginPropertyManager::registerProperties() {
         return supportedProperties;
     });
     // clang-format on
+
+    register_property_with_support_and_custom_function(
+        _properties,
+        ov::intel_npu::compiler_version.name(),
+        [this](const FilteredConfig& config) {  // support predicate
+            try {
+                auto compilerType = config.get<COMPILER_TYPE>();
+                auto deviceId = config.get<DEVICE_ID>();
+                auto device = utils::getDeviceById(_backend, deviceId);
+
+                auto compilationPlatform = utils::getCompilationPlatform(
+                    config.get<PLATFORM>(),
+                    device == nullptr ? std::move(deviceId) : device->getName(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+                CompilerAdapterFactory factory;
+                return factory.getCompiler(_backend, compilerType, compilationPlatform) != nullptr;
+            } catch (...) {
+                return false;
+            }
+        },
+        true,
+        [this](const FilteredConfig& config) {  // value getter
+            auto compilerType = config.get<COMPILER_TYPE>();
+            auto deviceId = config.get<DEVICE_ID>();
+            auto device = utils::getDeviceById(_backend, deviceId);
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                config.get<PLATFORM>(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            CompilerAdapterFactory factory;
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+            return dummyCompiler->get_version();
+        });
 
     register_property_with_support_custom_function_and_args(
         _properties,

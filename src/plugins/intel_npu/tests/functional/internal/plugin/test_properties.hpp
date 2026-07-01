@@ -47,7 +47,8 @@ template <typename OptionType>
 void register_option(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
     options.add<OptionType>();
     const auto option_mode = OptionType::mode();
-    const bool is_enabled_by_default = option_mode == OptionMode::RunTime || option_mode == OptionMode::Both;
+    const bool is_enabled_by_default =
+        option_mode == ::intel_npu::OptionMode::RunTime || option_mode == ::intel_npu::OptionMode::Both;
     config.enable(OptionType::key(), is_enabled_by_default);
 }
 

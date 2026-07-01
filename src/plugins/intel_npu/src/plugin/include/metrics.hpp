@@ -18,12 +18,13 @@ namespace intel_npu {
 
 class Metrics final {
 public:
-    Metrics(const ov::SoPtr<IEngineBackend>& backend) : _backend(backend) {};
+    Metrics(const ov::SoPtr<IEngineBackend>& backend);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
     std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
     ov::device::LUID GetDeviceLUID(const std::string& specifiedDeviceName) const;
+    bool IsLUIDSupported() const;
     const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
