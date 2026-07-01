@@ -94,7 +94,6 @@ public:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
 
         options->reset();
-
         register_options<LOG_LEVEL,
                          CACHE_DIR,
                          CACHE_MODE,
@@ -195,8 +194,7 @@ public:
             }
         }
 
-        propertiesManager =
-            std::make_unique<PluginPropertyManager>(npu_config, backend, ::intel_npu::Logger::global());
+        propertiesManager = std::make_unique<PluginPropertyManager>(npu_config, backend, ::intel_npu::Logger::global());
     }
 
     void TearDown() override {

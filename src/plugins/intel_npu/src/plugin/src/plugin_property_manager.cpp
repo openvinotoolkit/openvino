@@ -261,6 +261,7 @@ PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
                                              Logger& logger)
     : _config(config),
       _backend(backend),
+      _metrics(std::make_shared<Metrics>(_backend)),
       _logger(logger) {
     registerProperties();
 }
@@ -270,6 +271,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
           std::lock_guard<std::mutex> lock(other._mutex);
           return CopyState{other._config,
                            other._backend,
+                           other._metrics,
                            other._logger,
                            other._currentlyUsedCompiler,
                            other._compatibilityCheckSupported,
@@ -281,6 +283,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
 PluginPropertyManager::PluginPropertyManager(CopyState&& state)
     : _config(std::move(state.config)),
       _backend(std::move(state.backend)),
+      _metrics(std::move(state.metrics)),
       _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
       _compatibilityCheckSupported(state.compatibilityCheckSupported),

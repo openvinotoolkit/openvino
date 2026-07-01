@@ -45,6 +45,7 @@ private:
     struct CopyState {
         FilteredConfig config;
         ov::SoPtr<IEngineBackend> backend;
+        std::shared_ptr<Metrics> metrics;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         bool compatibilityCheckSupported;
@@ -62,6 +63,7 @@ private:
     FilteredConfig _config;
 
     ov::SoPtr<IEngineBackend> _backend;
+    std::shared_ptr<Metrics> _metrics;
     Logger& _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
