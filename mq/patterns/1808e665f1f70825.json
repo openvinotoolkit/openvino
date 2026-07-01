@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "1808e665f1f70825",
+  "title": "Conformance jobs fail to download openvino_tests artifact with ECONNREFUSED",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-07-01T18:01:12Z",
+  "last_seen": "2026-07-01T18:01:12Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28532884711"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36423"
+  ],
+  "recent_timestamps": [
+    "2026-07-01T18:01:12Z"
+  ]
+}

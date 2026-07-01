@@ -179,5 +179,13 @@
     "title": "CachingTest LoadMulti_race import_model call count mismatch in C++ unit tests (Windows)",
     "category": "Flaky Test",
     "signature_hash": "0528d54ff68248cd"
+  },
+  {
+    "file": "2026-07-01-18-01-12-000-28532884711.json",
+    "run_id": 28532884711,
+    "signature": "1808e665f1f70825",
+    "timestamp": "2026-07-01T18:01:12Z",
+    "workflow": "Linux (Ubuntu 22.04, Python 3.11)",
+    "category": "Network"
   }
 ]

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-01-18-01-12-000-28532884711",
+  "timestamp": "2026-07-01T18:01:12Z",
+  "run_id": "28532884711",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28532884711",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36423",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36423",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "Conformance jobs fail to download openvino_tests artifact with ECONNREFUSED",
+  "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "1808e665f1f70825",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conformance (OP)",
+      "conclusion": "failure",
+      "symptom": "ECONNREFUSED when listing openvino_tests artifact for download"
+    },
+    {
+      "name": "Conformance (API)",
+      "conclusion": "failure",
+      "symptom": "ECONNREFUSED when listing openvino_tests artifact for download"
+    }
+  ],
+  "key_errors": [
+    "Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "tar: *: Cannot stat: No such file or directory",
+    "tar: Exiting with failure status due to previous errors",
+    "Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED"
+  ],
+  "root_cause": "The self-hosted runner temporarily lost network access to GitHub API endpoints between two consecutive artifact downloads. The openvino_package artifact downloaded successfully but the subsequent openvino_tests ListArtifacts API call was refused with ECONNREFUSED. This cascaded: no test files were unpacked, the conformance tar command found nothing to pack, and the Conformance (OP) job also failed to finalize its upload. Both Conformance jobs share the same root cause on the same runner network.",
+  "reproduction_steps": "N/A — intermittent self-hosted runner network drop; not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed jobs (Conformance (OP) and Conformance (API)) from the GitHub Actions UI — the network drop is transient.",
+    "If retries consistently fail, escalate to the OpenVINO CI infrastructure team to investigate runner network stability.",
+    "Consider adding retry logic to the actions/download-artifact steps in the Conformance job for transient ECONNREFUSED errors."
+  ],
+  "prevention_strategies": "Add retry wrappers around actions/download-artifact steps to handle transient ECONNREFUSED errors on self-hosted runners. Alternatively, configure the GitHub Actions runner network watchdog to restart the agent on connectivity loss.",
+  "historical_context": "First occurrence of this specific ECONNREFUSED pattern in the Conformance jobs for this workflow. Similar transient network failures on artifact download/upload steps have been seen in other OpenVINO workflows."
+}
