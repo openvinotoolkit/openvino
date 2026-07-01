@@ -28,6 +28,9 @@ struct OtdPerfCounters {
     std::atomic<uint64_t> transpose_ns{0};
     std::atomic<uint64_t> gpu_copy_ns{0};
     std::atomic<uint64_t> tensor_load_count{0};
+    std::atomic<uint64_t> batched_fallbacks{0};
+    std::atomic<uint64_t> grouped_fallbacks{0};
+    std::atomic<uint64_t> created_onednn_kernels{0};
 
     void dump() const;
 };

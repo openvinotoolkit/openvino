@@ -24,7 +24,10 @@ void OtdPerfCounters::dump() const {
               << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
               << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
               << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
-              << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000 << std::endl;
+              << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
+              << ", batched_fallbacks=" << batched_fallbacks.load(std::memory_order_relaxed)
+              << ", grouped_fallbacks=" << grouped_fallbacks.load(std::memory_order_relaxed)
+              << ", created_onednn_kernels=" << created_onednn_kernels.load(std::memory_order_relaxed) << std::endl;
 }
 
 OtdPerfCounters* get_perf_counters() {

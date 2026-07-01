@@ -831,6 +831,8 @@ public:
         if (unique_experts_set.size() > resident_slot_count()) {
             GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts=" << unique_experts_set.size()
                                    << " > resident_slots=" << resident_slot_count() << ", falling back to per-expert onednn loop" << std::endl;
+            if (auto* perf = moe_otd::get_perf_counters())
+                perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
             num_actually_used_experts = -1;  // Sentinel: caller falls back to exec_prefill_onednn
             return true;
         }
@@ -1916,6 +1918,8 @@ public:
         }
         auto kernel = create_kernel(n_token, effective_expert, instance);
         _kernels.add(key, kernel);
+        if (auto* perf = moe_otd::get_perf_counters())
+            perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
         return *_kernels.get(key);
     }
 
