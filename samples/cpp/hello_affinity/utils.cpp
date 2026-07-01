@@ -103,6 +103,9 @@ std::map<std::string, ov::PartialShape> parse_input_shapes(const std::string& sh
                 OPENVINO_THROW("Cannot parse shape string: ", shapes_string);
             }
             remaining = trim(remaining.substr(1));
+            if (remaining.empty()) {
+                OPENVINO_THROW("Cannot parse shape string: ", shapes_string);
+            }
         }
     }
 
