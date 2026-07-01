@@ -184,18 +184,18 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
         // Fail at conversion for any statically-known trailing dimension that is not n (this also
         // covers the mixed case where one trailing dim is static != n and the other is dynamic),
         // matching the clean op-labeled message instead of deferring to a bare runtime reshape error.
-        PYTORCH_OP_CONVERSION_CHECK((!m_dim.is_static() || m_dim.get_length() == n) &&
-                                        (!n_dim.is_static() || n_dim.get_length() == n),
-                                    op_label,
-                                    " is only supported for ",
-                                    n,
-                                    "x",
-                                    n,
-                                    " matrices, got trailing dimensions ",
-                                    m_dim,
-                                    "x",
-                                    n_dim,
-                                    ".");
+        PYTORCH_OP_CONVERSION_CHECK(
+            (!m_dim.is_static() || m_dim.get_length() == n) && (!n_dim.is_static() || n_dim.get_length() == n),
+            op_label,
+            " is only supported for ",
+            n,
+            "x",
+            n,
+            " matrices, got trailing dimensions ",
+            m_dim,
+            "x",
+            n_dim,
+            ".");
         if (m_dim.is_static() && n_dim.is_static()) {
             // Genuine static n x n: no runtime guard needed.
             return x;
