@@ -237,7 +237,7 @@ PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
       _backend(backend),
       _logger(logger) {
     if (_backend == nullptr) {
-        _logger.info("No backend is available. Metrics-based properties will be unavailable.");
+        _logger.info("No backend is available. Backend/device-dependent properties will be unavailable.");
     }
 
     registerProperties();
@@ -393,7 +393,7 @@ void PluginPropertyManager::registerProperties() {
 
     // clang-format off
     register_property_with_support_and_custom_function(_properties, ov::execution_devices.name(), has_backend, true, [this](const FilteredConfig& config) {
-        return std::string("NPU");
+        return std::vector<std::string>{"NPU"};
     });
     register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), has_backend, false, [this](const FilteredConfig&) {
         return utils::getBackendName(_backend);

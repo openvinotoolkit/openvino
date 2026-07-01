@@ -188,7 +188,7 @@ void CompiledModelPropertyManager::registerProperties() {
         return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(), config.get<PERFORMANCE_HINT>()));
     });
     register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const FilteredConfig&) {
-        return ov::Any(std::string("NPU"));
+        return ov::Any(std::vector<std::string>{"NPU"});
     });
     register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const FilteredConfig&) {
         std::vector<ov::PropertyName> supportedProperties;
