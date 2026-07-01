@@ -25,6 +25,12 @@ struct PropertyDescriptor final {
 
 using PropertyMap = std::map<std::string, PropertyDescriptor>;
 
+inline void ensure_option_exists_in_config(const FilteredConfig& config, const std::string& propertyName) {
+    if (!config.hasOpt(propertyName)) {
+        OPENVINO_THROW("Property '", propertyName, "' is not backed by a registered config option");
+    }
+}
+
 /**
  * @brief Register a simple property backed directly by a config option.
  *
@@ -34,6 +40,7 @@ using PropertyMap = std::map<std::string, PropertyDescriptor>;
  */
 template <typename OptionType>
 inline void register_property(const FilteredConfig& config, PropertyMap& properties, const std::string& propertyName) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
@@ -61,6 +68,7 @@ inline void register_property_with_custom_visibility(const FilteredConfig& confi
                                                      PropertyMap& properties,
                                                      const std::string& propertyName,
                                                      bool isPublic) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
@@ -87,6 +95,7 @@ inline void register_property_with_custom_function(const FilteredConfig& config,
                                                    PropertyMap& properties,
                                                    const std::string& propertyName,
                                                    Getter&& getter) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(propertyName,
                        PropertyDescriptor{option.isPublic(),
@@ -110,6 +119,7 @@ inline void register_property_with_support(const FilteredConfig& config,
                                            PropertyMap& properties,
                                            const std::string& propertyName,
                                            IsSupportedFn&& isSupported) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
@@ -134,6 +144,7 @@ inline void register_property_with_support_and_custom_function(const FilteredCon
                                                                const std::string& propertyName,
                                                                IsSupportedFn&& isSupported,
                                                                Getter&& getter) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
@@ -154,6 +165,7 @@ template <typename OptionType>
 inline void register_property_as_read_only(const FilteredConfig& config,
                                            PropertyMap& properties,
                                            const std::string& propertyName) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
@@ -179,6 +191,7 @@ template <typename OptionType>
 inline void register_property_as_read_only_mark_supported_if_set(const FilteredConfig& config,
                                                                  PropertyMap& properties,
                                                                  const std::string& propertyName) {
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
@@ -202,6 +215,7 @@ inline void register_property_as_read_only_mark_supported_if_set(const FilteredC
 template <typename OptionType>
 inline void register_npuw_property(const FilteredConfig& config, PropertyMap& properties) {
     const auto propertyName = std::string(OptionType::key());
+    ensure_option_exists_in_config(config, propertyName);
     const auto& option = config.getOpt(propertyName);
     properties.emplace(
         propertyName,
