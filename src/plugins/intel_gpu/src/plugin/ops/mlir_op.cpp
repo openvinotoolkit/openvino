@@ -12,6 +12,8 @@
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
+#include "transformations/mlir/convert.hpp"
+
 namespace ov {
 namespace op {
 namespace mlir {
@@ -117,11 +119,7 @@ void CreateMLIRSubgraphOp(ProgramBuilder& p, const std::shared_ptr<ov::op::mlir:
     };
     cldnn::generic_primitive::shape_infer_function shape_infer_f = [op](
             const std::vector<ov::PartialShape>& input_shapes) -> std::vector<ov::PartialShape> {
-        std::vector<ov::PartialShape> output_shapes;
-        for (size_t i = 0, n = op->get_output_size(); i < n; ++i) {
-            output_shapes.push_back(op->get_output_partial_shape(i));
-        }
-        return output_shapes;
+        return ov::mlir::mlir_op_shape_infer(op, input_shapes);
     };
 
     auto inputs = p.GetInputInfo(op);

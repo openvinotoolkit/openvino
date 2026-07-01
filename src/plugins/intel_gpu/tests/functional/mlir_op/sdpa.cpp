@@ -268,7 +268,7 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
     {
         for (int i = 0; i < 3; ++i) {
             shapes[i] = targetInputStaticShapes[i];
-            ov::test::utils::InputGenerateData data(-1, 1, 64);
+            ov::test::utils::InputGenerateData data(-0.5, 1, 4);
             ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[i], data);
             inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
         }
@@ -415,6 +415,38 @@ const auto static_shape_params_4D = testing::Combine(testing::Values(ov::element
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic4D_GPU,
                          ScaledAttnLayerGPUMlirTest,
                          static_shape_params_4D,
+                         ScaledAttnLayerGPUMlirTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> dynamic_shapes_4D{
+    {
+        // q shape: ?x24x?x64
+        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64},
+            {ov::Shape{1, 24, 128, 64}}}
+        },
+        // k shape: ?x24x?x64
+        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64},
+            {ov::Shape{1, 24, 128, 64}}}
+        },
+        // v shape: ?x24x?x64
+        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64},
+            {ov::Shape{1, 24, 128, 64}}}
+        },
+    },
+};
+
+const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16),
+                                                  testing::ValuesIn(dynamic_shapes_4D),
+                                                  testing::Values(false),  // is_causal
+                                                  testing::Values(false),  // has_attn
+                                                  testing::Values(false),  // is_attn_const
+                                                  testing::Values(false),  // has_scale
+                                                  testing::Values(false),  // is_scale_const
+                                                  testing::ValuesIn({disable_transpose}),
+                                                  testing::Values(false));  // has_sink
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic4D_GPU,
+                         ScaledAttnLayerGPUMlirTest,
+                         dynamic_shape_params_4D,
                          ScaledAttnLayerGPUMlirTest::getTestCaseName);
 
 } // namespace
