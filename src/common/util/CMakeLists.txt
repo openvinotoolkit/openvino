@@ -43,7 +43,7 @@ target_link_libraries(${TARGET_NAME}
            $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if (WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi psapi)
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
