@@ -1366,11 +1366,10 @@ public:
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
-            // WA: Disable micro SDPA entirely on xe3p due to oneDNN micro-kernel accuracy / determinism
+            // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
             // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm). Falls back to
-            // the OCL paged_attention path for ALL stages (prefill / mixed / generate) and KV dtypes.
-            // Covers the MIXED prefix-cache recompute nondeterminism (llama-3.1, etc.) AND the prefill-side
-            // failures seen on gemma-3 / phi-3.5 long-prompt that a MIXED-only fallback did not recover.
+            // the OCL paged_attention path for all stages where micro SDPA is selectable (PREFILL / MIXED)
+            // and for all KV dtypes.
             if (params.get_device_info().arch == gpu_arch::xe3p) {
                 return false;
             }
