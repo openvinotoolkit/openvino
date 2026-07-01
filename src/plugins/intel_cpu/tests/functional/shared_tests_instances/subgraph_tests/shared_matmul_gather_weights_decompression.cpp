@@ -40,14 +40,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatmulAndGatherSharedWeightsDecompression,
 // F16/bf16 constant followed by a single Convert(f32) shared between Gather and MatMul,
 // covering the Convert-Gather fusion for hybrid precisions.
 const std::vector<ElementType> hybrid_weights_precisions = {ov::element::bf16, ov::element::f16};
-const std::vector<GatherDecompressionShapeParams> hybrid_input_shapes = {
-    {{128, 256}, {{}, {{256, 256}}}, 1, 0},
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatmulAndGatherSharedWeightsDecompression_ConvertOnly,
                          SharedMatmulAndGatherWeightsDecompression,
                          ::testing::Combine(::testing::Values(utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(hybrid_input_shapes),
+                                            ::testing::Values(input_shapes[0]),
                                             ::testing::ValuesIn(hybrid_weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::test::utils::DecompressionType::empty),
