@@ -80,6 +80,7 @@ static const TypeMapping aclLowpConvTypeMapping {
     {{_u8, _u8 | _i8, _i32 | _dynamic, _u8},                      {bypass(), bypass(), bypass(), bypass()}},
     {{_i8, _i8, _i32 | _dynamic, _i8},                            {bypass(), bypass(), bypass(), bypass()}},
     {{_i8, _i8, _f32 | _dynamic, _f32},                           {bypass(), bypass(), bypass(), bypass()}},
+    {{_u8, _u8 | _i8, _f32 | _dynamic, _f32},                     {bypass(), bypass(), bypass(), bypass()}},
 };
 // clang-format on
 struct CreateOptimalConfigDefault {

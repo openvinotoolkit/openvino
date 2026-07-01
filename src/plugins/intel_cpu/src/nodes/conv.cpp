@@ -615,6 +615,12 @@ bool Convolution::canFuse(const NodePtr& node) const {
         return true;
     }
 
+    if (node->getType() == Type::Eltwise &&
+        node->getAlgorithm() == Algorithm::EltwiseSwish &&
+        any_of(getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
+        return false;
+    }
+
 #endif
     return canFuseSimpleOperation(node);
 }

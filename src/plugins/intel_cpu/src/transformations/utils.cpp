@@ -179,14 +179,22 @@ bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node
         return false;
     }
 
-    // Accept Conv->FQ and Conv->Add->FQ only.
-    // Activations between bias and FQ are not supported here yet, some of them will be enabled later
+    // Accept Conv->FQ, Conv->Add->FQ, and Conv->Add->Swish->FQ (ACL i8/u8->f32 path).
     const auto second_consumer = get_consumer(add->output(0));
     if (!second_consumer) {
         return false;
     }
 
-    return ov::is_type<ov::op::v0::FakeQuantize>(second_consumer);
+    if (ov::is_type<ov::op::v0::FakeQuantize>(second_consumer)) {
+        return true;
+    }
+
+    if (ov::is_type<ov::op::v4::Swish>(second_consumer)) {
+        const auto third_consumer = get_consumer(second_consumer->output(0));
+        return third_consumer && ov::is_type<ov::op::v0::FakeQuantize>(third_consumer);
+    }
+
+    return false;
 }
 
 bool match_acl_int8_conv_swish_fq_chain(const std::shared_ptr<const ov::Node>& node) {
