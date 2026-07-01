@@ -68,9 +68,9 @@ bool FilteredConfig::isAvailable(std::string key) const {
     return false;
 }
 
-void FilteredConfig::enable(std::string key, bool enabled) {
+void FilteredConfig::enable(std::string_view key, bool enabled) {
     // we insert for all cases - no need to check if exists
-    _enabled[key] = enabled;
+    _enabled[std::string(key)] = enabled;
 }
 
 void FilteredConfig::enableAll() {
@@ -107,7 +107,7 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
     } else {
         // manual insert
         log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
-        _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
+        _internal_compiler_configs.emplace(key, std::move(value));
     }
 }
 
