@@ -1985,6 +1985,20 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GeneratePr
     }
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::Histc>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 8});
+    const auto histc = std::make_shared<ov::op::v17::Histc>(data, 10, 0.0, 0.0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(histc)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "HistcGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::Bincount>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{10});
+    const auto bincount = std::make_shared<ov::op::v17::Bincount>(data, 5);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(bincount)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "BincountGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::Col2Im> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{12, 9});
     const auto output_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {4, 4});

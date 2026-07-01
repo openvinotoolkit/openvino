@@ -32,6 +32,14 @@ public:
         return false;
     }
 
+    // The output size depends on the "data" values (via minlength) and not only on its shape, so the node must
+    // still be executed even when the "data" input is empty (e.g. minlength > 0 yields a non-empty output for a
+    // zero-element input). The default Node::isExecutable() would skip execute() for empty inputs, leaving the
+    // dynamic output shape unresolved.
+    [[nodiscard]] bool isExecutable() const override {
+        return isDynamicNode() || Node::isExecutable();
+    }
+
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:

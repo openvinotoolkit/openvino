@@ -39,8 +39,7 @@ class TestBincount(PytorchLayerTest):
         else:
             model_cls = aten_bincount_no_weights
 
-        ref_net = None
-        return model_cls(minlength), ref_net, "aten::bincount"
+        return model_cls(minlength), "aten::bincount"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
