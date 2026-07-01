@@ -658,9 +658,7 @@ TEST(PyramidAttentionTest, DebugBlockModeTransformation) {
     cfg.past_len = 63;
     auto model = build_isolated_attention_model(cfg);
 
-    size_t original_param_count = model->get_parameters().size();
     auto block_model = apply_split_kvcache_into_blocks(model, 32);
-    size_t transformed_param_count = block_model->get_parameters().size();
 
     // Verify that block parameters exist
     bool found_block_0 = false, found_block_tail = false;
