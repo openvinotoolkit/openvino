@@ -8,10 +8,6 @@
 
 namespace intel_npu {
 
-namespace {
-constexpr uint32_t MAX_NUM_OF_OPTIMAL_INFER_REQUESTS = 8u;
-}  // namespace
-
 bool utils::isNPUDevice(const uint32_t deviceId) {
     // bits 26-24 define interface type
     // 000 - IPC
