@@ -280,16 +280,14 @@ struct MemRefDescriptor {
     std::vector<int64_t> shape;
     std::vector<int64_t> strides;
 
-    void append_to_packed_args(std::vector<void*>& args) {
-        args.push_back(&allocated);
-        args.push_back(&aligned);
-        args.push_back(&offset);
-        for (size_t i = 0; i < shape.size(); ++i) {
-            args.push_back(&shape[i]);
-        }
-        for (size_t i = 0; i < strides.size(); ++i) {
-            args.push_back(&strides[i]);
-        }
+    // Pack into a fixed-stride layout consumed by MLIREvaluateGcGPU::invoke_packed:
+    //   [aligned, rank, shape*, strides*, is_usm]
+    void append_to_packed_args(std::vector<void*>& args, bool is_usm) {
+        args.push_back(aligned);
+        args.push_back(reinterpret_cast<void*>(shape.size()));
+        args.push_back(shape.data());
+        args.push_back(strides.data());
+        args.push_back(reinterpret_cast<void*>(static_cast<uintptr_t>(is_usm)));
     }
 };
 
@@ -396,18 +394,18 @@ bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::Evalua
     gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
     gc::gpu::DynamicExecutor exec(module);
 
-    auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
-    if (it == evaluationContext.end()) {
-        OPENVINO_THROW("No is_kernel_arg_usm provided for OpenCL execution");
-    }
-    std::vector<bool> argTypes = it->second.as<std::vector<bool>>();
-    for (size_t i = 0; i < args.size(); i+=4) {
+    // Layout (5 pointers per memref, see MemRefDescriptor::append_to_packed_args):
+    //   [aligned, rank, shape*, strides*, is_usm]
+    constexpr size_t kStride = 5;
+    OPENVINO_ASSERT(args.size() % kStride == 0,
+                    "[GPU] MLIREvaluateGcGPU::invoke_packed: malformed args vector");
+    for (size_t i = 0; i < args.size(); i += kStride) {
         exec.arg(
             /*alignedPtr=*/args[i],
             /*rank=*/reinterpret_cast<size_t>(args[i + 1]),
             /*shape=*/reinterpret_cast<int64_t*>(args[i + 2]),
             /*strides=*/reinterpret_cast<int64_t*>(args[i + 3]),
-            /*isUsm=*/argTypes[i]
+            /*isUsm=*/reinterpret_cast<uintptr_t>(args[i + 4]) != 0
         );
     }
     exec(ctx);
@@ -521,9 +519,10 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs,
     }
 
     std::vector<MemRefDescriptor> memref_args;
+    memref_args.reserve(inputs.size() + outputs.size());
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto& initial_shape = get_input_partial_shape(i);
-        memref_args.push_back(MemRefDescriptor(inputs[i], initial_shape));
+        memref_args.emplace_back(inputs[i], initial_shape);
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
         // TODO: Optimize by adding all dimensions to dimensions_map, not only dynamic
@@ -539,17 +538,25 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs,
                 target.push_back(dim.get_length());
             }
         }
-        //std::cerr << "[ DEBUG ] Set outputs[" << i << "].shape(" << target << ")\n";
         outputs[i].set_shape(target);
-        memref_args.push_back(MemRefDescriptor(outputs[i]));
+        memref_args.emplace_back(outputs[i]);
     }
+
+    std::vector<bool> is_usm;
+    auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
+    if (it != evaluationContext.end()) {
+        is_usm = it->second.as<std::vector<bool>>();
+    } else {
+        is_usm.assign(memref_args.size(), false);
+    }
+    OPENVINO_ASSERT(is_usm.size() == memref_args.size(),
+                    "[GPU] MLIROp::evaluate: is_usm and memref count mismatch");
+
     std::vector<void*> args;
+    for (size_t k = 0; k < memref_args.size(); ++k) {
+        memref_args[k].append_to_packed_args(args, is_usm[k]);
+    }
 
-    std::for_each(memref_args.begin(), memref_args.end(), [&args](MemRefDescriptor& x) {
-        x.append_to_packed_args(args);
-    });
-
-    //std::cerr << "[ INFO ] Running kernel in MLIROp::evaluate\n";
     return engine->invoke_packed(args, evaluationContext);
 }
 
