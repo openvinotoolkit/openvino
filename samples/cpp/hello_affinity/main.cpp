@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
