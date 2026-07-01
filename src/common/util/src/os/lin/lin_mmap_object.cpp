@@ -66,29 +66,24 @@ inline util::AlignedRegion make_madvise_region(const void* data, size_t mapping_
 struct PrefetchPlan {
     uintptr_t m_address = 0;
     size_t m_aligned_size = 0;
-    size_t m_num_threads = 0;
-    bool m_should_prefetch = false;
 };
 
 /**
- * @brief Computes the aligned region, page-aligned size and thread count to use for a
+ * @brief Computes the aligned region and page-aligned size to use for a
  * hint_prefetch()/hint_prefetch_async() call.
  *
  * @param data         The base address of the mapped memory region.
  * @param mapping_size The size of the mapped memory region.
  * @param offset       Offset within the mapping where prefetching starts.
  * @param size         Number of bytes to prefetch.
- * @return PrefetchPlan with m_should_prefetch == false when the requested region is below the
- * 4 MiB threshold (spawning threads would not be worth it).
+ * @return PrefetchPlan with m_aligned_size == 0 when the requested region is below the
+ * 4 MiB threshold (a real population pass would not be worth it).
  */
 inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, size_t offset, size_t size) {
     constexpr size_t one_mb = 1024 * 1024;
-    // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+    // Below 4 MiB the overhead of populating pages exceeds the benefit; skip.
     if (const auto region = make_madvise_region(data, mapping_size, offset, size); region.m_length > 4 * one_mb) {
-        return {region.m_address,
-                align_size_up(region.m_length, static_cast<size_t>(get_system_page_size())),
-                std::min<size_t>(10, std::thread::hardware_concurrency()),
-                true};
+        return {region.m_address, align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()))};
     }
     return {};
 }
@@ -232,16 +227,14 @@ public:
     }
 
     void hint_prefetch(size_t offset, size_t size) override {
-        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_should_prefetch) {
-            util::vm_prefetch(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size, plan.m_num_threads);
+        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
+            util::vm_prefetch(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size, /*fast=*/false);
         }
     }
 
     util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) override {
-        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_should_prefetch) {
-            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address),
-                                                  plan.m_aligned_size,
-                                                  plan.m_num_threads);
+        if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
+            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address), plan.m_aligned_size);
             // Allow token.detach() to hand the still-running tasks off to this object, so that
             // they are guaranteed to complete before ~MapHolder() unmaps the memory.
             token.set_detach_sink([this](std::vector<std::future<void>>&& tasks) {

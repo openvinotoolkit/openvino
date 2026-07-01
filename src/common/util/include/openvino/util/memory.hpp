@@ -119,13 +119,15 @@ void vm_release(void* ptr, size_t size) noexcept;
  *
  * Works with both anonymous (@ref vm_commit) and file-backed (mmap) regions.
  *
- * @param ptr         Base address of the range. Must be page-aligned.
- * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
- * @param num_threads Strategy selector:
- *                    - @c 0 (default) → OS advisory hint (async, low overhead).
- *                    - @c N >= 1      → parallel touch with N threads (synchronous).
+ * @param ptr   Base address of the range. Must be page-aligned.
+ * @param size  Number of bytes to pre-fetch. Must be a multiple of the system page size.
+ * @param fast  Strategy selector:
+ *              - @c true (default) → OS advisory hint (async, low overhead).
+ *              - @c false          → parallel synchronous touch that blocks until every page is
+ *                resident. The degree of parallelism is chosen internally (see the shared pool
+ *                used by @ref vm_prefetch_async), not by the caller.
  */
-void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
+void vm_prefetch(void* ptr, size_t size, bool fast = true) noexcept;
 
 /**
  * @brief Move-only RAII token representing background page-population work started by
@@ -251,16 +253,9 @@ private:
  *
  * @param ptr         Base address of the range. Must be page-aligned.
  * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
- * @param num_threads Degree of parallelism requested for this call, i.e. how many tasks the
- *                    region is split into (actual concurrency is still bounded by the shared
- *                    pool size):
- *                    - @c 0 (default) → OS advisory hint is issued synchronously (cheap, returns
- *                      an empty token since no background tasks are needed).
- *                    - @c N >= 1      → the region is split into up to N tasks submitted to the
- *                      shared pool; the returned token owns their futures.
  * @return A @ref PrefetchToken owning the submitted tasks' futures (empty when @p num_threads ==
  * 0).
  */
-PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads = 0) noexcept;
+PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept;
 
 }  // namespace ov::util

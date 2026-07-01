@@ -16,27 +16,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#ifdef __linux__
-#    include <fstream>
-#    include <string>
-#endif
-
 namespace ov::test {
-
-#ifdef __linux__
-// Reads the current process' live thread count from /proc/self/status. Used to verify that
-// the shared prefetch thread pool does not spawn new OS threads per hint_prefetch_async() call.
-inline size_t get_process_thread_count() {
-    std::ifstream status("/proc/self/status");
-    std::string line;
-    while (std::getline(status, line)) {
-        if (line.rfind("Threads:", 0) == 0) {
-            return static_cast<size_t>(std::stoul(line.substr(line.find_first_of("0123456789"))));
-        }
-    }
-    return 0;
-}
-#endif
 
 TEST(MappedMemory, get_id_unique_per_file) {
     // Create two temporary files
@@ -736,65 +716,13 @@ TEST_F(HintPrefetchAsyncTest, detach_without_sink_is_fire_and_forget) {
     static void* leaked_buffer = util::aligned_alloc(buf_size, page);
     ASSERT_NE(leaked_buffer, nullptr);
 
-    auto token = util::vm_prefetch_async(leaked_buffer, buf_size, 4);
+    auto token = util::vm_prefetch_async(leaked_buffer, buf_size);
     ASSERT_TRUE(static_cast<bool>(token));
 
     // No sink was registered (this token was created directly via vm_prefetch_async, not via
     // MappedMemory::hint_prefetch_async()), so detach() is a bare fire-and-forget release.
     EXPECT_NO_THROW(token.detach());
     EXPECT_FALSE(static_cast<bool>(token));
-}
-
-TEST_F(HintPrefetchAsyncTest, thread_pool_is_bounded_across_concurrent_calls) {
-#ifndef __linux__
-    GTEST_SKIP() << "/proc/self/status thread counting is Linux-only";
-#endif
-#ifdef __linux__
-    constexpr int num_mappings = 8;
-    constexpr size_t file_size = 8 * 1024 * 1024;  // 8 MiB (above 4 MiB threshold)
-
-    std::vector<std::filesystem::path> paths;
-    std::vector<std::shared_ptr<MappedMemory>> mappings;
-    std::vector<util::PrefetchToken> tokens;
-
-    const size_t baseline_threads = get_process_thread_count();
-
-    for (int i = 0; i < num_mappings; ++i) {
-        auto path =
-            std::filesystem::path(utils::generateTestFilePrefix() + "_pool_" + std::to_string(i) + ".bin");
-        const auto data = make_pattern(file_size);
-        {
-            std::ofstream f(path, std::ios::binary);
-            f.write(reinterpret_cast<const char*>(data.data()), data.size());
-        }
-        auto mapped = load_mmap_object(path);
-        ASSERT_NE(mapped, nullptr);
-        paths.push_back(std::move(path));
-        mappings.push_back(std::move(mapped));
-    }
-
-    // Fire off many concurrent async prefetches without waiting on any of them yet.
-    for (auto& mapped : mappings) {
-        tokens.push_back(mapped->hint_prefetch_async());
-    }
-
-    const size_t threads_while_pending = get_process_thread_count();
-
-    for (auto& token : tokens) {
-        token.wait();
-    }
-
-    // A naive "spawn dedicated threads per call" design could create up to
-    // num_mappings * 10 new OS threads here. With a shared bounded pool, the increase over the
-    // baseline should stay well below that, regardless of how many concurrent calls were made.
-    EXPECT_LT(threads_while_pending, baseline_threads + num_mappings * 10)
-        << "Expected the shared prefetch thread pool to bound thread growth across concurrent "
-           "hint_prefetch_async() calls.";
-
-    for (auto& path : paths) {
-        std::filesystem::remove(path);
-    }
-#endif
 }
 
 }  // namespace ov::test

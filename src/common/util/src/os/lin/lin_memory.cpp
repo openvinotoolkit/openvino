@@ -85,6 +85,10 @@ public:
         return futures;
     }
 
+    size_t worker_count() const noexcept {
+        return m_workers.size();
+    }
+
 private:
     PageTouchThreadPool()
         : m_workers(std::max<size_t>(1, std::min<size_t>(10, std::thread::hardware_concurrency()))) {
@@ -140,9 +144,10 @@ private:
  * @brief Splits [ptr, ptr + size) into up to @p num_threads page-toucher jobs and submits them
  * to the shared @ref PageTouchThreadPool, returning a future per job.
  */
-std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) {
+std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size) {
     // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
     const auto page_size = static_cast<size_t>(get_system_page_size());
+    const auto num_threads = PageTouchThreadPool::instance().worker_count();
     const auto chunk_size = std::max<size_t>(align_size_up(size / num_threads, page_size), 1024 * 1024);
 
     std::vector<std::function<void()>> jobs;
@@ -154,9 +159,9 @@ std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size,
     return PageTouchThreadPool::instance().submit(std::move(jobs));
 }
 
-void populate_pages(void* ptr, size_t size, size_t num_threads) {
+void populate_pages(void* ptr, size_t size) {
     // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
-    auto tasks = submit_page_toucher_tasks(ptr, size, num_threads);
+    auto tasks = submit_page_toucher_tasks(ptr, size);
     for (auto& task : tasks) {
         task.wait();
     }
@@ -212,31 +217,25 @@ void vm_release(void* ptr, size_t size) noexcept {
     std::ignore = munmap(ptr, size);
 }
 
-void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+void vm_prefetch(void* ptr, size_t size, bool fast) noexcept {
     assert(ptr != nullptr && size > 0);
     // assert if region is not mmap-backed.
 
-    if (num_threads == 0) {
+    if (fast) {
         // Option 1: OS advisory hints — async, low overhead.
         madvise_hint(ptr, size);
     } else {
         // Option 2: parallel synchronous touch — blocks until every page is resident.
-        populate_pages(ptr, size, num_threads);
+        populate_pages(ptr, size);
     }
 }
 
-PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
     assert(ptr != nullptr && size > 0);
-    // assert if region is not mmap-backed.
 
-    if (num_threads == 0) {
-        // OS advisory hint is cheap and already asynchronous; no background tasks needed.
-        madvise_hint(ptr, size);
-        return {};
-    }
     // Submit the touchers to the shared pool but do not wait on them here — ownership of the
     // futures is transferred to the token, whose destructor (or explicit wait()) waits on them.
-    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
+    return PrefetchToken(submit_page_toucher_tasks(ptr, size));
 }
 
 }  // namespace ov::util
