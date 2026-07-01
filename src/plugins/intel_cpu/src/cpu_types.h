@@ -96,6 +96,7 @@ enum class Type : uint8_t {
     CTCLoss,
     Bucketize,
     Bincount,
+    Histc,
     CTCGreedyDecoder,
     CTCGreedyDecoderSeqLen,
     CumSum,

@@ -50,6 +50,7 @@ enum class KernelType {
     SELECT,
     BROADCAST,
     BUCKETIZE,
+    HISTC,
     GEMM,
     GRID_SAMPLE,
     CONTRACT,

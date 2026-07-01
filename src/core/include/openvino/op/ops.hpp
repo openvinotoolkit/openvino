@@ -22,6 +22,7 @@
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/bincount.hpp"
+#include "openvino/op/histc.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"

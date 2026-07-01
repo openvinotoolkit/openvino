@@ -26,6 +26,7 @@
 #include "batch_to_space_shape_inference.hpp"
 #include "binary_convolution_shape_inference.hpp"
 #include "bincount_shape_inference.hpp"
+#include "histc_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
 #include "col2im_shape_inference.hpp"
@@ -96,6 +97,7 @@
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/bincount.hpp"
+#include "openvino/op/histc.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/col2im.hpp"
@@ -581,6 +583,7 @@ template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset17
     OV_OP_SHAPE_INFER_MASK_REG(op::v17::Bincount, ShapeInferTA, util::bit::mask(0)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v17::Histc, ShapeInferTA, util::bit::mask()),
     // opset16
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::OneHot, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::AvgPool, ShapeInferPaddingTA, util::bit::mask()),

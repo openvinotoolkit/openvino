@@ -293,5 +293,6 @@ class SparseFillEmptyRows;
 
 namespace ov::op::v17 {
 class Bincount;
+class Histc;
 class ErfInv;
 }  // namespace ov::op::v17
