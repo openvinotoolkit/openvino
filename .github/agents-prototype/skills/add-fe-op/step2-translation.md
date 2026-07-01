@@ -1,6 +1,6 @@
 # Skill: FE Op Translation
 
-> Source: `skills/add-fe-op/SKILL.md` (Step 2 + Translation Recommendations)
+> Source: [`skills/add-fe-op/SKILL.md`](SKILL.md) (Step 2 + Translation Recommendations)
 > Agent: `fe_agent`
 
 ## Prerequisites
