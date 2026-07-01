@@ -4,6 +4,7 @@
 
 #include "registry.hpp"
 #include "intel_gpu/primitives/pooling.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_ONEDNN

@@ -7,10 +7,7 @@
 #include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff) {
-    s << "CoordinateDiff{";
-    s << ov::util::join(coordinate_diff);
-    s << "}";
-    return s;
+    return s << "CoordinateDiff{" << ov::util::join<std::ostream>(coordinate_diff) << "}";
 }
 
 ov::CoordinateDiff::CoordinateDiff(const std::initializer_list<std::ptrdiff_t>& diffs)

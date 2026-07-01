@@ -5,7 +5,6 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
-#include <string_view>
 
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
@@ -97,7 +96,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   updatedConfig);
+                                   updatedConfig,
+                                   get_compatibility_descriptor(graphDesc._handle));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -289,8 +289,9 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
     return compilerOpts;
 }
 
-bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
-    auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
+                                                const std::optional<std::string>& optValue) const {
+    auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     return isOptionSupported.value_or(false);
 }
 
@@ -312,6 +313,10 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
     return (compilerVersion.major > majorCompilerOptSupportValue) ||
            ((compilerVersion.major == majorCompilerOptSupportValue) &&
             (compilerVersion.minor >= minorCompilerOptSupportValue));
+}
+
+std::optional<std::string> DriverCompilerAdapter::get_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
+    return _zeGraphExt->getCompatibilityDescriptor(graphHandle);
 }
 
 }  // namespace intel_npu

@@ -9,6 +9,7 @@
 
 namespace {
 using ov::test::InputShape;
+using ov::test::MoEActivationType;
 using ov::test::MoERoutingType;
 
 enum class MoePatternType { GEMM3, GEMM2 };
@@ -45,12 +46,17 @@ using MoECompressedParams = std::tuple<MoeTestShapeParams,
                                        ov::test::utils::DecompressionType,  // subtract type
                                        bool,                                // reshape_on_decompression
                                        int,                                 // group_size
-                                       size_t>;                             // gate_idx (2-GEMM only)
+                                       size_t,                              // gate_idx (2-GEMM only)
+                                       bool,                                // force_gather_matmul
+                                       MoEActivationType,                   // gate activation type (GEMM3 only)
+                                       bool,                                // use_per_expert_scale (GEMM3+SOFTMAX only)
+                                       bool,                                // use_layernorm_multiply (gemma4 pattern)
+                                       bool>;                               // use_weight_decompression (false = uncompressed FP16)
 
 class MoECompressedFusionTest : public testing::WithParamInterface<MoECompressedParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedParams>& info) {
-        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi] = info.param;
+        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act, pes, lnm, uwd] = info.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({moe_params.data_shape.first}) << "_";
         result << "TS=";
@@ -68,12 +74,21 @@ public:
         result << "DS=" << ds << "_";
         result << "RD=" << rd << "_";
         result << "GS=" << gs << "_";
-        result << "GI=" << gi;
+        result << "GI=" << gi << "_";
+        result << "FGM=" << fgm << "_";
+        result << "act=" << (act == MoEActivationType::GELU ? "GELU" : act == MoEActivationType::GELU_ERF ? "GELU_ERF" : "SWISH") << "_";
+        result << "PES=" << pes << "_";
+        result << "LNM=" << lnm << "_";
+        result << "UWD=" << uwd;
         return result.str();
     }
 
 protected:
     void SetUp() override {
+        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act, pes, lnm, uwd] = GetParam();
+        if (fgm) {
+            set_disable_moe_opt();
+        }
         targetDevice = ov::test::utils::DEVICE_GPU;
         // MoE fusion (and the GatherMatmul-based fallback) is gated on supports_immad.
         const auto caps = core->get_property(targetDevice, ov::device::capabilities);
@@ -84,8 +99,6 @@ protected:
         // Cascaded matmul+clamp+swish chains exceed default per-op f16 epsilon.
         abs_threshold = 1.0;
         rel_threshold = 0.01;
-
-        const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi] = GetParam();
 
         // INSTANTIATE blocks below never produce GEMM2 + non-softmax; fail loudly if that ever changes.
         if (pattern_type == MoePatternType::GEMM2 && routing_type != MoERoutingType::SOFTMAX) {
@@ -98,19 +111,25 @@ protected:
             function = ov::test::initMoE3GeMMSubgraph(shape_params,
                                                       ov::element::f32,  // data_precision
                                                       wp,                // weights_precision
-                                                      true,              // use_weight_decompression
+                                                      uwd,               // use_weight_decompression
                                                       dp,                // decompression_precision
                                                       sp,                // scale_precision
                                                       dm,                // decompression_multiply_type
                                                       ds,                // decompression_subtract_type
                                                       rd,                // reshape_on_decompression
                                                       gs,                // group_size
-                                                      routing_type);
+                                                      routing_type,
+                                                      act,   // activation_type
+                                                      pes,   // use_per_expert_scale
+                                                      lnm);  // use_layernorm_multiply
         } else {
+            ASSERT_TRUE(act == MoEActivationType::SWISH) << "2-GEMM pattern only supports Swish activation";
+            ASSERT_TRUE(pes == false) << "2-GEMM pattern doesn't support per-expert scale";
+            ASSERT_TRUE(lnm == false) << "2-GEMM pattern doesn't support layernorm multiply";
             function = ov::test::initMoE2GeMMSubgraph(shape_params,
                                                       ov::element::f32,  // data_precision
                                                       wp,                // weights_precision
-                                                      true,              // use_weight_decompression
+                                                      uwd,               // use_weight_decompression
                                                       dp,                // decompression_precision
                                                       sp,                // scale_precision
                                                       dm,                // decompression_multiply_type
@@ -126,21 +145,81 @@ protected:
         const auto& params = function->get_parameters();
         ASSERT_EQ(params.size(), 1);
         // RMSNorm output ≈ N(0,1); needed to exercise swish/SwiGLU on negative inputs.
+        // Uncompressed experts (see moe_params_smoke_uncompressed) use a smaller input to
+        // keep the gate/up/down accumulations within the f16 range.
+        const float stddev = std::get<15>(GetParam()) ? 1.0f : 0.05f;
         inputs.insert({params[0],
                        ov::test::utils::create_and_fill_tensor_normal_distribution(params[0]->get_element_type(),
                                                                                    target_input_static_shapes[0],
                                                                                    /*mean=*/0.0f,
-                                                                                   /*stddev=*/1.0f,
+                                                                                   stddev,
                                                                                    /*seed=*/1234)});
     }
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
         const auto pattern_type = std::get<1>(GetParam());
-        // GEMM3 → single fused moe_3gemm_fused_compressed; GEMM2 → gate_up + down = 2 moe_gemm ops.
-        ov::test::CheckNumberOfNodesWithType(compiledModel,
-                                             pattern_type == MoePatternType::GEMM3 ? "moe_3gemm_fused_compressed" : "moe_gemm",
-                                             pattern_type == MoePatternType::GEMM3 ? 1 : 2);
+        const auto force_gather_matmul = std::get<11>(GetParam());
+        const auto use_per_expert_scale = std::get<13>(GetParam());
+        const auto layer_norm_mul = std::get<14>(GetParam());
+        const auto use_weight_decompression = std::get<15>(GetParam());
+        if (!use_weight_decompression) {
+            // Uncompressed experts: the compressed-only expert chain is rejected, so the
+            // dense Tile/MatMul ops run natively. moe_router_fused is independent and may still run.
+            ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_3gemm_fused_compressed", 0);
+            ov::test::CheckNumberOfNodesWithType(compiledModel, "gather_matmul", 0);
+            return;
+        }
+        if (force_gather_matmul) {
+            // GEMM3: gate, up, down → 3 GatherMatmul ops; GEMM2: fused gate_up + down → 2.
+            ov::test::CheckNumberOfNodesWithType(compiledModel, "gather_matmul", pattern_type == MoePatternType::GEMM3 ? 3 : 2);
+        } else {
+            // GEMM3 → single fused moe_3gemm_fused_compressed; GEMM2 → gate_up + down = 2 moe_gemm ops.
+            ov::test::CheckNumberOfNodesWithType(compiledModel,
+                                                 pattern_type == MoePatternType::GEMM3 ? "moe_3gemm_fused_compressed" : "moe_gemm",
+                                                 pattern_type == MoePatternType::GEMM3 ? 1 : 2);
+        }
+        if (pattern_type == MoePatternType::GEMM3) {
+            ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_router_fused", 1);
+            // Additional check to make sure that there are no extra scales on the routing path
+            // Even if the original model has this scale, FuseMoERouterScale pass must fuse it into the MOECompressed op
+            if (!force_gather_matmul) {
+                size_t expected_eltwise_count = 0;
+                // Note: use_per_expert_scale adds 2 scales: before routing matmul and after router output,
+                // the second one is fused into MoE by FuseMoERouterScale
+                if (use_per_expert_scale) {
+                    expected_eltwise_count += 1;
+                }
+                if (layer_norm_mul) {
+                    expected_eltwise_count += 1;
+                }
+                ov::test::CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_eltwise_count);
+            }
+        }
+    }
+
+    void TearDown() override {
+        ov::test::SubgraphBaseTest::TearDown();
+        if (std::get<11>(GetParam())) {
+            unset_disable_moe_opt();
+        }
+    }
+
+private:
+    static void set_disable_moe_opt() {
+#ifdef _WIN32
+        _putenv_s("OV_GPU_DISABLE_MOE_OPT", "1");
+#else
+        ::setenv("OV_GPU_DISABLE_MOE_OPT", "1", 1);
+#endif
+    }
+
+    static void unset_disable_moe_opt() {
+#ifdef _WIN32
+        _putenv_s("OV_GPU_DISABLE_MOE_OPT", "");
+#else
+        ::unsetenv("OV_GPU_DISABLE_MOE_OPT");
+#endif
     }
 };
 
@@ -165,9 +244,27 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
         4,                                                           // number_of_experts
         256                                                          // intermediate_size
     },
+    {
+        // large hidden
+        {{-1, -1, 2048}, {{1, 4, 2048}, {1, 1, 2048}}},  // prefill + decode
+        4,                                               // topk
+        8,                                               // number_of_experts
+        512                                              // intermediate_size
+    },
 };
 
-// Compressed weights — full GatherMatmul → MOECompressed → FuseMOE3GemmCompressed pipeline.
+// Uncompressed experts use raw f16 weights with no dequantization scaling, so the
+// gate/up/down accumulations overflow f16 unless hidden/intermediate are kept small.
+const std::vector<MoeTestShapeParams> moe_params_smoke_uncompressed = {
+    {
+        {{-1, -1, 64}, {{1, 8, 64}, {1, 1, 64}, {1, 4, 64}}},  // seq_len=dynamic, hidden_size=64
+        2,                                                     // topk
+        4,                                                     // number_of_experts
+        64                                                     // intermediate_size
+    },
+};
+
+// Compressed weights — full GatherMatmul → MOECompressed → FuseMoERouter pipeline.
 const std::vector<ov::element::Type> weights_precisions = {
     ov::element::u8,
     ov::element::u4,
@@ -185,10 +282,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::empty),
                                             ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128),
-                                            ::testing::Values(size_t{0})),  // gate_idx unused for GEMM3
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
 // GPT-OSS 2-GEMM pattern (combined gate/up MatMul + Slice/Clamp/Add/Swish).
@@ -205,81 +308,96 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128),
-                                            ::testing::ValuesIn(gate_idx_values)),
+                                            ::testing::ValuesIn(gate_idx_values),
+                                            ::testing::Values(false),  // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
-// MOE fusion disabled — exercises GatherMatmulCompressed directly.
-// disable_moe_opt is a debug option; only honored via env var, not properties.
-class MoEGatherMatmulTest : public MoECompressedFusionTest {
-protected:
-    static void set_disable_moe_opt() {
-#ifdef _WIN32
-        _putenv_s("OV_GPU_DISABLE_MOE_OPT", "1");
-#else
-        ::setenv("OV_GPU_DISABLE_MOE_OPT", "1", 1);
-#endif
-    }
-
-    static void unset_disable_moe_opt() {
-#ifdef _WIN32
-        _putenv_s("OV_GPU_DISABLE_MOE_OPT", "");
-#else
-        ::unsetenv("OV_GPU_DISABLE_MOE_OPT");
-#endif
-    }
-
-    void SetUp() override {
-        set_disable_moe_opt();
-        MoECompressedFusionTest::SetUp();
-    }
-
-    void TearDown() override {
-        MoECompressedFusionTest::TearDown();
-        unset_disable_moe_opt();
-    }
-
-    void validate() override {
-        ov::test::SubgraphBaseTest::validate();
-        const auto pattern_type = std::get<1>(GetParam());
-        // GEMM3: gate, up, down → 3 GatherMatmul ops; GEMM2: fused gate_up + down → 2.
-        ov::test::CheckNumberOfNodesWithType(compiledModel, "gather_matmul", pattern_type == MoePatternType::GEMM3 ? 3 : 2);
-    }
-};
-
-TEST_P(MoEGatherMatmulTest, Inference) {
-    run();
-}
-
-// u8 excluded: GatherMatmul prefill micro-kernel for u8 is not selectable yet.
 INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
-                         MoEGatherMatmulTest,
+                         MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM3),
                                             ::testing::ValuesIn(routing_types),
-                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128),
-                                            ::testing::Values(size_t{0})),  // gate_idx unused for GEMM3
-                         MoEGatherMatmulTest::getTestCaseName);
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(true),       // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(true)),   // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
 
 // 2-GEMM unfused: covers GatherMatmul OCL clamp/bias/swiglu compile path.
 INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
-                         MoEGatherMatmulTest,
+                         MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM2),
                                             ::testing::Values(MoERoutingType::SOFTMAX),
-                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(weights_precisions),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
                                             ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128),
-                                            ::testing::ValuesIn(gate_idx_values)),
-                         MoEGatherMatmulTest::getTestCaseName);
+                                            ::testing::ValuesIn(gate_idx_values),
+                                            ::testing::Values(true),  // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(true)),   // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
+// Gemma-4 style: Gelu activation + SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u4),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::GELU, MoEActivationType::GELU_ERF),
+                                            ::testing::Values(true, false),  // use_per_expert_scale
+                                            ::testing::Values(true, false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),        // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
+// Uncompressed (FP16) experts: dense Tile/MatMul ops run natively
+// (would otherwise fail with "MOE ... is not supported").
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmUncompressed,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_uncompressed),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::ValuesIn(routing_types),
+                                            ::testing::Values(ov::element::f16),  // weights_precision (uncompressed)
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(false)),  // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
 
 }  // namespace

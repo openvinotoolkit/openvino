@@ -8,6 +8,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -18,7 +19,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -58,14 +58,12 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node, int64_t
 
     common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), valid_types);
 
-    const auto converted_x = std::make_shared<v0::Convert>(x, scale.get_element_type());
-
     if (zero_point) {
         common::validate_scalar_input("Zero point", zero_point);
-        return {std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(converted_x, zero_point), scale)};
-    } else {
-        return {std::make_shared<v1::Multiply>(converted_x, scale)};
     }
+
+    auto result = ov::decomposition::low_precision_dequantize(x, scale, zero_point);
+    return {result};
 }
 }  // namespace detail
 
@@ -165,16 +163,15 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);
-    const auto converted_x = std::make_shared<v0::Convert>(x, scale.get_element_type());
 
+    ov::Output<ov::Node> zp;
     if (zero_point) {
         validate_zero_point(zero_point, x, axis);
-        return {std::make_shared<v1::Multiply>(
-            std::make_shared<v1::Subtract>(converted_x, reshape_input(zero_point, axis, x_shape)),
-            scale_reshaped)};
-    } else {
-        return {std::make_shared<v1::Multiply>(converted_x, scale_reshaped)};
+        zp = reshape_input(zero_point, axis, x_shape);
     }
+
+    auto result = ov::decomposition::low_precision_dequantize(x, scale_reshaped, zp);
+    return {result};
 }
 }  // namespace detail
 
@@ -252,13 +249,10 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // Check if this is channel-wise quantization (block_size equals dimension size at axis)
     bool is_cw_quantize = (src_x.get_shape()[axis] == block_size);
     if (is_cw_quantize) {
-        ov::Output<ov::Node> converted_x = std::make_shared<v0::Convert>(src_x, scale.get_element_type());
         if (inputs.size() > 2) {
             zp = inputs[2];
-            zp = std::make_shared<v0::Convert>(zp, scale.get_element_type());
-            converted_x = std::make_shared<v1::Subtract>(converted_x, zp);
         }
-        auto scaled_x = std::make_shared<v1::Multiply>(converted_x, scale);
+        auto scaled_x = ov::decomposition::low_precision_dequantize(src_x, scale, zp);
         return {scaled_x};
     }
 
@@ -286,34 +280,18 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& unsqueezed_axes =
         std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{unsqueeze_axis});
 
-    const auto scale_type = scale.get_element_type();
     if (inputs.size() > 2) {
-        zp = inputs[2];
-        zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
-        if (zp.get_element_type() != scale.get_element_type()) {
-            zp = std::make_shared<v0::Convert>(zp, scale_type);
-        }
+        zp = std::make_shared<v0::Unsqueeze>(inputs[2], unsqueezed_axes);
     }
-
-    const auto& x = src_x.get_element_type() == scale_type ? broadcastable_x
-                                                           : std::make_shared<v0::Convert>(broadcastable_x, scale_type);
 
     // Adding additional dimension for broadcasting
     scale = std::make_shared<v0::Unsqueeze>(scale, unsqueezed_axes);
 
-    if (zp.get_node_shared_ptr()) {
-        broadcastable_x = std::make_shared<v1::Subtract>(x, zp);
-    } else {
-        broadcastable_x = x;
-    }
+    auto out_shape = std::make_shared<v0::ShapeOf>(src_x);
 
-    const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);
+    auto reshaped_scaled_x = ov::decomposition::low_precision_dequantize(broadcastable_x, scale, zp, out_shape);
 
-    // Returning back a shape
-    const auto& reshaped_scaled_x =
-        std::make_shared<v1::Reshape>(scaled_x, std::make_shared<v0::ShapeOf>(src_x), false);
-
-    reshaped_scaled_x->set_friendly_name(node.get_name());
+    reshaped_scaled_x.get_node_shared_ptr()->set_friendly_name(node.get_name());
 
     return {reshaped_scaled_x};
 }

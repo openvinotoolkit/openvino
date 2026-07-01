@@ -1921,7 +1921,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             // 5D: axes: [1,2,3,4], [2,3,4]
             auto axesVal = axesOp->cast_vector<int>();
             for (int& axe : axesVal) {
-                axe = axe < 0 ? axe + inDataRank : axe;
+                axe = axe < 0 ? axe + static_cast<int>(inDataRank) : axe;
             }
             std::sort(axesVal.begin(), axesVal.end());
             if (inDataRank == 1) {
@@ -1935,8 +1935,8 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
-                int value = inDataRank - 1;
-                for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                int value = static_cast<int>(inDataRank) - 1;
+                for (int i = static_cast<int>(axesVal.size()) - 1; i >= 0; i--, value--) {
                     if (axesVal[i] != value) {
                         errorMessage = "Unsupported axes.";
                         return false;

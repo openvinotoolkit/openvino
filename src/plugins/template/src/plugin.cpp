@@ -7,6 +7,7 @@
 #include <fstream>
 #include <memory>
 
+#include "attach_cache_manager_to_paged_attention.hpp"
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
@@ -25,6 +26,7 @@
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
@@ -126,6 +128,30 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
     ov::pass::Manager passManager("Plugin:Template");
+
+    // Defaults are overwritten below from the actual PA node's input types (inputs 3/4 for
+    // cache, input 0 for query). f32 is only used if there is no PA node in the model.
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.keyCachePrecision = ov::element::f32;
+    cacheConfig.valueCachePrecision = ov::element::f32;
+    cacheConfig.inferencePrecision = ov::element::f32;
+    for (const auto& op : model->get_ops()) {
+        if (auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
+            const auto key_et = pa->get_input_element_type(3);
+            const auto val_et = pa->get_input_element_type(4);
+            if (!key_et.is_dynamic())
+                cacheConfig.keyCachePrecision = key_et;
+            if (!val_et.is_dynamic())
+                cacheConfig.valueCachePrecision = val_et;
+            const auto qry_et = pa->get_input_element_type(0);
+            if (!qry_et.is_dynamic())
+                cacheConfig.inferencePrecision = qry_et;
+            break;
+        }
+    }
+    auto noop_shape = [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    passManager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, noop_shape);
+
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
@@ -145,6 +171,9 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 
     // Disabled SDPA transformation, since there is ref SDPA op.
     pass_config->disable<ov::pass::ScaledDotProductAttentionDecomposition>();
+
+    // Attach cache manager to PA nodes for KV cache block management
+    passManager.register_pass<ov::pass::AttachCacheManagerToPagedAttention>();
 
     // After `run_passes`, we have the transformed function, where operations match device operations,
     // and we can create device backend-dependent graph
@@ -422,9 +451,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
                 if (const auto pos = requirements.find(get_runtime_requirements()); pos == 0) {
-                    return ov::CompatibilityCheck::OPTIMAL;
-                } else if (pos != std::string::npos) {
-                    return ov::CompatibilityCheck::PREFER_RECOMPILATION;
+                    return ov::CompatibilityCheck::SUPPORTED;
                 } else {
                     return ov::CompatibilityCheck::UNSUPPORTED;
                 }

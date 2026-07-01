@@ -20,7 +20,9 @@
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/gqa_compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
+#include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,6 +31,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+#include "plugin_property_manager.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
 
@@ -148,26 +151,36 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
+    if (const auto header = ov::npuw::orc::is_orc(stream);
+        header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
+    }
+
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
-    ov::npuw::s11n::read(stream, serialization_indicator);
-    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+    if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
+        serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        ov::npuw::s11n::read(stream, compiled_model_indicator);
-        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+        if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
+            stream.clear();
+            stream.seekg(stream_start_pos);
 
-        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
-        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
-        } else {
-            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+            if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+                return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+                // Properties are required for ov::weights_path
+                return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+                               "the current ORC serializer.");
+            } else {
+                OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+            }
         }
     }
-    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+    stream.clear();
+    stream.seekg(stream_start_pos);
 
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end(); ++it) {
@@ -178,23 +191,22 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     return nullptr;
 }
 
-std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properties) {
-    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+std::shared_ptr<const ov::Model> get_model_ptr_from_map(ov::AnyMap& properties) {
     if (properties.count(ov::hint::model.name())) {
         try {
-            modelPtr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            return properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
         } catch (const ov::Exception&) {
             try {
-                modelPtr = std::const_pointer_cast<const ov::Model>(
+                return std::const_pointer_cast<const ov::Model>(
                     properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
                                "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
             }
         }
-        properties.erase(ov::hint::model.name());
     }
-    return modelPtr;
+
+    return nullptr;
 }
 
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
@@ -221,10 +233,11 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(PERFORMANCE_HINT);
     REGISTER_OPTION(EXECUTION_MODE_HINT);
     REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     REGISTER_OPTION(ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
     REGISTER_OPTION(MODEL_PRIORITY);
-    REGISTER_OPTION(EXCLUSIVE_ASYNC_REQUESTS);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
@@ -257,6 +270,8 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
+    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
+    REGISTER_OPTION(COMPATIBILITY_CHECK);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
@@ -344,7 +359,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, config, metrics, _backend);
+    _propertiesManager = std::make_unique<PluginPropertyManager>(config, metrics, _backend, _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -361,42 +376,11 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    if (!arguments.empty()) {
-        auto npuPluginArguments = arguments;
-        exclude_model_ptr_from_map(npuPluginArguments);
-
-        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
-        // of supported properties, but we cannot alter the global state
-        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-        copyPropertiesManager->setProperty(npuPluginArguments);
-
-        return copyPropertiesManager->getProperty(name);
-    }
-
-    return _propertiesManager->getProperty(name);
+    return _propertiesManager->getProperty(name, arguments);
 }
 
 bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
-    if (!arguments.empty()) {
-        auto npuPluginArguments = arguments;
-        exclude_model_ptr_from_map(npuPluginArguments);
-
-        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
-        // of supported properties, but we cannot alter the global state
-        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-
-        try {
-            copyPropertiesManager->setProperty(npuPluginArguments);
-        } catch (...) {
-            // In case of a failure during property setting, we assume the arguments are not valid and thus the
-            // supported properties cannot be reliably determined - return false in this case
-            return false;
-        }
-
-        return copyPropertiesManager->isPropertySupported(name);
-    }
-
-    return _propertiesManager->isPropertySupported(name);
+    return _propertiesManager->isPropertySupported(name, arguments);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -417,12 +401,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);
         }
-    }
-
-    // ov::hint::model has no corresponding "Config" implementation thus we need to
-    // remove it from the list of properties
-    if (exclude_model_ptr_from_map(localProperties)) {
-        _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
     if (_backend != nullptr) {
@@ -641,14 +619,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    auto npuPluginProperties = remoteProperties;
-    exclude_model_ptr_from_map(npuPluginProperties);
-    return std::make_shared<RemoteContextImpl>(_backend, npuPluginProperties);
+    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remoteProperties) const {
-    auto npuPluginProperties = remoteProperties;
-    exclude_model_ptr_from_map(npuPluginProperties);
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
@@ -693,7 +667,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             _logger.info("Blob compatibility check skipped.");
         }
         OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
-
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -785,7 +758,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     update_log_level(properties);
 
     auto localProperties = properties;
-    exclude_model_ptr_from_map(localProperties);
 
     if (_backend != nullptr) {
         _backend->updateInfo(localProperties);
@@ -829,9 +801,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     auto localProperties = properties;
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to
-    // remove it from the list of properties
-    auto originalModel = exclude_model_ptr_from_map(localProperties);
+    auto originalModel = get_model_ptr_from_map(localProperties);
 
     std::shared_ptr<IDevice> device =
         utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
@@ -976,10 +946,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     ParserFactory parserFactory;
     auto parser = parserFactory.getParser(_backend->getInitStructs());
+
+    // Convert descriptor to an owning string before metadata is potentially destroyed.
+    std::optional<std::string> compatibilityDescriptor = std::nullopt;
+    if (metadata) {
+        if (const auto descriptorView = metadata->get_compatibility_descriptor(); descriptorView.has_value()) {
+            compatibilityDescriptor = std::string(descriptorView.value());
+        }
+    }
+
     auto graph = parser->parse(tensorMain,
                                localConfig,
                                initBlobs,
-                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt,
+                               compatibilityDescriptor);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

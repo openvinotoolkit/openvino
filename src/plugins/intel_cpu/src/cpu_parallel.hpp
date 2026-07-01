@@ -21,13 +21,13 @@ public:
     CpuParallel() = delete;
     CpuParallel(CpuParallel&) = delete;
     CpuParallel(ov::intel_cpu::TbbPartitioner partitioner = ov::intel_cpu::TbbPartitioner::STATIC,
-                size_t multiplier = default_multiplier);
+                int multiplier = default_multiplier);
     ~CpuParallel() = default;
 
     [[nodiscard]] ov::intel_cpu::TbbPartitioner get_partitioner() const {
         return m_partitioner;
     }
-    [[nodiscard]] size_t get_multiplier() const {
+    [[nodiscard]] int get_multiplier() const {
         return m_multiplier;
     }
     [[nodiscard]] std::shared_ptr<ThreadPool> get_thread_pool() const {
@@ -456,7 +456,7 @@ private:
     }
 
     ov::intel_cpu::TbbPartitioner m_partitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-    size_t m_multiplier = default_multiplier;
+    int m_multiplier = default_multiplier;
     std::shared_ptr<ThreadPool> m_thread_pool = nullptr;
 };
 

@@ -159,7 +159,16 @@ inline bool expert_gemm_compute(
                         float gate = tiles[1].x[ri][rj];
                         float value = tiles[0].x[ri][rj];
 #endif
+#ifdef GATE_ACT_GELU_ERF
+                        float z_g = fabs(gate) * 0.7071067811865475f;
+                        float t_g = 1.0f / (1.0f + 0.3275911f * z_g);
+                        float erf_g = 1.0f - (((((1.061405429f * t_g + (-1.453152027f)) * t_g + 1.421413741f) * t_g + (-0.284496736f)) * t_g + 0.254829592f)) * t_g * native_exp(-(z_g * z_g));
+                        float swish = 0.5f * gate * (1.0f + ((gate >= 0.0f) ? erf_g : -erf_g));
+#elif defined(GATE_ACT_GELU_TANH)
+                        float swish = 0.5f * gate * (1.0f + (tanh(0.79788458347320556640625f * gate * (1.0f + 0.044715f * gate * gate))));
+#else
                         float swish = gate / (1.0f + native_exp(-SWISH_BETA * gate));
+#endif
                         c_tile_half.x[ri][rj] = (half)(value * swish);
                     }
                 }
@@ -212,7 +221,17 @@ inline bool expert_gemm_compute(
                         int reg_idx_i = (i0 / br) + nbr * (j / bc);
                         int reg_idx_j = (i0 % br) / sg + (j % bc) * (br / sg);
                         float val = c_tile_half.x[reg_idx_i][reg_idx_j];
-                        float res = post_val * (val / (1.0f + native_exp(-val)));
+#ifdef GATE_ACT_GELU_ERF
+                        float z_v = fabs(val) * 0.7071067811865475f;
+                        float t_v = 1.0f / (1.0f + 0.3275911f * z_v);
+                        float erf_v = 1.0f - (((((1.061405429f * t_v + (-1.453152027f)) * t_v + 1.421413741f) * t_v + (-0.284496736f)) * t_v + 0.254829592f)) * t_v * native_exp(-(z_v * z_v));
+                        float act = 0.5f * val * (1.0f + ((val >= 0.0f) ? erf_v : -erf_v));
+#elif defined(GATE_ACT_GELU_TANH)
+                        float act = 0.5f * val * (1.0f + (tanh(0.79788458347320556640625f * val * (1.0f + 0.044715f * val * val))));
+#else
+                        float act = val / (1.0f + native_exp(-val));
+#endif
+                        float res = post_val * act;
                         c_tile_half.x[reg_idx_i][reg_idx_j] = res;
                     }
                 }
