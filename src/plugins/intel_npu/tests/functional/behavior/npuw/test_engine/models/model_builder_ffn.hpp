@@ -47,6 +47,14 @@ struct GELU {
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
 
+/// Builds a MoE FFN from the params build_llm resolves out of LLMConfig, keeping the config the
+/// single source of truth. Empty = GPT-OSS MoEFFN; assign make_qwen3_moe_ffn for Qwen3.
+using MoEFactoryFn = std::function<FFNFn(size_t hidden_size,
+                                         size_t intermediate_size,
+                                         size_t num_experts,
+                                         size_t num_experts_per_tok,
+                                         ov::element::Type precision)>;
+
 /// GPT-OSS style batched MoE FFN matching NPUW's GPTOSSExpert + GPTOSSRouter patterns.
 /// All experts compute on all tokens via Tile + 3D batched MatMul (no NonZero): fused
 /// gate_up MatMul with Slice/Minimum/Swish + Clamp branches and a TopK→Softmax router.
@@ -54,8 +62,7 @@ struct GELU {
 /// for the isolation patterns to match. Shared constants across layers enable repeating
 /// block detection. Conforms to FFNFn for drop-in use in transformer layer templates.
 ///
-/// To add another MoE topology, write a sibling functor (see Qwen3MoEFFN) and assign it to
-/// LLMConfig::ffn — no enum or central dispatch to extend.
+/// New topologies: add a functor + a MoEFactoryFn wrapper (see make_qwen3_moe_ffn), no central dispatch.
 struct MoEFFN {
     size_t hidden_size, intermediate_size, num_experts, num_experts_per_tok;
     ov::element::Type precision;
@@ -82,7 +89,8 @@ private:
 /// renormalization over the K selected experts (vs GPT-OSS's TopK→Softmax). The expert weight
 /// chain is the same Multiply→Convert→MatMul the matchers bind to. Note: the shipped model
 /// fuses gate_up via VariadicSplit; the matcher (and this builder) use the separate gate/up
-/// form the partitioning pass keys on. Conforms to FFNFn; assign to LLMConfig::ffn.
+/// form the partitioning pass keys on. Conforms to FFNFn; select via
+/// LLMConfig::moe_factory = make_qwen3_moe_ffn (build_llm builds it from the config's MoE fields).
 struct Qwen3MoEFFN {
     size_t hidden_size, intermediate_size, num_experts, num_experts_per_tok;
     ov::element::Type precision;
@@ -99,6 +107,16 @@ private:
     std::shared_ptr<ov::Node> reduce_axis;    ///< final expert reduction (over experts, axis 0)
     std::shared_ptr<ov::Node> reduce_axis_k;  ///< router renormalization axis (over K)
 };
+
+/// MoEFactoryFn for the GPT-OSS topology — build_llm's default when LLMConfig::moe_factory is empty.
+inline FFNFn make_gptoss_moe_ffn(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec) {
+    return MoEFFN(hs, is, ne, k, prec);
+}
+
+/// MoEFactoryFn for the Qwen3 topology. Assign to LLMConfig::moe_factory to select it.
+inline FFNFn make_qwen3_moe_ffn(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec) {
+    return Qwen3MoEFFN(hs, is, ne, k, prec);
+}
 
 }  // namespace npuw
 }  // namespace test

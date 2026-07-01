@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <map>
+
 #include <common_test_utils/test_common.hpp>
 
 #include "intel_npu/config/config.hpp"
@@ -660,6 +662,31 @@ TEST_F(MoETransformationTest, BuildQwen3MoELLM_HasExpertAndRouterNodes) {
     EXPECT_EQ(router_divide_count, 2u) << "One router Divide (renormalization) per layer";
 }
 
+// Minimal Qwen3 MoE config: num_experts + moe_factory, everything else defaulted.
+TEST_F(MoETransformationTest, Qwen3MoE_MinimalConfigBuildsFromFactory) {
+    ov::test::npuw::ModelBuilder mb;
+    ov::test::npuw::LLMConfig cfg;
+    cfg.num_experts = 8;
+    cfg.moe_factory = ov::test::npuw::make_qwen3_moe_ffn;
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = mb.build_llm(cfg));
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_swish = false, has_softmax = false, has_topk = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v4::Swish>(op))
+            has_swish = true;
+        if (std::dynamic_pointer_cast<ov::op::v8::Softmax>(op))
+            has_softmax = true;
+        if (std::dynamic_pointer_cast<ov::op::v11::TopK>(op))
+            has_topk = true;
+    }
+    EXPECT_TRUE(has_tile && has_swish && has_softmax && has_topk);
+}
+
 inline ::intel_npu::Config make_moe_isolate_cfg() {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::registerNPUWOptions(*opt_desc);
@@ -675,11 +702,10 @@ inline size_t count_groups_with_tag(const ov::npuw::Ensemble& ens, const std::st
         }));
 }
 
-// End-to-end: the real NPUW online partitioner, with the MOE isolation preset, must tag
-// expert and router groups in the builder's Qwen3 MoE model — i.e. the Qwen3Expert and
-// Qwen3Router pattern matchers actually fire on what the builder emits. This is the
-// validation that matters: structural op counts above don't prove the matchers bind.
-TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpertAndRouter) {
+// The online partitioner with the MOE preset must isolate an expert group from the builder's
+// output. Only the expert is asserted: since #36427 Qwen3Router isolates nothing (it only tags
+// K on the TopK), so router coverage lives in the device-routed-transform test and moe_k_tag_test.
+TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpert) {
     auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
     ASSERT_NE(model, nullptr);
 
@@ -694,11 +720,9 @@ TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpertAndRouter)
     auto cfg = make_moe_isolate_cfg();
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
-    // The matchers binding is what we're proving — at least one expert and one router group
-    // must form. (Exact group counts depend on the partitioner's fusion heuristics, which
-    // may merge the per-layer routers, so we don't couple the assertion to layer count.)
+    // Qwen3Expert bound -> at least one expert group. (Exact count depends on the
+    // partitioner's fusion heuristics, so we don't couple the assertion to layer count.)
     EXPECT_GE(count_groups_with_tag(ens, "expert"), 1u) << "Qwen3Expert did not isolate any expert group";
-    EXPECT_GE(count_groups_with_tag(ens, "router"), 1u) << "Qwen3Router did not isolate any router group";
 }
 
 // End-to-end against the *production* MoE pipeline (not just the matchers): the full
@@ -745,13 +769,18 @@ TEST_F(MoETransformationTest, Qwen3MoE_DeviceRoutedTransformRewritesBuilderOutpu
         << "ApplyMoEDeviceRoutedTransforms did not rewrite the builder's Qwen3 MoE";
 
     constexpr int64_t kTopK = 2;
+    size_t checked_tiles = 0;
     for (const auto& op : model->get_ordered_ops()) {
-        if (auto tile = ov::as_type_ptr<ov::op::v0::Tile>(op)) {
-            auto rep = ov::as_type_ptr<ov::op::v0::Constant>(tile->input_value(1).get_node_shared_ptr());
-            ASSERT_NE(rep, nullptr);
-            EXPECT_EQ(rep->cast_vector<int64_t>()[0], kTopK) << "Tile repeat[0] should be rewritten to k";
+        auto tile = ov::as_type_ptr<ov::op::v0::Tile>(op);
+        if (!tile || tile->get_friendly_name().find("expert") == std::string::npos) {
+            continue;  // skip non-MoE tiles (masks/embeddings)
         }
+        auto rep = ov::as_type_ptr<ov::op::v0::Constant>(tile->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(rep, nullptr);
+        EXPECT_EQ(rep->cast_vector<int64_t>()[0], kTopK) << "expert Tile repeat[0] should be rewritten to k";
+        ++checked_tiles;
     }
+    EXPECT_GT(checked_tiles, 0u) << "no expert Tile found to verify";
 }
 
 

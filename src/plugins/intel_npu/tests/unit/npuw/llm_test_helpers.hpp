@@ -165,14 +165,10 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
 /// plain static reshape — no StatefulToStateless dance needed.
 inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
     ModelBuilder mb;
-    constexpr size_t kExperts = 8, kTopK = 2;
     auto cfg = make_test_model_config();
-    cfg.num_experts = kExperts;
-    cfg.num_experts_per_tok = kTopK;
-    // Select the Qwen3 MoE topology by plugging in its FFN functor (like cfg.norm = RMSNorm(...)).
-    // An empty WeightFn keeps Qwen3MoEFFN's i4 CompressedWeight default — the DQ chain the
-    // Qwen3 matchers bind to.
-    cfg.ffn = Qwen3MoEFFN(cfg.hidden_size, cfg.intermediate_size, kExperts, kTopK, cfg.precision);
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = make_qwen3_moe_ffn;
     cfg.use_kv_cache = false;  // stateless; MoE patterns don't touch attention/KV
     return mb.build_llm(cfg);
 }
