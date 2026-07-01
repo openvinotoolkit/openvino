@@ -735,17 +735,31 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
-    detach_memory();
 
-    // Print stats report when possible
-    {
-        LOG_INFO("Initial device distribution:");
-        LOG_BLOCK();
-        log_device_dist();
+    // finalize_weights_bank() launches an asynchronous weights-evaluation task that
+    // captures this CompiledModel's members by reference (see m_eval_future). The
+    // destructor joins that task, but a C++ destructor is NOT invoked when an
+    // exception escapes the constructor - so if anything below throws, the async
+    // task would keep running against members that are about to be destroyed,
+    // causing a use-after-free. Guard the remainder of construction: on failure,
+    // wait for the async evaluation to complete before letting the exception out.
+    try {
+        detach_memory();
+        // Print stats report when possible
+        {
+            LOG_INFO("Initial device distribution:");
+            LOG_BLOCK();
+            log_device_dist();
+        }
+
+        implement_properties();
+        report_io();
+    } catch (...) {
+        if (m_eval_future.valid()) {
+            m_eval_future.wait();
+        }
+        throw;
     }
-
-    implement_properties();
-    report_io();
 }
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
