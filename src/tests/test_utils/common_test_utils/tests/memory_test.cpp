@@ -157,7 +157,7 @@ TEST_F(AlignedAllocTest, free_nullptr_is_noop) {
     EXPECT_NO_FATAL_FAILURE(util::aligned_free(nullptr));
 }
 
-class VmPrefetchMappedFileTest : public testing::TestWithParam<size_t> {
+class VmPrefetchMappedFileTest : public testing::TestWithParam<bool> {
 protected:
     std::filesystem::path m_file_path;
 
@@ -167,7 +167,7 @@ protected:
 };
 
 TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_data) {
-    const size_t num_threads = GetParam();
+    const bool fast = GetParam();
     const size_t size = 64 * util::min_page_alignment;
 
     const auto expected = utils::make_modulo_sequence_pattern(size);
@@ -179,11 +179,11 @@ TEST_P(VmPrefetchMappedFileTest, prefetch_faults_in_mapped_file_and_preserves_da
     ASSERT_NE(mapped, nullptr);
     ASSERT_EQ(mapped->size(), size);
 
-    EXPECT_NO_FATAL_FAILURE(util::vm_prefetch(mapped->data(), mapped->size(), num_threads));
+    EXPECT_NO_FATAL_FAILURE(util::vm_prefetch(mapped->data(), mapped->size(), fast));
 
     EXPECT_THAT(expected, ElementsAreArray(reinterpret_cast<const uint8_t*>(mapped->data()), mapped->size()));
 }
 
-INSTANTIATE_TEST_SUITE_P(NumThreads, VmPrefetchMappedFileTest, testing::Values(0u, 5u, 10u));
+INSTANTIATE_TEST_SUITE_P(Fast, VmPrefetchMappedFileTest, testing::Bool());
 
 }  // namespace ov::test

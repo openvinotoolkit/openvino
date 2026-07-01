@@ -8,7 +8,6 @@
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
-#include <thread>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
@@ -304,6 +303,8 @@ public:
     void hint_evict(size_t offset, size_t size) noexcept override;
 
     void hint_prefetch(size_t offset, size_t size) override;
+
+    void hint_prefetch_async(size_t /*offset*/, size_t /*size*/) override {}
 
 private:
     /**
@@ -764,10 +765,9 @@ util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, si
 void MapHolder::hint_prefetch(size_t offset, size_t size) {
     // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
     if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
-        const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
         const auto aligned_size =
             util::align_size_up(region.m_length, static_cast<size_t>(util::get_system_page_size()));
-        util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+        util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, /*fast=*/false);
     }
 }
 

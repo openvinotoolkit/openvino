@@ -17,7 +17,6 @@
 #include <numeric>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -205,7 +204,7 @@ namespace strategy {
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
+    util::vm_prefetch(mapped->data(), mapped->size(), /*fast=*/false);
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
@@ -238,6 +237,19 @@ void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
     }
     volatile uint64_t sink = acc;
     (void)sink;
+}
+
+void parallel_loop_sync_then_memcpy(const std::filesystem::path& path, size_t file_size) {
+    auto mapped = load_mmap_object(path);
+    util::vm_prefetch(mapped->data(), mapped->size(), /*fast=*/false);
+    constexpr size_t chunk_size = 128 * util::one_mib;
+    std::vector<char> buffer(std::min(chunk_size, file_size));
+    volatile char sink = 0;
+    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
+        const size_t copy_size = std::min(chunk_size, file_size - offset);
+        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
+        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
+    }
 }
 
 void mmap_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {

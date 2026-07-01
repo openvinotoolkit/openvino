@@ -4,14 +4,25 @@
 
 #include <sys/mman.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cerrno>
+#include <condition_variable>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <future>
+#include <list>
+#include <mutex>
+#include <thread>
 #include <tuple>
+#include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov::util {
 
@@ -22,9 +33,140 @@ void madvise_hint(void* ptr, size_t size) noexcept {
     madvise(ptr, size, MADV_WILLNEED);
 }
 
-}  // namespace
+struct PageToucher {
+    const uint8_t* m_begin;
+    const uint8_t* m_end;
+    const size_t m_page_size;
 
-void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept;
+    void operator()() const noexcept {
+        volatile uint8_t local = 0;  // prevents the compiler from optimizing the loop away
+        for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
+            local += *begin;
+        }
+    }
+};
+
+/**
+ * @brief A small, bounded, process-wide thread pool used to run page-population tasks.
+ *
+ * Rather than spawning dedicated OS threads for every vm_prefetch(_async) call, tasks are
+ * queued and picked up by whichever of the pool's fixed worker threads becomes free. This
+ * keeps the number of live threads bounded regardless of how many prefetch calls are made
+ * concurrently.
+ */
+class PageTouchThreadPool {
+public:
+    static PageTouchThreadPool& instance() {
+        static PageTouchThreadPool pool;
+        return pool;
+    }
+
+    PageTouchThreadPool(const PageTouchThreadPool&) = delete;
+    PageTouchThreadPool& operator=(const PageTouchThreadPool&) = delete;
+
+    /**
+     * @brief Queues @p jobs for execution on the pool and returns a future per job that
+     * becomes ready once that job has run.
+     *
+     * Enqueueing is all-or-nothing: every throwing operation (task/future creation) happens on
+     * local state first, and the finished batch is spliced into the shared queue under the lock
+     * with a non-throwing list splice. If preparation throws (e.g. std::bad_alloc), nothing is
+     * enqueued and no job runs, so callers never observe a partially-submitted batch whose jobs
+     * might touch memory the caller believes was never scheduled.
+     */
+    std::vector<std::future<void>> submit(std::vector<std::function<void()>>&& jobs) {
+        std::vector<std::future<void>> futures;
+        futures.reserve(jobs.size());
+        std::list<std::function<void()>> pending;
+        for (auto& job : jobs) {
+            auto task = std::make_shared<std::packaged_task<void()>>(std::move(job));
+            futures.push_back(task->get_future());
+            pending.emplace_back([task]() {
+                (*task)();
+            });
+        }
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_queue.splice(m_queue.end(), pending);  // non-throwing: all-or-nothing enqueue
+        }
+        m_cv.notify_all();
+        return futures;
+    }
+
+    size_t worker_count() const noexcept {
+        return m_workers.size();
+    }
+
+private:
+    PageTouchThreadPool()
+        : m_workers(std::max<size_t>(1, std::min<size_t>(10, std::thread::hardware_concurrency()))) {
+        for (auto& worker : m_workers) {
+            worker = std::thread([this]() {
+                worker_loop();
+            });
+        }
+    }
+
+    ~PageTouchThreadPool() {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_stop = true;
+        }
+        m_cv.notify_all();
+        for (auto& worker : m_workers) {
+            if (worker.joinable()) {
+                worker.join();
+            }
+        }
+    }
+
+    void worker_loop() {
+        for (;;) {
+            std::function<void()> job;
+            {
+                std::unique_lock<std::mutex> lock(m_mutex);
+                m_cv.wait(lock, [this]() {
+                    return m_stop || !m_queue.empty();
+                });
+                if (m_queue.empty()) {
+                    if (m_stop) {
+                        return;  // fully drained: safe to let this worker exit.
+                    }
+                    continue;
+                }
+                job = std::move(m_queue.front());
+                m_queue.pop_front();
+            }
+            job();
+        }
+    }
+
+    std::vector<std::thread> m_workers;
+    std::list<std::function<void()>> m_queue;
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    bool m_stop = false;
+};
+
+/**
+ * @brief Splits [ptr, ptr + size) into page-toucher jobs (one per chunk) and submits them to the
+ * shared @ref PageTouchThreadPool, returning a future per job.
+ */
+std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size) {
+    // ptr and size are guaranteed page-aligned by vm_prefetch's precondition.
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    const auto num_threads = PageTouchThreadPool::instance().worker_count();
+    const auto chunk_size = std::max<size_t>(align_size_up(size / num_threads, page_size), 1024 * 1024);
+
+    std::vector<std::function<void()>> jobs;
+    jobs.reserve(ceil_div(size, chunk_size));
+
+    for (auto first = reinterpret_cast<const uint8_t*>(ptr), last = first + size; first < last; first += chunk_size) {
+        jobs.emplace_back(PageToucher{first, std::min(first + chunk_size, last), page_size});
+    }
+    return PageTouchThreadPool::instance().submit(std::move(jobs));
+}
+}  // namespace
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
     if (alignment == 0) {
@@ -74,13 +216,40 @@ void vm_release(void* ptr, size_t size) noexcept {
     std::ignore = munmap(ptr, size);
 }
 
-void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+void vm_prefetch(void* ptr, size_t size, bool fast) noexcept {
     assert(ptr != nullptr && size > 0);
-    if (num_threads == 0) {
+    // assert if region is not mmap-backed.
+
+    if (fast) {
+        // Option 1: OS advisory hints — async, low overhead.
         madvise_hint(ptr, size);
     } else {
-        // blocks until every page has been faulted in.
-        populate_pages(ptr, size, num_threads);
+        // Option 2: parallel synchronous touch — blocks until every page is resident.
+        // Must not be called from a PageTouchThreadPool worker thread: it blocks on that shared
+        // pool, so if every worker were parked here no worker would remain to run the jobs.
+        // Prefetching is best-effort, so on allocation failure fall back to an advisory hint
+        // rather than letting an exception escape this noexcept function (which would
+        // std::terminate).
+        try {
+            PrefetchToken(submit_page_toucher_tasks(ptr, size)).wait();
+        } catch (...) {
+            madvise_hint(ptr, size);
+        }
+    }
+}
+
+PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept {
+    assert(ptr != nullptr && size > 0);
+
+    // Submit the touchers to the shared pool but do not wait on them here — ownership of the
+    // futures is transferred to the token, whose destructor (or explicit wait()) waits on them.
+    // Prefetching is best-effort: if submission fails (e.g. std::bad_alloc) fall back to an
+    // advisory hint and return an empty token instead of throwing out of this noexcept function.
+    try {
+        return PrefetchToken(submit_page_toucher_tasks(ptr, size));
+    } catch (...) {
+        madvise_hint(ptr, size);
+        return PrefetchToken{};
     }
 }
 

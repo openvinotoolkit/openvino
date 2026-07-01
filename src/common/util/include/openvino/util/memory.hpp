@@ -7,8 +7,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <future>
 #include <string>
 #include <system_error>
+#include <vector>
 
 namespace ov::util {
 
@@ -122,12 +124,116 @@ void vm_release(void* ptr, size_t size) noexcept;
  *
  * Works with both anonymous (@ref vm_commit) and file-backed (mmap) regions.
  *
+ * @param ptr   Base address of the range. Must be page-aligned.
+ * @param size  Number of bytes to pre-fetch. Must be a multiple of the system page size.
+ * @param fast  Strategy selector:
+ *              - @c true (default) → OS advisory hint (async, low overhead).
+ *              - @c false          → parallel synchronous touch that blocks until every page is
+ *                resident. The degree of parallelism is chosen internally (see the shared pool
+ *                used by @ref vm_prefetch_async), not by the caller.
+ */
+void vm_prefetch(void* ptr, size_t size, bool fast = true) noexcept;
+
+/**
+ * @brief Move-only RAII token representing background page-population work started by
+ * @ref vm_prefetch_async.
+ *
+ * The work itself runs on a shared, bounded background thread pool (see @ref vm_prefetch_async):
+ * the token owns the `std::future`s of the submitted tasks, not dedicated OS threads. Call
+ * wait() to block until the population completes, or simply let the token go out of scope —
+ * its destructor waits for all outstanding tasks, so no background work is ever left running
+ * uncontrolled.
+ *
+ * A default-constructed (or moved-from, or detached) token is "empty": wait() is a no-op and
+ * valid()/operator bool() return false.
+ *
+ * @note The token does not extend the lifetime of the underlying memory mapping/buffer that
+ * is being populated. The caller is responsible for keeping that memory alive until the
+ * token has completed (via wait(), destruction, or by taking over the futures via detach()).
+ */
+class PrefetchToken {
+public:
+    PrefetchToken() noexcept = default;
+    explicit PrefetchToken(std::vector<std::future<void>>&& tasks) noexcept : m_tasks(std::move(tasks)) {}
+
+    PrefetchToken(const PrefetchToken&) = delete;
+    PrefetchToken& operator=(const PrefetchToken&) = delete;
+
+    PrefetchToken(PrefetchToken&&) noexcept = default;
+
+    PrefetchToken& operator=(PrefetchToken&& other) noexcept {
+        if (this != &other) {
+            wait();  // avoid abandoning still-running tasks owned by *this via member assignment
+            m_tasks = std::move(other.m_tasks);
+        }
+        return *this;
+    }
+
+    ~PrefetchToken() {
+        wait();
+    }
+
+    /**
+     * @brief Blocks until all background population tasks complete, then releases them.
+     * Safe to call multiple times and on an empty token (no-op).
+     */
+    void wait() {
+        for (auto& task : m_tasks) {
+            if (task.valid()) {
+                task.wait();
+            }
+        }
+        m_tasks.clear();
+    }
+
+    /**
+     * @brief Detaches the background tasks from this token, transferring ownership of their
+     * futures to the caller, and returns them; the token's destructor will no longer wait for
+     * them (mirrors `std::thread::detach()`).
+     *
+     * The caller becomes responsible for the memory being populated remaining valid until the
+     * returned futures complete — either by storing and waiting on them itself (e.g. an object
+     * whose memory is being populated can join them before it tears that memory down), or, if
+     * discarded outright, by guaranteeing the memory outlives the background work some other
+     * way.
+     *
+     * After detach(), the token is empty (valid() == false).
+     */
+    std::vector<std::future<void>> detach() noexcept {
+        auto tasks = std::move(m_tasks);
+        m_tasks.clear();
+        return tasks;
+    }
+
+    /** @brief Returns true if the token owns outstanding background work. */
+    bool valid() const noexcept {
+        return !m_tasks.empty();
+    }
+
+    explicit operator bool() const noexcept {
+        return valid();
+    }
+
+private:
+    std::vector<std::future<void>> m_tasks;
+};
+
+/**
+ * @brief Asynchronous variant of @ref vm_prefetch.
+ *
+ * Starts pre-fetching a committed VM range into physical memory by submitting page-touching
+ * tasks to a small, shared background thread pool, and returns immediately with a
+ * @ref PrefetchToken that must be used to wait for completion (explicitly via wait(), or
+ * implicitly by letting the token go out of scope).
+ *
+ * Unlike spawning dedicated threads per call, repeated calls reuse the same bounded set of
+ * pool worker threads: tasks queue up and are picked up by whichever worker becomes free.
+ *
  * @param ptr         Base address of the range. Must be page-aligned.
  * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
- * @param num_threads Strategy selector:
- *                    - @c 0 (default) → OS advisory hint (async, low overhead).
- *                    - @c N >= 1      → parallel touch with N threads (synchronous).
+ * @return A @ref PrefetchToken owning the submitted tasks' futures (empty if the pages could not
+ * be scheduled for population, e.g. on allocation failure).
  */
-void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
+PrefetchToken vm_prefetch_async(void* ptr, size_t size) noexcept;
 
 }  // namespace ov::util
