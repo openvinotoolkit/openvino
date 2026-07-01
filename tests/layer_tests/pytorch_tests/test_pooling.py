@@ -350,15 +350,22 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
     @pytest.mark.precommit
     def test_max_pool_dynamic_kernel_sliding_window_unsupported(self, ie_device, precision, ir_version):
         # A static window > 1 mixed with a dynamic full-extent axis is a genuine sliding-window pool
-        # that a ReduceMax cannot represent: conversion must fail with a clear message.
+        # that a ReduceMax cannot represent: conversion must fail with a clear message. Convert
+        # directly (like the det/svd negative tests) so this expected conversion failure skips
+        # _test's retry/inference plumbing.
         class aten_max_pool_mixed(torch.nn.Module):
             def forward(self, x):
                 return torch.nn.functional.max_pool2d(x, kernel_size=[3, x.size(3)])
 
-        self.input_tensor = self.random.randn(1, 8, 15, 20).astype(np.float32)
+        example = torch.randn(1, 8, 15, 20, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_mixed(), example)
+        # A dynamic last axis keeps x.size(3) a runtime (non-constant) value, so the mixed
+        # static-window/dynamic-extent kernel survives to the frontend and the conversion-time
+        # guard fires. (A static last axis would const-fold the kernel to [3, 20] and hit the
+        # ordinary static MaxPool path, which does not raise.)
         with pytest.raises(Exception):
-            self._test(aten_max_pool_mixed(), "aten::max_pool2d", ie_device, precision, ir_version,
-                       trace_model=True, dynamic_shapes=False)
+            ov.convert_model(scripted, example_input=(example,),
+                             input=[ov.PartialShape([1, 8, 15, -1])])
 
     @pytest.mark.nightly
     @pytest.mark.precommit
