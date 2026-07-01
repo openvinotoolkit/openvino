@@ -18,7 +18,7 @@ namespace ov::intel_gpu::ocl::moe {
 /// Holds the slot indices produced by a simultaneous acquisition.
 /// Valid until release() is called (or provider destruction).
 struct ExpertSlotLease {
-    std::vector<uint32_t> slots;  // parallel to the input experts vector
+    std::vector<size_t> slots;  // parallel to the input experts vector
 };
 
 /// Lightweight view of routed expert weight/scale/zp triplets for 3 GEMMs.
@@ -55,7 +55,7 @@ public:
     // ids map to the same slot. For the resident strategy this is the identity
     // mapping (slot == expert id). For the offloaded strategy the caller must not
     // request more unique experts than resident_capacity() in one acquire().
-    virtual std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
+    virtual std::vector<size_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
 
     // Releases any pinning established by the most recent acquire(). Resident
     // providers have nothing to release.
@@ -104,7 +104,7 @@ public:
     virtual std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
 
     // Acquires a single expert slot. Always succeeds (evicts LRU if needed).
-    virtual uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) = 0;
+    virtual size_t acquire_one(uint32_t expert, cldnn::stream& stream) = 0;
 
     // Releases a lease. Currently a no-op for both providers but kept for
     // future pinning / reference-count semantics.

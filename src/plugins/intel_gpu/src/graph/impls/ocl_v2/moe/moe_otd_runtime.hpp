@@ -83,6 +83,6 @@ void fill_weights_memory(cldnn::stream& exec_stream,
                          const std::string& weights_path,
                          cldnn::moe_weights& wei_mem,
                          const std::vector<uint32_t>& experts_list,
-                         const std::vector<uint32_t>& lru_experts);
+                         const std::vector<size_t>& lru_experts);
 
 }  // namespace ov::intel_gpu::ocl::moe_otd

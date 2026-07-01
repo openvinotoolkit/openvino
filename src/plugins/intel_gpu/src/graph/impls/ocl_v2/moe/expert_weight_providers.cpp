@@ -16,17 +16,17 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
-std::vector<uint32_t> ResidentExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
+std::vector<size_t> ResidentExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Fully resident: the expert id is already the addressable slot.
-    return experts;
+    return std::vector<size_t>(experts.begin(), experts.end());
 }
 
 std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Resident: identity mapping, always succeeds.
-    return ExpertSlotLease{experts};
+    return ExpertSlotLease{std::vector<size_t>(experts.begin(), experts.end())};
 }
 
-uint32_t ResidentExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& /*stream*/) {
+size_t ResidentExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& /*stream*/) {
     return expert;
 }
 
@@ -46,12 +46,12 @@ void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
     _bound = true;
 }
 
-std::vector<uint32_t> OffloadExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
-    std::vector<uint32_t> slots(experts.size());
+std::vector<size_t> OffloadExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
+    std::vector<size_t> slots(experts.size());
 
     // Deduplicate while preserving first-seen order so the LRU eviction order is
     // identical to the legacy per-expert remap path.
-    std::unordered_map<uint32_t, uint32_t> expert_to_slot;
+    std::unordered_map<uint32_t, size_t> expert_to_slot;
     expert_to_slot.reserve(experts.size());
 
     auto* perf = moe_otd::get_perf_counters();
@@ -65,8 +65,7 @@ std::vector<uint32_t> OffloadExpertWeightProvider::acquire(const std::vector<uin
         }
 
         const auto item = _cache->get_lru_item(expert);
-        OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()), "LRU slot index overflow: ", item.first);
-        const auto slot = static_cast<uint32_t>(item.first);
+        const auto slot = item.first;
 
         if (item.second) {
             if (perf)
@@ -102,10 +101,10 @@ void OffloadExpertWeightProvider::fill_routed_weight_views(cldnn::moe_weights& /
 
 std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
     // Deduplicate to check capacity
-    std::unordered_map<uint32_t, uint32_t> expert_to_slot;
+    std::unordered_map<uint32_t, size_t> expert_to_slot;
     expert_to_slot.reserve(experts.size());
 
-    std::vector<uint32_t> slots(experts.size());
+    std::vector<size_t> slots(experts.size());
     auto* perf = moe_otd::get_perf_counters();
 
     for (size_t i = 0; i < experts.size(); i++) {
@@ -122,8 +121,7 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
         }
 
         const auto item = _cache->get_lru_item(expert);
-        OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-        const auto slot = static_cast<uint32_t>(item.first);
+        const auto slot = item.first;
 
         if (item.second) {
             if (perf)
@@ -143,12 +141,11 @@ std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultan
     return ExpertSlotLease{std::move(slots)};
 }
 
-uint32_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& stream) {
+size_t OffloadExpertWeightProvider::acquire_one(uint32_t expert, cldnn::stream& stream) {
     auto* perf = moe_otd::get_perf_counters();
 
     const auto item = _cache->get_lru_item(expert);
-    OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-    const auto slot = static_cast<uint32_t>(item.first);
+    const auto slot = item.first;
 
     if (item.second) {
         if (perf)

@@ -664,7 +664,8 @@ public:
     void remap_expert_ids_to_lru_slots(cldnn::stream& stream, uint32_t* expert_ids, size_t count) {
         std::vector<uint32_t> ids(expert_ids, expert_ids + count);
         auto slots = _weight_provider->acquire(ids, stream);
-        std::copy(slots.begin(), slots.end(), expert_ids);
+        for (size_t i = 0; i < count; i++)
+            expert_ids[i] = static_cast<uint32_t>(slots[i]);
     }
 
     void resolve_experts_to_lru_slots(cldnn::stream& stream,
@@ -684,7 +685,11 @@ public:
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
-        scratch._expert_index_buffer->copy_from(stream, slots.data(), 0, 0, topk_bytes, true);
+        // Narrow size_t slots to uint32_t for the GPU buffer
+        std::vector<uint32_t> slots_u32(slots.size());
+        for (size_t i = 0; i < slots.size(); i++)
+            slots_u32[i] = static_cast<uint32_t>(slots[i]);
+        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
         batch_mem_ptr = scratch._expert_index_buffer;
     }
 
@@ -772,7 +777,7 @@ public:
 
         auto& stream = instance.get_network().get_stream();
         auto& dnnl_weights = _dnnl_weights[expert_no];
-        auto lru_expert_no = _weight_provider->acquire({static_cast<uint32_t>(expert_no)}, stream)[0];
+        auto lru_expert_no = static_cast<int64_t>(_weight_provider->acquire({static_cast<uint32_t>(expert_no)}, stream)[0]);
         auto& params = instance._weights;
 
 #    define CONVERT_DNNL_OTD(name, i)                                                                                                                  \

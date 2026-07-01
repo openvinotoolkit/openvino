@@ -471,7 +471,7 @@ TEST(moe_expert_weight_provider, resident_is_identity) {
     // (no remap, no dedup) — the expert id is already the addressable slot.
     std::vector<uint32_t> experts = {3, 1, 4, 1, 5, 9, 2, 6};
     auto slots = provider.acquire(experts, get_test_stream());
-    ASSERT_EQ(slots, experts);
+    ASSERT_EQ(slots, (std::vector<size_t>{3, 1, 4, 1, 5, 9, 2, 6}));
 }
 
 TEST(moe_expert_weight_provider, offload_construction_state) {
@@ -506,12 +506,12 @@ TEST(moe_expert_weight_provider, resident_try_acquire_simultaneous_is_identity) 
     std::vector<uint32_t> experts = {3, 7, 3, 1, 7};
     auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
     ASSERT_TRUE(lease.has_value());
-    ASSERT_EQ(lease->slots, experts);
+    ASSERT_EQ(lease->slots, (std::vector<size_t>{3, 7, 3, 1, 7}));
 }
 
 TEST(moe_expert_weight_provider, resident_acquire_one_is_identity) {
     ResidentExpertWeightProvider provider;
     ASSERT_EQ(provider.acquire_one(42, get_test_stream()), 42U);
-    ASSERT_EQ(provider.acquire_one(0, get_test_stream()), 0U);
+    ASSERT_EQ(provider.acquire_one(0, get_test_stream()), static_cast<size_t>(0));
 }
 

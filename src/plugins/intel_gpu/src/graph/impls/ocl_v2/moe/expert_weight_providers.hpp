@@ -21,7 +21,7 @@ namespace ov::intel_gpu::ocl::moe {
 // behaviour of the non-offloaded (ratio=0) path.
 class ResidentExpertWeightProvider : public IExpertWeightProvider {
 public:
-    std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    std::vector<size_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return 0;
     }
@@ -31,7 +31,7 @@ public:
 
     // Lease API: resident provider is identity mapping
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
-    uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
@@ -47,7 +47,7 @@ class OffloadExpertWeightProvider : public IExpertWeightProvider {
 public:
     OffloadExpertWeightProvider(size_t capacity, const cldnn::MOECompressed::Config& config, std::vector<size_t> weight_bin_offsets, std::string weights_path);
 
-    std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    std::vector<size_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return _capacity;
     }
@@ -62,7 +62,7 @@ public:
     }
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
-    uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
 
     LRUCache& cache() {
         return *_cache;
