@@ -31,6 +31,7 @@
 #include "onnx_framework_node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
@@ -106,12 +107,37 @@ bool is_graph_iterator_enabled() {
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
+    // first loop just to check if there are external weights or not (WA)
+    bool hasExternalWeights = false;
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
         const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
-        const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-            ov::WeightlessCacheAttribute(0, idx, const_node->get_element_type());
+
+        if (ov::wsh::Extension::get_constant_id(*const_node) != ov::wsh::invalid_constant_id) {
+            hasExternalWeights = true;
+            break;
+        }
+    }
+
+    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        if (const_node == nullptr)
+            continue;
+
+        if (!hasExternalWeights) {
+            // topological order ids for internal weights only
+            const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(0, idx, const_node->get_element_type());
+            continue;
+        }
+
+        if (auto constant_id = ov::wsh::Extension::get_constant_id(*const_node);
+            constant_id != ov::wsh::invalid_constant_id) {
+            // populate WCAs with constant_id only for external weights
+            const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(0, constant_id, const_node->get_element_type());
+        }
     }
 }
 // !!! End of Experimental feature
