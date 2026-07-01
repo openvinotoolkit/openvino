@@ -7,10 +7,13 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
+#include <intel_gpu/primitives/grouped_matmul.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/reference/reshape.hpp"
+#include "openvino/reference/grouped_matmul.hpp"
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
@@ -3891,4 +3894,87 @@ TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d_cached) {
     this->test_transpose_matmul_transpose(4, true, true);
 }
 #endif
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Smoke test: cldnn::grouped_matmul (2D x 3D case of GroupedMatMul-17) via onednn.
+// Compared against ov::reference::grouped_matmul_2d_3d.
+TEST(grouped_matmul_gpu_tests, smoke_2d_3d_f16) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "grouped_matmul onednn impl requires XMX/DPAS support (Xe-HPG+)";
+
+    // Small shapes to keep the smoke test cheap.
+    constexpr size_t G = 3;    // number of experts
+    constexpr size_t K = 128;  // hidden size (multiple of 16 for onednn tile)
+    constexpr size_t N = 64;   // output features
+
+    // Token distribution across experts: [4, 0, 6] -> total 10 rows.
+    const std::vector<int32_t> tokens_per_expert = {4, 0, 6};
+    const size_t total_tokens = std::accumulate(tokens_per_expert.begin(), tokens_per_expert.end(), size_t{0});
+
+    // Cumulative end-offsets: [4, 4, 10].
+    std::vector<int32_t> offsets(G);
+    offsets[0] = tokens_per_expert[0];
+    for (size_t i = 1; i < G; ++i)
+        offsets[i] = offsets[i - 1] + tokens_per_expert[i];
+
+    tests::random_generator rg("grouped_matmul_smoke");
+    auto mat_a_f32 = rg.generate_random_1d<float>(total_tokens * K, -0.5f, 0.5f);
+    auto mat_b_f32 = rg.generate_random_1d<float>(G * N * K, -0.5f, 0.5f);
+
+    std::vector<ov::float16> mat_a_f16(mat_a_f32.size());
+    std::vector<ov::float16> mat_b_f16(mat_b_f32.size());
+    for (size_t i = 0; i < mat_a_f32.size(); ++i) mat_a_f16[i] = ov::float16(mat_a_f32[i]);
+    for (size_t i = 0; i < mat_b_f32.size(); ++i) mat_b_f16[i] = ov::float16(mat_b_f32[i]);
+
+    // Allocate device memory.
+    auto mat_a_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(total_tokens), K},
+                                             data_types::f16, format::bfyx});
+    auto mat_b_mem = engine.allocate_memory({ov::PartialShape{G, N, K}, data_types::f16, format::bfyx});
+    auto off_mem   = engine.allocate_memory({ov::PartialShape{G}, data_types::i32, format::bfyx});
+
+    set_values(mat_a_mem, mat_a_f16);
+    set_values(mat_b_mem, mat_b_f16);
+    set_values(off_mem, offsets);
+
+    topology tp;
+    tp.add(input_layout("mat_a", mat_a_mem->get_layout()));
+    tp.add(data("mat_b", mat_b_mem));
+    tp.add(input_layout("offsets", off_mem->get_layout()));
+    tp.add(grouped_matmul("gmm",
+                          {input_info("mat_a"), input_info("mat_b"), input_info("offsets")},
+                          data_types::f16));
+    tp.add(reorder("output", input_info("gmm"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network net(engine, tp, config);
+    net.set_input_data("mat_a", mat_a_mem);
+    net.set_input_data("offsets", off_mem);
+    auto out_mem = net.execute().at("output").get_memory();
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    std::vector<float> gpu_out(out_ptr.begin(), out_ptr.end());
+
+    // Reference computed on f16 inputs to match GPU accumulation precision profile.
+    std::vector<ov::float16> ref_out_f16(total_tokens * N, ov::float16(0.f));
+    ov::reference::grouped_matmul_2d_3d<ov::float16, int32_t>(mat_a_f16.data(),
+                                                              mat_b_f16.data(),
+                                                              offsets.data(),
+                                                              ref_out_f16.data(),
+                                                              ov::Shape{total_tokens, K},
+                                                              ov::Shape{G, N, K});
+    std::vector<float> ref_out(ref_out_f16.size());
+    for (size_t i = 0; i < ref_out_f16.size(); ++i) ref_out[i] = static_cast<float>(ref_out_f16[i]);
+
+    ASSERT_EQ(gpu_out.size(), ref_out.size());
+    // f16 GEMM accumulation over K -> relative tolerance ~ few percent.
+    for (size_t i = 0; i < gpu_out.size(); ++i) {
+        const float diff = std::abs(gpu_out[i] - ref_out[i]);
+        const float tol = 0.05f * std::max(1.f, std::abs(ref_out[i]));
+        ASSERT_LE(diff, tol) << "mismatch at i=" << i << ": gpu=" << gpu_out[i] << ", ref=" << ref_out[i];
+    }
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 } // namespace
