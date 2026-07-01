@@ -359,20 +359,21 @@ void print_runtime_parameters(const ov::CompiledModel& compiled_model) {
 }
 
 size_t parse_iterations(const std::string& value) {
+    static constexpr const char* kMsg = "-niter/--niter requires a positive integer value.";
     if (value.empty() || value.front() == '-') {
-        OPENVINO_THROW("--niter requires a positive integer value.");
+        OPENVINO_THROW(kMsg);
     }
 
     try {
         size_t parsed_characters = 0;
         const auto iterations = std::stoull(value, &parsed_characters);
         if (parsed_characters != value.size() || iterations == 0 || iterations > std::numeric_limits<size_t>::max()) {
-            OPENVINO_THROW("--niter requires a positive integer value.");
+            OPENVINO_THROW(kMsg);
         }
 
         return static_cast<size_t>(iterations);
     } catch (const std::exception&) {
-        OPENVINO_THROW("--niter requires a positive integer value.");
+        OPENVINO_THROW(kMsg);
     }
 }
 
