@@ -496,9 +496,22 @@ int tmain(int argc, tchar* argv[]) {
         if (parsed_devices.empty()) {
             throw std::logic_error("Failed to parse device name: " + device_name);
         }
-        if (!fallback_device.empty() && affinity_spec.empty()) {
-            throw std::logic_error("The --fallback-device option requires -affinity. "
-                                   "Please provide an affinity JSON file or remove --fallback-device.");
+        auto has_json_extension = [](const std::string& value) {
+            const auto lower = to_lower(value);
+            static constexpr std::string_view json_ext = ".json";
+            return lower.size() >= json_ext.size() &&
+                   lower.compare(lower.size() - json_ext.size(), json_ext.size(), json_ext) == 0;
+        };
+
+        if (!fallback_device.empty()) {
+            if (affinity_spec.empty()) {
+                throw std::logic_error("The --fallback-device option requires -affinity. "
+                                       "Please provide an affinity JSON file or remove --fallback-device.");
+            }
+            if (!has_json_extension(affinity_spec)) {
+                throw std::logic_error(
+                    "The --fallback-device option is supported only with -affinity <path_to_affinity_json>.");
+            }
         }
         if (!affinity_spec.empty() && (parsed_devices.front() != "HETERO" || hardware_devices.empty())) {
             throw std::logic_error(
