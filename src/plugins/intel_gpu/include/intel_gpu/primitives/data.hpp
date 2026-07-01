@@ -411,9 +411,11 @@ struct data : public primitive_base<data> {
 
         allocation_type _allocation_type = allocation_type::unknown;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-        
+
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
+
+        OPENVINO_ASSERT(data_size == output_layout.bytes_count(), "corrupt blob");
 
         bool weightless_caching = false;
         ib >> weightless_caching;
@@ -425,7 +427,7 @@ struct data : public primitive_base<data> {
         if (!enable_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
-        
+
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {
