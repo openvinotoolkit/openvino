@@ -60,10 +60,9 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
                                                           const int group_size,
                                                           const ov::element::Type data_precision,
                                                           const ov::element::Type output_precision,
-                                                          const bool add_subtract,
-                                                          const bool reshape_on_decompression_constant,
-                                                          const bool per_tensor_zp,
-                                                          const bool per_tensor_scale);
+                                                          const DecompressionType decompression_multiply_type,
+                                                          const DecompressionType decompression_subtract_type,
+                                                          const bool reshape_on_decompression_constant);
 
 }  // namespace utils
 }  // namespace test
