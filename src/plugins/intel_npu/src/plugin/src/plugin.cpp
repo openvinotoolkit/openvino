@@ -211,8 +211,9 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(ov::AnyMap& properties) 
 template <typename OptionType>
 void register_option(OptionsDesc& options, FilteredConfig& config) {
     options.add<OptionType>();
-    const bool is_runtime_option = OptionType::mode() == OptionMode::RunTime;
-    config.enable(OptionType::key(), is_runtime_option);
+    const auto option_mode = OptionType::mode();
+    const bool is_enabled_by_default = option_mode == OptionMode::RunTime || option_mode == OptionMode::Both;
+    config.enable(OptionType::key(), is_enabled_by_default);
 }
 
 template <typename... OptionTypes>
@@ -293,6 +294,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
         register_option<Opt>(options, config);
     });
 
+    // Special cases
+    // Disable turbo in case driver is not present or it does not support the extension.
+    config.enable(ov::intel_npu::turbo.name(), backend != nullptr && backend->isCommandQueueExtSupported());
     // Disable workload type in case driver is not present or it does not support the extension.
     config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
     // Disable max tiles in case we don't have a device.
@@ -300,22 +304,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     // Disable idle memory pruning in case driver is not present or it does not support the extension.
     config.enable(ov::intel_npu::disable_idle_memory_prunning.name(),
                   backend != nullptr && backend->isContextExtSupported());
-
-    // Special cases - options with OptionMode::Both must be enabled
-    // for the plugin even if the compiler does not support them,
-    // because they may be used by the plugin itself or by the driver.
-    // We still check compiler support to decide whether these options
-    // should be removed from the config string.
-
-    // NPU_TURBO might be supported by the driver
-    if (backend && backend->isCommandQueueExtSupported()) {
-        config.enable(ov::intel_npu::turbo.name(), true);
-    }
-
-    // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
-    config.enable(ov::log::level.name(), true);
-    config.enable(ov::hint::performance_mode.name(), true);
-    config.enable(ov::enable_profiling.name(), true);
 
     if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
         auto device = backend->getDevice();
