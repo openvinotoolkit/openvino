@@ -1,5 +1,9 @@
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "op_table.h"
+#include "utils.h"
 #include <openvino/op/reshape.hpp>
 namespace ov {
 namespace frontend {

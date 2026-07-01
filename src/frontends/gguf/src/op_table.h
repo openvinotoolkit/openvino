@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include "node_context.h"
@@ -30,8 +34,9 @@ GGUF_OP_CONVERTER(translate_glu_geglu);
 GGUF_OP_CONVERTER(translate_set_rows);
 GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_flash_attn_ext);
+GGUF_OP_CONVERTER(translate_weight);
 
-} // namespace op
+}  // namespace op
 
 std::unordered_map<std::string, CreatorFunction> get_supported_ops();
 

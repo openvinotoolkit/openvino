@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <cstdint>
@@ -33,7 +37,9 @@ public:
         return m_translate_session;
     }
 
-    const std::vector<std::string>& get_input_names() const { return m_input_names; }
+    const std::vector<std::string>& get_input_names() const {
+        return m_input_names;
+    }
 
     size_t get_input_size() const override {
         return m_decoder->get_input_size(m_node_idx);
@@ -51,15 +57,17 @@ public:
         return m_decoder->get_input_stride(m_node_idx, m_input_names[index]);
     }
 
-    std::string get_output_name() const { return m_output_names[0]; }
-
-    PartialShape get_output_shape() const { return m_decoder->get_output_shape(m_node_idx); }
-
-    int32_t* get_input_op_params(size_t index) const {
-        return m_decoder->get_input_op_params(m_node_idx, m_input_names[index]);
+    int64_t get_input_view_offset(size_t index) const {
+        return m_decoder->get_input_view_offset(m_node_idx, m_input_names[index]);
     }
 
-    int32_t * get_output_op_params() const { return m_decoder->get_output_op_params(m_node_idx); }
+    std::string get_output_name() const {
+        return m_output_names[0];
+    }
+
+    PartialShape get_output_shape() const {
+        return m_decoder->get_output_shape(m_node_idx);
+    }
 
     ov::element::Type get_output_type() const {
         return m_decoder->get_output_type(m_node_idx);
@@ -85,16 +93,20 @@ public:
     }
 
     ov::Any get_attribute_as_any(const std::string& name) const override {
-        return m_decoder->get_attribute(name);
+        return m_decoder->get_attribute(m_node_idx, name);
     }
 
     int get_op_case() const {
         return m_decoder->get_op_case(m_node_idx);
     }
 
-    bool is_static() const { return m_decoder->is_static(); }
+    bool is_static() const {
+        return m_decoder->is_static();
+    }
 
-    bool is_stateful() const { return m_decoder->is_stateful(); }
+    bool is_stateful() const {
+        return m_decoder->is_stateful();
+    }
 
 private:
     std::shared_ptr<GgufDecoder> m_decoder;

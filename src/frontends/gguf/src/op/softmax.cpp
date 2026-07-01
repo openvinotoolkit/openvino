@@ -1,6 +1,6 @@
-#include "../node_context.h"
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include <climits>
 #include <cstdint>
@@ -17,27 +17,28 @@
 #include <openvino/op/softmax.hpp>
 #include <vector>
 
+#include "node_context.h"
+#include "op_table.h"
+#include "utils.h"
+
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_soft_max(const NodeContext & context) {
+OutputVector translate_soft_max(const NodeContext& context) {
     // TODO code is outdated
     num_inputs_check(context, 1, 2);
 
     auto input_node = context.get_input(0).get_node_shared_ptr();
     ov::Output<Node> res;
 
-    float scale = 1.0f;
-    float max_bias = 0.0f;
-    auto * op_params = context.get_output_op_params();
-    memcpy(&scale, (float *) op_params + 0, sizeof(float));
-    memcpy(&max_bias, (float *) op_params + 1, sizeof(float));
+    float scale = context.get_attribute<float>("scale", 1.0f);
+    float max_bias = context.get_attribute<float>("max_bias", 0.0f);
     auto src0_shape = context.get_input_shape(0).get_shape();
     const uint32_t h = src0_shape[2];
     const uint32_t n_head = src0_shape[0];
-    const uint32_t n_head_log2 = 1u << (uint32_t) floor(log2(n_head));
+    const uint32_t n_head_log2 = 1u << (uint32_t)floor(log2(n_head));
 
     const float m0 = powf(2.0f, -(max_bias) / n_head_log2);
     const float m1 = powf(2.0f, -(max_bias / 2.0f) / n_head_log2);

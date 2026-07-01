@@ -1,6 +1,10 @@
-#include "../node_context.h"
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "node_context.h"
+#include "op_table.h"
+#include "utils.h"
 
 #include <cstdint>
 #include <memory>

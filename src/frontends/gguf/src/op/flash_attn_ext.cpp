@@ -1,6 +1,6 @@
-#include "../node_context.h"
-#include "../op_table.h"
-#include "../utils.h"
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include <cstdint>
 #include <memory>
@@ -14,22 +14,25 @@
 #include <openvino/op/unsqueeze.hpp>
 #include <string>
 
+#include "node_context.h"
+#include "op_table.h"
+#include "utils.h"
+
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_flash_attn_ext(const NodeContext & context) {
+OutputVector translate_flash_attn_ext(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto q_f32 = context.get_input(0);
     auto k = context.get_input(1);
     auto v = context.get_input(2);
     auto mask = context.get_input(3);
 
-    float * params = reinterpret_cast<float *>(context.get_output_op_params());
-    float scale = params[0];
-    // float max_bias      = params[1];
-    // float logit_softcap = params[2];
+    float scale = context.get_attribute<float>("scale");
+    // float max_bias      = context.get_attribute<float>("max_bias");
+    // float logit_softcap = context.get_attribute<float>("logit_softcap");
 
     auto q = std::make_shared<ov::op::v0::Convert>(q_f32, ov::element::f16);
     auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, std::vector<float>{scale});
@@ -60,12 +63,14 @@ OutputVector translate_flash_attn_ext(const NodeContext & context) {
             auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {2});
             kv_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axes);
 
-            kv_broadcast_shape = ov::op::v0::Constant::create(
-                ov::element::i64, {5}, {(int64_t) 1, (int64_t) 1, factor, (int64_t) 1, (int64_t) 1});
+            kv_broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                              {5},
+                                                              {(int64_t)1, (int64_t)1, factor, (int64_t)1, (int64_t)1});
             new_kv_shape =
-                ov::op::v0::Constant::create(ov::element::i64, {4}, {(int64_t) 0, num_heads, (int64_t) -1, head_size});
+                ov::op::v0::Constant::create(ov::element::i64, {4}, {(int64_t)0, num_heads, (int64_t)-1, head_size});
 
-            kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed, kv_broadcast_shape,
+            kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed,
+                                                         kv_broadcast_shape,
                                                          ov::op::BroadcastType::BIDIRECTIONAL);
             kv = std::make_shared<ov::op::v1::Reshape>(kv, new_kv_shape, true);
         }
