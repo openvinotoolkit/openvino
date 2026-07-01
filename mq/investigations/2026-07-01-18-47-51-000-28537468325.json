@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-01-18-47-51-000-28537468325",
+  "timestamp": "2026-07-01T18:47:51Z",
+  "run_id": "28537468325",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28537468325",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36581",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36581",
+  "author": "v-Golubev",
+  "category": "Infrastructure",
+  "title": "Windows Build openvino_package upload fails silently before blob upload on self-hosted runner",
+  "signature": "artifact upload fails silently no error message before beginning blob upload after file validation|Infrastructure",
+  "signature_hash": "89059626d1cbf7b3",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Upload OpenVINO package step exits without error message before beginning blob upload"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall Windows CI status check fails due to Build/Build failure"
+    }
+  ],
+  "key_errors": [
+    "With the provided path, there will be 1 file uploaded",
+    "Artifact name is valid!",
+    "Root directory input is valid!",
+    "Post job cleanup. (immediately follows within 250ms, no upload began - no 'Beginning upload of artifact content to blob storage' message appeared)"
+  ],
+  "root_cause": "The actions/upload-artifact@043fb46d action on the Windows self-hosted runner validated the openvino_package.zip file successfully (1 file found, name and root directory valid) but exited with failure immediately after printing 'Root directory input is valid!' without printing 'Beginning upload of artifact content to blob storage'. No error message was logged. This silent failure pattern is consistent with a transient GitHub Actions artifact service API connectivity issue from the self-hosted Windows runner - the API call to register/create the artifact likely returned an error that was silently swallowed by this pinned action version, or the runner's network dropped between validation and upload initiation. The first artifact in the same job (compile_commands_windows_Release.zip, ~1.3MB via action pin b7c566a) succeeded normally, suggesting the failure may be specific to the 043fb46d action version behavior or a network state change between the two uploads ~3 seconds apart. This is the second Windows Build artifact upload failure today (prior run 28505410343 for PR #36640 had ENOTFOUND during FinalizeArtifact).",
+  "reproduction_steps": "N/A - Transient infrastructure issue not reproducible outside CI. Retry the merge queue run.",
+  "recommended_actions": [
+    "Retry the merge queue run for PR #36581 - this is likely a transient infrastructure issue",
+    "If failures persist, investigate Windows self-hosted runner network connectivity to GitHub Actions artifact service (api.github.com)",
+    "Consider upgrading the pinned actions/upload-artifact SHA from 043fb46d to a more recent v4 release tag to get better error logging",
+    "Monitor for repeated failures on Windows runners - two artifact upload failures today (runs 28505410343 and 28537468325) may indicate a degraded runner"
+  ],
+  "prevention_strategies": "Consider using a more stable pinned version of actions/upload-artifact that provides clear error messages when artifact service is unreachable. Add retry logic or continue-on-error with explicit error reporting for artifact upload steps on self-hosted Windows runners.",
+  "historical_context": "Similar Windows self-hosted runner artifact service failures seen today: run 28505410343 (PR #36640) had 'Failed to FinalizeArtifact: Unable to make request: ENOTFOUND' in the same Build/Build job step. Pattern 6b6a229047392a0f and 3a6ca31c39b0147d both document Windows runner network failures to GitHub artifact service."
+}

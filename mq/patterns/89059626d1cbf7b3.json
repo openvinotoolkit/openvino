@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "artifact upload fails silently no error message before beginning blob upload after file validation|Infrastructure",
+  "signature_hash": "89059626d1cbf7b3",
+  "title": "Windows Build openvino_package upload fails silently before blob upload on self-hosted runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-01T18:47:51Z",
+  "last_seen": "2026-07-01T18:47:51Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/28537468325"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36581"
+  ],
+  "recent_timestamps": [
+    "2026-07-01T18:47:51Z"
+  ]
+}
