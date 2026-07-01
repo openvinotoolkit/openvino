@@ -194,9 +194,7 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) 
                 model->remove_result(dup);
             }
             if (!duplicates.empty()) {
-                canonical_source.get_node_shared_ptr()
-                    ->output(canonical_source.get_index())
-                    .set_names({embed_name});
+                canonical_source.get_node_shared_ptr()->output(canonical_source.get_index()).set_names({embed_name});
                 canonical_result->output(0).set_names({embed_name});
             }
         }
