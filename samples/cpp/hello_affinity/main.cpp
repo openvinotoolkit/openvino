@@ -185,7 +185,7 @@ void prepare_model(std::shared_ptr<ov::Model>& model,
     if (!shape_string.empty() || !data_shape_string.empty()) {
         std::map<std::string, ov::PartialShape> shapes;
         if (!data_shape_string.empty()) {
-            shapes = parse_input_shapes(data_shape_string, std::const_pointer_cast<const ov::Model>(model)->inputs());
+            shapes = parse_input_shapes(data_shape_string, static_cast<const ov::Model&>(*model).inputs());
             const auto kv_sequence_length = get_kv_sequence_length_from_data_shapes(shapes);
             if (kv_sequence_length != 0) {
                 for (const auto& input : model->inputs()) {
@@ -205,7 +205,7 @@ void prepare_model(std::shared_ptr<ov::Model>& model,
         }
         if (!shape_string.empty()) {
             const auto explicit_shapes =
-                parse_input_shapes(shape_string, std::const_pointer_cast<const ov::Model>(model)->inputs());
+                parse_input_shapes(shape_string, static_cast<const ov::Model&>(*model).inputs());
             for (const auto& item : explicit_shapes) {
                 shapes[item.first] = item.second;
             }
