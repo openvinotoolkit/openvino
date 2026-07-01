@@ -86,12 +86,20 @@ std::map<std::string, ov::PartialShape> parse_input_shapes(const std::string& sh
 
         const auto name = trim(remaining.substr(0, open_bracket));
         const auto shape = remaining.substr(open_bracket, close_bracket - open_bracket + 1);
+        const auto parsed_shape = ov::PartialShape(shape);
+        auto add_shape = [&](const std::string& input_name) {
+            if (shapes.count(input_name) != 0) {
+                OPENVINO_THROW("Multiple shape groups for the same input are not supported: ", shapes_string);
+            }
+            shapes.emplace(input_name, parsed_shape);
+        };
+
         if (name.empty()) {
             for (const auto& input : inputs) {
-                shapes[input.get_any_name()] = ov::PartialShape(shape);
+                add_shape(input.get_any_name());
             }
         } else {
-            shapes[resolve_input_tensor_name(name, inputs)] = ov::PartialShape(shape);
+            add_shape(resolve_input_tensor_name(name, inputs));
         }
 
         remaining = trim(remaining.substr(close_bracket + 1));
