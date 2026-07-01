@@ -310,11 +310,11 @@ void DynamicPipeline::push() {
         auto& dynamicArguments = command_lists->getArguments();
         if (_logger.level() >= ov::log::Level::DEBUG) {
             _logger.debug("push - inputs info for dynamic graph:");
-            for (auto& memType : dynamicArguments._inputs) {
+            for (auto& memType : dynamicArguments._inputsMemRef) {
                 _logger.debug("push - input: %s", memType.toString().c_str());
             }
             _logger.debug("push - outputs info for dynamic graph:");
-            for (auto& memType : dynamicArguments._outputs) {
+            for (auto& memType : dynamicArguments._outputsMemRef) {
                 _logger.debug("push - output: %s", memType.toString().c_str());
             }
         }
