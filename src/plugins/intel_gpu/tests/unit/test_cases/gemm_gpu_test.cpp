@@ -3937,10 +3937,14 @@ TEST(grouped_matmul_gpu_tests, smoke_2d_3d_f16) {
     set_values(mat_b_mem, mat_b_f16);
     set_values(off_mem, offsets);
 
+    // Dynamic input layouts: total_tokens and G are unknown at compile time.
+    layout mat_a_dyn_layout{ov::PartialShape{-1, static_cast<int64_t>(K)}, data_types::f16, format::bfyx};
+    layout offsets_dyn_layout{ov::PartialShape{-1}, data_types::i32, format::bfyx};
+
     topology tp;
-    tp.add(input_layout("mat_a", mat_a_mem->get_layout()));
+    tp.add(input_layout("mat_a", mat_a_dyn_layout));
     tp.add(data("mat_b", mat_b_mem));
-    tp.add(input_layout("offsets", off_mem->get_layout()));
+    tp.add(input_layout("offsets", offsets_dyn_layout));
     tp.add(grouped_matmul("gmm",
                           {input_info("mat_a"), input_info("mat_b"), input_info("offsets")},
                           data_types::f16));
