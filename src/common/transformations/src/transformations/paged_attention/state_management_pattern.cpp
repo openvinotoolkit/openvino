@@ -15,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -347,6 +348,21 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
     v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});
+
+    // Full int8 activation quantization (a8w8 / SmoothQuant) inserts a FakeQuantize on the
+    // concatenated KV-cache activation, i.e. directly after this Concat and before whatever consumes
+    // it: the SDPA K/V input (non-GQA) or the Unsqueeze-Broadcast-Reshape "repeat_kv" expansion
+    // (GQA/MQA). Tolerate an optional FakeQuantize here so every downstream KV path (kv_shaping,
+    // *_simply_shaped, *_shaped_transposed and the direct-to-SDPA Or) still binds. The dequant
+    // FakeQuantize is not needed on the PagedAttention KV path (which is rebuilt from the pre-concat
+    // "current" K/V tensors), so it is simply dropped.
+    auto optional_fq = [](const ov::Output<ov::Node>& data) {
+        // All 5 FakeQuantize inputs must be listed because pattern::optional matches multi-input ops
+        // by arity and does not synthesize missing ones.
+        return pattern::optional<v0::FakeQuantize>({data, any_input(), any_input(), any_input(), any_input()});
+    };
+    k_concat = optional_fq(k_concat);
+    v_concat = optional_fq(v_concat);
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in

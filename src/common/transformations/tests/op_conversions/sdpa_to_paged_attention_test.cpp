@@ -20,6 +20,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -120,6 +121,45 @@ static std::shared_ptr<ov::Node> make_param(const PartialShape& pshape,
 
 enum QKV : int { Q = 0, K = 1, V = 2 };
 vector<int> MOCK_VALUE = {1};
+
+// Linear projection shared by the stateful-SDPA test models: MatMul (transpose_b) -> Reshape ->
+// Transpose(0, 2, 1, 3), producing [batch, heads, seq, head_dim] from [batch, seq, hidden_size].
+static std::shared_ptr<ov::Node> make_projection(const std::shared_ptr<ov::Node>& input,
+                                                 int hidden_size,
+                                                 int out_size,
+                                                 int heads,
+                                                 int head_dim) {
+    auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
+    auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
+    return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+}
+
+// KV-cache path shared by the stateful-SDPA test models: a Variable-backed
+// ReadValue -> Gather(beam_idx) -> Concat(past, current) with an Assign sink. `batch_dim` is the
+// [1]-shaped batch size used to build the zero state initializer.
+struct KVCacheResult {
+    std::shared_ptr<ov::Node> concat;
+    std::shared_ptr<ov::Node> past;
+    std::shared_ptr<v6::Assign> assign;
+};
+static KVCacheResult make_kv_cache(const std::shared_ptr<ov::Node>& cur,
+                                   const std::string& var_id,
+                                   const std::shared_ptr<ov::Node>& beam,
+                                   const std::shared_ptr<ov::Node>& batch_dim,
+                                   int num_kv_heads,
+                                   int head_dim) {
+    auto var = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{DYN, num_kv_heads, DYN, head_dim}, ov::element::f32, var_id});
+    auto init_shape =
+        makeOP<v0::Concat>({batch_dim, {(int64_t)num_kv_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
+    auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
+    std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
+    auto past = makeOP<v8::Gather>({read, beam, 0}, {{"batch_dims", 0}});
+    auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
+    auto assign = std::make_shared<v6::Assign>(concat, var);
+    return {concat, past, assign};
+}
 
 #define WEIGHTS           1024
 #define ATTENTION_WEIGHTS 512
@@ -5821,38 +5861,6 @@ TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
     const int q_proj_size = q_heads * head_dim;    // 2048
     const int gqa_ratio = q_heads / kv_heads;      // 4
 
-    // Linear projection (MatMul → Reshape → Transpose)
-    // Returns transposed output with shape [batch, heads, seq, head_dim]
-    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
-        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
-        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
-        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
-        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
-    };
-
-    // KV cache path (Variable → ReadValue → Gather(beam_idx) → Concat(past, cur))
-    // Returns {concat, past, assign, variable}
-    struct KVCacheResult {
-        std::shared_ptr<ov::Node> concat;
-        std::shared_ptr<ov::Node> past;
-        std::shared_ptr<v6::Assign> assign;
-    };
-    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur,
-                             const std::string& var_id,
-                             std::shared_ptr<ov::Node> batch_gather,
-                             std::shared_ptr<ov::Node> beam) -> KVCacheResult {
-        auto var = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{DYN, kv_heads, DYN, head_dim}, ov::element::f32, var_id});
-        auto init_shape =
-            makeOP<v0::Concat>({batch_gather, {(int64_t)kv_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
-        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
-        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
-        auto past = makeOP<v8::Gather>({read, beam, 0}, {{"batch_dims", 0}});
-        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
-        auto assign = std::make_shared<v6::Assign>(concat, var);
-        return {concat, past, assign};
-    };
-
     // GQA broadcast (Unsqueeze → Broadcast → Reshape to expand KV heads to Q heads)
     auto make_gqa_broadcast = [&](std::shared_ptr<ov::Node> kv_concat, std::shared_ptr<ov::Node> bcast_shape) {
         auto unsqueeze = makeOP<v0::Unsqueeze>({kv_concat, 2});
@@ -5907,12 +5915,13 @@ TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
     auto ln_out = make_rms_norm(inputs_embeds, hidden_size);
 
     // K/V projections and cache
-    auto K_cur = make_projection(ln_out, kv_proj_size, kv_heads);
-    auto V_cur = make_projection(ln_out, kv_proj_size, kv_heads);
+    auto K_cur = make_projection(ln_out, hidden_size, kv_proj_size, kv_heads, head_dim);
+    auto V_cur = make_projection(ln_out, hidden_size, kv_proj_size, kv_heads, head_dim);
 
-    auto [k_concat, k_past, k_assign] = make_kv_cache(K_cur, "past_key_values.18.keypresent.18.key", Gather0, beam_idx);
+    auto [k_concat, k_past, k_assign] =
+        make_kv_cache(K_cur, "past_key_values.18.keypresent.18.key", beam_idx, Gather0, kv_heads, head_dim);
     auto [v_concat, v_past, v_assign] =
-        make_kv_cache(V_cur, "past_key_values.18.valuepresent.18.value", Gather0, beam_idx);
+        make_kv_cache(V_cur, "past_key_values.18.valuepresent.18.value", beam_idx, Gather0, kv_heads, head_dim);
 
     // GQA broadcast shape (shared between K and V)
     auto k_shape = makeOP<v3::ShapeOf>({k_concat}, {{"output_type", "i64"}});
@@ -5926,11 +5935,11 @@ TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
     auto Slice_mask = make_attn_mask(position_ids, attention_mask, k_past);
 
     // Two SDPA layers sharing the same K/V, each with own Q projection
-    auto Q_18 = make_projection(ln_out, q_proj_size, q_heads);
+    auto Q_18 = make_projection(ln_out, hidden_size, q_proj_size, q_heads, head_dim);
     auto sdpa_18 =
         makeOP<v13::ScaledDotProductAttention>({Q_18, K_shared, V_shared, Slice_mask, 1.0f}, {{"causal", false}});
 
-    auto Q_20 = make_projection(ln_out, q_proj_size, q_heads);
+    auto Q_20 = make_projection(ln_out, hidden_size, q_proj_size, q_heads, head_dim);
     auto sdpa_20 =
         makeOP<v13::ScaledDotProductAttention>({Q_20, K_shared, V_shared, Slice_mask, 1.0f}, {{"causal", false}});
 
@@ -6061,38 +6070,13 @@ TEST(SDPAToPA, SingleLayerSlidingWindow) {
 
     auto sw_select = make_gemma3_sliding_window_mask(position_ids, attention_mask, sliding_window_offset);
 
-    struct KVCacheResult {
-        std::shared_ptr<ov::Node> concat;
-        std::shared_ptr<v6::Assign> assign;
-    };
-    auto make_kv_cache = [&](std::shared_ptr<ov::Node> cur, const std::string& var_id) -> KVCacheResult {
-        auto var = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{DYN, num_heads, DYN, head_dim}, ov::element::f32, var_id});
-        auto init_shape =
-            makeOP<v0::Concat>({batch_dim, {(int64_t)num_heads}, {0l}, {(int64_t)head_dim}}, {{"axis", 0}});
-        auto init = makeOP<v3::Broadcast>({0.0f, init_shape}, {{"mode", "numpy"}});
-        std::shared_ptr<ov::Node> read = std::make_shared<v6::ReadValue>(init, var);
-        auto past = makeOP<v8::Gather>({read, beam_idx, 0}, {{"batch_dims", 0}});
-        auto concat = makeOP<v0::Concat>({past, cur}, {{"axis", -2}});
-        auto assign = std::make_shared<v6::Assign>(concat, var);
-        return {concat, assign};
-    };
-
-    // Projection helper (simplified: no RoPE, no GQA, no bias)
-    auto make_projection = [&](std::shared_ptr<ov::Node> input, int out_size, int heads) {
-        auto weight = makeConst(element::f32, ov::Shape({(size_t)out_size, (size_t)hidden_size}), MOCK_VALUE);
-        auto matmul = makeOP<v0::MatMul>({input, weight}, {{"transpose_a", false}, {"transpose_b", true}});
-        auto reshape = makeOP<v1::Reshape>({matmul, {0, 0, heads, head_dim}}, {{"special_zero", true}});
-        return makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
-    };
-
     // Single layer: Sliding window attention
-    auto Q_0 = make_projection(embeddings, hidden_size, num_heads);
-    auto K_0 = make_projection(embeddings, hidden_size, num_heads);
-    auto V_0 = make_projection(embeddings, hidden_size, num_heads);
+    auto Q_0 = make_projection(embeddings, hidden_size, hidden_size, num_heads, head_dim);
+    auto K_0 = make_projection(embeddings, hidden_size, hidden_size, num_heads, head_dim);
+    auto V_0 = make_projection(embeddings, hidden_size, hidden_size, num_heads, head_dim);
 
-    auto kv_0 = make_kv_cache(K_0, "past_key_values.0.key");
-    auto vv_0 = make_kv_cache(V_0, "past_key_values.0.value");
+    auto kv_0 = make_kv_cache(K_0, "past_key_values.0.key", beam_idx, batch_dim, num_heads, head_dim);
+    auto vv_0 = make_kv_cache(V_0, "past_key_values.0.value", beam_idx, batch_dim, num_heads, head_dim);
 
     auto sdpa_0 =
         makeOP<v13::ScaledDotProductAttention>({Q_0, kv_0.concat, vv_0.concat, sw_select, 1.0f}, {{"causal", false}});
@@ -6182,6 +6166,174 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
     }
 }
+
+// Builds a minimal single-layer stateful SDPA model (input_ids/attention_mask/position_ids/beam_idx
+// -> embedding -> Q/K/V projections -> KV-cache ReadValue->Gather(beam_idx)->Concat -> SDPA, with
+// Assign sinks and a mask consuming attention_mask). When fq_on_k / fq_on_v is set, a 5-input
+// v0::FakeQuantize (levels=256, scalar limits) is inserted directly AFTER the KV-cache Concat (the
+// location where NNCF a8w8 / SmoothQuant activation quantization inserts it), before whatever
+// consumes the concatenated KV:
+//   * non-GQA (gqa == false): the FakeQuantize feeds straight into the SDPA K / V input;
+//   * GQA     (gqa == true):  num_kv_heads < num_q_heads, and the FakeQuantize feeds the
+//                             Unsqueeze -> Broadcast -> Reshape "repeat_kv" head-expansion that
+//                             then feeds SDPA. This is the real meta-llama / TinyLlama topology.
+static std::shared_ptr<ov::Model> make_single_layer_sdpa_model(bool fq_on_k, bool fq_on_v, bool gqa) {
+    const int num_q_heads = 4;
+    const int num_kv_heads = gqa ? 2 : 4;
+    const int head_dim = 128;
+    const int hidden_size = num_q_heads * head_dim;  // 512
+
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto params = nodes_to_params({input_ids, attention_mask, position_ids, beam_idx});
+
+    // Embedding
+    auto embed_weight = makeConst(element::f32, ov::Shape{32000, (size_t)hidden_size}, MOCK_VALUE);
+    auto embeddings = makeOP<v8::Gather>({embed_weight, input_ids, 0}, {{"batch_dims", 0}});
+
+    auto shape_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<v8::Gather>({shape_pos, {0}, 0}, {{"batch_dims", 0}});
+
+    // Minimal mask subgraph that still consumes attention_mask + position_ids so the pass has
+    // something to rewire/remove.
+    auto make_attn_mask = [&](std::shared_ptr<ov::Node> attn_mask, std::shared_ptr<ov::Node> kv_past) {
+        auto cur_len = makeOP<v8::Gather>({shape_pos, 1, 0}, {{"batch_dims", 0}});
+        auto cur_len_1d = makeOP<v1::Reshape>({cur_len, {1}}, {{"special_zero", false}});
+        auto cur_len_scalar = makeOP<v0::Squeeze>({cur_len_1d, 0});
+        auto shape_past = makeOP<v3::ShapeOf>({kv_past}, {{"output_type", "i64"}});
+        auto past_len = makeOP<v8::Gather>({shape_past, 2, 0}, {{"batch_dims", 0}});
+        auto total_len = makeOP<v1::Add>({cur_len_scalar, past_len}, {numpy_broadcast});
+        auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
+        auto bcast_shape = makeOP<v0::Concat>({batch_dim, {1l}, cur_len_1d, total_len_unsq}, {{"axis", 0}});
+        auto mask_f32 = makeOP<v0::Convert>({attn_mask}, {{"destination_type", "f32"}});
+        return makeOP<v3::Broadcast>({mask_f32, bcast_shape}, {{"mode", "bidirectional"}});
+    };
+
+    // GQA "repeat_kv" head expansion: [B, num_kv_heads, S, D] -> Unsqueeze -> Broadcast -> Reshape ->
+    // [B, num_q_heads, S, D]. Mirrors StateManagementPattern's kv_shaping pattern (the Unsqueeze lets
+    // the pass deduce num_kv_heads).
+    auto make_repeat_kv = [&](const std::shared_ptr<ov::Node>& kv) {
+        const int repeat = num_q_heads / num_kv_heads;
+        auto sh = makeOP<v3::ShapeOf>({kv}, {{"output_type", "i64"}});
+        auto b_dim = makeOP<v8::Gather>({sh, {0}, 0}, {{"batch_dims", 0}});
+        auto s_dim = makeOP<v8::Gather>({sh, {2}, 0}, {{"batch_dims", 0}});
+        auto unsq = makeOP<v0::Unsqueeze>({kv, 2});
+        auto bcast_target =
+            makeOP<v0::Concat>({b_dim, {(int64_t)num_kv_heads}, {(int64_t)repeat}, s_dim, {(int64_t)head_dim}},
+                               {{"axis", 0}});
+        auto bcast = makeOP<v3::Broadcast>({unsq, bcast_target}, {{"mode", "bidirectional"}});
+        auto reshape_target =
+            makeOP<v0::Concat>({b_dim, {(int64_t)num_q_heads}, s_dim, {(int64_t)head_dim}}, {{"axis", 0}});
+        return makeOP<v1::Reshape>({bcast, reshape_target}, {{"special_zero", false}});
+    };
+
+    // The a8w8 activation FakeQuantize: 5 inputs, shape-preserving, per-tensor scalar limits.
+    // Constructed directly because v0::FakeQuantize requires the `levels` argument positionally.
+    auto make_fq = [](const std::shared_ptr<ov::Node>& data) -> std::shared_ptr<ov::Node> {
+        auto in_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
+        auto in_high = makeConst(element::f32, ov::Shape{}, std::vector<float>{8.0f});
+        auto out_low = makeConst(element::f32, ov::Shape{}, std::vector<float>{-8.0f});
+        auto out_high = makeConst(element::f32, ov::Shape{}, std::vector<float>{8.0f});
+        return std::make_shared<v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 256);
+    };
+
+    auto Q_0 = make_projection(embeddings, hidden_size, num_q_heads * head_dim, num_q_heads, head_dim);
+    auto K_0 = make_projection(embeddings, hidden_size, num_kv_heads * head_dim, num_kv_heads, head_dim);
+    auto V_0 = make_projection(embeddings, hidden_size, num_kv_heads * head_dim, num_kv_heads, head_dim);
+
+    auto kv_0 = make_kv_cache(K_0, "past_key_values.0.key", beam_idx, batch_dim, num_kv_heads, head_dim);
+    auto vv_0 = make_kv_cache(V_0, "past_key_values.0.value", beam_idx, batch_dim, num_kv_heads, head_dim);
+
+    // Optionally insert a FakeQuantize right after the KV-cache Concat (the NNCF a8w8 location).
+    std::shared_ptr<ov::Node> k_post = fq_on_k ? make_fq(kv_0.concat) : kv_0.concat;
+    std::shared_ptr<ov::Node> v_post = fq_on_v ? make_fq(vv_0.concat) : vv_0.concat;
+
+    // For GQA the FakeQuantize sits before the repeat_kv head expansion; otherwise it feeds SDPA.
+    std::shared_ptr<ov::Node> k_to_sdpa = gqa ? make_repeat_kv(k_post) : k_post;
+    std::shared_ptr<ov::Node> v_to_sdpa = gqa ? make_repeat_kv(v_post) : v_post;
+
+    auto mask = make_attn_mask(attention_mask, kv_0.past);
+
+    auto sdpa_0 = makeOP<v13::ScaledDotProductAttention>({Q_0, k_to_sdpa, v_to_sdpa, mask, 1.0f}, {{"causal", false}});
+    auto res = std::make_shared<v0::Result>(sdpa_0);
+
+    return std::make_shared<ov::Model>(OutputVector{res}, SinkVector{kv_0.assign, vv_0.assign}, params);
+}
+
+// Full int8 activation quantization (a8w8 / SmoothQuant) inserts a v0::FakeQuantize directly after
+// the KV-cache Concat -- feeding the SDPA K/V input (non-GQA) or the repeat_kv head expansion (GQA).
+// StateManagementPattern must tolerate that FakeQuantize; otherwise the SDPA wrap_type never binds,
+// SDPA is not converted to PagedAttention, and the beam_idx / attention_mask parameters survive ->
+// the final validate_nodes_and_infer_types() throws "Model references undeclared parameters".
+//
+// The reference (model_ref) is the SAME single-layer model WITHOUT any FakeQuantize, converted to
+// PagedAttention. The fix drops the dequant FakeQuantize (PagedAttention rebuilds K/V from the
+// pre-concat "current" tensors, upstream of the FakeQuantize, so the FakeQuantize becomes dead
+// subgraph), therefore the converted graph must be identical whether or not the FakeQuantize was
+// present -> the FakeQuantize-free conversion is the correct reference for every parameter combo.
+//
+// Parameters: {fq_on_k, fq_on_v, gqa}. {false, false, *} is the FakeQuantize-free negative control
+// (regression guard); {true, true, false} is the full non-GQA a8w8 topology; {true, true, true} is
+// the full GQA a8w8 topology (the meta-llama / TinyLlama case, where the FakeQuantize sits before the
+// repeat_kv expansion -- a wrap on the direct SDPA input alone would NOT catch it).
+class SDPAToPA_ActivationFakeQuantizeOnKV : public TransformationTestsF,
+                                            public ::testing::WithParamInterface<std::tuple<bool, bool, bool>> {};
+
+TEST_P(SDPAToPA_ActivationFakeQuantizeOnKV, KVFakeQuantizeTolerated) {
+    const bool fq_on_k = std::get<0>(GetParam());
+    const bool fq_on_v = std::get<1>(GetParam());
+    const bool gqa = std::get<2>(GetParam());
+
+    {
+        model = make_single_layer_sdpa_model(fq_on_k, fq_on_v, gqa);
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    }
+
+    {
+        auto ref_input = make_single_layer_sdpa_model(false, false, gqa);
+        ov::pass::Manager ref_manager;
+        ref_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ref_manager.run_passes(ref_input);
+        model_ref = ref_input;
+
+        // Guard against a vacuous comparison: the reference must be a genuine converted graph
+        // (exactly one PagedAttention, with beam_idx / attention_mask absorbed and removed).
+        EXPECT_EQ(count_ops_of_type<ov::op::PagedAttentionExtension>(model_ref), 1u);
+        for (const auto& param : model_ref->get_parameters()) {
+            const auto& name = param->get_friendly_name();
+            EXPECT_NE(name, "beam_idx") << "beam_idx parameter should have been removed";
+            EXPECT_NE(name, "attention_mask") << "attention_mask parameter should have been removed";
+        }
+    }
+
+    {
+        // The dequant FakeQuantize must be DROPPED by the conversion, not merely tolerated: because
+        // PagedAttention rebuilds K/V from the pre-concat "current" tensors, the FakeQuantize ends up
+        // on a dead branch, so the converted graph must contain zero FakeQuantize ops. (model is
+        // transformed by the fixture in TearDown, so this converts an independent copy to assert here.)
+        auto fq_converted = make_single_layer_sdpa_model(fq_on_k, fq_on_v, gqa);
+        ov::pass::Manager fq_manager;
+        fq_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        fq_manager.run_passes(fq_converted);
+        EXPECT_EQ(count_ops_of_type<ov::op::v0::FakeQuantize>(fq_converted), 0u);
+    }
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPATest_ActivationFakeQuantize,
+                         SDPAToPA_ActivationFakeQuantizeOnKV,
+                         ::testing::Values(std::make_tuple(false, false, false),  // non-GQA control
+                                           std::make_tuple(true, false, false),   // non-GQA, FQ on K
+                                           std::make_tuple(false, true, false),   // non-GQA, FQ on V
+                                           std::make_tuple(true, true, false),    // non-GQA a8w8
+                                           std::make_tuple(false, false, true),   // GQA control
+                                           std::make_tuple(true, false, true),    // GQA, FQ on K
+                                           std::make_tuple(false, true, true),    // GQA, FQ on V
+                                           std::make_tuple(true, true, true)));   // GQA a8w8 (ticket)
 
 /*
 As there's often a need to cover specific model's architecutres in these
