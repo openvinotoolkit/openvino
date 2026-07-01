@@ -88,6 +88,19 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
 
     std::map<std::string, ov::TensorVector> remoteTensors;
     auto context = compiledModel.get_context();
+
+#if OV_GPU_WITH_ZE_RT
+    const auto& props = context.get_property();
+    auto ctx_type_it = props.find(ov::intel_gpu::context_type.name());
+    OPENVINO_ASSERT(ctx_type_it != props.end(),
+                    "[GPU] Failed to get context type from compiled model context");
+    
+    auto ctx_type = ctx_type_it->second.as<ov::intel_gpu::ContextType>();
+    OPENVINO_ASSERT(ctx_type == ov::intel_gpu::ContextType::OCL,
+                    "[GPU] OCL context is required for device memory operations. "
+                    "Current context type does not support OpenCL interoperability. ");
+#endif
+
     auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
