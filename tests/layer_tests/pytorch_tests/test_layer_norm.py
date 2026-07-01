@@ -82,6 +82,7 @@ class TestLayerNormMixedPrecision(PytorchLayerTest):
     @pytest.mark.parametrize("with_bias", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_layer_norm_mixed_precision(self, normalized_shape, input_dtype, with_bias, ie_device, precision, ir_version):
         import torch
 
