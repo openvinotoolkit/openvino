@@ -448,13 +448,32 @@ int tmain(int argc, tchar* argv[]) {
             }
         }
 
+        const auto has_device_option = [&]() {
+            for (int i = 1; i < argc; ++i) {
+                const std::string arg = TSTRING2STRING(argv[i]);
+                if (arg == "-d" || arg == "--device") {
+                    return true;
+                }
+            }
+            return false;
+        }();
+        const auto has_affinity_option = [&]() {
+            for (int i = 1; i < argc; ++i) {
+                const std::string arg = TSTRING2STRING(argv[i]);
+                if (arg == "-affinity" || arg == "--affinity") {
+                    return true;
+                }
+            }
+            return false;
+        }();
+
         if (model_path.empty() && !positional_arguments.empty()) {
             model_path = positional_arguments.front();
         }
-        if (positional_arguments.size() > 1) {
+        if (!has_device_option && positional_arguments.size() > 1) {
             device_name = positional_arguments[1];
         }
-        if (affinity_spec.empty() && positional_arguments.size() > 2) {
+        if (!has_affinity_option && affinity_spec.empty() && positional_arguments.size() > 2) {
             affinity_spec = positional_arguments[2];
         }
         if (positional_arguments.size() > 3) {
