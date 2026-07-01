@@ -108,6 +108,7 @@ void ThreadSafeVariableStateWrapper::set_state(const ov::SoPtr<ov::ITensor>& sta
 }
 
 ov::SoPtr<ov::ITensor> ThreadSafeVariableStateWrapper::get_state() const {
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     return m_state->get_state();
 }
 
