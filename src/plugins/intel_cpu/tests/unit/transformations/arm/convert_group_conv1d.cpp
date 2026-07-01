@@ -83,7 +83,6 @@ TEST_F(ConvertConv1DTests, Applied_1DShapes) {
 
 TEST_F(ConvertConv1DTests, Negative_2DShapes) {
     model = createInitGraph<ov::opset1::Convolution>(ov::Shape{2, 64, 7, 1}, ov::Shape{30, 64, 1, 1});
-    // model_ref intentionally omitted — transformation should not fire
 }
 
 TEST_F(ConvertGroupConv1DTests, Applied_1DShapes) {
@@ -93,5 +92,4 @@ TEST_F(ConvertGroupConv1DTests, Applied_1DShapes) {
 
 TEST_F(ConvertGroupConv1DTests, Negative_2DShapes) {
     model = createInitGraph<ov::opset1::GroupConvolution>(ov::Shape{1, 12, 64, 1}, ov::Shape{4, 1, 3, 5, 1});
-    // model_ref intentionally omitted — transformation should not fire
 }

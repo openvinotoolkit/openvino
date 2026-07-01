@@ -53,7 +53,6 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
 
 TEST_F(TransformationTestsF, ReadValueWithSubgraph_1) {
     disable_rt_info_check();
-    disable_result_friendly_names_check();
     const ov::PartialShape shape{1, 1, 2};
     const ov::element::Type type = ov::element::f32;
     auto variable = std::make_shared<ov::op::util::Variable>(
@@ -150,7 +149,6 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
 
 TEST_F(TransformationTestsF, ReadValueWithSubgraph_2) {
     disable_rt_info_check();
-    disable_result_friendly_names_check();
     const ov::PartialShape shape{1, 2, 4};
     const ov::element::Type in_type = ov::element::f32;
     const ov::element::Type out_type = ov::element::i32;

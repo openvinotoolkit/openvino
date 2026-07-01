@@ -34,13 +34,12 @@ static size_t getGateCount(SeqType type) {
     return 1;
 }
 
-static std::shared_ptr<ov::Model> buildOriginalModel(SeqType type, bool dynamic) {
+static std::shared_ptr<ov::Model> buildOriginalModel(SeqType type, const ov::PartialShape& inputShape) {
     const size_t hidden_size = 128;
     const size_t input_size = 16;
     const size_t gates = getGateCount(type);
 
-    auto X = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
-        dynamic ? ov::PartialShape{2, -1, -1} : ov::PartialShape{2, 1, 16});
+    auto X = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
     auto Y = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, hidden_size});
 
     auto w_val = std::vector<float>(gates * hidden_size * input_size, 0);
@@ -89,13 +88,12 @@ static std::shared_ptr<ov::Model> buildOriginalModel(SeqType type, bool dynamic)
     return std::make_shared<ov::Model>(results, params);
 }
 
-static std::shared_ptr<ov::Model> buildRefModel(SeqType type, bool dynamic) {
+static std::shared_ptr<ov::Model> buildRefModel(SeqType type, const ov::PartialShape& inputShape) {
     const size_t hidden_size = 128;
     const size_t input_size = 16;
     const size_t gates = getGateCount(type);
 
-    auto X = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
-        dynamic ? ov::PartialShape{2, -1, -1} : ov::PartialShape{2, 1, 16});
+    auto X = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
     auto Y = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, hidden_size});
 
     auto w_val = std::vector<float>(gates * hidden_size * input_size, 0);
@@ -106,7 +104,7 @@ static std::shared_ptr<ov::Model> buildRefModel(SeqType type, bool dynamic) {
     auto B = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, gates * hidden_size}, b_val);
 
     std::shared_ptr<ov::Node> reshape_before;
-    if (dynamic) {
+    if (inputShape.is_dynamic()) {
         auto data = std::make_shared<ov::opset1::ShapeOf>(X);
         auto reshape_before_pattern = std::make_shared<ov::opset8::Gather>(data,
             ov::opset1::Constant::create(ov::element::i32, {3}, {1, 0, 2}),
@@ -153,20 +151,20 @@ static std::shared_ptr<ov::Model> buildRefModel(SeqType type, bool dynamic) {
     return std::make_shared<ov::Model>(results, params);
 }
 
-using OptimizeSeqTransposeParams = std::tuple<SeqType, bool /*dynamic*/>;
+using OptimizeSeqTransposeParams = std::tuple<SeqType, ov::PartialShape>;
 
 class OptimizeSequenceTransposesTests : public TransformationTestsF,
                                         public WithParamInterface<OptimizeSeqTransposeParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OptimizeSeqTransposeParams>& info) {
-        const auto& [seqType, isDynamic] = info.param;
+        const auto& [seqType, shape] = info.param;
         std::ostringstream ss;
         switch (seqType) {
             case SeqType::LSTM: ss << "LSTM"; break;
             case SeqType::RNN:  ss << "RNN"; break;
             case SeqType::GRU:  ss << "GRU"; break;
         }
-        ss << (isDynamic ? "_Dynamic" : "_Static");
+        ss << (shape.is_dynamic() ? "_Dynamic" : "_Static");
         return ss.str();
     }
 
@@ -174,9 +172,9 @@ protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
         disable_rt_info_check();
-        const auto& [seqType, isDynamic] = GetParam();
-        model = buildOriginalModel(seqType, isDynamic);
-        model_ref = buildRefModel(seqType, isDynamic);
+        const auto& [seqType, shape] = GetParam();
+        model = buildOriginalModel(seqType, shape);
+        model_ref = buildRefModel(seqType, shape);
         switch (seqType) {
             case SeqType::LSTM: manager.register_pass<OptimizeLSTMSequenceTransposes>(); break;
             case SeqType::RNN:  manager.register_pass<OptimizeRNNSequenceTransposes>(); break;
@@ -190,5 +188,5 @@ TEST_P(OptimizeSequenceTransposesTests, CompareWithRef) {}
 INSTANTIATE_TEST_SUITE_P(TransformationTests, OptimizeSequenceTransposesTests,
     ::testing::Combine(
         ::testing::Values(SeqType::LSTM, SeqType::RNN, SeqType::GRU),
-        ::testing::Values(false, true)),
+        ::testing::Values(ov::PartialShape{2, 1, 16}, ov::PartialShape{2, -1, -1})),
     OptimizeSequenceTransposesTests::getTestCaseName);

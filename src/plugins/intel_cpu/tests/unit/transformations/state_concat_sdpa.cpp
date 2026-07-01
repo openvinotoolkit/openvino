@@ -213,31 +213,33 @@ TEST_F(TransformationTestsF, StateConcatSDPAMixtral) {
     manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST_F(TransformationTestsF, StateConcatSDPAWithExtraNode) {
+class StateConcatSDPAWithExtraNodeTests : public TransformationTestsF,
+                                         public WithParamInterface<InsertPoint> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
-    test_skipped = true;
-    GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
+        test_skipped = true;
+        GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
 #endif
-    // when some unexpected extra nodes exist in SDPA, the fusion should fail
-    // This test iterates over insert points so cannot use the simple model/model_ref pattern.
-    // We use a loop with manual comparison for each insertion point.
-    auto inputShape = ov::PartialShape{-1, 32, -1, 64};
-    size_t i = static_cast<size_t>(InsertPoint::At_None) + 1;
-    size_t end = static_cast<size_t>(InsertPoint::At_End);
-    for (; i < end; i++) {
-        InsertPoint at = static_cast<InsertPoint>(i);
-        auto f = makeSDPA(inputShape, false, true, true, at);
-        auto f_ref = makeSDPA(inputShape, false, true, true, at);
-        ov::pass::Manager m;
-        m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<StatefulSDPAFusion>();
-        m.run_passes(f);
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
+        auto inputShape = ov::PartialShape{-1, 32, -1, 64};
+        InsertPoint at = GetParam();
+        model = makeSDPA(inputShape, false, true, true, at);
+        model_ref = makeSDPA(inputShape, false, true, true, at);
+        manager.register_pass<StatefulSDPAFusion>();
     }
-    // Prevent fixture TearDown comparison since we already compared manually
-    test_skipped = true;
-}
+};
+
+TEST_P(StateConcatSDPAWithExtraNodeTests, FusionShouldNotFire) {}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, StateConcatSDPAWithExtraNodeTests,
+    ::testing::Values(
+        InsertPoint::At_Convert,
+        InsertPoint::At_Gather,
+        InsertPoint::At_MQ_Unsqueeze,
+        InsertPoint::At_MQ_Broadcast,
+        InsertPoint::At_MQ_Multiply,
+        InsertPoint::At_MQ_Reshape));
 
 // Build a model with two SDPA blocks sharing the same KV-cache Variables.
 // One ReadValue per Variable fans out to two independent Gather -> Concat -> SDPA paths,

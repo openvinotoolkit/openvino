@@ -80,11 +80,9 @@ TEST_F(ConvertGroupConvTests, Applied) {
 TEST_F(ConvertGroupConvTests, Negative_DepthwiseCase) {
     auto param = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 224});
     model = createInitGraph<ov::opset1::GroupConvolution>(param, ov::Shape{2, 1, 1, 5});
-    // model_ref intentionally omitted — transformation should not fire
 }
 
 TEST_F(ConvertGroupConvTests, Negative_DynamicShapes) {
     auto param = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 224});
     model = createInitGraph<ov::opset1::GroupConvolution>(param, ov::Shape{2, 1, 1, 5});
-    // model_ref intentionally omitted — transformation should not fire
 }

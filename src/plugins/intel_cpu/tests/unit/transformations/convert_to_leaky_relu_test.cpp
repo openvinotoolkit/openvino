@@ -17,7 +17,8 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
-class ConvertToLeakyReluTests : public TransformationTestsF {
+class ConvertToLeakyReluTests : public TransformationTestsF,
+                                public WithParamInterface<ov::PartialShape> {
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
@@ -25,49 +26,29 @@ protected:
     }
 };
 
-TEST_F(ConvertToLeakyReluTests, StaticShape) {
+TEST_P(ConvertToLeakyReluTests, CompareWithRef) {
+    const auto& shape = GetParam();
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, shape);
         auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, {-2.f});
         auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
         model = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
     }
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, shape);
         auto leaky_relu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{leaky_relu}, ov::ParameterVector{input});
     }
 }
 
-TEST_F(ConvertToLeakyReluTests, DynamicRank4) {
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, {-2.f});
-        auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
-        model = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
-    }
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto leaky_relu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{leaky_relu}, ov::ParameterVector{input});
-    }
-}
+INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertToLeakyReluTests,
+    ::testing::Values(
+        ov::PartialShape{1, 3, 16, 16},
+        ov::PartialShape::dynamic(4),
+        ov::PartialShape::dynamic()));
 
-TEST_F(ConvertToLeakyReluTests, FullyDynamic) {
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, {-2.f});
-        auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
-        model = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
-    }
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto leaky_relu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{leaky_relu}, ov::ParameterVector{input});
-    }
-}
-
-TEST_F(ConvertToLeakyReluTests, TypeRelaxed) {
+TEST_F(TransformationTestsF, ConvertToLeakyRelu_TypeRelaxed) {
+    manager.register_pass<ConvertToLeakyRelu>();
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{1, 3, 16, 16});
         auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, {-2.f});
@@ -85,10 +66,10 @@ TEST_F(ConvertToLeakyReluTests, TypeRelaxed) {
     }
 }
 
-TEST_F(ConvertToLeakyReluTests, Negative_NonScalarSlope) {
+TEST_F(TransformationTestsF, ConvertToLeakyRelu_Negative_NonScalarSlope) {
+    manager.register_pass<ConvertToLeakyRelu>();
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
     auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3}, {-2.f, -1.f, -2.f});
     auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
     model = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
-    // model_ref intentionally omitted — transformation should not fire
 }

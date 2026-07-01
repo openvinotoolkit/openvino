@@ -26,19 +26,23 @@ using namespace testing;
 using namespace ov::intel_cpu;
 using namespace ov;
 
-static std::shared_ptr<ov::op::v0::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
+static std::shared_ptr<ov::op::v0::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input,
+                                                           const std::string& name = "") {
     auto input_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
     auto input_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     auto output_low = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
     auto output_high = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
-    return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+    auto fq = std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+    if (!name.empty())
+        fq->set_friendly_name(name);
+    return fq;
 }
 
 static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputShape, bool intraFQ = false, bool postFQ = false) {
     std::shared_ptr<ov::opset1::Parameter> input = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
     std::shared_ptr<ov::Node> dense_feature = nullptr;
     if (intraFQ) {
-        dense_feature = createFQ(input);
+        dense_feature = createFQ(input, "fq_dense_init");
     } else {
         dense_feature = input;
     }
@@ -49,7 +53,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
         auto sparse_input = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
         std::shared_ptr<ov::Node> sparse_feat = nullptr;
         if (intraFQ) {
-            sparse_feat = createFQ(sparse_input);
+            sparse_feat = createFQ(sparse_input, "fq_sparse_init_" + std::to_string(i));
         } else {
             sparse_feat = sparse_input;
         }
@@ -76,7 +80,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
     auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, transpose1);
     std::shared_ptr<ov::Node> inter = nullptr;
     if (intraFQ) {
-        inter = createFQ(matmul);
+        inter = createFQ(matmul, "fq_matmul");
     } else {
         inter = matmul;
     }
@@ -179,25 +183,18 @@ TEST_F(TransformationTestsF, ConvertInteractionInt8WithIntraFQ) {
     manager.register_pass<ConvertInteractionInt8>();
     {
         auto dense_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-        auto dense_feature = createFQ(dense_input);
+        auto dense_feature = createFQ(dense_input, "fq_dense");
         NodeVector features{dense_feature};
         ParameterVector inputsParams{dense_input};
         const size_t sparse_feature_num = 26;
         for (size_t i = 0; i < sparse_feature_num; i++) {
             auto sparse_input = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
-            auto sparse_feat = createFQ(sparse_input);
+            auto sparse_feat = createFQ(sparse_input, "fq_sparse_" + std::to_string(i));
             features.push_back(sparse_feat);
             inputsParams.push_back(sparse_input);
         }
         auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
-        auto fq = createFQ(interaction);
+        auto fq = createFQ(interaction, "fq_output");
         model_ref = std::make_shared<ov::Model>(fq, inputsParams, "interaction");
     }
-    // The ref model has multiple FQ nodes with auto-generated names that collide,
-    // causing the UniqueNamesHolder check in TearDown to fail.
-    // Run passes and compare manually to preserve original test semantics.
-    manager.run_passes(model);
-    auto res = comparator.compare(model, model_ref);
-    ASSERT_TRUE(res.valid) << res.message;
-    test_skipped = true;
 }
