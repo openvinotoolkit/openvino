@@ -1,0 +1,17 @@
+{
+  "run_id": "28507710758",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28507710758",
+  "timestamp": "2026-07-01T11:21:46Z",
+  "workflow": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "35805",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35805",
+  "author": "praasz",
+  "title": "CachingTest LoadMulti_race import_model call count mismatch in C++ unit tests (Windows)",
+  "category": "Flaky Test",
+  "signature_hash": "0528d54ff68248cd",
+  "failed_job": "C++ unit tests / C++ unit tests",
+  "failed_test": "CachingTest/CachingTest.LoadMulti_race/ByModelName_testCache",
+  "error_summary": "import_model expected 3 times, called twice. Race condition in multi-device caching test.",
+  "file": "2026-07-01-11-21-46-000-28507710758.json",
+  "occurrence_count": 2
+}

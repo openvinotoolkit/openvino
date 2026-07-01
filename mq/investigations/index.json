@@ -169,5 +169,15 @@
     "timestamp": "2026-07-01T10:28:17Z",
     "workflow": "Windows (VS 2022, Python 3.11, Release)",
     "category": "Flaky Test"
+  },
+  {
+    "file": "2026-07-01-11-21-46-000-28507710758.json",
+    "run_id": "28507710758",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28507710758",
+    "pr_number": "35805",
+    "timestamp": "2026-07-01T11:21:46Z",
+    "title": "CachingTest LoadMulti_race import_model call count mismatch in C++ unit tests (Windows)",
+    "category": "Flaky Test",
+    "signature_hash": "0528d54ff68248cd"
   }
 ]
