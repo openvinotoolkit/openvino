@@ -1961,7 +1961,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         if (axis < 0) {
             axis += in_dims_size;
         }
-        CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(in_dims_size),
+        CPU_NODE_ASSERT(axis >= 0 && axis < in_dims_size,
                         "gets incorrect input parameters dimensions and axis number!");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -2043,9 +2043,9 @@ void TopK::preset_params() {
         selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
-    topk_innermost = (layout == TopKLayoutType::topk_ncsp &&
-                      axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
-                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
+    topk_innermost =
+        ((layout == TopKLayoutType::topk_ncsp && axis == (getOutputShapeAtPort(TOPK_DATA).getRank() - 1LU)) ||
+         ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1LU));
 
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
