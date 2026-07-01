@@ -639,8 +639,19 @@ TEST(mvn_gpu_test, mvn_test_variance_large_values_bfyx_opt) {
     ASSERT_EQ(output->count(), input_data.size());
 
     cldnn::mem_lock<float> out_ptr(output, get_test_stream());
+    constexpr double max_rel_error = 0.001f;  // 0.1%
     for (size_t i = 0; i < output->count(); ++i) {
-        ASSERT_NEAR(out_ptr[i], expected_output[i], 1e-3f) << " at i=" << i;
+        const double actual = static_cast<double>(out_ptr[i]);
+        const double expected = expected_output[i];
+        const double abs_diff = std::abs(actual - expected);
+        const double abs_expected = std::abs(expected);
+        const double denom = abs_expected > 1e-9 ? abs_expected : 1.0;
+        const double rel_error = abs_diff / denom;
+        ASSERT_LE(rel_error, max_rel_error)
+            << " at i=" << i
+            << ", actual=" << actual
+            << ", expected=" << expected
+            << ", rel_error=" << rel_error;
     }
 }
 
