@@ -30,13 +30,14 @@ using ov::frontend::onnx::attention::get_dimensions;
 namespace opset_1 {
 ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     constexpr size_t inputs_count_min = 7;   // Taken from ONNX spec
-    constexpr size_t inputs_count_max = 14;  // Taken from ONNX spec
+    constexpr size_t inputs_count_max = 16;  // Taken from ONNX spec
 
     // Minimum required inputs basing on the spec and ONNX Runtime code: 7
     // 0: packed QKV (mandatory)
     // 3-4: possibly null (if unused)
     // 5: seqlens_k (mandatory)
     // 6: total_sequence_length (mandatory in the spec)
+    // 12-13: k_scale/v_scale (required when the KV cache is quantized)
     common::default_op_checks(node, inputs_count_min, inputs_count_max);
 
     const auto onnx_op_inputs = node.get_ov_inputs();
@@ -45,6 +46,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto scale = node.get_attribute_value<float>("scale", 0.0f);
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
+    // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
+    const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
+    const auto k_quant_type = node.get_attribute_value<std::string>("k_quant_type", "NONE");
+    const auto v_quant_type = node.get_attribute_value<std::string>("v_quant_type", "NONE");
+
+    // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
+    FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 11),
+                                  "GroupQueryAttention: head_sink input is not supported.");
+    FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 14) &&
+                                      !common::is_input_valid(onnx_op_inputs, 15),
+                                  "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
+                                  "supported.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
@@ -129,7 +142,10 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            kv_num_heads,
                                                            scale,
                                                            do_rotary,
-                                                           rotary_interleaved)
+                                                           rotary_interleaved,
+                                                           kv_cache_bit_width,
+                                                           k_quant_type,
+                                                           v_quant_type)
         ->outputs();
 }
 
