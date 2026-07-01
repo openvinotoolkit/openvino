@@ -362,6 +362,33 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    def test_max_pool_dynamic_partial_kernel_fails_at_runtime(self, ie_device, precision, ir_version):
+        # A runtime (non-constant) kernel that does NOT span the full axis extent is a genuine strided
+        # pool the ReduceMax decomposition cannot represent. The dynamic-kernel branch assumes a
+        # full-extent global pool and inserts a runtime guard (a reshape pinning the axis to the
+        # kernel value); when the real extent differs the guard must fail loudly at inference instead
+        # of silently returning a wrong-shaped [N, C, H, 1] result. Here kernel = x.size(3)//2 = 32
+        # while the axis extent is 64, so the guard reshape (64 -> 32) fails.
+        if ie_device != "CPU":
+            pytest.skip("runtime reshape-guard failure is asserted on CPU")
+
+        class aten_max_pool_partial(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.max_pool2d(x, kernel_size=[1, x.size(3) // 2])
+
+        example = torch.randn(1, 128, 40, 64, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_max_pool_partial(), example)
+        # Dynamic last axis keeps the kernel a runtime value, so the dynamic-kernel guard is emitted.
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([1, 128, 40, -1])])
+        op_types = [n.get_type_name() for n in ov_model.get_ordered_ops()]
+        assert "ReduceMax" in op_types, f"expected the dynamic-kernel branch; ops: {op_types}"
+        compiled = ov.Core().compile_model(ov_model, "CPU")
+        with pytest.raises(Exception):
+            compiled((example.numpy(),))
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_max_pool_dynamic_kernel_uses_reducemax(self, ie_device, precision, ir_version):
         # Structurally prove the dynamic-kernel decomposition fired: the converted OpenVINO model
         # must contain a ReduceMax and no MaxPool. The numeric tests above compare values only,
