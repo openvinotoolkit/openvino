@@ -4281,14 +4281,115 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_static_rotary) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_channel) {
+    const auto model = convert_model("com.microsoft/gqa_i8kv_per_channel.onnx");
+
+    // num_heads=2, kv_num_heads=1, head_size=8, max_seq_len=4, past_len=2, current=1. Non-rotary.
+    // KV cache is int8 with per-channel dequant scales embedded as initializers (k_scale/v_scale).
+    std::vector<float> query = {0.4714000f,  -1.1910000f, 1.4327000f,  -0.3127000f, -0.7206000f, 0.8872000f,
+                                0.8596000f,  -0.6365000f, 0.0157000f,  -2.2427001f, 1.1500000f,  0.9919000f,
+                                0.9533000f,  -2.0213001f, -0.3341000f, 0.0021000f,  0.4055000f,  0.2891000f,
+                                1.3212000f,  -1.5469000f, -0.2026000f, -0.6560000f, 0.1934000f,  0.5534000f,
+                                1.3182000f,  -0.4693000f, 0.6756000f,  -1.8170000f, -0.1831000f, 1.0590000f,
+                                -0.3978000f, 0.3374000f};
+    std::vector<int8_t> past_key = {2,  20, -20, 22, -18, 13, 13, 24, -25, 18, 1, 22, 29, 2, 2, 19,
+                                    0,  0,  0,   0,  0,   0,  0,  0,  0,   0,  0, 0,  0,  0, 0, 0};
+    std::vector<int8_t> past_value = {21, -26, 7,  -5, 16, -22, 10, -10, 6, 6, -18, 15, 10, -15, -15, -14,
+                                      0,  0,   0,  0,  0,  0,   0,  0,   0, 0, 0,   0,  0,  0,   0,   0};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    std::vector<float> expected_output = {1.1213930f,  -0.5533175f, 0.4177734f,  -1.1409655f, 0.1918463f,  0.2851507f,
+                                          -0.2524007f, -0.0558656f, 0.8854512f,  -0.2376823f, 0.2123242f,  -0.6625816f,
+                                          0.2476609f,  0.0883232f,  -0.5761284f, -0.2612216f};
+    std::vector<int8_t> expected_present_key = {2,  20, -20, 22,  -18, 13,  13, 24, -25, 18, 1, 22, 29, 2, 2, 19,
+                                                8,  6,  28,  -70, -4,  -18, 4,  22, 0,   0,  0, 0,  0,  0, 0, 0};
+    std::vector<int8_t> expected_present_value = {21, -26, 7,  -5,  16, -22, 10, -10, 6, 6, -18, 15, 10, -15, -15, -14,
+                                                  26, -10, 33, -36, -3, 18,  -6, 5,   0, 0, 0,   0,  0,  0,   0,   0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_value);
+    // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly.
+    // Tolerance is a few mantissa bits to absorb the 7-digit precision of the expected float literals.
+    test_case.run(4);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor) {
+    const auto model = convert_model("com.microsoft/gqa_i8kv_per_tensor.onnx");
+
+    // Same tiny config as gqa_i8kv_per_channel but with a single per-tensor scale for K and V.
+    std::vector<float> query = {-0.6722000f, 0.9139000f,  -0.4046000f, 2.3073001f,  -0.4713000f, -1.2187001f,
+                                -0.0709000f, -0.6539000f, 0.3477000f,  -0.5548000f, -0.8047000f, 2.4763999f,
+                                -0.2455000f, -0.3562000f, -0.1832000f, 0.8801000f,  -0.1981000f, 0.0144000f,
+                                -0.5636000f, -1.7803000f, 0.7329000f,  0.1965000f,  1.4570000f,  0.8893000f,
+                                0.4535000f,  -0.6454000f, 0.4348000f,  1.0763000f,  -1.1625000f, -0.2064000f,
+                                1.0543000f,  2.5555000f};
+    std::vector<int8_t> past_key = {4,  -9, -14, 21, 27, 25, -2, -24, 25, -13, 26, 28, 6, -25, -25, -14,
+                                    0,  0,  0,   0,  0,  0,  0,  0,   0,  0,   0,  0,  0, 0,   0,   0};
+    std::vector<int8_t> past_value = {-7, 11, -5, 24, 15, 3,  1,  -16, -10, 2, 22, 15, 5, 27, 1, 13,
+                                      0,  0,  0,  0,  0,  0,  0,  0,   0,   0, 0,  0,  0, 0,  0, 0};
+    std::vector<int> seqlens_k = {2};
+    std::vector<int> total_sequence_length = {3};
+    std::vector<float> expected_output = {-0.5188963f, 0.3134514f, 0.7115822f, 1.2188106f, 0.4947791f, 1.0599996f,
+                                          0.1224652f,  0.2230040f, -0.4877940f, 0.3069850f, 0.6502126f, 1.2329323f,
+                                          0.4722851f,  0.9790537f, 0.1462207f,  0.2237799f};
+    std::vector<int8_t> expected_present_key = {4,  -9, -14, 21,  27, 25, -2, -24, 25, -13, 26, 28, 6, -25, -25, -14,
+                                                -9, 1,  -25, -80, 33, 9,  65, 40,  0,  0,   0,  0,  0, 0,   0,   0};
+    std::vector<int8_t> expected_present_value = {-7, 11, -5, 24, 15, 3,  1,  -16, -10, 2, 22, 15, 5, 27, 1, 13,
+                                                  7,  -10, 7, 16, -18, -3, 16, 39,  0,  0, 0,  0,  0, 0,  0, 0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 4, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_value);
+    // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly.
+    // Tolerance is a few mantissa bits to absorb the 7-digit precision of the expected float literals.
+    test_case.run(4);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_present_type_is_int8) {
+    // Type-inference check: with a quantized KV cache the present_key/present_value outputs must be i8,
+    // while the attention output stays float.
+    const auto model = convert_model("com.microsoft/gqa_i8kv_per_channel.onnx");
+    ASSERT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
+    EXPECT_EQ(model->outputs()[1].get_element_type(), element::i8);
+    EXPECT_EQ(model->outputs()[2].get_element_type(), element::i8);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_unsupported_throws) {
+    // q_norm_weight/k_norm_weight (QK-Norm) inputs are not implemented and must be rejected.
+    try {
+        convert_model("com.microsoft/gqa_qk_norm.onnx");
+        FAIL() << "ONNX Importer did not reject unsupported QK-Norm inputs for GroupQueryAttention";
+    } catch (const ::ov::frontend::OpConversionFailure& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("QK-Norm"));
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("QK-Norm"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
     try {
         convert_model("com.microsoft/gqa_oob.onnx");
         FAIL() << "ONNX Importer did not detect insufficient inputs for GroupQueryAttention";
     } catch (const ::ov::frontend::OpConversionFailure& e) {
-        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 16 inputs")));
     } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 16 inputs")));
     } catch (...) {
         FAIL() << "Unexpected exception type thrown";
     }
