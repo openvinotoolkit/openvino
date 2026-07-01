@@ -630,11 +630,18 @@ std::string network::get_implementation_info(const primitive_id& id) const {
             auto* impl = it->second->get_impl();
             auto kernel_name = impl ? impl->get_kernel_name() : "";
             if (!kernel_name.empty()) {
-                const auto& node = it->second->get_node();
-                return kernel_name + "__" + dt_to_str(_program->get_inference_precision(node));
+                if (_program != nullptr) {
+                    const auto& node = it->second->get_node();
+                    return kernel_name + "__" + dt_to_str(_program->get_inference_precision(node));
+                } else {
+                    return kernel_name;
+                }
             }
         }
     } catch (...) { }
+
+    if (_program == nullptr)
+        return "undef";
 
     return _program->get_implementation_info(id);
 }
