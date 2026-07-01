@@ -297,15 +297,19 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 }
             }
             if (scatter) {
-                // Strip the ScatterUpdate (and Transpose wrapper for transposed V) so the inner
-                // model only outputs the current-token slice. CPU scatter writes it into the
-                // user's full KV tensor at the right offset.
+                // Redirect the Result so the inner model outputs only the current-token slice,
+                // not the full KV cache. CPU scatter writes it into the user's full KV tensor.
+                // For transposed V: keep the Transpose node — redirect its input to curr_v so
+                // the inner output is already in transposed layout {1,H,head_size,curr_seq},
+                // matching the user tensor layout and allowing a simple per-(h,d) memcpy scatter.
                 if (transposed) {
                     LOG_INFO("NPUW_GQA_MANAGED: output[" << i
                                                          << "] has Transpose wrapper on ScatterUpdate"
-                                                            "; stripping for CPU transposed scatter");
-                    // For transposed V, strip past the Transpose too — redirect to curr_v directly.
-                    results[i]->input(0).replace_source_output(scatter->input_value(2));
+                                                            "; preserving Transpose, redirecting its input to curr_v");
+                    // trans->input(0) was ScatterUpdate output; now points to curr_v directly.
+                    // Result still feeds through Transpose, giving {1,H,head_size,curr_seq}.
+                    auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
+                    trans->input(0).replace_source_output(scatter->input_value(2));
                 } else {
                     results[i]->input(0).replace_source_output(scatter->input_value(2));
                 }
@@ -633,11 +637,8 @@ void ov::npuw::GQAInferRequest::infer() {
         auto& inner_t = work_it->second;
         auto& user_t = user_it->second;
 
-        // inner_t shape (all KV): [1, kv_heads, curr_seq, head_size]
         const auto inner_shape = inner_t->get_shape();
         const size_t kv_heads = inner_shape[1];
-        const size_t curr_seq = inner_shape[2];
-        const size_t head_size = inner_shape[3];
         const size_t past = static_cast<size_t>(seqlens_k_val);
         const size_t esz = inner_t->get_element_type().size();
 
@@ -647,8 +648,10 @@ void ov::npuw::GQAInferRequest::infer() {
         const bool transposed =
             (ki < m_compiled_model->m_kv_transposed.size()) && m_compiled_model->m_kv_transposed[ki];
         if (!transposed) {
-            // Standard K layout: user_t is [1, kv_heads, max_seq, head_size].
-            // Copy curr_seq contiguous tokens per head at sequence offset `past`.
+            // K layout — inner_t: [1, kv_heads, curr_seq, head_size]
+            //            user_t:  [1, kv_heads, max_seq,  head_size]
+            const size_t curr_seq = inner_shape[2];
+            const size_t head_size = inner_shape[3];
             const size_t max_seq = user_t->get_shape()[2];
             for (size_t h = 0; h < kv_heads; ++h) {
                 std::memcpy(dst + (h * max_seq + past) * head_size * esz,
@@ -656,18 +659,19 @@ void ov::npuw::GQAInferRequest::infer() {
                             curr_seq * head_size * esz);
             }
         } else {
-            // Transposed V layout: user_t is [1, kv_heads, head_size, max_seq].
-            // inner_t[h, t, d] → user_t[h, d, past + t]
-            // The target stride along max_seq is contiguous, so we scatter
-            // one element at a time (or one token-column per head_dim).
+            // Transposed V layout — inner_t: [1, kv_heads, head_size, curr_seq]
+            //                       user_t:  [1, kv_heads, head_size, max_seq]
+            // Transpose is preserved in the inner model, so inner_t is already in the right
+            // layout. For each (h, d) the curr_seq elements are contiguous in both tensors;
+            // just memcpy them to the right offset in the user tensor.
+            const size_t head_size = inner_shape[2];
+            const size_t curr_seq = inner_shape[3];
             const size_t max_seq = user_t->get_shape()[3];
             for (size_t h = 0; h < kv_heads; ++h) {
                 for (size_t d = 0; d < head_size; ++d) {
-                    // Destination: user_t column [h, d, past .. past+curr_seq-1] — contiguous.
-                    char* dst_col = dst + ((h * head_size + d) * max_seq + past) * esz;
-                    for (size_t t = 0; t < curr_seq; ++t) {
-                        std::memcpy(dst_col + t * esz, src + ((h * curr_seq + t) * head_size + d) * esz, esz);
-                    }
+                    std::memcpy(dst + ((h * head_size + d) * max_seq + past) * esz,
+                                src + (h * head_size + d) * curr_seq * esz,
+                                curr_seq * esz);
                 }
             }
         }
@@ -712,9 +716,10 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                 // NPUW never has to allocate its own — the tensor is always set from outside.
                 if (i < inner_outputs.size()) {
                     auto& wt = m_kv_working_tensors[i];
-                    if (!wt) {
-                        const auto& inner_port = inner_outputs[i];
-                        wt = ov::make_tensor(inner_port.get_element_type(), inner_port.get_partial_shape().to_shape());
+                    const auto& inner_port = inner_outputs[i];
+                    const auto needed_shape = inner_port.get_partial_shape().to_shape();
+                    if (!wt || wt->get_shape() != needed_shape) {
+                        wt = ov::make_tensor(inner_port.get_element_type(), needed_shape);
                     }
                     m_inner_request->set_tensor(inner_outputs[i], wt);
                 }
