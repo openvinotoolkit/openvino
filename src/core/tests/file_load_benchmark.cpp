@@ -68,7 +68,9 @@ struct TestFile {
     size_t size_mib;
     std::filesystem::path path;
 
-    size_t size_bytes() const {return size_mib * util::one_mib; }
+    size_t size_bytes() const {
+        return size_mib * util::one_mib;
+    }
 };
 
 std::filesystem::path generate_test_file(const TestFile& tf) {
@@ -149,9 +151,8 @@ void evict_cache(const std::filesystem::path& path, size_t file_size) {
     }
 
     auto ntdll = GetModuleHandleW(L"ntdll.dll");
-    auto nt_set = ntdll ? reinterpret_cast<NtSetSystemInformation_t>(
-                              GetProcAddress(ntdll, "NtSetSystemInformation"))
-                        : nullptr;
+    auto nt_set =
+        ntdll ? reinterpret_cast<NtSetSystemInformation_t>(GetProcAddress(ntdll, "NtSetSystemInformation")) : nullptr;
     if (!nt_set) {
         warn_once("NtSetSystemInformation unavailable; cannot purge standby list.");
         return;
@@ -195,8 +196,8 @@ namespace strategy {
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void mmap_prefetch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();  // synchronous for regions > 4 MiB (parallel touch + join)
-    ensure_memory_resident(mapped);    // should be near no-op and just lock/unlock resident pages
+    mapped->hint_prefetch();         // synchronous for regions > 4 MiB (parallel touch + join)
+    ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
 void mmap_touch_mlock(const std::filesystem::path& path, size_t /*file_size*/) {
@@ -268,7 +269,7 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
 
 class FileLoadBenchmark : public ::testing::Test {};
 
-TEST_F(FileLoadBenchmark, strategies_read_memcpy) {        
+TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     const std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -379,6 +380,17 @@ TEST_F(FileLoadBenchmark, strategies_mlock) {
     for (const auto& r : results) {
         printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_prefetch_mlock, r.t_mlock);
     }
+
+    printf("\n--- Throughput (MB/s) ---\n");
+    printf("%-10s | %17s | %13s\n", "Size (MB)", "prefetch+mlock", "mmap+mlock");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+
+    for (const auto& r : results) {
+        printf("%-10zu | %12.0f MB/s | %8.0f MB/s\n",
+               r.mb,
+               throughput_mbs(r.mb, r.t_prefetch_mlock),
+               throughput_mbs(r.mb, r.t_mlock));
+    }
 }
 
 TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
@@ -394,7 +406,8 @@ TEST_F(FileLoadBenchmark, hint_prefetch_with_offset_table) {
     const std::vector<size_t> region_sizes_mib = {10, 100, 500};
 
     // Pre-compute all results[size_idx][offset_idx]; -1 means "exceeds"
-    std::vector<std::vector<long long>> results(region_sizes_mib.size(), std::vector<long long>(offsets_mib.size(), -1));
+    std::vector<std::vector<long long>> results(region_sizes_mib.size(),
+                                                std::vector<long long>(offsets_mib.size(), -1));
     for (size_t si = 0; si < region_sizes_mib.size(); ++si) {
         for (size_t oi = 0; oi < offsets_mib.size(); ++oi) {
             const size_t off_bytes = offsets_mib[oi] * util::one_mib;
