@@ -60,6 +60,11 @@ on:
         description: 'Target branch for the build; taken from GitHub context by default'
         type: string
         required: false
+      build-variant:
+        description: 'Build variant suffix including toolchain, e.g., "levelzero"'
+        type: string
+        required: false
+        default: ''
       use_latest_onednn:
         description: 'Whether to use the latest OneDNN'
         type: boolean
@@ -110,10 +115,10 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
-      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
       COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
