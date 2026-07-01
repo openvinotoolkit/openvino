@@ -303,7 +303,12 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     std::optional<std::string> compatibilityString;
     uint64_t compatibilityStringSize = 0;
     result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
-    if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
+    if (result == VCL_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+        // Some compilation modes (e.g. HostCompile_Interpreter) do not produce a compatibility descriptor.
+        _logger.warning("vclExecutableGetCompatibilityString is not supported for this executable (0x%x); "
+                        "compatibility string will be absent",
+                        uint32_t(result));
+    } else if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
         if (executable != nullptr) {
             vclExecutableDestroy(executable);
         }
@@ -312,30 +317,30 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                        uint64_t(result),
                        " - ",
                        getLatestVCLLog(_logHandle));
-    }
-
-    OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
-                    "Compatibility string size is too large to allocate a local buffer");
-    compatibilityString.emplace(static_cast<size_t>(compatibilityStringSize), '\0');
-    result = vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
-    if (result != VCL_RESULT_SUCCESS) {
-        if (executable != nullptr) {
-            vclExecutableDestroy(executable);
+    } else {
+        OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
+                        "Compatibility string size is too large to allocate a local buffer");
+        compatibilityString.emplace(static_cast<size_t>(compatibilityStringSize), '\0');
+        result =
+            vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
+        if (result != VCL_RESULT_SUCCESS) {
+            if (executable != nullptr) {
+                vclExecutableDestroy(executable);
+            }
+            OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
         }
-        OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
-                       std::hex,
-                       uint64_t(result),
-                       " - ",
-                       getLatestVCLLog(_logHandle));
+        OPENVINO_ASSERT(compatibilityStringSize <= compatibilityString->size(),
+                        "Returned compatibility string size exceeds the allocated buffer size");
+        compatibilityString->resize(static_cast<size_t>(compatibilityStringSize));
+        if (!compatibilityString->empty() && compatibilityString->back() != '\0') {
+            compatibilityString->push_back('\0');
+        }
+        _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
     }
-
-    OPENVINO_ASSERT(compatibilityStringSize <= compatibilityString->size(),
-                    "Returned compatibility string size exceeds the allocated buffer size");
-    compatibilityString->resize(static_cast<size_t>(compatibilityStringSize));
-    if (!compatibilityString->empty() && compatibilityString->back() != '\0') {
-        compatibilityString->push_back('\0');
-    }
-    _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
 
     result = vclExecutableDestroy(executable);
     if (result != VCL_RESULT_SUCCESS) {
