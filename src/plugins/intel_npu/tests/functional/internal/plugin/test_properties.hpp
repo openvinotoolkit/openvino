@@ -48,7 +48,8 @@ namespace behavior {
 template <typename OptionType>
 void register_option(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
     options.add<OptionType>();
-    config.enable(OptionType::key(), false);
+    const bool is_runtime_option = OptionType::mode() == ::intel_npu::OptionMode::RunTime;
+    config.enable(OptionType::key(), is_runtime_option);
 }
 
 template <typename... OptionTypes>
@@ -159,7 +160,6 @@ public:
             register_option<Opt>(*options, npu_config);
         });
 
-        npu_config.enableRuntimeOptions();
         // Disable workload type in case driver is not present or it does not support the extension.
         npu_config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
         // Disable max tiles in case we don't have a device.
