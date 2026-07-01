@@ -6,7 +6,7 @@ Practical manual for NPU plugin properties
 
 - [Glossary](#glossary)
 - [Structure of a property (Class hierarchy)](#structure-of-a-property-class-hierarchy)
-  - [Property vs Option vs Metric](#property-vs-option-vs-metric)
+    - [Properties With Option vs Properties Without Option](#properties-with-option-vs-properties-without-option)
   - [OptionBase<T>](#optionbaset)
   - [OptionDesc](#optiondesc)
   - [Config](#config)
@@ -21,15 +21,15 @@ Practical manual for NPU plugin properties
     - [For compiled-model (if required)](#for-compiled-model-if-required)
   - [Step 5. Python bindings](#step-5-python-bindings)
   - [Step 6. Update documentation](#step-6-update-documentation)
-- [How to add a new public (metric backed) property](#how-to-add-a-new-public-metric-backed-property)
+- [How to add a new public property without option (callback-backed/read-only)](#how-to-add-a-new-public-property-without-option-callback-backedread-only)
   - [Step 1. Define the new property](#step-1-define-the-new-property-1)
-  - [Step 2. Define and register a callback function for the new (metric) Property](#step-2-define-and-register-a-callback-function-for-the-new-metric-property)
+    - [Step 2. Define and register a callback function for the new property](#step-2-define-and-register-a-callback-function-for-the-new-property)
   - [Step 3. Python bindings](#step-3-python-bindings)
   - [Step 4. Update documentation](#step-4-update-documentation)
 - [Compiled-model properties](#compiled-model-properties)
 - [Special cases](#special-cases)
   - [SC.1 Adding a new property which requires custom functions](#sc1-adding-a-new-property-which-requires-custom-functions)
-  - [SC.2 Adding a new (metric-backed) property which requires customization](#sc2-adding-a-new-metric-backed-property-which-requires-customization)
+    - [SC.2 Adding a new property without option which requires customization](#sc2-adding-a-new-property-without-option-which-requires-customization)
   - [SC.3 Filtering out options at registration phase](#sc3-filtering-out-options-at-registration-phase)
 - [Removing a public property](#removing-a-public-property)
 
@@ -37,10 +37,11 @@ Practical manual for NPU plugin properties
 
 | Name     | Description | Example |
 |:--------:|:---------   |:--------: |
-| Property | a plugin interface which can be set or read. Can map to options or metrics` | `ov::log::level` | 
+| Property | a plugin interface which can be set or read | `ov::log::level` | 
 | Option   | a configuration entry in our internal configuration.</br>Consists of an OptionBase template descriptor + a template OptionValue value. | `LOG_LEVEL` |
-| Config   | Our internal database of configuration keys and their values | `_globalConfig` |
-| Metric   | A property which does not map to any configuration key and configuration entry in our internal config.</br>Usually a static value directly read from driver or OS. | `ov::device::pci_info` |
+| Config   | Our internal database of configuration keys and their values | |
+| Option-backed property | A property mapped to an Option entry in Config (`register_property*` helpers with config argument). | `ov::hint::performance_mode` |
+| Property without option (callback-backed/read-only) | A property that is not mapped to Config and is implemented by callback logic (usually runtime/backend queries). | `ov::device::pci_info` |
 | Compiler | Npu compiler as viewed from the plugin's perspective.</br>Can be Compiler-In-Driver or Compiler-In-Plugin | `CID` |
 | "Anonymous" property</br>OR</br>compiler-private property | A setting from application level which the plugin has no knowledge of</br>(it is not registered, plugin is not aware of its datatype)</br> but which the compiler reports as supported via is_supported() API. | N/A |
 
@@ -52,16 +53,16 @@ Practical manual for NPU plugin properties
 
 <br>
 
-### Property vs Option vs Metric
+### Properties With Option vs Properties Without Option
 As it can be observed in the above class hierarchy diagram, a Property is a public interface to an internal information, the top layer of abstraction.  
-A property can connect internally to an Option or to a Metric.
-The main difference between Option and Metric is that while Options are entries in our internal database (Config) which can be modified at any time, Metrics are static read-only pieces of information
-which do not exist in the internal database. Metrics can not be set or changed externally, their values are not stored in the plugin and they most often just a direct system or driver call.
-Example of Metrics in NPU Plugin are: driver version, compiler version, device architecture, pci information, gops, uuid, luid, etc.
+A property can be implemented either through Config options or through callback logic.
+The main difference is that while option-backed properties are entries in our internal database (Config) which can be modified at any time, properties without option
+do not exist in the internal database and are computed/read on demand from backend/driver/OS.
+Examples in NPU Plugin are: driver version, compiler version, device architecture, pci information, gops, uuid, luid, etc.
 To summarize:
-A property can map internally to **one** of the 2 types:
-- either a Option, if it has an entry in our internal Config, it is a mutable setting used either by compiler or by inference
-- either a Metric, if it is a static immutable piece of information that only needs to be returned on request (system/platform/hardware etc information)
+A property can be implemented in **one** of the 2 ways:
+- Option-backed property: has an entry in internal Config and is managed through Option descriptors/helpers.
+- Property without option: implemented through callback logic (typically read-only runtime/backend information).
 
 ### OptionBase\<T\> 
 Implements the option descriptor. This class contains all the details of a config option: name, datatype, default value, parser, public/private, mutability, compiler version (for legacy support), etc. This serves as the key in our configuration map. 
@@ -115,7 +116,7 @@ struct OptionBase {
         return false; 
     } 
 
-    // Overload this for read-only options (metrics) 
+    // Overload this for read-only properties 
     static ov::PropertyMutability mutability() { 
         return ov::PropertyMutability::RW; 
     } 
@@ -313,9 +314,9 @@ src/plugins/intel_npu/README.md
 
 <br><br>
 
-# How to add a new public (metric backed) property
-As described in the first paragraph, Metrics do not have an entry in our internal Config, they are static immutable data which just needs to be returned at get_property calls.  
-This means we do not need to define and Option nor register an Option for it.  
+# How to add a new public property without option (callback-backed/read-only)
+As described in the first paragraph, these properties do not have an entry in our internal Config and are returned through callback logic at get_property calls.  
+This means we do not need to define an Option nor register an Option for them.  
 
 ## Step 1. Define the new property
 First step is to define the new property's name, datatype and string-name in the public header in  
@@ -331,21 +332,28 @@ Notes:
 - mutability is Read-Only
 - datatype of the property is enum ExampleType { VAL1, VAL2, VAL3 } 
 
-## Step 2. Define and register a callback function for the new (metric) Property
+## Step 2. Define and register a callback function for the new property
 You need to register the new property and define a callback function in the owner-specific property manager.
 For plugin: src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 For compiled-model: src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
+
+For properties without option, prefer a support-gated registration so the getter is only used when backend/runtime requirements are available:
 ```cpp
-    register_property_with_custom_function(_properties,
-                                           ov::intel_npu::example_property.name(),
-                                           true,
-                                           [&](const FilteredConfig&) {
-                                               return _metrics->GetDriverVersion();
-                                           });
+    const auto has_backend = [this](const FilteredConfig&) {
+        return _backend != nullptr;
+    };
+
+    register_property_with_support_and_custom_function(_properties,
+                                                       ov::intel_npu::example_property.name(),
+                                                       has_backend,
+                                                       true,
+                                                       [this](const FilteredConfig&) {
+                                                           return utils::getDriverVersion(_backend);
+                                                       });
 ```
 **Explanation**
-this helper function will register a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which will be public and included in supported_properties (second parameter)  
-and will call `_metrics->GetDriverVersion()` each time get_property is queried.
+this helper function registers a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which is public and included in supported_properties when the support predicate returns true.  
+and calls `utils::getDriverVersion(_backend)` each time get_property is queried.
 Note: the first argument is the property name string (`property.name()`), not the property object itself.
 
 ## Step 3. Python bindings
@@ -419,32 +427,82 @@ provided as a lambda function. The getter receives the FilteredConfig object and
 Example:
 ```cpp
     register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(),
-        [&](const FilteredConfig& config) {
+        [this](const FilteredConfig& config) {
             if (!config.has<STEPPING>()) {
-                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+                const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
+                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
             }
             return config.get<STEPPING>();
         });
 ```
 
-## SC.2 Adding a new (metric-backed) property which requires customization
-Apart from register_property_with_custom_function, two additional helper functions are available for metric-backed properties:
+## SC.2 Adding a new property without option which requires customization
+Apart from register_property_with_custom_function, two additional helper functions are available for properties without option:
 
 #### register_property_with_support_and_custom_function(properties, propertyName, isSupported, isPublic, getter)
-Registers a metric property and gates it through isSupported.
-Use this when the availability of a metric depends on a runtime condition (e.g. backend capability check).
+Registers a property and gates it through isSupported.
+Use this when availability depends on runtime condition (e.g. backend capability check).
 Example:
 ```cpp
+    const auto has_backend_and_valid_device = [this](const FilteredConfig& config) {
+        if (_backend == nullptr) {
+            return false;
+        }
+
+        try {
+            const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
+            return utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
+        } catch (...) {
+            return false;
+        }
+    };
+
     register_property_with_support_and_custom_function(
         _properties,
         ov::device::full_name.name(),
-        [this](const FilteredConfig&) {
-            return !_metrics->GetAvailableDevicesNames().empty();
+        has_backend_and_valid_device,
+        true,
+        [this](const FilteredConfig& config) {
+            return utils::getFullDeviceName(_backend, config.get<intel_npu::DEVICE_ID>());
+        });
+```
+
+The same pattern can be used for support-gating compiler-specific properties without option:
+```cpp
+    register_property_with_support_and_custom_function(
+        _properties,
+        ov::intel_npu::compiler_version.name(),
+        [this](const FilteredConfig& config) {
+            try {
+                auto compilerType = config.get<COMPILER_TYPE>();
+                auto deviceId = config.get<DEVICE_ID>();
+                auto device = utils::getDeviceById(_backend, deviceId);
+
+                auto compilationPlatform = utils::getCompilationPlatform(
+                    config.get<PLATFORM>(),
+                    device == nullptr ? std::move(deviceId) : device->getName(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+                CompilerAdapterFactory factory;
+                return factory.getCompiler(_backend, compilerType, compilationPlatform) != nullptr;
+            } catch (...) {
+                return false;
+            }
         },
         true,
-        [&](const FilteredConfig& config) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return _metrics->GetFullDeviceName(specifiedDeviceName);
+        [this](const FilteredConfig& config) {
+            auto compilerType = config.get<COMPILER_TYPE>();
+            auto deviceId = config.get<DEVICE_ID>();
+            auto device = utils::getDeviceById(_backend, deviceId);
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                config.get<PLATFORM>(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            CompilerAdapterFactory factory;
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            return dummyCompiler->get_version();
         });
 ```
 
