@@ -351,12 +351,20 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_kv_sc
                                                                                     int64_t kv_num_heads,
                                                                                     const std::string& quant_type) {
     // The KV cache is laid out as [batch, kv_num_heads, seq_len, head_size]. Reshape the flat scale so it
-    // broadcasts along that layout. A fresh shape Constant is built per call so no two GQA layers alias it.
+    // broadcasts along that layout. A fully static target shape is used (no -1 wildcard) so the result stays
+    // static-shaped for plugins (e.g. NPU) that require static shapes. A fresh shape Constant is built per
+    // call so no two GQA layers alias it.
     std::vector<int64_t> target_shape;
     if (quant_type == "PER_CHANNEL") {
         // Per-channel scale has kv_num_heads * head_size elements, head-major (scale[kv_head * head_size + ch]).
-        // Reshape to [1, kv_num_heads, 1, head_size] (head_size inferred via -1) to broadcast over batch and seq.
-        target_shape = {1, kv_num_heads, 1, -1};
+        // Reshape to [1, kv_num_heads, 1, head_size] to broadcast over batch and seq. head_size is derived from
+        // the (static) scale length when known, otherwise falls back to a -1 wildcard.
+        int64_t head_size = -1;
+        const auto& scale_pshape = scale.get_partial_shape();
+        if (scale_pshape.rank().is_static() && scale_pshape.rank().get_length() == 1 && scale_pshape[0].is_static()) {
+            head_size = scale_pshape[0].get_length() / kv_num_heads;
+        }
+        target_shape = {1, kv_num_heads, 1, head_size};
     } else {
         // PER_TENSOR: a single scalar broadcast over the whole tensor.
         target_shape = {1, 1, 1, 1};
