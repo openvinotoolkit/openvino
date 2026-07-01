@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <future>
 #include <mutex>
@@ -141,6 +142,17 @@ class MapHolder final : public MappedMemory {
 
     void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
         std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        // Opportunistically reap already-finished futures (non-blocking check via wait_for(0))
+        // so the vector doesn't grow without bound if hint_prefetch_async().detach() is called
+        // repeatedly over the lifetime of this mapping.
+        m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                                m_pending_prefetch.end(),
+                                                [](std::future<void>& task) {
+                                                    return !task.valid() ||
+                                                           task.wait_for(std::chrono::seconds(0)) ==
+                                                               std::future_status::ready;
+                                                }),
+                                 m_pending_prefetch.end());
         m_pending_prefetch.insert(m_pending_prefetch.end(),
                                   std::make_move_iterator(tasks.begin()),
                                   std::make_move_iterator(tasks.end()));
