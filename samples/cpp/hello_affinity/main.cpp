@@ -376,7 +376,7 @@ size_t parse_iterations(const std::string& value) {
 void print_usage(const std::string& executable_name) {
     slog::info << "Usage : " << executable_name << " -m <path_to_model> [-d <device_name>] "
                << "[-affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] "
-               << "[-hint <performance_hint>] [-shape <shapes>] [-data_shape <shapes>] "
+               << "[-hint <performance_hint>] [-shape <shapes>] [-data_shape <shapes>|--data-shape <shapes>] "
                << "[-niter <integer>] [-no_warmup]" << slog::endl;
 }
 

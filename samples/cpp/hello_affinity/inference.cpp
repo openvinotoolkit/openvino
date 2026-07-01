@@ -301,7 +301,7 @@ ov::Tensor create_input_tensor(const ov::Output<const ov::Node>& input,
     const auto tensor_shape = get_inference_tensor_shape(input, data_shapes);
 
     if (input.get_element_type() == ov::element::string) {
-        OPENVINO_THROW("String input '", input.get_any_name(), "' is not supported by hello_affinity infer mode.");
+        OPENVINO_THROW("String input '", input.get_any_name(), "' is not supported by hello_affinity inference mode.");
     }
 
     const auto name = input.get_any_name();
