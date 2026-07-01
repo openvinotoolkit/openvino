@@ -378,11 +378,11 @@ size_t parse_iterations(const std::string& value) {
 }
 
 void print_usage(const std::string& executable_name) {
-    slog::info << "Usage : " << executable_name << " -m <path_to_model> [-d <device_name>] "
-               << "[-affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] "
-               << "[-hint <performance_hint>] [-shape <shapes>] "
+    slog::info << "Usage : " << executable_name << " -m|--model <path_to_model> [-d|--device <device_name>] "
+               << "[-affinity|--affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] "
+               << "[-hint|--hint <performance_hint>] [-shape|--shape <shapes>] "
                << "[-data_shape <shapes>|--data_shape <shapes>|--data-shape <shapes>] "
-               << "[-niter <integer>] [-no_warmup]" << slog::endl;
+               << "[-niter|--niter <integer>] [-no_warmup|--no_warmup]" << slog::endl;
 }
 
 std::string get_option_value(int argc, tchar* argv[], int& arg_index, const std::string& option_name) {
