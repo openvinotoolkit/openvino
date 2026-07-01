@@ -27,7 +27,7 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 
 inline bool isSpecialBothProperty(const std::string& key) {
     return key == ov::hint::performance_mode.name() || key == ov::enable_profiling.name() ||
-           key == ov::log::level.name() || key == ov::intel_npu::commandlist_mode.name();
+           key == ov::log::level.name();
 }
 
 inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
