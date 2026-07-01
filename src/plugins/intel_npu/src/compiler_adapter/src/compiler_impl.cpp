@@ -321,8 +321,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         OPENVINO_ASSERT(compatibilityStringSize <= std::numeric_limits<size_t>::max(),
                         "Compatibility string size is too large to allocate a local buffer");
         compatibilityString.emplace(static_cast<size_t>(compatibilityStringSize), '\0');
-        result =
-            vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
+        result = vclExecutableGetCompatibilityString(executable, compatibilityString->data(), &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
             if (executable != nullptr) {
                 vclExecutableDestroy(executable);
