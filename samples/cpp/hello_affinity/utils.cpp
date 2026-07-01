@@ -47,7 +47,13 @@ std::string to_lower(std::string value) {
 }
 
 bool contains_substring(const std::string& value, const std::string& substring) {
-    return to_lower(value).find(to_lower(substring)) != std::string::npos;
+    return std::search(value.begin(),
+                       value.end(),
+                       substring.begin(),
+                       substring.end(),
+                       [](unsigned char left, unsigned char right) {
+                           return std::tolower(left) == std::tolower(right);
+                       }) != value.end();
 }
 
 std::string format_double(double value) {

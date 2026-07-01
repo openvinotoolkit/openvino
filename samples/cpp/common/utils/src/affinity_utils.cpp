@@ -18,6 +18,22 @@
 
 namespace {
 
+bool has_json_extension(const std::string& value) {
+    static constexpr std::string_view json_extension = ".json";
+    if (value.size() < json_extension.size()) {
+        return false;
+    }
+
+    const auto suffix_begin = value.end() - static_cast<std::ptrdiff_t>(json_extension.size());
+    return std::equal(suffix_begin,
+                      value.end(),
+                      json_extension.begin(),
+                      json_extension.end(),
+                      [](unsigned char left, unsigned char right) {
+                          return std::tolower(left) == std::tolower(right);
+                      });
+}
+
 void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
                                 const std::string& file_path,
                                 const std::vector<std::string>& hardware_devices = {},
@@ -209,9 +225,7 @@ void apply_manual_affinities(const std::shared_ptr<ov::Model>& model,
         return;
     }
 
-    const bool has_json_ext =
-        affinity_spec.size() >= 5 && (affinity_spec.compare(affinity_spec.size() - 5, 5, ".json") == 0 ||
-                                      affinity_spec.compare(affinity_spec.size() - 5, 5, ".JSON") == 0);
+    const bool has_json_ext = has_json_extension(affinity_spec);
 
     if (has_json_ext) {
         apply_affinities_from_file(model, affinity_spec, hardware_devices, fallback_unmapped_ops);

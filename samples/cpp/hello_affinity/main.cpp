@@ -220,7 +220,10 @@ void prepare_model(std::shared_ptr<ov::Model>& model,
 
     ov::preprocess::PrePostProcessor preproc(model);
     for (const auto& input : model->inputs()) {
-        auto layout = dynamic_cast<const ov::op::v0::Parameter&>(*input.get_node()).get_layout();
+        ov::Layout layout;
+        if (const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr())) {
+            layout = parameter->get_layout();
+        }
         if (layout.empty()) {
             layout = get_default_layout(input.get_partial_shape());
             if (!layout.empty()) {
