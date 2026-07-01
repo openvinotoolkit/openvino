@@ -69,7 +69,7 @@ private:
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
-    std::shared_ptr<Metrics> _metrics;
+    std::shared_ptr<Metrics> _metrics = nullptr;
     Logger& _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
