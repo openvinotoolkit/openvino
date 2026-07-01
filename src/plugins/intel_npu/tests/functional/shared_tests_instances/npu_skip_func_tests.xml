@@ -957,7 +957,7 @@ Example:
             <driver_type>PV</driver_type>
         </enable_rules>
         <filters>
-            <filter>.*TestCompiledModelNPU*</filter>
+            <filter>.*TestCompiledModelNPU.*</filter>
         </filters>
     </skip_config>
 
@@ -968,7 +968,7 @@ Example:
             <driver_type>LATEST</driver_type>
         </enable_rules>
         <filters>
-            <filter>.*TestCompiledModelNPU*</filter>
+            <filter>.*TestCompiledModelNPU.*</filter>
         </filters>
     </skip_config>
 
