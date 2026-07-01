@@ -11,8 +11,10 @@
 #include <cstdint>
 #include <exception>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <queue>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -104,12 +106,15 @@ void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
     }
 }
 
-/// \brief Collect all external references from a subgraph, recursing into nested subgraphs.
-/// Returns all tensor names referenced by the subgraph (directly or via nested subgraphs)
-/// that are not defined within the subgraph itself.
-void collect_subgraph_external_refs(const GraphProto& subgraph, std::unordered_set<std::string>& deps) {
-    // Build set of names defined within this subgraph
-    std::unordered_set<std::string> subgraph_defined;
+/// \brief Invoke \p sink for each name referenced by \p subgraph (and nested subgraphs)
+/// that is not defined within \p subgraph itself.
+using ExternalRefSink = std::function<void(std::string_view)>;
+
+void walk_subgraph_external_refs(const GraphProto& subgraph, const ExternalRefSink& sink) {
+    std::unordered_set<std::string_view> subgraph_defined;
+    subgraph_defined.reserve(static_cast<size_t>(subgraph.input_size()) +
+                             static_cast<size_t>(subgraph.initializer_size()) +
+                             static_cast<size_t>(subgraph.node_size()) * 2);
     for (const auto& input : subgraph.input()) {
         subgraph_defined.insert(input.name());
     }
@@ -118,54 +123,28 @@ void collect_subgraph_external_refs(const GraphProto& subgraph, std::unordered_s
     }
     for (const auto& sub_node : subgraph.node()) {
         for (const auto& out : sub_node.output()) {
-            subgraph_defined.insert(out);
+            if (!out.empty()) {
+                subgraph_defined.insert(out);
+            }
         }
     }
-    // Collect direct references to outer graph tensors
+    const ExternalRefSink emit_if_external = [&](std::string_view name) {
+        if (!name.empty() && subgraph_defined.count(name) == 0) {
+            sink(name);
+        }
+    };
     for (const auto& sub_node : subgraph.node()) {
         for (const auto& inp : sub_node.input()) {
-            if (!inp.empty() && subgraph_defined.count(inp) == 0) {
-                deps.insert(inp);
-            }
+            emit_if_external(inp);
         }
-        // Recurse into nested subgraphs
         for (const auto& attr : sub_node.attribute()) {
             if (attr.has_g()) {
-                std::unordered_set<std::string> nested_deps;
-                collect_subgraph_external_refs(attr.g(), nested_deps);
-                // Nested external refs that are also external to this subgraph
-                for (const auto& dep : nested_deps) {
-                    if (subgraph_defined.count(dep) == 0) {
-                        deps.insert(dep);
-                    }
-                }
+                walk_subgraph_external_refs(attr.g(), sink);
             }
         }
     }
-    // Subgraph outputs may directly reference outer-scope tensors when the body
-    // has no node producing them (e.g., an If branch returning a parent value).
     for (const auto& output : subgraph.output()) {
-        const auto& name = output.name();
-        if (!name.empty() && subgraph_defined.count(name) == 0) {
-            deps.insert(name);
-        }
-    }
-}
-
-/// \brief Collect all dependencies for a node (direct inputs + subgraph external references).
-void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::string>& deps) {
-    // Direct inputs
-    for (const auto& inp : node.input()) {
-        if (!inp.empty()) {
-            deps.insert(inp);
-        }
-    }
-    // Subgraph external references (for Loop/If/Scan bodies referencing outer tensors)
-    for (const auto& attr : node.attribute()) {
-        if (!attr.has_g()) {
-            continue;
-        }
-        collect_subgraph_external_refs(attr.g(), deps);
+        emit_if_external(output.name());
     }
 }
 
@@ -176,8 +155,11 @@ void topological_sort_graph(GraphProto* graph) {
         return;
     }
 
-    // Known tensors: graph inputs and initializers
-    std::unordered_set<std::string> known_tensors;
+    // Keys are string_views into protobuf-owned strings (stable for this function's scope).
+
+    // Known tensors: graph inputs and initializers.
+    std::unordered_set<std::string_view> known_tensors;
+    known_tensors.reserve(static_cast<size_t>(graph->input_size()) + static_cast<size_t>(graph->initializer_size()));
     for (const auto& input : graph->input()) {
         known_tensors.insert(input.name());
     }
@@ -185,15 +167,10 @@ void topological_sort_graph(GraphProto* graph) {
         known_tensors.insert(init.name());
     }
 
-    // Precompute dependencies for each node
-    std::vector<std::unordered_set<std::string>> node_deps(num_nodes);
-    for (int i = 0; i < num_nodes; ++i) {
-        collect_node_dependencies(graph->node(i), node_deps[i]);
-    }
-
-    // Build producer map for node outputs
-    std::unordered_map<std::string, int> producer_by_tensor;
-    producer_by_tensor.reserve(num_nodes * 2);
+    // Producer map for node outputs. 2x num_nodes is a hint sized for common multi-output
+    // ops (Split, TopK, BatchNorm, LSTM, ...); the map rehashes if exceeded.
+    std::unordered_map<std::string_view, int> producer_by_tensor;
+    producer_by_tensor.reserve(static_cast<size_t>(num_nodes) * 2);
     for (int i = 0; i < num_nodes; ++i) {
         for (const auto& out : graph->node(i).output()) {
             if (!out.empty()) {
@@ -202,68 +179,82 @@ void topological_sort_graph(GraphProto* graph) {
         }
     }
 
-    // Build dependency graph: producer -> consumer and indegree per consumer.
-    // Also track dependencies that are neither known graph inputs/initializers
-    // nor produced by any node in this graph.
+    // Build adjacency and indegree. Unresolved external deps bump indegree without an
+    // edge, so such nodes never become ready and the final size check keeps original order.
+    // last_seen_for[p] dedups multiple edges from producer p to the same consumer.
     std::vector<std::vector<int>> adjacency(num_nodes);
     std::vector<int> indegree(num_nodes, 0);
-    std::vector<int> unresolved_external(num_nodes, 0);
-    std::unordered_set<uint64_t> unique_edges;
-    unique_edges.reserve(static_cast<size_t>(num_nodes) * 2);
+    std::vector<int> last_seen_for(num_nodes, -1);
+
     for (int i = 0; i < num_nodes; ++i) {
-        for (const auto& dep : node_deps[i]) {
-            if (known_tensors.count(dep) > 0) {
-                continue;
+        const auto& node = graph->node(i);
+        const auto handle_dep = [&](std::string_view dep) {
+            if (dep.empty() || known_tensors.count(dep) > 0) {
+                return;
             }
-            if (const auto producer_it = producer_by_tensor.find(dep); producer_it != producer_by_tensor.end()) {
-                const int producer_idx = producer_it->second;
-                const auto edge_key =
-                    (static_cast<uint64_t>(static_cast<uint32_t>(producer_idx)) << 32) | static_cast<uint32_t>(i);
-                if (unique_edges.insert(edge_key).second) {
-                    adjacency[producer_idx].push_back(i);
-                    ++indegree[i];
-                }
-            } else {
-                ++unresolved_external[i];
+            const auto producer_it = producer_by_tensor.find(dep);
+            if (producer_it == producer_by_tensor.end()) {
+                ++indegree[i];  // unresolved external dep
+                return;
+            }
+            const int producer_idx = producer_it->second;
+            if (last_seen_for[producer_idx] == i) {
+                return;
+            }
+            last_seen_for[producer_idx] = i;
+            adjacency[producer_idx].push_back(i);
+            ++indegree[i];
+        };
+        for (const auto& inp : node.input()) {
+            handle_dep(inp);
+        }
+        for (const auto& attr : node.attribute()) {
+            if (attr.has_g()) {
+                walk_subgraph_external_refs(attr.g(), handle_dep);
             }
         }
     }
 
-    // Kahn's algorithm: queue nodes with all dependencies satisfied
+    // Kahn's algorithm.
     std::queue<int> ready_nodes;
     for (int i = 0; i < num_nodes; ++i) {
-        if (indegree[i] == 0 && unresolved_external[i] == 0) {
+        if (indegree[i] == 0) {
             ready_nodes.push(i);
         }
     }
 
-    std::vector<NodeProto> sorted_nodes;
-    sorted_nodes.reserve(num_nodes);
-    int processed_nodes = 0;
+    std::vector<int> order;
+    order.reserve(num_nodes);
 
     while (!ready_nodes.empty()) {
         const int node_idx = ready_nodes.front();
         ready_nodes.pop();
 
-        sorted_nodes.push_back(graph->node(node_idx));
-        ++processed_nodes;
+        order.push_back(node_idx);
 
         for (const auto consumer_idx : adjacency[node_idx]) {
-            --indegree[consumer_idx];
-            if (indegree[consumer_idx] == 0 && unresolved_external[consumer_idx] == 0) {
+            if (--indegree[consumer_idx] == 0) {
                 ready_nodes.push(consumer_idx);
             }
         }
     }
 
-    if (processed_nodes != num_nodes) {
-        return;  // Cycle detected or missing input - keep original order
+    if (static_cast<int>(order.size()) != num_nodes) {
+        return;  // cycle or unresolved dep — keep original order
     }
 
-    // Replace graph nodes with sorted order
-    graph->mutable_node()->Clear();
-    for (auto& node : sorted_nodes) {
-        *graph->add_node() = std::move(node);
+    // Permute nodes in place via SwapElements (O(1) pointer swap on RepeatedPtrField).
+    std::vector<int> pos(num_nodes);
+    for (int k = 0; k < num_nodes; ++k) {
+        pos[order[k]] = k;
+    }
+    auto* nodes = graph->mutable_node();
+    for (int i = 0; i < num_nodes; ++i) {
+        while (pos[i] != i) {
+            const int t = pos[i];
+            nodes->SwapElements(i, t);
+            std::swap(pos[i], pos[t]);
+        }
     }
 }
 }  // namespace
