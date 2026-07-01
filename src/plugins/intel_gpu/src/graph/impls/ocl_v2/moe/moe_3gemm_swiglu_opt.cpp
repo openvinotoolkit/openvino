@@ -1917,14 +1917,29 @@ public:
         // OTD: all slots have identical shape → cache by n_token only (expert_no = 0)
         int effective_expert = _weight_provider->is_offloaded() ? 0 : expert_no;
         auto key = std::make_pair(n_token, effective_expert);
-        if (_kernels.has(key)) {
-            return *_kernels.get(key);
+        if (!_kernels.has(key)) {
+            auto kernel = create_kernel(n_token, effective_expert, instance);
+            _kernels.add(key, kernel);
+            if (auto* perf = moe_otd::get_perf_counters())
+                perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
         }
-        auto kernel = create_kernel(n_token, effective_expert, instance);
-        _kernels.add(key, kernel);
-        if (auto* perf = moe_otd::get_perf_counters())
-            perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
-        return *_kernels.get(key);
+        auto& kernel = *_kernels.get(key);
+        // OTD: patch weight memory handles for the current expert's LRU slot.
+        // The cached primitive shape is reusable but the underlying memory pointers
+        // change per expert after on_load_expert_weights updates _dnnl_weights[expert_no].
+        if (_weight_provider->is_offloaded()) {
+            auto& dw = _dnnl_weights[expert_no];
+            kernel.gate.weight = dw[0].weight;
+            kernel.gate.scale = dw[0].scale;
+            kernel.gate.zp = dw[0].zp;
+            kernel.up.weight = dw[1].weight;
+            kernel.up.scale = dw[1].scale;
+            kernel.up.zp = dw[1].zp;
+            kernel.down.weight = dw[2].weight;
+            kernel.down.scale = dw[2].scale;
+            kernel.down.zp = dw[2].zp;
+        }
+        return kernel;
     }
 
     std::shared_ptr<onednn_kernel> create_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
