@@ -166,21 +166,38 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
                                     const std::string& op_label) {
     const auto& pshape = x.get_partial_shape();
     const auto rank = pshape.rank();
-    if (rank.is_static() && rank.get_length() >= 2) {
+    if (rank.is_static()) {
+        // A matrix op needs at least two axes; a lower static rank can never be n x n and must
+        // not silently fall through to the runtime reshape guard (which could otherwise reinterpret
+        // e.g. a 1-D tensor of n*n elements as an n x n matrix instead of failing like PyTorch).
+        PYTORCH_OP_CONVERSION_CHECK(rank.get_length() >= 2,
+                                    op_label,
+                                    " requires a batch of ",
+                                    n,
+                                    "x",
+                                    n,
+                                    " matrices (rank >= 2), got rank ",
+                                    rank.get_length(),
+                                    ".");
         const auto& m_dim = pshape[rank.get_length() - 2];
         const auto& n_dim = pshape[rank.get_length() - 1];
+        // Fail at conversion for any statically-known trailing dimension that is not n (this also
+        // covers the mixed case where one trailing dim is static != n and the other is dynamic),
+        // matching the clean op-labeled message instead of deferring to a bare runtime reshape error.
+        PYTORCH_OP_CONVERSION_CHECK((!m_dim.is_static() || m_dim.get_length() == n) &&
+                                        (!n_dim.is_static() || n_dim.get_length() == n),
+                                    op_label,
+                                    " is only supported for ",
+                                    n,
+                                    "x",
+                                    n,
+                                    " matrices, got trailing dimensions ",
+                                    m_dim,
+                                    "x",
+                                    n_dim,
+                                    ".");
         if (m_dim.is_static() && n_dim.is_static()) {
-            PYTORCH_OP_CONVERSION_CHECK(m_dim.get_length() == n && n_dim.get_length() == n,
-                                        op_label,
-                                        " is only supported for ",
-                                        n,
-                                        "x",
-                                        n,
-                                        " matrices, got trailing dimensions ",
-                                        m_dim.get_length(),
-                                        "x",
-                                        n_dim.get_length(),
-                                        ".");
+            // Genuine static n x n: no runtime guard needed.
             return x;
         }
     }
