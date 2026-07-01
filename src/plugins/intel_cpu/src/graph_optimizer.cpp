@@ -275,7 +275,6 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (none_of(parentNode->getType(),
                     Type::Convolution,
                     Type::MatMul,
-                    Type::Deconvolution,
                     Type::FullyConnected)) {
             return false;
         }
