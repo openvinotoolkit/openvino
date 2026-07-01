@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <future>
+#include <mutex>
 #include <thread>
 #include <tuple>
 
@@ -137,6 +139,27 @@ class MapHolder final : public MappedMemory {
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
+    // Tasks handed off via PrefetchToken::detach(): must be waited on before unmapping, see
+    // wait_for_pending_prefetch() / ~MapHolder().
+    std::mutex m_pending_prefetch_mutex;
+    std::vector<std::future<void>> m_pending_prefetch;
+
+    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
+        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        m_pending_prefetch.insert(m_pending_prefetch.end(),
+                                  std::make_move_iterator(tasks.begin()),
+                                  std::make_move_iterator(tasks.end()));
+    }
+
+    void wait_for_pending_prefetch() noexcept {
+        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        for (auto& task : m_pending_prefetch) {
+            if (task.valid()) {
+                task.wait();
+            }
+        }
+        m_pending_prefetch.clear();
+    }
 
 public:
     MapHolder() = default;
@@ -184,6 +207,9 @@ public:
     }
 
     ~MapHolder() {
+        // Detached prefetch tasks (see hint_prefetch_async()) may still be touching this
+        // mapping's pages; they must complete before the mapping is torn down.
+        wait_for_pending_prefetch();
         if (m_mapped_view != MAP_FAILED) {
             munmap(m_mapped_view, m_mapped_view_size);
         }
@@ -213,9 +239,15 @@ public:
 
     util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) override {
         if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_should_prefetch) {
-            return util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address),
-                                            plan.m_aligned_size,
-                                            plan.m_num_threads);
+            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address),
+                                                  plan.m_aligned_size,
+                                                  plan.m_num_threads);
+            // Allow token.detach() to hand the still-running tasks off to this object, so that
+            // they are guaranteed to complete before ~MapHolder() unmaps the memory.
+            token.set_detach_sink([this](std::vector<std::future<void>>&& tasks) {
+                adopt_pending_prefetch(std::move(tasks));
+            });
+            return token;
         }
         return {};
     }
