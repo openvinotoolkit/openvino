@@ -186,7 +186,7 @@ jobs:
 
       - name: Upload RoPE Test Results
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: test-results-rope-${{ inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu_rope_tests.html
