@@ -51,9 +51,6 @@ class DynamicPipeline final : public IPipeline {
                               const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                               std::shared_ptr<DynamicArguments> args) {
             _commandLists.reserve(numCommandLists);
-            for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
-            }
 
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandListHandles.push_back(_commandLists[i]->handle());
