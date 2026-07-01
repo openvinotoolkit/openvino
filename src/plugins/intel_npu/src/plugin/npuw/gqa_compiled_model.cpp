@@ -122,6 +122,10 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
         LOG_INFO("GQA model stage unknown; FOLD disabled");
     }
     merge_config_with(config, properties);
+    // NPUW_GQA_MANAGED is consumed here at the GQA wrapper level.  It must NOT
+    // propagate into the inner NPUW CompiledModel's config, because the inner model
+    // does not know this property and having it present in m_cfg corrupts inference.
+    config.erase(std::string(::intel_npu::NPUW_GQA_MANAGED::key()));
     return config;
 }
 
@@ -163,10 +167,11 @@ static std::shared_ptr<ov::Model> build_stub_outer_model(const std::shared_ptr<o
         ov::PartialShape shape = out.get_partial_shape();
         if (is_kv && kv_i < kv_max_seqs.size()) {
             if (kv_i < kv_transposed.size() && kv_transposed[kv_i]) {
-                // Transposed V: inner shape is [1, kv_heads, curr_seq, head_size],
-                // outer (user-facing) shape must be [1, kv_heads, head_size, max_seq].
+                // Transposed V: the Transpose is preserved in the inner model, so the inner
+                // output is already in transposed layout [1, kv_heads, head_size, curr_seq].
+                // The outer (user-facing) shape must be [1, kv_heads, head_size, max_seq].
                 ov::Dimension kv_heads = shape[1];
-                ov::Dimension head_size = shape[3];
+                ov::Dimension head_size = shape[2];  // dim[2]=head_size, dim[3]=curr_seq
                 shape = ov::PartialShape{shape[0], kv_heads, head_size, ov::Dimension(kv_max_seqs[kv_i])};
             } else {
                 // Standard K/V: inner shape [1, kv_heads, curr_seq, head_size],
@@ -638,8 +643,12 @@ void ov::npuw::GQAInferRequest::infer() {
         const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
         auto user_it = m_user_kv_tensors.find(kv_idx);
         auto work_it = m_kv_working_tensors.find(kv_idx);
-        if (user_it == m_user_kv_tensors.end() || work_it == m_kv_working_tensors.end())
+        if (user_it == m_user_kv_tensors.end() || work_it == m_kv_working_tensors.end()) {
+            LOG_INFO("NPUW_GQA_MANAGED: scatter SKIP ki=" << ki << " kv_idx=" << kv_idx
+                                                          << " user_found=" << (user_it != m_user_kv_tensors.end())
+                                                          << " work_found=" << (work_it != m_kv_working_tensors.end()));
             continue;
+        }
 
         // inner_t is the working tensor NPUW wrote K curr data into.
         auto& inner_t = work_it->second;
