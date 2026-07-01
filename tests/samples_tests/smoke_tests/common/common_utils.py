@@ -92,7 +92,16 @@ def shell(cmd, env=None, cwd=None, out_format="plain", timeout=1200):
         if p.poll() is None:
             _log.warning("PID %d still running after communicate(); killing (likely pytest-timeout)", p.pid)
             p.kill()
-            p.wait()
+            try:
+                partial_out, partial_err = p.communicate(timeout=10)
+                _log.warning(
+                    "PID %d output before kill:\nstdout: %s\nstderr: %s",
+                    p.pid,
+                    partial_out.decode('utf-8', errors='replace')[:4000] if partial_out else '<empty>',
+                    partial_err.decode('utf-8', errors='replace')[:2000] if partial_err else '<empty>',
+                )
+            except Exception:
+                p.wait()
     stdout = str(stdout.decode('utf-8'))
     stderr = str(stderr.decode('utf-8'))
     _log.debug("PID %d exited %d\nstdout: %s\nstderr: %s", p.pid, p.returncode, stdout[:4000], stderr[:4000])

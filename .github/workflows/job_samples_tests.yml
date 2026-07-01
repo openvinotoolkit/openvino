@@ -120,6 +120,8 @@ jobs:
           export IE_APP_PATH=$INSTALL_DIR/samples_bin
           export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
+          # Enable AUTO/MULTI plugin INFO-level logging to diagnose device-init hangs
+          export OPENVINO_LOG_LEVEL=2
 
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
