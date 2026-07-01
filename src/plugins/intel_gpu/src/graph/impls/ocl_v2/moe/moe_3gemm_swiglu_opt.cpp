@@ -1914,20 +1914,19 @@ public:
     using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
-        // OTD: all slots have identical shape → cache by n_token only (expert_no = 0)
-        int effective_expert = _weight_provider->is_offloaded() ? 0 : expert_no;
-        auto key = std::make_pair(n_token, effective_expert);
-        if (!_kernels.has(key)) {
-            auto kernel = create_kernel(n_token, effective_expert, instance);
-            _kernels.add(key, kernel);
-            if (auto* perf = moe_otd::get_perf_counters())
-                perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
-        }
-        auto& kernel = *_kernels.get(key);
-        // OTD: patch weight memory handles for the current expert's LRU slot.
-        // The cached primitive shape is reusable but the underlying memory pointers
-        // change per expert after on_load_expert_weights updates _dnnl_weights[expert_no].
+        // OTD: all slots have identical shape → cache by n_token only.
+        // Non-OTD: cache by (n_token, expert_no) since each expert has fixed weight handles.
         if (_weight_provider->is_offloaded()) {
+            if (!_kernels.has(std::make_pair(n_token, 0))) {
+                auto kernel = create_kernel(n_token, expert_no, instance);
+                _kernels.add(std::make_pair(n_token, 0), kernel);
+                if (auto* perf = moe_otd::get_perf_counters())
+                    perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
+            }
+            auto& kernel = *_kernels.get(std::make_pair(n_token, 0));
+            // Patch weight memory handles for the current expert's LRU slot.
+            // on_load_expert_weights already updated _dnnl_weights[expert_no] with
+            // the correct slot offset, so copy those handles to the cached kernel.
             auto& dw = _dnnl_weights[expert_no];
             kernel.gate.weight = dw[0].weight;
             kernel.gate.scale = dw[0].scale;
@@ -1938,8 +1937,16 @@ public:
             kernel.down.weight = dw[2].weight;
             kernel.down.scale = dw[2].scale;
             kernel.down.zp = dw[2].zp;
+            return kernel;
         }
-        return kernel;
+        auto key = std::make_pair(n_token, expert_no);
+        if (!_kernels.has(key)) {
+            auto kernel = create_kernel(n_token, expert_no, instance);
+            _kernels.add(key, kernel);
+            if (auto* perf = moe_otd::get_perf_counters())
+                perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
+        }
+        return *_kernels.get(key);
     }
 
     std::shared_ptr<onednn_kernel> create_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
