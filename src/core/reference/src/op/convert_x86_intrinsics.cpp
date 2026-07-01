@@ -28,8 +28,16 @@ template <>
 __m256 Clamp<float, float16>::apply<__m256, __m256>(const __m256 vec_f32) {
     static const auto lo = _mm256_set1_ps(std::numeric_limits<float16>::lowest());
     static const auto hi = _mm256_set1_ps(std::numeric_limits<float16>::max());
+    // A float is non-finite (±inf/NaN) iff its magnitude bits exceed those of FLT_MAX.
+    static const auto abs_mask = _mm256_set1_epi32(0x7FFFFFFF);
+    static const auto nonfinite_thresh = _mm256_set1_epi32(0x7F7FFFFF);  // FLT_MAX bit pattern
 
-    return _mm256_min_ps(_mm256_max_ps(vec_f32, lo), hi);
+    const auto clamped = _mm256_min_ps(_mm256_max_ps(vec_f32, lo), hi);
+    // Preserve ±inf/NaN: restore the original value wherever it is non-finite, so only
+    // finite out-of-range values are clamped to the f16 range.
+    const auto abs_bits = _mm256_and_si256(_mm256_castps_si256(vec_f32), abs_mask);
+    const auto nonfinite = _mm256_cmpgt_epi32(abs_bits, nonfinite_thresh);
+    return _mm256_blendv_ps(clamped, vec_f32, _mm256_castsi256_ps(nonfinite));
 }
 
 // --- f32 -> other
