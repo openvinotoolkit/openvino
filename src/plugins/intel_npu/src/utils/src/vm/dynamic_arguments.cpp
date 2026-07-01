@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
+
 void MemRefType::setArg(const void* arg) {
     _basePtr = _data = arg;
 }

@@ -183,10 +183,6 @@ void DynamicGraph::initialize_engine() {
                           output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
         }
     }
-
-    if (args._impl == nullptr) {
-        args._impl = argsImpl;
-    }
 }
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
