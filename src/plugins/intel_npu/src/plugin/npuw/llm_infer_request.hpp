@@ -105,6 +105,11 @@ protected:
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
+    // Input port of the lm_head submodel. Its tensor is shared with the
+    // prefill/generate "output_embeds" output and holds the last valid token's
+    // hidden state after each inference step. Used by get_tensor() for models
+    // that expose a "hidden_states" output (see m_has_lm_head_hidden_states).
+    ov::Output<const ov::Node> m_lm_head_embed_port;
 
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
