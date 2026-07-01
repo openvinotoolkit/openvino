@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
-#include "snippets/exp.hpp"
+#include "snippets/unary_activation.hpp"
 #include "subgraph_simple.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -13,7 +13,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Exp::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ExpParams>& obj) {
+std::string UnaryActivation::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::UnaryActivationParams>& obj) {
     const auto& [inputShapes0, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
@@ -29,28 +29,32 @@ std::string Exp::getTestCaseName(const testing::TestParamInfo<ov::test::snippets
     return result.str();
 }
 
-void Exp::SetUp() {
+void UnaryActivation::SetUp() {
     const auto& [inputShape0, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
     ref_num_nodes = _ref_num_nodes;
     ref_num_subgraphs = _ref_num_subgraphs;
     targetDevice = _targetDevice;
     init_input_shapes({inputShape0});
-    auto f = ov::test::snippets::ExpFunction(inputDynamicShapes);
-    function = f.getOriginal();
+    auto f = get_subgraph(inputDynamicShapes);
+    function = f->getOriginal();
     setInferenceType(type);
     setIgnoreCallbackMode();
 }
 
-void ExpReciprocal::SetUp() {
-    const auto& [inputShape0, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
-    ref_num_nodes = _ref_num_nodes;
-    ref_num_subgraphs = _ref_num_subgraphs;
-    targetDevice = _targetDevice;
-    init_input_shapes({inputShape0});
-    auto f = ov::test::snippets::ExpReciprocalFunction(inputDynamicShapes);
-    function = f.getOriginal();
-    setInferenceType(type);
-    setIgnoreCallbackMode();
+std::shared_ptr<SnippetsFunctionBase> Exp::get_subgraph(const std::vector<PartialShape>& inputShapes) const {
+    return std::make_shared<ExpFunction>(inputShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> ExpReciprocal::get_subgraph(const std::vector<PartialShape>& inputShapes) const {
+    return std::make_shared<ExpReciprocalFunction>(inputShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> HSigmoid::get_subgraph(const std::vector<PartialShape>& inputShapes) const {
+    return std::make_shared<HSigmoidFunction>(inputShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> SoftSign::get_subgraph(const std::vector<PartialShape>& inputShapes) const {
+    return std::make_shared<SoftSignFunction>(inputShapes);
 }
 
 
@@ -60,6 +64,16 @@ TEST_P(Exp, CompareWithRefImpl) {
 }
 
 TEST_P(ExpReciprocal, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(HSigmoid, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(SoftSign, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }
