@@ -18,10 +18,10 @@ FileHandle open_file(const std::filesystem::path& path, FileMode mode) {
     DWORD desired_access = 0;
     DWORD flags_and_attrs = FILE_ATTRIBUTE_NORMAL;
 
-    if (mode_set(mode, FileMode::READ)){
+    if (mode_set(mode, FileMode::READ)) {
         desired_access |= GENERIC_READ;
     }
-    if (mode_set(mode, FileMode::DIRECT)){
+    if (mode_set(mode, FileMode::DIRECT)) {
         flags_and_attrs |= FILE_FLAG_NO_BUFFERING;
     }
 
@@ -36,7 +36,7 @@ FileHandle open_file(const std::filesystem::path& path, FileMode mode) {
 
 void close_file(FileHandle handle) {
     // CVS-189123
-    if (handle != INVALID_HANDLE_VALUE){
+    if (handle != INVALID_HANDLE_VALUE) {
         CloseHandle(handle);
     }
 }
