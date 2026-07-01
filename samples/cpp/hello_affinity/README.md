@@ -8,7 +8,8 @@ Models with static or dynamic inputs are supported if the selected device can co
 
 ```sh
 hello_affinity -m <path_to_model> [-d <device_name>] [-affinity <affinity|path_to_affinity_json>] \
-    [--fallback-device <device>] [-hint <performance_hint>] [-shape <shapes>] [-data_shape <shapes>] \
+    [--fallback-device <device>] [-hint <performance_hint>] [-shape <shapes>] \
+    [-data_shape <shapes>|--data_shape <shapes>|--data-shape <shapes>] \
     [-niter <integer>] [-no_warmup]
 ```
 
@@ -36,7 +37,7 @@ the selected device choose its default mode.
 Use `--fallback-device <device>` together with `-affinity` to fill all operations not listed in the JSON file with an
 explicit device before compilation.
 
-Use `-shape <shapes>` and `-data_shape <shapes>` with single-shape-group strings such as
-`input0[1,96],input1[1,96]`. `-shape` reshapes the model before affinity assignment; `-data_shape` provides concrete
+Use `-shape <shapes>` and `-data_shape <shapes>` / `--data_shape <shapes>` / `--data-shape <shapes>` with single-shape-group strings such as
+`input0[1,96],input1[1,96]`. `-shape` reshapes the model before affinity assignment; the data-shape option provides concrete
 dynamic input shapes for compilation and generated inference tensors. Repeated benchmark_app data-shape groups such as
 `input0[1,96][1,128]` are not supported.

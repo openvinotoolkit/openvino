@@ -304,7 +304,7 @@ void configure_performance_hint(const std::string& device_name,
     }
 
     const auto supported_properties = core.get_property(device_name, ov::supported_properties);
-    if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+    if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode.name()) !=
         supported_properties.end()) {
         config[ov::hint::performance_mode.name()] = performance_mode;
     } else {
@@ -379,7 +379,8 @@ size_t parse_iterations(const std::string& value) {
 void print_usage(const std::string& executable_name) {
     slog::info << "Usage : " << executable_name << " -m <path_to_model> [-d <device_name>] "
                << "[-affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] "
-               << "[-hint <performance_hint>] [-shape <shapes>] [-data_shape <shapes>|--data-shape <shapes>] "
+               << "[-hint <performance_hint>] [-shape <shapes>] "
+               << "[-data_shape <shapes>|--data_shape <shapes>|--data-shape <shapes>] "
                << "[-niter <integer>] [-no_warmup]" << slog::endl;
 }
 
@@ -447,7 +448,7 @@ int tmain(int argc, tchar* argv[]) {
             } else {
                 throw std::logic_error("Unsupported option: " + option +
                                        ". Expected -m, -d, -affinity, --fallback-device, -hint, -shape, "
-                                       "-data_shape, -niter, or -no_warmup.");
+                                       "-data_shape, --data_shape, --data-shape, -niter, or -no_warmup.");
             }
         }
 

@@ -4,8 +4,12 @@
 
 #include "samples/affinity_utils.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 #include <unordered_set>
 
 #include "samples/slog.hpp"
