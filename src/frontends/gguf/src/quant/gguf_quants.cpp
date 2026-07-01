@@ -387,11 +387,12 @@ void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
     const uint64_t bytes_per_block = 17;
     const uint64_t qk = 32;
-    auto shape = get_shape(tensor);  // [.., cols]
-    const uint64_t cols = shape.back();
+    // GGUF stores dims fastest-first: dim[0] is the innermost (cols); the remaining dims fold
+    // into rows. (Equivalent to the OV-order shape [.., cols] the caller sets.)
+    const uint64_t cols = tensor.dim[0];
     uint64_t rows = 1;
-    for (size_t i = 0; i + 1 < shape.size(); ++i) {
-        rows *= shape[i];
+    for (uint32_t i = 1; i < tensor.ndim; ++i) {
+        rows *= tensor.dim[i];
     }
     const uint64_t groups = cols / qk;
 

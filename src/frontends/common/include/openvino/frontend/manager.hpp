@@ -123,6 +123,12 @@ using FrontEndVersion = uint64_t;
 struct FrontEndPluginInfo {
     std::string m_name;
     FrontEndFactory m_creator;
+    /// When true, the frontend is hidden from the generic model-loading API: it is not returned
+    /// by FrontEndManager::get_available_front_ends() and is never auto-selected by
+    /// load_by_model / load_by_framework. Such a frontend is intended for direct linkage only
+    /// (the caller constructs it explicitly). It is still installed and loadable, so it must
+    /// export get_api_version / get_front_end_data like any other plugin.
+    bool m_hidden = false;
 };
 
 }  // namespace frontend

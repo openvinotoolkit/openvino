@@ -96,9 +96,6 @@ using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::shared_ptr<ov::MappedMemory>,
                             std::shared_ptr<ov::AlignedBuffer>>;
 
-// Reverse of the GGML dimension order (GGUF stores dims fastest-first).
-ov::Shape get_shape(const gguf_tensor& tensor);
-
 // Fill pre-allocated i4 weights (u32-packed, XORed for i4 sign) and f16 scales from a
 // Q4_0 tensor. No bias: Q4_0 is symmetric (zp = -8*scale is implicit, not stored).
 void gguf_fill_q4_0(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);

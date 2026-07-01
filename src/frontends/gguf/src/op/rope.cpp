@@ -69,19 +69,11 @@ OutputVector translate_rope(const NodeContext& context) {
         // The input comes from a VIEW
         int slice_len = output_shape[2] * output_shape[3];
         data_node = process_view_input(context, 0, slice_len).get_node_shared_ptr();
-        if (context.is_stateful()) {
-            auto data_shape = ov::op::v0::Constant::create(
-                ov::element::i64,
-                {3},
-                std::vector<int64_t>{-1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
-            data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
-        } else {
-            auto data_shape = ov::op::v0::Constant::create(
-                ov::element::i64,
-                {4},
-                std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
-            data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
-        }
+        auto data_shape = ov::op::v0::Constant::create(
+            ov::element::i64,
+            {4},
+            std::vector<int64_t>{1, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
+        data_node = std::make_shared<ov::op::v1::Reshape>(data_node, data_shape, false);
     }
 
     if (mode == TYPE_NORMAL) {
@@ -92,7 +84,7 @@ OutputVector translate_rope(const NodeContext& context) {
         auto end = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3]});
         Output<Node> even_slice;
         Output<Node> odd_slice;
-        int32_t unsqueeze_dim = context.is_stateful() ? 3 : 4;
+        int32_t unsqueeze_dim = 4;
         even_slice = std::make_shared<ov::op::v8::Slice>(data_node, zero, end, two, neg_one);
         odd_slice = std::make_shared<ov::op::v8::Slice>(data_node, one, end, two, neg_one);
 

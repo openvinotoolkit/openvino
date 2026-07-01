@@ -1,14 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// End-to-end tests for weights surfaced as GGML_OP_WEIGHT nodes.
+// End-to-end tests for weights surfaced as GGML_OP_NONE (leaf) nodes.
 //
-// A weight is a regular node in the gguf frontend: the decoder provides the raw GGUF bytes
-// (get_attribute<ov::Tensor>("data")), the ggml quant type name
-// (get_attribute<std::string>("quant_type")) and the logical [rows, cols] shape
-// (get_output_shape()); the frontend's translate_weight does the dequant. These tests build
-// a single GGML_OP_WEIGHT model -- exactly like the single-op tests in test_ops.cpp -- run
-// it on CPU and compare against the same real-ggml reference data used by
+// A weight is a regular node in the gguf frontend: a ggml leaf (op type "GGML_OP_NONE") that
+// the decoder marks as a weight by providing the raw GGUF bytes (get_attribute<ov::Tensor>
+// ("data")), the ggml quant type name (get_attribute<std::string>("quant_type")) and the
+// logical [rows, cols] shape (get_output_shape()); the frontend's translate_weight does the
+// dequant. These tests build a single GGML_OP_NONE model -- exactly like the single-op tests in
+// test_ops.cpp -- run it on CPU and compare against the same real-ggml reference data used by
 // test_dequant_vs_ggml.cpp.
 
 #include <cmath>
@@ -49,7 +49,7 @@ ov::Tensor bytes_to_u8_tensor(const std::vector<uint8_t>& bytes) {
 
 class GGUFWeight : public ::testing::TestWithParam<WeightCase> {};
 
-// Convert a GGML_OP_WEIGHT node and check the produced (constant-foldable) dequant against
+// Convert a GGML_OP_NONE weight node and check the produced (constant-foldable) dequant against
 // ggml's to_float reference.
 TEST_P(GGUFWeight, MatchesGgmlToFloat) {
     const WeightCase c = GetParam();
@@ -58,7 +58,7 @@ TEST_P(GGUFWeight, MatchesGgmlToFloat) {
     ASSERT_EQ(ref.size(), kRows * kCols);
 
     auto model = SingleOpBuilder()
-                     .op("GGML_OP_WEIGHT")
+                     .op("GGML_OP_NONE")
                      .output("w", ov::element::f32, {kRows, kCols})
                      .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
                      .attr<std::string>("quant_type", c.quant_type)
@@ -106,7 +106,7 @@ TEST(GGUFWeightPlain, F16) {
     std::memcpy(data.data(), vals.data(), data.get_byte_size());
 
     auto model = SingleOpBuilder()
-                     .op("GGML_OP_WEIGHT")
+                     .op("GGML_OP_NONE")
                      .output("w", ov::element::f32, {2, 3})
                      .attr<ov::Tensor>("data", data)
                      .attr<std::string>("quant_type", "F16")

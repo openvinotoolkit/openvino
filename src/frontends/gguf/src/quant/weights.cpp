@@ -40,19 +40,6 @@ const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights
     return it->second;
 }
 
-// Copy a contiguous row range [r0, r1) of a 2D tensor. In the GGUF/parser layout, rows
-// (output features) are independent: quant blocks tile along the last (input) dim, so a
-// row slice is just a contiguous byte copy. Used to split a fused attn_qkv tensor (and its
-// scales/biases) into separate q/k/v weights.
-ov::Tensor slice_rows(const ov::Tensor& t, size_t r0, size_t r1) {
-    const auto& s = t.get_shape();
-    OPENVINO_ASSERT(s.size() == 2 && r1 <= s[0] && r0 <= r1, "[ggml] bad row slice");
-    ov::Shape out_shape{r1 - r0, s[1]};
-    ov::Tensor out(t.get_element_type(), out_shape);
-    const size_t row_bytes = t.get_byte_size() / s[0];
-    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * row_bytes, (r1 - r0) * row_bytes);
-    return out;
-}
 
 // Shared shape helpers for grouped weight layouts. See make_int8 comment for why we keep
 // all leading dims separate rather than flattening: the trailing Reshape must be
@@ -452,51 +439,6 @@ std::shared_ptr<ov::Node> make_weight_node(const std::string& base,
     return node;
 }
 
-std::array<std::shared_ptr<ov::Node>, 3> make_fused_qkv_weights(
-    const std::string& base,
-    const std::unordered_map<std::string, ov::Tensor>& weights,
-    const std::unordered_map<std::string, gguf_tensor_type>& qtypes,
-    size_t n_q,
-    size_t n_k,
-    size_t n_v) {
-    gguf_tensor_type qtype = GGUF_TYPE_F16;
-    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
-        qtype = it->second;
-    }
-    const bool has_scales = qtype == GGUF_TYPE_Q4_0 || qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K ||
-                            qtype == GGUF_TYPE_Q5_0 || qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q8_0 ||
-                            qtype == GGUF_TYPE_Q2_K || qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_Q5_K ||
-                            qtype == GGUF_TYPE_Q6_K;
-    // Asymmetric types have integer zero-points stored in ".zp".
-    const bool has_zp = qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q5_K ||
-                        qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q2_K;
-
-    const ov::Tensor& w = get(weights, base + ".weight");
-    const size_t total_rows = w.get_shape()[0];
-    OPENVINO_ASSERT(n_q + n_k + n_v == total_rows, "[ggml] fused qkv row mismatch for ", base);
-
-    const std::array<std::pair<size_t, size_t>, 3> ranges = {std::make_pair(size_t(0), n_q),
-                                                             std::make_pair(n_q, n_q + n_k),
-                                                             std::make_pair(n_q + n_k, total_rows)};
-    const std::array<std::string, 3> parts = {base + ".q", base + ".k", base + ".v"};
-
-    std::array<std::shared_ptr<ov::Node>, 3> out;
-    for (size_t i = 0; i < 3; ++i) {
-        const auto [r0, r1] = ranges[i];
-        std::unordered_map<std::string, ov::Tensor> sub;
-        std::unordered_map<std::string, gguf_tensor_type> subq;
-        sub[parts[i] + ".weight"] = slice_rows(w, r0, r1);
-        if (has_scales) {
-            sub[parts[i] + ".scales"] = slice_rows(get(weights, base + ".scales"), r0, r1);
-            subq[parts[i] + ".qtype"] = qtype;
-        }
-        if (has_zp) {
-            sub[parts[i] + ".zp"] = slice_rows(get(weights, base + ".zp"), r0, r1);
-        }
-        out[i] = make_weight_node(parts[i], sub, subq);
-    }
-    return out;
-}
 
 gguf_tensor_type gguf_type_from_name(const std::string& quant_type) {
     static const std::unordered_map<std::string, gguf_tensor_type> names = {{"F32", GGUF_TYPE_F32},

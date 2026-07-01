@@ -12,11 +12,14 @@ namespace frontend {
 namespace gguf {
 namespace op {
 
-// A GGUF weight surfaced as a node (op type "GGML_OP_WEIGHT"). The decoder provides the raw
-// weight bytes, the ggml quant type name and the logical shape; the frontend does all
-// dequant / repacking here, so the decoder never builds OV nodes itself.
+// A GGUF weight surfaced as a node. A weight is a ggml leaf (op type "GGML_OP_NONE") that the
+// decoder marks by exposing a "data" attribute (the raw weight bytes), alongside the ggml quant
+// type name and the logical shape. The frontend does all dequant / repacking here, so the
+// decoder never builds OV nodes itself. (Model-input leaves are also GGML_OP_NONE, but they are
+// resolved to Parameters before the graph walk and never reach this translator.)
 OutputVector translate_weight(const NodeContext& context) {
     auto data = context.get_attribute<ov::Tensor>("data");
+    FRONT_END_OP_CONVERSION_CHECK(data, "GGML_OP_NONE node has no 'data' attribute; not a weight");
     auto quant_type = context.get_attribute<std::string>("quant_type");
     auto shape = context.get_output_shape().to_shape();
 
