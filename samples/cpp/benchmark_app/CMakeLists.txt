@@ -13,6 +13,7 @@ ov_add_sample(NAME ${TARGET_NAME}
               DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
 
 # Required nlohmann_json dependency
+
 if(NOT TARGET nlohmann_json::nlohmann_json)
     if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
         # OpenVINO package puts thirdparty to samples dir
