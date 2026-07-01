@@ -813,6 +813,7 @@ inline void transpose_4x4_kernel(float* src, size_t ld_src, float* dst, size_t l
 inline void transpose_16x16_kernel(float* dst, float* src, size_t dst_stride, size_t src_stride) {
     // For SVE-256 machine - 16x16 kernel would take 4 iterations of 8x8 kernel to fully transpose
     // For SVE-128 machine - 16x16 kernel would take 16 iterations of 4x4 kernel to fully transpose
+    // For any other SVE machine reference implementation will be used 
     
     if (svcnth() == 16) {
         transpose_8x8_kernel(src, src_stride, dst, dst_stride);
@@ -832,7 +833,11 @@ inline void transpose_16x16_kernel(float* dst, float* src, size_t dst_stride, si
         t8x8kernel(src + 8 * src_stride, src_stride, dst + 8, dst_stride);
         t8x8kernel(src + 8 * src_stride + 8, src_stride, dst + 8 * dst_stride + 8, dst_stride);
     } else {
-        OPENVINO_THROW("Currently only SVE-128 and SVE-256 based machines are supported by the transpose kernel");
+        for (size_t i = 0; i < 16; i++) {
+            for (size_t j = 0; j < 16; j++) {
+                dst[i * dst_stride + j] = (src[i + j * src_stride]);
+            }
+        }
     }
 }
 

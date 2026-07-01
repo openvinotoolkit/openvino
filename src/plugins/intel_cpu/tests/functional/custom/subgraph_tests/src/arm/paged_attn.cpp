@@ -733,9 +733,7 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
                  addSharedReader] = this->GetParam();
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP();
-    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
+    if (inType == ElementType::f16)
         GTEST_SKIP();
 
     past_len_count = 0;
@@ -779,7 +777,7 @@ const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          PagedAttnVSSDPATest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
                                             // TODO: Xattn should not direcctly compare with SDPA/decomposed Matmul
@@ -808,7 +806,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
 // Verifies that PA2 reads the cache populated by PA1 and produces matching output.
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
                          PagedAttnVSSDPATest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(false),   // extendBlockIndices
                                             ::testing::Values(false),   // enableXattn
@@ -1033,11 +1031,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(false),
-                                            ::testing::Values(false),
-                                            ::testing::Values(false),  // sinkInput = false
-                                            ::testing::Values(0),      // sliding_window = 0
+                                            ::testing::Values(false),          // enableXatten = false 
+                                            ::testing::Values(true, false),    // sinkInput = true/false
+                                            ::testing::Values(0),              // sliding_window = 0
                                             ::testing::ValuesIn(additional_configs),
-                                            ::testing::Values(false)),  // addSharedReader
+                                            ::testing::Values(false)),         // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 

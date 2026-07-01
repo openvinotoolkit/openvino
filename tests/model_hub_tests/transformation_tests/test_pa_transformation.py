@@ -203,8 +203,23 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
     model_class, model_name, model_link, mark, reason = model_info_tuple
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
-    # if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
-    #     pytest.skip("PagedAttention tests are not enabled on ARM")
+    if platform.machine() in ['arm', 'armv7l']:
+        pytest.skip("PagedAttention tests are enabled for only SVE enabled arm machines")
+    if platform.machine() in ['aarch64', 'ARM64', 'arm64']:
+        isSVE = False
+        try:
+            with open("/proc/cpuinfo", "r") as f:
+                for line in f:
+                    if line.startswith("Features"):
+                        features = line.lower.split()
+                        if "sve" in features:
+                            isSVE = True
+                            break
+        except FileNotFoundError:
+            pytest.skip("/proc/cpuinfo file could not be found")
+        if not isSVE:
+            pytest.skip("Skipping as sve flag not found in /proc/cpuinfo")
+            
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':
