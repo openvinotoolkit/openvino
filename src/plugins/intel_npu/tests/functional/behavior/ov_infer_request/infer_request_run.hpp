@@ -76,7 +76,6 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration) = this->GetParam();
-        configuration.insert({ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")});
         OVPluginTestBase::SetUp();
         ov_model = getDefaultNGraphFunctionForTheDeviceNPU();  // FIXME: E#80555
     }
@@ -2581,7 +2580,14 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     ::operator delete(output_data, std::align_val_t(4096));
 }
 
-using DynamicBoundsTests = InferRequestRunTests;
+class DynamicBoundsTests : public InferRequestRunTests
+{
+public:
+    void SetUp() override {
+        InferRequestRunTests::SetUp();
+        configuration.insert({ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")});
+    }
+};
 
 TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSet) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
