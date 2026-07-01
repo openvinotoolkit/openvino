@@ -76,6 +76,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration) = this->GetParam();
+        configuration.insert({ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")});
         OVPluginTestBase::SetUp();
         ov_model = getDefaultNGraphFunctionForTheDeviceNPU();  // FIXME: E#80555
     }
