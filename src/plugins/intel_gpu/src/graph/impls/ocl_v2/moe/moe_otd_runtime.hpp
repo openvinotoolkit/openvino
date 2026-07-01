@@ -72,10 +72,10 @@ private:
 ParallelWeightReader& get_thread_local_weight_reader(const std::string& weights_path);
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
-                               const char* tensor_name,
-                               const cldnn::layout& layout,
-                               std::vector<uint8_t>& payload,
-                               size_t per_expert_size);
+                              const char* tensor_name,
+                              const cldnn::layout& layout,
+                              std::vector<uint8_t>& payload,
+                              size_t per_expert_size);
 
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,

@@ -21,8 +21,7 @@ std::vector<uint32_t> ResidentExpertWeightProvider::acquire(const std::vector<ui
     return experts;
 }
 
-std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(
-    const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
+std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Resident: identity mapping, always succeeds.
     return ExpertSlotLease{experts};
 }
@@ -101,8 +100,7 @@ void OffloadExpertWeightProvider::fill_routed_weight_views(cldnn::moe_weights& /
     views.zp[2] = _resident->down_z;
 }
 
-std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultaneous(
-    const std::vector<uint32_t>& experts, cldnn::stream& stream) {
+std::optional<ExpertSlotLease> OffloadExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
     // Deduplicate to check capacity
     std::unordered_map<uint32_t, uint32_t> expert_to_slot;
     expert_to_slot.reserve(experts.size());

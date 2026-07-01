@@ -764,9 +764,7 @@ public:
         resolve_experts_to_lru_slots(stream, instance, scratch, batch_mem_ptr, topk_count);
     }
 
-    bool on_load_expert_weights(size_t expert_no,
-                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                dnnl::stream& dnn_stream) {
+    bool on_load_expert_weights(size_t expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, dnnl::stream& dnn_stream) {
         if (!_weight_provider->is_offloaded())
             return false;
 
@@ -777,25 +775,25 @@ public:
         auto lru_expert_no = _weight_provider->acquire({static_cast<uint32_t>(expert_no)}, stream)[0];
         auto& params = instance._weights;
 
-#define CONVERT_DNNL_OTD(name, i)                                                                                                                  \
-    int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());                \
-    int64_t scale_offset##i = lru_expert_no * get_bytes_count(                                                                                      \
-        dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());                                    \
-    int64_t zp_offset##i = lru_expert_no * get_bytes_count(                                                                                         \
-        dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_z->get_layout());                                    \
-    dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
-    dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
-                                         {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
-                                         dnnl::memory::format_tag::ab,                                                                             \
-                                         scale_offset##i);                                                                                         \
-    dnnl_weights[i].zp = convert2dnnl(params.name##_z,                                                                                             \
-                                      {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
-                                      dnnl::memory::format_tag::ab,                                                                                \
-                                      zp_offset##i);
+#    define CONVERT_DNNL_OTD(name, i)                                                                                                                  \
+        int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());               \
+        int64_t scale_offset##i =                                                                                                                      \
+            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());   \
+        int64_t zp_offset##i =                                                                                                                         \
+            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_z->get_layout());   \
+        dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
+        dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
+                                             {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
+                                             dnnl::memory::format_tag::ab,                                                                             \
+                                             scale_offset##i);                                                                                         \
+        dnnl_weights[i].zp = convert2dnnl(params.name##_z,                                                                                             \
+                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
+                                          dnnl::memory::format_tag::ab,                                                                                \
+                                          zp_offset##i);
         CONVERT_DNNL_OTD(gate, 0)
         CONVERT_DNNL_OTD(up, 1)
         CONVERT_DNNL_OTD(down, 2)
-#undef CONVERT_DNNL_OTD
+#    undef CONVERT_DNNL_OTD
         return true;
     }
 
@@ -807,7 +805,9 @@ public:
                                 typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                 scratch_buffers& scratch,
                                 memory::ptr& batch_mem_ptr,
-                                size_t token_num, int max_topk, int num_grouped_experts,
+                                size_t token_num,
+                                int max_topk,
+                                int num_grouped_experts,
                                 std::vector<int32_t>& tokens_per_expert_cpu,
                                 std::vector<int32_t>& tokens_lens_per_expert_cpu,
                                 std::vector<int32_t>& experts_id_cpu,
@@ -966,11 +966,10 @@ public:
         // Weight provider: select based on OTD configuration.
         auto cur_moe = node.as<moe_3gemm_fused_compressed>().get_primitive();
         if (cur_moe->_otd.lru_expert_num > 0) {
-            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(
-                cur_moe->_otd.lru_expert_num,
-                cur_moe->_config,
-                cur_moe->_otd.weight_bin_offsets,
-                cur_moe->_otd.weights_path);
+            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
+                                                                             cur_moe->_config,
+                                                                             cur_moe->_otd.weight_bin_offsets,
+                                                                             cur_moe->_otd.weights_path);
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
@@ -2244,11 +2243,19 @@ public:
         // This is the s32 format expected by dnnl::memory::desc::grouped().
         std::vector<int32_t> grouped_offsets_cpu(num_grouped_experts, 0);
 
-        if (!build_grouped_mask_otd(stream, instance, scratch, batch_mem_ptr,
-                                    token_num, max_topk, num_grouped_experts,
-                                    tokens_per_expert_cpu, tokens_lens_per_expert_cpu,
-                                    experts_id_cpu, grouped_offsets_cpu,
-                                    num_actually_used_experts, events)) {
+        if (!build_grouped_mask_otd(stream,
+                                    instance,
+                                    scratch,
+                                    batch_mem_ptr,
+                                    token_num,
+                                    max_topk,
+                                    num_grouped_experts,
+                                    tokens_per_expert_cpu,
+                                    tokens_lens_per_expert_cpu,
+                                    experts_id_cpu,
+                                    grouped_offsets_cpu,
+                                    num_actually_used_experts,
+                                    events)) {
             // Non-OTD path: build mask from original expert IDs
             expert_mask_cpu expert_mask;
             get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);

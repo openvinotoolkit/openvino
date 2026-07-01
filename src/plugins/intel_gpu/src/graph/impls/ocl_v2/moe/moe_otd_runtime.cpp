@@ -55,10 +55,10 @@ ParallelWeightReader& get_thread_local_weight_reader(const std::string& weights_
 }
 
 void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
-                               const char* tensor_name,
-                               const cldnn::layout& layout,
-                               std::vector<uint8_t>& payload,
-                               size_t per_expert_size) {
+                              const char* tensor_name,
+                              const cldnn::layout& layout,
+                              std::vector<uint8_t>& payload,
+                              size_t per_expert_size) {
     const bool transpose_scale_zp = std::getenv("MOE_OTD_DISABLE_SCALE_ZP_TRANSPOSE") == nullptr;
     if (!transpose_scale_zp || tensor_name == nullptr) {
         return;

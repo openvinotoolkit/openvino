@@ -9,9 +9,9 @@
 #include <optional>
 #include <vector>
 
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 
 namespace ov::intel_gpu::ocl::moe {
 
@@ -73,10 +73,14 @@ public:
     // Binds device-resident weight buffers. Must be called once before any acquire.
     // For resident providers this is a no-op. For offload providers this stores the
     // buffer pointers used for streaming.
-    virtual void bind(cldnn::moe_weights& weights) { (void)weights; }
+    virtual void bind(cldnn::moe_weights& weights) {
+        (void)weights;
+    }
 
     // Returns true once bind() has been called (offloaded) or always true (resident).
-    virtual bool is_bound() const { return true; }
+    virtual bool is_bound() const {
+        return true;
+    }
 
     // Fills the RoutedWeightViews with the correct memory pointers for the 3 GEMMs.
     // Resident: points directly at the full expert buffers.
@@ -97,8 +101,7 @@ public:
     // Returns nullopt if the number of unique experts exceeds resident_capacity()
     // (the caller should fall back to per-expert streaming).
     // The returned lease's slots vector is parallel to the input experts vector.
-    virtual std::optional<ExpertSlotLease> try_acquire_simultaneous(
-        const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
+    virtual std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
 
     // Acquires a single expert slot. Always succeeds (evicts LRU if needed).
     virtual uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) = 0;

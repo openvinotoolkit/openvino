@@ -30,8 +30,7 @@ public:
     }
 
     // Lease API: resident provider is identity mapping
-    std::optional<ExpertSlotLease> try_acquire_simultaneous(
-        const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
 };
 
@@ -46,10 +45,7 @@ public:
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
 public:
-    OffloadExpertWeightProvider(size_t capacity,
-                                const cldnn::MOECompressed::Config& config,
-                                std::vector<size_t> weight_bin_offsets,
-                                std::string weights_path);
+    OffloadExpertWeightProvider(size_t capacity, const cldnn::MOECompressed::Config& config, std::vector<size_t> weight_bin_offsets, std::string weights_path);
 
     std::vector<uint32_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
@@ -65,8 +61,7 @@ public:
         return _bound;
     }
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
-    std::optional<ExpertSlotLease> try_acquire_simultaneous(
-        const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     uint32_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
 
     LRUCache& cache() {
