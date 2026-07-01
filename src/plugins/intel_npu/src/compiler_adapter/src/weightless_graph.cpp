@@ -16,6 +16,7 @@
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -382,6 +383,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         // Note: By construction of the weight schedule, every constant from OV
         // model appears in exactly one schedule. Thus, one can delete
         // the handle to the constant memory early.
+        ov::wsh::Extension::hint_evict(*constants.at(id));
         constants.erase(id);
     }
 
