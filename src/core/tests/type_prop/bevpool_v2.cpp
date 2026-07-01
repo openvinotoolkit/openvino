@@ -58,7 +58,7 @@ TEST_F(TypePropBevPoolV2Test, static_shapes) {
 
     const auto op = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
                                                           8,
-                                                          16,
+                                                          8,
                                                           12,
                                                           10,
                                                           20,
@@ -70,7 +70,7 @@ TEST_F(TypePropBevPoolV2Test, static_shapes) {
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 16, 30, 20}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 8, 30, 20}));
 }
 
 TEST_F(TypePropBevPoolV2Test, invalid_input_count) {

@@ -60,7 +60,7 @@ void BevPoolV2LayerTest::SetUp() {
     const auto itv = std::make_shared<ov::op::v0::Parameter>(index_type, inputDynamicShapes[3]);
 
     const uint32_t input_channels = static_cast<uint32_t>(cf_ref_shape[3]);
-    const uint32_t output_channels = (cf_ref_shape[1] >= 54) ? 64u : 2u;
+    const uint32_t output_channels = std::min(input_channels, (cf_ref_shape[1] >= 54) ? 64u : 2u);
     const uint32_t image_width = static_cast<uint32_t>(cf_ref_shape[2]);
     const uint32_t image_height = static_cast<uint32_t>(cf_ref_shape[1]);
     const uint32_t feature_width = image_width;

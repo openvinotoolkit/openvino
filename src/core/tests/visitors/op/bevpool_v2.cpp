@@ -26,10 +26,10 @@ TEST(attributes, bevpool_v2) {
     const ov::op::v15::Bound d_bound{1.0f, 60.0f, 1.0f};
 
     const auto op = std::make_shared<ov::op::v15::BevPoolV2>(ov::OutputVector{cf, dw, idx, itv},
-                                                              4,
-                                                              8,
+                                                              5,
                                                               5,
                                                               3,
+                                                              4,
                                                               128,
                                                               128,
                                                               x_bound,
