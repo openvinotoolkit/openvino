@@ -114,7 +114,7 @@ private:
     }
 };
 
-// init _inputs and _outputs memrefs vector
+// init _inputsMemRef and _outputsMemRef vectors
 void DynamicArguments::setArgumentProperties(uint32_t argi,
                                              const void* argv,
                                              const ov::Shape& sizes,
@@ -131,10 +131,10 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
                            ", new dimension count: ",
                            sizes.size());
         } else if (strides.size() != static_cast<size_t>(sizes.size())) {
-            OPENVINO_THROW("Stride count mismatch. Current stride count: ",
-                           strides.size(),
-                           ", new stride count: ",
-                           sizes.size());
+            OPENVINO_THROW("Updated shape and stride count mismatch: shape rank and stride count differ. Shape rank: ",
+                           sizes.size(),
+                           ", stride count: ",
+                           strides.size());
         }
         for (int64_t i = 0; i < slot._dimsCount; i++) {
             slot._sizes[i] = static_cast<int64_t>(sizes[i]);
@@ -142,12 +142,12 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
         }
     };
 
-    if (argi < _inputs.size()) {
-        assign_slot(_inputs[argi]);
+    if (argi < _inputsMemRef.size()) {
+        assign_slot(_inputsMemRef[argi]);
     } else {
-        auto idx = argi - _inputs.size();
-        if (idx < _outputs.size()) {
-            assign_slot(_outputs[idx]);
+        auto idx = argi - _inputsMemRef.size();
+        if (idx < _outputsMemRef.size()) {
+            assign_slot(_outputsMemRef[idx]);
         }
     }
 }
@@ -310,11 +310,11 @@ void DynamicPipeline::push() {
         auto& dynamicArguments = command_lists->getArguments();
         if (_logger.level() >= ov::log::Level::DEBUG) {
             _logger.debug("push - inputs info for dynamic graph:");
-            for (auto& memType : dynamicArguments._inputs) {
+            for (auto& memType : dynamicArguments._inputsMemRef) {
                 _logger.debug("push - input: %s", memType.toString().c_str());
             }
             _logger.debug("push - outputs info for dynamic graph:");
-            for (auto& memType : dynamicArguments._outputs) {
+            for (auto& memType : dynamicArguments._outputsMemRef) {
                 _logger.debug("push - output: %s", memType.toString().c_str());
             }
         }
@@ -354,8 +354,8 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
         }
     };
 
-    processMemRefs(args._inputs, args._inputMemRefHandles);
-    processMemRefs(args._outputs, args._outputMemRefHandles);
+    processMemRefs(args._inputsMemRef, args._inputMemRefHandles);
+    processMemRefs(args._outputsMemRef, args._outputMemRefHandles);
 
     if (!firstExecution && noTensorChange) {
         _logger.debug("Reuse command list without update since no tensor change detected");
@@ -401,7 +401,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
     } else {
-        _logger.debug("Execution context is created successfully.");
+        _logger.debug("Execution runtime engine is created successfully.");
     }
 
     args._executedOnce = true;
