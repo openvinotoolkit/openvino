@@ -167,7 +167,11 @@ protected:
             ADD_FAILURE() << "Failed to get compatibility string size";
             return {};
         }
-
+        const uint64_t maxSize = static_cast<uint64_t>(std::vector<char>().max_size());
+        if (compatibilityStringSize > maxSize) {
+            ADD_FAILURE() << "Compatibility string size is too large";
+            return {};
+        }
         std::vector<char> compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
         result = ::intel_npu::vclExecutableGetCompatibilityString(executable,
                                                                   compatibilityStringBuffer.data(),
@@ -176,8 +180,15 @@ protected:
             ADD_FAILURE() << "Failed to get compatibility string";
             return {};
         }
-
-        return std::string(compatibilityStringBuffer.data());
+        if (compatibilityStringSize > static_cast<uint64_t>(compatibilityStringBuffer.size())) {
+            ADD_FAILURE() << "Returned compatibility string size exceeds the allocated buffer size";
+            return {};
+        }
+        size_t outSize = static_cast<size_t>(compatibilityStringSize);
+        if (outSize > 0 && compatibilityStringBuffer[outSize - 1] == '\0') {
+            --outSize;
+        }
+        return std::string(compatibilityStringBuffer.data(), outSize);
     }
 };
 

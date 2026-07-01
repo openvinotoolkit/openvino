@@ -334,10 +334,11 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         }
         OPENVINO_ASSERT(compatibilityStringSize <= compatibilityString->size(),
                         "Returned compatibility string size exceeds the allocated buffer size");
-        compatibilityString->resize(static_cast<size_t>(compatibilityStringSize));
-        if (!compatibilityString->empty() && compatibilityString->back() != '\0') {
-            compatibilityString->push_back('\0');
+        size_t outSize = static_cast<size_t>(compatibilityStringSize);
+        if (outSize > 0 && (*compatibilityString)[outSize - 1] == '\0') {
+            --outSize;
         }
+        compatibilityString->resize(outSize);
         _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
     }
 
