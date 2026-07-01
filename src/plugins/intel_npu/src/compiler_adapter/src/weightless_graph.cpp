@@ -16,9 +16,8 @@
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 #define USE_SINGLE_THREADED_RUN_INIT 1
 
@@ -27,39 +26,6 @@ namespace intel_npu {
 namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
-
-std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
-    const std::shared_ptr<const ov::Model>& model,
-    const Logger& logger) {
-    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
-
-    // Match the inputs of the "init" model with the Constant nodes of the original model
-    for (auto&& node : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::Constant>(node)) {
-            continue;
-        }
-
-        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
-        const auto& weightlessCacheAttrIt = runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
-        if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
-            auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
-
-            auto& constant = constants[weightlessCacheAttr.bin_offset];
-            if (constant != nullptr) {
-                // if multiple constants point to the same buffer, ensure that
-                // their binary sizes are the same
-                OPENVINO_ASSERT(constant->get_byte_size() == constantNode->get_byte_size(),
-                                "Found ov::Constant that points to the common buffer but has mismatching byte size. "
-                                "This may indicate a bug in OV model compression.");
-                continue;
-            }
-            constant = std::move(constantNode);
-        }
-    }
-
-    return constants;
-}
 
 struct QueueData {
     int64_t initIndex = -1;
@@ -85,11 +51,11 @@ class Parallelizer {
     Task2Callable _task2;
 
 public:
-    Parallelizer(const std::shared_ptr<const ov::Model>& model,
+    Parallelizer(std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& _constants,
                  Task1Callable&& task1,
                  Task2Callable&& task2,
                  const Logger& logger)
-        : _modelConstants(get_all_constants_in_topological_order(model, logger)),
+        : _modelConstants(std::move(_constants)),
           _task1(std::forward<Task1Callable>(task1)),
           _task2(std::forward<Task2Callable>(task2)) {}
 
@@ -149,8 +115,10 @@ public:
 
 // c++17 deduction guide
 template <typename Task1Callable, typename Task2Callable>
-Parallelizer(const std::shared_ptr<const ov::Model>&, Task1Callable&&, Task2Callable&&, const Logger&)
-    -> Parallelizer<Task1Callable, Task2Callable>;
+Parallelizer(std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&&,
+             Task1Callable&&,
+             Task2Callable&&,
+             const Logger&) -> Parallelizer<Task1Callable, Task2Callable>;
 
 void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& dst,
                     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& src) {
@@ -168,7 +136,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const std::vector<GraphDescriptor>& initGraphDesc,
                                  std::vector<NetworkMetadata> initMetadata,
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
-                                 std::shared_ptr<const ov::Model>&& model,
+                                 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
                                  const FilteredConfig& config,
                                  const bool blobIsPersistent)
     : Graph(zeGraphExt,
@@ -183,7 +151,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
-      _model(std::move(model)),
+      _constants(std::move(constants)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
@@ -376,7 +344,10 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         const size_t currentInputSize =
             ov::util::get_memory_size(descriptor.precision, shape_size(tensorShapeFromCompiler));
 
-        const size_t id = std::stoi(descriptor.nameFromCompiler);
+        const auto& opt = ov::util::view_to_number<size_t>(descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(opt.has_value(), "Failed to parse id for constant: ", descriptor.nameFromCompiler);
+
+        const size_t id = opt.value();
         auto constantIt = constants.find(id);
         OPENVINO_ASSERT(constantIt != constants.end(),
                         "Weights ID ",
@@ -448,15 +419,10 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 }
 
 void WeightlessGraph::run_init_single_threaded() {
-    auto constants = get_all_constants_in_topological_order(_model, _wgLogger);
     const size_t numberOfInits = _initsGraphDesc.size();
 
-    // Note: Delete model prematurely, constants are still valid due to
-    // shared_ptr semantics.
-    _model = nullptr;
-
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-        auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
+        auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, _constants);
         auto [initOutputsViewTensors, initOutputsAllocatedTensor, initOutputsViewTensorsMap] =
             allocate_outputs(initIndex);
 
@@ -467,6 +433,8 @@ void WeightlessGraph::run_init_single_threaded() {
         merge_two_maps(_mainInputsViewTensors, initOutputsViewTensorsMap);
         _mainInputsAllocatedTensors.push_back(std::move(initOutputsAllocatedTensor));
     }
+    // Ensure constants are no longer kept in memory after all init schedules have been run
+    _constants.clear();
 }
 
 void WeightlessGraph::run_init_multi_threaded() {
@@ -480,7 +448,7 @@ void WeightlessGraph::run_init_multi_threaded() {
     // allocate I/O -> create Pipeline -> run Pipeline
     //                                    allocate I/O -> create Pipeline -> run Pipeline
     Parallelizer multiThreadedRunner(
-        _model,
+        std::move(_constants),
         [&](std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants,
             int64_t initIndex) -> QueueData {
             QueueData data{};
@@ -510,10 +478,6 @@ void WeightlessGraph::run_init_multi_threaded() {
         },
         _wgLogger);
 
-    // Note: Delete model prematurely, constants are still valid due to
-    // shared_ptr semantics.
-    _model = nullptr;
-
     multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
 }
 
@@ -531,18 +495,18 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
 
     size_t io_index = 0;
     for (const auto& desc : _initsMetadata.at(initIndex).inputs) {
-        void* data = inputTensors.at(io_index++)->data();
+        const void* data = inputTensors.at(io_index++)->data();
         _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
                                            desc.indexUsedByDriver,
-                                           static_cast<unsigned char*>(data));
+                                           static_cast<const unsigned char*>(data));
     }
 
     io_index = 0;
     for (const auto& desc : _initsMetadata.at(initIndex).outputs) {
-        void* data = outputTensors.at(io_index++)->data();
+        const void* data = outputTensors.at(io_index++)->data();
         _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex),
                                            desc.indexUsedByDriver,
-                                           static_cast<unsigned char*>(data));
+                                           static_cast<const unsigned char*>(data));
     }
 
     _initsCommandLists.at(initIndex)->appendGraphExecute(
