@@ -269,29 +269,14 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     } else {
         dim = concat_list_construct(context.get_input(2));
     }
-    // When ord is not specified (None), torch.linalg.norm computes:
-    //  - the matrix Frobenius norm when reducing over exactly two dims (an explicit
-    //    2-element dim, or dim=None on a rank-2 input), and
-    //  - the vector 2-norm (L2) otherwise (any other dim, or dim=None on any other rank).
-    // Both branches reduce to sqrt(sum(x^2)) over the selected axes (x^2 == |x|^2 for
-    // the real inputs supported here), so the computation itself is rank-agnostic; only
-    // the branch selection below needs the static rank, for the dim=None case.
+    // When ord is not specified (None), torch.linalg.norm computes the Frobenius norm
+    // when reducing over exactly two dims and the vector 2-norm (L2) otherwise. Both are
+    // sqrt(sum(x^2)) over the selected axes (x^2 == |x|^2 for the real inputs supported
+    // here), so the result is identical and rank-agnostic regardless of how many axes
+    // `dim` selects. Compute it directly with the vector L2 reduction over `dim`; this
+    // needs neither the static rank nor a foldable `dim`.
     if (context.input_is_none(1)) {
-        bool is_matrix_norm = false;
-        if (!context.input_is_none(2)) {
-            // explicit dim provided: matrix norm iff it lists exactly two axes
-            auto const_dim = context.const_input<std::vector<int64_t>>(2);
-            is_matrix_norm = const_dim.size() == 2;
-        } else {
-            // dim=None: matrix norm only for a statically rank-2 input
-            auto input_rank = x.get_partial_shape().rank();
-            is_matrix_norm = input_rank.is_static() && input_rank.get_length() == 2;
-        }
-        if (is_matrix_norm) {
-            result = frobenius_norm(context, x, dim, keep_dim);
-        } else {
-            result = norm_vector(context, x, dim, 2, keep_dim);
-        }
+        result = norm_vector(context, x, dim, 2, keep_dim);
     } else {
         // ord defines the  norm that is computed can be string or number
         auto ord_type = context.get_input_type(1);

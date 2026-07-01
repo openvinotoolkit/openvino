@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -10,11 +11,13 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/sign.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -192,14 +195,17 @@ private:
     }
 
     Output<Node> absval(const Output<Node>& x) {
-        // |x| via Select(x < 0, -x, x); avoids pulling in an Abs op and keeps full
-        // precision (no sqrt rounding).
-        auto neg = mul(x, cf(-1.0f));
-        return sel(m_ctx.mark_node(std::make_shared<v1::Less>(x, cf(0.0f))), neg, x);
+        return m_ctx.mark_node(std::make_shared<v0::Abs>(x));
     }
     Output<Node> signum(const Output<Node>& x) {
-        // sign with sign(0) = +1 (the value is irrelevant when gamma ~ 0).
-        return sel(m_ctx.mark_node(std::make_shared<v1::Less>(x, cf(0.0f))), cf(-1.0f), cf(1.0f));
+        // sign(x) with sign(0) = +1. v0::Sign returns 0 for input 0, but here a zero input
+        // (zeta == (beta - alpha) / (2*gamma), i.e. two columns of equal norm that are not
+        // orthogonal) must still trigger the +-45 degree Jacobi rotation. sign(0) = 0 would
+        // set t = 0 and skip that rotation, leaving equal-norm (e.g. rank-deficient) columns
+        // un-orthogonalized. Force +1 at exactly 0.
+        auto s = m_ctx.mark_node(std::make_shared<v0::Sign>(x));
+        auto is_zero = m_ctx.mark_node(std::make_shared<v1::Equal>(x, cf(0.0f)));
+        return sel(is_zero, cf(1.0f), s);
     }
 
     // Stack three (...,3,1) column vectors into a (...,3,3) matrix (columns).
