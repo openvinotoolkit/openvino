@@ -112,6 +112,10 @@ std::vector<std::string> parse_device_list(const std::string& device_name) {
     }
 
     for (auto&& device : split_string(comma_separated_devices, ',')) {
+        constexpr const char* ws = " \t\n\r\f\v";
+        const auto begin = device.find_first_not_of(ws);
+        const auto end = device.find_last_not_of(ws);
+        device = (begin == std::string::npos) ? std::string{} : device.substr(begin, end - begin + 1);
         if (!device.empty() && device.front() == '-') {
             device.erase(device.begin());
         }
