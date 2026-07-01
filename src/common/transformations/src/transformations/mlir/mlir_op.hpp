@@ -103,6 +103,7 @@ public:
     bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values,
                   const ov::EvaluationContext& evaluationContext) const override;
     bool has_evaluate() const override;
+    std::vector<ov::PartialShape> shape_infer(const std::vector<ov::PartialShape>& input_shapes) const;
 };
 
 } // namespace mlir
