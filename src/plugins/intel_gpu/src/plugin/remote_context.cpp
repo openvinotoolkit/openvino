@@ -110,7 +110,6 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
 }
 
 void RemoteContextImpl::init_properties() {
-    properties.emplace(ov::intel_gpu::supports_leo.name(), m_device->get_info().supports_leo);
     switch (m_type) {
     case ContextType::OCL:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::OCL));
