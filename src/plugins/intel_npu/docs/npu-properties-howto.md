@@ -1,4 +1,4 @@
-﻿# NPU Properties
+# NPU Properties
 What is a property from NPU Plugin's POV and Step-by-step guide on how to add one  
 Practical manual for NPU plugin properties
 
@@ -177,7 +177,7 @@ Notes:
 ## Step 2. Define the internal option descriptor
 Second step is to define the optionDesc class for this property in  
 ```bash
-src/plugins/intel_npu/al/config/options.hpp
+src/plugins/intel_npu/src/al/include/intel_npu/config/options.hpp
 ```  
 Example:  
 ```cpp
@@ -257,7 +257,7 @@ Notes:
 
 **(!!)** None of the member functions are mandatory to be defined.  
 If any is missing, the default function will be used for its call, as defined in the OptionsBase class  
-(see class **OptionBase** in *src/plugins/intel_npu/al/include/config/config.hpp* or Class Hierarchy section above)
+(see class **OptionBase** in src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp* or Class Hierarchy section above)
 
 ## Step 3. Register the new option
 Third step is to register the new option in the plugin:  
