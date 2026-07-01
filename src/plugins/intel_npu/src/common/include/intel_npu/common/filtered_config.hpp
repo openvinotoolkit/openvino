@@ -76,7 +76,7 @@ public:
      * @param key The key of the option to enable/disable.
      * @param enable True to enable the option, false to disable it.
      */
-    void enable(std::string key, bool enable);
+    void enable(std::string_view key, bool enable);
 
     /**
      * @brief Enables all available configuration options.
