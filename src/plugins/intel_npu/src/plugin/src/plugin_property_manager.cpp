@@ -325,7 +325,7 @@ void PluginPropertyManager::registerProperties() {
     register_property<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(), [&](const FilteredConfig& config) {
+    register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(), [this](const FilteredConfig& config) {
         if (!config.has<STEPPING>()) {
             try {
                 const auto specifiedDeviceName = get_specified_device_name(config);
@@ -341,7 +341,7 @@ void PluginPropertyManager::registerProperties() {
     });
 
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::max_tiles.name(),
-        [&](const FilteredConfig& config) {
+        [this](const FilteredConfig& config) {
             // If this is already disabled in the config, do not perform extra checks and return false.
             if (config.isAvailable(ov::intel_npu::max_tiles.name()) == false || _metrics == nullptr) {
                 return false;
@@ -358,7 +358,7 @@ void PluginPropertyManager::registerProperties() {
 
             return false;
         },
-        [&](const FilteredConfig& config) {
+        [this](const FilteredConfig& config) {
             if (!config.has<MAX_TILES>()) {
                 try {
                     const auto specifiedDeviceName = get_specified_device_name(config);
@@ -372,7 +372,7 @@ void PluginPropertyManager::registerProperties() {
 
     // Special case: this property is always registered because it's supported by the implementation,
     // but it's not visible in supported_properties if the driver doesn't support it.
-    register_property_with_custom_visibility<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, ov::intel_npu::run_inferences_sequentially.name(), [&] {
+    register_property_with_custom_visibility<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, ov::intel_npu::run_inferences_sequentially.name(), [this] {
         if (_backend && _backend->getInitStructs()) {
             if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
                 return true;
@@ -382,57 +382,57 @@ void PluginPropertyManager::registerProperties() {
     }());
     // clang-format on
 
-    for_each_exposed_npuw_option([&](auto tag) {
+    for_each_exposed_npuw_option([this](auto tag) {
         using Opt = typename decltype(tag)::type;
         register_npuw_property<Opt>(_config, _properties);
     });
 
     // clang-format off
     if (_metrics != nullptr) {
-        register_property_with_custom_function(_properties, ov::available_devices.name(), true, [&](const FilteredConfig&) {
+        register_property_with_custom_function(_properties, ov::available_devices.name(), true, [this](const FilteredConfig&) {
             return _metrics->GetAvailableDevicesNames();
         });
-        register_property_with_custom_function(_properties, ov::device::capabilities.name(), true, [&](const FilteredConfig&) {
+        register_property_with_custom_function(_properties, ov::device::capabilities.name(), true, [this](const FilteredConfig&) {
             return _metrics->GetOptimizationCapabilities();
         });
-        register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [&](const FilteredConfig&) {
+        register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [this](const FilteredConfig&) {
             return _metrics->GetRangeForAsyncInferRequest();
         });
-        register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [&](const FilteredConfig&) {
+        register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [this](const FilteredConfig&) {
             return _metrics->GetRangeForStreams();
         });
-        register_property_with_custom_function(_properties, ov::device::pci_info.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::device::pci_info.name(), true, [this](const FilteredConfig& config) {
             return _metrics->GetPciInfo(get_specified_device_name(config));
         });
-        register_property_with_custom_function(_properties, ov::device::gops.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::device::gops.name(), true, [this](const FilteredConfig& config) {
             return _metrics->GetGops(get_specified_device_name(config));
         });
-        register_property_with_custom_function(_properties, ov::device::type.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::device::type.name(), true, [this](const FilteredConfig& config) {
             return _metrics->GetDeviceType(get_specified_device_name(config));
         });
-        register_property_with_custom_function(_properties, ov::intel_npu::device_alloc_mem_size.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::intel_npu::device_alloc_mem_size.name(), true, [this](const FilteredConfig& config) {
             return _metrics->GetDeviceAllocMemSize(get_specified_device_name(config));
         });
-        register_property_with_custom_function(_properties, ov::intel_npu::device_total_mem_size.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::intel_npu::device_total_mem_size.name(), true, [this](const FilteredConfig& config) {
             return _metrics->GetDeviceTotalMemSize(get_specified_device_name(config));
         });
-        register_property_with_custom_function(_properties, ov::intel_npu::driver_version.name(), true, [&](const FilteredConfig&) {
+        register_property_with_custom_function(_properties, ov::intel_npu::driver_version.name(), true, [this](const FilteredConfig&) {
             return _metrics->GetDriverVersion();
         });
-        register_property_with_custom_function(_properties, ov::device::uuid.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::device::uuid.name(), true, [this](const FilteredConfig& config) {
             auto devUuid = _metrics->GetDeviceUuid(get_specified_device_name(config));
             return decltype(ov::device::uuid)::value_type{devUuid};
         });
-        register_property_with_custom_function(_properties, ov::device::luid.name(), _backend == nullptr ? false : _backend->isLUIDExtSupported(), [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::device::luid.name(), _backend == nullptr ? false : _backend->isLUIDExtSupported(), [this](const FilteredConfig& config) {
             return _metrics->GetDeviceLUID(get_specified_device_name(config));
         });
-        register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [&](const FilteredConfig& config) {
+        register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [this](const FilteredConfig& config) {
             if (_metrics->GetAvailableDevicesNames().size() > 1) {
                 return std::string("NPU." + config.get<DEVICE_ID>());
             }
             return std::string("NPU");
         });
-        register_property_with_custom_function(_properties, ov::intel_npu::backend_name.name(), false, [&](const FilteredConfig&) {
+        register_property_with_custom_function(_properties, ov::intel_npu::backend_name.name(), false, [this](const FilteredConfig&) {
             return _metrics->GetBackendName();
         });
         // clang-format on
@@ -444,7 +444,7 @@ void PluginPropertyManager::registerProperties() {
                 return !_metrics->GetAvailableDevicesNames().empty();
             },
             true,
-            [&](const FilteredConfig& config) {
+            [this](const FilteredConfig& config) {
                 return _metrics->GetDeviceArchitecture(get_specified_device_name(config));
             });
         register_property_with_support_and_custom_function(
@@ -454,7 +454,7 @@ void PluginPropertyManager::registerProperties() {
                 return !_metrics->GetAvailableDevicesNames().empty();
             },
             true,
-            [&](const FilteredConfig& config) {
+            [this](const FilteredConfig& config) {
                 return _metrics->GetFullDeviceName(get_specified_device_name(config));
             });
     }
@@ -463,7 +463,7 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const FilteredConfig&) {
         return std::shared_ptr<const ov::Model>(nullptr);
     });
-    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, [&](const FilteredConfig& config) {
+    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, [this](const FilteredConfig& config) {
         return utils::getOptimalNumberOfInferRequestsInParallel(
             utils::getCompilationPlatform(
                 config.get<PLATFORM>(),
@@ -472,7 +472,7 @@ void PluginPropertyManager::registerProperties() {
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()),
             config.get<PERFORMANCE_HINT>());
     });
-    register_property_with_custom_function(_properties, ov::intel_npu::compiler_version.name(), true, [&](const FilteredConfig& config) {
+    register_property_with_custom_function(_properties, ov::intel_npu::compiler_version.name(), true, [this](const FilteredConfig& config) {
         auto compilerType = config.get<COMPILER_TYPE>();
         auto deviceId = config.get<DEVICE_ID>();
         auto device = utils::getDeviceById(_backend, deviceId);
@@ -487,13 +487,13 @@ void PluginPropertyManager::registerProperties() {
 
         return dummyCompiler->get_version();
     });
-    register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, [&](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, [this](const FilteredConfig&) {
         return _internalSupportedProperties;
     });
-    register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, [&](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, [this](const FilteredConfig&) {
         return utils::STANDARD_PAGE_SIZE;
     });
-    register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, [&](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, [this](const FilteredConfig&) {
         std::vector<ov::PropertyName> caching_props{};
         for (auto prop : _cachingProperties) {
             if (_config.isAvailable(prop)) {
@@ -507,7 +507,7 @@ void PluginPropertyManager::registerProperties() {
         }
         return caching_props;
     });
-    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [&](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const FilteredConfig&) {
         std::vector<ov::PropertyName> supportedProperties;
         for (auto& property : _properties) {
             if (property.second.isPublic && property.second.isSupported(_config)) {
@@ -542,7 +542,7 @@ void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() {
 void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    auto resolveCompilerTypeWithoutLock = [&](const ov::AnyMap& propertyMap) {
+    auto resolveCompilerTypeWithoutLock = [this](const ov::AnyMap& propertyMap) {
         auto compilerTypeIt = propertyMap.find(ov::intel_npu::compiler_type.name());
         if (compilerTypeIt != propertyMap.end()) {
             return COMPILER_TYPE::parse(compilerTypeIt->second.as<std::string>());
@@ -550,7 +550,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         return _config.get<COMPILER_TYPE>();
     };
 
-    auto resolveDeviceIdWithoutLock = [&](const ov::AnyMap& propertyMap) {
+    auto resolveDeviceIdWithoutLock = [this](const ov::AnyMap& propertyMap) {
         auto deviceIdIt = propertyMap.find(std::string(ov::device::id.name()));
         if (deviceIdIt != propertyMap.end()) {
             return deviceIdIt->second.as<std::string>();
@@ -558,7 +558,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         return _config.get<DEVICE_ID>();
     };
 
-    auto resolvePlatformWithoutLock = [&](const ov::AnyMap& propertyMap) {
+    auto resolvePlatformWithoutLock = [this](const ov::AnyMap& propertyMap) {
         auto platformIt = propertyMap.find(ov::intel_npu::platform.name());
         if (platformIt != propertyMap.end()) {
             return platformIt->second.as<std::string>();
