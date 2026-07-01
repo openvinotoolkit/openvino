@@ -107,9 +107,7 @@ std::vector<std::string> parse_device_list(const std::string& device_name) {
         if (is_virtual_device_name(target_device)) {
             devices.push_back(target_device);
         }
-        const auto bracket = comma_separated_devices.find('(', colon + 1);
-        const auto devices_end = bracket == std::string::npos ? comma_separated_devices.size() : bracket;
-        comma_separated_devices = comma_separated_devices.substr(colon + 1, devices_end - colon - 1);
+        comma_separated_devices = comma_separated_devices.substr(colon + 1);
     }
 
     for (auto&& device : split_string(comma_separated_devices, ',')) {
@@ -119,6 +117,12 @@ std::vector<std::string> parse_device_list(const std::string& device_name) {
         device = (begin == std::string::npos) ? std::string{} : device.substr(begin, end - begin + 1);
         if (!device.empty() && device.front() == '-') {
             device.erase(device.begin());
+        }
+        const auto paren = device.find('(');
+        if (paren != std::string::npos) {
+            device = device.substr(0, paren);
+            const auto trimmed_end = device.find_last_not_of(ws);
+            device = trimmed_end == std::string::npos ? std::string{} : device.substr(0, trimmed_end + 1);
         }
         if (!device.empty()) {
             devices.push_back(device);
