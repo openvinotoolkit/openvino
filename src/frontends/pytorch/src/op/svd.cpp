@@ -256,15 +256,18 @@ OutputVector svd_common(const NodeContext& context) {
 
 OutputVector translate_svd(const NodeContext& context) {
     // aten::svd(Tensor self, bool some=True, bool compute_uv=True) -> (Tensor U, Tensor S, Tensor V)
-    // With compute_uv=False PyTorch returns zero-filled U and V (only S is meaningful); this
-    // translator always produces real U/V, so reject a statically-false compute_uv loudly rather
-    // than returning non-zero singular vectors a caller would treat as zeros. Probe without
-    // throwing so a (non-constant) runtime flag does not break conversion.
+    // With compute_uv=False PyTorch returns zero-filled U and V (only S is meaningful). This
+    // translator always produces real U/V, so compute_uv must be a constant true:
+    //  - a constant false is rejected (returning real singular vectors where a caller expects
+    //    zeros would be a silent wrong result);
+    //  - a non-constant compute_uv is also rejected, because its runtime value could be false and
+    //    there is no way to know at conversion time -- accepting it would let the same silent
+    //    zero-vs-real mismatch through.
     if (context.get_input_size() > 2 && !context.input_is_none(2)) {
-        if (const auto c = ov::util::get_constant_from_source(context.get_input(2))) {
-            const auto vals = c->cast_vector<bool>();
-            PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0], "aten::svd with compute_uv=False is not supported.");
-        }
+        const auto c = ov::util::get_constant_from_source(context.get_input(2));
+        PYTORCH_OP_CONVERSION_CHECK(c, "aten::svd with a non-constant compute_uv is not supported.");
+        const auto vals = c->cast_vector<bool>();
+        PYTORCH_OP_CONVERSION_CHECK(vals.empty() || vals[0], "aten::svd with compute_uv=False is not supported.");
     }
     return svd_common(context);
 };

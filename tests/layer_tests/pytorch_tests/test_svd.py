@@ -145,3 +145,27 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
         compiled = ov.Core().compile_model(ov_model, "CPU")
         with pytest.raises(Exception):
             compiled((example.numpy(),))
+
+
+class TestSVDComputeUvFalseFailsGracefully(PytorchLayerTest):
+    """aten::svd with compute_uv=False must fail at conversion, not silently return non-zero U/V.
+
+    PyTorch returns zero-filled U/V when compute_uv=False; this frontend always produces real
+    U/V, so it rejects a constant compute_uv=False at conversion time. (A non-constant compute_uv
+    is likewise rejected in the translator, but Python bool args const-fold into prim::Constant
+    under torch.jit.trace, so that branch is not reachable from a layer test.)
+    """
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_compute_uv_false_fails_at_conversion(self, ie_device, precision, ir_version):
+        class aten_svd_no_uv(torch.nn.Module):
+            def forward(self, x):
+                _, s, _ = torch.svd(x, compute_uv=False)
+                return s
+
+        example = torch.randn(2, 3, 3, dtype=torch.float32)
+        scripted = torch.jit.trace(aten_svd_no_uv(), example)
+        with pytest.raises(Exception):
+            ov.convert_model(scripted, example_input=(example,),
+                             input=[ov.PartialShape([2, 3, 3])])
