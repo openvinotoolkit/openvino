@@ -6,15 +6,31 @@
 
 namespace ov::intel_gpu::moe_offload {
 
-bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
+// Input indices 3..11 are routed expert weights/scales/zps (WEIGHT_0..ZP_2).
+// Input indices 12..21 are shared expert weights (SHARED_GATE_WEIGHT..SHARED_GATE_GATE_WEIGHT).
+// See MOE3GemmInputIndex in moe_3gemm_base.hpp for the authoritative enum.
+static constexpr size_t ROUTED_INPUT_START = 3;
+static constexpr size_t ROUTED_INPUT_END = 11;
+static constexpr size_t SHARED_INPUT_START = 12;
+static constexpr size_t SHARED_INPUT_END = 21;
+
+MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op) {
     const auto users = op->get_output_target_inputs(0);
     for (const auto& input : users) {
         const auto* node = input.get_node();
         if (ov::is_type<ov::op::internal::MOECompressed>(node)) {
-            return true;
+            auto idx = input.get_index();
+            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END)
+                return MoEConstantRole::RoutedExpert;
+            if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END)
+                return MoEConstantRole::SharedExpert;
         }
     }
-    return false;
+    return MoEConstantRole::NotMoE;
+}
+
+bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
+    return get_moe_constant_role(op) != MoEConstantRole::NotMoE;
 }
 
 PartialUploadLogState& get_partial_upload_log_state() {
@@ -31,7 +47,8 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     PartialUploadDesc desc;
 
     const size_t otd_ratio = p.get_config().get_moe_offload_ratio();
-    const bool partial_moe_const_upload = otd_ratio > 0 && is_moe_related_constant(op);
+    // Only routed expert weights are partially uploaded; shared experts stay fully resident.
+    const bool partial_moe_const_upload = otd_ratio > 0 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }

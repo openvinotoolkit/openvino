@@ -16,6 +16,12 @@
 
 namespace ov::intel_gpu::moe_offload {
 
+/// Classifies a Constant's role relative to the MoE fused op.
+enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
+
+/// Determines the role of a Constant feeding into MOECompressed.
+MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
+
 struct PartialUploadDesc {
     bool enabled = false;
     cldnn::memory::ptr memory = nullptr;
