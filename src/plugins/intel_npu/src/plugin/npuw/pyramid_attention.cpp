@@ -228,6 +228,25 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
         LOG_DEBUG("  Concat nodes shrunk successfully for model[" << model_idx << "]");
 
+        // In block-split mode the actual context length is determined by which past blocks
+        // were kept plus the single present token. The pyramid-step formula used for the
+        // contiguous path does not apply here — it would produce an incorrect value.
+        // Compute it directly from the shrunk key Concat inputs.
+        size_t actual_context_length = 0;
+        if (auto kc = std::dynamic_pointer_cast<ov::op::v0::Concat>(shrunk_key)) {
+            const int64_t kc_axis =
+                ov::util::try_normalize_axis(kc->get_axis(),
+                                             static_cast<int64_t>(kc->get_input_partial_shape(0).rank().get_length()),
+                                             *kc);
+            for (size_t i = 0; i < kc->get_input_size(); ++i) {
+                const auto& shape = kc->input(i).get_source_output().get_partial_shape();
+                if (shape.rank().is_static() && shape[kc_axis].is_static()) {
+                    actual_context_length += shape[kc_axis].get_length();
+                }
+            }
+        }
+        LOG_DEBUG("  Block-mode actual context length for model[" << model_idx << "]: " << actual_context_length);
+
         // Apply the same pre-reshape patching + reshape sequence as the non-block path:
         //   1. patch_broadcast_constants — fix Broadcast shape constants referencing full_context_length
         //   2. patch_reshape_constants  — set seq dim to -1 in value-path Reshape shape constant
@@ -248,7 +267,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         }
         ov::PartialShape new_mask_shape = mask_param->get_partial_shape();
         if (new_mask_shape.rank().is_static() && new_mask_shape.rank().get_length() > 0) {
-            new_mask_shape[new_mask_shape.rank().get_length() - 1] = current_context_length;
+            new_mask_shape[new_mask_shape.rank().get_length() - 1] = actual_context_length;
             mask_param->set_partial_shape(new_mask_shape);
             LOG_INFO("  Set mask '" << mask_param->get_friendly_name() << "' partial shape -> " << new_mask_shape);
         }
@@ -263,7 +282,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                      block_attention.past_value_block_variant_param_indices);
 
         LOG_INFO("Block-mode pyramid model[" << model_idx << "] ready: " << num_blocks_needed
-                                             << " past block(s), context=" << current_context_length);
+                                             << " past block(s), context=" << actual_context_length);
 
         return PyramidModelResult{cloned_model, std::move(block_attention)};
     }
