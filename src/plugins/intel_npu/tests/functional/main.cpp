@@ -93,11 +93,15 @@ int main(int argc, char** argv, char** envp) {
                 std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(parsed) << std::endl;
             } else {
                 std::cerr << "WARNING: Invalid --driver_type value: '" << value
-                          << "' (expected pv, release, or latest). The driver will be treated as latest." << std::endl;
-                ov::test::utils::g_driver_type = ov::test::utils::DriverType::LATEST;
+                          << "' (expected pv, release, or latest)." << std::endl;
             }
             break;
         }
+    }
+    if (!ov::test::utils::g_driver_type.has_value()) {
+        ov::test::utils::g_driver_type = ov::test::utils::DriverType::LATEST;
+        std::cout << "Driver type not specified, defaulting to: "
+                  << ov::test::utils::driverTypeToString(ov::test::utils::g_driver_type) << std::endl;
     }
 
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::NpuTestReportEnvironment());
