@@ -80,15 +80,35 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
     std::unordered_set<std::string> matched_affinity_keys;
     for (const auto& node : model->get_ops()) {
         const auto friendly_it = affinity_json.find(node->get_friendly_name());
-         if (friendly_it != affinity_json.end()) {
-             matched_affinity_keys.insert(friendly_it.key());
-             mapped_devices.insert(friendly_it->get<std::string>());
-         }
-         const auto name_it = affinity_json.find(node->get_name());
-         if (name_it != affinity_json.end()) {
-             matched_affinity_keys.insert(name_it.key());
-             mapped_devices.insert(name_it->get<std::string>());
-         }
+        const auto name_it = affinity_json.find(node->get_name());
+
+        if (friendly_it != affinity_json.end() && name_it != affinity_json.end() && friendly_it.key() != name_it.key() &&
+            friendly_it->get<std::string>() != name_it->get<std::string>()) {
+            OPENVINO_THROW("Affinity file ",
+                           file_path,
+                           " contains conflicting mappings for node '",
+                           node->get_friendly_name(),
+                           "' (internal name '",
+                           node->get_name(),
+                           "'): '",
+                           friendly_it.key(),
+                           "' -> '",
+                           friendly_it->get<std::string>(),
+                           "', '",
+                           name_it.key(),
+                           "' -> '",
+                           name_it->get<std::string>(),
+                           "'. Please keep only one mapping or use the same device value.");
+        }
+
+        if (friendly_it != affinity_json.end()) {
+            matched_affinity_keys.insert(friendly_it.key());
+            mapped_devices.insert(friendly_it->get<std::string>());
+        }
+        if (name_it != affinity_json.end()) {
+            matched_affinity_keys.insert(name_it.key());
+            mapped_devices.insert(name_it->get<std::string>());
+        }
     }
 
     std::ostringstream unknown_nodes_oss;
