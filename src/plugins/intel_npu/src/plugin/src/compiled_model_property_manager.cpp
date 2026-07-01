@@ -204,11 +204,11 @@ void CompiledModelPropertyManager::registerProperties() {
     register_property_with_support_and_custom_function(
         _properties,
         ov::runtime_requirements.name(),
-        [this](const FilteredConfig&) {
+        [this](const FilteredConfig&) {  // support predicate
             return _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
         },
         true,
-        [this](const FilteredConfig&) {
+        [this](const FilteredConfig&) {  // value getter
             return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
         });
 }

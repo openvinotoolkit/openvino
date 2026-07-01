@@ -341,7 +341,7 @@ void PluginPropertyManager::registerProperties() {
     });
 
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::max_tiles.name(),
-        [this](const FilteredConfig& config) {
+        [this](const FilteredConfig& config) {  // support predicate
             // If this is already disabled in the config, do not perform extra checks and return false.
             if (config.isAvailable(ov::intel_npu::max_tiles.name()) == false || _metrics == nullptr) {
                 return false;
@@ -358,7 +358,7 @@ void PluginPropertyManager::registerProperties() {
 
             return false;
         },
-        [this](const FilteredConfig& config) {
+        [this](const FilteredConfig& config) {  // value getter
             if (!config.has<MAX_TILES>()) {
                 try {
                     const auto specifiedDeviceName = get_specified_device_name(config);
@@ -440,21 +440,21 @@ void PluginPropertyManager::registerProperties() {
         register_property_with_support_and_custom_function(
             _properties,
             ov::device::architecture.name(),
-            [this](const FilteredConfig&) {
+            [this](const FilteredConfig&) {  // support predicate
                 return !_metrics->GetAvailableDevicesNames().empty();
             },
             true,
-            [this](const FilteredConfig& config) {
+            [this](const FilteredConfig& config) {  // value getter
                 return _metrics->GetDeviceArchitecture(get_specified_device_name(config));
             });
         register_property_with_support_and_custom_function(
             _properties,
             ov::device::full_name.name(),
-            [this](const FilteredConfig&) {
+            [this](const FilteredConfig&) {  // support predicate
                 return !_metrics->GetAvailableDevicesNames().empty();
             },
             true,
-            [this](const FilteredConfig& config) {
+            [this](const FilteredConfig& config) {  // value getter
                 return _metrics->GetFullDeviceName(get_specified_device_name(config));
             });
     }
@@ -521,11 +521,11 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_support_custom_function_and_args(
         _properties,
         ov::compatibility_check.name(),
-        [this](const FilteredConfig&) {
+        [this](const FilteredConfig&) {  // support predicate
             return _compatibilityCheckFiltered && _compatibilityCheckSupported;
         },
         true,
-        [this](const FilteredConfig&, const ov::AnyMap& arguments) {
+        [this](const FilteredConfig&, const ov::AnyMap& arguments) {  // value getter (with args)
             return validateCompatibilityDescriptor(_backend, arguments);
         });
 }
