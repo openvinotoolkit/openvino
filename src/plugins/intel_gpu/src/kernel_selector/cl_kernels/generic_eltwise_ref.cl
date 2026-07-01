@@ -184,7 +184,9 @@ KERNEL(eltwise)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+	// FUSED_OPS_RESULT returns result in OUTPUT_TYPE, need to convert, because ACTIVATION takes ACCUMULATOR_TYPE
+	// DECODE macro in case OUTPUT_TYPE == BF16
+    ACCUMULATOR_TYPE out = TO_ACCUMULATOR_TYPE(DECODE_OUTPUT_COMPUTE_TYPE(FUSED_OPS_RESULT));
 #else
     #define out res
 #endif
