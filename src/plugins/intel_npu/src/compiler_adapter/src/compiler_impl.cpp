@@ -305,9 +305,9 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
     if (result == VCL_RESULT_ERROR_UNSUPPORTED_FEATURE) {
         // Some compilation modes (e.g. HostCompile_Interpreter) do not produce a compatibility descriptor.
-        _logger.warning("vclExecutableGetCompatibilityString is not supported for this executable (0x%x); "
-                        "compatibility string will be absent",
-                        uint32_t(result));
+        _logger.info("vclExecutableGetCompatibilityString is not supported for this executable (0x%x); "
+                     "compatibility string will be absent",
+                     uint32_t(result));
     } else if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
         if (executable != nullptr) {
             vclExecutableDestroy(executable);
