@@ -8,13 +8,14 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metrics.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
@@ -45,7 +46,6 @@ private:
     struct CopyState {
         FilteredConfig config;
         ov::SoPtr<IEngineBackend> backend;
-        std::shared_ptr<Metrics> metrics;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         bool compatibilityCheckSupported;
@@ -63,7 +63,6 @@ private:
     FilteredConfig _config;
 
     ov::SoPtr<IEngineBackend> _backend;
-    std::shared_ptr<Metrics> _metrics = nullptr;
     Logger& _logger;
 
     ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
@@ -74,7 +73,7 @@ private:
 
     std::map<std::string, PropertyDescriptor> _properties;
 
-    const std::vector<ov::PropertyName> _cachingProperties = [] {
+    inline static const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
             ov::enable_profiling.name(),
@@ -106,9 +105,22 @@ private:
         return properties;
     }();
 
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name(),
-                                                                        ov::internal::cache_header_alignment.name()};
+    inline static const std::vector<ov::PropertyName> _internalSupportedProperties = {
+        ov::internal::caching_properties.name(),
+        ov::internal::caching_with_mmap.name(),
+        ov::internal::cache_header_alignment.name()};
+
+    static constexpr uint32_t _maxNumOfOptimalInferRequests = 8u;
+    inline static const std::vector<std::string> _optimizationCapabilities = {
+        ov::device::capability::FP16,
+        ov::device::capability::INT8,
+        ov::device::capability::EXPORT_IMPORT,
+    };
+    inline static const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{
+        1u,
+        _maxNumOfOptimalInferRequests,
+        1u};
+    inline static const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, _maxNumOfOptimalInferRequests};
 
     mutable std::mutex _mutex;
 };
