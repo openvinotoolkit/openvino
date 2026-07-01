@@ -94,13 +94,14 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLCompilerImpl::VCLCompilerImpl(const std::string& library_dir)
+VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _logHandle(nullptr),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
-    (void)VCLApi::getInstance(library_dir);
+    (void)VCLApi::getInstance(libraryDir);
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
@@ -125,16 +126,34 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& library_dir)
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
-    // This information cannot be determined during the initialization phase; set device desc default value, the related
-    // info will be processed in compile phase if passed by user.
-    _logger.info("Device description is not provided, using default values");
-    uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     0x00,
-                                     std::numeric_limits<uint16_t>::max(),
-                                     defaultTileCount};
+    vcl_device_desc_t vclDeviceDesc = {};
+    if (deviceProperties.has_value()) {
+        constexpr auto invalidRevision = std::numeric_limits<uint16_t>::max();
+        const auto revision = deviceProperties->subdeviceId >= invalidRevision
+                                  ? invalidRevision
+                                  : static_cast<uint16_t>(deviceProperties->subdeviceId);
+
+        if (revision == invalidRevision) {
+            _logger.warning("Device subdeviceId %u does not fit into VCL revision field; using invalid revision "
+                            "sentinel instead",
+                            deviceProperties->subdeviceId);
+        }
+
+        _logger.info("Device description is provided, using deviceID: 0x%X, subdeviceID: %u, maxTiles: %u",
+                     deviceProperties->deviceId,
+                     deviceProperties->subdeviceId,
+                     deviceProperties->numSlices);
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), deviceProperties->deviceId, revision, deviceProperties->numSlices};
+    } else {
+        // This information cannot be determined during the initialization phase; set device desc default value, the
+        // related info will be processed in compile phase if passed by user.
+        _logger.info("Device description is not provided, using default values");
+        uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
+    }
+
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                          vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
+                          vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
                           nullptr);
     THROW_ON_FAIL_FOR_VCL("vclCompilerGetProperties",
                           vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
@@ -537,44 +556,6 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
         _logger.debug("Exception in is_option_supported: %s", e.what());
     }
     _logger.debug("option: %s is not supported", option.c_str());
-    return false;
-}
-
-bool VCLCompilerImpl::is_option_supported(vcl_device_desc_t* in_device_desc,
-                                          const std::string& option,
-                                          const std::optional<std::string>& optValue) const {
-    vcl_compiler_desc_t compilerDesc;
-    compilerDesc.version = _vclVersion;
-    compilerDesc.debugLevel = static_cast<vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
-
-    // Create a temporary compiler instance for the query to pass the correct device description.
-    // The private compiler instance used by this class was created with default device description.
-    vcl_log_handle_t logHandle = nullptr;
-    vcl_compiler_handle_t compilerHandle = nullptr;
-    try {
-        THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                              vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
-                              nullptr);
-
-        const char* optname_ch = option.c_str();
-        const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
-        _logger.debug("is_option_supported start for option: %s, value: %s",
-                      optname_ch,
-                      optvalue_ch ? optvalue_ch : "null");
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
-                              vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
-                              logHandle);
-        if (compilerHandle) {
-            vclCompilerDestroy(compilerHandle);
-        }
-        return true;
-    } catch (const std::exception& e) {
-        _logger.debug("Exception in is_option_supported: %s", e.what());
-        if (compilerHandle) {
-            vclCompilerDestroy(compilerHandle);
-        }
-    }
-
     return false;
 }
 
