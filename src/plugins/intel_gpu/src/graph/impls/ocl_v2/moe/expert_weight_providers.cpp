@@ -37,8 +37,12 @@ OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
 
 void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
     _resident = &resident;
-    _cache->m_initialized = true;
+    _cache->set_initialized();
     _bound = true;
+    GPU_DEBUG_TRACE << "MOE OTD bind: resident_slots=" << _capacity
+                    << " total_experts=" << _config.num_expert
+                    << " shared_expert=" << (_config.num_shared_expert > 0 ? 1 : 0)
+                    << std::endl;
 }
 
 void OffloadExpertWeightProvider::fill_routed_weight_views(cldnn::moe_weights& /*weights*/, RoutedWeightViews& views) {

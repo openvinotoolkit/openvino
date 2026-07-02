@@ -32,9 +32,11 @@ public:
         m_filled_list[lru_expert_no] = true;
     }
 
-    bool m_initialized = false;
+    bool is_initialized() const { return m_initialized; }
+    void set_initialized() { m_initialized = true; }
 
 private:
+    bool m_initialized = false;
     struct Key {
         size_t expert;
         bool operator==(const Key& other) const noexcept {

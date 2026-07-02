@@ -24,7 +24,7 @@ TEST(moe_lru_cache, initial_state) {
 
     ASSERT_EQ(cache.size(), 0U);
     ASSERT_EQ(cache.size(), 0U);
-    ASSERT_FALSE(cache.m_initialized);
+    ASSERT_FALSE(cache.is_initialized());
 }
 
 // ──────────────────────────────────────────────────
@@ -484,7 +484,7 @@ TEST(moe_expert_weight_provider, offload_construction_state) {
     ASSERT_EQ(provider.resident_capacity(), 16U);
     // Resident buffers are bound lazily at first execute, not at construction.
     ASSERT_FALSE(provider.is_bound());
-    ASSERT_FALSE(provider.cache().m_initialized);
+    ASSERT_FALSE(provider.cache().is_initialized());
 }
 
 TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
@@ -495,7 +495,7 @@ TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
     cldnn::moe_weights resident;  // null device pointers are fine; only the binding flag matters here
     provider.bind(resident);
     ASSERT_TRUE(provider.is_bound());
-    ASSERT_TRUE(provider.cache().m_initialized);
+    ASSERT_TRUE(provider.cache().is_initialized());
 
     // Idempotent: a second bind keeps the provider bound.
     provider.bind(resident);
