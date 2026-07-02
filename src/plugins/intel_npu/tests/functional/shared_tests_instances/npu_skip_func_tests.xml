@@ -977,7 +977,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#218923 -->
     <skip_config>
         <message>The tests must be updated to create correct config</message>
         <filters>

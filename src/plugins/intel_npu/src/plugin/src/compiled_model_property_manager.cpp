@@ -75,7 +75,7 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
-        if (propertyIt == _properties.end() || !propertyIt->second.isSupported(_config)) {
+        if (propertyIt == _properties.end() || !propertyIt->second.isSupported()) {
             OPENVINO_THROW("Unsupported configuration key: ", property.first);
         }
         if (propertyIt->second.mutability == ov::PropertyMutability::RO) {
@@ -107,14 +107,14 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
 
     const auto propertyIt = _properties.find(name);
     if (propertyIt != _properties.end()) {
-        if (!propertyIt->second.isSupported(_config)) {
+        if (!propertyIt->second.isSupported()) {
             OPENVINO_THROW("Unsupported configuration key: ", name);
         }
         if (propertyIt->second.mutability == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());
             return ov::Any();
         }
-        return propertyIt->second.get(_config);
+        return propertyIt->second.get(ov::AnyMap{});
     }
 
     try {
@@ -174,26 +174,26 @@ void CompiledModelPropertyManager::registerProperties() {
     register_property_as_read_only_mark_supported_if_set<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode.name());
     register_property_as_read_only_mark_supported_if_set<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
 
-    register_property_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const FilteredConfig&) {
+    register_property_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const ov::AnyMap&) {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
-    register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const ov::AnyMap&) {
         return std::shared_ptr<const ov::Model>(nullptr);
     });
-    register_property_with_custom_function(_properties, ov::model_name.name(), true, [this](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::model_name.name(), true, [this](const ov::AnyMap&) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return ov::Any(_graph->get_metadata().name);
     });
-    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, [](const FilteredConfig& config) {
-        return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(), config.get<PERFORMANCE_HINT>()));
+    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, [this](const ov::AnyMap&) {
+        return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_config.get<PLATFORM>(), _config.get<PERFORMANCE_HINT>()));
     });
-    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const ov::AnyMap&) {
         return ov::Any(std::vector<std::string>{"NPU"});
     });
-    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const FilteredConfig&) {
+    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const ov::AnyMap&) {
         std::vector<ov::PropertyName> supportedProperties;
         for (const auto& property : _properties) {
-            if (property.second.isPublic && property.second.isSupported(_config)) {
+            if (property.second.isPublic && property.second.isSupported()) {
                 supportedProperties.emplace_back(property.first, property.second.mutability);
             }
         }
@@ -205,11 +205,11 @@ void CompiledModelPropertyManager::registerProperties() {
     register_property_with_support_and_custom_function(
         _properties,
         ov::runtime_requirements.name(),
-        [hasRuntimeRequirementsSupport](const FilteredConfig&) {  // support predicate
+        [hasRuntimeRequirementsSupport]() {  // support predicate
             return hasRuntimeRequirementsSupport;
         },
         true,
-        [this](const FilteredConfig&) {  // value getter
+        [this](const ov::AnyMap&) {  // value getter
             return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
         });
 }

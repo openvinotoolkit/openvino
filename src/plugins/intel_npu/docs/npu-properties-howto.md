@@ -339,7 +339,7 @@ For compiled-model: src/plugins/intel_npu/src/plugin/src/compiled_model_property
 
 For properties without option, prefer a support-gated registration so the getter is only used when backend/runtime requirements are available:
 ```cpp
-    const auto has_backend = [this](const FilteredConfig&) {
+    const auto has_backend = [this]() {
         return _backend != nullptr;
     };
 
@@ -347,13 +347,14 @@ For properties without option, prefer a support-gated registration so the getter
                                                        ov::intel_npu::example_property.name(),
                                                        has_backend,
                                                        true,
-                                                       [this](const FilteredConfig&) {
+                                                       [this](const ov::AnyMap&) {
                                                            return utils::getDriverVersion(_backend);
                                                        });
 ```
 **Explanation**
 this helper function registers a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which is public and included in supported_properties when the support predicate returns true.  
-and calls `utils::getDriverVersion(_backend)` each time get_property is queried.
+and calls `utils::getDriverVersion(_backend)` each time get_property is queried. The getter receives query-time
+arguments as `ov::AnyMap`; use them when the property supports extra inputs, or ignore them when it does not.
 Note: the first argument is the property name string (`property.name()`), not the property object itself.
 
 ## Step 3. Python bindings
@@ -422,17 +423,17 @@ Example:
 
 #### register_property_with_custom_function(config, properties, propertyName, getter)
 This helper function can be used whenever a custom callback function/implementation is required for this property,
-provided as a lambda function. The getter receives the FilteredConfig object and must return an ov::Any value.
-(Standard callback function just returns the value of the config)
+provided as a lambda function. The getter receives query-time arguments as `ov::AnyMap` and must return an
+`ov::Any` value. The standard callback function just returns the value from config.
 Example:
 ```cpp
     register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(),
-        [this](const FilteredConfig& config) {
-            if (!config.has<STEPPING>()) {
-                const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
+        [this](const ov::AnyMap&) {
+            if (!_config.has<STEPPING>()) {
+                const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
                 return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
             }
-            return config.get<STEPPING>();
+            return _config.get<STEPPING>();
         });
 ```
 
@@ -444,13 +445,13 @@ Registers a property and gates it through isSupported.
 Use this when availability depends on runtime condition (e.g. backend capability check).
 Example:
 ```cpp
-    const auto has_backend_and_valid_device = [this](const FilteredConfig& config) {
+    const auto has_backend_and_valid_device = [this]() {
         if (_backend == nullptr) {
             return false;
         }
 
         try {
-            const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
+            const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
             return utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
         } catch (...) {
             return false;
@@ -462,8 +463,8 @@ Example:
         ov::device::full_name.name(),
         has_backend_and_valid_device,
         true,
-        [this](const FilteredConfig& config) {
-            return utils::getFullDeviceName(_backend, config.get<intel_npu::DEVICE_ID>());
+        [this](const ov::AnyMap&) {
+            return utils::getFullDeviceName(_backend, _config.get<intel_npu::DEVICE_ID>());
         });
 ```
 
@@ -472,14 +473,14 @@ The same pattern can be used for support-gating compiler-specific properties wit
     register_property_with_support_and_custom_function(
         _properties,
         ov::intel_npu::compiler_version.name(),
-        [this](const FilteredConfig& config) {
+        [this]() {
             try {
-                auto compilerType = config.get<COMPILER_TYPE>();
-                auto deviceId = config.get<DEVICE_ID>();
+                auto compilerType = _config.get<COMPILER_TYPE>();
+                auto deviceId = _config.get<DEVICE_ID>();
                 auto device = utils::getDeviceById(_backend, deviceId);
 
                 auto compilationPlatform = utils::getCompilationPlatform(
-                    config.get<PLATFORM>(),
+                    _config.get<PLATFORM>(),
                     device == nullptr ? std::move(deviceId) : device->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -490,13 +491,13 @@ The same pattern can be used for support-gating compiler-specific properties wit
             }
         },
         true,
-        [this](const FilteredConfig& config) {
-            auto compilerType = config.get<COMPILER_TYPE>();
-            auto deviceId = config.get<DEVICE_ID>();
+        [this](const ov::AnyMap&) {
+            auto compilerType = _config.get<COMPILER_TYPE>();
+            auto deviceId = _config.get<DEVICE_ID>();
             auto device = utils::getDeviceById(_backend, deviceId);
 
             auto compilationPlatform = utils::getCompilationPlatform(
-                config.get<PLATFORM>(),
+                _config.get<PLATFORM>(),
                 device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -515,11 +516,11 @@ Example:
     register_property_with_support_custom_function_and_args(
         _properties,
         ov::compatibility_check.name(),
-        [this](const FilteredConfig&) {
+        [this]() {
             return _compatibilityCheckFiltered && _compatibilityCheckSupported;
         },
         true,
-        [this](const FilteredConfig&, const ov::AnyMap& arguments) {
+        [this](const ov::AnyMap& arguments) {
             return validateCompatibilityDescriptor(_backend, arguments);
         });
 ```
