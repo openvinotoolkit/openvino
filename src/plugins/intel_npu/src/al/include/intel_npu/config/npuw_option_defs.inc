@@ -85,6 +85,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER_EOS_TOKEN, uint64_t, 50257, ov::intel_npu
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER_DECOMPOSE_SDPA, bool, false, ov::intel_npu::npuw::whisper, whisper_decompose_sdpa, "NPUW_WHISPER_DECOMPOSE_SDPA", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_EAGLE, bool, false, ov::intel_npu::npuw::eagle, enabled, "NPUW_EAGLE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_EMBED, bool, false, ov::intel_npu::npuw::text_embed, enabled, "NPUW_TEXT_EMBED", LLM, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_RERANK, bool, false, ov::intel_npu::npuw::text_rerank, enabled, "NPUW_TEXT_RERANK", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO, bool, false, ov::intel_npu::npuw::kokoro, enabled, "NPUW_KOKORO", KOKORO, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO_BLOCK_SIZE, uint64_t, 200, ov::intel_npu::npuw::kokoro, block_size, "NPUW_KOKORO_BLOCK_SIZE", KOKORO, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO_OVERLAP_SIZE, uint64_t, 20, ov::intel_npu::npuw::kokoro, overlap_size, "NPUW_KOKORO_OVERLAP_SIZE", KOKORO, EXPOSED, UNCACHED, ALL)
