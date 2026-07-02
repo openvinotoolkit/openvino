@@ -4,12 +4,15 @@
 
 - [Test location and build target](#test-location-and-build-target)
 - [Quick checklist](#quick-checklist)
+- [Test naming conventions](#test-naming-conventions)
 - [Test class setup](#test-class-setup)
+- [Fixture utilities](#fixture-utilities)
 - [FunctionsComparator flags](#functionscomparator-flags)
 - [Node builders](#node-builders)
 - [Model builder helpers](#model-builder-helpers)
 - [Parametrized tests](#parametrized-tests)
 - [Negative tests (transformation must NOT fire)](#negative-tests-transformation-must-not-fire)
+- [Migrating from legacy patterns](#migrating-from-legacy-patterns)
 - [What NOT to do](#what-not-to-do)
 
 ## Test location and build target
@@ -34,6 +37,15 @@ Or run a single test:
 4. Parametrize when multiple input shapes / configs exercise the same structural pattern
 5. Consider using `node_builders/` helpers instead of directly instantiating ops when a builder exists and improves test readability
 6. Avoid building `model_ref` when the transformation does not modify the `model`, since `model_ref` is initialized as a clone of `model` by default
+
+## Test naming conventions
+
+Test names should describe **what is being tested**, not just assign a number:
+
+- Bad: `ConvertMatMulToFCTest1`, `ConvertMatMulToFCTest2`, `ConvertMatMulToFCTest3`
+- Good: `BothParamsNotConverted`, `TypeRelaxedU8I8`, `DecompressF16Weights_TransposeA`
+
+For parametrized tests, provide a `getTestCaseName` that produces readable suffixes (e.g., `3d_static_2x2`, `4d_dynamic_10x5`).
 
 ## Test class setup
 
@@ -77,6 +89,18 @@ TEST_F(MyTransformTests, MyTransformName_SomeVariant) {
 **`manager.register_pass<*>()` should be moved to fixture's `SetUp()`** when multiple TEST_F tests in the same fixture use the same transformation — this avoids duplication and makes the transformation explicit per fixture rather than hidden in each test body.
 
 **Never** manually create a `pass::Manager`, call `check_rt_info`, or call `compare_functions` — those are handled by the fixture.
+
+## Fixture utilities
+
+`TransformationTestsF` provides several helper methods beyond `manager` and `comparator`:
+
+| Method | When to use |
+|--------|-------------|
+| `disable_rt_info_check()` | Transformation creates new nodes that don't carry `rt_info` from originals (e.g., fusions that build entirely new subgraphs). Call in the test body before `TearDown`. |
+| `disable_result_friendly_names_check()` | Transformation legitimately changes Result friendly names (rare). |
+| `enable_soft_names_comparison()` | Compare friendly names by substring match instead of exact equality. Useful when the transformation appends suffixes. |
+
+**Prefer fixing the transformation** over using these workarounds. If a transformation drops friendly names or `rt_info` that it should preserve, fix the transformation code (e.g., add `new_node->set_friendly_name(old_node->get_friendly_name())` or copy `rt_info`). Only use `disable_*` when the transformation's behavior is intentional.
 
 ## FunctionsComparator flags
 
@@ -209,9 +233,46 @@ When the transformation should leave the `model` unchanged, leave `model_ref` as
 TEST_F(TransformationTestsF, MyTransform_Negative_SomeCondition) {
     model = buildOriginal(…);
     manager.register_pass<ov::pass::MyTransformation>();
-    // model_ref intentionally omitted
 }
 ```
+
+## Migrating from legacy patterns
+
+### `TYPED_TEST_P` with manual Manager
+
+Legacy pattern:
+```cpp
+template <class T>
+class MyTest : public testing::Test {};
+
+TYPED_TEST_P(MyTest, Applied) {
+    ov::pass::Manager m;
+    m.register_pass<SomePass<TypeParam>>();
+    m.run_passes(model);
+    auto res = compare_functions(model, model_ref);
+    ASSERT_TRUE(res.first);
+}
+```
+
+Migration: replace with runtime parametrization using a struct with factory lambdas:
+```cpp
+struct MyTestParams {
+    std::string name;
+    std::function<std::shared_ptr<ov::Node>(args...)> makeOp;
+    std::function<void(ov::pass::Manager&)> registerPass;
+};
+
+class MyTest : public TransformationTestsF,
+               public WithParamInterface<MyTestParams> {};
+
+TEST_P(MyTest, CompareWithRef) {
+    const auto& p = GetParam();
+    // build model using p.makeOp
+    p.registerPass(manager);
+}
+```
+
+This preserves type coverage while gaining `TransformationTestsF` benefits.
 
 ## What NOT to do
 
@@ -219,3 +280,5 @@ TEST_F(TransformationTestsF, MyTransform_Negative_SomeCondition) {
 - Do **not** manually instantiate `pass::Manager` or call `manager.run_passes(model)`
 - Do **not** call `check_rt_info(f)` or the deprecated `compare_functions(f, f_ref, …)`
 - Do **not** add flags already on by default in `TransformationTestsF` (`NODES`, `PRECISIONS`, `RUNTIME_KEYS`, `SUBGRAPH_DESCRIPTORS`)
+- Do **not** use numbered test names (`Test1`, `Test2`) — use descriptive names that explain the scenario
+- Do **not** add comments like `// model_ref intentionally omitted` — the convention is self-documenting
