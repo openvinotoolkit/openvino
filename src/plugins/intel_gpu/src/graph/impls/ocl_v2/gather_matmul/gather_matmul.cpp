@@ -13,6 +13,7 @@
 #include "../primitive_ocl_base.hpp"
 #include "../utils/jitter.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "../expert_gemm_gen_utils.hpp"
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
 #include "gather_matmul_impl.hpp"
@@ -57,24 +58,7 @@ inline bool has_fused_swiglu(const kernel_impl_params& params) {
 
 // Local to avoid an ocl_v2 → onednn link dependency.
 inline dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
-    switch (dt) {
-    case cldnn::data_types::f32:
-        return dnnl::memory::data_type::f32;
-    case cldnn::data_types::f16:
-        return dnnl::memory::data_type::f16;
-    case cldnn::data_types::i8:
-        return dnnl::memory::data_type::s8;
-    case cldnn::data_types::u8:
-        return dnnl::memory::data_type::u8;
-    case cldnn::data_types::i32:
-        return dnnl::memory::data_type::s32;
-    case cldnn::data_types::i4:
-        return dnnl::memory::data_type::s4;
-    case cldnn::data_types::u4:
-        return dnnl::memory::data_type::u4;
-    default:
-        throw std::invalid_argument("[GPU] gather_matmul: unsupported cldnn->onednn type conversion");
-    }
+    return to_onednn_dtype(dt);
 }
 
 // OCL micro + batched_gemm kernels are u4/i4-only; everything else must take the onednn-grouped path.

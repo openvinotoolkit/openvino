@@ -6,29 +6,31 @@
 
 #include <mutex>
 
-#include "../utils/kernel_generator.hpp"
+#include "../expert_gemm_gen_utils.hpp"
 #include "gather_matmul_gen_micro.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "micro_utils.hpp"
 
 namespace ov::intel_gpu::ocl {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-// Prefill batched GEMM: same gemmstone micro-kernel as GatherMatmulMicroGenerator with grouped dispatch.
-class GatherMatmulBatchedGemmGenerator : public KernelGenerator {
+/// Batched GEMM for GatherMatMul: groups with token-scatter write-back.
+/// Derives from ExpertGemmBatchedGeneratorBase which provides get_build_options
+/// and the gemmstone get_kernel_data template method.
+class GatherMatmulBatchedGemmGenerator : public ExpertGemmBatchedGeneratorBase {
 public:
-    explicit GatherMatmulBatchedGemmGenerator() : KernelGenerator("gather_matmul_batched", "_batched_prefill") {}
+    explicit GatherMatmulBatchedGemmGenerator()
+        : ExpertGemmBatchedGeneratorBase("gather_matmul_batched", "_batched_prefill") {}
 
-    [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
-    [[nodiscard]] KernelData get_kernel_data(const kernel_impl_params& params) const override;
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
-        OPENVINO_THROW("Use overloaded version instead");
-    }
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params, const micro::Package& bgm_gemm, const gathermatmul_config& cfg) const;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
     static std::mutex mtx;
+
+protected:
+    [[nodiscard]] JitConstants build_jit_constants(const kernel_impl_params& params,
+                                                    const micro::Package& bgm_gemm,
+                                                    const gathermatmul_config& cfg) const override;
+    [[nodiscard]] const char* get_class_name() const override { return "GatherMatmulBatchedGemmGenerator"; }
 };
 #endif
 
