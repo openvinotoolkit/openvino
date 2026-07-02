@@ -238,23 +238,29 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
     }
 }
 
-memory_ptr ocl_engine::create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+memory_ptr ocl_engine::bind_host_owned_buffer(const void* host_address, size_t data_size) {
+    // Validate that host-backed memory is supported for this buffer
+    if (!can_bind_host_buffer(host_address)) {
+        return nullptr;  // Validation failed - return nullptr for graceful fallback
+    }
+
+    // All validation passed - create the host-backed buffer
+    constexpr allocation_type type = allocation_type::usm_host;
+    layout buffer_layout({{static_cast<tensor::value_type>(data_size), 1, 1, 1}, data_types::u8, format::bfyx});
+
     auto tracker = std::make_shared<MemoryTracker>(this,
-                                                   const_cast<void*>(mmapped_address),  // Point directly to mmap'd memory
+                                                   const_cast<void*>(host_address),
                                                    data_size,
-                                                   _allocation_type);
-    std::uintptr_t mmap_address = reinterpret_cast<std::uintptr_t>(mmapped_address);
-    std::uintptr_t aligned_addr = mmap_address & ~(static_cast<std::uintptr_t>(cldnn::CACHE_PAGE_SIZE) - 1);
-    void* mmap_aligned_address = reinterpret_cast<void*>(aligned_addr);
+                                                   type);
 
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR;
 #ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
     flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
 #endif
-    cl::Buffer buffer(get_cl_context(), flags, data_size, mmap_aligned_address, &err);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "clcreatebuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
-    return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);
+    cl::Buffer buffer(get_cl_context(), flags, data_size, const_cast<void*>(host_address), &err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] Failed to create host-backed buffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL");
+    return std::make_shared<ocl::gpu_buffer>(this, buffer_layout, buffer, tracker);
 }
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {

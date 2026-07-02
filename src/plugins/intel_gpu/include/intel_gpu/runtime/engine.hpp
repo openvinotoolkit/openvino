@@ -64,8 +64,11 @@ public:
     /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
-    /// Created memory object by wrapping a host-allocated, memory-mapped layout region
-    virtual memory_ptr create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+    /// Check if host-owned buffer can be bound for GPU access (integrated GPU, Xe2+, page-aligned)
+    bool can_bind_host_buffer(const void* host_address) const;
+
+    /// Bind host-owned buffer for zero-copy GPU access (returns nullptr if binding not supported)
+    virtual memory_ptr bind_host_owned_buffer(const void* host_address, size_t data_size) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;

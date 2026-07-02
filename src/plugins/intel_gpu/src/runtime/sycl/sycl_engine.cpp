@@ -151,7 +151,12 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
     }
 }
 
-memory_ptr sycl_engine::create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+memory_ptr sycl_engine::bind_host_owned_buffer(const void* host_address, size_t data_size) {
+    // Validate that host-backed memory is supported for this buffer
+    if (!can_bind_host_buffer(host_address)) {
+        return nullptr;  // Validation failed - return nullptr for graceful fallback
+    }
+
     OPENVINO_NOT_IMPLEMENTED;
 }
 
