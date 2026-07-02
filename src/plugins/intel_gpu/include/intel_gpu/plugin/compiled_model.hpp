@@ -50,15 +50,16 @@ public:
     // Format: meta=<ver>;ov=<ov>;desc=[<driver/hw features>]
     static std::string build_runtime_requirements(const cldnn::device_info& info);
 
-    // Layout version of the runtime requirements descriptor persisted in the blob.
-    // Bump when the on-disk contract (the data following the magic marker) changes so the
-    // importer can detect and reject descriptors produced by a future build.
+    // Version of the runtime requirements descriptor persisted in the blob. Bump this whenever
+    // build_runtime_requirements() changes (its format or the fields it emits) so the importer
+    // can detect and reject descriptors produced by a different build.
     static constexpr uint32_t runtime_requirements_version = 1;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
     // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this
     // feature) instead of misreading their input count. Chosen far larger than any realistic input
     // count so such a blob's first post-cache_mode word can never collide with it ("OVEP_RRQ" in ASCII).
+    // [DO NOT CHANGE THIS CONSTANT] changing it breaks import of every previously exported blob.
     static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
     void set_property(const ov::AnyMap& properties) override {
