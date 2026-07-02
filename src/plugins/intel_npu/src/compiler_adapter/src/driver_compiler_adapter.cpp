@@ -316,17 +316,7 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 }
 
 std::optional<std::string> DriverCompilerAdapter::get_compatibility_descriptor(ze_graph_handle_t graphHandle) const {
-    auto descriptor = _zeGraphExt->getCompatibilityDescriptor(graphHandle);
-    if (!descriptor.has_value()) {
-        return std::nullopt;
-    }
-
-    // Keep behavior aligned with plugin VCL path and strip a trailing null terminator.
-    if (!descriptor->empty() && descriptor->back() == '\0') {
-        descriptor->pop_back();
-    }
-
-    return descriptor;
+    return _zeGraphExt->getCompatibilityDescriptor(graphHandle);
 }
 
 }  // namespace intel_npu
