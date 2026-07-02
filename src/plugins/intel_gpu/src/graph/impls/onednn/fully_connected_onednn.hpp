@@ -24,6 +24,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
     FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
+    // OneDNN WOQ FC reads raw packed u4/i4 bytes directly from the weight tensor
+    // (no backend-specific reorder).  Declare compatibility with OCL kernels that
+    // use the same low-nibble-first convention so both can coexist in an impl pool.
+    bool raw_sub_byte_weight_compatible() const noexcept override { return true; }
+
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
         const auto& config = node.get_program().get_config();
@@ -36,6 +41,13 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         const auto& out_layout = fc_node.get_output_layout(0);
         auto in0_dt = in_layout.data_type;
         auto wei_dt = fc_node.weights().get_output_layout(false).data_type;
+
+        // GGUF weights are opaque blocks of bytes consumed only by ocl::FCGGUFOpt, which decodes them
+        // in-kernel. OneDNN cannot read these blocks and would repack/misinterpret their bytes, so it
+        // must never be selected for a GGUF-weight FC (see SPEC.md §3.5, SUMMARY.md §4.2).
+        if (ov::element::is_gguf_block(wei_dt))
+            LOG_AND_RETURN_FALSE(node);
+
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 

@@ -59,6 +59,15 @@ public:
     virtual bool support_shapes(const kernel_impl_params& param) const { return true; }
     virtual in_out_fmts_t query_formats(const program_node& node) const { OPENVINO_NOT_IMPLEMENTED; }
 
+    // Returns true when this implementation reads sub-byte (u4/i4) weights directly
+    // from the raw packed tensor using the standard low-nibble-first convention,
+    // WITHOUT any backend-specific reordering.  Overriding this method allows two
+    // impls from different backends (e.g. OneDNN + OCL) to safely share the same
+    // GPU weight buffer in an impl pool, bypassing Rule 3 of the weight IO contract
+    // check in enable_multi_impl_mode().
+    // Default: false (conservative; Rule 3 blocks cross-backend sub-byte sharing).
+    virtual bool raw_sub_byte_weight_compatible() const noexcept { return false; }
+
     ImplementationManager(impl_types impl_type, shape_types shape_type, ValidateFunc vf = nullptr)
         : m_impl_type(impl_type)
         , m_shape_type(shape_type)

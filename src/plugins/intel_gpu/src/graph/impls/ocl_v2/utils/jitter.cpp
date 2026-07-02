@@ -372,6 +372,25 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         is_fp = false;
         break;
     default:
+        if (element::is_gguf_block(value)) {
+            // GGUF block types are opaque blocks of bytes; expose them to the kernel as a raw uchar
+            // buffer and let the FC GGUF kernel decode blocks by hand. TYPE_SIZE is the byte unit (1)
+            // since the kernel indexes raw bytes rather than logical elements.
+            type = "uchar";
+            max_val = "UCHAR_MAX";
+            min_val = "0";
+            val_one = "(uchar) 1";
+            val_zero = "(uchar) 0";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
+            as_type = "as_uchar(v)";
+            max_func = "max";
+            min_func = "min";
+            abs_func = "abs";
+            type_size = "1";
+            is_fp = false;
+            break;
+        }
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);
     }
 

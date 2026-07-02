@@ -82,6 +82,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gguf_fc_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -1559,6 +1560,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        // Lower GGUF FullyConnectedCompressed (emitted directly by the native GGUF FrontEnd) into the
+        // GPU op so a cldnn primitive can be created for it.
+        manager.register_pass<ov::intel_gpu::ConvertGGUFFullyConnectedCompressed>();
+
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
