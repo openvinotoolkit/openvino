@@ -507,6 +507,31 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
+    // Resolve original Results that ended up unlinked (NO_LINK) because the model
+    // exposes several Results reading from the SAME producer tensor. The matching
+    // above links each subgraph Result to a single original Result by node identity,
+    // so a "sibling" Result sharing the same source output is left orphaned even
+    // though that tensor IS produced by some subgraph. Point each such orphan at
+    // the same {subgraph, output} as its already-linked sibling so the tensor is
+    // broadcast to multiple model outputs (init_gio handles this case).
+    for (size_t j = 0; j < orig_results.size(); j++) {
+        if (m_outputs_to_submodels_outputs[j] != NO_LINK) {
+            continue;
+        }
+        const auto orphan_src = orig_results[j]->input(0).get_source_output();
+        for (size_t k = 0; k < orig_results.size(); k++) {
+            if (k == j || m_outputs_to_submodels_outputs[k] == NO_LINK) {
+                continue;
+            }
+            if (orig_results[k]->input(0).get_source_output() == orphan_src) {
+                LOG_VERB("Original Result #" << j << " shares its producer with Result #" << k
+                                             << " - linking to the same subgraph output");
+                m_outputs_to_submodels_outputs[j] = m_outputs_to_submodels_outputs[k];
+                break;
+            }
+        }
+    }
+
     // Store mapping between manually splitted inputs/outputs
     // to connect tensors between compiled submodels
     m_submodels_input_to_prev_output = partitioning.input_to_prev_output;
@@ -735,17 +760,31 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
-    detach_memory();
 
-    // Print stats report when possible
-    {
-        LOG_INFO("Initial device distribution:");
-        LOG_BLOCK();
-        log_device_dist();
+    // finalize_weights_bank() launches an asynchronous weights-evaluation task that
+    // captures this CompiledModel's members by reference (see m_eval_future). The
+    // destructor joins that task, but a C++ destructor is NOT invoked when an
+    // exception escapes the constructor - so if anything below throws, the async
+    // task would keep running against members that are about to be destroyed,
+    // causing a use-after-free. Guard the remainder of construction: on failure,
+    // wait for the async evaluation to complete before letting the exception out.
+    try {
+        detach_memory();
+        // Print stats report when possible
+        {
+            LOG_INFO("Initial device distribution:");
+            LOG_BLOCK();
+            log_device_dist();
+        }
+
+        implement_properties();
+        report_io();
+    } catch (...) {
+        if (m_eval_future.valid()) {
+            m_eval_future.wait();
+        }
+        throw;
     }
-
-    implement_properties();
-    report_io();
 }
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,

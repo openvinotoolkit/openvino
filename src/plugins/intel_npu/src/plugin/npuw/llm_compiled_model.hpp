@@ -128,6 +128,12 @@ private:
 
     bool m_is_embedding = false;
 
+    // True when the original model exposed a "hidden_states" output that shared
+    // its source tensor with the lm_head cut point. The cut removes that Result
+    // from the internal submodel; at runtime the embed tensor held by the lm_head
+    // request is used to service it instead.
+    bool m_has_lm_head_hidden_states = false;
+
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
         const std::shared_ptr<ov::Model>& generate_model,

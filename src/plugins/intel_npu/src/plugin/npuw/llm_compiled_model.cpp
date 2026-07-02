@@ -126,6 +126,17 @@ public:
             //        ICompiledModel::ICompiledModel().
             //        As a WA, setting the same name to output from MatMul
             //        avoids the issue.
+            //
+            // NOTE: matmul_first_source is the model's final hidden-state tensor. Some
+            //       models also expose that same tensor through a separate Result (e.g. a
+            //       "hidden_states" output). set_names() replaces the source's name set,
+            //       so after the cut any such sibling Result and matched_result both read
+            //       matmul_first_source and carry the identical "npuw_output_embed" name.
+            //       Runtime port maps (unordered_map, keyed by name) would then silently
+            //       drop one of the two same-named outputs, leaving the lm_head input
+            //       wired to a dead/constant tensor and freezing decode. cut_lm_head()
+            //       removes redundant sibling Results right after this pass so exactly
+            //       one live output survives.
             matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_result->validate_and_infer_types();
@@ -153,6 +164,40 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) 
     rewr.run_on_model(model);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
+
+        // After the cut, any model Result that shared the canonical embed source
+        // (matmul_first_source) with matched_result now carries the same
+        // "npuw_output_embed" name. Remove such duplicates so the model exposes
+        // exactly one "npuw_output_embed" output; the original model's public
+        // outputs (e.g. logits, hidden_states) are served via the lm_head compiled
+        // model at runtime and do not need to survive in this internal submodel.
+        const std::string embed_name = ov::npuw::LLMCompiledModel::output_embeds;
+        std::shared_ptr<ov::op::v0::Result> canonical_result;
+        for (const auto& result : model->get_results()) {
+            if (result->output(0).get_names().count(embed_name) != 0) {
+                canonical_result = result;
+                break;
+            }
+        }
+        if (canonical_result) {
+            const auto canonical_source = canonical_result->input(0).get_source_output();
+            std::vector<std::shared_ptr<ov::op::v0::Result>> duplicates;
+            for (const auto& result : model->get_results()) {
+                if (result == canonical_result) {
+                    continue;
+                }
+                if (result->input(0).get_source_output() == canonical_source) {
+                    duplicates.push_back(result);
+                }
+            }
+            for (const auto& dup : duplicates) {
+                model->remove_result(dup);
+            }
+            if (!duplicates.empty()) {
+                canonical_source.get_node_shared_ptr()->output(canonical_source.get_index()).set_names({embed_name});
+                canonical_result->output(0).set_names({embed_name});
+            }
+        }
     }
     model->validate_nodes_and_infer_types();
 
@@ -836,7 +881,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
 
+    // Detect a "hidden_states" output before the cut removes it. cut_lm_head()
+    // strips duplicate Results that share the embed source, so we must check
+    // the model outputs while they are still intact.
+    bool original_has_hidden_states = false;
+    for (const auto& output : kvcache_model->outputs()) {
+        if (output.get_names().count("hidden_states") > 0) {
+            original_has_hidden_states = true;
+            break;
+        }
+    }
+
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+    if (lm_head_model && original_has_hidden_states) {
+        m_has_lm_head_hidden_states = true;
+        LOG_DEBUG("Model exposes \"hidden_states\" output - will be served via lm_head embed tensor at runtime.");
+    }
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
@@ -1267,7 +1327,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
-            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding;
+            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding & m_has_lm_head_hidden_states;
 
         // Write config
         stream & m_cfg;
@@ -1487,7 +1547,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
             compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
-            compiled->m_is_embedding;
+            compiled->m_is_embedding & compiled->m_has_lm_head_hidden_states;
 
         // Deserialize config
         stream & compiled->m_cfg;
