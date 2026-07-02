@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <string>
+#include <vector>
 #include <openvino/core/model.hpp>
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"

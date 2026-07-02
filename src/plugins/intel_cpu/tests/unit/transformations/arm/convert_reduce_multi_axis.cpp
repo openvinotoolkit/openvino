@@ -4,7 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 #include <transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
