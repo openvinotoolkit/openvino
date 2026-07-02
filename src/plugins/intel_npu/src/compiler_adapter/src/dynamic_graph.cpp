@@ -416,10 +416,10 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     }
 
     _logger.debug("Use interpreter: %s, command list recording required: %s, number of index to update with "
-                  "UpdateMutableCommandList API: %d, optimized dynamic stride supported: %s",
+                  "UpdateMutableCommandList API: %zu, optimized dynamic stride supported: %s",
                   _useInterpreter ? "true" : "false",
                   commandListRecordingRequired ? "true" : "false",
-                  static_cast<int>(commandListIndexArray.size()),
+                  commandListIndexArray.size(),
                   _optimizedDynamicStridesMode ? "true" : "false");
 
     if (firstInference || commandListRecordingRequired) {
@@ -558,7 +558,7 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
             auto& out = outputDescriptors[i];
             std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl = outputMemRefImpls[i];
             if (outImpl == nullptr) {
-                OPENVINO_THROW("MemRefType implementation is broken, unkown error happens in shape prediction.");
+                OPENVINO_THROW("MemRefType implementation is broken, unknown error happens in shape prediction.");
             }
             outImpl->alignWithHandle(out);
         }
@@ -581,7 +581,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
 
     const size_t headerSize = std::min(_blob->get_byte_size(), size_t{20});
     const std::string_view header(static_cast<const char*>(_blob->data()), headerSize);
-    _useInterpreter = (header.find("NPUByte\x00") != std::string_view::npos) ? true : false;
+    _useInterpreter = (header.find("NPUByte\x00", 0, 8) != std::string_view::npos) ? true : false;
 
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
