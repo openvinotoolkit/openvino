@@ -125,6 +125,10 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
         size_t total_block_num = bf_size.second / (simd * vec_size);
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+#if OV_GPU_WITH_ZE_RT
+        total_block_num = (block_num > 0) ? Align(total_block_num, block_num) : total_block_num; //align for ZE RT
+        std::cout << "Total block num: " << total_block_num << std::endl;
+#endif
 
         dispatchData.gws = {simd, total_block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
@@ -140,6 +144,11 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     } else {
         OPENVINO_ASSERT(false);
     }
+    
+    std::cout << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
+        << dispatchData.gws[1] << ", " << dispatchData.gws[2]
+        << " | lws : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2]
+        << std::endl;
 
     return dispatchData;
 }
