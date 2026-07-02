@@ -336,7 +336,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                            ov::element::bf16,
                            ov::element::u8,
                            ov::element::u4,
-                           ov::element::u3)) {
+                           ov::element::u3,
+                           ov::element::u2)) {
                     kvCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -346,7 +347,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::hint::kv_cache_precision.name(),
-                               ". Supported values: u8, u4, u3, bf16, f16, f32");
+                               ". Supported values: u8, u4, u3, u2, bf16, f16, f32");
             }
         } else if (key == ov::key_cache_precision.name()) {
             try {
@@ -359,7 +360,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                            ov::element::i8,
                            ov::element::u8,
                            ov::element::u4,
-                           ov::element::u3)) {
+                           ov::element::u3,
+                           ov::element::u2)) {
                     keyCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
@@ -369,7 +371,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::key_cache_precision.name(),
-                               ". Supported values: u3, u4, u8, i8, bf16, f16, f32");
+                               ". Supported values: u2, u3, u4, u8, i8, bf16, f16, f32");
             }
         } else if (key == ov::value_cache_precision.name()) {
             try {
@@ -381,7 +383,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                            ov::element::bf16,
                            ov::element::u8,
                            ov::element::u4,
-                           ov::element::u3)) {
+                           ov::element::u3,
+                           ov::element::u2)) {
                     valueCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("valueCachePrecision doesn't support value ", prec);
@@ -391,7 +394,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::value_cache_precision.name(),
-                               ". Supported values: u3, u4, u8, bf16, f16, f32");
+                               ". Supported values: u2, u3, u4, u8, bf16, f16, f32");
             }
         } else if (key == ov::internal::key_cache_quant_alg.name()) {
             auto alg = val.as<ov::internal::CacheQuantAlgorithm>();

@@ -50,9 +50,11 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::s8:
     case dnnl::memory::data_type::u8:
     case dnnl::memory::data_type::bin:
-    case dnnl::memory::data_type::nf4:
+    // TODO
+    // case dnnl::memory::data_type::nf4:
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
+    // u2 is mapped to u8 in oneDNN (no native u2 support yet)
     case dnnl::memory::data_type::e8m0:
     case dnnl::memory::data_type::f8_e4m3:
     case dnnl::memory::data_type::f8_e5m2:
@@ -84,14 +86,17 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
         return memory::data_type::bin;
     case ov::element::f16:
         return memory::data_type::f16;
-    case ov::element::nf4:
-        return memory::data_type::nf4;
+    // TODO
+    // case ov::element::nf4:
+    //     return memory::data_type::nf4;
     case ov::element::i4:
         return memory::data_type::s4;
     case ov::element::u4:
         return memory::data_type::u4;
     case ov::element::u2:
-        return memory::data_type::u2;
+        // Map u2 to u8 since oneDNN doesn't have native u2 support yet
+        // The actual u2 packing/unpacking is handled at plugin level
+        return memory::data_type::u8;
     case ov::element::f8e8m0:
         return memory::data_type::e8m0;
     case ov::element::f8e4m3:
@@ -133,14 +138,15 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
         return ov::element::f16;
     case memory::data_type::f64:
         return ov::element::f64;
-    case memory::data_type::nf4:
-        return ov::element::nf4;
+    // TODO
+    // case memory::data_type::nf4:
+    //     return ov::element::nf4;
     case memory::data_type::s4:
         return ov::element::i4;
     case memory::data_type::u4:
         return ov::element::u4;
-    case memory::data_type::u2:
-        return ov::element::u2;
+    // Note: u2 is mapped to u8 in ElementTypeToDataType, so reverse mapping
+    // should be handled by checking the original precision elsewhere
     case memory::data_type::e8m0:
         return ov::element::f8e8m0;
     case memory::data_type::f8_e4m3:

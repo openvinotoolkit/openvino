@@ -833,6 +833,7 @@ void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_p
 void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scales_ptr,
                                                           bool needTranspose,
                                                           ov::element::Type dstPrecision) {
+    /* TODO
     if (scales_ptr == nullptr) {
         return;
     }
@@ -844,11 +845,13 @@ void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scal
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scalesMem);
     dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] =
         cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
+    * */
 }
 
 void DnnlPostOpsComposer::appendDecompressionZeroPointsLegacy(const MemoryCPtr& zero_points_ptr,
                                                               bool needTranspose,
                                                               ov::element::Type dstPrecision) {
+    /* TODO
     if (zero_points_ptr == nullptr) {
         return;
     }
@@ -859,10 +862,12 @@ void DnnlPostOpsComposer::appendDecompressionZeroPointsLegacy(const MemoryCPtr& 
                               DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
     dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
+    */
 }
 
 void DnnlPostOpsComposer::setDynamicQuantizationParams(uint64_t groupSize) {
-    attr.set_src_dyn_quant_params(groupSize);
+    // TODO
+    // attr.set_src_dyn_quant_params(groupSize);
 }
 
 void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ActivationPostOp& postOp) {
