@@ -37,8 +37,11 @@ GLUFusion::GLUFusion() {
 
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
     auto axis_const_m = pattern::wrap_type<v0::Constant>();
-    auto split_lengths_const_m = pattern::wrap_type<v0::Constant>();
-    auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
+    // Accept any split_lengths source, not only a Constant: a half-split via chunk() lowers
+    // split_lengths to a runtime Concat under dynamic shapes (FLUX.2-klein). The exact half-split
+    // is verified below from the VariadicSplit's static output shapes instead.
+    auto split_lengths_m = pattern::any_input();
+    auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_m});
     variadic_split_m->set_output_size(2);
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
@@ -54,10 +57,9 @@ GLUFusion::GLUFusion() {
         OPENVINO_ASSERT(pattern_map.count(mul_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
-        OPENVINO_ASSERT(pattern_map.count(split_lengths_const_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
-        auto mul = ov::as_type_ptr<v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        if (!mul || transformation_callback(mul))
+        const auto mul_node = pattern_map.at(mul_m).get_node_shared_ptr();
+        if (!mul_node || transformation_callback(mul_node))
             return false;
 
         auto isSwiGLU = pattern_map.count(swish_m);
@@ -70,8 +72,8 @@ GLUFusion::GLUFusion() {
             glu_type = ov::op::internal::GLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
-            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
+            size_t split_in_idx = ov::is_type<v4::Swish>(mul_node->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul_node->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else if (isGeGLU) {
             auto gelu = ov::as_type_ptr<v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
@@ -80,8 +82,8 @@ GLUFusion::GLUFusion() {
                            : ov::op::internal::GLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
-            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
+            size_t split_in_idx = ov::is_type<v7::Gelu>(mul_node->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul_node->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else {
             OPENVINO_THROW("'glu_type' not initialized");
@@ -99,12 +101,22 @@ GLUFusion::GLUFusion() {
             return false;
         auto axis_value = axis->cast_vector<int64_t>()[0];
 
-        auto split_lengths = ov::as_type_ptr<v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
-        auto split_lengths_value = split_lengths->cast_vector<int64_t>()[0];
+        // Verify the exact half-split along the last dim from the VariadicSplit's static output
+        // shapes. This recognizes both a Constant split_lengths and a runtime-computed one
+        // (e.g. a Concat produced by chunk() under dynamic shapes, as in FLUX.2-klein).
+        const auto& out0_ps = variadic_split->get_output_partial_shape(0);
+        const auto& out1_ps = variadic_split->get_output_partial_shape(1);
+        if (!out0_ps.rank().is_static() || !out1_ps.rank().is_static())
+            return false;
+        const auto& out0_last = out0_ps[out0_ps.rank().get_length() - 1];
+        const auto& out1_last = out1_ps[out1_ps.rank().get_length() - 1];
+        if (!out0_last.is_static() || !out1_last.is_static())
+            return false;
         // Allow only case that exactly splits in half along the last dimension
         auto split_length = variadic_split_in_ps[last_dim].get_length() / 2;
-        if (split_lengths_value != split_length)
+        if (out0_last.get_length() != split_length || out1_last.get_length() != split_length)
             return false;
+        auto split_lengths_value = out0_last.get_length();
 
         auto data = pattern_map.at(data_m);
         auto output_type = m.get_match_root()->get_output_element_type(0);
