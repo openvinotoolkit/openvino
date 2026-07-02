@@ -402,7 +402,9 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
     std::vector<std::shared_ptr<DynamicGraph::MemRefTypeImpl>> inputMemRefImpls;
+    inputMemRefImpls.reserve(inputDescriptors.size());
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputHandles;
+    inputHandles.reserve(inputDescriptors.size());
     for (auto& in : inputDescriptors) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
         inImpl->UpdateMemRefHandleStatus(in);
@@ -410,7 +412,9 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
         inputHandles.push_back(inImpl->_memRef);
     }
     std::vector<std::shared_ptr<DynamicGraph::MemRefTypeImpl>> outputMemRefImpls;
+    outputMemRefImpls.reserve(outputDescriptors.size());
     std::vector<npu_vm_runtime_mem_ref_handle_t> outputHandles;
+    outputHandles.reserve(outputDescriptors.size());
     for (auto& out : outputDescriptors) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
         outImpl->UpdateMemRefHandleStatus(out);
@@ -463,7 +467,7 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
             auto& out = outputDescriptors[i];
             std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl = outputMemRefImpls[i];
             if (outImpl == nullptr) {
-                OPENVINO_THROW("MemRefType implementation is broken, unkown error happens in shape prediction.");
+                OPENVINO_THROW("MemRefType implementation is broken, unknown error happens in shape prediction.");
             }
             outImpl->alignWithHandle(out);
         }
