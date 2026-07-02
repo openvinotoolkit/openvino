@@ -11,17 +11,18 @@
 
 const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
 
+// Add FORCE_UPDATE_MUTABLE_COMMANDLIST once vm runtime supports it.
 const std::vector<ov::AnyMap> configs = {
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
-        {"NPU_CREATE_EXECUTOR", "0"},
-    },
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
-    },
-};
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+     {"NPU_CREATE_EXECUTOR", "0"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"}, {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+     {"NPU_COMMANDLIST_MODE", "DEFAULT"}},
+    {{"NPU_COMPILER_TYPE", "PLUGIN"},
+     {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+     {"NPU_COMMANDLIST_MODE", "FORCE_COMMANDLIST_RECORDING_ONLY"}}};
 
 // Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape in tests.
 const std::vector<std::string> modelNames = {"CustomNet", "MaxPool"};
