@@ -16,14 +16,8 @@ from openvino import Model, Node, Tensor, Type
 from openvino.utils.types import NumericData, get_shape, get_dtype
 import openvino.properties.hint as hints
 
-try:
-    from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
-    from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
-except ImportError:
-    # onnx>=1.19/main relocated these float8 helpers; they are only needed by the
-    # float8 conversion path below, which the Attention conformance tests never exercise.
-    float32_to_float8e5m2 = float32_to_float8e4m3 = None
-    float8e5m2_to_float32 = float8e4m3_to_float32 = None
+from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
+from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
 
 import tests
 
