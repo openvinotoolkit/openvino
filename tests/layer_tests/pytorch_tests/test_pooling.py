@@ -281,13 +281,10 @@ class TestPooling(PytorchLayerTest):
 class TestMaxPoolDynamicKernel(PytorchLayerTest):
     """max_pool with a kernel_size built from x.size(...).
 
-    Such a kernel is a runtime value in the traced TorchScript graph (a prim::ListConstruct of a
-    constant and a ShapeOf-derived value), which the OpenVINO MaxPool op cannot represent because
-    its kernel is a constructor attribute. When the dynamic window spans the full extent of a
-    spatial axis (global pooling, as in the SAM-6D pose-estimation model), the frontend decomposes
-    it into a ReduceMax over that axis. These tests exercise that path and compare against the
-    PyTorch reference. trace_model=True is required so the kernel stays a runtime value (a plain
-    integer literal would be const-folded and hit the static MaxPool path instead).
+    Such a kernel is a runtime value the OpenVINO MaxPool op cannot represent (its kernel is a
+    constructor attribute); for a full-extent (global) pool the frontend decomposes it into a
+    ReduceMax over that axis. trace_model=True keeps the kernel a runtime value (a plain literal
+    would be const-folded onto the static MaxPool path).
     """
 
     def _prepare_input(self):
@@ -359,12 +356,9 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
 
         example = torch.randn(1, 8, 15, 20, dtype=torch.float32)
         scripted = torch.jit.trace(aten_max_pool_mixed(), example)
-        # A dynamic last axis keeps x.size(3) a runtime (non-constant) value, so the mixed
-        # static-window/dynamic-extent kernel survives to the frontend and the conversion-time
-        # guard fires. (A static last axis would const-fold the kernel to [3, 20] and hit the
-        # ordinary static MaxPool path, which does not raise.) The translator's
-        # PYTORCH_OP_CONVERSION_CHECK surfaces as OpConversionFailure; asserting the exact type
-        # keeps an unrelated failure from greening this test.
+        # The dynamic last axis keeps x.size(3) a runtime value, so the mixed static-window/dynamic
+        # kernel reaches the frontend and the conversion guard fires (a static axis would const-fold
+        # to [3, 20] and hit the static MaxPool path). The guard raises OpConversionFailure.
         with pytest.raises(ov.frontend.OpConversionFailure):
             ov.convert_model(scripted, example_input=(example,),
                              input=[ov.PartialShape([1, 8, 15, -1])])
@@ -372,12 +366,9 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_max_pool_dynamic_partial_kernel_fails_at_runtime(self, ie_device, precision, ir_version):
-        # A runtime (non-constant) kernel that does NOT span the full axis extent is a genuine strided
-        # pool the ReduceMax decomposition cannot represent. The dynamic-kernel branch assumes a
-        # full-extent global pool and inserts a runtime guard (a reshape pinning the axis to the
-        # kernel value); when the real extent differs the guard must fail loudly at inference instead
-        # of silently returning a wrong-shaped [N, C, H, 1] result. Here kernel = x.size(3)//2 = 32
-        # while the axis extent is 64, so the guard reshape (64 -> 32) fails.
+        # A runtime kernel that does not span the full axis extent is a strided pool the ReduceMax
+        # decomposition can't represent; the runtime guard must fail loudly instead of returning a
+        # wrong [N, C, H, 1]. Here kernel = x.size(3)//2 = 32 vs. extent 64, so the guard reshape fails.
         if ie_device != "CPU":
             pytest.skip("runtime reshape-guard failure is asserted on CPU")
 
@@ -402,10 +393,8 @@ class TestMaxPoolDynamicKernel(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_max_pool_dynamic_kernel_uses_reducemax(self, ie_device, precision, ir_version):
-        # Structurally prove the dynamic-kernel decomposition fired: the converted OpenVINO model
-        # must contain a ReduceMax and no MaxPool. The numeric tests above compare values only,
-        # which a static MaxPool would also satisfy for a full-extent pool -- so they cannot, on
-        # their own, distinguish the new ReduceMax branch from a const-folded static MaxPool.
+        # Structurally prove the dynamic-kernel branch fired: the model must contain a ReduceMax and
+        # no MaxPool (the numeric tests above can't distinguish it from a const-folded static MaxPool).
         # A dynamic input shape keeps x.size(3) a runtime value so the kernel cannot const-fold.
         class aten_max_pool_dyn(torch.nn.Module):
             def forward(self, x):
