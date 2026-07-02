@@ -24,6 +24,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableAllInputLayout();
@@ -83,6 +84,8 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     auto wt = params.weights.GetDType();
     if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+    } else if (wt == WeightsType::UINT2) {
+        jit.Merge(make_int4_packed_type_jit_constant("UINT2_PACKED_TYPE", wt, 4));
     }
 
     if (!params.fused_ops.empty()) {

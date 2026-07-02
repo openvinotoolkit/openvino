@@ -111,6 +111,13 @@ KERNEL(fc)(
                     ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 2];
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+                #elif COMPRESSED_WEIGHTS_UINT2
+                    FILTER_TYPE filter_packed = weights[filter_idx / 4];
+                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_UINT2x4(ACCUMULATOR_TYPE, *((UINT2_PACKED_TYPE*)&filter_packed));
+
+                    ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
+                    ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                    dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #else
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
                 #endif
