@@ -75,6 +75,11 @@ on:
         type: boolean
         required: false
         default: false
+      store_artifacts:
+        description: 'Whether to store build artifacts on a shared drive'
+        type: boolean
+        required: false
+        default: true
 
 permissions: read-all
 
@@ -467,7 +472,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
+        if: ${{ inputs.store_artifacts && inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
