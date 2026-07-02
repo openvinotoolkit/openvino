@@ -302,8 +302,6 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t /*offset*/, size_t /*size*/) override {}
-
 private:
     /**
      * @brief Remaps a placeholder region by replacing it with a file-backed view.

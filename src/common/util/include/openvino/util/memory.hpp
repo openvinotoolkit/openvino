@@ -12,6 +12,9 @@
 
 namespace ov::util {
 
+/** @brief One mebibyte (1024 * 1024 bytes). */
+inline constexpr size_t one_mib = 1024 * 1024;
+
 /**
  * @brief Rounds @p size up to the nearest multiple of @p alignment.
  *
@@ -57,6 +60,7 @@ constexpr AlignedRegion align_region(uintptr_t base, size_t raw_len, size_t alig
     const auto gap = static_cast<size_t>(base - aligned);
     return {aligned, raw_len + gap, gap};
 }
+
 
 /**
  * @brief Allocates @p size bytes of uninitialized memory on the specified @p alignment boundary.
