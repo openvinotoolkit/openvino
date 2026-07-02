@@ -23,8 +23,7 @@ struct OpenCL {
     bool _supports_usm;
     bool _out_of_order_queue;
 
-    OpenCL(bool out_of_order_queue = true)
-    {
+    OpenCL(bool out_of_order_queue = true) {
         // get Intel iGPU OCL device, create context and queue
         {
             static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
@@ -71,8 +70,7 @@ struct OpenCL {
         }
     }
 
-    OpenCL(cl::Device device, bool out_of_order_queue = true)
-    {
+    OpenCL(cl::Device device, bool out_of_order_queue = true) {
         cl_uint n = 0;
         cl_int err = clGetPlatformIDs(0, NULL, &n);
         checkStatus(err, "clGetPlatformIDs");
@@ -93,6 +91,20 @@ struct OpenCL {
 
         cl_command_queue_properties props = _out_of_order_queue ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : CL_NONE;
         _queue = cl::CommandQueue(_context, _device, props);
+    }
+
+    OpenCL(cl_context context, bool out_of_order_queue = true)
+        : _out_of_order_queue(out_of_order_queue) {
+        _context = cl::Context(context, true);
+        _device = cl::Device(_context.getInfo<CL_CONTEXT_DEVICES>()[0].get(), true);
+
+        cl_command_queue_properties props = _out_of_order_queue ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : CL_NONE;
+        _queue = cl::CommandQueue(_context, _device, props);
+
+        auto extensions = _device.getInfo<CL_DEVICE_EXTENSIONS>();
+        _supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
+
+        _usm_helper = std::make_shared<cl::UsmHelper>(_context, _device, _supports_usm);
     }
 
     void releaseOclImage(std::shared_ptr<cl_mem> image) {
