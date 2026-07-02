@@ -447,7 +447,7 @@ def main():
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            pre_post_processing(model, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            model = pre_post_processing(model, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
             print_inputs_and_outputs_info(model)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
