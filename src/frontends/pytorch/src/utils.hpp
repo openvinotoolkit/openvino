@@ -136,6 +136,21 @@ Output<Node> masked_select(const NodeContext& context, const Output<Node>& data,
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
 
+namespace op {
+// Dequantize compressed-tensors pack-quantized weights to a dense [inner, rows] tensor
+// (converted to the element type of `like`). Shared by ct_gemm (linear) and ct_embedding.
+//   weight_packed:     [rows, inner//8]     int32
+//   scales:            [rows, n_groups]     float32
+//   zero_point_packed: [rows//8, n_groups]  int32  (asymmetric only; empty for symmetric)
+Output<Node> dequantize_ct_weight(const NodeContext& context,
+                                  const Output<Node>& weight_packed,
+                                  const Output<Node>& scales,
+                                  bool sym,
+                                  int64_t group_size,
+                                  const Output<Node>& like,
+                                  const Output<Node>& zero_point_packed);
+}  // namespace op
+
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,
                           const ov::OutputVector& indices,
