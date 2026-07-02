@@ -16,10 +16,10 @@
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
-#include "moe_transformations/device_routed_moe_transform.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/partitioning.hpp"
 
@@ -702,20 +702,38 @@ inline size_t count_groups_with_tag(const ov::npuw::Ensemble& ens, const std::st
         }));
 }
 
+// The builder model is stateful (KV cache) like a real LLM; the partitioner and the
+// device-routed transform need static shapes, so prepare it the way production prepares
+// an LLM: StatefulToStateless, then a static reshape (query_len tokens, past_len cached).
+inline std::shared_ptr<ov::Model> make_static_qwen3_moe_model(int64_t query_len, int64_t past_len) {
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        auto shape = input.get_partial_shape();
+        if (name.find("input_ids") != std::string::npos || name.find("position_ids") != std::string::npos) {
+            new_shapes[name] = {1, query_len};
+        } else if (name.find("attention_mask") != std::string::npos) {
+            new_shapes[name] = {1, query_len + past_len};
+        } else {  // past KV inputs: [batch, kv_heads, past_len, head_dim]
+            shape[0] = 1;
+            shape[2] = past_len;
+            new_shapes[name] = shape;
+        }
+    }
+    model->reshape(new_shapes);
+    return model;
+}
+
 // The online partitioner with the MOE preset must isolate an expert group from the builder's
 // output. Only the expert is asserted: since #36427 Qwen3Router isolates nothing (it only tags
 // K on the TopK), so router coverage lives in the device-routed-transform test and moe_k_tag_test.
 TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpert) {
-    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    auto model = make_static_qwen3_moe_model(/*query_len=*/8, /*past_len=*/8);
     ASSERT_NE(model, nullptr);
-
-    // The model is already stateless (no KV cache), so partitioning just needs static
-    // shapes — a plain reshape of the inputs, no StatefulToStateless pass required.
-    std::map<std::string, ov::PartialShape> new_shapes;
-    for (const auto& input : model->inputs()) {
-        new_shapes[input.get_any_name()] = ov::PartialShape{1, 8};
-    }
-    model->reshape(new_shapes);
 
     auto cfg = make_moe_isolate_cfg();
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
@@ -733,15 +751,9 @@ TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpert) {
 // builder output agrees with the hand-rolled create_qwen3_moe_graph that the transform's own
 // unit tests use.
 TEST_F(MoETransformationTest, Qwen3MoE_DeviceRoutedTransformRewritesBuilderOutput) {
-    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
-    ASSERT_NE(model, nullptr);
-
     // Decoding shape: single token so the router TopK indices have batch dim 1.
-    std::map<std::string, ov::PartialShape> new_shapes;
-    for (const auto& input : model->inputs()) {
-        new_shapes[input.get_any_name()] = ov::PartialShape{1, 1};
-    }
-    model->reshape(new_shapes);
+    auto model = make_static_qwen3_moe_model(/*query_len=*/1, /*past_len=*/8);
+    ASSERT_NE(model, nullptr);
 
     // Count expert-weight Gathers only (the MoE region), not the embedding Gather that any
     // LLM has. The transform names its inserted gathers under the expert/mlp scope.

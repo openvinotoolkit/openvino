@@ -12,6 +12,7 @@
 #include "model_builder_attention.hpp"
 #include "model_builder_ffn.hpp"
 #include "model_builder_masks.hpp"
+#include "model_builder_moe.hpp"
 #include "model_builder_norm.hpp"
 #include "model_builder_rope.hpp"
 #include "model_builder_types.hpp"
