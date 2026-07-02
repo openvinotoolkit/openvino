@@ -2,13 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-    cmake_minimum_required(VERSION 3.20)
-else()
-    # 3.18: default choice as minimum version for onnx 1.18
-    cmake_minimum_required(VERSION 3.18)
-endif()
+cmake_minimum_required(VERSION 3.26.0...3.26.0)
+cmake_policy(VERSION 3.26.0)
 
 if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
@@ -32,9 +27,24 @@ if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
 
-# set CMAKE_POLICY_VERSION_MINIMUM to avoid errors from 3rd party dependencies
-# after cmake is updated to 4.0
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+if(POLICY CMP0194)
+    # MSVC cl.exe is not a valid ASM compiler; use ml64.exe instead.
+    # CMAKE_POLICY_DEFAULT_CMP0194 ensures this propagates into subdirectories
+    # that call cmake_minimum_required() with a version older than 4.1 (when
+    # CMP0194 was introduced), which would otherwise reset the policy to unset.
+    set(CMAKE_POLICY_DEFAULT_CMP0194 OLD)
+    set(CMAKE_POLICY_DEFAULT_CMP194 OLD)
+endif()
+
+if(POLICY CMP0074)
+    # Use <PackageName>_ROOT in find_package()
+    cmake_policy(SET CMP0074 NEW)
+endif()
+
+if(POLICY CMP0144)
+    # Use <PACKAGENAME>_ROOT in find_package()
+    cmake_policy(SET CMP0144 NEW)
+endif()
 
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
