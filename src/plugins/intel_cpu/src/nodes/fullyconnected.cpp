@@ -574,10 +574,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
-    // Per-channel dequantization scales folded from the post-FC dequantization Multiply
-    // (GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales on ARM int8). Mirrors Convolution::initSupportedPrimitive-
-    // Descriptors(); the ACL int8 FC executor applies them as the weights requantization scale so the per-channel
-    // requantization is fused into the GEMMLowp output stage instead of running as a standalone Multiply.
     attrs.dqScales = getDQScales();
 
     attrs.postOps = getPostOps(fusedWith);

@@ -4,8 +4,6 @@
 
 #include "fc_mul_add_fq_block.hpp"
 
-#include <memory>
-
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -16,6 +14,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
