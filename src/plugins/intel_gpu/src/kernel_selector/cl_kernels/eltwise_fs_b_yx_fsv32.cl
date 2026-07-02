@@ -6,18 +6,18 @@
 
 KERNEL(eltwise_fs_b_yx_fsv32)(
     INPUTS_DECLS
-    __global UNIT_TYPE* output)
+    __global OUTPUT_TYPE* output)
 {
     const uint global_id = get_global_id(0);
 
     VLOAD_DECLS
 
-    MAKE_VECTOR_TYPE(UNIT_TYPE, 8) res;
+    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8) res;
 
     DO_ELTWISE
 
-    res = ACTIVATION(res, ACTIVATION_PARAMS);
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) out = TO_OUTPUT_VECTOR_TYPE(ACTIVATION(res, ACTIVATION_PARAMS), 8);
 
-    vstore8(res, global_id, output);
+    vstore8(out, global_id, output);
 
 }

@@ -40,10 +40,10 @@ KERNEL (permute_f_y_axes)(
         OUT_VEC_TYPE result;
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         FUSED_OPS_VEC;
-        result = TO_OUT_VEC_TYPE(FUSED_OPS_RESULT_VEC);
+        result = FUSED_OPS_RESULT_VEC;
 #else
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
-        OUT_VEC_TYPE result = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
+        OUT_VEC_TYPE result = TO_OUTPUT_VECTOR_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(res, VEC_SIZE), ACTIVATION_PARAMS), VEC_SIZE);
 #endif
         const int output_idx = OUTPUT_GET_INDEX(b_idx, f_out_idx, y_out_idx, x_idx);
         WRITE_VEC(result, 0, &output[output_idx]);
@@ -90,7 +90,7 @@ KERNEL (permute_f_y_axes)(
             FUSED_OPS;
             transpose_buf[bf_local][j][i]  = FUSED_OPS_RESULT;
     #else
-            transpose_buf[bf_local][j][i] = ACTIVATION(res, ACTIVATION_PARAMS);
+            transpose_buf[bf_local][j][i] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(res), ACTIVATION_PARAMS));
     #endif
         }
     }
@@ -146,7 +146,7 @@ KERNEL (permute_f_y_axes)(
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         __attribute__((opencl_unroll_hint(VEC_SIZE)))
         for (int k = 0; k < VEC_SIZE; ++k) {
-            transpose_buf[j_vec + k][bf_local] = ACTIVATION(res[k], ACTIVATION_PARAMS);
+            transpose_buf[j_vec + k][bf_local] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(res[k]), ACTIVATION_PARAMS));
         }
 #endif
     }
@@ -169,7 +169,7 @@ KERNEL (permute_f_y_axes)(
         const int f = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         const int y_idx = y_begin + bf_local;
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
-        WRITE_VEC(TO_OUT_VEC_TYPE(READ_VEC(0, &transpose_buf[bf_local][j_vec])), 0, &output[output_idx]);
+        WRITE_VEC(TO_OUTPUT_VECTOR_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(READ_VEC(0, &transpose_buf[bf_local][j_vec]),VEC_SIZE), ACTIVATION_PARAMS), VEC_SIZE), 0, &output[output_idx]);
     }
 #endif
 
@@ -185,7 +185,7 @@ KERNEL (permute_f_y_axes)(
         FUSED_OPS;
         transpose_buf[bf_local][j]  = FUSED_OPS_RESULT;
 #else
-        transpose_buf[bf_local][j] = ACTIVATION(res, ACTIVATION_PARAMS);
+        transpose_buf[bf_local][j] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(res), ACTIVATION_PARAMS));
 #endif
     }
     __attribute__((opencl_unroll_hint(TILE_SIZE)))

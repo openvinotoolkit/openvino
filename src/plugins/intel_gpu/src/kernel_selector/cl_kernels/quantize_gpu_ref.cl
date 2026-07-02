@@ -4,6 +4,8 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+#define TO_OUTPUT_TYPE_SAT_RTE(v) CAT(CAT(convert_, OUTPUT_TYPE), _sat_rte)(v)
+
 #ifdef SUB_GROUP_SIZE
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
@@ -144,13 +146,12 @@ KERNEL(quantize_ref)(
     const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, y, x);
 #endif
 
-    INPUT0_TYPE val = input[input_offset];
+    INPUT0_COMPUTE_TYPE val = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
-    INPUT0_TYPE input_low_val  = input_low[input_low_offset];
-    INPUT0_TYPE input_high_val  = input_high[input_high_offset];
-    INPUT0_TYPE output_low_val  = output_low[output_low_offset];
-    INPUT0_TYPE output_high_val  = output_high[output_high_offset];
-
+    INPUT1_COMPUTE_TYPE  input_low_val  = DECODE_INPUT1_COMPUTE_TYPE(input_low[input_low_offset]);
+    INPUT2_COMPUTE_TYPE  input_high_val  = DECODE_INPUT2_COMPUTE_TYPE(input_high[input_high_offset]);
+    INPUT3_COMPUTE_TYPE  output_low_val  = DECODE_INPUT3_COMPUTE_TYPE(output_low[output_low_offset]);
+    INPUT4_COMPUTE_TYPE  output_high_val  = DECODE_INPUT4_COMPUTE_TYPE(output_high[output_high_offset]);
 
     if (val <= input_low_val)
     {
@@ -163,12 +164,13 @@ KERNEL(quantize_ref)(
     else
     {
 #if OUTPUT_IS_FP
-       output[output_offset] = TO_OUTPUT_TYPE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+       output[output_offset] = TO_OUTPUT_TYPE_SAT(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val);
 #else
-       // TODO: the outer round should be deleted once output range is correct
-        output[output_offset] = TO_OUTPUT_TYPE(round(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
-                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val));
+        output[output_offset] = TO_OUTPUT_TYPE_SAT_RTE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val);
 #endif
     }
 }
+
+#undef TO_OUTPUT_TYPE_SAT_RTE

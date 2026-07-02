@@ -62,7 +62,7 @@ static bool IsTypeUsedIn(Datatype type, const base_params& params) {
 
 Datatype KernelBase::GetUnitType(const base_params& params) const {
     Datatype types_prioritized[] =
-        {Datatype::INT8, Datatype::F16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32};
+        {Datatype::INT8, Datatype::F16, Datatype::BF16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32};
 
     for (Datatype type : types_prioritized)
         if (IsTypeUsedIn(type, params))
@@ -95,7 +95,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
     // and unit type are different and activation param is existed
     bool convert_input_to_output_dt = (params.outputs[0].GetDType() == Datatype::F32 && params.inputs[0].GetDType() == Datatype::F16);
     // If input is FP16 and output is FP32, convert input to float before running activation function.
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "", false, false, convert_input_to_output_dt));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(params.outputs[0].GetDType()), "", false, false, convert_input_to_output_dt));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
