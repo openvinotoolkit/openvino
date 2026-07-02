@@ -1153,6 +1153,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
+        OPENVINO_ASSERT(!m_enable_prefix_caching,
+                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
+                        "cannot be enabled simultaneously — this combination is not yet supported. "
+                        "Please disable one of the two options.");
         if (m_use_chunk_prefill && !m_is_embedding && (prefill_attn_hfa || prefill_attn_pyramid)) {
             const uint32_t block_size = static_cast<uint32_t>(m_prefill_chunk_size);
 
