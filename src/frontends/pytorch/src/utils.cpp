@@ -201,23 +201,34 @@ Output<Node> ensure_trailing_square(const NodeContext& context,
             return x;
         }
     }
-    // Dynamic trailing dimension(s): guard the assumed n x n size at runtime by reshaping the
-    // trailing two axes to a fixed [n, n] while preserving the batch axes. A genuine n x n input
-    // reshapes to itself (identity); any other trailing size makes the Reshape fail at runtime.
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
-    auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
-    auto stop = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    // Dynamic trailing dimension(s): pin each trailing axis to n with its own Reshape so the
+    // element-count check runs per axis (a single [..,n,n] reshape only checks n*n total, so e.g.
+    // [1,9] would masquerade as 3x3). A genuine n x n input is an identity through both; any other
+    // trailing extent makes one Reshape fail loudly at runtime. The op-labeled name lets the CPU
+    // plugin identify the op and the only supported size in the error, matching the static branch.
+    const auto guard_name = op_label + "/requires_" + std::to_string(n) + "x" + std::to_string(n);
     auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
     auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
-    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape, start, stop, step, axis));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto n_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {n}));
     auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {n, n}));
+
+    // Pin the last axis to n (fails iff the last extent != n).
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto neg_one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto head = context.mark_node(std::make_shared<v8::Slice>(shape, zero, neg_one, step, axis));
+    auto shape_last = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head, n_1d}, 0));
+    auto g1 = context.mark_node(std::make_shared<v1::Reshape>(x, shape_last, /*special_zero=*/false));
+    g1->set_friendly_name(guard_name);
+
+    // Pin the second-to-last axis to n (fails iff the -2 extent != n), keeping the validated last = n.
+    auto shape1 = context.mark_node(std::make_shared<v3::ShapeOf>(g1, element::i64));
+    auto neg_two = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape1, zero, neg_two, step, axis));
     auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
-    auto guarded = context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, /*special_zero=*/false));
-    // Give the guard node an op-labeled name so the runtime Reshape failure identifies the op and
-    // the only supported size (the CPU plugin embeds the node name in the error message), matching
-    // the clean conversion-time message the static-shape branch above produces for a wrong size.
-    guarded->set_friendly_name(op_label + "/requires_" + std::to_string(n) + "x" + std::to_string(n));
-    return guarded;
+    auto g2 = context.mark_node(std::make_shared<v1::Reshape>(g1, new_shape, /*special_zero=*/false));
+    g2->set_friendly_name(guard_name);
+    return g2;
 }
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
