@@ -29,8 +29,8 @@ name: Cleanup caches
 ==> ./mac.yml <==
 name: macOS (Python 3.11)
 ==> ./merge_queue_stub.yml <==
-==> ./debian_10_arm.yml <==
-name: Debian 10 ARM
+==> ./debian_12_arm.yml <==
+name: Debian 12 ARM
 ==> ./android.yml <==
 name: Android
 ==> ./code_style.yml <==

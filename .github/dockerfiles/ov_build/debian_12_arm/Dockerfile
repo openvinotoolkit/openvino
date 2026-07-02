@@ -1,0 +1,238 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/debian:12
+
+USER root
+
+# APT configuration
+RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
+    echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
+    echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
+    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
+
+ENV DEBIAN_FRONTEND="noninteractive" \
+    TZ="Europe/London"
+
+RUN dpkg --add-architecture armhf && apt-get update && \
+    apt-get install \
+    software-properties-common \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Python
+    python3 \
+    python3-full \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    python3-distutils \
+    python3-full \
+    libhdf5-dev \
+    # For building Python from source
+    build-essential \
+    libgdbm-dev \
+    libc6-dev \
+    libssl-dev \
+    libffi-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    liblzma-dev \
+    wget \
+    libusb-1.0-0-dev:armhf \
+    libboost-regex-dev:armhf \
+    crossbuild-essential-armhf \
+    libgtk-3-dev:armhf \
+    libavcodec-dev:armhf \
+    libavformat-dev:armhf \
+    libswscale-dev:armhf \
+    zlib1g-dev:armhf \
+    libgflags-dev:armhf \
+    libtbb-dev:armhf \
+    libffi-dev:armhf \
+    # Compilers
+    gcc-arm-linux-gnueabihf \
+    g++-arm-linux-gnueabihf \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install build dependencies
+ADD install_build_dependencies.sh /install_build_dependencies.sh
+RUN chmod +x /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install sscache
+ARG SCCACHE_VERSION="v0.7.5"
+ENV SCCACHE_HOME="/opt/sccache" \
+    SCCACHE_PATH="/opt/sccache/sccache"
+
+RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
+    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl.tar.gz" && \
+    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
+    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
+
+ENV PATH="$SCCACHE_HOME:$PATH"
+
+# Build Pythons
+# Python 3.10
+# To cross-compile Python 3.10 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
+
+RUN tar -xf Python-3.10.16.tar.xz && \
+    cd Python-3.10.16 && \
+    ./configure --enable-optimizations && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.10 for ARM
+RUN cd Python-3.10.16 && make distclean && \
+    ./configure \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.10_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Python 3.11
+# To cross-compile Python 3.11 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
+
+RUN tar -xf Python-3.11.9.tar.xz && \
+    cd Python-3.11.9 && \
+    ./configure && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.11 for ARM
+RUN cd Python-3.11.9 && make distclean && \
+    ./configure \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-build-python \
+    --prefix=/opt/python3.11_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Python 3.12
+# To cross-compile Python 3.12 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
+
+RUN tar -xf Python-3.12.9.tar.xz && \
+    cd Python-3.12.9 && \
+    ./configure && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.12 for ARM
+RUN cd Python-3.12.9 && make distclean && \
+    ./configure \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-build-python \
+    --prefix=/opt/python3.12_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Python 3.13
+# To cross-compile Python 3.13 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
+
+RUN tar -xf Python-3.13.2.tar.xz && \
+    cd Python-3.13.2 && \
+    ./configure && \
+    make -j $(nproc) && \
+    make altinstall
+
+# Compile Python 3.13 for ARM
+RUN cd Python-3.13.2 && make distclean && \
+    ./configure \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --with-build-python \
+    --prefix=/opt/python3.13_arm \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
+    make -j $(nproc) && make altinstall
+
+# Cross-compile Python3.14 for ARM
+RUN curl -O https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
+    tar -xf Python-3.14.0.tgz && \
+    cd Python-3.14.0 && \
+    ./configure && \
+    make -j $(nproc) && make altinstall
+
+# Cross-compile Python3.14 for ARM
+RUN cd Python-3.14.0 && make distclean && \
+    ./configure \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.14_arm \
+    --with-build-python \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
+    make -j4 && make altinstall
+
+# Cross-compile Python3.14t for ARM (with --disable-gil)
+RUN cp -r Python-3.14.0 Python-3.14t && \
+    cd Python-3.14t && make distclean && \
+    ./configure --disable-gil --prefix=/usr/local/bin/python3.14t && \
+    make -j4 && make altinstall && \
+    ln -s /usr/local/bin/python3.14t/bin/python3.14 /usr/bin/python3.14t
+
+# Cross-compile Python3.14t for ARM
+RUN cd Python-3.14t && make distclean && \
+    ./configure \
+    --host=arm-linux-gnueabihf \
+    --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.14t_arm \
+    --with-build-python \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
+    make -j4 && make altinstall
+
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14t -m pip install --upgrade pip==${PIP_VERSION}
+
+# Use Python 3.11 as default
+# Using venv here because other methods to switch the default Python break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+
+# Install newer ninja (apt ships older version on debian 12 lacking --quiet)
+RUN python3 -m pip install --no-cache-dir ninja==1.13.0
+
+ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
