@@ -201,11 +201,12 @@ void CompiledModelPropertyManager::registerProperties() {
     });
     // clang-format on
 
+    const bool hasRuntimeRequirementsSupport = _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
     register_property_with_support_and_custom_function(
         _properties,
         ov::runtime_requirements.name(),
-        [this](const FilteredConfig&) {  // support predicate
-            return _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
+        [hasRuntimeRequirementsSupport](const FilteredConfig&) {  // support predicate
+            return hasRuntimeRequirementsSupport;
         },
         true,
         [this](const FilteredConfig&) {  // value getter
