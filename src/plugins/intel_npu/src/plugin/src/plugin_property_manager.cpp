@@ -223,10 +223,8 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
                            other._compilerOptionSupportHelper,
                            other._logger,
                            other._currentlyUsedCompiler,
-                           other._compatibilityCheckSupported,
                            other._currentlyUsedPlatform,
-                           other._compilerConfigsFilteredByCompiler,
-                           other._compatibilityCheckFiltered};
+                           other._compilerConfigsFilteredByCompiler};
       }()) {}
 
 PluginPropertyManager::PluginPropertyManager(CopyState&& state)
@@ -235,34 +233,43 @@ PluginPropertyManager::PluginPropertyManager(CopyState&& state)
       _compilerOptionSupportHelper(std::move(state.optionSupportHelper)),
       _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
-      _compatibilityCheckSupported(state.compatibilityCheckSupported),
       _currentlyUsedPlatform(std::move(state.currentlyUsedPlatform)),
-      _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler),
-      _compatibilityCheckFiltered(state.compatibilityCheckFiltered) {
+      _compilerConfigsFilteredByCompiler(state.compilerConfigsFilteredByCompiler) {
     registerProperties();
 }
 
 void PluginPropertyManager::registerProperties() {
     _properties.clear();
 
-    const auto has_backend = [this](const FilteredConfig&) {
-        return _backend != nullptr;
+    const bool hasBackend = _backend != nullptr;
+    const auto has_backend = [hasBackend](const FilteredConfig&) {
+        return hasBackend;
     };
 
-    const auto has_backend_and_valid_device = [this](const FilteredConfig& config) {
-        if (_backend == nullptr) {
+    auto hasBackendAndValidDeviceCache = std::make_shared<std::optional<std::pair<std::string, bool>>>();
+    const auto has_backend_and_valid_device =
+        [this, hasBackend, hasBackendAndValidDeviceCache](const FilteredConfig& config) {
+            if (!hasBackend) {
+                return false;
+            }
+
+            try {
+                const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
+
+                if (hasBackendAndValidDeviceCache->has_value() &&
+                    hasBackendAndValidDeviceCache->value().first == specifiedDeviceName) {
+                    return hasBackendAndValidDeviceCache->value().second;
+                }
+
+                const bool isValidDevice = utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
+                *hasBackendAndValidDeviceCache = std::make_pair(specifiedDeviceName, isValidDevice);
+                return isValidDevice;
+            } catch (...) {
+                _logger.debug("Property is not supported for current configuration due to unavailable device.");
+            }
+
             return false;
-        }
-
-        try {
-            const auto specifiedDeviceName = config.get<intel_npu::DEVICE_ID>();
-            return utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
-        } catch (...) {
-            _logger.debug("Property is not supported for current configuration due to unavailable device.");
-        }
-
-        return false;
-    };
+        };
 
     // clang-format off
     register_property<PERF_COUNT>(_config, _properties, ov::enable_profiling.name());
@@ -457,7 +464,9 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_support_and_custom_function(
         _properties,
         ov::intel_npu::compiler_version.name(),
-        [this](const FilteredConfig& config) {  // support predicate
+        [this,
+         compilerVersionSupportCache = std::optional<std::tuple<ov::intel_npu::CompilerType, std::string, bool>>{}](
+            const FilteredConfig& config) mutable {  // support predicate
             try {
                 auto compilerType = config.get<COMPILER_TYPE>();
                 auto deviceId = config.get<DEVICE_ID>();
@@ -468,8 +477,16 @@ void PluginPropertyManager::registerProperties() {
                     device == nullptr ? std::move(deviceId) : device->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
+                if (compilerVersionSupportCache.has_value() &&
+                    std::get<0>(compilerVersionSupportCache.value()) == compilerType &&
+                    std::get<1>(compilerVersionSupportCache.value()) == compilationPlatform) {
+                    return std::get<2>(compilerVersionSupportCache.value());
+                }
+
                 CompilerAdapterFactory factory;
-                return factory.getCompiler(_backend, compilerType, compilationPlatform) != nullptr;
+                const bool isSupported = factory.getCompiler(_backend, compilerType, compilationPlatform) != nullptr;
+                compilerVersionSupportCache = std::make_tuple(compilerType, compilationPlatform, isSupported);
+                return isSupported;
             } catch (...) {
                 return false;
             }
@@ -494,22 +511,17 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_support_custom_function_and_args(
         _properties,
         ov::compatibility_check.name(),
-        [this](const FilteredConfig&) {  // support predicate
-            return _compatibilityCheckFiltered && _compatibilityCheckSupported;
+        [this,
+         compatibilityCheckSupported = std::optional<bool>{}](const FilteredConfig&) mutable {  // support predicate
+            if (!compatibilityCheckSupported.has_value()) {
+                compatibilityCheckSupported = isCompatibilityCheckSupported(_backend);
+            }
+            return compatibilityCheckSupported.value();
         },
         true,
         [this](const FilteredConfig&, const ov::AnyMap& arguments) {  // value getter (with args)
             return validateCompatibilityDescriptor(_backend, arguments);
         });
-}
-
-void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() {
-    if (_compatibilityCheckFiltered) {
-        return;
-    }
-
-    _compatibilityCheckSupported = isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
-    _compatibilityCheckFiltered = true;
 }
 
 void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
@@ -538,10 +550,6 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         }
         return _config.get<PLATFORM>();
     };
-
-    if (properties.find(ov::compatibility_check.name()) != properties.end()) {
-        initializeCompatibilityCheckSupportIfNeeded();
-    }
 
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(_logger);
@@ -657,10 +665,6 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
         logCpuPinningDeprecationWarning(_logger);
     }
 
-    if (name == ov::supported_properties.name() || name == ov::compatibility_check.name()) {
-        initializeCompatibilityCheckSupportIfNeeded();
-    }
-
     bool propertyIsCompilerConfig = false;
     bool propertyIsRegistered = true;
     // If the property is not registered, there is no point of checking the config.
@@ -760,10 +764,6 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     if (name == ov::hint::enable_cpu_pinning.name()) {
         logCpuPinningDeprecationWarning(_logger);
     }
-    if (name == ov::compatibility_check.name()) {
-        initializeCompatibilityCheckSupportIfNeeded();
-    }
-
     if (!isPropertyRegistered(name)) {
         return false;
     }
