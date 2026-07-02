@@ -16,6 +16,7 @@
 #include <memory>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 
 namespace ov::intel_gpu {
 
@@ -70,18 +71,16 @@ public:
 private:
     void check_tensors() const override;
 
-    // Lazily allocate the reserved (null) host tensor for a deferred input slot.
-    // Idempotent and safe to call from the const get_tensor(); the deferred allocation is
-    // serialized with m_lazy_alloc_mutex (double-checked) so concurrent get_tensor() calls
-    // cannot race on m_user_inputs.
+    // Lazily allocate the reserved (null) host tensor for a deferred input slot. Idempotent and
+    // safe from the const get_tensor(); takes m_user_inputs_mutex exclusively (double-checked).
     void ensure_input_allocated(const ov::Output<const ov::Node>& port, size_t input_idx) const;
 
-    // m_user_inputs is mutated by the idempotent lazy-allocation path reachable from the const
-    // get_tensor(), so it is marked mutable. get_tensor() is const and may be called concurrently
-    // by applications that (against guidance) share a single InferRequest across threads; the
-    // dedicated mutex guards that deferred allocation so it cannot double-allocate or race.
+    // Mutable because the lazy-allocation path reachable from the const get_tensor() mutates it.
+    // All accesses to m_user_inputs must be guarded by m_user_inputs_mutex (shared lock for reads,
+    // exclusive for the deferred allocation) so a const get_tensor() can be called concurrently
+    // with infer()/check_tensors() without a data race.
     mutable std::unordered_map<size_t, TensorWrapper> m_user_inputs;
-    mutable std::mutex m_lazy_alloc_mutex;
+    mutable std::shared_mutex m_user_inputs_mutex;
     std::unordered_map<size_t, TensorWrapper> m_user_outputs;
 
     std::unordered_map<size_t, TensorWrapper> m_plugin_inputs;
