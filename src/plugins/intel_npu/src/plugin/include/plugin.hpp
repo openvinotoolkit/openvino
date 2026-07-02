@@ -9,6 +9,8 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "intel_npu/common/cre.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"
@@ -72,13 +74,10 @@ private:
      * will be one or multiple weights initialization schedules found there as well.
      *
      * @param tensorBig Contains the whole binary object.
-     * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
      * @param properties Configuration taking the form of an "ov::AnyMap".
      * @return A compiled model
      */
-    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
-                                              std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& properties) const;
+    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

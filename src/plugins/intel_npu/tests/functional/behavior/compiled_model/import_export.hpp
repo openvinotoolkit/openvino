@@ -21,6 +21,7 @@ namespace behavior {
 
 using OVCompiledGraphImportExportTestNPU = OVCompiledGraphImportExportTest;
 
+// TODO fix test
 TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAndTensorAPI) {
     ov::Core core;
     const std::string_view headerView("<dummy_application_header>");

@@ -1,0 +1,178 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <cinttypes>
+#include <memory>
+#include <queue>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "blob_reader.hpp"
+#include "cre.hpp"
+#include "intel_npu/common/offsets_table.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+
+namespace intel_npu {
+
+class BlobWriterInterface final {
+public:
+    BlobWriterInterface(std::ostream& stream,
+                        const std::streampos stream_npu_region_start,
+                        const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    void write_from(const void* source, const size_t size);
+
+    void add_padding(const size_t size);
+
+    std::streamoff get_offset_relative_to_current_section() const;
+
+    void move_cursor_relative_to_current_section(const size_t offset);
+
+    /**
+     * @brief Get the position of the write cursor relative to the beginning of the NPU region.
+     * @note When imported, the NPU region of the blob will be aligned to 4096. This method is intended to be used by
+     * section writers that have alignment requirements. The section writer may perform padding to obtain the desired
+     * alignment at import time.
+     */
+    std::streamoff get_offset_relative_to_npu_region() const;
+
+    /**
+     * @brief Move the position of the write cursor relative to the beginning of the NPU region.
+     * @note When imported, the NPU region of the blob will be aligned to 4096. This method is intended to be used by
+     * section writers that have alignment requirements. The section writer may perform padding to obtain the desired
+     * alignment at import time.
+     * @note This operation is bound checked. The current section writer cannot move outside its designated memory
+     * region.
+     *
+     * @param stream The target stream.
+     * @param section_id Used to check if the offset falls within the region allocated to this section.
+     * @param offset Where to move the cursor. This number is relative to the beginning of the NPU region.
+     */
+    void move_cursor_relative_to_npu_region(const size_t offset);
+
+    void seek_to_the_end();
+
+private:
+    friend class BlobWriter;
+
+    // Granting these two sections access to the stream object helps keep the code more modular. The functions that
+    // write the compiler schedules use a stream object as parameter. The older blob format code relies on the same
+    // functions.
+    friend class ELFMainScheduleSection;
+    friend class ELFInitSchedulesSection;
+
+    std::reference_wrapper<std::ostream> m_stream;
+
+    /**
+     * @brief Holds the offset where the NPU blob region begins
+     */
+    const std::streampos m_stream_npu_region_start;
+
+    /**
+     * @brief Holds the offset where the section that is being written into the stream start
+     * @note This attribute is mainly used for bound checking the write operations. The "write" method of one section
+     * should not write inside the payload of another section.
+     */
+    std::streampos m_stream_current_section_start;
+
+    Logger m_logger;
+};
+
+/**
+ * @brief Class responsible for exporting the NPU specific data a compiled model.
+ * @details There should be a 1:1 mapping between "CompiledModel" & "BlobWriter" instances.
+ *
+ * When the user requests the compilation of a model, a "BlobWriter" object is created. During the compilation flow,
+ * this object gathers the blob sections that should be written later if the user requests an export. These sections are
+ * actually classes implementing the "ISection" interface. Their role is to instruct the BlobWriter how to fill the blob
+ * if an exportation is requested.
+ *
+ * The BlobWriter is also holding the compatibility requirements expression (CRE) and exposes an API that allows filling
+ * it.
+ *
+ * Additionally, the BlobWriter exposes an API required to meet the needs of all custom section writers (implemented in
+ * the class inheriting "ISection").
+ */
+class BlobWriter final {
+public:
+    BlobWriter(const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    /**
+     * @brief Construct a BlobWriter based on the data parsed by the BlobReader.
+     * @details The BlobReader handles the parsing of a compiled model. The data parsed by this object can be reused to
+     * re-export the model using a BlobWriter if requested.
+     *
+     * @param blob_reader Contains the parsed data of a compiled model.
+     */
+    BlobWriter(const std::shared_ptr<BlobReader>& blob_reader,
+               const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    /**
+     * @brief Add a new blob section to the writing queue.
+     *
+     * @param section The section to be added in the writing queue.
+     * @return The instance ID of the section. This number corresponds to the order within the writing queue and it is
+     * used to distringuish between sections of the same type. This number is unique only among sections of the same
+     * type.
+     */
+    SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
+
+    /**
+     * @brief Writes all sections within the writing queue into the provided stream.
+     * @note This operation is idempotent. I.e. calling this function twice in a row (but on different streams) will
+     * yield the same result. For this reason, the attributes of the object should not be modified during this call.
+     *
+     * @param stream Where the blob will be stored.
+     */
+    void write_to(std::ostream& stream) const;
+
+private:
+    std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,
+                                                     const std::streampos stream_npu_region_start) const;
+
+    /**
+     * @brief Build a Compatibility Requirements Expression (CRE) based on the sections registered so far.
+     * @note This function should be called either before writing tbe CRE section into a stream or before building the
+     * compatibility string.
+     * @note The CRE is built on demand and not stored in order to make sure the CRE is aligned with the content of the
+     * blob.
+     */
+    CRE build_cre() const;
+
+    /**
+     * @brief Helper function. Registers a section that has been already parsed by the BlobReader.
+     */
+    void register_section_from_blob_reader(const std::shared_ptr<ISection>& section);
+
+    /**
+     * @brief Helper function that writes the given section to the stream.
+     * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
+     * table of offsets.
+     */
+    void write_section(std::ostream& stream,
+                       const std::shared_ptr<ISection>& section,
+                       const std::streampos stream_npu_region_start,
+                       OffsetsTable& offsets_table) const;
+
+    /**
+     * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
+     * IDs (type + instance) are unique per compiled model.
+     */
+    std::unordered_map<SectionType, SectionTypeInstance> m_next_type_instance_id;
+    /**
+     * @brief Queue that holds all sections to be written at export time.
+     */
+    std::queue<std::shared_ptr<ISection>> m_write_queue;
+    /**
+     * @brief An easy-to-access record of all sections registered so far.
+     */
+    std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
+        m_registered_sections;
+
+    Logger m_logger;
+};
+
+}  // namespace intel_npu

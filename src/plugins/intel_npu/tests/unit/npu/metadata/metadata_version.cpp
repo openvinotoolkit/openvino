@@ -216,7 +216,8 @@ TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsTensorBounds) {
     meta.write(stream);
     std::string blob = stream.str();
 
-    const size_t compatDescLenOffset = blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
+    const size_t compatDescLenOffset =
+        blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
     const uint64_t badLen = compatDesc.size() + 0xFF;
     std::memcpy(&blob[compatDescLenOffset], &badLen, sizeof(badLen));
 

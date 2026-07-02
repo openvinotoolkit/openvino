@@ -1,0 +1,63 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "intel_npu/common/isection.hpp"
+#include "weightless_graph.hpp"
+
+namespace intel_npu {
+
+class ELFMainScheduleSection final : public ISection {
+public:
+    ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
+                           const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    ELFMainScheduleSection(ov::Tensor main_schedule, const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    std::vector<CREToken> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+            all_registered_sections) const override;
+
+    void write(BlobWriterInterface& writer) override;
+
+    void set_graph(const std::shared_ptr<Graph>& graph);
+
+    ov::Tensor get_schedule() const;
+
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+
+private:
+    std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
+
+    Logger m_logger;
+};
+
+class ELFInitSchedulesSection final : public ISection {
+public:
+    ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
+                            const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules,
+                            const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    std::vector<CREToken> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+            all_registered_sections) const override;
+
+    void write(BlobWriterInterface& writer) override;
+
+    void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
+
+    std::vector<ov::Tensor> get_schedules() const;
+
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+
+private:
+    std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
+
+    Logger m_logger;
+};
+
+}  // namespace intel_npu

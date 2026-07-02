@@ -145,7 +145,7 @@ public:
         virtual void predictOutputShape(GraphArguments& args,
                                         std::vector<MemRefType>& inputDescriptors,
                                         std::vector<MemRefType>& outputDescriptors) = 0;
-        virtual ~Impl() {};
+        virtual ~Impl(){};
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
@@ -153,7 +153,7 @@ public:
                  bool blobAllocatedByPlugin,
                  const FilteredConfig& config);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    uint64_t export_main_blob(std::ostream& stream) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 

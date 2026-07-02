@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "compiled_model_property_manager.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -27,14 +28,14 @@ public:
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
      * @param config Custom configuration object
-     * @param batchSize Optional batch size value.
+     * TODO
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const FilteredConfig& config,
-                  const std::optional<int64_t>& batchSize);
+                  const std::shared_ptr<BlobWriter>& blobWriter);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -71,11 +72,10 @@ private:
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
     std::shared_ptr<IGraph> _graph;
+    std::shared_ptr<BlobWriter> _blobWriter;
 
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
     mutable std::once_flag _streamExecutorsInitFlag;
-
-    std::optional<int64_t> _batchSize;
 };
 
 }  //  namespace intel_npu

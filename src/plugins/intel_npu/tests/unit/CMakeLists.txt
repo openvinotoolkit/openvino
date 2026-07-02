@@ -34,6 +34,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/unit/npu/blob_format/mocks
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
@@ -42,6 +44,9 @@ ov_add_test_target(
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/batch_size_section.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/src/compiler_schedules_sections.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/gqa_compiled_model.cpp
@@ -74,6 +79,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/attention.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pyramid_attention.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/host_flash_attention.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/unit/npu/blob_format/mocks/mock_sections.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/kv_cache_compressed.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/perf.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/spatial.cpp
@@ -123,6 +129,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models/model_builder_weights.cpp
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}
+            openvino_npu_common
+            openvino_npu_compiler_adapter
         LABELS
             NPUW
 )
