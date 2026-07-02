@@ -1129,10 +1129,8 @@ public:
         if (_shared_gate_proj && _shared_gate_proj->m_batch == batch)
             return;
 
-        if (!addr.shared_weight[0]) {
-            _has_shared_expert = false;
-            return;
-        }
+        OPENVINO_ASSERT(addr.shared_weight[0],
+                        "MoE shared expert enabled (num_shared_expert > 0) but shared weight buffers are not bound");
 
         _shared_intermediate_size = static_cast<int>(addr.shared_weight[0]->get_layout().count() / _hidden_size);
         auto eng = engine.get_onednn_engine();
