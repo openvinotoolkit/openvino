@@ -92,7 +92,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     // use GPU with OCL runtime or driver supporting LEO (OCL/ZE interoperability)
     const auto& context_params = context.get_params();
     if (context_params.count(ov::intel_gpu::context_type.name()) > 0) {
-        const auto context_type = 
+        const auto context_type =
             context_params.at(ov::intel_gpu::context_type.name()).as<ov::intel_gpu::ContextType>();
         if (context_type == ov::intel_gpu::ContextType::ZE) {
             // when ZE runtime and interoperability is available, the context is set to OCL
