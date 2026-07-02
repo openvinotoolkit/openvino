@@ -3,6 +3,8 @@
 //
 #pragma once
 
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -15,6 +17,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 using Device = std::string;
 using Config = ov::AnyMap;
@@ -337,6 +340,10 @@ public:
     }
 };
 
+class CoreThreadingCpuMultiAppThreadSyncTest : public CoreThreadingTest {};
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CoreThreadingCpuMultiAppThreadSyncTest);
+
 // tested function: get_versions, unload_plugin
 TEST_P(CoreThreadingTest, smoke_GetVersions) {
     auto core = ov::test::utils::create_core();
@@ -401,6 +408,114 @@ TEST_P(CoreThreadingTest, smoke_QueryModel) {
             }
         },
         3000);
+}
+
+// tested function: compile_model, create_infer_request, infer
+TEST_P(CoreThreadingCpuMultiAppThreadSyncTest, smoke_CpuExecNetworkMultiAppThreadSyncWithStreams) {
+    auto core = ov::test::utils::create_core();
+    core.set_property(target_device, config);
+
+    constexpr size_t numThreads = 4;
+
+    struct ThreadRunResult {
+        int32_t actualStreams = 0;
+        std::vector<ov::Tensor> outputs;
+        std::vector<std::string> errors;
+    };
+
+    auto runInferWithStreams = [&](bool syncExec) -> ThreadRunResult {
+        ThreadRunResult result;
+        result.outputs.resize(numThreads);
+        result.errors.resize(numThreads);
+
+        Config compileConfig = config;
+        compileConfig[ov::intel_cpu::multi_app_thread_sync_execution.name()] = syncExec;
+        compileConfig[ov::num_streams.name()] = static_cast<int32_t>(numThreads);
+
+        auto compiledModel = core.compile_model(ov::test::utils::make_single_conv(), target_device, compileConfig);
+        result.actualStreams = compiledModel.get_property(ov::num_streams);
+
+        std::vector<ov::InferRequest> requests;
+        requests.reserve(numThreads);
+        std::vector<ov::Tensor> inputTensors;
+        inputTensors.reserve(numThreads);
+
+        const auto input = compiledModel.input();
+        for (size_t i = 0; i < numThreads; ++i) {
+            requests.push_back(compiledModel.create_infer_request());
+            inputTensors.push_back(ov::test::utils::create_and_fill_tensor(input.get_element_type(),
+                                                                           input.get_shape(),
+                                                                           256,
+                                                                           static_cast<double_t>(i + 1)));
+            requests.back().set_input_tensor(inputTensors.back());
+        }
+
+        std::mutex startMutex;
+        std::condition_variable readyCv;
+        std::condition_variable startCv;
+        size_t readyThreads = 0;
+        bool start = false;
+
+        std::vector<std::thread> workers;
+        workers.reserve(numThreads);
+        for (size_t i = 0; i < numThreads; ++i) {
+            workers.emplace_back([&, i] {
+                {
+                    std::unique_lock<std::mutex> lock(startMutex);
+                    ++readyThreads;
+                    readyCv.notify_one();
+                    startCv.wait(lock, [&] {
+                        return start;
+                    });
+                }
+
+                try {
+                    requests[i].infer();
+                    const auto output = requests[i].get_output_tensor(0);
+                    result.outputs[i] = ov::Tensor(output.get_element_type(), output.get_shape());
+                    output.copy_to(result.outputs[i]);
+                } catch (const std::exception& ex) {
+                    result.errors[i] = ex.what();
+                } catch (...) {
+                    result.errors[i] = "Unknown exception";
+                }
+            });
+        }
+
+        {
+            std::unique_lock<std::mutex> lock(startMutex);
+            readyCv.wait(lock, [&] {
+                return readyThreads == numThreads;
+            });
+            start = true;
+        }
+        startCv.notify_all();
+
+        for (auto& worker : workers) {
+            if (worker.joinable()) {
+                worker.join();
+            }
+        }
+
+        return result;
+    };
+
+    const auto outFalse = runInferWithStreams(false);
+    const auto outTrue = runInferWithStreams(true);
+
+    ASSERT_EQ(static_cast<int32_t>(numThreads), outFalse.actualStreams);
+    ASSERT_EQ(static_cast<int32_t>(numThreads), outTrue.actualStreams);
+    ASSERT_EQ(outFalse.outputs.size(), outTrue.outputs.size());
+
+    for (size_t threadIndex = 0; threadIndex < numThreads; ++threadIndex) {
+        ASSERT_TRUE(outFalse.errors[threadIndex].empty()) << "sync=false thread " << threadIndex
+                                                         << " failed: " << outFalse.errors[threadIndex];
+        ASSERT_TRUE(outTrue.errors[threadIndex].empty()) << "sync=true thread " << threadIndex
+                                                        << " failed: " << outTrue.errors[threadIndex];
+        ASSERT_GT(outFalse.outputs[threadIndex].get_size(), 0u);
+        ASSERT_GT(outTrue.outputs[threadIndex].get_size(), 0u);
+        ov::test::utils::compare(outFalse.outputs[threadIndex], outTrue.outputs[threadIndex]);
+    }
 }
 
 class CoreThreadingTestsWithIter : public testing::WithParamInterface<CoreThreadingParams>,
