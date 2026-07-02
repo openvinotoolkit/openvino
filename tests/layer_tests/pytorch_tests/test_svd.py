@@ -153,6 +153,22 @@ class TestSVDNonSquareFailsGracefully(PytorchLayerTest):
             compiled((example.numpy(),))
         assert "requires_3x3" in str(exc_info.value)
 
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_dynamic_same_numel_nonsquare_fails_at_runtime(self, ie_device, precision, ir_version):
+        # [1, 9] has 3x3's element count: a single [n,n] reshape would accept it; the per-axis guard must raise.
+        if ie_device != "CPU":
+            pytest.skip("runtime reshape-guard failure is asserted on CPU")
+        example = torch.randn(3, 3, dtype=torch.float32)
+        scripted = torch.jit.trace(self._svd(), example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([-1, -1])])
+        compiled = ov.Core().compile_model(ov_model, "CPU")
+        bad = np.arange(9, dtype=np.float32).reshape(1, 9)
+        with pytest.raises(Exception) as exc_info:
+            compiled((bad,))
+        assert "requires_3x3" in str(exc_info.value)
+
 
 class TestSVDComputeUvFalseFailsGracefully(PytorchLayerTest):
     """aten::svd with compute_uv=False must fail at conversion, not silently return non-zero U/V.
