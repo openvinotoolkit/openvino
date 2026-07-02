@@ -435,7 +435,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
             _logger.debug("Update command list and execute directly");
             if (params->executionContext == nullptr) {
                 OPENVINO_THROW(
-                    "Execution context is not created, cannot reuse command list with UpdateMutableCommandList API");
+                    "Execution context is not created; cannot reuse command list with UpdateMutableCommandList API");
             }
 
             if (npuVMRuntimeUpdateMutableCommandList(_engine,

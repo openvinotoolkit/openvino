@@ -948,16 +948,4 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#218923 -->
-    <skip_config>
-        <message>The tests crash when using FORCE_UPDATE_MUTABLE_COMMANDLIST mode</message>
-        <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferWithHostCompileTests.*FORCE_UPDATE_MUTABLE_COMMANDLIST.*</filter>
-        </filters>
-    </skip_config>
-
 </skip_configs>

@@ -841,7 +841,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithRandomSize) {
     }
 
     // create input tensor match the customized models
-    ov::Shape shape = {1, 576, 720, 16};
+    ov::Shape shape = {1, 720, 576, 16};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
@@ -873,7 +873,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithRandomSize) {
         << "Log content validation failed for fourth inference with new shape, got: " << logCapture.str();
 
     logCapture.clear();
-    ov::Shape shape3 = {1, 480, 854, 16};
+    ov::Shape shape3 = {1, 854, 480, 16};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic.infer());
