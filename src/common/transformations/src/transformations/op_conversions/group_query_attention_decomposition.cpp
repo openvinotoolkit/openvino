@@ -21,6 +21,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -428,16 +429,22 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_k
                                                                                   int64_t kv_cache_bit_width,
                                                                                   const std::string& quant_type,
                                                                                   const ov::element::Type& cache_type) {
-    // Symmetric quantize-on-write: q = clamp(round(x / scale)). Rounding is round-half-to-even to match the
+    // Symmetric quantize-on-write: q = clamp(round(x * inv_scale)). Rounding is round-half-to-even to match the
     // ONNX Runtime MLAS/CUDA reference (std::rintf). Clamp is applied before the narrowing Convert to avoid
-    // overflow on out-of-range values.
+    // overflow on out-of-range values. inv_scale mirrors MLAS SafeInvScale: a zero scale maps to 1.0 so the step
+    // degenerates to clamp(round(x)) instead of producing NaN (and multiplying by the reciprocal matches MLAS).
     const auto compute_type = current.get_element_type();
     const auto scale_bcast = make_kv_scale(scale, kv_num_heads, quant_type);
     ov::Output<ov::Node> scale_ct = scale_bcast;
     if (scale.get_element_type() != compute_type) {
         scale_ct = register_new_node<v0::Convert>(scale_bcast, compute_type);
     }
-    const auto scaled = register_new_node<v1::Divide>(current, scale_ct);
+    const auto one = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {1}));
+    const auto zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
+    const auto is_zero_scale = register_new_node<v1::Equal>(scale_ct, zero);
+    const auto safe_scale = register_new_node<v1::Select>(is_zero_scale, one, scale_ct);
+    const auto inv_scale = register_new_node<v1::Divide>(one, safe_scale);
+    const auto scaled = register_new_node<v1::Multiply>(current, inv_scale);
     const auto rounded = register_new_node<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN);
 
     if (kv_cache_bit_width == 4) {
