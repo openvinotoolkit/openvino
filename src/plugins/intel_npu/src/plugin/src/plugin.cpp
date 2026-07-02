@@ -132,6 +132,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
  * thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
 void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
+    if (!model) {
+        return;
+    }
+
     for (const auto& ov_node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
             continue;
@@ -904,7 +908,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                 auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
                 if (ext == ONNX_EXTENSION) {
                     originalModel = get_core()->read_model(weightsPath, weightsPath, properties);
-                    check_weightless_cache_attribute_occurrence(originalModel);
                 } else if (ext == WEIGHTS_IR_EXTENSION) {
                     // constants will be populated in parser
                 } else {
@@ -916,6 +919,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
             }
         }
+
+        check_weightless_cache_attribute_occurrence(originalModel);
     }
 
     const std::optional<std::vector<ov::Tensor>> initBlobs =

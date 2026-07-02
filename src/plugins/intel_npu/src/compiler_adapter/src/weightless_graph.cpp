@@ -383,8 +383,10 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         // Note: By construction of the weight schedule, every constant from OV
         // model appears in exactly one schedule. Thus, one can delete
         // the handle to the constant memory early.
-        ov::wsh::Extension::hint_evict(*constants.at(id));
-        constants.erase(id);
+        if (constants.find(id) != constants.end()) {
+            ov::wsh::Extension::hint_evict(*constants.at(id));
+            constants.erase(id);
+        }
     }
 
     return {std::move(initInputsViewTensors), initInputsAllocatedTensor};

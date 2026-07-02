@@ -78,10 +78,16 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
                                                                                       byte_size,
                                                                                       mapped_memory);
 
-            constants.insert({id,
-                              std::make_shared<ov::op::v0::Constant>(descriptor.precision,
-                                                                     descriptor.shapeFromCompiler.to_shape(),
-                                                                     weight_buffer)});
+            auto [it, inserted] =
+                constants.emplace(id,
+                                  std::make_shared<ov::op::v0::Constant>(descriptor.precision,
+                                                                         descriptor.shapeFromCompiler.to_shape(),
+                                                                         weight_buffer));
+            if (!inserted) {
+                OPENVINO_ASSERT(it->second->get_byte_size() == byte_size,
+                                "Duplicate constant offset found with mismatching byte size: offset=",
+                                id);
+            }
         }
     }
 
