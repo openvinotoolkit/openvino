@@ -10,6 +10,7 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -49,11 +50,12 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
         return !type_matches(ov::element::i32)(output);
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
+    auto add_or_clamp = optional<ov::op::v0::Clamp>({add});
 
     ov::pass::pattern::op::Predicate predicate =
         require_int_fq_output ? type_matches_any({element::i8, element::u8}) : ov::pass::pattern::op::Predicate();
     auto fake_quantize =
-        wrap_type<ov::op::v0::FakeQuantize>({add, any_input(), any_input(), any_input(), any_input()}, predicate);
+        wrap_type<ov::op::v0::FakeQuantize>({add_or_clamp, any_input(), any_input(), any_input(), any_input()}, predicate);
 
     m_inputs = ov::OutputVector{conv};
     m_outputs = ov::OutputVector{fake_quantize};
