@@ -14,9 +14,11 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
 #include <vector>
 
 #include "cpu/primitive_attr_postops.hpp"
@@ -423,6 +425,18 @@ bool EltwiseRefExecutor<T, Enable>::supports([[maybe_unused]] const EltwiseConfi
 }
 
 // BitwiseRefExecutor implementation
+
+namespace {
+template <typename T>
+T wrap_to_narrow(uint64_t value) {
+    using U = std::make_unsigned_t<T>;
+    const auto truncated = static_cast<U>(value);
+    T result;
+    std::memcpy(&result, &truncated, sizeof(T));
+    return result;
+}
+}  // namespace
+
 template <typename T, typename Enable>
 BitwiseRefExecutor<T, Enable>::BitwiseRefExecutor(const EltwiseRefKey& key) : EltwiseRefBaseExecutor<T>(key) {}
 
@@ -461,6 +475,40 @@ void BitwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
             case Algorithm::EltwiseBitwiseRightShift:
                 *dst_ptr_f = src_f[0] >> src_f[1];
                 break;
+            case Algorithm::EltwiseAdd: {
+                using U = std::make_unsigned_t<T>;
+                const auto a = static_cast<uint64_t>(static_cast<U>(src_f[0]));
+                const auto b = static_cast<uint64_t>(static_cast<U>(src_f[1]));
+                *dst_ptr_f = wrap_to_narrow<T>(a + b);
+                break;
+            }
+            case Algorithm::EltwiseSubtract: {
+                using U = std::make_unsigned_t<T>;
+                const auto a = static_cast<uint64_t>(static_cast<U>(src_f[0]));
+                const auto b = static_cast<uint64_t>(static_cast<U>(src_f[1]));
+                *dst_ptr_f = wrap_to_narrow<T>(a - b);
+                break;
+            }
+            case Algorithm::EltwiseMultiply: {
+                using U = std::make_unsigned_t<T>;
+                const auto a = static_cast<uint64_t>(static_cast<U>(src_f[0]));
+                const auto b = static_cast<uint64_t>(static_cast<U>(src_f[1]));
+                *dst_ptr_f = wrap_to_narrow<T>(a * b);
+                break;
+            }
+            case Algorithm::EltwiseDivide: {
+                const auto quotient = static_cast<int64_t>(src_f[0]) / static_cast<int64_t>(src_f[1]);
+                uint64_t bits = 0;
+                std::memcpy(&bits, &quotient, sizeof(bits));
+                *dst_ptr_f = wrap_to_narrow<T>(bits);
+                break;
+            }
+            case Algorithm::EltwiseNegative: {
+                using U = std::make_unsigned_t<T>;
+                const auto a = static_cast<uint64_t>(static_cast<U>(src_f[0]));
+                *dst_ptr_f = wrap_to_narrow<T>(uint64_t{0} - a);
+                break;
+            }
             default:
                 OPENVINO_THROW("Unsupported operation type for Bitwise Eltwise executor: ",
                                algToString(this->m_opData.algo));
