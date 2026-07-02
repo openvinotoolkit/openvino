@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
@@ -381,16 +382,15 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
     int64_t kv_cache_bit_width,
     const std::string& quant_type,
     const ov::element::Type& compute_type) {
-    // Symmetric dequantization (zero point = 0): x = q * scale. Matches ONNX Runtime MLAS/CUDA QDQ.
+    // Symmetric dequantization matching ONNX Runtime MLAS/CUDA QDQ. The actual Convert(->float) * scale
+    // (optionally - zero_point) chain is built via the shared ov::decomposition::low_precision_dequantize
+    // helper, so it produces the canonical dequantization pattern recognized by MarkDequantization / LPT.
     const auto scale_bcast = make_kv_scale(scale, kv_num_heads, quant_type);
-    ov::Output<ov::Node> scale_ct = scale_bcast;
-    if (scale.get_element_type() != compute_type) {
-        scale_ct = register_new_node<v0::Convert>(scale_bcast, compute_type);
-    }
 
     if (kv_cache_bit_width == 4) {
         // 4-bit cache is stored as u8 with two signed values packed per byte (even channel -> low nibble,
-        // odd channel -> high nibble) biased by +8. Unpack to signed values, then apply the scale.
+        // odd channel -> high nibble) biased by +8. Unpack the nibbles back into per-channel integers first,
+        // then let low_precision_dequantize apply the (Convert - 8) * scale chain (zero_point = 8 removes the bias).
         const auto axis_last = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
         const auto mask_low = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {0x0F}));
         const auto shift_4 = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {4}));
@@ -402,16 +402,22 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
         const auto interleaved = register_new_node<v0::Concat>(ov::OutputVector{low_u, high_u}, -1);
         const auto flat_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, -1}));
         const auto unpacked = register_new_node<v1::Reshape>(interleaved, flat_shape, true);
-        const auto unpacked_ct = register_new_node<v0::Convert>(unpacked, compute_type);
-        // Remove the +8 storage bias to recover the signed value, then scale.
-        const auto bias = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {8}));
-        const auto signed_val = register_new_node<v1::Subtract>(unpacked_ct, bias);
-        return register_new_node<v1::Multiply>(signed_val, scale_ct);
+        const auto zero_point = register_new_node(v0::Constant::create(quantized.get_element_type(), ov::Shape{}, {8}));
+        ov::pass::NodeRegistry reg;
+        auto dequant = ov::decomposition::low_precision_dequantize(reg, unpacked, scale_bcast, zero_point, {}, compute_type);
+        for (const auto& node : reg.get()) {
+            register_new_node(node);
+        }
+        return dequant.get_node_shared_ptr();
     }
 
-    // 8-bit cache: convert directly to the compute type and scale.
-    const auto dequant = register_new_node<v0::Convert>(quantized, compute_type);
-    return register_new_node<v1::Multiply>(dequant, scale_ct);
+    // 8-bit cache: symmetric (no zero point) Convert(->compute) * scale via the shared helper.
+    ov::pass::NodeRegistry reg;
+    auto dequant = ov::decomposition::low_precision_dequantize(reg, quantized, scale_bcast, {}, {}, compute_type);
+    for (const auto& node : reg.get()) {
+        register_new_node(node);
+    }
+    return dequant.get_node_shared_ptr();
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(
