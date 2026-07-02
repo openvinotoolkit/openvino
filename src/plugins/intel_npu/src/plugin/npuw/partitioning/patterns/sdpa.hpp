@@ -95,10 +95,10 @@ public:
     AttentionBroadcast4();
 };
 
-class SeparateVCache : public ov::pass::MatcherPass {
+class SeparateKVCache : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::SeparateVCache");
-    SeparateVCache();
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::SeparateKVCache");
+    SeparateKVCache();
 };
 
 class ShapeOfParameter : public ov::pass::MatcherPass {

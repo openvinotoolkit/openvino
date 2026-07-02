@@ -48,8 +48,10 @@ bool consumes_global_mask(const ov::Output<ov::Node>& output) {
     return mask_param->get_friendly_name().find("attention_mask_global") != std::string::npos;
 }
 
-// Pattern nodes shared by SDPADecomposed1 and SeparateVCache.
-// Both passes match the same KV-cache-augmented decomposed SDPA sub-graph.
+// Pattern nodes for the global-attention decomposed SDPA sub-graph shared by
+// SDPADecomposed1 and SeparateKVCache. The Add node carries the consumes_global_mask
+// predicate, so this pattern only matches global-attention blocks -- which is exactly
+// what SeparateKVCache needs, since local attention is not isolated/folded.
 struct SDPADecomposed1Nodes {
     std::shared_ptr<ov::Node> past_k, concat1, convert1, multiply1, transpose1, matmul1;
     std::shared_ptr<ov::Node> add, softmax;
@@ -540,84 +542,126 @@ AttentionBroadcast4::AttentionBroadcast4() {
     register_matcher(std::make_shared<opp::Matcher>(reshape_gather, "AttentionBroadcast4"), std::move(callback));
 }
 
-// SeparateVCache: when a V-cache chain (Concat->Convert->Multiply) is shared
-// across multiple MatMul consumers, duplicate it so each consumer owns an
-// independent chain. This is required for correct partition-weight bank
-// assignment by the NPUW partitioner.
-SeparateVCache::SeparateVCache() {
+// SeparateKVCache: OpenVINO's SharedOpOptimization (run by Model::reshape) merges the
+// identical K- and V-cache dequantization chains across global-attention blocks that
+// reuse the same KV cache, so a single K-transpose / V-multiply can feed several blocks'
+// MatMuls. The NPUW repeated-block partitioner cannot represent such a shared node -- it
+// leaks as an extra output of one block while being consumed by others, producing repeated
+// blocks with inconsistent output counts. This pass duplicates the shared cache chain per
+// consumer so each attention block owns an independent copy. The K side
+// (Concat->Convert->Multiply->Transpose) and the V side (Concat->Convert->Multiply) are
+// handled the same way.
+//
+// NB: This pass reuses the SDPADecomposed1 pattern (with the consumes_global_mask
+// predicate), so it only fires for global-attention blocks. Local attention is not
+// isolated/folded here, so leaving its (also shared) KV chains untouched is fine.
+SeparateKVCache::SeparateKVCache() {
     auto n = make_sdpa_decomposed1_pattern();
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto multiply2_node =
-            std::dynamic_pointer_cast<ov::op::v1::Multiply>(node_to_output.at(n.multiply2).get_node_shared_ptr());
-        auto matmul2_node =
-            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(n.matmul2).get_node_shared_ptr());
+        // Clone a (possibly weight) constant so each duplicated chain owns its own node.
+        // Sharing one constant across multiple call-site subgraph models confuses the
+        // partitioner's propagateWeights bank-assignment, which expects exactly one
+        // constant per call site. Non-constant sources (e.g. a Parameter) are reused.
+        auto clone_source = [](const ov::Output<ov::Node>& src) -> ov::Output<ov::Node> {
+            if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(src.get_node_shared_ptr())) {
+                return std::make_shared<ov::op::v0::Constant>(*c)->output(0);
+            }
+            return src;
+        };
 
-        auto ml_node_target_inputs = multiply2_node->output(0).get_target_inputs();
-        if (ml_node_target_inputs.size() <= 1) {
-            // multiply2 has only one consumer (matmul2 in this pattern) -- nothing to unshare.
-            return false;
-        }
+        // Duplicate the cache chain feeding `shared_node` for every consumer other than the
+        // one already matched in this pattern. `clone_chain` builds a fresh, independent copy
+        // of the chain. Returns true if any consumer was redirected.
+        auto unshare = [&](const std::shared_ptr<ov::Node>& shared_node,
+                           const ov::Node* pattern_consumer,
+                           auto&& clone_chain) -> bool {
+            if (!shared_node) {
+                return false;
+            }
+            auto targets = shared_node->output(0).get_target_inputs();
+            if (targets.size() <= 1) {
+                return false;  // only the matched consumer -- nothing to unshare.
+            }
+            bool changed = false;
+            for (auto& target_input : targets) {
+                if (target_input.get_node() == pattern_consumer) {
+                    continue;  // keep the matched consumer on the original chain.
+                }
+                if (!dynamic_cast<ov::op::v0::MatMul*>(target_input.get_node())) {
+                    continue;
+                }
+                target_input.replace_source_output(clone_chain());
+                changed = true;
+            }
+            return changed;
+        };
+
+        auto concat1_node =
+            std::dynamic_pointer_cast<ov::op::v0::Concat>(node_to_output.at(n.concat1).get_node_shared_ptr());
+        auto convert1_node =
+            std::dynamic_pointer_cast<ov::op::v0::Convert>(node_to_output.at(n.convert1).get_node_shared_ptr());
+        auto multiply1_node =
+            std::dynamic_pointer_cast<ov::op::v1::Multiply>(node_to_output.at(n.multiply1).get_node_shared_ptr());
+        auto transpose1_node =
+            std::dynamic_pointer_cast<ov::op::v1::Transpose>(node_to_output.at(n.transpose1).get_node_shared_ptr());
+        auto matmul1_node =
+            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(n.matmul1).get_node_shared_ptr());
 
         auto concat2_node =
             std::dynamic_pointer_cast<ov::op::v0::Concat>(node_to_output.at(n.concat2).get_node_shared_ptr());
         auto convert2_node =
             std::dynamic_pointer_cast<ov::op::v0::Convert>(node_to_output.at(n.convert2).get_node_shared_ptr());
+        auto multiply2_node =
+            std::dynamic_pointer_cast<ov::op::v1::Multiply>(node_to_output.at(n.multiply2).get_node_shared_ptr());
+        auto matmul2_node =
+            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(n.matmul2).get_node_shared_ptr());
 
+        auto concat1_inputs = concat1_node->inputs();
+        auto multiply1_inputs = multiply1_node->inputs();
+        auto transpose1_inputs = transpose1_node->inputs();
         auto concat2_inputs = concat2_node->inputs();
         auto multiply2_inputs = multiply2_node->inputs();
 
-        // For each extra consumer of multiply2 (beyond the matmul2 already in the pattern),
-        // create a duplicate concat->convert->multiply chain and redirect that consumer's
-        // V input to the new chain. Each consumer keeps its own Q (its own softmax) --
-        // only the shared V-cache side is duplicated.
-        for (auto& target_input : ml_node_target_inputs) {
-            // Skip the matmul2 that is already part of this matched pattern.
-            if (target_input.get_node() == matmul2_node.get()) {
-                continue;
-            }
+        // K-cache chain clone: Concat -> Convert -> Multiply -> Transpose
+        auto clone_k = [&]() -> ov::Output<ov::Node> {
+            auto new_concat = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{concat1_inputs[0].get_source_output(), concat1_inputs[1].get_source_output()},
+                concat1_node->get_axis());
+            auto new_convert =
+                std::make_shared<ov::op::v0::Convert>(new_concat, convert1_node->get_convert_element_type());
+            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(
+                new_convert,
+                clone_source(multiply1_inputs[1].get_source_output()));
+            auto new_transpose = std::make_shared<ov::op::v1::Transpose>(
+                new_multiply,
+                clone_source(transpose1_inputs[1].get_source_output()));
+            return new_transpose->output(0);
+        };
 
-            if (!dynamic_cast<ov::op::v0::MatMul*>(target_input.get_node())) {
-                continue;
-            }
-
-            // Clone concat2 with same inputs
+        // V-cache chain clone: Concat -> Convert -> Multiply
+        auto clone_v = [&]() -> ov::Output<ov::Node> {
             auto new_concat = std::make_shared<ov::op::v0::Concat>(
                 ov::OutputVector{concat2_inputs[0].get_source_output(), concat2_inputs[1].get_source_output()},
                 concat2_node->get_axis());
-
-            // Clone convert2
             auto new_convert =
                 std::make_shared<ov::op::v0::Convert>(new_concat, convert2_node->get_convert_element_type());
+            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(
+                new_convert,
+                clone_source(multiply2_inputs[1].get_source_output()));
+            return new_multiply->output(0);
+        };
 
-            // Clone multiply2.
-            // IMPORTANT: clone the scale constant (not reuse it) so each new chain
-            // owns its own constant node. Sharing the same constant across multiple
-            // call-site subgraph models confuses the partitioner's propagateWeights
-            // bank-assignment, which expects exactly one constant per call site.
-            auto scale_source = multiply2_inputs[1].get_source_output();
-            auto scale_const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(scale_source.get_node_shared_ptr());
-            ov::Output<ov::Node> new_scale_output;
-            if (scale_const_node) {
-                auto new_scale = std::make_shared<ov::op::v0::Constant>(*scale_const_node);
-                new_scale_output = new_scale->output(0);
-            } else {
-                // Not a plain constant (e.g. a model parameter) -- safe to reuse.
-                new_scale_output = scale_source;
-            }
-            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(new_convert, new_scale_output);
-
-            // Redirect this consumer's V input from the shared multiply2 to the new chain.
-            target_input.replace_source_output(new_multiply->output(0));
-        }
-
-        return true;
+        bool changed = false;
+        changed = unshare(transpose1_node, matmul1_node.get(), clone_k) || changed;
+        changed = unshare(multiply2_node, matmul2_node.get(), clone_v) || changed;
+        return changed;
     };
 
-    register_matcher(std::make_shared<opp::Matcher>(n.reshape2, "SeparateVCache"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(n.reshape2, "SeparateKVCache"), std::move(callback));
 }
 
 bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -628,7 +672,7 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast4>();
-        rewr.add_matcher<ov::npuw::patterns::regularize::SeparateVCache>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::SeparateKVCache>();
 
         model_changed |= rewr.run_on_model(model);
     }
