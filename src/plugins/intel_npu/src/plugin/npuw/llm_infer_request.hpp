@@ -56,25 +56,33 @@ protected:
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids,
-                               ov::SoPtr<ov::ITensor> per_layer_inputs);
+                               ov::SoPtr<ov::ITensor> per_layer_inputs,
+                               ov::SoPtr<ov::ITensor> visual_pos_masks,
+                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
                              ov::SoPtr<ov::ITensor> token_type_ids,
-                             ov::SoPtr<ov::ITensor> per_layer_inputs);
+                             ov::SoPtr<ov::ITensor> per_layer_inputs,
+                             ov::SoPtr<ov::ITensor> visual_pos_masks,
+                             ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids,
                        ov::SoPtr<ov::ITensor> token_type_ids,
-                       ov::SoPtr<ov::ITensor> per_layer_inputs);
+                       ov::SoPtr<ov::ITensor> per_layer_inputs,
+                       ov::SoPtr<ov::ITensor> visual_pos_masks,
+                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> token_type_ids,
-                        ov::SoPtr<ov::ITensor> per_layer_inputs);
+                        ov::SoPtr<ov::ITensor> per_layer_inputs,
+                        ov::SoPtr<ov::ITensor> visual_pos_masks,
+                        ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
