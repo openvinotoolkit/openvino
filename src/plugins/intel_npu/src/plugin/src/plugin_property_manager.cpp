@@ -302,6 +302,7 @@ void PluginPropertyManager::registerProperties() const {
     try_register_property_based_on_config<COMPILER_TYPE>(_config, _properties, ov::intel_npu::compiler_type.name());
     try_register_property_based_on_config<PLATFORM>(_config, _properties, ov::intel_npu::platform.name());
     try_register_property_based_on_config<CREATE_EXECUTOR>(_config, _properties, ov::intel_npu::create_executor.name());
+    try_register_property_based_on_config<COMMANDLIST_MODE>(_config, _properties, ov::intel_npu::commandlist_mode.name());
     try_register_property_based_on_config<DYNAMIC_SHAPE_TO_STATIC>(_config, _properties, ov::intel_npu::dynamic_shape_to_static.name());
     try_register_property_based_on_config<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type.name());
     try_register_property_based_on_config<BACKEND_COMPILATION_PARAMS>(_config, _properties, ov::intel_npu::backend_compilation_params.name());

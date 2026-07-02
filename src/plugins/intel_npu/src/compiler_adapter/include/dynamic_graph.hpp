@@ -71,6 +71,17 @@ private:
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
+<<<<<<< HEAD
+=======
+    /**
+     * @brief Stores the number of subgraphs for dynamic models
+     * @note the number of subgraphs will be one for static models
+     */
+    uint64_t _num_of_subgraphs = 1;
+
+    bool _useInterpreter = true;
+
+>>>>>>> update_commandlist
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
