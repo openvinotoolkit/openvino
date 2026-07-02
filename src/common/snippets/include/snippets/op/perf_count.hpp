@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -11,14 +13,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
-#ifdef SNIPPETS_DEBUG_CAPS
-
-#    pragma once
-
-#    include <chrono>
-
-#    include "openvino/op/op.hpp"
-#    include "openvino/runtime/threading/thread_local.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov::snippets {
 
@@ -171,5 +167,3 @@ private:
 
 }  // namespace op
 }  // namespace ov::snippets
-
-#endif  // SNIPPETS_DEBUG_CAPS

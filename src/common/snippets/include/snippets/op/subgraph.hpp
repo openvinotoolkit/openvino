@@ -31,7 +31,9 @@
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
-#include "snippets/utils/debug_caps_config.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "snippets/utils/debug_caps_config.hpp"
+#endif
 
 namespace ov::snippets::op {
 

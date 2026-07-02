@@ -99,11 +99,11 @@
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
-#include "snippets/utils/debug_caps_config.hpp"
 #include "snippets/utils/utils.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include <map>
 
+#    include "snippets/utils/debug_caps_config.hpp"
 #    include "snippets/utils/linear_ir_pass_dumper.hpp"
 #endif  // SNIPPETS_DEBUG_CAPS
 #include "transformations/common_optimizations/nop_elimination.hpp"
