@@ -8,29 +8,27 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metrics.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
 
 class PluginPropertyManager final {
 public:
-    PluginPropertyManager(const FilteredConfig& config,
-                          const std::shared_ptr<Metrics>& metrics,
-                          const ov::SoPtr<IEngineBackend>& backend,
-                          Logger& logger);
+    PluginPropertyManager(const FilteredConfig& config, const ov::SoPtr<IEngineBackend>& backend, Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
 
     void setProperty(const ov::AnyMap& properties);
-    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
-    bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
+    bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {});
 
     const FilteredConfig& getConfig() const {
         return _config;
@@ -47,40 +45,30 @@ private:
     PluginPropertyManager(const PluginPropertyManager& other);
     struct CopyState {
         FilteredConfig config;
-        std::shared_ptr<Metrics> metrics;
         ov::SoPtr<IEngineBackend> backend;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
-        ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
-        bool compatibilityCheckSupported;
         std::string currentlyUsedPlatform;
         bool compilerConfigsFilteredByCompiler;
-        bool compatibilityCheckFiltered;
     };
 
     explicit PluginPropertyManager(CopyState&& state);
 
-    void registerProperties() const;
-    void initializeCompatibilityCheckSupportIfNeeded() const;
+    void registerProperties();
     bool isPropertyRegistered(const std::string& propertyName) const;
 
-    mutable FilteredConfig _config;
+    FilteredConfig _config;
 
-    std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
     Logger& _logger;
 
-    mutable ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
-    mutable ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
-    mutable bool _compatibilityCheckSupported = false;
-    mutable std::string _currentlyUsedPlatform;
-    mutable bool _compilerConfigsFilteredByCompiler = false;
-    mutable bool _compatibilityCheckFiltered = false;
+    ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    std::string _currentlyUsedPlatform;
+    bool _compilerConfigsFilteredByCompiler = false;
 
-    mutable std::map<std::string, PropertyDescriptor> _properties;
-    mutable std::vector<ov::PropertyName> _supportedProperties;
+    std::map<std::string, PropertyDescriptor> _properties;
 
-    const std::vector<ov::PropertyName> _cachingProperties = [] {
+    inline static const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
             ov::enable_profiling.name(),
@@ -112,9 +100,22 @@ private:
         return properties;
     }();
 
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name(),
-                                                                        ov::internal::cache_header_alignment.name()};
+    inline static const std::vector<ov::PropertyName> _internalSupportedProperties = {
+        ov::internal::caching_properties.name(),
+        ov::internal::caching_with_mmap.name(),
+        ov::internal::cache_header_alignment.name()};
+
+    static constexpr uint32_t _maxNumOfOptimalInferRequests = 8u;
+    inline static const std::vector<std::string> _optimizationCapabilities = {
+        ov::device::capability::FP16,
+        ov::device::capability::INT8,
+        ov::device::capability::EXPORT_IMPORT,
+    };
+    inline static const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{
+        1u,
+        _maxNumOfOptimalInferRequests,
+        1u};
+    inline static const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, _maxNumOfOptimalInferRequests};
 
     mutable std::mutex _mutex;
 };
