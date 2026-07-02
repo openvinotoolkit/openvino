@@ -1678,6 +1678,7 @@ void Graph::Infer(SyncInferRequest* request) {
     if (infer_count != -1) {
         infer_count++;
     }
+    m_inferenceHappened.store(true, std::memory_order_release);
 }
 
 void Graph::SortTopologically() {

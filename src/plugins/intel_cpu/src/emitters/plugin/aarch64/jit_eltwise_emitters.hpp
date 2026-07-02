@@ -85,8 +85,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    float min;
-    float max;
+    float min = 0.F;
+    float max = 0.F;
 
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
@@ -260,7 +260,7 @@ public:
 
 private:
     std::unique_ptr<jit_exp_emitter> exp_emitter;
-    float alpha;
+    float alpha = 0.F;
 
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
@@ -701,8 +701,8 @@ private:
 
     void register_table_entries() override;
 
-    bool detect_negative;
-    bool detect_positive;
+    bool detect_negative = false;
+    bool detect_positive = false;
 };
 
 class jit_less_emitter : public jit_emitter {
@@ -968,9 +968,9 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    float power;
-    float scale;
-    float shift;
+    float power = 0.F;
+    float scale = 1.F;
+    float shift = 0.F;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
@@ -1051,7 +1051,7 @@ public:
     bool is_relu() const;
 
 private:
-    float alpha;
+    float alpha = 0.F;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
@@ -1337,7 +1337,7 @@ public:
 private:
     std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter;
 
-    float beta;
+    float beta = 0.F;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -303,6 +304,16 @@ protected:
     // For dumping purposes. -1 - no counting, all other positive
     // values mean increment it within each Infer() call
     int infer_count = -1;
+
+    // Set to true after the first successful inference on this graph.
+    // Used by get_runtime_model() to prefer graphs where prepareParams() has
+    // already resolved the actual executor and set the correct impl_type.
+    std::atomic<bool> m_inferenceHappened{false};
+
+public:
+    bool inferenceHappened() const {
+        return m_inferenceHappened.load(std::memory_order_acquire);
+    }
 
     std::vector<NodePtr> graphNodes;
     std::vector<EdgePtr> graphEdges;

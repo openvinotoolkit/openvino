@@ -127,15 +127,15 @@ private:
     MemoryPtr rhsPackedMem;
     MemoryPtr lhsPackedMem;
     size_t M = 0UL, N = 0UL, K = 0UL;
-    size_t mr, nr, kr, sr;
+    size_t mr = 0, nr = 0, kr = 0, sr = 0;
     // F32 Kernel block size
     static constexpr size_t BLOCK_SIZE = 8;
     // lowp kernel blocking in M dimension for both packing and matmul calls
     const kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel* ukernel_i8 = nullptr;
     const kai_matmul_clamp_f32_qai8dxp_qsi4cxp_ukernel* ukernel_i4 = nullptr;
-    size_t BLOCK_SIZE_M_LOWP;
+    size_t BLOCK_SIZE_M_LOWP = 0;
     size_t packedlhs_block_in_bytes = 0UL;
-    bool INT4_IMPL;
+    bool INT4_IMPL = false;
     bool useDynamicQuant = false;
     ExecutorContext::CPtr executorContext;
 };
