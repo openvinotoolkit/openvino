@@ -97,6 +97,7 @@
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/common/op/store_convert.hpp"
@@ -145,7 +146,6 @@
          }                                                                                        \
          OPENVINO_THROW("Unsupported Round mode");                                                \
      }}
-
 namespace ov {
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -338,6 +338,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
         CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
     jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = emitter_factory.from_node<jit_swish_emitter>();
     jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_node<jit_is_finite_emitter>();
     jitters[ov::op::v10::IsInf::get_type_info_static()] = emitter_factory.from_node<jit_is_inf_emitter>();
     jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_node<jit_is_nan_emitter>();
