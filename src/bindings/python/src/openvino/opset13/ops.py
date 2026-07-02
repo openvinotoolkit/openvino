@@ -290,7 +290,7 @@ def scaled_dot_product_attention(
 )  # type: ignore
 @nameable_op
 def constant(
-    value: Union[NumericData, np.number, bool, np.bool_, list],
+    value: Union[NumericData, np.number, bool, np.bool_, list, tuple],
     dtype: Union[NumericType, Type] = None,
     name: Optional[str] = None,
     *,
