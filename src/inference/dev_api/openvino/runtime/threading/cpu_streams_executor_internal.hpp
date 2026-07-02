@@ -30,17 +30,18 @@ enum StreamCreateType {
  * @param[in]  streams_info_table streams information table
  * @param[out]  stream_type stream create type
  * @param[out]  concurrency the number of threads created at the same time
- * @param[out]  core_type core type
+ * @param[out]  core_types core types used for thread binding
  * @param[out]  numa_node_id numa node id
+ * @param[out]  socket_id socket id
  * @param[out]  max_threads_per_core the max number of threads per cpu core
  */
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
-                         const std::vector<std::vector<int>> org_proc_type_table,
-                         const std::vector<std::vector<int>> streams_info_table,
+                         const std::vector<std::vector<int>>& org_proc_type_table,
+                         const std::vector<std::vector<int>>& streams_info_table,
                          StreamCreateType& stream_type,
                          int& concurrency,
-                         int& core_type,
+                         std::vector<int>& core_types,
                          int& numa_node_id,
                          int& socket_id,
                          int& max_threads_per_core);
