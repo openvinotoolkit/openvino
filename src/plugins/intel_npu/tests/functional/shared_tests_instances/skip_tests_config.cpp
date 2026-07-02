@@ -273,6 +273,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
                     ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
                     ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
                     ruleFlag &= categoryRuleEnabler("driver_version", {devices.getDriverVersion()}, enableRules);
+                    ruleFlag &= categoryRuleEnabler("driver_type",
+                        {driverTypeToString(g_driver_type)},
+                        enableRules);
                     ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
                 }
 

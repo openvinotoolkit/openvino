@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "common/npu_test_env_cfg.hpp"
 #include "gtest/gtest.h"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -80,6 +81,29 @@ int main(int argc, char** argv, char** envp) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
+
+    for (int i = 1; i < argc; i++) {
+        std::string arg(argv[i]);
+        const std::string prefix = "--driver_type=";
+        if (arg.find(prefix) == 0) {
+            std::string value = arg.substr(prefix.length());
+            auto parsed = ov::test::utils::parseDriverType(value);
+            if (parsed.has_value()) {
+                ov::test::utils::g_driver_type = parsed;
+                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(parsed) << std::endl;
+            } else {
+                std::cerr << "WARNING: Invalid --driver_type value: '" << value
+                          << "' (expected pv, release, or latest)." << std::endl;
+            }
+            break;
+        }
+    }
+    if (!ov::test::utils::g_driver_type.has_value()) {
+        ov::test::utils::g_driver_type = ov::test::utils::DriverType::LATEST;
+        std::cout << "Driver type not specified, defaulting to: "
+                  << ov::test::utils::driverTypeToString(ov::test::utils::g_driver_type) << std::endl;
+    }
+
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::NpuTestReportEnvironment());
 
     const bool dryRun = ::testing::GTEST_FLAG(list_tests) || ::testing::internal::g_help_flag;

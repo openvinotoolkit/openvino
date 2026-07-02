@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <openvino/runtime/device_id_parser.hpp>
+#include <optional>
 #include <string>
 
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -15,6 +16,15 @@
 using namespace ov::test::behavior;
 
 namespace ov::test::utils {
+
+enum class DriverType { PV, RELEASE, LATEST };
+
+std::string driverTypeToString(std::optional<DriverType> type);
+
+std::optional<DriverType> parseDriverType(const std::string& str);
+
+// Accessed by NpuDriverAwareTest and skip config machinery
+extern std::optional<DriverType> g_driver_type;
 
 /**
  * Reads configuration environment variables

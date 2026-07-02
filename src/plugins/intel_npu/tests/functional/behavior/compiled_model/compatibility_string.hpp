@@ -13,6 +13,8 @@
 #include <openvino/runtime/intel_npu/properties.hpp>
 
 #include "behavior/compiled_model/properties.hpp"
+#include "common/npu_driver_aware_test.hpp"
+#include "common/npu_driver_skip_macros.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
@@ -239,6 +241,40 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
     // The equality must be guaranteed for a given openvino version
     // If the blob was exported with a different OV version, requirements might differ
     ASSERT_EQ(reference_requirements, imported_requirements);
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_PV_DRIVER) {
+    NPU_SKIP_IF_DRIVER_TYPE_IS(PV, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for PV");
+
+    std::cout << "this is not PV, so the test will run\n";
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_PV_RELEASE_DRIVER) {
+    NPU_SKIP_IF_DRIVER_TYPE_IS(PV, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for PV");
+    NPU_SKIP_IF_DRIVER_TYPE_IS(RELEASE, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for RELEASE");
+
+    std::cout << "this is not PV/RELEASE, so the test will run\n";
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_LATEST_DRIVER) {
+    NPU_SKIP_IF_DRIVER_TYPE_IS(LATEST, "Macro NPU_SKIP_IF_DRIVER_TYPE_IS skipped for LATEST");
+
+    std::cout << "this is not LATEST, so the test will run\n";
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, TESTING_CompatibilityCheck_BehaviorByDriverType) {
+    using ov::test::utils::DriverType;
+
+    if (ov::test::behavior::isDriverType(DriverType::PV)) {
+        std::cout << "pv driver branching with isDriverType\n";
+    } else if (ov::test::behavior::isDriverType(DriverType::RELEASE)) {
+        std::cout << "release driver branching with isDriverType\n";
+    } else if (ov::test::behavior::isDriverType(DriverType::LATEST)) {
+        std::cout << "latest driver branching with isDriverType\n";
+    } else {
+        std::cout << "unknown driver\n";
+        GTEST_FAIL();
+    }
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
