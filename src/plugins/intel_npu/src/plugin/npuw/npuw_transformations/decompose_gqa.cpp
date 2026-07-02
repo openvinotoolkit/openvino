@@ -147,10 +147,10 @@ public:
         const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
         const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
         // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
-        // Mask with the type's finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN.
         std::shared_ptr<ov::Node> minus_inf = nullptr;
         if (T == ov::element::f32)
-            minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
         else if (T == ov::element::f16)
             minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
