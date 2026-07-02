@@ -29,41 +29,52 @@ using memory_ptr = std::shared_ptr<memory>;
 template<typename Key, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
 class memory_restricter {
     private:
-        const std::unordered_set<Key, Hash, KeyEqual>* set1;  // Const reference to immutable set
-        std::unordered_set<Key, Hash, KeyEqual> set2;         // Internal mutable set
+        const std::vector<Key>* ordered_keys_set1;  // Const reference to immutable set
+        std::vector<Key> ordered_keys_set2;         // Internal mutable set
 
     public:
-        memory_restricter() : set1(nullptr) {};
+        memory_restricter() : ordered_keys_set1(nullptr) {};
 
         // Constructor to initialize with a const reference for set1
-        explicit memory_restricter(const std::unordered_set<Key, Hash, KeyEqual>* externalSet)
-            : set1(externalSet) {}
+        explicit memory_restricter(const std::vector<Key>* externalSet)
+            : ordered_keys_set1(externalSet) {
+        }
 
         // Insert into set2 (set1 is read-only)
         void insert(const Key& key) {
-            if (set1->find(key) == set1->end())
-                set2.insert(key);
+            auto it = std::lower_bound(ordered_keys_set1->begin(), ordered_keys_set1->end(), key);
+            if (it == ordered_keys_set1->end() || *it != key) {
+                auto it2 = std::lower_bound(ordered_keys_set2.begin(), ordered_keys_set2.end(), key);
+                if (it2 == ordered_keys_set2.end() || *it2 != key) {
+                    ordered_keys_set2.insert(it2, key);
+                }
+            }
         }
 
         // Check existence in either set
-        bool contains(const Key& key) const {
-            return set1->find(key) != set1->end() || set2.find(key) != set2.end();
+        bool contains(const Key & key) const {
+            if (ordered_keys_set1 && !ordered_keys_set1->empty()) {
+                if (std::binary_search(ordered_keys_set1->begin(), ordered_keys_set1->end(), key)) {
+                    return true;
+                }
+            }
+            return std::binary_search(ordered_keys_set2.begin(), ordered_keys_set2.end(), key);
         }
 
         // Total size of both sets
         size_t size() const {
-            return set1->size() + set2.size();
+            return ordered_keys_set1->size() + ordered_keys_set2.size();
         }
 
         // Check if both sets are empty
         bool empty() const {
-            return set1->empty() && set2.empty();
+            return ordered_keys_set1->empty() && ordered_keys_set2.empty();
         }
 
         // Iterate over both sets
         void for_each(void(*func)(const Key&)) const {
-            for (const auto& key : set1) func(key);
-            for (const auto& key : set2) func(key);
+            for (const auto& key : ordered_keys_set1) func(key);
+            for (const auto& key : ordered_keys_set2) func(key);
         }
 }; // end of memory_restricter
 
