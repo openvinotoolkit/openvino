@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ze_common.hpp"
+#include "ze_resource.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -30,14 +31,14 @@ public:
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
 
-    void* get_user_context() const override;
+    void* get_user_context(runtime_types rt_type) const override;
 
     allocation_type get_default_allocation_type() const override { return allocation_type::usm_device; }
     allocation_type detect_usm_allocation_type(const void* memory) const override;
 
-    ze_context_handle_t get_context() const;
-    ze_driver_handle_t get_driver() const;
-    ze_device_handle_t get_device() const;
+    ze_context_resource get_context() const;
+    ze_driver_resource get_driver() const;
+    ze_device_resource get_device() const;
 
     stream_ptr create_stream(const ExecutionConfig& config) const override;
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;

@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #define VCL_COMPILER_VERSION_MAJOR 7
-#define VCL_COMPILER_VERSION_MINOR 7
+#define VCL_COMPILER_VERSION_MINOR 8
 #define VCL_PROFILING_VERSION_MAJOR 2
 #define VCL_PROFILING_VERSION_MINOR 0
 
@@ -275,6 +275,17 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate3(vcl_compile
                                                                      uint64_t* blobSize,
                                                                      uint8_t** compatibilityStringBuffer,
                                                                      uint64_t* compatibilityStringSize);
+
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate4(vcl_compiler_handle_t compiler,
+                                                                     vcl_executable_desc_t desc,
+                                                                     vcl_allocator2_t* allocator,
+                                                                     uint8_t** blobBuffer,
+                                                                     uint64_t* blobSize,
+                                                                     vcl_executable_handle_t* executable);
+
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableGetCompatibilityString(vcl_executable_handle_t executable,
+                                                                           char* compatibilityStringBuffer,
+                                                                           uint64_t* compatibilityStringSize);
 
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreateWSOneShot(vcl_compiler_handle_t compiler,
                                                                              vcl_executable_desc_t desc,
