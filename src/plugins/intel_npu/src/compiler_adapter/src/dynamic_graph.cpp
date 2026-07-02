@@ -401,27 +401,21 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
-    std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
+    std::vector<std::shared_ptr<DynamicGraph::MemRefTypeImpl>> inputMemRefImpls;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputHandles;
     for (auto& in : inputDescriptors) {
-        std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
-            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
-        if (inImpl == nullptr) {
-            inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
-            in._impl = inImpl;
-        }
+        std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
         inImpl->UpdateMemRefHandleStatus(in);
-        inputs.push_back(inImpl->_memRef);
+        inputMemRefImpls.push_back(inImpl);
+        inputHandles.push_back(inImpl->_memRef);
     }
-    std::vector<npu_vm_runtime_mem_ref_handle_t> outputs;
+    std::vector<std::shared_ptr<DynamicGraph::MemRefTypeImpl>> outputMemRefImpls;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> outputHandles;
     for (auto& out : outputDescriptors) {
-        std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
-            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
-        if (outImpl == nullptr) {
-            outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
-            out._impl = outImpl;
-        }
+        std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
         outImpl->UpdateMemRefHandleStatus(out);
-        outputs.push_back(outImpl->_memRef);
+        outputMemRefImpls.push_back(outImpl);
+        outputHandles.push_back(outImpl->_memRef);
     }
 
     npu_vm_runtime_result_t result = NPU_VM_RUNTIME_RESULT_SUCCESS;
@@ -433,10 +427,10 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
 
     if (version == NPU_VM_RUNTIME_VERSION_1_0) {
         npu_vm_runtime_predict_output_shape_params_t params;
-        params.pInputs = inputs.data();
-        params.numOfInputs = static_cast<uint32_t>(inputs.size());
-        params.pOutputs = outputs.data();
-        params.numOfOutputs = static_cast<uint32_t>(outputs.size());
+        params.pInputs = inputHandles.data();
+        params.numOfInputs = static_cast<uint32_t>(inputHandles.size());
+        params.pOutputs = outputHandles.data();
+        params.numOfOutputs = static_cast<uint32_t>(outputHandles.size());
 
         result = npuVMRuntimePredictOutputShape(_engine, &params);
     } else {
@@ -453,10 +447,10 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
         }
 
         npu_vm_runtime_predict_output_shape_params_t2 params;
-        params.pInputs = inputs.data();
-        params.numOfInputs = static_cast<uint32_t>(inputs.size());
-        params.pOutputs = outputs.data();
-        params.numOfOutputs = static_cast<uint32_t>(outputs.size());
+        params.pInputs = inputHandles.data();
+        params.numOfInputs = static_cast<uint32_t>(inputHandles.size());
+        params.pOutputs = outputHandles.data();
+        params.numOfOutputs = static_cast<uint32_t>(outputHandles.size());
         params.executionContext = executeParams->executionContext;
 
         result = npuVMRuntimePredictOutputShape2(_engine, &params);
@@ -465,9 +459,9 @@ void DynamicGraphImpl::predictOutputShape(DynamicGraph::GraphArguments& args,
     if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to predict output shape with VM runtime engine, error code: ", result);
     } else {
-        for (auto& out : outputDescriptors) {
-            std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
-                std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
+        for (size_t i = 0; i < outputDescriptors.size(); ++i) {
+            auto& out = outputDescriptors[i];
+            std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl = outputMemRefImpls[i];
             if (outImpl == nullptr) {
                 OPENVINO_THROW("MemRefType implementation is broken, unkown error happens in shape prediction.");
             }
