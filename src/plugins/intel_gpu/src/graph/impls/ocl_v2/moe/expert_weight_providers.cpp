@@ -16,11 +16,6 @@
 
 namespace ov::intel_gpu::ocl::moe {
 
-std::vector<size_t> ResidentExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
-    // Fully resident: the expert id is already the addressable slot.
-    return std::vector<size_t>(experts.begin(), experts.end());
-}
-
 std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Resident: identity mapping, always succeeds.
     return ExpertSlotLease{std::vector<size_t>(experts.begin(), experts.end())};
@@ -44,45 +39,6 @@ void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
     _resident = &resident;
     _cache->m_initialized = true;
     _bound = true;
-}
-
-std::vector<size_t> OffloadExpertWeightProvider::acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) {
-    std::vector<size_t> slots(experts.size());
-
-    // Deduplicate while preserving first-seen order so the LRU eviction order is
-    // identical to the legacy per-expert remap path.
-    std::unordered_map<uint32_t, size_t> expert_to_slot;
-    expert_to_slot.reserve(experts.size());
-
-    auto* perf = moe_otd::get_perf_counters();
-
-    for (size_t i = 0; i < experts.size(); i++) {
-        const uint32_t expert = experts[i];
-        auto it = expert_to_slot.find(expert);
-        if (it != expert_to_slot.end()) {
-            slots[i] = it->second;
-            continue;
-        }
-
-        const auto item = _cache->get_lru_item(expert);
-        const auto slot = item.first;
-
-        if (item.second) {
-            if (perf)
-                perf->gpu_hits.fetch_add(1, std::memory_order_relaxed);
-        } else {
-            if (perf)
-                perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
-            OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound before acquire()");
-            moe_otd::fill_weights_memory(stream, _config, _weight_bin_offsets, _weights_path, *_resident, {expert}, {slot});
-            _cache->set_filled(slot);
-        }
-
-        expert_to_slot.emplace(expert, slot);
-        slots[i] = slot;
-    }
-
-    return slots;
 }
 
 void OffloadExpertWeightProvider::fill_routed_weight_views(cldnn::moe_weights& /*weights*/, RoutedWeightViews& views) {

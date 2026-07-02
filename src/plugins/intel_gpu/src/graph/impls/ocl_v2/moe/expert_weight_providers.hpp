@@ -17,11 +17,9 @@
 namespace ov::intel_gpu::ocl::moe {
 
 // Identity provider: every expert's weights are already resident in device memory
-// for the network lifetime. acquire() returns the expert ids unchanged. This is the
-// behaviour of the non-offloaded (ratio=0) path.
+// for the network lifetime. This is the behaviour of the non-offloaded (ratio=0) path.
 class ResidentExpertWeightProvider : public IExpertWeightProvider {
 public:
-    std::vector<size_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return 0;
     }
@@ -35,9 +33,9 @@ public:
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
-// into a bounded set of device-resident slots managed by an LRU cache. acquire()
-// deduplicates the requested experts, assigns/streams slots, and returns the slot
-// index per requested expert (parallel to the input vector, duplicates collapsed).
+// into a bounded set of device-resident slots managed by an LRU cache.
+// The provider deduplicates the requested experts, assigns/streams slots, and
+// returns the slot index per requested expert.
 //
 // The resident device buffers are not owned here; they are bound at runtime via
 // bind() because in this back-end they alias the primitive's
@@ -47,7 +45,6 @@ class OffloadExpertWeightProvider : public IExpertWeightProvider {
 public:
     OffloadExpertWeightProvider(size_t capacity, const cldnn::MOECompressed::Config& config, std::vector<size_t> weight_bin_offsets, std::string weights_path);
 
-    std::vector<size_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t resident_capacity() const override {
         return _capacity;
     }

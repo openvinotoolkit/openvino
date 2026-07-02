@@ -32,7 +32,6 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 #    include <string_view>
 #    include <thread>
 #    include <tuple>
-#    include <unordered_set>
 #    include <utility>
 
 #    include "../primitive_ocl_base.hpp"
@@ -661,38 +660,6 @@ public:
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
-    void remap_expert_ids_to_lru_slots(cldnn::stream& stream, uint32_t* expert_ids, size_t count) {
-        std::vector<uint32_t> ids(expert_ids, expert_ids + count);
-        auto slots = _weight_provider->acquire(ids, stream);
-        for (size_t i = 0; i < count; i++)
-            expert_ids[i] = static_cast<uint32_t>(slots[i]);
-    }
-
-    void resolve_experts_to_lru_slots(cldnn::stream& stream,
-                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                      scratch_buffers& scratch,
-                                      memory::ptr& batch_mem_ptr,
-                                      size_t topk_count) {
-        auto& engine = instance.get_network().get_engine();
-
-        std::vector<uint32_t> expert_ids(topk_count);
-        batch_mem_ptr->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
-
-        auto slots = _weight_provider->acquire(expert_ids, stream);
-
-        const size_t topk_bytes = topk_count * sizeof(uint32_t);
-        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
-            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
-        }
-        // Narrow size_t slots to uint32_t for the GPU buffer
-        std::vector<uint32_t> slots_u32(slots.size());
-        for (size_t i = 0; i < slots.size(); i++)
-            slots_u32[i] = static_cast<uint32_t>(slots[i]);
-        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
-        batch_mem_ptr = scratch._expert_index_buffer;
-    }
-
     void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
         const auto& w = instance._weights;
         scratch.moe_fusion_wei_addr.weight[0] = w.gate_w;
@@ -751,22 +718,76 @@ public:
     void on_before_batched_gemv(cldnn::stream& stream,
                                 typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                 scratch_buffers& scratch,
-                                size_t topk_count) {
-        if (!_weight_provider->is_offloaded())
+                                size_t topk_count,
+                                bool& needs_fallback) {
+        if (!_weight_provider->is_offloaded()) {
+            needs_fallback = false;
             return;
+        }
         stream.finish();
-        resolve_experts_to_lru_slots(stream, instance, scratch, scratch.topk_id, topk_count);
+
+        std::vector<uint32_t> expert_ids(topk_count);
+        scratch.topk_id->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
+
+        auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, stream);
+        if (!lease) {
+            if (auto* perf = moe_otd::get_perf_counters())
+                perf->batched_fallbacks.fetch_add(1, std::memory_order_relaxed);
+            needs_fallback = true;
+            return;
+        }
+
+        // Write remapped slot IDs to GPU buffer
+        auto& engine = instance.get_network().get_engine();
+        const size_t topk_bytes = topk_count * sizeof(uint32_t);
+        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
+            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
+            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+        }
+        std::vector<uint32_t> slots_u32(lease->slots.size());
+        for (size_t i = 0; i < lease->slots.size(); i++)
+            slots_u32[i] = static_cast<uint32_t>(lease->slots[i]);
+        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+
         set_otd_weight_pointers(instance, scratch);
+        needs_fallback = false;
     }
 
     void on_before_prefill(cldnn::stream& stream,
                            typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                            scratch_buffers& scratch,
                            memory::ptr& batch_mem_ptr,
-                           size_t topk_count) {
-        if (!_weight_provider->is_offloaded())
+                           size_t topk_count,
+                           bool& needs_fallback) {
+        if (!_weight_provider->is_offloaded()) {
+            needs_fallback = false;
             return;
-        resolve_experts_to_lru_slots(stream, instance, scratch, batch_mem_ptr, topk_count);
+        }
+
+        std::vector<uint32_t> expert_ids(topk_count);
+        batch_mem_ptr->copy_to(stream, expert_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
+
+        auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, stream);
+        if (!lease) {
+            if (auto* perf = moe_otd::get_perf_counters())
+                perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
+            needs_fallback = true;
+            return;
+        }
+
+        // Write remapped slot IDs to GPU buffer
+        auto& engine = instance.get_network().get_engine();
+        const size_t topk_bytes = topk_count * sizeof(uint32_t);
+        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
+            auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
+            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+        }
+        std::vector<uint32_t> slots_u32(lease->slots.size());
+        for (size_t i = 0; i < lease->slots.size(); i++)
+            slots_u32[i] = static_cast<uint32_t>(lease->slots[i]);
+        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+        batch_mem_ptr = scratch._expert_index_buffer;
+        needs_fallback = false;
     }
 
     bool on_load_expert_weights(size_t expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, dnnl::stream& dnn_stream) {
@@ -777,7 +798,7 @@ public:
 
         auto& stream = instance.get_network().get_stream();
         auto& dnnl_weights = _dnnl_weights[expert_no];
-        auto lru_expert_no = static_cast<int64_t>(_weight_provider->acquire({static_cast<uint32_t>(expert_no)}, stream)[0]);
+        auto lru_expert_no = static_cast<int64_t>(_weight_provider->acquire_one(static_cast<uint32_t>(expert_no), stream));
         auto& params = instance._weights;
 
 #    define CONVERT_DNNL_OTD(name, i)                                                                                                                  \
@@ -828,27 +849,26 @@ public:
         std::vector<uint32_t> raw_topk_ids(topk_count);
         batch_mem_ptr->copy_to(stream, raw_topk_ids.data(), 0, 0, topk_count * sizeof(uint32_t), true);
 
-        // Count unique experts — grouped GEMM requires ALL active experts' weights
-        // simultaneously resident in GPU memory. If the count exceeds LRU capacity,
-        // fall back to the per-expert onednn loop which loads one expert at a time.
-        std::unordered_set<uint32_t> unique_experts_set(raw_topk_ids.begin(), raw_topk_ids.end());
-
-        if (unique_experts_set.size() > resident_slot_count()) {
-            GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique_experts=" << unique_experts_set.size()
-                                   << " > resident_slots=" << resident_slot_count() << ", falling back to per-expert onednn loop" << std::endl;
+        // Use lease API for capacity-safe simultaneous acquisition.
+        // If unique experts exceed resident capacity, returns nullopt → caller falls back.
+        auto lease = _weight_provider->try_acquire_simultaneous(raw_topk_ids, stream);
+        if (!lease) {
+            GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique experts exceed resident_slots="
+                                   << resident_slot_count() << ", falling back to per-expert onednn loop" << std::endl;
             if (auto* perf = moe_otd::get_perf_counters())
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
-            num_actually_used_experts = -1;  // Sentinel: caller falls back to exec_prefill_onednn
-            return true;
+            return false;  // Caller checks is_offloaded() to distinguish from non-OTD
         }
 
-        // Remap expert IDs to LRU slots in-place
-        remap_expert_ids_to_lru_slots(stream, raw_topk_ids.data(), topk_count);
+        // Remap using lease slots
+        std::vector<uint32_t> remapped(topk_count);
+        for (size_t i = 0; i < topk_count; i++)
+            remapped[i] = static_cast<uint32_t>(lease->slots[i]);
 
         // Build per-slot token lists sorted by LRU slot index
         std::vector<std::vector<int32_t>> slot_tokens(num_grouped_experts);
         for (size_t i = 0; i < topk_count; i++) {
-            int32_t slot = static_cast<int32_t>(raw_topk_ids[i]);
+            int32_t slot = static_cast<int32_t>(remapped[i]);
             int32_t token_idx = static_cast<int32_t>(i / max_topk);
             slot_tokens[slot].push_back(token_idx);
         }
@@ -878,7 +898,7 @@ public:
             auto remap_layout = batch_mem_ptr->get_layout();
             scratch._expert_index_buffer = engine.allocate_memory(remap_layout, allocation_type::usm_host, false);
         }
-        scratch._expert_index_buffer->copy_from(stream, raw_topk_ids.data(), 0, 0, topk_bytes, true);
+        scratch._expert_index_buffer->copy_from(stream, remapped.data(), 0, 0, topk_bytes, true);
         batch_mem_ptr = scratch._expert_index_buffer;
 
         set_otd_weight_pointers(instance, scratch);
@@ -1501,7 +1521,13 @@ public:
 
         {
             const size_t topk_count = token_num * static_cast<size_t>(max_topk);
-            on_before_batched_gemv(stream, instance, scratch, topk_count);
+            bool needs_fallback = false;
+            on_before_batched_gemv(stream, instance, scratch, topk_count, needs_fallback);
+            if (needs_fallback) {
+                // Cannot fit all experts simultaneously → fall back to per-expert onednn loop
+                instance.output_memory_ptr(0)->fill(stream, false);
+                return exec_prefill_onednn(events, stream, instance, scratch);
+            }
         }
         // OTD hook may have remapped expert IDs into scratch._expert_index_buffer
         if (scratch._expert_index_buffer) {
@@ -1627,7 +1653,12 @@ public:
 
         {
             auto topk_count = token_num * static_cast<size_t>(max_topk);
-            on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count);
+            bool needs_fallback = false;
+            on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count, needs_fallback);
+            if (needs_fallback) {
+                instance.output_memory_ptr(0)->fill(stream, false);
+                return exec_prefill_onednn(events, stream, instance, scratch);
+            }
         }
 
         // step 1: generate 4 mask data for following kernel execution
@@ -2283,6 +2314,10 @@ public:
                                     grouped_offsets_cpu,
                                     num_actually_used_experts,
                                     events)) {
+            if (_weight_provider->is_offloaded()) {
+                // OTD: unique experts > capacity → explicit fallback to per-expert loop
+                return exec_prefill_onednn(events, stream, instance, scratch);
+            }
             // Non-OTD path: build mask from original expert IDs
             expert_mask_cpu expert_mask;
             get_expert_mask_from_gpu(config, batch_mem_ptr, stream, expert_mask, token_num);
@@ -2303,11 +2338,6 @@ public:
                         tokens_per_expert_cpu[tokens_iter++] = t;
                 }
             }
-        }
-
-        // Sentinel: num_actually_used_experts == -1 means OTD fallback to per-expert onednn loop
-        if (num_actually_used_experts < 0) {
-            return exec_prefill_onednn(events, stream, instance, scratch);
         }
 
         int total_gathered_tokens = static_cast<int>(token_num) * max_topk;

@@ -46,18 +46,7 @@ class IExpertWeightProvider {
 public:
     virtual ~IExpertWeightProvider() = default;
 
-    // Maps a list of expert ids (as produced by routing, duplicates allowed) to
-    // device-resident slot indices usable by the GEMM kernels.
-    //
-    // Contract: every slot returned for a single acquire() call is simultaneously
-    // valid and mutually non-aliasing until the matching release(). The returned
-    // vector is parallel to `experts` (experts[i] -> slot[i]); duplicate expert
-    // ids map to the same slot. For the resident strategy this is the identity
-    // mapping (slot == expert id). For the offloaded strategy the caller must not
-    // request more unique experts than resident_capacity() in one acquire().
-    virtual std::vector<size_t> acquire(const std::vector<uint32_t>& experts, cldnn::stream& stream) = 0;
-
-    // Releases any pinning established by the most recent acquire(). Resident
+    // Releases any pinning established by the most recent acquisition. Resident
     // providers have nothing to release.
     virtual void release() {}
 

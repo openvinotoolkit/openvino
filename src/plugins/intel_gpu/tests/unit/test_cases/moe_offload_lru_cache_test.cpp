@@ -467,11 +467,12 @@ TEST(moe_expert_weight_provider, resident_is_identity) {
     ASSERT_FALSE(provider.is_offloaded());
     ASSERT_EQ(provider.resident_capacity(), 0U);
 
-    // Fully resident: acquire returns the expert ids unchanged, including duplicates
+    // Fully resident: try_acquire_simultaneous returns the expert ids unchanged, including duplicates
     // (no remap, no dedup) — the expert id is already the addressable slot.
     std::vector<uint32_t> experts = {3, 1, 4, 1, 5, 9, 2, 6};
-    auto slots = provider.acquire(experts, get_test_stream());
-    ASSERT_EQ(slots, (std::vector<size_t>{3, 1, 4, 1, 5, 9, 2, 6}));
+    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
+    ASSERT_TRUE(lease.has_value());
+    ASSERT_EQ(lease->slots, (std::vector<size_t>{3, 1, 4, 1, 5, 9, 2, 6}));
 }
 
 TEST(moe_expert_weight_provider, offload_construction_state) {
