@@ -135,6 +135,59 @@ TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
     }
 }
 
+TEST(FrontEndConvertTrickyModels, bias_add_nchw_non_static_rank) {
+    shared_ptr<Model> model;
+    try {
+        model = convert_model("bias_add_nchw_non_static_rank/bias_add_nchw_non_static_rank.pbtxt",
+                              nullptr,
+                              {"x", "bias"},
+                              {},
+                              {PartialShape::dynamic(), PartialShape{3}});
+    } catch (const std::exception& ex) {
+        FAIL() << ex.what();
+    }
+
+    ASSERT_NE(model, nullptr);
+
+    bool x_rank_dynamic = false;
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "x") {
+            x_rank_dynamic = parameter->get_output_partial_shape(0).rank().is_dynamic();
+        }
+    }
+    ASSERT_TRUE(x_rank_dynamic);
+}
+
+TEST(FrontEndConvertTrickyModels, bias_add_nchw_static_rank_regression) {
+    shared_ptr<Model> model;
+    try {
+        model = convert_model("bias_add_nchw_non_static_rank/bias_add_nchw_non_static_rank.pbtxt",
+                              nullptr,
+                              {"x", "bias"},
+                              {},
+                              {PartialShape{1, 3, 4, 4}, PartialShape{3}});
+    } catch (const std::exception& ex) {
+        FAIL() << ex.what();
+    }
+
+    ASSERT_NE(model, nullptr);
+}
+
+TEST(FrontEndConvertTrickyModels, bias_add_nhwc_regression) {
+    shared_ptr<Model> model;
+    try {
+        model = convert_model("bias_add_nhwc_regression/bias_add_nhwc_regression.pbtxt",
+                              nullptr,
+                              {"x", "bias"},
+                              {},
+                              {PartialShape{1, 4, 4, 3}, PartialShape{3}});
+    } catch (const std::exception& ex) {
+        FAIL() << ex.what();
+    }
+
+    ASSERT_NE(model, nullptr);
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, AssertAndStringTensors) {
     {
         model = convert_model("string_tensors_model/string_tensors_model.pbtxt");
