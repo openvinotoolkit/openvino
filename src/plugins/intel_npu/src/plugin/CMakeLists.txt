@@ -15,7 +15,7 @@ set(TARGET_NAME ${NPU_PLUGIN_TARGET})
 
 ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     DEVICE_NAME ${NPU_DEVICE_NAME}
-    SOURCES ${SOURCES} ${NPUW_SOURCES}
+    SOURCES ${SOURCES} ${NPUW_SOURCES} "../al/include/intel_npu/config/npuw_option_defs.inc"
     VERSION_DEFINES_FOR ${NPU_PLUGIN_ENGINE_SOURCE_FILE}
 )
 

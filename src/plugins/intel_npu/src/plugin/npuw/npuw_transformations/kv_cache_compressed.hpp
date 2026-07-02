@@ -21,6 +21,7 @@ struct KVCacheCompressionConfig {
 struct KVCacheCompressionParams {
     KVCacheCompressionConfig key;
     KVCacheCompressionConfig value;
+    bool quantize_q = false;
 };
 
 // The compression passes will look for SDPA patterns,

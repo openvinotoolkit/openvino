@@ -760,6 +760,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     init_profiling();
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
+    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
+    ::intel_npu::registerNPUWKokoroOptions(*m_options_desc);
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
