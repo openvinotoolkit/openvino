@@ -96,6 +96,12 @@ constexpr int STRIDE = 16;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
+
+// Subsequences with q_len in (1, SMALL_Q_THRESHOLD] and past_len > 0 are routed
+// to pa_small_q in split-mixed mode. Bound matches the typical EAGLE/draft
+// spec_num = 16 and the Q_head_chunk_size × KV_PARTITION_STEP_NUM register
+// budget that fits the rS tile under -Qxcm_register_file_size.
+constexpr size_t SMALL_Q_THRESHOLD = 16;
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     // common runtime state
     PagedAttentionStage stage;       // Current PA execution stage
@@ -109,6 +115,10 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
 
     // multi-token dispatch size
     size_t multi_token_wg_count = 0;  // Number of WGs required by pa_multi_token
+
+    // small-q decode path (q_len > 1 spec-decoding subsequences)
+    size_t small_q_token_count = 0;  // Total (subseq, q-token) pairs routed to pa_small_q
+    size_t small_q_max_kv_len = 0;   // Max kv_len across small-q subsequences (for partition count)
 
     // xattention runtime state
     bool enable_xattn_estimation = false;  // Whether xattn estimate stages are enabled
@@ -147,6 +157,14 @@ enum PagedAttentionInternBuffIdx {
     XATTN_POST_WG_MAP = 10,      // 10: i32 pairs [subseq_id, merged_q_block_idx] for post-proc dispatch
 #if FIND_DEBUG_ACC
     XATTN_FIND_DEBUG_ACC = 11,  // 11: f16 debug-only KQ accumulation buffer
+    SMALL_Q_PARTITIONOUT = 12,
+    SMALL_Q_EXPSUMS = 13,
+    SMALL_Q_SELECTED_MAPPING = 14,
+#else
+    // Small-q decode scratch buffers (q_len > 1 spec-decoding path).
+    SMALL_Q_PARTITIONOUT = 11,      // f32 partial outputs indexed by (sel_idx, head, partition, head_size)
+    SMALL_Q_EXPSUMS = 12,           // f32 lse per (sel_idx, head, partition)
+    SMALL_Q_SELECTED_MAPPING = 13,  // i32 pairs [orig_seq_idx, q_in_subseq] per selected (seq, q-token)
 #endif
 };
 
@@ -232,6 +250,31 @@ public:
 class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorSingleTokenFinalization() : PagedAttentionGeneratorBase("pa_single_token_finalization") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
+// Small-q decode kernel for q_len > 1 subsequences. GWS fans the (subseq, q-token,
+// kv-partition, head-chunk) combinations out one per SG; reuses pa_single_token's
+// per-partition FA layout but indexes everything by a packed sel_idx.
+class PagedAttentionGeneratorSmallQ : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorSmallQ() : PagedAttentionGeneratorBase("pa_small_q") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+    // Reuse single-token's partition-size policy: spec windows are short relative
+    // to past KV, so the large 256-token partition still amortises K/V loads well.
+    static size_t get_partition_size(const bool has_xattention = false) {
+        return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
+    }
+};
+
+class PagedAttentionGeneratorSmallQFinalization : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorSmallQFinalization() : PagedAttentionGeneratorBase("pa_small_q_finalization") {}
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
