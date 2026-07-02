@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # New operations added in Opset17
+from openvino.opset17.ops import atan2
 from openvino.opset17.ops import erfinv
 from openvino.opset17.ops import grouped_matmul
 
