@@ -32,8 +32,12 @@ public:
         m_filled_list[lru_expert_no] = true;
     }
 
-    bool is_initialized() const { return m_initialized; }
-    void set_initialized() { m_initialized = true; }
+    bool is_initialized() const {
+        return m_initialized;
+    }
+    void set_initialized() {
+        m_initialized = true;
+    }
 
 private:
     bool m_initialized = false;

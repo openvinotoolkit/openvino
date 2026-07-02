@@ -853,8 +853,8 @@ public:
         // If unique experts exceed resident capacity, returns nullopt → caller falls back.
         auto lease = _weight_provider->try_acquire_simultaneous(raw_topk_ids, stream);
         if (!lease) {
-            GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique experts exceed resident_slots="
-                                   << resident_slot_count() << ", falling back to per-expert onednn loop" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique experts exceed resident_slots=" << resident_slot_count()
+                                   << ", falling back to per-expert onednn loop" << std::endl;
             if (auto* perf = moe_otd::get_perf_counters())
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
             return false;  // Caller checks is_offloaded() to distinguish from non-OTD
@@ -1129,8 +1129,7 @@ public:
         if (_shared_gate_proj && _shared_gate_proj->m_batch == batch)
             return;
 
-        OPENVINO_ASSERT(addr.shared_weight[0],
-                        "MoE shared expert enabled (num_shared_expert > 0) but shared weight buffers are not bound");
+        OPENVINO_ASSERT(addr.shared_weight[0], "MoE shared expert enabled (num_shared_expert > 0) but shared weight buffers are not bound");
 
         _shared_intermediate_size = static_cast<int>(addr.shared_weight[0]->get_layout().count() / _hidden_size);
         auto eng = engine.get_onednn_engine();
