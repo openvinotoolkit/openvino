@@ -19,6 +19,14 @@ namespace ov::intel_gpu::ocl {
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
+constexpr size_t paged_attention_micro_sdpa_mapping_buffer_idx = 3;
+constexpr size_t paged_attention_micro_sdpa_prefill_key_buffer_idx = 4;
+constexpr size_t paged_attention_micro_sdpa_prefill_key_padding_head_size = 256;
+
+inline bool requires_paged_attention_micro_sdpa_prefill_key_padding(size_t head_size) {
+    return head_size == paged_attention_micro_sdpa_prefill_key_padding_head_size;
+}
+
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t num_of_partitions;

@@ -19,6 +19,7 @@
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
 #include <optional>
+#include <string>
 
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
