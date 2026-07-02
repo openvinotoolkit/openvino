@@ -57,18 +57,15 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 /// \brief Ensures the trailing two axes of `x` form an n x n matrix.
 ///
-/// When the trailing matrix dimensions are statically known, anything that is not n x n is
-/// rejected with a clear conversion-time message (`op_label` names the failing op). When they
-/// are dynamic -- the common case on the TorchScript path, where the decoder forces all dims
-/// dynamic so the size cannot be checked at conversion time -- a runtime guard is inserted that
-/// reshapes the trailing two axes to a fixed [n, n] while preserving the batch axes
-/// (new_shape = concat(ShapeOf(x)[:-2], [n, n])). For a genuine n x n input this is an identity;
-/// any other size cannot match the element count and raises a runtime Reshape error, turning an
-/// otherwise silent wrong result into a loud failure.
+/// Statically-known trailing dims that are not n x n are rejected with a clear conversion-time
+/// message (`op_label` names the op). When they are dynamic -- the common TorchScript case, where
+/// the decoder forces all dims dynamic -- a runtime guard pins each trailing axis to n with its
+/// own Reshape (so the element-count check runs per axis; a single [n, n] reshape would let e.g.
+/// [1, 9] pass as 3x3). A genuine n x n is an identity; any other size fails loudly at runtime.
 /// \param context Node context for marking nodes.
 /// \param x Batched matrix whose trailing two axes are validated/guarded.
 /// \param n Expected square matrix size.
-/// \param op_label Op name used in the static-shape conversion error message.
+/// \param op_label Op name used in the error message.
 /// \return `x` unchanged when statically validated, otherwise the runtime reshape-guarded matrix.
 Output<Node> ensure_trailing_square(const NodeContext& context,
                                     const Output<Node>& x,

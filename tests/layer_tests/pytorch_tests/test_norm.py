@@ -297,10 +297,9 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                            "dim": dim, "keepdim": keepdim})
 
 
-# ord=None on rank>2 inputs (previously unsupported / raised in the FE). torch maps
-# ord=None to the vector 2-norm over `dim` (Frobenius when `dim` lists two axes); this
-# must be rank-agnostic. Shared by the dynamic-rank test_linalg_norm cases and the
-# forced-static-rank test_linalg_norm_ordNone_rank_gt2_static cases below.
+# ord=None on rank>2 inputs (previously raised in the FE): torch maps ord=None to the vector
+# 2-norm over `dim` (Frobenius for a 2-axis dim), rank-agnostic. Shared by the dynamic-rank
+# test_linalg_norm cases and the forced-static-rank cases below.
 _ORD_NONE_RANK_GT2_CASES = [
     (None, -1,       [2, 4, 3]),         # ord=None, scalar dim, rank-3
     (None, 1,        [1, 5, 5, 3]),      # ord=None, scalar dim, rank-4
@@ -399,15 +398,12 @@ class TestLinalgNorm(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    # torch.linalg.norm(x) with ord=None and a tensor of static rank > 2 used to raise in
-    # the frontend. These cases (shared with test_linalg_norm) pin the static-rank path:
-    # the harness default uses dynamic rank, which takes a different branch.
+    # ord=None with static rank > 2 used to raise in the frontend; pin the static-rank path
+    # (the harness default uses dynamic rank, a different branch).
     @pytest.mark.parametrize('p,dim,input_shape', _ORD_NONE_RANK_GT2_CASES)
     @pytest.mark.parametrize('keepdim', [True, False])
     def test_linalg_norm_ordNone_rank_gt2_static(self, p, dim, keepdim, input_shape,
                                                  ie_device, precision, ir_version):
-        # Force static shapes so the input keeps a static rank > 2 (the condition
-        # under which the previous implementation raised "rank > 2 without ord").
         self._test(*self.create_model(p, dim, keepdim, None, False, False),
                    ie_device, precision, ir_version,
                    dynamic_shapes=False,

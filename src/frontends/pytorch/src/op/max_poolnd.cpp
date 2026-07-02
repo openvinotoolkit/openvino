@@ -34,13 +34,10 @@ using namespace ov::op;
 
 namespace {
 
-// Guard that spatial axis `spatial_idx` (0-based within the trailing `dims` spatial axes) of
-// `tensor` has runtime extent exactly equal to the runtime kernel value `k`. A non-constant kernel
-// element is only handled as a full-extent (global) pool, so this asserts that assumption at
-// runtime: build a Reshape whose target copies every axis from the runtime shape except this one,
-// which is pinned to `k`. When extent == k the Reshape is an identity; any other extent (e.g. a
-// genuine strided pool with k < extent) makes the element counts disagree and the Reshape fails
-// loudly at runtime instead of silently collapsing the axis to size 1.
+// Assert at runtime that spatial axis `spatial_idx` (0-based within the trailing `dims` axes) has
+// extent exactly `k`: a Reshape whose target copies every axis from the runtime shape but pins this
+// one to `k`. When extent == k it is an identity; any other extent (a strided pool with k < extent)
+// makes the element counts disagree and the Reshape fails loudly instead of collapsing the axis to 1.
 Output<Node> guard_full_extent_axis(const NodeContext& context,
                                     const Output<Node>& tensor,
                                     int dims,
@@ -57,7 +54,7 @@ Output<Node> guard_full_extent_axis(const NodeContext& context,
     if (k_i64.get_element_type() != element::i64) {
         k_i64 = context.mark_node(std::make_shared<v0::Convert>(k_i64, element::i64));
     }
-    // A kernel list element is a scalar; normalize it to a 1-D [1] so it slots into the shape.
+    // Normalize the scalar kernel element to a 1-D [1] so it slots into the shape.
     auto k_1d = context.mark_node(std::make_shared<v1::Reshape>(k_i64, one, false));
     OutputVector parts{batch};
     for (int t = 0; t < dims; ++t) {
@@ -71,25 +68,17 @@ Output<Node> guard_full_extent_axis(const NodeContext& context,
     }
     auto target = context.mark_node(std::make_shared<v0::Concat>(parts, 0));
     auto guarded = context.mark_node(std::make_shared<v1::Reshape>(tensor, target, false));
-    // Op-labeled name so the runtime Reshape failure identifies the op (the CPU plugin embeds the
-    // node name in its error message).
+    // Op-labeled name: the CPU plugin embeds the node name in the runtime error.
     guarded->set_friendly_name("aten::max_pool" + std::to_string(dims) + "d/require_full_extent");
     return guarded;
 }
 
-// Decompose a max_pool whose kernel_size is only known at runtime.
-//
-// OpenVINO's MaxPool takes the pooling window (kernel/strides/pads/dilations) as constructor
-// attributes, so it cannot represent a kernel whose size is computed at runtime -- e.g. PyTorch's
-// F.max_pool2d(x, kernel_size=[1, x.size(3)]). In practice such a kernel only appears as a
-// "global" pool that spans the full extent of a spatial axis, which is exactly a ReduceMax over
-// that axis (with keep_dims=True to preserve the pooled axis as size 1, matching MaxPool). Every
-// other dynamic-kernel configuration is rejected with a clear message.
-//
-// elem_is_const / elem_const_val describe the kernel element of each of the `dims` spatial axes:
-// a constant 1 means "window of 1" (identity along that axis), a non-constant element means
-// "full-extent global pool" (reduce that axis). ReduceMax accepts arbitrary rank, so this works
-// directly on the original input regardless of batch presence / dynamic rank, using negative axes.
+// Decompose a max_pool whose kernel_size is only known at runtime. OpenVINO's MaxPool takes the
+// window as constructor attributes, so a runtime-computed kernel (e.g. F.max_pool2d(x, [1,
+// x.size(3)])) is only handled as a "global" pool over the full extent of a spatial axis -- exactly
+// a ReduceMax (keep_dims=True to match MaxPool). Any other configuration is rejected.
+// Per spatial axis, elem_is_const/elem_const_val classify the kernel element: constant 1 = window
+// of 1 (identity), non-constant = full-extent pool (reduce, via negative axes for any rank/batch).
 OutputVector translate_max_pool_dynamic_kernel(const NodeContext& context,
                                                int dims,
                                                bool return_indices,
@@ -142,24 +131,21 @@ OutputVector translate_max_pool_dynamic_kernel(const NodeContext& context,
                                 dims,
                                 "d: could not recover the runtime kernel_size elements.");
 
-    // Decide, per spatial axis, whether it is reduced (full-extent) or left untouched (window 1).
-    // For each runtime (non-constant) kernel element we guard, at runtime, that the axis extent
-    // equals the kernel value before reducing -- otherwise a genuine strided pool (kernel < extent)
-    // would silently collapse the axis to size 1 instead of the correct strided output.
+    // Per spatial axis: reduce it (full-extent) or leave it (window 1). Each runtime kernel element
+    // is guarded to equal the axis extent first, so a strided pool (kernel < extent) fails loudly.
     Output<Node> guarded = input;
     std::vector<int64_t> reduce_axes;
     for (int i = 0; i < dims; ++i) {
         const int64_t axis = static_cast<int64_t>(i) - dims;  // negative index of this spatial axis
         if (!elem_is_const[i]) {
-            // Runtime kernel element: it must span the whole axis (global pool over that axis).
+            // Runtime kernel element: must span the whole axis (global pool).
             guarded = guard_full_extent_axis(context, guarded, dims, i, elem_runtime_val[i]);
             reduce_axes.push_back(axis);
         } else if (elem_const_val[i] == 1) {
-            // Window of 1 with default stride is identity along this axis -- nothing to reduce.
+            // Window of 1 with default stride is an identity along this axis.
             continue;
         } else {
-            // A static window > 1 next to a dynamic axis would be a genuine sliding-window pool,
-            // which a ReduceMax cannot represent.
+            // A static window > 1 next to a dynamic axis is a sliding-window pool a ReduceMax cannot represent.
             PYTORCH_OP_CONVERSION_CHECK(false,
                                         "aten::max_pool",
                                         dims,
@@ -183,10 +169,9 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool 
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
 
-    // The OpenVINO MaxPool kernel is a constructor attribute and must be known at conversion time.
-    // PyTorch sometimes builds kernel_size from runtime values (e.g. kernel_size=[1, x.size(3)]);
-    // probe the kernel list element-by-element without throwing, and if any element is not a
-    // constant fall back to a ReduceMax-based decomposition (see translate_max_pool_dynamic_kernel).
+    // The MaxPool kernel is a constructor attribute (must be known at conversion time), but PyTorch
+    // can build kernel_size from runtime values (e.g. [1, x.size(3)]). Probe the kernel elements;
+    // if any is non-constant, fall back to the ReduceMax decomposition (translate_max_pool_dynamic_kernel).
     std::vector<bool> elem_is_const;
     std::vector<int64_t> elem_const_val;
     std::vector<Output<Node>> elem_runtime_val;  // parallel to the vectors above; valid for non-const entries
