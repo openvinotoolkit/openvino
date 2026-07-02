@@ -17,6 +17,29 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+static size_t get_working_set_mb() {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize / (1024 * 1024);
+    }
+    return 0;
+}
+static size_t get_private_mb() {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        // On iGPU, PrivateUsage includes GPU shared memory
+        return pmc.PrivateUsage / (1024 * 1024);
+    }
+    return 0;
+}
+#else
+static size_t get_working_set_mb() { return 0; }
+static size_t get_private_mb() { return 0; }
+#endif
+
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -249,9 +272,6 @@ memory_ptr ocl_engine::create_mmap_hostbuffer(const void* mmapped_address, size_
 
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR;
-#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
-    flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
-#endif
     cl::Buffer buffer(get_cl_context(), flags, data_size, mmap_aligned_address, &err);
     OPENVINO_ASSERT(err == CL_SUCCESS, "clcreatebuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
     return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);

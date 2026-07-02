@@ -385,11 +385,11 @@ struct data : public primitive_base<data> {
 
         bool do_weightless_caching = cache_info->save(ob, data_size);
         if (!do_weightless_caching) {
+            if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
+                std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
+                ob << make_data(pad.data(), pad.size());
+            }
             if (is_alloc_host_accessible(_allocation_type)) {
-                if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
-                    std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
-                    ob << make_data(pad.data(), pad.size());
-                }
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
                 std::vector<uint8_t> _buf;
@@ -419,8 +419,7 @@ struct data : public primitive_base<data> {
         ib >> weightless_caching;
 
         bool enable_zero_copy_mode = ib.is_mmap_tensor_4K_aligned() && ib.get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                                     ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu &&
-                                     _allocation_type == allocation_type::usm_host && !weightless_caching &&
+                                     ib.get_engine().get_device_info().dev_type == device_type::integrated_gpu && !weightless_caching &&
                                      model_tensor_base != nullptr;
         if (!enable_zero_copy_mode) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
@@ -429,11 +428,11 @@ struct data : public primitive_base<data> {
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
 
         if (!is_weightless_caching) {
-            if (is_alloc_host_accessible(_allocation_type)) {
-                if (!ib.is_encrypted() && !ib.is_offset_sub_buffer_aligned()) {
-                    std::vector<uint8_t> pad(ib.get_bytes_to_sub_buffer_boundary(), 0);
-                    ib >> make_data(pad.data(), pad.size());
-                }
+            if (!ib.is_encrypted() && !ib.is_offset_sub_buffer_aligned()) {
+                std::vector<uint8_t> pad(ib.get_bytes_to_sub_buffer_boundary(), 0);
+                ib >> make_data(pad.data(), pad.size());
+            }
+            if (is_alloc_host_accessible(_allocation_type)) {   
                 if (enable_zero_copy_mode) {
                     mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
                     ib.seek_current_ptr(data_size);
@@ -445,59 +444,69 @@ struct data : public primitive_base<data> {
                 auto& eng = ib.get_engine();
                 auto& strm = eng.get_service_stream();
                 if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
-                    std::vector<uint8_t> _buf(data_size);
-                    ib >> make_data(_buf.data(), data_size);
-                    mem->copy_from(strm, _buf.data());
+                    if (enable_zero_copy_mode && eng.supports_allocation(allocation_type::usm_host)) {
+                        mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
+                        ib.seek_current_ptr(data_size);
+                    } else {
+                        std::vector<uint8_t> _buf(data_size);
+                        ib >> make_data(_buf.data(), data_size);
+                        mem->copy_from(strm, _buf.data());
+                    }
                 } else if (eng.supports_allocation(allocation_type::usm_host)) {
-                    // Use USM host staging buffers so the driver can DMA directly
-                    // from pinned host memory to device, avoiding the hidden
-                    // pageable-to-pinned bounce copy that std::vector staging incurs.
-                    // The pipeline is the same ping-pong as the fallback below:
-                    //   CPU reads into host_bufA  while  GPU copies from host_bufB
-                    // Safety: each staging buffer is reused every other iteration;
-                    // the wait() before re-submitting a copy ensures the previous
-                    // GPU read from that buffer has finished before the CPU writes
-                    // new data into it (the OTHER buffer's event is waited, but that
-                    // event was submitted after waiting for THIS buffer's previous
-                    // event, so this buffer is always free by the time we reuse it).
-                    const layout staging_layout{{static_cast<int64_t>(DATA_BLOCK_SIZE)},
-                                                data_types::u8, format::bfyx};
-                    auto host_buf1 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);
-                    auto host_buf2 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);
-                    bool buf_flag = true;
-                    event::ptr ev1, ev2;
-                    ev1 = ev2 = nullptr;
-                    size_t dst_offset = 0;
-                    while (dst_offset < data_size) {
-                        const bool is_blocking = false;
-                        const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
-                        if (buf_flag) {
-                            ib >> make_data(static_cast<uint8_t*>(host_buf1->buffer_ptr()), copy_size);
-                            if (ev2 != nullptr) {
-                                ev2->wait();
-                                ev2 = nullptr;
+                    if (enable_zero_copy_mode) {
+                        mem = ib.get_engine().create_subbuffer(*model_tensor_base, output_layout, ib.get_offset());
+                        ib.seek_current_ptr(data_size);
+                    } else {
+                        // Use USM host staging buffers so the driver can DMA directly
+                        // from pinned host memory to device, avoiding the hidden
+                        // pageable-to-pinned bounce copy that std::vector staging incurs.
+                        // The pipeline is the same ping-pong as the fallback below:
+                        //   CPU reads into host_bufA  while  GPU copies from host_bufB
+                        // Safety: each staging buffer is reused every other iteration;
+                        // the wait() before re-submitting a copy ensures the previous
+                        // GPU read from that buffer has finished before the CPU writes
+                        // new data into it (the OTHER buffer's event is waited, but that
+                        // event was submitted after waiting for THIS buffer's previous
+                        // event, so this buffer is always free by the time we reuse it).
+                        std::cout << "[GPU] PRITHVI DANGER 2" << std::endl;
+                        const layout staging_layout{{static_cast<int64_t>(DATA_BLOCK_SIZE)}, data_types::u8, format::bfyx};
+                        auto host_buf1 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);
+                        auto host_buf2 = eng.allocate_memory(staging_layout, allocation_type::usm_host, false);
+                        bool buf_flag = true;
+                        event::ptr ev1, ev2;
+                        ev1 = ev2 = nullptr;
+                        size_t dst_offset = 0;
+                        while (dst_offset < data_size) {
+                            const bool is_blocking = false;
+                            const size_t src_offset = 0;
+                            size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                            if (buf_flag) {
+                                ib >> make_data(static_cast<uint8_t*>(host_buf1->buffer_ptr()), copy_size);
+                                if (ev2 != nullptr) {
+                                    ev2->wait();
+                                    ev2 = nullptr;
+                                }
+                                ev1 = mem->copy_from(strm, *host_buf1, src_offset, dst_offset, copy_size, is_blocking);
+                            } else {
+                                ib >> make_data(static_cast<uint8_t*>(host_buf2->buffer_ptr()), copy_size);
+                                if (ev1 != nullptr) {
+                                    ev1->wait();
+                                    ev1 = nullptr;
+                                }
+                                ev2 = mem->copy_from(strm, *host_buf2, src_offset, dst_offset, copy_size, is_blocking);
                             }
-                            ev1 = mem->copy_from(strm, *host_buf1, src_offset, dst_offset, copy_size, is_blocking);
-                        } else {
-                            ib >> make_data(static_cast<uint8_t*>(host_buf2->buffer_ptr()), copy_size);
-                            if (ev1 != nullptr) {
-                                ev1->wait();
-                                ev1 = nullptr;
-                            }
-                            ev2 = mem->copy_from(strm, *host_buf2, src_offset, dst_offset, copy_size, is_blocking);
+                            dst_offset += DATA_BLOCK_SIZE;
+                            buf_flag = !buf_flag;
                         }
-                        dst_offset += DATA_BLOCK_SIZE;
-                        buf_flag = !buf_flag;
-                    }
-                    if (ev2 != nullptr) {
-                        ev2->wait();
-                    }
-                    if (ev1 != nullptr) {
-                        ev1->wait();
+                        if (ev2 != nullptr) {
+                            ev2->wait();
+                        }
+                        if (ev1 != nullptr) {
+                            ev1->wait();
+                        }
                     }
                 } else {
+                    std::cout << "[GPU] PRITHVI DANGER 3" << std::endl;
                     // Fallback for devices that do not support USM host allocation:
                     // use pageable std::vector staging buffers (original behaviour).
                     std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
