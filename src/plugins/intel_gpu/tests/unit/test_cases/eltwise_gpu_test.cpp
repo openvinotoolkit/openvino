@@ -30,12 +30,20 @@ T eltwise_execute(cldnn::eltwise_mode mode, T x, T y) {
     case eltwise_mode::sub:
         return x - y;
     case eltwise_mode::max:
+        if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+            if (std::isnan(x)) return x;
+            if (std::isnan(y)) return y;
+        }
         return std::max(x, y);
     case eltwise_mode::prod:
         return x * y;
     case eltwise_mode::div:
         return x / y;
     case eltwise_mode::min:
+        if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+            if (std::isnan(x)) return x;
+            if (std::isnan(y)) return y;
+        }
         return std::min(x, y);
     case eltwise_mode::pow:
         return std::pow((float)x, (float)y);
@@ -1341,6 +1349,64 @@ TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
     for (size_t i = 0; i < answers.size(); ++i) {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+TEST(eltwise_gpu_f32, min_nan_propagation) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 4}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 4}});
+
+    set_values(input1, {std::numeric_limits<float>::quiet_NaN(), 1.f, std::numeric_limits<float>::quiet_NaN(), 5.f});
+    set_values(input2, {2.f, std::numeric_limits<float>::quiet_NaN(), 3.f, 4.f});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input1"), input_info("input2")}, eltwise_mode::min));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    const auto outputs = network.execute();
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), 4u);
+    EXPECT_TRUE(std::isnan(output_ptr[0])) << "min(NaN, 2.0) should be NaN";
+    EXPECT_TRUE(std::isnan(output_ptr[1])) << "min(1.0, NaN) should be NaN";
+    EXPECT_TRUE(std::isnan(output_ptr[2])) << "min(NaN, 3.0) should be NaN";
+    EXPECT_FLOAT_EQ(output_ptr[3], 4.f)   << "min(5.0, 4.0) should be 4.0";
+}
+
+TEST(eltwise_gpu_f32, max_nan_propagation) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 4}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 4}});
+
+    set_values(input1, {std::numeric_limits<float>::quiet_NaN(), 1.f, std::numeric_limits<float>::quiet_NaN(), 5.f});
+    set_values(input2, {2.f, std::numeric_limits<float>::quiet_NaN(), 3.f, 4.f});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input1"), input_info("input2")}, eltwise_mode::max));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    const auto outputs = network.execute();
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), 4u);
+    EXPECT_TRUE(std::isnan(output_ptr[0])) << "max(NaN, 2.0) should be NaN";
+    EXPECT_TRUE(std::isnan(output_ptr[1])) << "max(1.0, NaN) should be NaN";
+    EXPECT_TRUE(std::isnan(output_ptr[2])) << "max(NaN, 3.0) should be NaN";
+    EXPECT_FLOAT_EQ(output_ptr[3], 5.f)   << "max(5.0, 4.0) should be 5.0";
 }
 
 TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
