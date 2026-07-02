@@ -240,7 +240,7 @@ private:
 inline bool isDefaultDriverCompiler(const std::string& target_device) {
     ov::Core core;
     auto compiler_type = core.get_property(target_device, ov::intel_npu::compiler_type);
-    if (compiler_type == ov::intel_npu::CompilerType::DRIVER){
+    if (compiler_type == ov::intel_npu::CompilerType::DRIVER) {
         return true;
     }
     return false;
@@ -252,9 +252,11 @@ inline bool isGraphExtVersionLowerThan(uint32_t major, uint32_t minor) {
     return graph_ext_version < required_version;
 }
 
-#define NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(major, minor) \
-    if (ov::test::utils::isGraphExtVersionLowerThan(major, minor)) { \
-        GTEST_SKIP() << "Test skipped because L0 graph ext version is lower than " #major "." #minor; \
+#define NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(major, minor)                                                    \
+    {                                                                                                     \
+        if (ov::test::utils::isGraphExtVersionLowerThan(major, minor)) {                                  \
+            GTEST_SKIP() << "Test skipped because L0 graph ext version is lower than " #major "." #minor; \
+        }                                                                                                 \
     }
 
 }  // namespace utils

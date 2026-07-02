@@ -925,7 +925,7 @@ Example:
 
     <!-- E#210236-->
     <skip_config>
-        <message>Test fails sporadically with newer Windows drivers</message>
+        <message>Test fails sporadically on NPU Windows drivers</message>
         <enable_rules>
             <operating_system>windows</operating_system>
         </enable_rules>
