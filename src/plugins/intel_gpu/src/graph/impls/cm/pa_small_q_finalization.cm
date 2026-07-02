@@ -18,10 +18,15 @@ namespace KERNEL_NAME {
 
 // pa_small_q_finalization: cross-partition logsumexp reduce for pa_small_q.
 //
-// Companion of pa_single_token_finalization but indexed by the packed
-// (seq, q-token) selection rather than seq alone. Each global thread handles
-// one (sel_idx, head, head_size_split) tuple; sel_idx maps back through
-// selected_q_mapping to (orig_seq_idx, q_in_subseq).
+// Tile-major layout: pa_small_q writes its partition output / lse as
+//   buffer[tile_count * TILE_Q, head, partition, head_size]
+// so finalize iterates by row index (`token_row`). token_row decomposes as:
+//     tile_idx    = token_row / TILE_Q
+//     t_in_tile   = token_row % TILE_Q
+// Dummy rows (t_in_tile >= valid_count) have lse = -inf written by pa_small_q,
+// but we still early-return them here to avoid writing junk into the host output.
+//
+// selected_q_mapping is i32 triples: [orig_seq_idx, q_start, valid_count] per tile.
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     float* input [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
@@ -31,20 +36,28 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int selected_token_count,
     int kv_partition_num
     ) {
-    auto sel_idx = cm_global_id(0);
-    if (sel_idx >= (uint)selected_token_count) {
+    auto token_row = cm_global_id(0);
+    if (token_row >= (uint)selected_token_count) {
         return;
     }
-    const uint orig_seq_idx = (uint)selected_q_mapping[sel_idx * 2 + 0];
-    const uint q_in_subseq  = (uint)selected_q_mapping[sel_idx * 2 + 1];
+    const uint tile_idx  = token_row / TILE_Q;
+    const uint t_in_tile = token_row % TILE_Q;
+
+    const uint orig_seq_idx = (uint)selected_q_mapping[tile_idx * 3 + 0];
+    const uint q_start      = (uint)selected_q_mapping[tile_idx * 3 + 1];
+    const uint valid_count  = (uint)selected_q_mapping[tile_idx * 3 + 2];
+    if (t_in_tile >= valid_count) {
+        return;  // dummy slot — pa_small_q already wrote -inf, no host output needed
+    }
+    const uint q_in_subseq = q_start + t_in_tile;
 
     auto head = cm_global_id(1);
     auto offset = cm_group_id(2) * REDUCE_SPLIT_SIZE;
     const int total_partition_num = (kv_partition_num * HEADS_NUM);
 
-    // Logsumexp across partitions for this (sel, head).
+    // Logsumexp across partitions for this (token_row, head).
     float total_lse = 0.0;
-    uint lse_offset = sel_idx * total_partition_num + head * kv_partition_num;
+    uint lse_offset = token_row * total_partition_num + head * kv_partition_num;
     constexpr float log2e = 1.4426950408889634f;
     float* lse_vec = lse + lse_offset;
     float lse_max = lse_vec[0];
@@ -68,7 +81,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     matrix<half, 1, REDUCE_SPLIT_SIZE> out_mat = 0;
     matrix<float, 1, REDUCE_SPLIT_SIZE> out_mat_f32 = 0;
     matrix<float, 1, REDUCE_SPLIT_SIZE> data_mat;
-    uint input_offset = sel_idx * total_partition_num * HEAD_SIZE
+    uint input_offset = token_row * total_partition_num * HEAD_SIZE
                       + head * kv_partition_num * HEAD_SIZE
                       + offset;
 

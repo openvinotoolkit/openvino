@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <memory>
 #include <utility>
 
@@ -84,6 +85,30 @@ inline std::string get_pa_build_options() {
     return " -cmc -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
+// TILE_Q: how many q-tokens each pa_small_q SG packs into the DPAS M dim.
+// Constraint: Q_head_chunk_size * TILE_Q <= 8 (DPAS RepeatCount cap).
+// Default: 2 on xe2/xe3 (satiates DPAS at Q_ROWS=8 for GQA-4), 1 on xe1
+// (register file half as big → wider M spills). Overridable via env
+// OV_GPU_PA_TILE_Q for testing.
+//
+// The caller is responsible for clamping to at most (8 / q_head_chunk_size).
+inline int get_small_q_tile_q_raw(int xe_arch) {
+    int default_val = (xe_arch >= 2) ? 2 : 1;
+    if (const char* env = std::getenv("OV_GPU_PA_TILE_Q")) {
+        int v = std::atoi(env);
+        if (v >= 1 && v <= 8) {
+            default_val = v;
+        }
+    }
+    return default_val;
+}
+
+inline int get_small_q_tile_q(int xe_arch, int q_head_chunk_size) {
+    int tile_q = get_small_q_tile_q_raw(xe_arch);
+    const int max_tile_q = std::max(1, 8 / std::max(1, q_head_chunk_size));
+    return std::min(tile_q, max_tile_q);
+}
+
 #define FIND_DEBUG_ACC 0
 // The block size for KV cache is set to 256 for xattn to achieve better performance.
 // For non-xattn case, it can be set to 16 for compatibility to legacy implementations.
@@ -118,6 +143,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
 
     // small-q decode path (q_len > 1 spec-decoding subsequences)
     size_t small_q_token_count = 0;  // Total (subseq, q-token) pairs routed to pa_small_q
+    size_t small_q_tile_count = 0;   // Number of SG tiles = ceil_div(small_q_token_count, TILE_Q)
+    int small_q_tile_q = 1;          // TILE_Q value chosen at JIT time (must match kernel)
     size_t small_q_max_kv_len = 0;   // Max kv_len across small-q subsequences (for partition count)
 
     // xattention runtime state
