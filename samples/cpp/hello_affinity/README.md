@@ -7,10 +7,11 @@ Models with static or dynamic inputs are supported if the selected device can co
 ## Usage
 
 ```sh
-hello_affinity -m <path_to_model> [-d <device_name>] [-affinity <affinity|path_to_affinity_json>] \
-    [--fallback-device <device>] [-hint <performance_hint>] [-shape <shapes>] \
+hello_affinity -m|--model <path_to_model> [-d|--device <device_name>] \
+    [-affinity|--affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] \
+    [-hint|--hint <performance_hint>] [-shape|--shape <shapes>] \
     [-data_shape <shapes>|--data_shape <shapes>|--data-shape <shapes>] \
-    [-niter <integer>] [-no_warmup]
+    [-niter|--niter <integer>] [-no_warmup|--no_warmup]
 ```
 
 The optional `-affinity` argument accepts either a single device name such as `CPU` or `GPU`, or a JSON file with

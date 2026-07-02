@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string_view>
 #include <unordered_set>
+#include <vector>
 
 #include "samples/slog.hpp"
 
@@ -36,6 +37,18 @@ bool has_json_extension(const std::string& value) {
                       [](unsigned char left, unsigned char right) {
                           return std::tolower(left) == std::tolower(right);
                       });
+}
+
+std::string format_unmapped_ops_message(size_t count, const std::string& names) {
+    static constexpr size_t max_names_to_print = 50;
+
+    std::ostringstream stream;
+    stream << "Unmapped ops count: " << count;
+    if (count != 0 && count <= max_names_to_print) {
+        stream << ": " << names;
+    }
+
+    return stream.str();
 }
 
 void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
@@ -164,7 +177,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
 
     size_t applied_count = 0;
     size_t fallback_count = 0;
-    bool has_unmapped_ops = false;
+    std::ostringstream unmapped_ops_oss;
+    size_t unmapped_ops_count = 0;
     for (auto&& node : model->get_ops()) {
         const auto it = find_node_mapping(node);
         if (it != affinity_json.end()) {
@@ -174,16 +188,27 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
             node->get_rt_info()["affinity"] = fallback_device;
             fallback_count++;
         } else {
-            has_unmapped_ops = true;
+            if (unmapped_ops_count < 50) {
+                if (unmapped_ops_count != 0) {
+                    unmapped_ops_oss << ", ";
+                }
+                unmapped_ops_oss << node->get_friendly_name();
+                if (node->get_friendly_name() != node->get_name()) {
+                    unmapped_ops_oss << " (internal name '" << node->get_name() << "')";
+                }
+            }
+            unmapped_ops_count++;
         }
     }
 
-    if (has_unmapped_ops && fallback_unmapped_ops && fallback_device.empty()) {
+    if (unmapped_ops_count != 0 && fallback_unmapped_ops && fallback_device.empty()) {
+        const auto unmapped_ops_message = format_unmapped_ops_message(unmapped_ops_count, unmapped_ops_oss.str());
         if (hardware_devices.empty()) {
             OPENVINO_THROW("Affinity file ",
                            file_path,
                            " does not cover all ops, and no hardware devices were provided to infer a fallback device. "
-                           "Please map the remaining ops explicitly.");
+                           "Please map the remaining ops explicitly. ",
+                           unmapped_ops_message);
         }
 
         std::ostringstream oss;
@@ -198,7 +223,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
             OPENVINO_THROW("Affinity file ",
                            file_path,
                            " does not cover all ops, and every hardware device is already used in the JSON mappings. "
-                           "Please map the remaining ops explicitly.");
+                           "Please map the remaining ops explicitly. ",
+                           unmapped_ops_message);
         }
 
         OPENVINO_THROW("Affinity file ",
@@ -206,7 +232,8 @@ void apply_affinities_from_file(const std::shared_ptr<ov::Model>& model,
                        " does not cover all ops, and the sample cannot infer a unique fallback device from the "
                        "remaining hardware devices: ",
                        oss.str(),
-                       ". Please map the remaining ops explicitly.");
+                       ". Please map the remaining ops explicitly. ",
+                       unmapped_ops_message);
     }
 
     slog::info << "Applied manual affinity mappings to " << applied_count << " ops from " << file_path << slog::endl;

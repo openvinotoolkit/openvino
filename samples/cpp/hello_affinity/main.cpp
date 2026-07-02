@@ -448,8 +448,9 @@ int tmain(int argc, tchar* argv[]) {
                 positional_arguments.push_back(option);
             } else {
                 throw std::logic_error("Unsupported option: " + option +
-                                       ". Expected -m, -d, -affinity, --fallback-device, -hint, -shape, "
-                                       "-data_shape, --data_shape, --data-shape, -niter, or -no_warmup.");
+                                       ". Expected -m, --model, -d, --device, -affinity, --affinity, "
+                                       "--fallback-device, -hint, --hint, -shape, --shape, -data_shape, "
+                                       "--data_shape, --data-shape, -niter, --niter, -no_warmup, or --no_warmup.");
             }
         }
 
