@@ -415,7 +415,7 @@ struct data : public primitive_base<data> {
         size_t data_size = 0;
         ib >> make_data(&data_size, sizeof(size_t));
 
-OPENVINO_ASSERT(data_size == output_layout.bytes_count(),
+        OPENVINO_ASSERT(data_size == output_layout.bytes_count(),
                "[GPU] Corrupt cache blob: data_size=", data_size,
                ", expected=", output_layout.bytes_count());
 
