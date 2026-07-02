@@ -282,6 +282,93 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     return new_const;
 }
 
+std::shared_ptr<Node> u2_compression_stack(const OutputVector& list_elems, int64_t axis) {
+    // Part 1: Detect pattern
+    // unpack_uint2 produces stack of 4 elements:
+    //   bitwise_and(packed, 3)
+    //   bitwise_and(bitwise_right_shift(packed, 2), 3)
+    //   bitwise_and(bitwise_right_shift(packed, 4), 3)
+    //   bitwise_and(bitwise_right_shift(packed, 6), 3)
+
+    if (list_elems.size() != 4)
+        return nullptr;
+
+    // Element 0: bitwise_and(packed, 3) - lowest 2 bits
+    auto bitwise_and_0_candidate = list_elems[0].get_node_shared_ptr();
+    std::shared_ptr<Node> bitwise_and_0 = cast_fw_node(bitwise_and_0_candidate, "aten::bitwise_and");
+    if (!bitwise_and_0) {
+        bitwise_and_0 = std::dynamic_pointer_cast<v13::BitwiseAnd>(bitwise_and_0_candidate);
+        if (!bitwise_and_0)
+            return nullptr;
+    }
+
+    auto weights_u8 = std::dynamic_pointer_cast<v0::Constant>(bitwise_and_0->get_input_node_shared_ptr(0));
+    if (!weights_u8)
+        return nullptr;
+
+    if (weights_u8->get_output_element_type(0) != element::u8)
+        return nullptr;
+
+    if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
+        return nullptr;
+
+    if (!ov::op::util::has_constant_value<uint64_t>(ov::util::get_constant_from_source(bitwise_and_0->input_value(1)),
+                                                    0x03))
+        return nullptr;
+
+    // Elements 1..3: bitwise_and(bitwise_right_shift(packed, shift), 3) for shift = 2, 4, 6
+    const uint64_t expected_shifts[] = {2, 4, 6};
+    NodeVector all_nodes = {weights_u8, bitwise_and_0};
+
+    for (int i = 1; i <= 3; ++i) {
+        auto bitwise_and_i_candidate = list_elems[i].get_node_shared_ptr();
+        std::shared_ptr<Node> bitwise_and_i = cast_fw_node(bitwise_and_i_candidate, "aten::bitwise_and");
+        if (!bitwise_and_i) {
+            bitwise_and_i = std::dynamic_pointer_cast<v13::BitwiseAnd>(bitwise_and_i_candidate);
+            if (!bitwise_and_i)
+                return nullptr;
+        }
+
+        if (!ov::op::util::has_constant_value<uint64_t>(
+                ov::util::get_constant_from_source(bitwise_and_i->input_value(1)), 0x03))
+            return nullptr;
+
+        auto bitwise_shift_node =
+            cast_fw_node(bitwise_and_i->get_input_node_shared_ptr(0),
+                         {"aten::bitwise_right_shift", "aten.bitwise_right_shift.Tensor_Scalar"});
+        if (!bitwise_shift_node)
+            return nullptr;
+
+        auto weights_u8_shift =
+            std::dynamic_pointer_cast<v0::Constant>(bitwise_shift_node->get_input_node_shared_ptr(0));
+        if (!weights_u8_shift || weights_u8->get_data_ptr() != weights_u8_shift->get_data_ptr())
+            return nullptr;
+
+        if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift_node->get_input_node_shared_ptr(1),
+                                                        expected_shifts[i - 1]))
+            return nullptr;
+
+        all_nodes.push_back(bitwise_shift_node);
+        all_nodes.push_back(bitwise_and_i);
+    }
+
+    // Pattern detected, weights_u8 is target u8 packed constant with weights (4 x uint2 per byte)
+
+    // Part 2: Form u2 constant by repacking of the original weights_u8
+    const auto& u8_shape = weights_u8->get_shape();
+    size_t full_size = shape_size(u8_shape);
+    auto src = weights_u8->get_data_ptr<uint8_t>();
+
+    auto u2_shape = u8_shape;
+    u2_shape.push_back(4);
+    auto new_const = std::make_shared<v0::Constant>(element::u2, u2_shape);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
+
+    std::copy(src, src + full_size, dst);  // Both PyTorch and OV pack u2 as LSB-first, no reordering needed
+    copy_runtime_info_and_name(weights_u8, {new_const}, all_nodes);
+    return new_const;
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

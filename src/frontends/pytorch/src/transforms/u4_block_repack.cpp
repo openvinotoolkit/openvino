@@ -7,13 +7,17 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
@@ -192,6 +196,56 @@ U4ConvertReshape::U4ConvertReshape() {
             copy_runtime_info(pattern_nodes, new_const);
             replace_node(reshape, new_const);
 
+            return true;
+        });
+};
+
+U2ConvertReshape::U2ConvertReshape() {
+    const auto& m_constant = wrap_type<v0::Constant>(type_matches(element::u2));
+    const auto& m_reshape = wrap_type<v1::Reshape>({m_constant, any_input()});
+
+    register_matcher(
+        std::make_shared<Matcher>(m_reshape, "ov::frontend::pytorch::pass::U2ConvertReshape"),
+        [=](Matcher& m) {
+            auto& pattern_to_output = m.get_pattern_value_map();
+            auto u2_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
+            if (!u2_const)
+                return false;
+
+            if (u2_const->get_element_type() != element::u2)
+                return false;
+
+            auto reshape = pattern_to_output[m_reshape].get_node_shared_ptr();
+            auto dst_shape = reshape->get_output_shape(0);
+
+            auto new_const = std::make_shared<v0::Constant>(*u2_const, dst_shape);
+
+            copy_runtime_info({u2_const, reshape}, new_const);
+            replace_node(reshape, new_const);
+
+            return true;
+        });
+};
+
+MarkCompressedWeightConstants::MarkCompressedWeightConstants() {
+    auto is_compressed_type = [](const ov::Output<ov::Node>& output) -> bool {
+        auto et = output.get_element_type();
+        return et == element::u2 || et == element::u4 || et == element::i4;
+    };
+    const auto& m_constant = wrap_type<v0::Constant>(is_compressed_type);
+    const auto& m_convert = wrap_type<v0::Convert>({m_constant});
+
+    register_matcher(
+        std::make_shared<Matcher>(m_convert, "ov::frontend::pytorch::pass::MarkCompressedWeightConstants"),
+        [=](Matcher& m) {
+            auto& pattern_to_output = m.get_pattern_value_map();
+            auto const_node = pattern_to_output.at(m_constant).get_node_shared_ptr();
+            auto convert_node = pattern_to_output.at(m_convert).get_node_shared_ptr();
+
+            ov::pass::disable_constant_folding(convert_node);
+            ov::mark_as_decompression(convert_node);
+            ov::enable_keep_const_precision(const_node);
             return true;
         });
 };
