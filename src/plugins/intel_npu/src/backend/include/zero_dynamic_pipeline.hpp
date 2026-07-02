@@ -11,8 +11,8 @@
 namespace intel_npu {
 
 struct DynamicArguments {
-    std::vector<MemRefType> _inputs;
-    std::vector<MemRefType> _outputs;
+    std::vector<MemRefType> _inputsMemRef;
+    std::vector<MemRefType> _outputsMemRef;
 
     // Save the memref handle to a vector for VM execution and prediction to extend its lifetime.
     std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
@@ -49,7 +49,7 @@ class DynamicPipeline final : public IPipeline {
 
         PipelinedCommandLists(size_t numCommandLists,
                               const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              std::shared_ptr<DynamicArguments> args) {
+                              std::shared_ptr<DynamicArguments> requestArguments) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
@@ -59,8 +59,8 @@ class DynamicPipeline final : public IPipeline {
                 _commandListHandles.push_back(_commandLists[i]->handle());
             }
 
-            if (args != nullptr) {
-                _arguments = args;
+            if (requestArguments != nullptr) {
+                _arguments = requestArguments;
             } else {
                 _arguments = std::make_shared<DynamicArguments>();
             }
@@ -76,8 +76,8 @@ class DynamicPipeline final : public IPipeline {
 
         // Use metadata to initialize, which will later be updated again by setArgumentProperties
         void initArguments(const NetworkMetadata& metadata) {
-            _arguments->_inputs.resize(metadata.inputs.size());
-            auto& inputs = _arguments->_inputs;
+            _arguments->_inputsMemRef.resize(metadata.inputs.size());
+            auto& inputs = _arguments->_inputsMemRef;
             for (size_t i = 0; i < inputs.size(); ++i) {
                 // Use size as placeholder of stride
                 // For now, only considering the usage and subsequent comparison of shape, and strides
@@ -88,8 +88,8 @@ class DynamicPipeline final : public IPipeline {
                 inputs[i].updateStride();
             }
 
-            _arguments->_outputs.resize(metadata.outputs.size());
-            auto& outputs = _arguments->_outputs;
+            _arguments->_outputsMemRef.resize(metadata.outputs.size());
+            auto& outputs = _arguments->_outputsMemRef;
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
                 outputs[i]._dimsCount = static_cast<int64_t>(shape.size());
@@ -112,17 +112,21 @@ class DynamicPipeline final : public IPipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             // The strides are already divided by element size
-            if (arg_index < _arguments->_inputs.size()) {
-                _arguments->_inputs[arg_index].setArg(arg_value);
-                _arguments->_inputs[arg_index].setSize(shapes);
-                _arguments->_inputs[arg_index].setStrides(strides);
-                size_t output_index = static_cast<size_t>(arg_index) - _arguments->_inputs.size();
-                if (output_index < _arguments->_outputs.size()) {
-                    _arguments->_outputs[output_index].setArg(arg_value);
-                    _arguments->_outputs[output_index].setSize(shapes);
-                    _arguments->_outputs[output_index].setStrides(strides);
+            if (arg_index < _arguments->_inputsMemRef.size()) {
+                _arguments->_inputsMemRef[arg_index].setArg(arg_value);
+                _arguments->_inputsMemRef[arg_index].setSize(shapes);
+                _arguments->_inputsMemRef[arg_index].setStrides(strides);
+            } else {
+                size_t output_index = static_cast<size_t>(arg_index) - _arguments->_inputsMemRef.size();
+                if (output_index < _arguments->_outputsMemRef.size()) {
+                    _arguments->_outputsMemRef[output_index].setArg(arg_value);
+                    _arguments->_outputsMemRef[output_index].setSize(shapes);
+                    _arguments->_outputsMemRef[output_index].setStrides(strides);
                 }
             }
+        }
+
+        void resetCommandList() {
             for (auto& cmd_list : _commandLists) {
                 cmd_list->reset();
             }
@@ -135,7 +139,7 @@ public:
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                     const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    std::shared_ptr<DynamicArguments> arguments,
+                    std::shared_ptr<DynamicArguments> requestArguments,
                     size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
