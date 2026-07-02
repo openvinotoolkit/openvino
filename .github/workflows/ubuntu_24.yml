@@ -247,6 +247,7 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+    if: ${{ github.event_name == 'schedule' }}
 
   dGPU_B580_Nightly:
       name: dGPU Arc-B580 Tests Nightly
