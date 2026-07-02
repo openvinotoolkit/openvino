@@ -157,6 +157,12 @@ struct ReduceImplementationManager : public ImplementationManager {
             return false;
         }
 
+#ifdef OV_GPU_VENDOR_INTEL
+        // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
+        if (format::is_simple_data_format(in_layout.format))
+            return false;
+#endif
+
         // Onednn reduction does NOT support reordering of unreduced-axes.
         // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
         return reduce_prim->keep_dims || !is_reduce_blocked_axes(node);
