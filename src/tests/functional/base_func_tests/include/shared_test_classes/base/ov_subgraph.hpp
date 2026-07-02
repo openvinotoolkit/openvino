@@ -177,7 +177,7 @@ inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function
     CheckNumberOfNodesWithTypes(function, {nodeType}, expectedCount);
 }
 
-class SubgraphBaseStaticTest : public ov::test::SubgraphBaseTest {
+class SubgraphBaseStaticTest : virtual public ov::test::SubgraphBaseTest {
 public:
     void run() override {
         std::vector<ov::Shape> input_shapes;
