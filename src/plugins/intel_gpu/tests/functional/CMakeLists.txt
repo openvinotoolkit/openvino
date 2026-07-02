@@ -61,6 +61,15 @@ if(WIN32)
     # build breaks on environments that ship only one of the SDKs.
     check_include_file_cxx(d3d11.h OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
     check_include_file_cxx(d3d12.h OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+    # The DX interop tests also pull in ATL (<atlbase.h>), which ships only with
+    # the optional VS ATL workload. Gate on it too so environments missing ATL
+    # don't break the build.
+    check_include_file_cxx(atlbase.h OV_GPU_FUNC_TESTS_HAVE_ATLBASE_H)
+    if(NOT OV_GPU_FUNC_TESTS_HAVE_ATLBASE_H)
+        set(OV_GPU_FUNC_TESTS_HAVE_D3D11_H OFF)
+        set(OV_GPU_FUNC_TESTS_HAVE_D3D12_H OFF)
+        message(STATUS "${TARGET_NAME}: <atlbase.h> not found (ATL workload missing); DX11/DX12 remote-tensor interop tests disabled")
+    endif()
 
     if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
         target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)

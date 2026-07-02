@@ -52,6 +52,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, force_implementations, ImplForc
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, partial_build_program, false, "Early exit from model compilation process which allows faster execution graph dumping")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_new_shape_infer, false, "Switch between new and old shape inference flow. Shall be removed soon")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_onednn, false, "Enable/Disable onednn for usage for particular model/platform")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, disable_sdpa_micro, false, "Disable oneDNN-derived SDPA micro kernel and fall back to the OCL sdpa_opt kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_cm, true, "Enable/Disable CM for usage for particular model/platform")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
@@ -77,6 +78,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_profiling_data_per_iter, false
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, log_to_file, "", "Save verbose log to specified file")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug config in json format")
 
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, use_onednn_sdpa, false, "Use oneDNN SDPA primitive implementation for debugging")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
