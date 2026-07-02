@@ -20,6 +20,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -39,47 +40,150 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     }
 }
 
-ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
-    enum class GQAModelStage {
-        UNKNOWN,
-        PREFILL,
-        GENERATE,
-    };
+enum class GQAModelStage {
+    UNKNOWN,
+    PREFILL,
+    GENERATE,
+};
 
-    const auto detect_gqa_model_stage = [&]() {
-        // The activation tensor ("input_hidden_states") is what the embedding
-        // model stage feeds into the transformer.  For the generate (iter) model
-        // the seq dim is specialized to 1 via a free-dim override; for the
-        // prefill (ctx) model the seq dim is either >1 or left dynamic (the
-        // context length varies at runtime).  KV-cache slicing has no effect on
-        // this input at all.
-        for (const auto& parameter : model->get_parameters()) {
-            const auto& name = parameter->get_friendly_name();
-            if (name != "input_hidden_states" && name != "input_ids") {
-                continue;
-            }
+GQAModelStage detect_gqa_model_stage(const std::shared_ptr<ov::Model>& model) {
+    // The activation tensor ("input_hidden_states") is what the embedding
+    // model stage feeds into the transformer. For the generate (iter) model
+    // the seq dim is specialized to 1 via a free-dim override; for the
+    // prefill (ctx) model the seq dim is either >1 or left dynamic.
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name != "input_hidden_states" && name != "input_ids") {
+            continue;
+        }
 
-            const auto& partial_shape = parameter->get_partial_shape();
-            if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() < 2) {
-                continue;
-            }
+        const auto& partial_shape = parameter->get_partial_shape();
+        if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() < 2) {
+            continue;
+        }
 
-            const auto& token_dim = partial_shape[1];
-
-            // Dynamic seq dim → prefill model with variable context length.
-            if (token_dim.is_dynamic()) {
-                return GQAModelStage::PREFILL;
-            }
-
-            const auto token_count = token_dim.get_length();
-            if (token_count == 1) {
-                return GQAModelStage::GENERATE;
-            }
+        const auto& token_dim = partial_shape[1];
+        if (token_dim.is_dynamic()) {
             return GQAModelStage::PREFILL;
         }
-        return GQAModelStage::UNKNOWN;
-    };
 
+        return token_dim.get_length() == 1 ? GQAModelStage::GENERATE : GQAModelStage::PREFILL;
+    }
+
+    return GQAModelStage::UNKNOWN;
+}
+
+bool has_model_side_kv_slicing(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(op);
+        if (!gqa) {
+            continue;
+        }
+
+        if (gqa->get_output_size() > 1) {
+            for (const auto& target : gqa->output(1).get_target_inputs()) {
+                if (ov::is_type<ov::op::v8::Slice>(target.get_node())) {
+                    return true;
+                }
+            }
+        }
+
+        if (gqa->get_output_size() > 2) {
+            for (const auto& target : gqa->output(2).get_target_inputs()) {
+                if (ov::is_type<ov::op::v8::Slice>(target.get_node())) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+std::string find_seqlens_k_name(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(op);
+        if (!gqa || gqa->get_input_size() <= 5) {
+            continue;
+        }
+
+        auto param = ov::as_type_ptr<ov::op::v0::Parameter>(gqa->input_value(5).get_node_shared_ptr());
+        if (param) {
+            return param->get_friendly_name();
+        }
+        break;
+    }
+
+    return {};
+}
+
+void apply_gqa_decomposition(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::pass::GroupQueryAttentionDecomposition>();
+    rewrite.run_on_model(model);
+}
+
+struct SlicedKVInfo {
+    std::vector<size_t> output_indices;
+    std::vector<size_t> max_seqs;
+    std::vector<bool> transposed;
+};
+
+SlicedKVInfo redirect_sliced_kv_results(const std::shared_ptr<ov::Model>& inner_model,
+                                        const std::shared_ptr<ov::Model>& outer_model) {
+    SlicedKVInfo info;
+
+    const auto& results = inner_model->get_results();
+    for (size_t i = 0; i < results.size(); ++i) {
+        auto direct_src = results[i]->input_value(0).get_node_shared_ptr();
+        auto scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(direct_src);
+        bool transposed = false;
+        if (!scatter) {
+            auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
+            if (trans) {
+                scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(trans->input_value(0).get_node_shared_ptr());
+                if (scatter) {
+                    transposed = true;
+                }
+            }
+        }
+
+        if (!scatter) {
+            LOG_DEBUG("NPUW_GQA_MANAGED: output[" << i << "] NOT KV"
+                                                  << "; src_type=" << direct_src->get_type_info().name);
+            continue;
+        }
+
+        LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] detected as KV"
+                                             << (transposed ? " (transposed V)" : " (K or plain V)")
+                                             << "; src_type=" << direct_src->get_type_info().name);
+        if (transposed) {
+            LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] keeps its Transpose wrapper; redirecting it to current V");
+            auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
+            trans->input(0).replace_source_output(scatter->input_value(2));
+        } else {
+            results[i]->input(0).replace_source_output(scatter->input_value(2));
+        }
+
+        info.output_indices.push_back(i);
+        info.transposed.push_back(transposed);
+    }
+
+    if (!info.output_indices.empty()) {
+        inner_model->validate_nodes_and_infer_types();
+    }
+
+    const auto& outer_results = outer_model->get_results();
+    for (size_t i = 0; i < info.output_indices.size(); ++i) {
+        const auto& ps = outer_results[info.output_indices[i]]->input_value(0).get_partial_shape();
+        const size_t seq_dim = info.transposed[i] ? 3 : 2;
+        info.max_seqs.push_back(ps[seq_dim].get_length());
+    }
+
+    return info;
+}
+
+ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
     ov::AnyMap config = {
         {"NPUW_ONLINE_PIPELINE", "REP"},
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
@@ -88,13 +192,11 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
     };
 
     const auto gqa_managed_key = std::string(::intel_npu::NPUW_GQA_MANAGED::key());
-    const char* gqa_managed_env = std::getenv("NPUW_GQA_MANAGED");
-    const bool gqa_managed = (properties.count(gqa_managed_key) && properties.at(gqa_managed_key).as<bool>()) ||
-                             (gqa_managed_env && std::string(gqa_managed_env) == "YES");
+    const bool gqa_managed = properties.count(gqa_managed_key) && properties.at(gqa_managed_key).as<bool>();
     LOG_INFO("GQACompiledModel: gqa_managed=" << gqa_managed << " (key_present=" << properties.count(gqa_managed_key)
-                                              << ", env=" << (gqa_managed_env ? gqa_managed_env : "unset") << ")");
+                                              << ")");
 
-    const auto stage = detect_gqa_model_stage();
+    const auto stage = detect_gqa_model_stage(model);
     if (stage == GQAModelStage::PREFILL) {
         if (gqa_managed) {
             // GQA decomposition uses ScatterUpdate in the KV path — the standard ATTN isolation
@@ -224,46 +326,13 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         ov::npuw::CollapseUNQDQ collapse_unqdq;
         collapse_unqdq.run_on_model(model);
     }
-    // Apply the core GQA decomposition (ScatterUpdate-based left-aligned KV cache) when requested.
+    // Apply the managed GQA path when requested. The flow stays intentionally high-level here:
+    // detect graph mode, decompose, and only build the sliced wrapper when we really need to
+    // manage KV slicing/scatter outside of the model.
     const auto gqa_managed_key = std::string(::intel_npu::NPUW_GQA_MANAGED::key());
     if (prepared_properties.count(gqa_managed_key) && prepared_properties.at(gqa_managed_key).as<bool>()) {
-        // Safety valve: GQA_MANAGED relies on the static ScatterUpdate KV path from
-        // GroupQueryAttentionDecomposition.  With slice_kv the model uses dynamic
-        // shapes (past_key dim[2] is dynamic) and decomposition produces Concat instead
-        // of ScatterUpdate — GQA_MANAGED cannot work in that case.
-        bool has_slice_kv = false;
-        for (const auto& op : model->get_ops()) {
-            auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(op);
-            if (!gqa || gqa->get_input_size() <= 3)
-                continue;
-            const auto& ps = gqa->input_value(3).get_partial_shape();  // past_key
-            if (ps.rank().is_dynamic() || ps[2].is_dynamic()) {
-                has_slice_kv = true;
-                break;
-            }
-        }
-        if (has_slice_kv) {
-            LOG_WARN("NPUW_GQA_MANAGED: slice_kv model detected (dynamic past_key dim[2]) -- "
-                     "GQA_MANAGED requires static KV shapes; disabling");
-            return {model, nullptr, std::move(prepared_properties), false, {}, {}, {}};
-        }
-        // Identify the seqlens_k parameter BEFORE decomposition by reading input 5 of the
-        // first GroupQueryAttention op.  After decomposition the GQA node is gone and input 5
-        // becomes the seqlens scalar that feeds the scatter-index Range computation.
-        // Input 6 (total_sequence_length) is read by the GQA op but unused in the decomposed
-        // subgraph — detecting it by name substring would be wrong.
-        std::string seqlens_k_name;
-        for (const auto& op : model->get_ops()) {
-            auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(op);
-            if (!gqa || gqa->get_input_size() <= 5)
-                continue;
-            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(gqa->input_value(5).get_node_shared_ptr());
-            if (param) {
-                seqlens_k_name = param->get_friendly_name();
-                LOG_INFO("NPUW_GQA_MANAGED: detected seqlens_k parameter '" << seqlens_k_name << "'");
-            }
-            break;  // all layers share the same seqlens_k
-        }
+        const bool model_sliced = has_model_side_kv_slicing(model);
+        const std::string seqlens_k_name = find_seqlens_k_name(model);
         if (seqlens_k_name.empty()) {
             LOG_INFO("NPUW_GQA_MANAGED: seqlens_k not found in any GQA op input 5; integer parameters:");
             for (const auto& p : model->get_parameters()) {
@@ -271,103 +340,42 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                 if (et == ov::element::i32 || et == ov::element::i64)
                     LOG_INFO("  " << p->get_friendly_name() << " " << et << " " << p->get_partial_shape());
             }
+            return {model, nullptr, std::move(prepared_properties), false, {}, {}, {}};
         }
+        LOG_INFO("NPUW_GQA_MANAGED: detected seqlens_k parameter '" << seqlens_k_name << "'");
 
         LOG_INFO("NPUW_GQA_MANAGED: applying GroupQueryAttentionDecomposition");
-        ov::pass::GraphRewrite rewrite;
-        rewrite.add_matcher<ov::pass::GroupQueryAttentionDecomposition>();
-        rewrite.run_on_model(model);
+        apply_gqa_decomposition(model);
+
+        // If the graph already slices present KV by itself, managed mode still applies,
+        // but the outer/inner wrapper complexity is unnecessary.
+        if (model_sliced) {
+            LOG_INFO("NPUW_GQA_MANAGED: graph already slices KV outputs; using decomposed model as-is");
+            return {model, nullptr, std::move(prepared_properties), false, {}, {}, {}};
+        }
 
         // Clone the decomposed model to preserve full-shape KV outputs for the outer interface.
         auto outer_model = model->clone();
-
-        // Strip ScatterUpdate from KV result outputs on the inner model so the NPU only
-        // produces the new token slice (not the full KV cache) on each step.
-        // Also handles transposed V: Result ← Transpose ← ScatterUpdate.
-        // In that case both Transpose and ScatterUpdate are stripped so the inner output
-        // is the raw V slice [1, kv_heads, curr_seq, head_size], and the CPU scatter
-        // copies it into the user's transposed [1, kv_heads, head_size, max_seq] tensor.
-        std::vector<size_t> kv_indices;
-        std::vector<bool> kv_transposed_flags;
-        const auto& results = model->get_results();
-        for (size_t i = 0; i < results.size(); ++i) {
-            auto direct_src = results[i]->input_value(0).get_node_shared_ptr();
-            auto scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(direct_src);
-            bool transposed = false;
-            if (!scatter) {
-                // Check for Transpose ← ScatterUpdate pattern.
-                auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
-                if (trans) {
-                    scatter = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(trans->input_value(0).get_node_shared_ptr());
-                    if (scatter)
-                        transposed = true;
-                }
-            }
-            if (scatter) {
-                LOG_INFO("NPUW_GQA_MANAGED: output[" << i << "] detected as KV"
-                                                     << (transposed ? " (transposed V)" : " (K or plain V)")
-                                                     << "; src_type=" << direct_src->get_type_info().name);
-                // Redirect the Result so the inner model outputs only the current-token slice,
-                // not the full KV cache. CPU scatter writes it into the user's full KV tensor.
-                // For transposed V: keep the Transpose node — redirect its input to curr_v so
-                // the inner output is already in transposed layout {1,H,head_size,curr_seq},
-                // matching the user tensor layout and allowing a simple per-(h,d) memcpy scatter.
-                if (transposed) {
-                    LOG_INFO("NPUW_GQA_MANAGED: output[" << i
-                                                         << "] has Transpose wrapper on ScatterUpdate"
-                                                            "; preserving Transpose, redirecting its input to curr_v");
-                    // trans->input(0) was ScatterUpdate output; now points to curr_v directly.
-                    // Result still feeds through Transpose, giving {1,H,head_size,curr_seq}.
-                    auto trans = ov::as_type_ptr<ov::op::v1::Transpose>(direct_src);
-                    trans->input(0).replace_source_output(scatter->input_value(2));
-                } else {
-                    results[i]->input(0).replace_source_output(scatter->input_value(2));
-                }
-                kv_indices.push_back(i);
-                kv_transposed_flags.push_back(transposed);
-            } else {
-                LOG_DEBUG("NPUW_GQA_MANAGED: output[" << i << "] NOT KV"
-                                                      << "; src_type=" << direct_src->get_type_info().name);
-            }
+        const auto sliced_kv = redirect_sliced_kv_results(model, outer_model);
+        const bool can_slice = !sliced_kv.output_indices.empty();
+        LOG_INFO("NPUW_GQA_MANAGED: redirected "
+                 << sliced_kv.output_indices.size() << " KV output(s)"
+                 << (can_slice ? "; infer request will scatter current slices into user KV tensors"
+                               : "; falling back to the decomposed model as-is"));
+        for (size_t ki = 0; ki < sliced_kv.output_indices.size(); ++ki) {
+            LOG_INFO("  KV[" << ki << "] output_idx=" << sliced_kv.output_indices[ki] << " max_seq="
+                             << sliced_kv.max_seqs[ki] << (sliced_kv.transposed[ki] ? " (transposed V)" : ""));
         }
 
-        // After redirecting KV Results to curr slices, re-run shape inference so that NPUW
-        // sees the correct (small) output shapes instead of the stale ScatterUpdate shapes.
-        if (!kv_indices.empty()) {
-            model->validate_nodes_and_infer_types();
-        }
-
-        // Capture KV max_seq values from the outer (pre-strip) model.
-        // All managed outputs use standard layout — sequence dim is [2].
-        std::vector<size_t> kv_max_seqs;
-        const auto& outer_results = outer_model->get_results();
-        for (size_t ki = 0; ki < kv_indices.size(); ++ki) {
-            const auto& ps = outer_results[kv_indices[ki]]->input_value(0).get_partial_shape();
-            const size_t seq_dim = kv_transposed_flags[ki] ? 3 : 2;
-            kv_max_seqs.push_back(ps[seq_dim].get_length());
-        }
-
-        const bool can_manage_kv = !kv_indices.empty() && !seqlens_k_name.empty();
-        LOG_INFO("NPUW_GQA_MANAGED: stripped "
-                 << kv_indices.size() << " KV output(s)"
-                 << (can_manage_kv ? "; infer request will scatter into user KV tensors"
-                                   : "; seqlens_k not found, falling back to full KV output"));
-        for (size_t ki = 0; ki < kv_indices.size(); ++ki) {
-            LOG_INFO("  KV[" << ki << "] output_idx=" << kv_indices[ki] << " max_seq=" << kv_max_seqs[ki]
-                             << (kv_transposed_flags[ki] ? " (transposed V)" : ""));
-        }
-
-        // When KV management is not possible, fall back to using the full-output (outer) model
-        // for inner compilation so set_tensor forwarding stays shape-consistent.
-        auto inner = can_manage_kv ? model : nullptr;
+        auto inner = can_slice ? model : nullptr;
         return {std::move(outer_model),
                 std::move(inner),
                 std::move(prepared_properties),
-                can_manage_kv,
+                can_slice,
                 std::move(seqlens_k_name),
-                std::move(kv_indices),
-                std::move(kv_max_seqs),
-                std::move(kv_transposed_flags)};
+                std::move(sliced_kv.output_indices),
+                std::move(sliced_kv.max_seqs),
+                std::move(sliced_kv.transposed)};
     }
     return {model, nullptr, std::move(prepared_properties), false, {}, {}, {}};
 }
@@ -391,11 +399,11 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
     : ov::npuw::ICompiledModel(prepared.model, plugin),
       m_compiled_model(
           factory(prepared.inner_model ? prepared.inner_model : prepared.model, plugin, prepared.properties)),
-      m_kv_managed(prepared.kv_managed),
+      m_sliced(prepared.sliced),
       m_seqlens_k_name(std::move(prepared.seqlens_k_name)),
-      m_kv_output_indices(std::move(prepared.kv_output_indices)),
-      m_kv_max_seqs(std::move(prepared.kv_max_seqs)),
-      m_kv_transposed(std::move(prepared.kv_transposed)) {
+      m_sliced_output_indices(std::move(prepared.sliced_output_indices)),
+      m_sliced_max_seqs(std::move(prepared.sliced_max_seqs)),
+      m_sliced_transposed(std::move(prepared.sliced_transposed)) {
     OPENVINO_ASSERT(m_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     // When the stub outer model has extra (stub) Parameters appended after the real inputs,
     // build m_outer_inputs so that inputs() hides them from the user-facing interface.
@@ -415,15 +423,15 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
     write(stream, std::string(NPUW_SERIALIZATION_VERSION));
-    // KV scatter management metadata — must be read back in import_model before the inner blob.
-    write(stream, m_kv_managed);
-    if (m_kv_managed) {
+    // Sliced-wrapper metadata — must be read back in import_model before the inner blob.
+    write(stream, m_sliced);
+    if (m_sliced) {
         write(stream, m_seqlens_k_name);
-        write(stream, m_kv_output_indices.size());
-        for (size_t i = 0; i < m_kv_output_indices.size(); ++i) {
-            write(stream, m_kv_output_indices[i]);
-            write(stream, m_kv_max_seqs[i]);
-            bool transposed = (i < m_kv_transposed.size()) && m_kv_transposed[i];
+        write(stream, m_sliced_output_indices.size());
+        for (size_t i = 0; i < m_sliced_output_indices.size(); ++i) {
+            write(stream, m_sliced_output_indices[i]);
+            write(stream, m_sliced_max_seqs[i]);
+            bool transposed = (i < m_sliced_transposed.size()) && m_sliced_transposed[i];
             write(stream, transposed);
         }
     }
@@ -474,15 +482,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                        NPUW_SERIALIZATION_VERSION);
     }
 
-    // Read KV scatter management metadata (written by export_model before the inner blob).
-    bool kv_managed = false;
-    read(stream, kv_managed);
+    // Read sliced-wrapper metadata (written by export_model before the inner blob).
+    bool sliced = false;
+    read(stream, sliced);
 
     std::string seqlens_k_name;
     std::vector<size_t> kv_indices;
     std::vector<size_t> kv_max_seqs;
     std::vector<bool> kv_transposed;
-    if (kv_managed) {
+    if (sliced) {
         read(stream, seqlens_k_name);
         size_t count = 0;
         read(stream, count);
@@ -504,13 +512,13 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     // Load the inner compiled model blob.
     auto inner_cm = ov::npuw::CompiledModel::import_model(stream, plugin, properties);
 
-    if (!kv_managed) {
+    if (!sliced) {
         // No KV management: the inner model IS the full model, return as-is.
         return inner_cm;
     }
 
-    LOG_INFO("Reconstructing GQACompiledModel wrapper with KV scatter management ("
-             << kv_indices.size() << " KV outputs, seqlens_k='" << seqlens_k_name << "')");
+    LOG_INFO("Reconstructing GQACompiledModel sliced wrapper (" << kv_indices.size() << " KV outputs, seqlens_k='"
+                                                                << seqlens_k_name << "')");
 
     // Build a stub outer model that exposes the user-facing shapes (KV outputs with max_seq).
     auto outer_model = build_stub_outer_model(inner_cm, kv_indices, kv_max_seqs, kv_transposed);
@@ -526,11 +534,11 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     ps.model = outer_model;
     ps.inner_model = nullptr;  // unused: factory ignores model argument
     ps.properties = properties;
-    ps.kv_managed = true;
+    ps.sliced = true;
     ps.seqlens_k_name = std::move(seqlens_k_name);
-    ps.kv_output_indices = std::move(kv_indices);
-    ps.kv_max_seqs = std::move(kv_max_seqs);
-    ps.kv_transposed = std::move(kv_transposed);
+    ps.sliced_output_indices = std::move(kv_indices);
+    ps.sliced_max_seqs = std::move(kv_max_seqs);
+    ps.sliced_transposed = std::move(kv_transposed);
     // Tell the constructor how many leading Parameters in the stub model are REAL inputs.
     // The remainder are stub Parameters for outputs (appended by build_stub_outer_model).
     ps.real_input_count = inner_cm->inputs().size();
@@ -560,7 +568,7 @@ ov::Any ov::npuw::GQACompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::GQACompiledModel::create_sync_infer_request() const {
     auto self = std::static_pointer_cast<const GQACompiledModel>(shared_from_this());
-    if (m_kv_managed) {
+    if (m_sliced) {
         return std::make_shared<ov::npuw::ManagedGQAInferRequest>(std::move(self));
     }
     return std::make_shared<ov::npuw::GQAInferRequest>(std::move(self));
@@ -625,7 +633,7 @@ ov::npuw::ManagedGQAInferRequest::ManagedGQAInferRequest(std::shared_ptr<const G
     : GQAInferRequest(std::move(compiled_model)) {}
 
 bool ov::npuw::ManagedGQAInferRequest::is_kv_output_locked(size_t idx) const {
-    const auto& kv = m_compiled_model->m_kv_output_indices;
+    const auto& kv = m_compiled_model->m_sliced_output_indices;
     return std::find(kv.begin(), kv.end(), idx) != kv.end();
 }
 
@@ -650,8 +658,8 @@ int64_t ov::npuw::ManagedGQAInferRequest::read_seqlens_k_locked() const {
 }
 
 void ov::npuw::ManagedGQAInferRequest::scatter_kv_outputs_locked(int64_t seqlens_k_val) const {
-    for (size_t ki = 0; ki < m_compiled_model->m_kv_output_indices.size(); ++ki) {
-        const size_t kv_idx = m_compiled_model->m_kv_output_indices[ki];
+    for (size_t ki = 0; ki < m_compiled_model->m_sliced_output_indices.size(); ++ki) {
+        const size_t kv_idx = m_compiled_model->m_sliced_output_indices[ki];
         auto user_it = m_user_kv_tensors.find(kv_idx);
         auto work_it = m_kv_working_tensors.find(kv_idx);
         if (user_it == m_user_kv_tensors.end() || work_it == m_kv_working_tensors.end()) {
@@ -672,7 +680,7 @@ void ov::npuw::ManagedGQAInferRequest::scatter_kv_outputs_locked(int64_t seqlens
         char* dst = reinterpret_cast<char*>(user_t->data());
 
         const bool transposed =
-            (ki < m_compiled_model->m_kv_transposed.size()) && m_compiled_model->m_kv_transposed[ki];
+            (ki < m_compiled_model->m_sliced_transposed.size()) && m_compiled_model->m_sliced_transposed[ki];
         if (!transposed) {
             const size_t curr_seq = inner_shape[2];
             const size_t head_size = inner_shape[3];

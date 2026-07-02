@@ -92,11 +92,11 @@ private:
         std::shared_ptr<ov::Model> model;        // outer interface (full KV output shapes)
         std::shared_ptr<ov::Model> inner_model;  // for NPU compilation (stripped KV outputs)
         ov::AnyMap properties;
-        bool kv_managed = false;                // true when ScatterUpdate was stripped from KV results
-        std::string seqlens_k_name;             // friendly name of the seqlens_k parameter
-        std::vector<size_t> kv_output_indices;  // which result indices are KV-managed
-        std::vector<size_t> kv_max_seqs;        // max_seq for each KV output
-        std::vector<bool> kv_transposed;        // true when V output is transposed [1,H,head_size,max_seq]
+        bool sliced = false;                        // true when the wrapper manages KV slicing/scatter itself
+        std::string seqlens_k_name;                 // friendly name of the seqlens_k parameter
+        std::vector<size_t> sliced_output_indices;  // which result indices are sliced by the wrapper
+        std::vector<size_t> sliced_max_seqs;        // max_seq for each sliced output
+        std::vector<bool> sliced_transposed;        // true when V output is transposed [1,H,head_size,max_seq]
         // When importing from blob the stub model includes extra Parameters for outputs
         // (to satisfy ov::Model validation).  This field records how many leading Parameters
         // are REAL model inputs; inputs() overrides the base-class list accordingly.
@@ -120,11 +120,11 @@ private:
     friend class ManagedGQAInferRequest;
 
     std::shared_ptr<ov::npuw::ICompiledModel> m_compiled_model;
-    bool m_kv_managed = false;
+    bool m_sliced = false;
     std::string m_seqlens_k_name;
-    std::vector<size_t> m_kv_output_indices;
-    std::vector<size_t> m_kv_max_seqs;
-    std::vector<bool> m_kv_transposed;  // per-KV: true when V is [1,H,head_size,max_seq]
+    std::vector<size_t> m_sliced_output_indices;
+    std::vector<size_t> m_sliced_max_seqs;
+    std::vector<bool> m_sliced_transposed;  // per-output: true when V is [1,H,head_size,max_seq]
     // Populated during import_model when the stub outer model has extra stub Parameters.
     // inputs() returns this instead of the base-class m_inputs when non-empty.
     std::vector<ov::Output<const ov::Node>> m_outer_inputs;
