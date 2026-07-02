@@ -207,12 +207,28 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         } else if (name == ov::loaded_from_cache) {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else if (name == ov::supported_properties) {
-            return std::vector<ov::PropertyName>{
+            std::set<std::string> batch_props_set;
+            std::vector<ov::PropertyName> supported_props = {
                 ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW}};
+            for (const auto& p : supported_props)
+                batch_props_set.insert(p);
+            // include HW plugin compiled model properties, skipping duplicates
+            try {
+                auto hw_props =
+                    m_compiled_model_without_batch->get_property(ov::supported_properties.name())
+                        .as<std::vector<ov::PropertyName>>();
+                for (auto&& hw_prop : hw_props) {
+                    if (batch_props_set.count(hw_prop) == 0) {
+                        supported_props.push_back(hw_prop);
+                    }
+                }
+            } catch (const ov::Exception&) {
+            }
+            return supported_props;
         } else if (name == ov::auto_batch_timeout) {
             uint32_t time_out = m_time_out;
             return time_out;
