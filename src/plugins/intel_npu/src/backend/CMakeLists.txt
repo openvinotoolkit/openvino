@@ -21,6 +21,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
         $<TARGET_PROPERTY:openvino_npu_vm_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 

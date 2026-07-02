@@ -355,7 +355,6 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     std::vector<uint64_t> commandListIndexArray;
     ////
 
-    bool noTensorChange = true;
     // // _executedOnce is true only after a successful npuVMRuntimeExecute below
     // const bool firstExecution = !args._executedOnce;
 

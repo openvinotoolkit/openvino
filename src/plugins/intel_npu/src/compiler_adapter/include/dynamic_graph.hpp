@@ -14,6 +14,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 namespace intel_npu {
 class DynamicGraph final : public IGraph {
