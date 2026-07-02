@@ -43,7 +43,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config);
     }
 
     GraphDescriptor mainGraphDesc;

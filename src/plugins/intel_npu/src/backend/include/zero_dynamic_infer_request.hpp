@@ -32,15 +32,16 @@ protected:
                                       const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                       const std::optional<size_t>& batchSize = std::nullopt) override;
 
-    void predict_shapes(std::vector<IDynamicGraph::MemRefType>& outputProps);
-    void check_tensor_and_predicted_shapes(const std::vector<IDynamicGraph::MemRefType>& outputProps);
+    void predict_output_shapes(std::vector<MemRefType>& outputMemRef);
+    void check_tensor_and_predicted_shapes(const std::vector<MemRefType>& outputMemRef);
 
-    void update_tensor(const std::vector<IDynamicGraph::MemRefType>& outputProps);
+    void update_tensor(const std::vector<MemRefType>& outputMemRef);
 
     bool _isTensorChanged = false;
 
 private:
-    std::shared_ptr<IDynamicGraph::GraphArguments> _binding;
+    // Store the vm context before predicted output shapes
+    std::shared_ptr<DynamicArguments> _arguments;
 };
 
 }  //  namespace intel_npu
